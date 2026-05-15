@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mock"
@@ -34,8 +35,8 @@ import (
 // TestReconcileProfiles uses a real mysql datastore to test Android profile
 // reconciliation scenarios, in a similar pattern to the datastore tests.
 func TestReconcileProfiles(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	mysql.TruncateTables(t, ds)
+	ds := mysqltest.CreateMySQLDS(t)
+	mysqltest.TruncateTables(t, ds)
 
 	setupEnterprise := func(t *testing.T, ds fleet.Datastore) {
 		u := *test.UserAdmin
@@ -81,10 +82,11 @@ func TestReconcileProfiles(t *testing.T) {
 		{"CertificateTemplates", testCertificateTemplates},
 		{"BuildAndSendFleetAgentConfigForEnrollment", testBuildAndSendFleetAgentConfigForEnrollment},
 		{"CertificateTemplatesIncludesExistingVerified", testCertificateTemplatesIncludesExistingVerified},
+		{"ONCWithheldUntilCertVerified", testONCWithheldUntilCertVerified},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			setupEnterprise(t, ds)
 
 			client := &mock.Client{}
@@ -542,7 +544,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	require.NoError(t, err)
 
 	// manually delete the p1 removal entries, simulating the verification
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_android_profiles WHERE profile_uuid = ?`, p1.ProfileUUID)
 		return err
 	})
@@ -700,7 +702,7 @@ func assertHostProfiles(t *testing.T, ds fleet.Datastore, hostProfiles []*fleet.
 	ctx := t.Context()
 	mds := ds.(*mysql.Datastore)
 	var got []*fleet.MDMAndroidProfilePayload
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &got, `SELECT host_uuid, status, operation_type, detail, profile_uuid, profile_name,
 			policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
 		FROM host_mdm_android_profiles`)
@@ -855,7 +857,7 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	// Add host certificate templates for host 2 with 'delivered' status to exclude it from processing
 	// (only 'pending' status templates are picked up by reconcileCertificateTemplates)
 	var certificateTemplateIDs []uint
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `
 			SELECT id
 			FROM certificate_templates
@@ -931,7 +933,7 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		FleetChallenge        *string `db:"fleet_challenge"`
 		Status                string  `db:"status"`
 	}
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `
 			SELECT host_uuid, certificate_template_id, fleet_challenge, status
 			FROM host_certificate_templates
@@ -960,7 +962,7 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// no duplicate records were created
 	var countHost1 int
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ?`
 		return sqlx.GetContext(ctx, q, &countHost1, query, host1.Host.UUID)
 	})
@@ -1124,7 +1126,7 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 	host := createAndroidHostInTeam(t, ds, 300, &team.ID)
 
 	// Insert certificate templates with various statuses
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		// Verified status
 		_, err := q.ExecContext(ctx,
 			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
@@ -1218,4 +1220,186 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 	assertCertTemplate(failedCert.ID, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall)
 	// Pending certificate transitions to delivering before the API call
 	assertCertTemplate(pendingCert.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall)
+}
+
+func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		policy.Version = 1
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	// Create a team with enroll secret
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "onc-test-team"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "secret", TeamID: &team.ID}})
+	require.NoError(t, err)
+
+	// Create a certificate authority and certificate template
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      new("Test CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	certTemplate, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "wifi-cert",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=WiFi Cert",
+	})
+	require.NoError(t, err)
+
+	// Create an Android host in the team
+	host := createAndroidHostInTeam(t, ds, 100, &team.ID)
+
+	// Create a host_certificate_template record in "delivered" status (agent has received it
+	// but hasn't completed SCEP enrollment yet). We use "delivered" instead of "pending" to
+	// avoid triggering cert template reconciliation (which would try to call AMAPI).
+	err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: certTemplate.ID,
+		Status:                fleet.CertificateTemplateDelivered,
+		OperationType:         fleet.MDMOperationTypeInstall,
+		Name:                  certTemplate.Name,
+	}})
+	require.NoError(t, err)
+	mds := ds.(*mysql.Datastore)
+
+	// Create an ONC profile referencing the certificate by alias (= template name)
+	oncProfile := androidProfileWithPayloadForTest("onc-wifi", fmt.Sprintf(`{
+		"openNetworkConfiguration": {
+			"NetworkConfigurations": [{
+				"GUID": "corp-wifi",
+				"Name": "Corporate WiFi",
+				"Type": "WiFi",
+				"WiFi": {
+					"SSID": "CorpNet",
+					"Security": "WPA-EAP",
+					"EAP": {
+						"Outer": "EAP-TLS",
+						"ClientCertType": "KeyPairAlias",
+						"ClientCertKeyPairAlias": %q
+					}
+				}
+			}]
+		}
+	}`, certTemplate.Name))
+	oncProfile.TeamID = &team.ID
+	oncProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *oncProfile)
+	require.NoError(t, err)
+
+	// Create a non-ONC profile (should always be applied)
+	nonONCProfile := androidProfileForTest("camera-policy")
+	nonONCProfile.TeamID = &team.ID
+	nonONCProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *nonONCProfile)
+	require.NoError(t, err)
+
+	// --- Phase 1: cert is pending, ONC should be withheld, non-ONC applied ---
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		// Non-ONC profile is applied normally
+		{
+			HostUUID: host.UUID, ProfileUUID: nonONCProfile.ProfileUUID, ProfileName: nonONCProfile.Name,
+			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: new(1), RequestFailCount: 0,
+			PolicyRequestUUID: new(""), DeviceRequestUUID: new(""),
+		},
+		// ONC profile is withheld (pending with detail, no policy/device request)
+		{
+			HostUUID: host.UUID, ProfileUUID: oncProfile.ProfileUUID, ProfileName: oncProfile.Name,
+			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
+			Detail:           fmt.Sprintf("Waiting for certificate %q to be installed on the host before applying this profile.", certTemplate.Name),
+			RequestFailCount: 0,
+		},
+	})
+
+	// --- Phase 2: transition cert to "verified", ONC should now be applied ---
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateVerified, host.UUID, certTemplate.ID,
+		)
+		return err
+	})
+
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+
+	// Both profiles should now be applied (included in policy, with request UUIDs)
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		{
+			HostUUID: host.UUID, ProfileUUID: nonONCProfile.ProfileUUID, ProfileName: nonONCProfile.Name,
+			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: new(1), RequestFailCount: 0,
+			PolicyRequestUUID: new(""), DeviceRequestUUID: new(""),
+		},
+		{
+			HostUUID: host.UUID, ProfileUUID: oncProfile.ProfileUUID, ProfileName: oncProfile.Name,
+			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: new(1), RequestFailCount: 0,
+			PolicyRequestUUID: new(""), DeviceRequestUUID: new(""),
+		},
+	})
+
+	// --- Phase 3: test that ONC is also released on terminal failure ---
+	// Reset cert to pending and profile to need re-delivery
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateDelivered, host.UUID, certTemplate.ID,
+		)
+		return err
+	})
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_mdm_android_profiles SET status = NULL WHERE host_uuid = ?",
+			host.UUID,
+		)
+		return err
+	})
+
+	// cert is "delivered" (not terminal), ONC should be withheld
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+
+	phase3Profiles, err := ds.GetHostMDMAndroidProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	for _, p := range phase3Profiles {
+		if p.ProfileUUID == oncProfile.ProfileUUID {
+			require.Equal(t, &fleet.MDMDeliveryPending, p.Status)
+			require.Contains(t, p.Detail, "Waiting for certificate")
+		}
+	}
+
+	// Now set cert to "failed" (terminal) and re-reconcile
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateFailed, host.UUID, certTemplate.ID,
+		)
+		return err
+	})
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+
+	// Both profiles applied (cert is terminally failed, ONC released)
+	finalProfiles, err := ds.GetHostMDMAndroidProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	for _, p := range finalProfiles {
+		if p.ProfileUUID == oncProfile.ProfileUUID {
+			require.NotContains(t, p.Detail, "Waiting for certificate")
+		}
+	}
 }

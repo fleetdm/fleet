@@ -49,7 +49,7 @@
       padding-left: 36px;
     }
 
-    ::placeholder {
+    &::placeholder {
       color: $ui-fleet-black-50;
     }
 
@@ -58,8 +58,12 @@
     }
 
     &:disabled {
-      color: $ui-fleet-black-50;
+      color: $ui-fleet-black-33;
       cursor: not-allowed;
+
+      &::placeholder {
+        color: $ui-fleet-black-33;
+      }
     }
 
     &--error {
@@ -67,6 +71,16 @@
       border: 1px solid $core-vibrant-red;
       box-sizing: border-box;
       border-radius: $border-radius;
+    }
+  }
+
+  &__input-wrapper--disabled {
+    .input-icon-field__icon {
+      svg {
+        path {
+          fill: $ui-fleet-black-33;
+        }
+      }
     }
   }
 

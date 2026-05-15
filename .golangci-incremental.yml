@@ -12,7 +12,11 @@ linters:
   enable:
     - gosec
     - modernize
+    - testifylint
     - nilaway
+    - setboolcheck
+    - depguard
+    - apiparamcheck
   settings:
     gosec:
       # Only enable rules that are too noisy on existing code but valuable for new code.
@@ -29,6 +33,13 @@ linters:
         - G704 # SSRF via taint analysis.
         - G705 # XSS via taint analysis.
         - G706 # Log injection via taint analysis.
+    depguard:
+      rules:
+        no-old-rand:
+          list-mode: lax
+          deny:
+            - pkg: math/rand$
+              desc: Use math/rand/v2 instead
     custom:
       nilaway:
         type: module
@@ -37,6 +48,12 @@ linters:
           # Settings must be a "map from string to string" to mimic command line flags: the keys are
           # flag names and the values are the values to the particular flags.
           include-pkgs: "github.com/fleetdm/fleet/v4"
+      setboolcheck:
+        type: module
+        description: Flags map[T]bool used as sets; suggests map[T]struct{} instead.
+      apiparamcheck:
+        type: module
+        description: Flags json/url/query struct tags using deprecated "team"/"teams" and "query"/"queries" terms.
   exclusions:
     generated: strict
     rules:

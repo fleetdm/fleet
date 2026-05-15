@@ -546,6 +546,8 @@ func MakeDecoder(
 				return nil, inner
 			}
 
+			// This is the DecodeRequest implementation returning http.MaxBytesError
+			// (e.g. there's a size limit when uploading installers.)
 			if _, isMaxBytesError := errors.AsType[*http.MaxBytesError](err); isMaxBytesError {
 				return nil, platform_http.PayloadTooLargeError{
 					ContentLength:  r.Header.Get("Content-Length"),
@@ -907,6 +909,10 @@ type CommonEndpointer[H any] struct {
 	// CustomMiddlewareAfterAuth are middlewares that run after authentication.
 	CustomMiddlewareAfterAuth []endpoint.Middleware
 
+	// HTTPPreAuthMiddleware wraps the final http.Handler, running BEFORE the
+	// kithttp decode-body step.
+	HTTPPreAuthMiddleware func(http.Handler) http.Handler
+
 	// HandlerRegistry, if set, records handlers by method+path for deprecated
 	// path alias lookup. The pointer is shared across shallow copies (created
 	// by builder methods like WithAltPaths) so all registrations land in the
@@ -989,7 +995,13 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 		// If no value is configured set default, or if the set endpoint value is less than global default use default.
 		e.requestBodySizeLimit = platform_http.MaxRequestBodySize
 	}
-	return newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
+	h := newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
+	// The HTTP pre-auth middleware runs outside the kithttp.Server so it can
+	// short-circuit requests before the decode-body step reads any bytes.
+	if e.HTTPPreAuthMiddleware != nil {
+		h = e.HTTPPreAuthMiddleware(h)
+	}
+	return h
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn kithttp.EncodeResponseFunc,
@@ -1057,6 +1069,14 @@ func (e *CommonEndpointer[H]) WithRequestBodySizeLimit(limit int64) *CommonEndpo
 func (e *CommonEndpointer[H]) SkipRequestBodySizeLimit() *CommonEndpointer[H] {
 	ae := *e
 	ae.requestBodySizeLimit = -1
+	return &ae
+}
+
+// WithHTTPPreAuth installs a raw http.Handler middleware that runs outside the
+// kithttp server, before the decoder reads the body.
+func (e *CommonEndpointer[H]) WithHTTPPreAuth(mw func(http.Handler) http.Handler) *CommonEndpointer[H] {
+	ae := *e
+	ae.HTTPPreAuthMiddleware = mw
 	return &ae
 }
 
@@ -1153,6 +1173,9 @@ func EncodeCommonResponse(
 ) error {
 	// Infer alias rules from `renameto` struct tags on the response type.
 	aliasRules := ExtractAliasRules(response)
+	if br, ok := response.(beforeRenderer); ok {
+		br.BeforeRender(ctx, w)
+	}
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)
 	}
@@ -1225,6 +1248,21 @@ type renderHijacker interface {
 // cookieSetter can be implemented by response values to set cookies on the response.
 type cookieSetter interface {
 	SetCookies(ctx context.Context, w http.ResponseWriter)
+}
+
+// beforeRenderer can be implemented by response values that need to hook into the
+// raw rendering process, with access to the ResponseWriter before any response is
+// written, while continuing with the normal rendering process after the call.
+// It can be used to set headers, for example, and since the processing happens before
+// any Errorer check, it can also be used to fail the request by storing an error on
+// the Errorer. It should not set the status code of the response, as the standard
+// approach of implementing the statuser interface should be used for that.
+//
+// Unlike renderHijacker and the htmlPage interfaces, this interface does not stop
+// processing, and while it behaves similarly to cookieSetter, it is more generally-named
+// and does not have the specific connotation of setting cookies.
+type beforeRenderer interface {
+	BeforeRender(ctx context.Context, w http.ResponseWriter)
 }
 
 // bufferedResponseWriter wraps an http.ResponseWriter but redirects Write

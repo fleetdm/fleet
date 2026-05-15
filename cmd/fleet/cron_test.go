@@ -9,10 +9,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -26,10 +27,11 @@ func TestNewAppleMDMProfileManagerWithoutConfig(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}
 	ds := new(mock.Store)
+	kv := new(mock.AdvancedKVStore)
 	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, nil)
 	logger := slog.New(slog.DiscardHandler)
 
-	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, logger, 0)
+	sch, err := newAppleMDMProfileManagerSchedule(ctx, "foo", ds, cmdr, kv, logger, 0)
 	require.NotNil(t, sch)
 	require.NoError(t, err)
 }
@@ -46,7 +48,7 @@ func TestNewWindowsMDMProfileManagerWithoutConfig(t *testing.T) {
 
 func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	ctx := context.Background()
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
@@ -54,7 +56,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	const tokenOrgName = "fleet"
 
 	// insert an ABM token as if it had been migrated by the DB migration script
-	tok := mysql.SetTestABMAssets(t, ds, "")
+	tok := mysqltest.SetTestABMAssets(t, ds, "")
 	// tok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{EncryptedToken: abmToken, RenewAt: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)})
 	// require.NoError(t, err)
 	require.Empty(t, tok.OrganizationName)
@@ -132,4 +134,214 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
 	require.NoError(t, err)
 	require.Empty(t, hosts)
+}
+
+func TestCleanupStaleOSVVulnerabilities(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	ds := mysqltest.CreateMySQLDS(t)
+
+	// Create test software
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	software := []fleet.Software{
+		{Name: "pkg1", Version: "1.0", Source: "apps"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 1)
+
+	// Insert vulnerabilities from both sources
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: host.Software[0].ID,
+		CVE:        "CVE-2024-0001",
+	}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: host.Software[0].ID,
+		CVE:        "CVE-2024-0002",
+	}, fleet.UbuntuOVALSource)
+	require.NoError(t, err)
+
+	t.Run("OSV enabled - does not delete OSV vulnerabilities", func(t *testing.T) {
+		cleanupStaleOSVVulnerabilities(ctx, ds, logger, true)
+
+		// Both vulnerabilities should still exist
+		osvVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOSVSource)
+		require.NoError(t, err)
+		require.Len(t, osvVulns[host.ID], 1)
+
+		ovalVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+		require.Len(t, ovalVulns[host.ID], 1)
+	})
+
+	t.Run("OSV disabled - deletes only UbuntuOSVSource vulnerabilities", func(t *testing.T) {
+		cleanupStaleOSVVulnerabilities(ctx, ds, logger, false)
+
+		// OSV vulnerabilities should be deleted
+		osvVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOSVSource)
+		require.NoError(t, err)
+		require.Empty(t, osvVulns[host.ID])
+
+		// OVAL vulnerability should remain
+		ovalVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+		require.Len(t, ovalVulns[host.ID], 1)
+		require.Equal(t, "CVE-2024-0002", ovalVulns[host.ID][0].CVE)
+	})
+}
+
+func TestCleanupStaleOVALVulnerabilities(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.DiscardHandler)
+	ds := mysqltest.CreateMySQLDS(t)
+
+	// Create test software
+	host := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	software := []fleet.Software{
+		{Name: "pkg2", Version: "2.0", Source: "apps"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 1)
+
+	// Insert vulnerabilities from multiple sources
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: host.Software[0].ID,
+		CVE:        "CVE-2024-0003",
+	}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: host.Software[0].ID,
+		CVE:        "CVE-2024-0004",
+	}, fleet.UbuntuOVALSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: host.Software[0].ID,
+		CVE:        "CVE-2024-0005",
+	}, fleet.RHELOVALSource)
+	require.NoError(t, err)
+
+	t.Run("deletes only UbuntuOVALSource vulnerabilities, preserves others", func(t *testing.T) {
+		cleanupStaleOVALVulnerabilities(ctx, ds, logger)
+
+		// Ubuntu OVAL vulnerabilities should be deleted
+		ovalVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+		require.Empty(t, ovalVulns[host.ID])
+
+		// OSV vulnerabilities should remain
+		osvVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOSVSource)
+		require.NoError(t, err)
+		require.Len(t, osvVulns[host.ID], 1)
+		require.Equal(t, "CVE-2024-0003", osvVulns[host.ID][0].CVE)
+
+		// RHEL OVAL vulnerabilities should remain
+		rhelVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.RHELOVALSource)
+		require.NoError(t, err)
+		require.Len(t, rhelVulns[host.ID], 1)
+		require.Equal(t, "CVE-2024-0005", rhelVulns[host.ID][0].CVE)
+	})
+}
+
+func TestBuildChartScopeResolver(t *testing.T) {
+	historicalData := func(uptime, vulns bool) fleet.HistoricalDataSettings {
+		return fleet.HistoricalDataSettings{Uptime: uptime, Vulnerabilities: vulns}
+	}
+	makeAppCfg := func(uptime, vulns bool) *fleet.AppConfig {
+		return &fleet.AppConfig{
+			Features: fleet.Features{HistoricalData: historicalData(uptime, vulns)},
+		}
+	}
+	makeTeam := func(id uint, uptime, vulns bool) *fleet.Team {
+		return &fleet.Team{
+			ID: id,
+			Config: fleet.TeamConfig{
+				Features: fleet.Features{HistoricalData: historicalData(uptime, vulns)},
+			},
+		}
+	}
+
+	t.Run("global off → skip", func(t *testing.T) {
+		scope := buildChartScopeResolver(makeAppCfg(false, true), nil, nil)
+		skip, disabled := scope("uptime")
+		require.True(t, skip)
+		require.Nil(t, disabled)
+	})
+
+	t.Run("global on, no teams → no scoping", func(t *testing.T) {
+		scope := buildChartScopeResolver(makeAppCfg(true, true), nil, nil)
+		skip, disabled := scope("uptime")
+		require.False(t, skip)
+		require.Nil(t, disabled)
+	})
+
+	t.Run("global on, all teams on → empty disabled list", func(t *testing.T) {
+		scope := buildChartScopeResolver(
+			makeAppCfg(true, true),
+			[]*fleet.Team{makeTeam(1, true, true), makeTeam(2, true, true)},
+			nil,
+		)
+		skip, disabled := scope("uptime")
+		require.False(t, skip)
+		require.Empty(t, disabled)
+	})
+
+	t.Run("global on, mixed teams → disabled team IDs only", func(t *testing.T) {
+		scope := buildChartScopeResolver(
+			makeAppCfg(true, true),
+			[]*fleet.Team{
+				makeTeam(1, true, true),
+				makeTeam(2, false, true), // uptime disabled on team 2
+				makeTeam(3, true, true),
+				makeTeam(4, false, true), // uptime disabled on team 4
+			},
+			nil,
+		)
+		skip, disabled := scope("uptime")
+		require.False(t, skip)
+		require.ElementsMatch(t, []uint{2, 4}, disabled)
+	})
+
+	t.Run("per-dataset isolation: uptime and cve resolve independently", func(t *testing.T) {
+		scope := buildChartScopeResolver(
+			makeAppCfg(true, true),
+			[]*fleet.Team{
+				makeTeam(1, true, false), // cve only on team 1
+				makeTeam(2, false, true), // uptime only on team 2
+				makeTeam(3, true, true),
+			},
+			nil,
+		)
+		skipU, disabledU := scope("uptime")
+		require.False(t, skipU)
+		require.ElementsMatch(t, []uint{2}, disabledU)
+
+		skipC, disabledC := scope("cve")
+		require.False(t, skipC)
+		require.ElementsMatch(t, []uint{1}, disabledC)
+	})
+
+	t.Run("global cve off, teams ignored", func(t *testing.T) {
+		scope := buildChartScopeResolver(
+			makeAppCfg(true, false),
+			[]*fleet.Team{makeTeam(1, true, true)},
+			nil,
+		)
+		skip, disabled := scope("cve")
+		require.True(t, skip)
+		require.Nil(t, disabled)
+	})
+
+	t.Run("unknown dataset name falls through to no-scope", func(t *testing.T) {
+		scope := buildChartScopeResolver(makeAppCfg(true, true), nil, nil)
+		skip, disabled := scope("unknown_dataset")
+		require.False(t, skip)
+		require.Nil(t, disabled)
+	})
 }

@@ -4,25 +4,25 @@ import { formatDistanceToNow } from "date-fns";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import { ICommand, ICommandResult } from "interfaces/command";
+import { ICommandResult } from "interfaces/command";
 
 import commandApi, {
   IGetCommandResultsResponse,
   IGetHostCommandResultsQueryKey,
 } from "services/entities/command";
 
+import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import IconStatusMessage from "components/IconStatusMessage";
 import { IconNames } from "components/icons";
-import Textarea from "components/Textarea";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 
 const baseClass = "command-details-modal";
 
-const getIconName = (status: string): IconNames => {
+export const GetIconName = (status: string): IconNames => {
   switch (status) {
     case "Error":
       return "error";
@@ -50,12 +50,19 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
       })})`
     : null;
 
+  const namePart = result.name ? (
+    <>
+      {" "}
+      for <b>{result.name}</b>
+    </>
+  ) : null;
+
   switch (result.status) {
     case "CommandFormatError":
     case "Error":
       return (
         <span>
-          The <b>{result.request_type}</b> command failed on{" "}
+          The <b>{result.request_type}</b> command{namePart} failed on{" "}
           <b>{result.hostname}</b>
           {displayTime}.
         </span>
@@ -64,7 +71,7 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
     case "Acknowledged":
       return (
         <span>
-          The <b>{result.request_type}</b> command ran on{" "}
+          The <b>{result.request_type}</b> command{namePart} was acknowledged by{" "}
           <b>{result.hostname}</b>
           {displayTime}.
         </span>
@@ -73,15 +80,15 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
     case "Pending":
       return (
         <span>
-          The <b>{result.request_type}</b> command is running or will run on{" "}
-          <b>{result.hostname}</b> when it comes online.
+          The <b>{result.request_type}</b> command{namePart} is pending on{" "}
+          <b>{result.hostname}</b>.
         </span>
       );
 
     case "NotNow":
       return (
         <span>
-          The <b>{result.request_type}</b> command didn&apos;t run on{" "}
+          The <b>{result.request_type}</b> command{namePart} is deferred on{" "}
           <b>{result.hostname}</b> because the host was locked or was running on
           battery power while in Power Nap. Fleet will try again.
         </span>
@@ -94,14 +101,24 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   }
 };
 
+const defaultModalContentBody = (baseclass: string, result: ICommandResult) => (
+  <IconStatusMessage
+    className={`${baseclass}__status-message`}
+    iconName={GetIconName(result.status)}
+    message={getStatusMessage(result)}
+  />
+);
+
 const ModalContent = ({
   data,
   isLoading,
   error,
+  contentBody = defaultModalContentBody,
 }: {
   data: IGetCommandResultsResponse | undefined;
   isLoading: boolean;
   error: Error | null;
+  contentBody?: (baseClass: string, result: ICommandResult) => React.ReactNode;
 }) => {
   if (isLoading) {
     return <Spinner />;
@@ -129,39 +146,51 @@ const ModalContent = ({
 
   return (
     <div className={`${baseClass}__modal-content`}>
-      <IconStatusMessage
-        className={`${baseClass}__status-message`}
-        iconName={getIconName(result.status)}
-        message={getStatusMessage(result)}
-      />
+      {contentBody(baseClass, result)}
       {!!result.payload && (
-        <Textarea label="Request payload:" variant="code">
-          {result.payload}
-        </Textarea>
+        <InputField
+          type="textarea"
+          label="Request payload:"
+          value={result.payload}
+          readOnly
+          enableCopy
+        />
       )}
       {!!result.result && (
-        <Textarea
+        <InputField
+          type="textarea"
           label={
             <>
               Response from <b>{result.hostname}</b>:
             </>
           }
-          variant="code"
-        >
-          {result.result}
-        </Textarea>
+          value={result.result}
+          readOnly
+          enableCopy
+        />
       )}
     </div>
   );
 };
 
+type ICommandResultsModalCommand = {
+  host_uuid?: string;
+  command_uuid: string;
+};
+
 interface ICommandResultsModalProps {
-  command: ICommand;
+  command: ICommandResultsModalCommand;
+  // contentBody if provided will be used to render content above the request and response payloads.
+  // if not defined, a default contentBody will be used to display a status message and icon based on profile status
+  contentBody?: (baseClass: string, result: ICommandResult) => React.ReactNode;
+  title?: string;
   onDone: () => void;
 }
 
 const CommandResultsModal = ({
   command: { host_uuid: host_identifier, command_uuid },
+  contentBody,
+  title = "MDM command details",
   onDone,
 }: ICommandResultsModalProps) => {
   const { data, isLoading, error } = useQuery<
@@ -170,21 +199,32 @@ const CommandResultsModal = ({
     IGetCommandResultsResponse,
     IGetHostCommandResultsQueryKey[]
   >(
-    [{ scope: "command_results", host_identifier, command_uuid }],
-    ({ queryKey }) =>
-      commandApi.getHostCommandResults(queryKey[0]).then((resp) => {
-        if (!resp?.results) {
-          // this should not happen, but just in case return the response as is
-          return resp;
-        }
-        return {
-          results: resp.results.map?.((r) => ({
-            ...r,
-            payload: atob(r.payload),
-            result: atob(r.result),
-          })),
-        };
-      }),
+    [
+      {
+        scope: "command_results",
+        host_identifier: host_identifier ?? "",
+        command_uuid,
+      },
+    ],
+    async ({ queryKey }) => {
+      const resp =
+        queryKey[0].host_identifier === ""
+          ? // if host_identifier is not provided, use the getCommandResults endpoint which does not require host_identifier
+            await commandApi.getCommandResults(queryKey[0].command_uuid)
+          : await commandApi.getHostCommandResults(queryKey[0]);
+
+      if (!resp?.results) {
+        // this should not happen, but just in case return the response as is
+        return resp;
+      }
+      return {
+        results: resp.results.map?.((r) => ({
+          ...r,
+          payload: atob(r.payload),
+          result: atob(r.result),
+        })),
+      };
+    },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
@@ -193,13 +233,13 @@ const CommandResultsModal = ({
   );
 
   return (
-    <Modal
-      className={baseClass}
-      width="large"
-      title="MDM command details"
-      onExit={onDone}
-    >
-      <ModalContent data={data} isLoading={isLoading} error={error} />
+    <Modal className={baseClass} width="large" title={title} onExit={onDone}>
+      <ModalContent
+        data={data}
+        isLoading={isLoading}
+        error={error}
+        contentBody={contentBody}
+      />
       <ModalFooter primaryButtons={<Button onClick={onDone}>Close</Button>} />
     </Modal>
   );

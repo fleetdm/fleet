@@ -91,6 +91,18 @@ func T[T any](x T) *T {
 	return &x
 }
 
+// Equal returns true if both pointers are nil, or both are non-nil and
+// point to equal values.
+func Equal[T comparable](a, b *T) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
 // ValOrZero returns the value of x if x is not nil, and the zero value
 // for T otherwise.
 func ValOrZero[T any](x *T) T {

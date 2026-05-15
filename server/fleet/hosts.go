@@ -395,9 +395,13 @@ type Host struct {
 	// add a "reason" field with well-known labels so we know what condition(s)
 	// are expected to clear the timestamp. For now there's a single use-case
 	// so we don't need this.
-	RefetchCriticalQueriesUntil *time.Time `json:"refetch_critical_queries_until" db:"refetch_critical_queries_until" csv:"-"`
+	RefetchCriticalQueriesUntil *time.Time `json:"refetch_critical_queries_until" db:"refetch_critical_queries_until" csv:"-"` //nolint:apiparamcheck
 
-	// DEPAssignedToFleet is set to true if the host is assigned to Fleet in Apple Business Manager.
+	// When non-nil and in the future, the orbit config response sets
+	// debug_logging=true until that time.
+	OrbitDebugUntil *time.Time `json:"orbit_debug_until,omitempty" db:"orbit_debug_until" csv:"-"`
+
+	// DEPAssignedToFleet is set to true if the host is assigned to Fleet in Apple Business.
 	// It is a *bool becase we want it to be returned from only a subset of endpoints related to
 	// Orbit and Fleet Desktop. Otherwise, it will be set to NULL so it is omitted from JSON
 	// responses.
@@ -603,6 +607,7 @@ type MDMHostData struct {
 type HostMDMOSSettings struct {
 	DiskEncryption       HostMDMDiskEncryption       `json:"disk_encryption" db:"-" csv:"-"`
 	RecoveryLockPassword HostMDMRecoveryLockPassword `json:"recovery_lock_password" db:"-" csv:"-"`
+	ManagedLocalAccount  HostMDMManagedLocalAccount  `json:"managed_local_account" db:"-" csv:"-"`
 }
 
 type HostMDMDiskEncryption struct {
@@ -673,6 +678,25 @@ const (
 	DiskEncryptionEnforcing           DiskEncryptionStatus = "enforcing"
 	DiskEncryptionFailed              DiskEncryptionStatus = "failed"
 	DiskEncryptionRemovingEnforcement DiskEncryptionStatus = "removing_enforcement"
+)
+
+// BitLocker conversion status values from the Win32_EncryptableVolume WMI class.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
+//
+// Only FullyEncrypted (1) is used by the server ingestion logic; all other
+// values (0=decrypted, 2=encrypting, 3=decrypting, 4=encryption paused,
+// 5=decryption paused) are treated as "not yet encrypted."
+const (
+	BitLockerConversionStatusFullyDecrypted = 0
+	BitLockerConversionStatusFullyEncrypted = 1
+)
+
+// BitLocker protection status values from the Win32_EncryptableVolume WMI class.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume
+const (
+	BitLockerProtectionStatusOff     = 0
+	BitLockerProtectionStatusOn      = 1
+	BitLockerProtectionStatusUnknown = 2
 )
 
 func (s DiskEncryptionStatus) addrOf() *DiskEncryptionStatus {
@@ -927,6 +951,10 @@ func (h *Host) DisplayName() string {
 	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
 }
 
+func (h *HostLite) DisplayName() string {
+	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
+}
+
 type HostIssues struct {
 	FailingPoliciesCount         uint64  `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
 	CriticalVulnerabilitiesCount *uint64 `json:"critical_vulnerabilities_count,omitempty" db:"critical_vulnerabilities_count" csv:"-"` // We set it to nil if the license is not premium
@@ -957,6 +985,8 @@ type HostDetail struct {
 
 	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
+
+	MDMEnrollmentHardwareAttested bool `json:"mdm_enrollment_hardware_attested"`
 
 	ConditionalAccessBypassed bool `json:"conditional_access_bypassed"`
 }
@@ -1272,27 +1302,37 @@ const (
 	WellKnownMDMMosyle    = "Mosyle"
 )
 
-var mdmNameFromServerURLChecks = map[string]string{
-	"kandji":    WellKnownMDMIru,
-	"iru.com":   WellKnownMDMIru, // inclue top-level domain to disabmiguate from other strings that may contain "iru"
-	"jamf":      WellKnownMDMJamf,
-	"jumpcloud": WellKnownMDMJumpCloud,
-	"airwatch":  WellKnownMDMVMWare,
-	"awmdm":     WellKnownMDMVMWare,
-	"microsoft": WellKnownMDMIntune,
-	"simplemdm": WellKnownMDMSimpleMDM,
-	"fleetdm":   WellKnownMDMFleet,
-	"mosyle":    WellKnownMDMMosyle,
+// mdmNameFromServerURLChecks maps URL substrings to well-known MDM solution names.
+// The first matching entry wins, so more-specific substrings must appear before
+// more-generic ones (e.g. "jumpcloud" before "awmdm", since JumpCloud's MDM is
+// hosted on AirWatch/awmdm.com infrastructure and "jumpcloud.awmdm.com" must
+// resolve to JumpCloud rather than VMware Workspace ONE).
+var mdmNameFromServerURLChecks = []struct {
+	substring string
+	name      string
+}{
+	{"kandji", WellKnownMDMIru},
+	{"iru.com", WellKnownMDMIru}, // include top-level domain to disambiguate from other strings that may contain "iru"
+	{"jamf", WellKnownMDMJamf},
+	{"jumpcloud", WellKnownMDMJumpCloud},
+	{"airwatch", WellKnownMDMVMWare},
+	{"awmdm", WellKnownMDMVMWare},
+	{"microsoft", WellKnownMDMIntune},
+	{"simplemdm", WellKnownMDMSimpleMDM},
+	{"fleetdm", WellKnownMDMFleet},
+	{"mosyle", WellKnownMDMMosyle},
 }
 
 // MDMNameFromServerURL returns the MDM solution name corresponding to the
 // given server URL. If no match is found, it returns the unknown MDM name.
+// The check order is deterministic: the first matching substring in
+// mdmNameFromServerURLChecks wins.
 func MDMNameFromServerURL(serverURL string) string {
 	serverURL = strings.ToLower(serverURL)
 
-	for check, name := range mdmNameFromServerURLChecks {
-		if strings.Contains(serverURL, check) {
-			return name
+	for _, check := range mdmNameFromServerURLChecks {
+		if strings.Contains(serverURL, check.substring) {
+			return check.name
 		}
 	}
 	return UnknownMDMName
@@ -1568,10 +1608,12 @@ type HostMacOSProfile struct {
 type HostLite struct {
 	ID                  uint      `db:"id"`
 	TeamID              *uint     `db:"team_id"`
+	ComputerName        string    `db:"computer_name"`
 	Hostname            string    `db:"hostname"`
 	OsqueryHostID       *string   `db:"osquery_host_id"`
 	NodeKey             string    `db:"node_key"`
 	UUID                string    `db:"uuid"`
+	HardwareModel       string    `db:"hardware_model"`
 	HardwareSerial      string    `db:"hardware_serial"`
 	SeenTime            time.Time `db:"seen_time"`
 	DistributedInterval uint      `db:"distributed_interval"`
@@ -1741,4 +1783,37 @@ type DeletedHostDetails struct {
 	DisplayName      string
 	Serial           string
 	HostExpiryWindow int
+}
+
+// HostMDMManagedLocalAccount represents the managed local account status for a host.
+type HostMDMManagedLocalAccount struct {
+	Status *string `json:"status" db:"-" csv:"-"` // nil (no record), "pending", "verified", "failed"
+	// PasswordAvailable is true whenever the row holds a usable password — i.e.
+	// encrypted_password IS NOT NULL AND status != 'failed'. This decouples
+	// availability from the rotation lifecycle ("pending" is also viewable).
+	PasswordAvailable bool `json:"password_available" db:"-" csv:"-"`
+	// AutoRotateAt is the wall-clock time at which the rotation cron will pick
+	// this row up (set on first view; cleared on rotation).
+	AutoRotateAt *time.Time `json:"auto_rotate_at" db:"-" csv:"-"`
+	// PendingRotation is true when a SetAutoAdminPassword command is in flight
+	// (pending_encrypted_password IS NOT NULL).
+	PendingRotation bool `json:"pending_rotation" db:"-" csv:"-"`
+}
+
+// HostManagedLocalAccountPassword is the API response for the managed local account password.
+type HostManagedLocalAccountPassword struct {
+	Username  string    `json:"username"`
+	Password  string    `json:"password"`
+	UpdatedAt time.Time `json:"updated_at"`
+	// AutoRotateAt is the wall-clock time at which the rotation cron will pick
+	// this row up. Returned in the same response as the password so the modal
+	// can render the auto-rotate banner on first open without waiting on a
+	// separate host-details refetch (the act of fetching the password sets
+	// auto_rotate_at server-side; we read it back here).
+	AutoRotateAt *time.Time `json:"auto_rotate_at,omitempty"`
+	// PendingRotation is true when a SetAutoAdminPassword command is in flight
+	// (pending_encrypted_password IS NOT NULL). Returned alongside the password
+	// so the modal can render the pending-rotation banner without waiting on a
+	// host-details refetch.
+	PendingRotation bool `json:"pending_rotation,omitempty"`
 }

@@ -21,7 +21,17 @@ import RotatedHostRecoveryLockPasswordActivityItem from "./ActivityItems/Rotated
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
 import CanceledRunScriptActivityItem from "./ActivityItems/CanceledRunScriptActivityItem";
 import CanceledInstallSoftwareActivityItem from "./ActivityItems/CanceledInstallSoftwareActivityItem";
+import CanceledSetupExperienceActivityItem from "./ActivityItems/CanceledSetupExperienceActivityItem";
 import CanceledUninstallSoftwareActivtyItem from "./ActivityItems/CanceledUninstallSoftwareActivtyItem";
+import InstalledCertificateActivityItem from "./ActivityItems/InstalledCertificateActivityItem";
+import ResentCertificateActivityItem from "./ActivityItems/ResentCertificateActivityItem";
+import ClearedPasscodeActivityItem from "./ActivityItems/ClearedPasscodeActivityItem";
+import FailedWipeActivityItem from "./ActivityItems/FailedWipeActivityItem";
+import ViewedManagedLocalAccountActivityItem from "./ActivityItems/ViewedManagedLocalAccountActivityItem/ViewedManagedLocalAccountActivityItem";
+import CreatedManagedLocalAccountActivityItem from "./ActivityItems/CreatedManagedLocalAccountActivityItem/CreatedManagedLocalAccountActivityItem";
+import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/RotatedManagedLocalAccountPassword";
+import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
+import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -52,6 +62,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.WipedHost]: WipedHostActivityItem,
+  [ActivityType.FailedWipe]: FailedWipeActivityItem,
   [ActivityType.ReadHostDiskEncryptionKey]: ReadHostDiskEncryptionKeyActivityItem,
   [ActivityType.ViewedHostRecoveryLockPassword]: ViewedHostRecoveryLockPasswordActivityItem,
   [ActivityType.SetHostRecoveryLockPassword]: SetHostRecoveryLockPasswordActivityItem,
@@ -64,6 +75,15 @@ export const pastActivityComponentMap: Record<
   [ActivityType.CanceledInstallSoftware]: CanceledInstallSoftwareActivityItem,
   [ActivityType.CanceledInstallAppStoreApp]: CanceledInstallSoftwareActivityItem,
   [ActivityType.CanceledUninstallSoftware]: CanceledUninstallSoftwareActivtyItem,
+  [ActivityType.CanceledSetupExperience]: CanceledSetupExperienceActivityItem,
+  [ActivityType.InstalledCertificate]: InstalledCertificateActivityItem,
+  [ActivityType.ResentCertificate]: ResentCertificateActivityItem,
+  [ActivityType.ClearedPasscode]: ClearedPasscodeActivityItem,
+  [ActivityType.ViewedManagedLocalAccount]: ViewedManagedLocalAccountActivityItem,
+  [ActivityType.CreatedManagedLocalAccount]: CreatedManagedLocalAccountActivityItem,
+  [ActivityType.RotatedManagedLocalAccountPassword]: RotatedManagedLocalAccountPasswordActivityItem,
+  [ActivityType.FailedToRotateManagedLocalAccountPassword]: FailedToRotateManagedLocalAccountPasswordActivityItem,
+  [ActivityType.FailedEnrollmentProfileRenewal]: FailedEnrollmentProfileRenewalActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

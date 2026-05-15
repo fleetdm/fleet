@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -52,12 +53,14 @@ type createCertificateTemplateRequest struct {
 	TeamID                 uint   `json:"team_id" renameto:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
 	CertificateAuthorityId uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
+	SubjectAlternativeName string `json:"subject_alternative_name,omitempty"`
 }
 type createCertificateTemplateResponse struct {
 	ID                     uint   `json:"id"`
 	Name                   string `json:"name"`
 	CertificateAuthorityId uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
+	SubjectAlternativeName string `json:"subject_alternative_name,omitempty"`
 	Err                    error  `json:"error,omitempty"`
 }
 
@@ -65,7 +68,7 @@ func (r createCertificateTemplateResponse) Error() error { return r.Err }
 
 func createCertificateTemplateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createCertificateTemplateRequest)
-	certificate, err := svc.CreateCertificateTemplate(ctx, req.Name, req.TeamID, req.CertificateAuthorityId, req.SubjectName)
+	certificate, err := svc.CreateCertificateTemplate(ctx, req.Name, req.TeamID, req.CertificateAuthorityId, req.SubjectName, req.SubjectAlternativeName)
 	if err != nil {
 		return createCertificateTemplateResponse{Err: err}, nil
 	}
@@ -74,12 +77,23 @@ func createCertificateTemplateEndpoint(ctx context.Context, request interface{},
 		Name:                   certificate.Name,
 		CertificateAuthorityId: certificate.CertificateAuthorityId,
 		SubjectName:            certificate.SubjectName,
+		SubjectAlternativeName: certificate.SubjectAlternativeName,
 	}, nil
 }
 
-func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponse, error) {
+func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateTemplate{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	// Certificate templates require a custom SCEP CA, and CAs are Premium-only (see
+	// server/service/certificate_authorities.go core stubs). Reject any create on Free up front.
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting license")
+	}
+	if !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
 	}
 
 	// Validate certificate template name
@@ -93,6 +107,17 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 
 	if err := validateCertificateTemplateFleetVariables(subjectName); err != nil {
 		return nil, &fleet.BadRequestError{Message: err.Error()}
+	}
+
+	// Validate the optional SAN: format (token shape, KEY allow-list, length cap) and any
+	// $FLEET_VAR_* references against the same allow-list as subject_name.
+	if strings.TrimSpace(subjectAlternativeName) != "" {
+		if err := validateCertificateTemplateSubjectAlternativeName(subjectAlternativeName, ""); err != nil {
+			return nil, err
+		}
+		if err := validateCertificateTemplateFleetVariables(subjectAlternativeName); err != nil {
+			return nil, fleet.NewInvalidArgumentError("subject_alternative_name", err.Error())
+		}
 	}
 
 	// Get the CA to validate its existence and type.
@@ -110,6 +135,7 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		TeamID:                 teamID,
 		CertificateAuthorityID: certificateAuthorityID,
 		SubjectName:            subjectName,
+		SubjectAlternativeName: subjectAlternativeName,
 	}
 
 	savedTemplate, err := svc.ds.CreateCertificateTemplate(ctx, certTemplate)
@@ -239,23 +265,31 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 		return nil, fleet.NewPermissionError("host does not have access to this certificate template")
 	}
 
-	subjectName, err := svc.replaceCertificateVariables(ctx, certificate.SubjectName, host)
+	// Memo for the host's end-user list, shared between subject_name and subject_alternative_name
+	// expansion so we don't double-fetch when both reference $FLEET_VAR_HOST_END_USER_IDP_USERNAME.
+	var endUsersMemo []fleet.HostEndUser
+
+	subjectName, ok, err := svc.expandCertVar(ctx, certificate, certificate.SubjectName,
+		"Could not replace certificate variables", host, &endUsersMemo)
 	if err != nil {
-		// If the certificate variables cannot be replaced, mark the certificate as failed.
-		errorMsg := fmt.Sprintf("Could not replace certificate variables: %s", err.Error())
-		if err := svc.ds.UpsertCertificateStatus(ctx, &fleet.CertificateStatusUpdate{
-			HostUUID:              host.UUID,
-			CertificateTemplateID: certificate.ID,
-			Status:                fleet.MDMDeliveryFailed,
-			Detail:                &errorMsg,
-			OperationType:         fleet.MDMOperationTypeInstall,
-		}); err != nil {
-			return nil, err
-		}
-		certificate.Status = fleet.CertificateTemplateFailed
+		return nil, err
+	}
+	if !ok {
 		return certificate, nil
 	}
 	certificate.SubjectName = subjectName
+
+	if certificate.SubjectAlternativeName != "" {
+		san, ok, err := svc.expandCertVar(ctx, certificate, certificate.SubjectAlternativeName,
+			"Could not replace certificate variables in subject_alternative_name", host, &endUsersMemo)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return certificate, nil
+		}
+		certificate.SubjectAlternativeName = san
+	}
 
 	// On-demand challenge creation for delivered status.
 	// If FleetChallenge is nil or empty, create one now (the challenge TTL starts from this moment).
@@ -430,6 +464,17 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		return err
 	}
 
+	// Certificate templates require a custom SCEP CA, and CAs are Premium-only.
+	if len(specs) > 0 {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting license")
+		}
+		if !lic.IsPremium() {
+			return fleet.ErrMissingLicense
+		}
+	}
+
 	// Get all of the CAs.
 	cas, err := svc.ds.ListCertificateAuthorities(ctx)
 	if err != nil {
@@ -466,12 +511,24 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%s (certificate %s)", err.Error(), spec.Name)}
 		}
 
+		// Validate the optional SAN for format and variables.
+		if strings.TrimSpace(spec.SubjectAlternativeName) != "" {
+			if err := validateCertificateTemplateSubjectAlternativeName(spec.SubjectAlternativeName, spec.Name); err != nil {
+				return err
+			}
+			if err := validateCertificateTemplateFleetVariables(spec.SubjectAlternativeName); err != nil {
+				return fleet.NewInvalidArgumentError("subject_alternative_name",
+					fmt.Sprintf("%s (certificate %s)", err.Error(), spec.Name))
+			}
+		}
+
 		teamID := teamNameToID[spec.Team]
 
 		cert := &fleet.CertificateTemplate{
 			Name:                   spec.Name,
 			CertificateAuthorityID: spec.CertificateAuthorityId,
 			SubjectName:            spec.SubjectName,
+			SubjectAlternativeName: spec.SubjectAlternativeName,
 			TeamID:                 teamID,
 		}
 
@@ -695,6 +752,52 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 
 	// Fill in HostUUID from context
 	update.HostUUID = host.UUID
+
+	// Log activity for install statuses (not removals). Failures are logged on every attempt
+	// (including retries) so IT admins have visibility into retry attempts.
+	if update.OperationType == fleet.MDMOperationTypeInstall {
+		var actStatus fleet.CertificateActivityStatus
+		switch update.Status {
+		case fleet.MDMDeliveryVerified:
+			actStatus = fleet.CertificateActivityInstalled
+		case fleet.MDMDeliveryFailed:
+			actStatus = fleet.CertificateActivityFailedInstall
+		}
+		if actStatus != "" {
+			detail := ""
+			if update.Detail != nil {
+				detail = *update.Detail
+			}
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledCertificate{
+				HostID:                host.ID,
+				HostDisplayName:       host.DisplayName(),
+				CertificateTemplateID: update.CertificateTemplateID,
+				CertificateName:       record.Name,
+				Status:                string(actStatus),
+				Detail:                detail,
+			}); err != nil {
+				// Log and continue since we don't want the client to fail on this.
+				svc.logger.ErrorContext(ctx, "failed to create certificate install activity", "host.id", host.ID, "activity.status", actStatus,
+					"err", err)
+				ctxerr.Handle(ctx, err)
+			}
+		}
+	}
+
+	// For failed installs, automatically retry if under the retry limit.
+	if update.OperationType == fleet.MDMOperationTypeInstall && update.Status == fleet.MDMDeliveryFailed {
+		if record.RetryCount < fleet.MaxCertificateInstallRetries {
+			detail := ""
+			if update.Detail != nil {
+				detail = *update.Detail
+			}
+			if err := svc.ds.RetryHostCertificateTemplate(ctx, host.UUID, update.CertificateTemplateID, detail); err != nil {
+				return ctxerr.Wrap(ctx, err, "retrying certificate install")
+			}
+			return nil
+		}
+	}
+
 	return svc.ds.UpsertCertificateStatus(ctx, update)
 }
 
@@ -732,6 +835,15 @@ func (svc *Service) ResendHostCertificateTemplate(ctx context.Context, hostID ui
 
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: host.TeamID}, fleet.ActionResend); err != nil {
 		return ctxerr.Wrap(ctx, err)
+	}
+
+	template, err := svc.ds.GetCertificateTemplateByIdForHost(ctx, templateID, host.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking host certificate template")
+	}
+
+	if template.Status == fleet.CertificateTemplatePending {
+		return fleet.NewUserMessageError(errors.New("Couldn't resend pending certificate template."), http.StatusBadRequest)
 	}
 
 	if err := svc.ds.ResendHostCertificateTemplate(ctx, hostID, templateID); err != nil {

@@ -1,0 +1,1 @@
+* Improved Windows MDM profile removal performance by skipping redundant database writes for verified-remove ACKs.

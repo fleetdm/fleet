@@ -1,1 +1,0 @@
-* Fixed a security issue where canceling a pending lock or wipe command permanently deleted the original `locked_host`/`wiped_host` activity from the audit log. The original activity is now preserved, and the subsequent cancellation activity serves as the follow-up record.

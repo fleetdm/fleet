@@ -7,7 +7,6 @@ import classnames from "classnames";
 import { getPathWithQueryParams } from "utilities/url";
 
 import Radio from "components/forms/fields/Radio";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
@@ -29,7 +28,7 @@ import scriptsAPI, {
 } from "services/entities/scripts";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import Spinner from "components/Spinner";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 
 import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
@@ -229,20 +228,23 @@ const RunScriptBatchModal = ({
       return <Spinner />;
     }
     if (!scripts.length) {
+      // No permission gate needed on the "Add a script" link — only
+      // admin/maintainer roles can open this modal (canRunScriptBatch),
+      // and those roles also have permission to add scripts.
       return (
-        <EmptyTable
-          header="No scripts available for this fleet"
+        <EmptyState
+          variant="header-list"
+          header="No scripts available"
           info={
             <>
-              You can add saved scripts{" "}
               <CustomLink
                 url={getPathWithQueryParams(
                   PATHS.CONTROLS_SCRIPTS,
                   !isFreeTier ? { fleet_id: teamId } : undefined
                 )}
-                text="here"
-              />
-              .
+                text="Add a script"
+              />{" "}
+              to this fleet.
             </>
           }
         />

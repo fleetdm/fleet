@@ -7,7 +7,6 @@ import {
   baseUrl,
 } from "test/test-utils";
 import mockServer from "test/mock-server";
-import { getDeviceVppCommandResultHandler } from "test/handlers/device-handler";
 import {
   createMockHostAppStoreApp,
   createMockHostSoftware,
@@ -184,9 +183,10 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/install hasn't been verified/i)
+      screen.getByText(
+        /the install took longer than 20 minutes, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
-    expect(screen.getByText(/within 20 minutes/i)).toBeInTheDocument();
     expect(
       screen.queryByText(/but the app failed to install/i)
     ).not.toBeInTheDocument();
@@ -211,7 +211,9 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/install hasn't been verified/i)
+      screen.getByText(
+        /the install took longer than .*, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/but the app failed to install/i)
@@ -234,7 +236,9 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/install hasn't been verified/i)
+      screen.getByText(
+        /the install took longer than .*, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/but the app failed to install/i)
@@ -256,7 +260,11 @@ describe("getStatusMessage helper function", () => {
       })
     );
 
-    expect(screen.getByText(/within 20 minutes/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /the install took longer than 20 minutes, so Fleet marked it as failed/i
+      )
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Marko's MacBook Pro/i)).not.toBeInTheDocument();
   });
 
@@ -552,59 +560,14 @@ describe("VPP Install Details Modal", () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          /Fleet marks as failed if the install isn't verified within 20 minutes/i
+          /the install took longer than 20 minutes, so Fleet marked it as failed/i
         )
       ).toBeInTheDocument();
     });
     expect(
       screen.getByText(
-        /If the app is installed later, Fleet will update the status when the host is refetched/i
+        /If the install finishes later, Fleet will update the status when the host is refetched/i
       )
     ).toBeInTheDocument();
-  });
-
-  it("does not render the stale uninstall sentence on My device", async () => {
-    mockServer.use(getDeviceVppCommandResultHandler);
-
-    const hostSoftware = createMockHostSoftware({
-      id: 123,
-      status: "installed",
-      name: "Keynote",
-      display_name: "Keynote",
-      installed_versions: [],
-      source: "apps",
-      app_store_app: createMockHostAppStoreApp({
-        platform: "darwin",
-        last_install: {
-          command_uuid: "acknowledged-uuid",
-          installed_at: "2025-08-10T12:00:00Z",
-        },
-      }),
-    });
-
-    renderWithBackend(
-      <VppInstallDetailsModal
-        details={{
-          fleetInstallStatus: "installed",
-          hostDisplayName: "Marko's MacBook Pro",
-          appName: "Keynote",
-          commandUuid: "acknowledged-uuid",
-          platform: "darwin",
-        }}
-        deviceAuthToken="device-token"
-        hostSoftware={hostSoftware}
-        onCancel={jest.fn()}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
-      expect(screen.getByText(/Keynote/i)).toBeInTheDocument();
-    });
-    expect(
-      screen.queryByText(
-        /If you uninstalled it outside of Fleet it will still show as installed/i
-      )
-    ).not.toBeInTheDocument();
   });
 });

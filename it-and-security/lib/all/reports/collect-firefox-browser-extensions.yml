@@ -1,0 +1,26 @@
+- name: Collect Firefox browser extensions
+  description: |-
+    Add-on/extension inventory across Firefox profiles for all users.
+  query: |-
+    SELECT
+      u.username,
+      fa.name,
+      fa.identifier,
+      fa.creator,
+      fa.type,
+      fa.version,
+      fa.description,
+      fa.source_url,
+      fa.active,
+      fa.disabled,
+      fa.autoupdate,
+      fa.location,
+      fa.path
+    FROM users u
+    INNER JOIN firefox_addons fa USING (uid)
+    WHERE fa.name != '';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+  platform: darwin,linux,windows

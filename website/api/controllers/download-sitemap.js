@@ -71,7 +71,7 @@ module.exports = {
       // > Note: /handbook overview page is already included amongst the markdown pages
       // > Note: Same for /docs
       '/transparency',// « default transparency link, pointed at by Fleet Desktop
-      '/queries',// « overview page (all subpages are dynamic)
+      '/reports',// « overview page (all subpages are dynamic)
       '/policies',// « overview page (all subpages are dynamic)
       '/tables',// « overview page (all subpages are dynamic)
       '/software-catalog',// « overview page (all subpages are dynamic)
@@ -83,6 +83,7 @@ module.exports = {
       '/meetups',
       '/customers',
       '/gitops-workshop',
+      '/download',
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
       // See also https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27
     ];
@@ -97,7 +98,7 @@ module.exports = {
     let queries = _.where(sails.config.builtStaticContent.queries, {kind: 'query'});
     let policies = _.where(sails.config.builtStaticContent.policies, {kind: 'policy'});
     for (let query of queries) {
-      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/queries/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/reports/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
     }//∞
     for (let query of vitals) {
       sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/vitals/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit

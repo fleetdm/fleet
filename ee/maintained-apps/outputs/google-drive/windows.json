@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "122.0.1.0",
+      "version": "125.0.0.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Google Drive' AND publisher = 'Google LLC';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Google Drive' AND publisher = 'Google LLC';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Drive' AND publisher = 'Google LLC' AND version_compare(version, '125.0.0.0') < 0);"
       },
-      "installer_url": "https://dl.google.com/release2/drive-file-stream/mebnisjkqbeors7btjbik5rm6y_122.0.1.0/setup.exe",
+      "installer_url": "https://dl.google.com/release2/drive-file-stream/jdnygtxjhspl3nvfi5zi6oumli_125.0.0.0/setup.exe",
       "install_script_ref": "fa36b892",
       "uninstall_script_ref": "785a96b9",
-      "sha256": "b88052dd0d83664ee8f4002a16d3d8db8228e82c92b7bb5dd6e764a77883d4fb",
+      "sha256": "b8fffc8035f4a6abf8d7650da0cf9f73ed474c161f3b577464d8dd87a86482a6",
       "default_categories": [
         "Productivity"
       ]

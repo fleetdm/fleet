@@ -4,7 +4,7 @@ software/versions/:id > Top section
 software/os/:id > Top section
 */
 
-import React, { useContext } from "react";
+import React from "react";
 
 import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -20,7 +20,7 @@ import {
   ROLLING_ARCH_LINUX_VERSIONS,
 } from "interfaces/software";
 
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
@@ -101,7 +101,7 @@ export const buildActionOptions = ({
     });
   }
 
-  // Show edit configuration option only for Android installers that are not web apps
+  // Show edit configuration option for Android installers (not web apps) and iOS/iPadOS apps
   if (canEditConfiguration) {
     options.push({
       label: "Edit configuration",
@@ -194,10 +194,7 @@ const SoftwareDetailsSummary = ({
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
-  const { config } = useContext(AppContext);
-
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
-  const repoURL = config?.gitops.repository_url;
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
   const isRollingArch = ROLLING_ARCH_LINUX_VERSIONS.includes(displayName);
 
   const onSelectSoftwareAction = (option: SingleValue<CustomOptionType>) => {

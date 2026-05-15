@@ -1,1 +1,0 @@
-* Fixed CPE matching failing for software names that sanitize to FTS5 reserved keywords (AND, OR, NOT).

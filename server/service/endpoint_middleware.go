@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/osqueryauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	middleware_log "github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -134,9 +135,41 @@ func getDeviceAuthToken(r interface{}) (string, error) {
 
 // authenticatedHost wraps an endpoint, checks the validity of the node_key
 // provided in the request, and attaches the corresponding osquery host to the
-// context for the request
+// context for the request.
+//
+// If the HTTP pre-auth middleware (osqueryHeaderPreAuth) has already
+// authenticated the request via the Authorization: NodeKey <token> header,
+// the hostctx and related ctx setup is already in place and this middleware
+// becomes a passthrough.
 func authenticatedHost(svc fleet.Service, logger *slog.Logger, next endpoint.Endpoint) endpoint.Endpoint {
 	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+		// HTTP pre-auth already authenticated the request and populated
+		// hostctx.
+		if osqueryauth.IsPreAuthed(ctx) {
+			host, ok := hostctx.FromContext(ctx)
+			if !ok {
+				return nil, ctxerr.New(ctx, "osquery pre-auth marker set without host in ctx")
+			}
+			instrumentHostLogger(ctx, host.ID)
+			if ac, ok := authz_ctx.FromContext(ctx); ok {
+				ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
+			}
+			debug := osqueryauth.IsDebug(ctx)
+			var hlogger *slog.Logger
+			if debug {
+				hlogger = logger.With("host_id", host.ID)
+				logJSON(ctx, hlogger, request, "request")
+			}
+			resp, err := next(ctx, request)
+			if err != nil {
+				return nil, err
+			}
+			if debug {
+				logJSON(ctx, hlogger, resp, "response")
+			}
+			return resp, nil
+		}
+
 		nodeKey, err := getNodeKey(request)
 		if err != nil {
 			return nil, err
@@ -223,8 +256,8 @@ func authenticatedOrbitHost(
 }
 
 func getOrbitNodeKey(ctx context.Context, r interface{}) (string, error) {
-	if onk, ok := r.(interface{ orbitHostNodeKey() string }); ok {
-		return onk.orbitHostNodeKey(), nil
+	if onk, ok := r.(interface{ OrbitHostNodeKey() string }); ok {
+		return onk.OrbitHostNodeKey(), nil
 	}
 	return "", errors.New("error getting orbit node key")
 }

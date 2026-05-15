@@ -120,14 +120,15 @@ SELECT de.encrypted, m.path FROM disk_encryption de JOIN mounts m ON m.device_al
 
 - Query:
 ```sql
-WITH encrypted(enabled) AS (
-		SELECT CASE WHEN
+WITH bl_available(ok) AS (
+		SELECT 1 WHERE
 			NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-			OR
-			(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-		THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
-	END)
-	SELECT 1 FROM encrypted WHERE enabled IS NOT NULL
+			OR EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+	)
+	SELECT bi.protection_status, bi.conversion_status
+	FROM bl_available
+	CROSS JOIN bitlocker_info bi
+	WHERE bi.drive_letter = 'C:'
 ```
 
 ## disk_space_darwin
@@ -174,7 +175,7 @@ SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts WHERE
+					 (SELECT round(SUM(per_device_size) * 10e-10, 2) FROM (SELECT MAX(blocks * blocks_size) AS per_device_size FROM mounts WHERE
 -- exclude mounts with no space
 blocks > 0
 AND blocks_size > 0
@@ -222,7 +223,7 @@ OR device LIKE '/dev/nvme%'
 OR device LIKE '/dev/mapper%'
 OR device LIKE '/dev/md%'
 OR device LIKE '/dev/dm-%'
-)) AS gigs_all_disk_space
+) GROUP BY device)) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;
 ```
 
@@ -742,7 +743,7 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
- WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '_fleetadmin') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
   name,
   version,
@@ -765,7 +766,7 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
- WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '_fleetadmin') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
   name AS name,
   version AS version,
@@ -873,7 +874,7 @@ FROM fleetd_pacman_packages
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
- WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '_fleetadmin') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
   COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'),
     CASE WHEN name IS NOT NULL AND lower(name) LIKE '%.app' THEN substr(name, 1, length(name) - 4) ELSE name END
@@ -1090,7 +1091,7 @@ SELECT 1 FROM (
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
- WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '_fleetadmin') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 		SELECT
 		  name AS name,
 		  version AS version,
@@ -1136,7 +1137,7 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
- WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '_fleetadmin') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
   name,
   version,
@@ -1159,7 +1160,7 @@ FROM cached_users CROSS JOIN vscode_extensions USING (uid)
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
- WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '_fleetadmin') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
   name AS name,
   version AS version,
@@ -1242,6 +1243,28 @@ SELECT
 		GROUP BY executable_path
 ```
 
+## software_windows_program_files_scan
+
+- Description: A software override query[^1] to detect Windows software installed to Program Files without registry entries.
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT
+  path,
+  filename,
+  file_version,
+  product_version,
+  size
+FROM file
+WHERE (
+    path LIKE 'C:\Program Files\%\%.exe'
+    OR path LIKE 'C:\Program Files\%\%\%.exe'
+  )
+  AND path NOT LIKE 'C:\Program Files\WindowsApps\%'
+```
+
 ## system_info
 
 - Platforms: all
@@ -1269,7 +1292,7 @@ select * from uptime limit 1
 WITH cached_groups AS (select * from groups)
  SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
- WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '_fleetadmin') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')
 ```
 
 ## users_chrome
@@ -1279,20 +1302,6 @@ WITH cached_groups AS (select * from groups)
 - Query:
 ```sql
 SELECT uid, username, email FROM users
-```
-
-## windows_update_history
-
-- Platforms: windows
-
-- Discovery query:
-```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'windows_update_history'
-```
-
-- Query:
-```sql
-SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'
 ```
 
 <br /><br />[^1]: Software override queries write over the default queries. They are used to populate the software inventory.

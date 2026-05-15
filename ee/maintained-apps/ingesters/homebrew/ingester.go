@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/ghodss/yaml"
 )
 
 func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
@@ -97,39 +96,9 @@ type brewIngester struct {
 }
 
 func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
-	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, input.Token)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	cask, err := i.fetchCask(ctx, input)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create http request")
-	}
-
-	res, err := i.client.Do(req)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute http request")
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "read http response body")
-	}
-
-	switch res.StatusCode {
-	case http.StatusOK:
-		// success, go on
-	case http.StatusNotFound:
-		return nil, ctxerr.New(ctx, "app not found in brew API")
-	default:
-		if len(body) > 512 {
-			body = body[:512]
-		}
-		return nil, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
-	}
-
-	var cask brewCask
-	if err := json.Unmarshal(body, &cask); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
+		return nil, err
 	}
 
 	out := &maintained_apps.FMAManifestApp{}
@@ -216,26 +185,83 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	external_refs.EnrichManifest(out)
 
 	// create patch policy
-	if input.PatchPolicyPath != "" {
-		policyBytes, err := os.ReadFile(input.PatchPolicyPath)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "reading provided patch policy path")
-		}
-
-		p := patch_policy.PolicyData{}
-		if err := yaml.Unmarshal(policyBytes, &p); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "unmarshaling patch policy")
-		}
-
-		p.Platform = "darwin"
-		p.Version = out.Version
-		out.Queries.Patch, err = patch_policy.GenerateFromManifest(p)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
-		}
+	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
+		Platform:    "darwin",
+		Version:     out.Version,
+		ExistsQuery: out.Queries.Exists,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+	}
+	if input.Token == "docker-desktop" {
+		// Docker's updater can leave Docker.app.back; do not treat it as the installed app for patch status.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.back' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
 	}
 
 	return out, nil
+}
+
+// fetchCask resolves the brew cask JSON for the given input app from
+// either a local file (cask_path) or the default brew API.
+func (i *brewIngester) fetchCask(ctx context.Context, input inputApp) (brewCask, error) {
+	var cask brewCask
+
+	if input.CaskPath != "" {
+		body, err := os.ReadFile(input.CaskPath)
+		if err != nil {
+			return cask, ctxerr.WrapWithData(ctx, err, "reading local cask JSON file", map[string]any{"cask_path": input.CaskPath})
+		}
+		if err := json.Unmarshal(body, &cask); err != nil {
+			return cask, ctxerr.Wrapf(ctx, err, "unmarshal local cask JSON for %s", input.Token)
+		}
+		// Cross-check the cask file matches the configured input. This catches
+		// subtle misconfiguration like pointing cask_path at the wrong JSON file.
+		if cask.Token != input.Token {
+			return cask, ctxerr.Errorf(ctx, "local cask JSON token %q does not match input token %q (cask_path: %s)", cask.Token, input.Token, input.CaskPath)
+		}
+		if len(cask.Name) == 0 {
+			return cask, ctxerr.Errorf(ctx, "local cask JSON for %s has empty name (cask_path: %s)", input.Token, input.CaskPath)
+		}
+		return cask, nil
+	}
+
+	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, input.Token)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return cask, ctxerr.Wrap(ctx, err, "create http request")
+	}
+
+	res, err := i.client.Do(req)
+	if err != nil {
+		return cask, ctxerr.Wrap(ctx, err, "execute http request")
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return cask, ctxerr.Wrap(ctx, err, "read http response body")
+	}
+
+	switch res.StatusCode {
+	case http.StatusOK:
+		// success, go on
+	case http.StatusNotFound:
+		return cask, ctxerr.New(ctx, "app not found in brew API")
+	default:
+		if len(body) > 512 {
+			body = body[:512]
+		}
+		return cask, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
+	}
+
+	if err := json.Unmarshal(body, &cask); err != nil {
+		return cask, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
+	}
+	return cask, nil
 }
 
 type inputApp struct {
@@ -256,6 +282,13 @@ type inputApp struct {
 	InstallScriptPath    string   `json:"install_script_path"`
 	UninstallScriptPath  string   `json:"uninstall_script_path"`
 	PatchPolicyPath      string   `json:"patch_policy_path"`
+	// CaskPath optionally points at a local file (relative to the repo
+	// root) containing the cask JSON in the same schema as
+	// https://formulae.brew.sh/api/cask/<token>.json. Used to commit cask
+	// metadata for third-party taps directly into this repo (see
+	// inputs/homebrew/custom-tap/). When empty, the ingester fetches from
+	// formulae.brew.sh.
+	CaskPath string `json:"cask_path"`
 }
 
 type brewCask struct {

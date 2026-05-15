@@ -45,12 +45,16 @@ func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm
 
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
-func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
+func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, name string) error {
 	raw, err := svc.SignAndEncodeInstallProfile(ctx, profile, uuid)
 	if err != nil {
 		return err
 	}
-	err = svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding InstallProfile command")
+	}
+	err = svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, name)
 	return ctxerr.Wrap(ctx, err, "commander install profile")
 }
 
@@ -80,7 +84,7 @@ func (svc *MDMAppleCommander) SignAndEncodeInstallProfile(ctx context.Context, p
 }
 
 // RemoveProfile sends the homonymous MDM command to the given hosts.
-func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string, uuid string) error {
+func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []string, profileIdentifier string, uuid string, name string) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -96,7 +100,11 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 	</dict>
 </dict>
 </plist>`, uuid, profileIdentifier)
-	err := svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding RemoveProfile command")
+	}
+	err = svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, name)
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
 }
 
@@ -193,7 +201,7 @@ func (svc *MDMAppleCommander) EnableLostMode(ctx context.Context, host *fleet.Ho
 
 	cmd, err := mdm.DecodeCommand([]byte(raw))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "decoding command")
+		return ctxerr.Wrap(ctx, err, "decoding EnableLostMode command")
 	}
 
 	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, ""); err != nil {
@@ -263,7 +271,7 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host,
 
 	cmd, err := mdm.DecodeCommand([]byte(raw))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "decoding command")
+		return ctxerr.Wrap(ctx, err, "decoding DeviceWipe command")
 	}
 
 	if err := svc.storage.EnqueueDeviceWipeCommand(ctx, host, cmd); err != nil {
@@ -324,19 +332,66 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
 }
 
-func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string, lockPrimaryAccountInfo bool) error {
-	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>Command</key>
-    <dict>
+// SSOAccountConfig holds the SSO (end-user authentication) parameters for an
+// AccountConfiguration MDM command.
+type SSOAccountConfig struct {
+	FullName               string
+	UserName               string
+	LockPrimaryAccountInfo bool
+}
+
+// AdminAccountConfig holds the parameters for an AutoSetupAdminAccounts entry
+// in an AccountConfiguration MDM command.
+type AdminAccountConfig struct {
+	ShortName    string // e.g. "_fleetadmin"
+	FullName     string // e.g. "Fleet Admin"
+	PasswordHash []byte // SALTED-SHA512-PBKDF2 plist from GenerateSaltedSHA512PBKDF2Hash
+	Hidden       bool   // true → hidden from login window
+}
+
+func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string,
+	cmdUUID string,
+	ssoAccount *SSOAccountConfig,
+	adminAccount *AdminAccountConfig,
+) error {
+	var payload string
+
+	if ssoAccount != nil {
+		payload += fmt.Sprintf(`
       <key>PrimaryAccountFullName</key>
       <string>%s</string>
       <key>PrimaryAccountUserName</key>
       <string>%s</string>
       <key>LockPrimaryAccountInfo</key>
       <%t />
+`, ssoAccount.FullName, ssoAccount.UserName, ssoAccount.LockPrimaryAccountInfo)
+	}
+
+	if adminAccount != nil {
+		passwordHashEncoded := base64.StdEncoding.EncodeToString(adminAccount.PasswordHash)
+		payload += fmt.Sprintf(`
+      <key>AutoSetupAdminAccounts</key>
+      <array>
+        <dict>
+          <key>hidden</key>
+          <%t />
+          <key>passwordHash</key>
+          <data>%s</data>
+          <key>shortName</key>
+          <string>%s</string>
+          <key>fullName</key>
+          <string>%s</string>
+        </dict>
+      </array>
+`, adminAccount.Hidden, passwordHashEncoded, adminAccount.ShortName, adminAccount.FullName)
+	}
+
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Command</key>
+    <dict>%s
       <key>RequestType</key>
       <string>AccountConfiguration</string>
     </dict>
@@ -344,8 +399,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <key>CommandUUID</key>
     <string>%s</string>
   </dict>
-</plist>`, fullName, userName, lockPrimaryAccountInfo, uuid)
-
+</plist>`, payload, cmdUUID)
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 
@@ -402,6 +456,7 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
             <string>DeviceCapacity</string>
             <string>AvailableDeviceCapacity</string>
             <string>OSVersion</string>
+            <string>SupplementalOSVersionExtra</string>
             <string>WiFiMAC</string>
             <string>ProductName</string>
 			<string>IsMDMLostModeEnabled</string>
@@ -492,6 +547,33 @@ func (svc *MDMAppleCommander) DeviceLocation(ctx context.Context, hostUUIDs []st
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 
+func (svc *MDMAppleCommander) ClearPasscode(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>ClearPasscode</string>
+		<key>UnlockToken</key>
+		<data>%s</data>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, "$"+fleet.HostSecretPrefix+fleet.HostSecretMDMUnlockToken, cmdUUID)
+
+	// We skip EnqueueCommand here, to avoid decoding the command as <data> is binary, which fails to decode with placeholder.
+	cmd := &mdm.Command{
+		CommandUUID: cmdUUID,
+		Raw:         []byte(raw),
+	}
+	cmd.Command.RequestType = fleet.AppleMDMCommandTypeClearPasscode
+
+	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, "")
+}
+
 // EnqueueCommand takes care of enqueuing the commands and sending push
 // notifications to the devices.
 //
@@ -504,14 +586,14 @@ func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []st
 		return ctxerr.Wrap(ctx, err, "decoding command")
 	}
 
-	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone)
+	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeNone, "")
 }
 
 func (svc *MDMAppleCommander) enqueueAndNotify(ctx context.Context, hostUUIDs []string, cmd *mdm.Command,
-	subtype mdm.CommandSubtype,
+	subtype mdm.CommandSubtype, name string,
 ) error {
 	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs,
-		&mdm.CommandWithSubtype{Command: *cmd, Subtype: subtype}); err != nil {
+		&mdm.CommandWithSubtype{Command: *cmd, Subtype: subtype, Name: name}); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing command")
 	}
 
@@ -524,7 +606,7 @@ func (svc *MDMAppleCommander) enqueueAndNotify(ctx context.Context, hostUUIDs []
 // EnqueueCommandInstallProfileWithSecrets is a special case of EnqueueCommand that does not expand secret variables.
 // Secret variables are expanded when the command is sent to the device, and secrets are never stored in the database unencrypted.
 func (svc *MDMAppleCommander) EnqueueCommandInstallProfileWithSecrets(ctx context.Context, hostUUIDs []string,
-	rawCommand mobileconfig.Mobileconfig, commandUUID string,
+	rawCommand mobileconfig.Mobileconfig, commandUUID string, name string,
 ) error {
 	cmd := &mdm.Command{
 		CommandUUID: commandUUID,
@@ -532,7 +614,7 @@ func (svc *MDMAppleCommander) EnqueueCommandInstallProfileWithSecrets(ctx contex
 	}
 	cmd.Command.RequestType = "InstallProfile"
 
-	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeProfileWithSecrets)
+	return svc.enqueueAndNotify(ctx, hostUUIDs, cmd, mdm.CommandSubtypeProfileWithSecrets, name)
 }
 
 func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs []string) error {
@@ -611,6 +693,42 @@ func (svc *MDMAppleCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs [
 		return ctxerr.Wrap(ctx, err, "enqueuing ClearRecoveryLock command")
 	}
 
+	return nil
+}
+
+// SetAutoAdminPassword sends the SetAutoAdminPassword command to rotate the password
+// of a managed local administrator account previously provisioned by an
+// AutoSetupAdminAccounts entry in an AccountConfiguration command.
+//
+// guid is the account UUID captured from osquery on this host (NOT the host UUID).
+// passwordHashPlist is the SALTED-SHA512-PBKDF2 plist returned by
+// GenerateSaltedSHA512PBKDF2Hash; we base64-encode it into the <data> field of the
+// outer command plist, matching how AccountConfiguration carries its passwordHash.
+//
+// See https://developer.apple.com/documentation/devicemanagement/setautoadminpasswordcommand
+func (svc *MDMAppleCommander) SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+	passwordHashEncoded := base64.StdEncoding.EncodeToString(passwordHashPlist)
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Command</key>
+    <dict>
+      <key>RequestType</key>
+      <string>SetAutoAdminPassword</string>
+      <key>GUID</key>
+      <string>%s</string>
+      <key>passwordHash</key>
+      <data>%s</data>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+  </dict>
+</plist>`, guid, passwordHashEncoded, cmdUUID)
+
+	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, raw); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing SetAutoAdminPassword command")
+	}
 	return nil
 }
 

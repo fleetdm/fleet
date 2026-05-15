@@ -69,6 +69,8 @@ func TestSoftware(t *testing.T) {
 		{"InsertSoftwareVulnerabilities", testInsertSoftwareVulnerabilities},
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
+		{"ListSoftwareForVulnDetectionByOSVersion", testListSoftwareForVulnDetectionByOSVersion},
+		{"ListSoftwareVulnerabilitiesBySoftwareIDs", testListSoftwareVulnerabilitiesBySoftwareIDs},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
 		{"AllSoftwareIteratorForCustomLinuxImages", testSoftwareIteratorForLinuxKernelCustomImages},
 		{"UpsertSoftwareCPEs", testUpsertSoftwareCPEs},
@@ -120,6 +122,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareInventoryDeletedHost", testListSoftwareInventoryDeletedHost},
 		{"ListHostSoftwareShPackageForDarwin", testListHostSoftwareShPackageForDarwin},
 		{"HostSWPaginationWithMultipleFMAVersions", testHostSWPaginationWithMultipleFMAVersions},
+		{"SoftwareLiteByID", testSoftwareLiteByID},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -5416,6 +5419,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 	}
 	require.False(t, found, "Expected not find software %s in the list", softwareAlreadyInstalled.Name)
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+		})
+		require.Error(t, err)
+	})
 }
 
 func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
@@ -8094,7 +8104,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	checkSoftware(software, installer2.Filename, installer3.Filename, installer4.Filename)
 
 	t.Run("include_all", func(t *testing.T) {
-
 		hostIncludeAll := test.NewHost(t, ds, "host_include_all", "", "host1key_include_all", "host1uuid_include_all", time.Now(), test.WithPlatform("darwin"))
 		nanoEnroll(t, ds, hostIncludeAll, false)
 
@@ -8150,7 +8159,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		// installer1 is now in scope; installer4 still absent (no labels on host match it)
 		checkSoftware(software, installer4.Filename)
 	})
-
 }
 
 func testListHostSoftwareVulnerableAndVPP(t *testing.T, ds *Datastore) {
@@ -11985,5 +11993,170 @@ func testHostSWPaginationWithMultipleFMAVersions(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 2)                    // Even though there are multiple installer versions for this FMA, the title only appears once.
 	require.Equal(t, sw[0].Name, "file1")    // FMA
 	require.Equal(t, sw[1].Name, "pagsw-00") // "other" software
+}
 
+func testSoftwareLiteByID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "svnfhf-host", "", "svnfhf-key", "svnfhf-uuid", time.Now())
+
+	sw := []fleet.Software{
+		{Name: "GoLand.app", Version: "2024.3", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 1)
+
+	swID := host.Software[0].ID
+
+	swLite, err := ds.SoftwareLiteByID(ctx, swID)
+	require.NoError(t, err)
+	assert.Equal(t, "GoLand.app", swLite.Name)
+	assert.Equal(t, "2024.3", swLite.Version)
+
+	// non-existent sw
+	_, err = ds.SoftwareLiteByID(ctx, 999999)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func testListSoftwareForVulnDetectionByOSVersion(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create two hosts with the same OS version and overlapping software.
+	host1 := test.NewHost(t, ds, "osv-host1", "", "osv-host1key", "osv-host1uuid", time.Now())
+	host1.Platform = "ubuntu"
+	host1.OSVersion = "Ubuntu 22.04.1 LTS"
+	require.NoError(t, ds.UpdateHost(ctx, host1))
+
+	host2 := test.NewHost(t, ds, "osv-host2", "", "osv-host2key", "osv-host2uuid", time.Now())
+	host2.Platform = "ubuntu"
+	host2.OSVersion = "Ubuntu 22.04.1 LTS"
+	require.NoError(t, ds.UpdateHost(ctx, host2))
+
+	// Create a host with a different OS version.
+	host3 := test.NewHost(t, ds, "osv-host3", "", "osv-host3key", "osv-host3uuid", time.Now())
+	host3.Platform = "ubuntu"
+	host3.OSVersion = "Ubuntu 20.04.1 LTS"
+	require.NoError(t, ds.UpdateHost(ctx, host3))
+
+	sharedSoftware := []fleet.Software{
+		{Name: "libfoo", Version: "1.2.3", Source: "deb_packages"},
+		{Name: "libbar", Version: "4.5.6", Source: "deb_packages"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, sharedSoftware)
+	require.NoError(t, err)
+
+	host2Software := []fleet.Software{
+		{Name: "libfoo", Version: "1.2.3", Source: "deb_packages"}, // shared with host1
+		{Name: "libbaz", Version: "7.8.9", Source: "deb_packages"}, // unique to host2
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, host2Software)
+	require.NoError(t, err)
+
+	host3Software := []fleet.Software{
+		{Name: "libother", Version: "0.0.1", Source: "deb_packages"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, host3Software)
+	require.NoError(t, err)
+
+	// Query for Ubuntu 22.04.1 LTS — should return 3 distinct software items.
+	result, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, fleet.OSVersion{
+		Platform: "ubuntu",
+		Name:     "Ubuntu 22.04.1 LTS",
+	})
+	require.NoError(t, err)
+
+	names := make([]string, len(result))
+	for i, sw := range result {
+		names[i] = sw.Name
+	}
+	sort.Strings(names)
+	require.Equal(t, []string{"libbar", "libbaz", "libfoo"}, names)
+
+	// Verify no duplicates (libfoo exists on both hosts but should appear once).
+	require.Len(t, result, 3)
+
+	// Query for Ubuntu 20.04.1 LTS — should return only host3's software.
+	result, err = ds.ListSoftwareForVulnDetectionByOSVersion(ctx, fleet.OSVersion{
+		Platform: "ubuntu",
+		Name:     "Ubuntu 20.04.1 LTS",
+	})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, "libother", result[0].Name)
+
+	// Query for nonexistent OS — should return nil.
+	result, err = ds.ListSoftwareForVulnDetectionByOSVersion(ctx, fleet.OSVersion{
+		Platform: "ubuntu",
+		Name:     "Ubuntu 99.99 LTS",
+	})
+	require.NoError(t, err)
+	require.Nil(t, result)
+}
+
+func testListSoftwareVulnerabilitiesBySoftwareIDs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create some software.
+	host := test.NewHost(t, ds, "vuln-sw-host", "", "vuln-sw-hostkey", "vuln-sw-hostuuid", time.Now())
+	software := []fleet.Software{
+		{Name: "pkg-a", Version: "1.0", Source: "deb_packages"},
+		{Name: "pkg-b", Version: "2.0", Source: "deb_packages"},
+		{Name: "pkg-c", Version: "3.0", Source: "deb_packages"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	// Look up software by name to avoid depending on unstable ordering.
+	swByName := make(map[string]fleet.HostSoftwareEntry, len(host.Software))
+	for _, sw := range host.Software {
+		swByName[sw.Name] = sw
+	}
+	swA := swByName["pkg-a"]
+	swB := swByName["pkg-b"]
+	swC := swByName["pkg-c"]
+
+	// Insert vulns with different sources.
+	_, err = ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
+		{SoftwareID: swA.ID, CVE: "CVE-2024-0001"},
+		{SoftwareID: swA.ID, CVE: "CVE-2024-0002"},
+		{SoftwareID: swB.ID, CVE: "CVE-2024-0003"},
+	}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
+		{SoftwareID: swA.ID, CVE: "CVE-2024-9999"},
+		{SoftwareID: swC.ID, CVE: "CVE-2024-8888"},
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// Query OSV source for swA and swB — should return 3 vulns (2 for swA, 1 for swB).
+	result, err := ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, []uint{swA.ID, swB.ID}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+	require.Len(t, result, 3)
+
+	cves := make([]string, len(result))
+	for i, v := range result {
+		cves[i] = v.CVE
+	}
+	sort.Strings(cves)
+	require.Equal(t, []string{"CVE-2024-0001", "CVE-2024-0002", "CVE-2024-0003"}, cves)
+
+	// Query OSV source for swC — should return empty (swC's vulns are NVD source).
+	result, err = ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, []uint{swC.ID}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+	require.Empty(t, result)
+
+	// Query NVD source for swA and swC — should return 2 vulns.
+	result, err = ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, []uint{swA.ID, swC.ID}, fleet.NVDSource)
+	require.NoError(t, err)
+	require.Len(t, result, 2)
+
+	// Empty software IDs — should return nil.
+	result, err = ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, []uint{}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+	require.Nil(t, result)
 }

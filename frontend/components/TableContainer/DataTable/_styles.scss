@@ -1,5 +1,5 @@
 $shadow-width: 40px;
-$shadow-transition-width: 10px;
+$shadow-transition-width: 16px;
 
 .data-table-block {
   position: relative;
@@ -18,17 +18,25 @@ $shadow-transition-width: 10px;
       background-image:
       /* Shadows */ linear-gradient(
           to right,
-          white,
+          $core-fleet-white,
           $transparent
         ),
-        linear-gradient(to left, white, $transparent),
+        linear-gradient(to left, $core-fleet-white, $transparent),
         /* Shadow covers */
-          linear-gradient(to right, $ui-shadow, white $shadow-transition-width),
-        linear-gradient(to left, $ui-shadow, white $shadow-transition-width);
+          linear-gradient(
+            to right,
+            $ui-shadow,
+            $core-fleet-white $shadow-transition-width
+          ),
+        linear-gradient(
+          to left,
+          $ui-shadow,
+          $core-fleet-white $shadow-transition-width
+        );
 
       background-position: left center, right center, left center, right center;
       background-repeat: no-repeat;
-      background-color: white;
+      background-color: $core-fleet-white;
       background-size: $shadow-width 100%, $shadow-width 100%, 50% 100%,
         50% 100%;
 
@@ -120,9 +128,7 @@ $shadow-transition-width: 10px;
           border-top-right-radius: 6px;
         }
 
-        &.actions__header,
-        &.id__header // Same as actions__header on some pages
-        {
+        &.actions__header {
           border-left: none;
           width: 99px;
         }
@@ -143,7 +149,7 @@ $shadow-transition-width: 10px;
           span {
             display: flex;
             align-items: center;
-            gap: 3px;
+            gap: $gap-icon-text;
           }
         }
 
@@ -256,12 +262,24 @@ $shadow-transition-width: 10px;
         }
       }
 
+      // Round bottom corners on the last row so the row background doesn't
+      // overflow the wrapper's rounded corners (visible in dark mode where
+      // row and wrapper backgrounds differ).
+      tr:last-child {
+        td:first-child {
+          border-bottom-left-radius: 6px;
+        }
+        td:last-child {
+          border-bottom-right-radius: 6px;
+        }
+      }
+
       .single-row {
         &:hover {
           cursor: pointer;
         }
         &:active {
-          background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
+          background-color: $ui-vibrant-blue-10;
         }
       }
 
@@ -271,18 +289,36 @@ $shadow-transition-width: 10px;
         }
       }
 
+      // Match the wrapper's rounded corners so the last row's hover
+      // background doesn't bleed past them.
+      tr:last-child,
+      .single-row:last-child {
+        td:first-child {
+          border-bottom-left-radius: 6px;
+        }
+        td:last-child {
+          border-bottom-right-radius: 6px;
+        }
+      }
+
       td {
         height: 40px;
         padding: 0 $table-cell-padding;
         max-width: 500px;
         word-wrap: break-word;
 
-        &.actions__cell,
-        &.id__cell // Same as actions__cell on some pages
-        {
-          display: flex;
-          justify-content: end; // Aligns actions dropdown to right of table
+        &.actions__cell {
+          // Keep the cell as table-cell (not display:flex) so the bottom-right
+          // border-radius of the last row renders cleanly. Right-align the
+          // dropdown by making its wrapper inline-flex.
+          text-align: right;
           max-width: 99px;
+
+          .actions-dropdown__wrapper {
+            display: inline-flex;
+            // Reset cell's right-align so menu option text stays left-aligned.
+            text-align: left;
+          }
         }
 
         &.linkToFilteredHosts__cell,
@@ -408,12 +444,16 @@ $shadow-transition-width: 10px;
         }
         .italic-cell {
           font-style: italic;
-          .__react_component_tooltip {
+
+          // old react tooltip version
+          .__react_component_tooltip,
+          // new react tooltip version
+          .react-tooltip {
             font-style: normal;
           }
         }
         .grey-cell {
-          color: $ui-fleet-black-50;
+          color: $ui-fleet-black-75;
         }
       }
 
@@ -431,7 +471,7 @@ $shadow-transition-width: 10px;
     bottom: 0;
     left: 0;
     right: 0;
-    background-color: rgba(255, 255, 255, 0.8);
+    background-color: $loading-overlay;
     z-index: 1;
   }
 

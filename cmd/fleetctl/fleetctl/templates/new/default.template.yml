@@ -61,15 +61,15 @@ org_settings:
 
     ###########################################################
     # Uncomment when you are ready to start using zero-touch enrollment
-    # for Apple devices via Apple Business Manager (ABM).
+    # for Apple devices via Apple Business (AB).
     #
     # Read more:
     #   • https://fleetdm.com/docs/configuration/yaml-files#apple-business-manager
     #   • https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm
     ###########################################################
     # apple_business_manager:
-    #   - organization_name: "My Company, Inc." # This must exactly match the organization name in Apple Business Manager (ABM).
-    #     macos_fleet: "💻 Workstations" # Where new macOS devices from ABM will appear
+    #   - organization_name: "My Company, Inc." # This must exactly match the organization name in Apple Business (AB).
+    #     macos_fleet: "💻 Workstations" # Where new macOS devices from AB will appear
 
     ###########################################################
     # Uncomment to start using Apple's volume purchase program (VPP)
@@ -81,7 +81,7 @@ org_settings:
     #   • https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp
     ###########################################################
     # volume_purchasing_program:
-    #   - location: "My location." # This must exactly match a "Location" name in Apple Business Manager (ABM).
+    #   - location: "My organization unit." # This must exactly match an "Organization Unit" name in Apple Business (AB). Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
     #     fleets:
     #       - "💻 Workstations"
     #       - "📱🔐 Personal mobile devices"

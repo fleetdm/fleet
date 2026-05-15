@@ -4,27 +4,11 @@ _Available in Fleet Premium_
 
 Fleet’s self-service lets end users update and install approved apps and run scripts from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive.
 
-## Platforms
+For macOS, Windows, and Linux hosts, self-service is accessible via the **Self-service** page in [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). 
 
-Fleet supports self-service software installs on the following platforms:
+> **Note:** The **Self-service** page is hidden by default to avoid confusion in organizations that use a different self-service tool. It appears after you add self-service software or scripts.
 
-macOS:
-
-- Custom packages (.pkg, .sh)
-- Fleet-maintained apps
-- App Store apps
-
-Windows: 
-
-- Custom packages (.msi, .exe, .ps1)
-
-Linux: 
-
-- Custom packages (.deb, .rpm, .sh, .tar.gz)
-
-iOS/iPadOS: 
-
-- App Store apps and custom .ipa packages
+For iOS/iPadOS hosts, [deploy a webclip](#deploy-self-service-on-ios-and-ipados) to give end users access. For Android hosts, all self-service software is available in the Managed Google Play store. [Learn more](https://fleetdm.com/guides/install-app-store-apps#google-play-android2).
 
 ## Add software
 
@@ -40,7 +24,7 @@ You can also add the software and later make it available in self-service:
 
 1. Select the fleet to which you added the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
-3. Select the **All software** dropdown and choose **Available for install.** This filters the results in the table to show only software that can be installed on hosts. If you don’t see your software, page through the results or search for your software's name in the search bar. Once you find the software, select its title.
+3. Select the **Library** tab to view software available for install. Select the software you want to make available in self-service.
 4. Select the pencil (edit) icon and check **Self-service** in the **Options** section. You can also assign categories and add a custom icon. Icons appear on the **My device > Self-service** page. Custom icons are only available for [custom packages](https://fleetdm.com/guides/deploy-software-packages) and [app store apps](https://fleetdm.com/guides/install-app-store-apps).
 5. Select the **Save** button.
 

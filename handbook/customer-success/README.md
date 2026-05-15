@@ -12,9 +12,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Jorge Falcon](https://www.linkedin.com/in/falcon-jorge/) _([@BCTBB](https://github.com/bctbb))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
-| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ 
-| Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/)
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_
+| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Jonathan Porter](https://linkedin.com/in/jp-cpe) _([@jp-cpe](https://github.com/jp-cpe))_
+| Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/) <br> [Sean Hannon](https://www.linkedin.com/in/sean-hannon-73b603105/) <br> [Kelly Kroening](https://www.linkedin.com/in/kelly-kroening)
+| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
 
 ## Contact us
 
@@ -26,6 +26,14 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 
 The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
+
+### Responsibilities when out of office
+
+When a CS team member is unable to attend a scheduled customer call, they should find backup coverage for their respective function or request a reschedule with the customer.
+
+If a CSM is having another team member cover their call, the CSM is responsible for preparing the customer agenda doc and debriefing their co-worker in advance of the meeting. If a CSA is having another technical resource cover their call, the CSA is responsible for debriefing that team member on the current status of the customer deployment.
+
+If you are working on issues that need follow-up while you're out, assign them to the Manager of Customer Support and Solutions Architecture in Unthread before you leave. Also create a thread in [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1) with an overview of the current status and next steps for these.
 
 
 ### Respond to a "Contact us" job application submission
@@ -109,7 +117,7 @@ Sometimes there is a change in the champion within the customer's organization.
 Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.
 
 1. When a deal including Fast-track closes, add a TODO on the final page of the partnership kickoff presentation, to confirm the details around their services purchase and to coordinate scheduling. Be sure to make the customer aware that delays in confirming service delivery date can cause the date to move out further.
-2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA to collect the following information:
+2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA. The CSM is responsible for scheduling this call, but the CSA is the DRI for running this call and collecting the following:
 - What is the target migration date and when does the previous MDM contract end?
 - Which critical workflows will Fleet be used for?
   - Onboarding workflow?
@@ -117,6 +125,7 @@ Fast-track is Fleet's service delivery package for new MDM customers. Check with
   - Automated device enrollment (ADE)? Autopilot?
   - Setup experience?
   - Self-service software?
+  - Have you started planning for what a migration will look like? 
 - Which integrations will be required for migration? Which integrations will be required post-migration (no hard timeline)?
   - IAM?
   - Log shipping to SIEM?
@@ -209,6 +218,42 @@ During the window of time available to investigate an issue, use the resources a
   - Contact the developer on-call.
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
+
+### Troubleshooting a managed cloud or self-hosted customer suspected infrastructure issue
+
+##### For managed cloud customers, CSE is responsible for doing an initial check on logs. Timebox 10 minutes to do the following: 
+
+1. First, in all instances, [review the athena logs](https://github.com/fleetdm/confidential/blob/main/infrastructure/runbooks/cse-troubleshooting.md) for:
+  - IP ingress patterns from problematic hosts
+  - ELB errors and response times
+  - For customers with WAF enabled, check for any traffic being blocked
+  - 408 or 502 errors
+  - Total number of requests by status code type
+
+2. Next, check Fleet server logs via [Cloudwatch Log Insights](https://github.com/fleetdm/confidential/blob/main/infrastructure/runbooks/cse-troubleshooting.md#aws-cloudwatch-logs-insights---check-fleet-server-logs). Follow the steps below:
+  - Search for related endpoints via endpoint URL's
+  - Check for errors during cron jobs using the query in the infra runbook
+  - Use the Patterns tab to look for patterns in the logs which may provide more information
+  - In #help-customers or #help-engineering, ask other CSE's or the developer on-call engineer what else they might search for in the logs
+
+3. Finally, if you're not able to determine if this is a Fleet app issue or an infrastructure issue, tag in the infrastructure on-call via a new thread in the #help-infrastructure channel with a synopsis of your findings. The infrastructure engineer is the DRI for determining if an issue is infrastructure related. If they rule out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance. If the issue is a suspected P0, follow the [incident response process](https://fleetdm.com/handbook/engineering#incident-response-process). 
+
+##### For self-hosted customers, CSE is responsible for requesting customer logs and doing an initial review. Timebox 10 minutes to do the following:  
+
+1. Verify that the information we have stored about their Fleet architecture is correct
+2. Ask the following questions
+  - Are your hosts checking in and is your Fleet server online? 
+  - When did the issue begin?
+  - Have you made any changes to Fleet around the time of the issue beginning?
+  - Request Fleet server logs
+  - Request uptime data for Fleet, Redis, and MySQL
+  - Request the average memory and CPU for Fleet, Redis, and MySQL
+  - For customers hosting on AWS, request Aurora and RDS Performance insights
+3. Request the output of `fleetctl debug errors`
+  - Review the output and search for any patterns
+  - The next steps in your process will be determined by what you find
+  - Contact a Sr CSE to determine if this should be escalated to the infrastructure on-call engineer
+  - If the infrastructure on-call engineer rules out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance.
 
 ### Report an incident
 

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
 	"crypto/x509"
+	"database/sql/driver"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -32,6 +35,8 @@ import (
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 )
 
 // safeStore is a wrapper around mock.Store to allow for concurrent calling to
@@ -123,6 +128,8 @@ func TestMaybeSendStatistics(t *testing.T) {
 			NumHostsFleetDesktopEnabled:   1984,
 			FleetMaintainedAppsMacOS:      []string{"1password/darwin"},
 			FleetMaintainedAppsWindows:    []string{"google-chrome/windows"},
+			GitOpsModeEnabled:             true,
+			GitOpsModeExceptions:          []string{"labels", "software", "secrets"},
 		}, true, nil
 	}
 	recorded := false
@@ -141,7 +148,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984,"fleetMaintainedAppsMacOS":["1password/darwin"],"fleetMaintainedAppsWindows":["google-chrome/windows"],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":false,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":false}`, requestBody)
+	assert.JSONEq(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984,"fleetMaintainedAppsMacOS":["1password/darwin"],"fleetMaintainedAppsWindows":["google-chrome/windows"],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":false,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":false,"gitOpsModeEnabled":true,"gitOpsModeExceptions":["labels","software","secrets"]}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -1321,4 +1328,208 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 	require.NoError(t, err)
 	// Only one label (the host vitals label) should have been processed.
 	require.Equal(t, 1, numCalls)
+}
+
+// TestOTELResourceCreation verifies that the OTEL resource can be created without schema URL
+// conflicts. The SDK's WithTelemetrySDK() detector embeds its own schema URL, which must match
+// the semconv version we import. A mismatch (e.g. after a dependabot SDK bump that doesn't
+// update our semconv import) causes a runtime error on server startup.
+func TestOTELResourceCreation(t *testing.T) {
+	res, err := resource.New(t.Context(),
+		resource.WithSchemaURL(semconv.SchemaURL),
+		resource.WithAttributes(
+			semconv.ServiceName("fleet-test"),
+			semconv.ServiceVersion("0.0.0-test"),
+		),
+		resource.WithTelemetrySDK(),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+}
+
+func TestArgsToString(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		args []driver.NamedValue
+		want string
+	}{
+		{
+			name: "empty",
+			args: nil,
+			want: "{}",
+		},
+		{
+			name: "single positional",
+			args: []driver.NamedValue{{Value: "hello"}},
+			want: "{hello}",
+		},
+		{
+			name: "single named",
+			args: []driver.NamedValue{{Name: "id", Value: 42}},
+			want: "{id=42}",
+		},
+		{
+			name: "multiple named",
+			args: []driver.NamedValue{
+				{Name: "id", Value: 1},
+				{Name: "name", Value: "alice"},
+			},
+			want: "{id=1, name=alice}",
+		},
+		{
+			name: "mixed positional and named",
+			args: []driver.NamedValue{
+				{Name: "id", Value: 1},
+				{Value: "second"},
+			},
+			want: "{id=1, second}",
+		},
+		{
+			name: "mixed value types",
+			args: []driver.NamedValue{
+				{Value: 1},
+				{Value: "two"},
+				{Value: true},
+				{Value: nil},
+			},
+			want: "{1, two, true, <nil>}",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, argsToString(tc.args))
+		})
+	}
+}
+
+func TestGetTLSConfig(t *testing.T) {
+	t.Parallel()
+	expectedCurves := []tls.CurveID{tls.X25519, tls.CurveP256, tls.CurveP384}
+
+	t.Run("modern", func(t *testing.T) {
+		cfg := getTLSConfig(config.TLSProfileModern)
+		require.NotNil(t, cfg)
+		assert.Equal(t, uint16(tls.VersionTLS13), cfg.MinVersion)
+		assert.True(t, cfg.PreferServerCipherSuites)
+		assert.ElementsMatch(t, expectedCurves, cfg.CurvePreferences)
+		assert.ElementsMatch(t, []uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		}, cfg.CipherSuites)
+	})
+
+	t.Run("intermediate", func(t *testing.T) {
+		cfg := getTLSConfig(config.TLSProfileIntermediate)
+		require.NotNil(t, cfg)
+		assert.Equal(t, uint16(tls.VersionTLS12), cfg.MinVersion)
+		assert.True(t, cfg.PreferServerCipherSuites)
+		assert.ElementsMatch(t, expectedCurves, cfg.CurvePreferences)
+		assert.ElementsMatch(t, []uint16{
+			tls.TLS_AES_128_GCM_SHA256,
+			tls.TLS_AES_256_GCM_SHA384,
+			tls.TLS_CHACHA20_POLY1305_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+		}, cfg.CipherSuites)
+	})
+}
+
+// TestGetTLSConfigInvalidProfile covers the default case of getTLSConfig,
+// which calls initFatal. Not run in parallel because the test mutates the
+// package-level initFatal var.
+func TestGetTLSConfigInvalidProfile(t *testing.T) {
+	var capturedErr error
+	var capturedMsg string
+	orig := initFatal
+	initFatal = func(err error, msg string) {
+		capturedErr = err
+		capturedMsg = msg
+	}
+	t.Cleanup(func() { initFatal = orig })
+
+	getTLSConfig("not-a-real-profile")
+
+	require.Error(t, capturedErr)
+	require.Contains(t, capturedErr.Error(), "not-a-real-profile")
+	require.Contains(t, capturedErr.Error(), "is invalid")
+	require.Equal(t, "set TLS profile", capturedMsg)
+}
+
+func TestInitLicense(t *testing.T) {
+	t.Parallel()
+	t.Run("dev license", func(t *testing.T) {
+		cfg := &config.FleetConfig{}
+		license, err := initLicense(cfg, true, false)
+		require.NoError(t, err)
+		require.NotNil(t, license)
+		assert.True(t, license.IsPremium())
+		assert.False(t, license.IsExpired())
+		assert.NotEmpty(t, cfg.License.Key, "dev license should populate the config key")
+	})
+
+	t.Run("dev expired license", func(t *testing.T) {
+		cfg := &config.FleetConfig{}
+		license, err := initLicense(cfg, false, true)
+		require.NoError(t, err)
+		require.NotNil(t, license)
+		assert.True(t, license.IsExpired())
+		assert.NotEmpty(t, cfg.License.Key, "dev expired license should populate the config key")
+	})
+
+	t.Run("no license key", func(t *testing.T) {
+		cfg := &config.FleetConfig{}
+		license, err := initLicense(cfg, false, false)
+		require.NoError(t, err)
+		require.NotNil(t, license)
+		assert.Equal(t, fleet.TierFree, license.Tier)
+		assert.Empty(t, cfg.License.Key)
+	})
+}
+
+func TestPrintMissingMigrationsWarning(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name           string
+		tables         []int64
+		data           []int64
+		wantSubstrings []string
+	}{
+		{
+			name:           "tables only",
+			tables:         []int64{1, 2, 3},
+			wantSubstrings: []string{"tables=[1 2 3]", "missing required migrations"},
+		},
+		{
+			name:           "data only",
+			data:           []int64{4, 5},
+			wantSubstrings: []string{"data=[4 5]"},
+		},
+		{
+			name:           "tables and data",
+			tables:         []int64{1},
+			data:           []int64{2},
+			wantSubstrings: []string{"tables=[1], data=[2]"},
+		},
+		{
+			name:           "neither",
+			wantSubstrings: []string{"unknown"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			printMissingMigrationsWarning(&buf, tc.tables, tc.data)
+			out := buf.String()
+			for _, sub := range tc.wantSubstrings {
+				assert.Contains(t, out, sub)
+			}
+			assert.Contains(t, out, os.Args[0])
+		})
+	}
 }

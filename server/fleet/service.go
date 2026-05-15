@@ -122,7 +122,7 @@ type Service interface {
 	//
 	//	- If an entry for the host exists (osquery enrolled first) then it will update the host's orbit node key and team.
 	//	- If an entry for the host doesn't exist (osquery enrolls later) then it will create a new entry in the hosts table.
-	EnrollOrbit(ctx context.Context, hostInfo OrbitHostInfo, enrollSecret string) (orbitNodeKey string, err error)
+	EnrollOrbit(ctx context.Context, hostInfo OrbitHostInfo, enrollSecret string, euaToken string) (orbitNodeKey string, err error)
 	// GetOrbitConfig returns team specific flags and extensions in agent options
 	// if the team id is not nil for host, otherwise it returns flags from global
 	// agent options. It also returns any notifications that fleet wants to surface
@@ -194,6 +194,9 @@ type Service interface {
 
 	// ModifyUser updates a user's parameters given a UserPayload.
 	ModifyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
+
+	// ModifyAPIOnlyUser updates an API-only user
+	ModifyAPIOnlyUser(ctx context.Context, userID uint, p UserPayload) (user *User, err error)
 
 	// DeleteUser permanently deletes the user identified by the provided ID.
 	DeleteUser(ctx context.Context, id uint) (*User, error)
@@ -520,6 +523,7 @@ type Service interface {
 	AppConfigObfuscated(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p []byte, applyOpts ApplySpecOptions) (info *AppConfig, err error)
 	SandboxEnabled() bool
+	AppConfigUrls(ctx context.Context) (urls *AppConfigUrls, err error)
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
 	ApplyEnrollSecretSpec(ctx context.Context, spec *EnrollSecretSpec, applyOpts ApplySpecOptions) error
@@ -655,6 +659,14 @@ type Service interface {
 	// This should be called after service creation to inject the activity service dependency.
 	SetActivityService(activitySvc ActivityWriteService)
 
+	// SetACMEService sets the ACME service module for write operations.
+	// This should be called after service creation to inject the ACME service dependency.
+	SetACMEService(acmeSvc ACMEWriteService)
+
+	// NewACMEEnrollment creates a new ACME enrollment using the ACME service module. It returns the
+	// ACME identifier for the new enrollment, which is used to track the enrollment process and link it to a host.
+	NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error)
+
 	// NewActivity creates the given activity on the datastore.
 	//
 	// What we call "Activities" are administrative operations,
@@ -681,7 +693,7 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate Templates
 
-	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*CertificateTemplateResponse, error)
+	CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*CertificateTemplateResponse, error)
 	ListCertificateTemplates(ctx context.Context, teamID uint, opts ListOptions) ([]*CertificateTemplateResponseSummary, *PaginationMetadata, error)
 	GetDeviceCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponseForHost, error)
 	GetCertificateTemplate(ctx context.Context, id uint) (*CertificateTemplateResponse, error)
@@ -721,7 +733,7 @@ type Service interface {
 	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
-	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
+	GetPolicyByID(ctx context.Context, policyID uint) (*Policy, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 	CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error)
 	AutofillPolicySql(ctx context.Context, sql string) (description string, resolution string, err error)
@@ -731,6 +743,7 @@ type Service interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, *PaginationMetadata, error)
 	SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*Software, error)
+	SoftwareLiteByID(ctx context.Context, id uint) (SoftwareLite, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	// SaveHostSoftwareInstallResult saves information about execution of a
@@ -781,8 +794,8 @@ type Service interface {
 
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
-	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID
-	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, error)
+	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID and app name
+	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, string, error)
 	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload AppStoreAppUpdatePayload) (*VPPAppStoreApp, *ActivityEditedAppStoreApp, error)
 
 	// GetInHouseAppManifest returns a manifest XML file that points at the download URL for the given in-house app.
@@ -838,7 +851,7 @@ type Service interface {
 	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, mergeInherited bool, automationType string) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
-	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
+	GetTeamPolicyByID(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 	CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
@@ -928,7 +941,7 @@ type Service interface {
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
-	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *MDMAppleMachineInfo) (profile []byte, err error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple account-driven user enrollment profile for a given enrollment reference.
 	GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enrollReference string) (profile []byte, err error)
@@ -1094,6 +1107,8 @@ type Service interface {
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
 	// Get the MDM Apple Setup Assistant for the provided team or no team.
 	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
+	// GetDefaultMDMAppleSetupAssistantProfile returns the default MDM Apple setup assistant profile for automatic setup, and the updated at time of the profile. If not set, it returns the default specified in code.
+	GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error)
 	// Delete the MDM Apple Setup Assistant for the provided team or no team.
 	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
 
@@ -1324,10 +1339,25 @@ type Service interface {
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	WipeHost(ctx context.Context, hostID uint, metadata *MDMWipeMetadata) error
 
+	// ClearPasscode is a method that clears the passcode on a host, primarily mobile devices.
+	// Not script based, only MDM based.
+	ClearPasscode(ctx context.Context, hostID uint) (*CommandEnqueueResult, error)
+
 	// RotateRecoveryLockPassword rotates the recovery lock password for a macOS host.
 	// This is only available for Apple Silicon Macs that are MDM-enrolled and have
 	// an existing recovery lock password.
 	RotateRecoveryLockPassword(ctx context.Context, hostID uint) error
+
+	// GetHostManagedAccountPassword retrieves and decrypts the managed local account
+	// password for the given host ID. Available whenever the row has a stored password
+	// and status is not 'failed' (the row's status may be 'pending' due to a recent view).
+	GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*HostManagedLocalAccountPassword, error)
+
+	// RotateManagedLocalAccountPassword rotates the macOS managed local admin
+	// (`_fleetadmin`) password. Premium-only. When account_uuid is captured the
+	// rotation is enqueued immediately; otherwise it's deferred until the cron
+	// can fulfill it after osquery captures the UUID.
+	RotateManagedLocalAccountPassword(ctx context.Context, hostID uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software installers
@@ -1349,6 +1379,21 @@ type Service interface {
 	GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 	UploadSoftwareTitleIcon(ctx context.Context, payload *UploadSoftwareTitleIconPayload) (SoftwareTitleIcon, error)
 	DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error
+
+	/////////////////////////////////////////////////////////////////////////////////
+	// Organization logo
+
+	// UploadOrgLogo stores a logo image for the given mode and updates the
+	// AppConfig URL fields. OrgLogoModeAll applies the same file to both
+	// light and dark.
+	UploadOrgLogo(ctx context.Context, mode OrgLogoMode, content io.ReadSeeker) error
+	// DeleteOrgLogo removes the stored logo for the given mode and clears
+	// the AppConfig URL fields. OrgLogoModeAll deletes both.
+	DeleteOrgLogo(ctx context.Context, mode OrgLogoMode) error
+	// GetOrgLogo returns the stored logo bytes for mode along with their
+	// content length. Only OrgLogoModeLight and OrgLogoModeDark are valid;
+	// OrgLogoModeAll is rejected.
+	GetOrgLogo(ctx context.Context, mode OrgLogoMode) ([]byte, int64, error)
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
@@ -1413,6 +1458,9 @@ type Service interface {
 	// Returns a NotFoundError error if there's no secret variable with such ID.
 	DeleteSecretVariable(ctx context.Context, id uint) error
 
+	// ListAPIEndpoints returns all API endpoints
+	ListAPIEndpoints(ctx context.Context) (endpoints []APIEndpoint, err error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 
@@ -1469,6 +1517,16 @@ type Service interface {
 type KeyValueStore interface {
 	Set(ctx context.Context, key string, value string, expireTime time.Duration) error
 	Get(ctx context.Context, key string) (*string, error)
+}
+
+type AdvancedKeyValueStore interface {
+	KeyValueStore
+
+	// MGet returns the values for the given keys.
+	// It returns a map of key to value, where the value is nil if the key doesn't exist.
+	// Important to use hashes for the keys to land in the same slot.
+	MGet(ctx context.Context, keys []string) (map[string]*string, error)
+	Delete(ctx context.Context, key string) error
 }
 
 const (

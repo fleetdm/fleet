@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -14,6 +15,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.math.BigInteger
 import kotlinx.coroutines.test.runTest
 
 /**
@@ -42,6 +44,7 @@ class ApiClientReenrollTest {
         mockWebServer.start()
 
         ApiClient.initialize(context)
+        ApiClient.useActiveNetworkBinding = false
         clearDataStore()
 
         // Set up enrollment credentials pointing to mock server
@@ -98,10 +101,15 @@ class ApiClientReenrollTest {
         assertTrue("First call should succeed", firstResult.isSuccess)
         assertEquals(2, mockWebServer.requestCount) // enroll + config
 
-        // Verify first enrollment used the enroll secret
+        // Verify first enrollment used the enroll secret and sent platform="android" on the wire
         val firstEnroll = mockWebServer.takeRequest()
         assertEquals("/api/fleet/orbit/enroll", firstEnroll.path)
-        assertTrue(firstEnroll.body.readUtf8().contains("test-enroll-secret"))
+        val firstEnrollBody = firstEnroll.body.readUtf8()
+        assertTrue(firstEnrollBody.contains("test-enroll-secret"))
+        assertTrue(
+            "Expected platform=\"android\" in enroll body, got: $firstEnrollBody",
+            firstEnrollBody.contains("\"platform\":\"android\""),
+        )
 
         // Verify first config used first-node-key
         val firstConfig = mockWebServer.takeRequest()
@@ -187,6 +195,14 @@ class ApiClientReenrollTest {
             "Expected second-node-key in Authorization header",
             retryRequest.getHeader("Authorization")?.contains("second-node-key") == true,
         )
+
+        // GET requests should not send Content-Type since they have no body.
+        // A Content-Type header on a bodyless GET can cause intermediaries (proxies, CDNs)
+        // to reject the request, which surfaces as misleading DNS errors on Android.
+        assertNull(
+            "GET request should not have Content-Type header",
+            retryRequest.getHeader("Content-Type"),
+        )
     }
 
     @Test
@@ -214,6 +230,42 @@ class ApiClientReenrollTest {
 
         // Only 1 request - no re-enrollment attempt
         assertEquals(1, mockWebServer.requestCount - initialRequestCount)
+    }
+
+    @Test
+    fun `updateCertificateStatus serializes serial as lowercase hex`() = runTest {
+        enqueueEnrollmentSuccess("test-node-key")
+        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
+
+        val serial = BigInteger("ff737b63e4516749aea89c59b26fae3d0dd8c48d", 16)
+        val expectedHex = serial.toString(16)
+        val decimalForm = serial.toString(10)
+
+        val result = ApiClient.updateCertificateStatus(
+            certificateId = 42,
+            status = UpdateCertificateStatusStatus.VERIFIED,
+            operationType = UpdateCertificateStatusOperation.INSTALL,
+            serialNumber = serial,
+        )
+
+        assertTrue("updateCertificateStatus should succeed: ${result.exceptionOrNull()}", result.isSuccess)
+
+        mockWebServer.takeRequest() // enrollment
+        val statusReq = mockWebServer.takeRequest()
+        val body = statusReq.body.readUtf8()
+
+        assertTrue(
+            "Expected status update at /api/fleetd/certificates/42/status, got: ${statusReq.path}",
+            statusReq.path?.endsWith("/api/fleetd/certificates/42/status") == true,
+        )
+        assertTrue(
+            "Expected serial as hex \"$expectedHex\" in body, got: $body",
+            body.contains("\"serial\":\"$expectedHex\""),
+        )
+        assertTrue(
+            "Body should not contain the decimal-format serial \"$decimalForm\", got: $body",
+            !body.contains("\"serial\":\"$decimalForm\""),
+        )
     }
 
     @Test

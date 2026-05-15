@@ -87,10 +87,24 @@ export const generateTableConfig = (
     },
     {
       accessor: "location",
-      Header: "Location",
+      Header: "Organization unit",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      accessor: "country_code",
+      Header: "Country",
+      disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell
+          value={
+            cellProps.cell.value
+              ? cellProps.cell.value.toUpperCase()
+              : undefined
+          }
+        />
       ),
     },
     {
@@ -111,7 +125,7 @@ export const generateTableConfig = (
       Header: "Fleets",
       disableSortBy: true,
       Cell: (cellProps: ITeamsCellProps) => (
-        <TeamsCell teams={cellProps.cell.value} className="vpp-teams-cell" />
+        <TeamsCell teams={cellProps.cell.value} />
       ),
     },
     {

@@ -442,11 +442,12 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
+		// GROUP BY device collapses bind mounts so a filesystem mounted at multiple paths is counted once.
 		Query: fmt.Sprintf(`
 		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
+					 (SELECT round(SUM(per_device_size) * 10e-10, 2) FROM (SELECT MAX(blocks * blocks_size) AS per_device_size FROM mounts %s GROUP BY device)) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
 		Platforms:        fleet.HostLinuxOSs,
 		DirectIngestFunc: directIngestDiskSpace,
@@ -799,26 +800,33 @@ var extraDetailQueries = map[string]DetailQuery{
 		// osquery table on darwin and linux, it is always present.
 	},
 	"disk_encryption_windows": {
-		// Bitlocker is an optional component on Windows Server and
-		// isn't guaranteed to be installed. If we try to query the
-		// bitlocker_info table when the bitlocker component isn't
-		// present, the query will crash and fail to report back to
-		// the server. Before querying bitlocke_info, we check if it's
-		// either:
-		// 1. both an optional component, and installed.
-		// OR
-		// 2. not optional, meaning it's built into the OS
+		// BitLocker is an optional component on Windows Server and
+		// isn't guaranteed to be installed. We use bl_available to
+		// gate the bitlocker_info access: if BitLocker isn't installed,
+		// bl_available returns 0 rows and the CROSS JOIN ensures
+		// bitlocker_info is never scanned. This is safe on Windows
+		// Server without BitLocker (verified on Server 2022 with
+		// osquery 5.22.1 -- osquery returns empty results with a
+		// WMI warning but does not crash).
+		//
+		// bl_available returns a row when BitLocker is either:
+		// 1. not listed as an optional feature (built into the OS), OR
+		// 2. listed as an optional feature and installed (state = 1)
+		//
+		// Returns protection_status and conversion_status so the server
+		// can distinguish "encrypted + protected" from "encrypted + unprotected".
 		Query: `
-	WITH encrypted(enabled) AS (
-		SELECT CASE WHEN
+	WITH bl_available(ok) AS (
+		SELECT 1 WHERE
 			NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-			OR
-			(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-		THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
-	END)
-	SELECT 1 FROM encrypted WHERE enabled IS NOT NULL`,
+			OR EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+	)
+	SELECT bi.protection_status, bi.conversion_status
+	FROM bl_available
+	CROSS JOIN bitlocker_info bi
+	WHERE bi.drive_letter = 'C:'`,
 		Platforms:        []string{"windows"},
-		DirectIngestFunc: directIngestDiskEncryption,
+		DirectIngestFunc: directIngestDiskEncryptionWindows,
 	},
 	"certificates_darwin": {
 		Query: `
@@ -972,20 +980,17 @@ func generateSQLForAllExists(subqueries ...string) string {
 	return sql
 }
 
+// Usernames starting with an underscore are excluded (macOS system accounts),
+// with the managed local admin (_fleetadmin) allowlisted so the ingest layer
+// can capture its UUID for MDM rotation. The ingest layer is responsible for
+// excluding _fleetadmin from host_users — see directIngestUsers.
 const usersQueryStr = `WITH cached_groups AS (select * from groups)
  SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
- WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '` + fleet.ManagedLocalAccountUsername + `') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
 
 func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
-}
-
-var windowsUpdateHistory = DetailQuery{
-	Query:            `SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'`,
-	Platforms:        []string{"windows"},
-	Discovery:        discoveryTable("windows_update_history"),
-	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
 // macOSEntraIDDetails holds the query and ingestion function for macOS for Microsoft "Conditional access" feature.
@@ -1678,6 +1683,146 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Discovery:              discoveryTable("rpm_package_files"),
 		SoftwareProcessResults: processPackageLastOpenedAt("rpm_packages"),
 	},
+	// windows_program_files_scan detects Windows software installed to C:\Program Files that lacks
+	// registry Uninstall entries (invisible to the osquery programs table). Scans at depth 0
+	// (Vendor\app.exe) and depth 1 (Vendor\Subfolder\app.exe), excluding WindowsApps (already
+	// covered by the programs table). Deduplication against programs entries is handled server-side
+	// via SoftwareProcessResults. Also enables detection of Windows Defender (MsMpEng.exe) which
+	// does not create registry entries (#42878).
+	"windows_program_files_scan": {
+		Description: "A software override query[^1] to detect Windows software installed to Program Files without registry entries.",
+		Platforms:   []string{"windows"},
+		Query: `SELECT
+  path,
+  filename,
+  file_version,
+  product_version,
+  size
+FROM file
+WHERE (
+    path LIKE 'C:\Program Files\%\%.exe'
+    OR path LIKE 'C:\Program Files\%\%\%.exe'
+  )
+  AND path NOT LIKE 'C:\Program Files\WindowsApps\%'`,
+		SoftwareProcessResults: processProgramFilesScan,
+	},
+}
+
+// processProgramFilesScan deduplicates file scan results against existing programs entries,
+// then appends new (non-duplicate) entries to the main software results.
+//
+// Dedup uses a directory prefix check rather than direct path equality because
+// programs.install_location and the file scan path are not directly comparable:
+//   - install_location is a root directory (e.g. ...\GoLand 2025.3.3), not the exe path
+//   - The exe may be nested deeper (e.g. ...\GoLand 2025.3.3\bin\goland64.exe)
+//   - install_location may or may not have a trailing backslash
+//
+// By normalizing both sides (lowercase, trailing backslash) and checking whether the
+// exe's parent directory starts with a known install_location, we correctly match
+// executables at any depth beneath a program's install root.
+func processProgramFilesScan(mainSoftwareResults, fileScanResults []map[string]string) []map[string]string {
+	if len(fileScanResults) == 0 {
+		return mainSoftwareResults
+	}
+
+	// Build a set of normalized installed paths from existing programs entries.
+	// normalizeWindowsDir ensures consistent trailing backslash and lowercase.
+	//
+	// We skip over-broad locations (drive roots, Windows\System32) because some
+	// programs report install_location as e.g. "C:\" which would prefix-match
+	// every file scan result. See the analogous skipInstallPaths filter in the
+	// windows_last_opened_at handler.
+	skipInstallPaths := map[string]struct{}{
+		`\`:                     {},
+		`\windows\`:             {},
+		`\windows\system32\`:    {},
+		`\program files\`:       {},
+		`\program files (x86)\`: {},
+	}
+	knownPaths := make(map[string]struct{})
+	for _, row := range mainSoftwareResults {
+		if row["source"] != "programs" {
+			continue
+		}
+		p := normalizeWindowsDir(row["installed_path"])
+		if p == "" {
+			continue
+		}
+		// Strip the drive letter (e.g. "c:") to get a volume-relative path for skip checking.
+		if vol, rel, ok := strings.Cut(p, ":"); !ok || len(vol) != 1 || len(rel) == 0 {
+			continue
+		} else if _, skip := skipInstallPaths[rel]; skip {
+			continue
+		}
+		knownPaths[p] = struct{}{}
+	}
+
+	for _, row := range fileScanResults {
+		exePath := row["path"]
+		if exePath == "" {
+			continue
+		}
+
+		// Extract and normalize the directory containing the exe.
+		exeDir := normalizeWindowsDir(windowsDirname(exePath))
+
+		// An exe is a duplicate if its directory falls under any known install_location.
+		// For example, install_location "c:\program files\foo\" matches exe dir
+		// "c:\program files\foo\bin\" because the exe lives inside that install root.
+		duplicate := false
+		for knownPath := range knownPaths {
+			if strings.HasPrefix(exeDir, knownPath) {
+				duplicate = true
+				break
+			}
+		}
+		if duplicate {
+			continue
+		}
+
+		version := row["product_version"]
+		if version == "" {
+			version = row["file_version"]
+		}
+
+		mainSoftwareResults = append(mainSoftwareResults, map[string]string{
+			"name":              row["filename"],
+			"version":           version,
+			"source":            "programs",
+			"vendor":            "",
+			"installed_path":    windowsDirname(exePath),
+			"extension_id":      "",
+			"extension_for":     "",
+			"upgrade_code":      "",
+			"release":           "",
+			"arch":              "",
+			"bundle_identifier": "",
+			"last_opened_at":    "",
+		})
+	}
+
+	return mainSoftwareResults
+}
+
+// windowsDirname returns the directory portion of a Windows path (everything before the last backslash).
+func windowsDirname(path string) string {
+	if idx := strings.LastIndex(path, `\`); idx >= 0 {
+		return path[:idx]
+	}
+	return path
+}
+
+// normalizeWindowsDir lowercases a Windows directory path and ensures it ends with a backslash.
+func normalizeWindowsDir(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	path = strings.ToLower(path)
+	if !strings.HasSuffix(path, `\`) {
+		path += `\`
+	}
+	return path
 }
 
 // processPackageLastOpenedAt is a shared function that processes package last_opened_at information
@@ -1930,42 +2075,6 @@ func generateBatteryHealth(ctx context.Context, row map[string]string, logger *s
 	}
 
 	return batteryStatusGood, count, nil
-}
-
-func directIngestWindowsUpdateHistory(
-	ctx context.Context,
-	logger *slog.Logger,
-	host *fleet.Host,
-	ds fleet.Datastore,
-	rows []map[string]string,
-) error {
-	// The windows update history table will also contain entries for the Defender Antivirus. Unfortunately
-	// there's no reliable way to differentiate between those entries and Cumulative OS updates.
-	// Since each antivirus update will have the same KB ID, but different 'dates', to
-	// avoid trying to insert duplicated data, we group by KB ID and then take the most 'out of
-	// date' update in each group.
-
-	uniq := make(map[uint]fleet.WindowsUpdate)
-	for _, row := range rows {
-		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
-		if err != nil {
-			// If the update failed to parse then we log a debug error and ignore it.
-			// E.g. we've seen KB updates with titles like "Logitech - Image - 1.4.40.0".
-			logger.DebugContext(ctx, "directIngestWindowsUpdateHistory skipped", "err", err)
-			continue
-		}
-
-		if v, ok := uniq[u.KBID]; !ok || v.MoreRecent(u) {
-			uniq[u.KBID] = u
-		}
-	}
-
-	var updates []fleet.WindowsUpdate
-	for _, v := range uniq {
-		updates = append(updates, v)
-	}
-
-	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
 }
 
 func directIngestEntraIDDetails(
@@ -2331,6 +2440,18 @@ var (
 				s.Release = "" // Clear release to avoid issues with vulnerability matching
 			},
 		},
+		{
+			// Windows Defender's service executable (MsMpEng.exe) is installed under
+			// C:\Program Files\Windows Defender without registry Uninstall entries.
+			// Map it to a user-friendly name for software inventory. (#42878)
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.EqualFold(s.Name, "MsMpEng.exe")
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				s.Name = "Windows Defender"
+			},
+		},
 	}
 )
 
@@ -2394,6 +2515,7 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 			return ctxerr.Wrap(ctx, err, "getting nano user enrollment username and uuid")
 		}
 	}
+	var managedLocalAccountUUID string
 	for _, row := range rows {
 		if row["uid"] == "" {
 			// Under certain circumstances, broken users can come back with empty UIDs. We don't want them
@@ -2413,6 +2535,12 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 		groupname := row["groupname"]
 		shell := row["shell"]
 		uuid := row["uuid"]
+		// _fleetadmin is allowlisted in usersQueryStr only so we can capture its uuid for
+		// MDM rotation. Do not persist it in host_users.
+		if host.Platform == "darwin" && username == fleet.ManagedLocalAccountUsername {
+			managedLocalAccountUUID = uuid
+			continue
+		}
 		u := fleet.HostUser{
 			Uid:       uint(uid), // nolint:gosec // dismiss G115
 			Username:  username,
@@ -2430,6 +2558,9 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 			}
 		}
 	}
+	if host.Platform == "darwin" && managedLocalAccountUUID != "" {
+		captureManagedLocalAccountUUID(ctx, logger, host, ds, managedLocalAccountUUID)
+	}
 	if len(users) == 0 {
 		return nil
 	}
@@ -2437,6 +2568,29 @@ func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Hos
 		return ctxerr.Wrap(ctx, err, "update host users")
 	}
 	return nil
+}
+
+// captureManagedLocalAccountUUID persists the osquery-reported UUID for the
+// managed local admin account when a row exists and the stored value is NULL
+// or differs from the latest reported UUID. Errors are logged and swallowed
+// so host-detail ingestion is not blocked by this secondary concern.
+func captureManagedLocalAccountUUID(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, accountUUID string) {
+	existing, err := ds.GetManagedLocalAccountUUID(ctx, host.UUID)
+	if fleet.IsNotFound(err) {
+		return
+	}
+	if err != nil {
+		logger.ErrorContext(ctx, "get managed local account uuid during user ingest",
+			"err", err, "host_id", host.ID, "host_uuid", host.UUID)
+		return
+	}
+	if existing != nil && *existing == accountUUID {
+		return
+	}
+	if err := ds.SetManagedLocalAccountUUID(ctx, host.UUID, accountUUID); err != nil {
+		logger.ErrorContext(ctx, "set managed local account uuid during user ingest",
+			"err", err, "host_id", host.ID, "host_uuid", host.UUID)
+	}
 }
 
 func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -2630,12 +2784,40 @@ func directIngestDiskEncryptionLinux(ctx context.Context, logger *slog.Logger, h
 		}
 	}
 
-	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, nil)
 }
 
 func directIngestDiskEncryption(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	encrypted := len(rows) > 0
-	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, nil)
+}
+
+func directIngestDiskEncryptionWindows(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
+		return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, false, nil)
+	}
+
+	row := rows[0]
+
+	conversionStatus, err := strconv.Atoi(row["conversion_status"])
+	if err != nil {
+		return fmt.Errorf("parsing bitlocker conversion_status %q: %w", row["conversion_status"], err)
+	}
+	encrypted := conversionStatus == fleet.BitLockerConversionStatusFullyEncrypted
+
+	// Normalize protection_status=2 (unknown) to nil so downstream status
+	// logic treats it the same as hosts that haven't reported yet.
+	var protectionStatus *int
+	protectionStatusVal, err := strconv.Atoi(row["protection_status"])
+	if err != nil {
+		return fmt.Errorf("parsing bitlocker protection_status %q: %w", row["protection_status"], err)
+	}
+	if protectionStatusVal == fleet.BitLockerProtectionStatusOff || protectionStatusVal == fleet.BitLockerProtectionStatusOn {
+		protectionStatus = &protectionStatusVal
+	}
+	// protectionStatusVal == 2 (unknown) or any other value: leave protectionStatus as nil
+
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, protectionStatus)
 }
 
 // directIngestDiskEncryptionKeyFileDarwin ingests the FileVault key from the `filevault_prk`
@@ -3189,10 +3371,6 @@ func GetDetailQueries(
 	if features != nil && features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
 		generatedMap["users_chrome"] = usersQueryChrome
-	}
-
-	if !fleetConfig.Vulnerabilities.DisableWinOSVulnerabilities {
-		generatedMap["windows_update_history"] = windowsUpdateHistory
 	}
 
 	if fleetConfig.App.EnableScheduledQueryStats {

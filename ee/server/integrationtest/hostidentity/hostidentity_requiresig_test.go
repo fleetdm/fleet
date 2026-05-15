@@ -12,7 +12,8 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +33,7 @@ func TestHostIdentityRequireSignature(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, s.BaseSuite.DS, []string{
+			defer mysqltest.TruncateTables(t, s.BaseSuite.DS, []string{
 				"host_identity_scep_serials", "host_identity_scep_certificates",
 			}...)
 			c.fn(t, s)
@@ -45,7 +46,7 @@ func testOrbitEnrollAndConfigWithRequiredSignature(t *testing.T, s *Suite) {
 	cert, eccPrivateKey := testGetCertWithCurve(t, s, elliptic.P384())
 
 	// Test enrollment first WITHOUT signature (should fail)
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + cert.Subject.CommonName,
 		HardwareSerial:    "test-serial-" + cert.Subject.CommonName,
@@ -132,7 +133,7 @@ func testOsqueryEnrollFailsWithoutSignature(t *testing.T, s *Suite) {
 func testOrbitEnrollFailsWithoutSignature(t *testing.T, s *Suite) {
 	identifier := "orbit-enroll-without-signature-test"
 	// Test orbit enrollment without signature (should fail)
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + identifier,
 		HardwareSerial:    "test-serial-" + identifier,

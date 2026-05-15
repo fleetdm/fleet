@@ -555,6 +555,8 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].SecretsUpdatedAt = items[0].SecretsUpdatedAt
 	fieldsInEqualMethod++
+	items[1].VariablesUpdatedAt = items[0].VariablesUpdatedAt
+	fieldsInEqualMethod++
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
 	assert.True(t, items[0].Equal(items[1]))
 
@@ -825,6 +827,95 @@ func TestValidateNoSecretsInProfileName(t *testing.T) {
 				require.Contains(t, err.Error(), tc.errMsg)
 			} else {
 				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestIsMacAppleSilicon(t *testing.T) {
+	cases := []struct {
+		product string
+		wantAS  bool
+		wantErr bool
+	}{
+		// --- MacBookPro ---
+		// x86: last Intel model before Apple Silicon transition
+		{product: "MacBookPro16,1", wantAS: false},
+		{product: "MacBookPro16,4", wantAS: false},
+		// Apple Silicon: first AS model (M1, Late 2020) and later
+		{product: "MacBookPro17,1", wantAS: true},
+		{product: "MacBookPro18,3", wantAS: true},
+		{product: "MacBookPro18,4", wantAS: true},
+
+		// --- MacBookAir ---
+		// x86: last Intel model before Apple Silicon transition
+		{product: "MacBookAir9,1", wantAS: false},
+		// Apple Silicon: first AS model (M1, Late 2020) and later
+		{product: "MacBookAir10,1", wantAS: true},
+		{product: "MacBookAir14,2", wantAS: true},
+
+		// --- Macmini ---
+		// x86: last Intel model before Apple Silicon transition
+		{product: "Macmini8,1", wantAS: false},
+		// Apple Silicon: first AS model (M1, Late 2020) and later
+		{product: "Macmini9,1", wantAS: true},
+		{product: "Macmini9,2", wantAS: true},
+
+		// --- iMac ---
+		// x86: last Intel models before Apple Silicon transition
+		{product: "iMac20,1", wantAS: false},
+		{product: "iMac20,2", wantAS: false},
+		// Apple Silicon: first AS model (M1, Early 2021) and later
+		{product: "iMac21,1", wantAS: true},
+		{product: "iMac21,2", wantAS: true},
+
+		// --- MacBook (no suffix) — all x86, line discontinued before Apple Silicon ---
+		{product: "MacBook10,1", wantAS: false},
+		{product: "MacBook9,1", wantAS: false},
+
+		// --- iMacPro — all x86, discontinued before Apple Silicon ---
+		{product: "iMacPro1,1", wantAS: false},
+
+		// --- MacPro — old numbering, all x86 ---
+		// (the AS Mac Pro uses the "Mac" prefix, e.g. Mac14,8)
+		{product: "MacPro7,1", wantAS: false},
+		{product: "MacPro6,1", wantAS: false},
+
+		// --- Mac (bare prefix) — unified Apple Silicon naming ---
+		// Mac Studio (M1 Ultra, 2022)
+		{product: "Mac13,1", wantAS: true},
+		{product: "Mac13,2", wantAS: true},
+		// Mac Pro (M2 Ultra, 2023)
+		{product: "Mac14,8", wantAS: true},
+		// Mac mini (M4, 2024)
+		{product: "Mac16,10", wantAS: true},
+
+		// --- Non-Mac Apple devices — return false without error ---
+		{product: "iPhone15,2", wantAS: false},
+		{product: "iPhone14,3", wantAS: false},
+		{product: "iPad13,18", wantAS: false},
+		{product: "iPodTouch9,1", wantAS: false},
+
+		// --- Error cases ---
+		// Empty string
+		{product: "", wantErr: true},
+		// No comma separator
+		{product: "MacBookPro18", wantErr: true},
+		// Garbage input
+		{product: "not-a-model", wantErr: true},
+		// Non-Mac Apple devices that don't start with iPhone/iPod/iPad return an error
+		{product: "AppleTV6,2", wantErr: true},
+		{product: "AppleTV14,1", wantErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.product, func(t *testing.T) {
+			got, err := IsMacAppleSilicon(tc.product)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.wantAS, got)
 			}
 		})
 	}

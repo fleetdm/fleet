@@ -1,6 +1,6 @@
 {
   "name": "fleetctl",
-  "version": "v4.82.0",
+  "version": "v4.85.0",
   "description": "Installer for the fleetctl CLI tool",
   "bin": {
     "fleetctl": "./run.js"
@@ -16,7 +16,7 @@
   },
   "homepage": "https://fleetdm.com",
   "dependencies": {
-    "axios": "1.13.5",
+    "axios": "1.15.2",
     "rimraf": "6.1.2",
     "tar": "7.5.11"
   },

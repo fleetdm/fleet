@@ -8,7 +8,7 @@ import { IHostScriptsResponse } from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError/DataError";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner/Spinner";
 
@@ -118,7 +118,7 @@ const RunScriptModal = ({
         {!isLoadingHostScripts &&
           !isError &&
           (!tableData || tableData.length === 0) && (
-            <EmptyTable
+            <EmptyState
               header="No scripts available for this host"
               info="Expecting to see scripts? Close this modal and try again."
             />

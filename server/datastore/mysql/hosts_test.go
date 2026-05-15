@@ -151,6 +151,7 @@ func TestHosts(t *testing.T) {
 		{"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
 		{"UpdateRefetchRequested", testUpdateRefetchRequested},
 		{"LoadHostByDeviceAuthToken", testHostsLoadHostByDeviceAuthToken},
+		{"LoadHostByDeviceAuthTokenFastFail", testHostsLoadHostByDeviceAuthTokenFastFail},
 		{"GetDeviceAuthToken", testHostsGetDeviceAuthToken},
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
@@ -192,9 +193,11 @@ func TestHosts(t *testing.T) {
 		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
 		{"SetOrUpdateHostDiskTpmPIN", testSetOrUpdateHostDiskTpmPIN},
 		{"MaybeAssociateHostWithScimUser", testMaybeAssociateHostWithScimUser},
+		{"ScimUserAssociationViaHostEmails", testScimUserAssociationViaHostEmails},
 		{"GetHostsLockWipeStatusBatch", testGetHostsLockWipeStatusBatch},
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
+		{"ExtendHostOrbitDebugUntil", testExtendHostOrbitDebugUntil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -289,6 +292,34 @@ func testUpdateHost(t *testing.T, ds *Datastore, updateHostFunc func(context.Con
 	assert.Equal(t, orbitVersion, *host.OrbitVersion)
 	assert.Nil(t, host.DesktopVersion)
 	assert.Nil(t, host.ScriptsEnabled)
+
+	// Regression for #44071: UpdateHost must not write team_id, so a stale
+	// in-memory struct cannot clobber a concurrent admin team transfer.
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%s-team-%d", t.Name(), time.Now().UnixNano())})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.AddHostsToTeam(context.Background(),
+		fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	// The in-memory host still has TeamID=nil (loaded before the transfer).
+	host.TeamID = nil
+	require.NoError(t, updateHostFunc(context.Background(), host))
+
+	reloaded, err := ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, reloaded.TeamID, "UpdateHost must not clobber team_id set by a concurrent transfer")
+	assert.Equal(t, team.ID, *reloaded.TeamID)
+
+	// And the reverse: if the host is transferred off the team while the stale
+	// struct still carries the old team_id, UpdateHost must not resurrect it.
+	require.NoError(t, ds.AddHostsToTeam(context.Background(),
+		fleet.NewAddHostsToTeamParams(nil, []uint{host.ID})))
+	host.TeamID = &team.ID
+	require.NoError(t, updateHostFunc(context.Background(), host))
+
+	reloaded, err = ds.Host(context.Background(), host.ID)
+	require.NoError(t, err)
+	assert.Nil(t, reloaded.TeamID, "UpdateHost must not resurrect a team_id that was cleared by a concurrent transfer")
 
 	p, err := ds.NewPack(context.Background(), &fleet.Pack{
 		Name:    t.Name(),
@@ -4100,8 +4131,8 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 0)
 
 	// Make one host pass the policy and another not pass
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{1: new(true)}, time.Now(), false, nil))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{1: new(false)}, time.Now(), false, nil))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{PolicyIDFilter: &p.ID, PolicyResponseFilter: ptr.Bool(true)}, 1)
 	require.Len(t, hosts, 1)
@@ -4973,7 +5004,7 @@ func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
 	// no team Apple declaration profile //
 	/////////////////////////////////////
 
-	noTeamDeclaration, err := ds.NewMDMAppleDeclaration(ctx, declForTest("test-decleration", "com.fleetdm.fleet.mdm.test-decl", "{}"))
+	noTeamDeclaration, err := ds.NewMDMAppleDeclaration(ctx, declForTest("test-decleration", "com.fleetdm.fleet.mdm.test-decl", "{}"), nil)
 	require.NoError(t, err)
 
 	// verified status
@@ -5104,18 +5135,18 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	assert.Zero(t, *h2.HostIssues.CriticalVulnerabilitiesCount)
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil))
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false), p2.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false), p2.ID: new(false)}, time.Now(), false, nil))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 2)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(false)}, time.Now(), false, nil))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 1)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(true)}, time.Now(), false, nil))
 	checkHostIssues(t, ds, hosts, filter, h2.ID, 0)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil))
 	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
 
 	checkHostIssuesWithOpts(t, ds, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0)
@@ -5182,8 +5213,8 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil))
 
 	prevRead := getReads(t, ds)
 	h1WithExtras, err := ds.Host(context.Background(), h1.ID)
@@ -8356,11 +8387,11 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 
 	// make sure disk encryption state is reflected
 	require.Nil(t, loadSimple.DiskEncryptionEnabled)
-	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, false))
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, false, nil))
 	loadSimple, err = ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second*3)
 	require.NoError(t, err)
 	require.False(t, *loadSimple.DiskEncryptionEnabled)
-	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, true))
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hSimple.ID, true, nil))
 	loadSimple, err = ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second*3)
 	require.NoError(t, err)
 	require.True(t, *loadSimple.DiskEncryptionEnabled)
@@ -8385,6 +8416,73 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.Equal(t, hFleet.ID, loadFleet.ID)
+}
+
+// testHostsLoadHostByDeviceAuthTokenFastFail covers the fast-fail behavior of
+// LoadHostByDeviceAuthToken: tokens that don't resolve to a non-expired
+// host_device_auth row must return NotFound without running the multi-join
+// host-details query. See issue #44816.
+func testHostsLoadHostByDeviceAuthTokenFastFail(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("ff-host"),
+		NodeKey:         ptr.String("ff-host"),
+		UUID:            "ff-host",
+		Hostname:        "ff-host.local",
+	})
+	require.NoError(t, err)
+
+	const validToken = "ff-valid-token" //nolint:gosec // G101 false positive, test fixture
+	require.NoError(t, ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, validToken))
+
+	// Sanity: a valid, non-expired token resolves to the host.
+	got, err := ds.LoadHostByDeviceAuthToken(ctx, validToken, time.Hour)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, got.ID)
+
+	// 1) Token that does not exist at all returns a NotFoundError that
+	//    satisfies errors.Is(err, sql.ErrNoRows).
+	_, err = ds.LoadHostByDeviceAuthToken(ctx, "no-such-token", time.Hour)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// 2) Token exists but is expired (updated_at older than the TTL)
+	//    returns NotFound — must not surface the row to the join query.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_device_auth SET updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE host_id = ?`, host.ID)
+		return err
+	})
+	_, err = ds.LoadHostByDeviceAuthToken(ctx, validToken, time.Hour)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Re-issue a non-expired token so the next case can target the race
+	// window between the pre-check and the host-details query.
+	const liveToken = "ff-live-token" //nolint:gosec // G101 false positive, test fixture
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_device_auth SET token = ?, previous_token = NULL, updated_at = NOW() WHERE host_id = ?`, liveToken, host.ID)
+		return err
+	})
+
+	// 3) Race window: host_device_auth resolves to a host_id, but the host
+	//    row is gone before the second query runs. Simulated here by
+	//    deleting only the hosts row (leaving the host_device_auth row
+	//    in place). Must return NotFound, not an internal error.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, host.ID)
+		return err
+	})
+	_, err = ds.LoadHostByDeviceAuthToken(ctx, liveToken, time.Hour)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	assert.True(t, fleet.IsNotFound(err))
 }
 
 func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
@@ -8968,7 +9066,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(`INSERT INTO query_results (host_id, query_id, last_fetched, data) VALUES (?, ?, ?, ?)`, host.ID, policy.ID, time.Now(), `{"foo": "bar"}`)
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: new(true)}, time.Now(), false, nil))
 	// Update host_mdm.
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", false, "", "", false)
 	require.NoError(t, err)
@@ -8983,10 +9081,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// Update host_operating_system
 	err = ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{Name: "foo", Version: "bar"})
-	require.NoError(t, err)
-	// Insert a windows update for the host
-	stmt := `INSERT INTO windows_updates (host_id, date_epoch, kb_id) VALUES (?, ?, ?)`
-	_, err = ds.writer(context.Background()).Exec(stmt, host.ID, 1, 123)
 	require.NoError(t, err)
 	// set host' disk space
 	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25, 40.0, nil)
@@ -9010,7 +9104,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(`INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`, host.ID, 1, "some_path")
 	require.NoError(t, err)
 
-	_, err = ds.writer(context.Background()).Exec(`INSERT INTO host_dep_assignments (host_id) VALUES (?)`, host.ID)
+	_, err = ds.writer(context.Background()).Exec(`INSERT INTO host_dep_assignments (host_id, hardware_serial) VALUES (?, ?)`, host.ID, host.HardwareSerial)
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
@@ -9726,7 +9820,7 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 
 		for _, tc := range testCases {
 			if len(tc.policyEx) != 0 {
-				require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, tc.host, tc.policyEx, time.Now(), false))
+				require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, tc.host, tc.policyEx, time.Now(), false, nil))
 			}
 			actual, err := ds.FailingPoliciesCount(ctx, tc.host)
 			require.NoError(t, err)
@@ -9768,7 +9862,7 @@ func testHostsRecordNoPolicies(t *testing.T, ds *Datastore) {
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
 	policyUpdatedAt := initialTime.Add(1 * time.Hour)
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, nil, policyUpdatedAt, false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, nil, policyUpdatedAt, false, nil))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 2)
 	require.Len(t, hosts, 2)
@@ -9840,6 +9934,47 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 5.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 6.0, h.PercentDiskSpaceAvailable)
+
+	// Regression check around the skip-if-unchanged path. Pin updated_at to a known past
+	// value and confirm:
+	//   1. a no-op call (same values) leaves updated_at at the pinned value, and
+	//   2. a real change bumps updated_at.
+	// Note: (1) alone does not prove the writer was never touched — MySQL also leaves
+	// updated_at alone when the UPDATE is a row-level no-op. The assertion still catches
+	// regressions where a caller or an underlying statement starts explicitly setting
+	// updated_at (the way SetOrUpdateHostDisksEncryption does).
+	loadUpdatedAt := func(hostID uint) time.Time {
+		var ts time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &ts, `SELECT updated_at FROM host_disks WHERE host_id = ?`, hostID)
+		})
+		return ts
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(),
+			`UPDATE host_disks SET updated_at = DATE_SUB(NOW(6), INTERVAL 1 HOUR) WHERE host_id = ?`, host.ID)
+		return err
+	})
+	pinned := loadUpdatedAt(host.ID)
+
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(t.Context(), host.ID, 5, 6, 80.0, nil))
+	require.True(t, pinned.Equal(loadUpdatedAt(host.ID)), "updated_at should not change on no-op SetOrUpdateHostDisksSpace")
+
+	// A real change must bump updated_at.
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(t.Context(), host.ID, 7, 8, 80.0, nil))
+	changedAt := loadUpdatedAt(host.ID)
+	require.True(t, changedAt.After(pinned), "updated_at should advance when values change")
+
+	// A caller passing higher-precision floats that land within the skip tolerance of the
+	// stored row must also hit the skip path, otherwise the optimization is defeated for
+	// any caller reporting sub-10 MB fluctuations.
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(t.Context(), host.ID, 7.001, 8.001, 80.004, nil))
+	require.True(t, changedAt.Equal(loadUpdatedAt(host.ID)),
+		"updated_at should not change when higher-precision inputs are within the skip tolerance")
+	h, err = ds.Host(t.Context(), host.ID)
+	require.NoError(t, err)
+	require.InDelta(t, 7.0, h.GigsDiskSpaceAvailable, 0.001)
+	require.InDelta(t, 8.0, h.PercentDiskSpaceAvailable, 0.001)
 }
 
 // testHostOrder tests listing a host sorted by different keys.
@@ -9915,7 +10050,7 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 		}
 		require.NoError(
 			t, ds.RecordPolicyQueryExecutions(
-				context.Background(), createdHosts[i], results, time.Now(), false,
+				context.Background(), createdHosts[i], results, time.Now(), false, nil,
 			),
 		)
 	}
@@ -10045,10 +10180,10 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true)
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true, nil)
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, false)
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, false, nil)
 	require.NoError(t, err)
 
 	h, err := ds.Host(context.Background(), host.ID)
@@ -10059,7 +10194,7 @@ func testHostsSetOrUpdateHostDisksEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, *h.DiskEncryptionEnabled)
 
-	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, true)
+	err = ds.SetOrUpdateHostDisksEncryption(context.Background(), host2.ID, true, nil)
 	require.NoError(t, err)
 
 	h, err = ds.Host(context.Background(), host2.ID)
@@ -10236,7 +10371,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.Equal(t, hFleet.ID, loadFleet.ID)
 
 	// fill in disk encryption information
-	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(context.Background(), hFleet.ID, true))
+	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(context.Background(), hFleet.ID, true, nil))
 	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hFleet, "test-key", "", nil)
 	require.NoError(t, err)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hFleet.ID}, true, time.Now())
@@ -11281,28 +11416,30 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, "foobar", got.Hostname)
 	require.Equal(t, "darwin", got.Platform)
 
-	// enroll with osquery using uuid identifier, team
+	// enroll with osquery using uuid identifier, team enroll secret
 	_, err = ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryMDMEnabled(true),
 		fleet.WithEnrollOsqueryHostID("uuid"),
 		fleet.WithEnrollOsqueryHardwareUUID("uuid"),
 		fleet.WithEnrollOsqueryHardwareSerial("different-serial"),
 		fleet.WithEnrollOsqueryNodeKey("osquery"),
-		fleet.WithEnrollOsqueryTeamID(&tm.ID),
+		fleet.WithEnrollOsqueryTeamID(&tm.ID), // use team enroll secret
 	)
 	require.NoError(t, err)
 	got, err = ds.LoadHostByOrbitNodeKey(ctx, "orbit")
 	require.NoError(t, err)
+
+	// New osquery node key is set.
+	require.NotNil(t, got.NodeKey)
+	require.Equal(t, "osquery", *got.NodeKey)
+
+	// Verify that the orbit enroll didn't override these values set by the previous orbit enroll.
 	require.Equal(t, h.ID, got.ID)
-	require.Equal(t, "serial", got.HardwareSerial) // unchanged as it was already filled
 	require.Equal(t, "uuid", got.UUID)
 	require.NotNil(t, got.OsqueryHostID)
 	require.Equal(t, "uuid", *got.OsqueryHostID)
-	require.NotNil(t, got.NodeKey)
-	require.Equal(t, "osquery", *got.NodeKey)
-	require.NotNil(t, got.TeamID)
-	require.Equal(t, tm.ID, *got.TeamID)
-	// Verify that the orbit enroll didn't override these values set by a previous osquery enroll.
+	require.Equal(t, "serial", got.HardwareSerial) // unchanged as it was already filled
+	require.Nil(t, got.TeamID)                     // team is sticky
 	require.Equal(t, "foobar", got.Hostname)
 	require.Equal(t, "darwin", got.Platform)
 }
@@ -11790,8 +11927,8 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	failingPolicy, err := ds.NewGlobalPolicy(context.Background(), &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
 	require.NoError(t, err)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{passingPolicy.ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{failingPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil))
 
 	// set up vulnerable software
 	software := []fleet.Software{
@@ -11917,6 +12054,52 @@ func testGetHostOrbitInfo(t *testing.T, ds *Datastore) {
 	hostOrbitInfo, err = ds.GetHostOrbitInfo(context.Background(), host.ID)
 	require.NoError(t, err)
 	assert.True(t, *hostOrbitInfo.ScriptsEnabled)
+
+	// Regression check around the skip-if-unchanged path for host_orbit_info. The table has
+	// no updated_at column, so we verify skip behavior with a sentinel: plant a value via
+	// direct UPDATE, then call SetOrUpdateHostOrbitInfo with inputs that match the planted
+	// row. If the skip path fires, the sentinel survives. If the writer runs, it would
+	// overwrite the row with the caller's args, which we detect.
+	loadDesktopVersion := func(hostID uint) string {
+		var v sql.NullString
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &v,
+				`SELECT desktop_version FROM host_orbit_info WHERE host_id = ?`, hostID)
+		})
+		return v.String
+	}
+	plantSentinel := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(),
+				`UPDATE host_orbit_info SET desktop_version = 'sentinel' WHERE host_id = ?`, host.ID)
+			return err
+		})
+	}
+
+	// Same values as the reader sees, so the skip path fires and the sentinel survives.
+	plantSentinel()
+	require.NoError(t, ds.SetOrUpdateHostOrbitInfo(
+		t.Context(), host.ID, orbitVersion,
+		sql.NullString{String: "sentinel", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+	))
+	require.Equal(t, "sentinel", loadDesktopVersion(host.ID),
+		"no-op SetOrUpdateHostOrbitInfo must not touch the row")
+
+	// A real change must write through.
+	require.NoError(t, ds.SetOrUpdateHostOrbitInfo(
+		t.Context(), host.ID, "2.0.0",
+		sql.NullString{String: "sentinel", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+	))
+	var stored struct {
+		Version        string         `db:"version"`
+		DesktopVersion sql.NullString `db:"desktop_version"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &stored,
+			`SELECT version, desktop_version FROM host_orbit_info WHERE host_id = ?`, host.ID)
+	})
+	require.Equal(t, "2.0.0", stored.Version)
+	require.Equal(t, "sentinel", stored.DesktopVersion.String)
 }
 
 func testHostnamesByIdentifiers(t *testing.T, ds *Datastore) {
@@ -12268,7 +12451,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		require.NoError(
 			// RecordPolicyQueryExecutions should call UpdateHostIssuesFailingPolicies, so we don't have to
 			t, ds.RecordPolicyQueryExecutions(
-				context.Background(), hosts[i], results, time.Now(), false,
+				context.Background(), hosts[i], results, time.Now(), false, nil,
 			),
 		)
 	}
@@ -12804,6 +12987,282 @@ func testMaybeAssociateHostWithScimUser(t *testing.T, ds *Datastore) {
 	})
 }
 
+func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	cleanup := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_scim_user`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM scim_user_emails`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM scim_users`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_emails`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_idp_accounts`)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM mdm_idp_accounts`)
+			return err
+		})
+	}
+
+	t.Run("username set via idp source before SCIM user created", func(t *testing.T) {
+		defer cleanup()
+
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:     uuid.NewString(),
+			Platform: "darwin",
+		})
+		require.NoError(t, err)
+
+		// Set IdP username on the host via host_emails (simulates PUT /device_mapping with source=idp)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+				"scimuser@example.com", host.ID, fleet.DeviceMappingIDP,
+			)
+			return err
+		})
+
+		// Create the SCIM user
+		scimUser := fleet.ScimUser{
+			UserName:   "scimuser@example.com",
+			GivenName:  ptr.String("Test"),
+			FamilyName: ptr.String("User"),
+			Active:     ptr.Bool(true), //nolint:modernize
+		}
+		scimUserID, err := ds.CreateScimUser(ctx, &scimUser)
+		require.NoError(t, err)
+
+		// Verify host_scim_user mapping was created
+		var associatedScimUserID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &associatedScimUserID,
+				`SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		})
+		assert.Equal(t, scimUserID, associatedScimUserID)
+	})
+
+	t.Run("SCIM user with primary email matches host_emails idp source", func(t *testing.T) {
+		defer cleanup()
+
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:     uuid.NewString(),
+			Platform: "darwin",
+		})
+		require.NoError(t, err)
+
+		// Set IdP email on the host
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+				"primary@example.com", host.ID, fleet.DeviceMappingIDP,
+			)
+			return err
+		})
+
+		// Create SCIM user whose username doesn't match, but primary email does
+		scimUser := fleet.ScimUser{
+			UserName:   "different-username",
+			GivenName:  ptr.String("Test"),
+			FamilyName: ptr.String("User"),
+			Active:     ptr.Bool(true), //nolint:modernize
+			Emails: []fleet.ScimUserEmail{
+				{
+					Email:   "primary@example.com",
+					Primary: ptr.Bool(true), //nolint:modernize
+					Type:    ptr.String("work"),
+				},
+			},
+		}
+		scimUserID, err := ds.CreateScimUser(ctx, &scimUser)
+		require.NoError(t, err)
+
+		var associatedScimUserID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &associatedScimUserID,
+				`SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		})
+		assert.Equal(t, scimUserID, associatedScimUserID)
+	})
+
+	t.Run("no association when host_emails source is not idp", func(t *testing.T) {
+		defer cleanup()
+
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:     uuid.NewString(),
+			Platform: "darwin",
+		})
+		require.NoError(t, err)
+
+		// Set email with custom source (not idp)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+				"customuser@example.com", host.ID, fleet.DeviceMappingCustomOverride,
+			)
+			return err
+		})
+
+		// Create SCIM user with matching username
+		scimUser := fleet.ScimUser{
+			UserName:   "customuser@example.com",
+			GivenName:  ptr.String("Test"),
+			FamilyName: ptr.String("User"),
+			Active:     ptr.Bool(true), //nolint:modernize
+		}
+		_, err = ds.CreateScimUser(ctx, &scimUser)
+		require.NoError(t, err)
+
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, host.ID)
+		})
+		assert.Equal(t, 0, count)
+	})
+
+	t.Run("new scim user matching an already-mapped host reassigns the mapping", func(t *testing.T) {
+		defer cleanup()
+
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:     uuid.NewString(),
+			Platform: "darwin",
+		})
+		require.NoError(t, err)
+
+		// Set up mdm_idp_accounts so any SCIM user with username "shared@example.com" matches this host.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?,?,?,?)`,
+				"mdm-uuid-dup", "shared@example.com", "Shared User", "shared@example.com",
+			)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?,?)`,
+				host.UUID, "mdm-uuid-dup",
+			)
+			return err
+		})
+
+		// First SCIM user: associates with the host.
+		firstUser := fleet.ScimUser{
+			UserName:   "shared@example.com",
+			GivenName:  ptr.String("First"),
+			FamilyName: ptr.String("User"),
+			Active:     ptr.Bool(true), //nolint:modernize
+		}
+		firstUserID, err := ds.CreateScimUser(ctx, &firstUser)
+		require.NoError(t, err)
+
+		var existingScimUserID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &existingScimUserID,
+				`SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		})
+		require.Equal(t, firstUserID, existingScimUserID)
+
+		// Second SCIM user matches the same host via primary email. Without idempotent insert
+		// handling this would 500 with a duplicate-entry error on host_scim_user.PRIMARY.
+		secondUser := fleet.ScimUser{
+			UserName:   "different-username",
+			GivenName:  ptr.String("Second"),
+			FamilyName: ptr.String("User"),
+			Active:     ptr.Bool(true), //nolint:modernize
+			Emails: []fleet.ScimUserEmail{
+				{
+					Email:   "shared@example.com",
+					Primary: ptr.Bool(true), //nolint:modernize
+					Type:    ptr.String("work"),
+				},
+			},
+		}
+		secondUserID, err := ds.CreateScimUser(ctx, &secondUser)
+		require.NoError(t, err)
+
+		// The mapping should now point to the newly-created SCIM user (upsert).
+		var associatedScimUserID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &associatedScimUserID,
+				`SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		})
+		assert.Equal(t, secondUserID, associatedScimUserID)
+
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, host.ID)
+		})
+		assert.Equal(t, 1, count)
+	})
+
+	t.Run("association works when both mdm_idp_accounts and host_emails exist", func(t *testing.T) {
+		defer cleanup()
+
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:     uuid.NewString(),
+			Platform: "darwin",
+		})
+		require.NoError(t, err)
+
+		// Set up mdm_idp_accounts (SSO enrollment path)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?,?,?,?)`,
+				"mdm-uuid-1", "scimuser@example.com", "Test User", "scimuser@example.com",
+			)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?,?)`,
+				host.UUID, "mdm-uuid-1",
+			)
+			return err
+		})
+
+		// Also set a different email via host_emails with idp source
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+				"other@example.com", host.ID, fleet.DeviceMappingIDP,
+			)
+			return err
+		})
+
+		// Create SCIM user matching the mdm_idp_accounts username
+		scimUser := fleet.ScimUser{
+			UserName:   "scimuser@example.com",
+			GivenName:  ptr.String("Test"),
+			FamilyName: ptr.String("User"),
+			Active:     ptr.Bool(true), //nolint:modernize
+		}
+		scimUserID, err := ds.CreateScimUser(ctx, &scimUser)
+		require.NoError(t, err)
+
+		// Verify association was created (via mdm_idp_accounts, not host_emails)
+		var associatedScimUserID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &associatedScimUserID,
+				`SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		})
+		assert.Equal(t, scimUserID, associatedScimUserID)
+	})
+}
+
 func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -13276,4 +13735,37 @@ func testHostsDeleteHostsIdPAccounts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, 0, count, "IdP account should be deleted when Windows host is the last one deleted")
 	})
+}
+
+func testExtendHostOrbitDebugUntil(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "ehdu", "1.1.1.2", "2", "2", time.Now())
+
+	// NULL → value.
+	first := time.Now().Add(30 * time.Minute).UTC().Truncate(time.Second)
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, first))
+	got, err := ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.OrbitDebugUntil)
+	require.True(t, got.OrbitDebugUntil.Equal(first))
+
+	// Earlier → later: extends.
+	later := first.Add(2 * time.Hour)
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, later))
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.OrbitDebugUntil.Equal(later))
+
+	// Later → shorter: no-op.
+	shorter := first.Add(5 * time.Minute)
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, shorter))
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.OrbitDebugUntil.Equal(later), "extend must not shorten an existing later value")
+
+	// Equal: no-op.
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, later))
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.OrbitDebugUntil.Equal(later))
 }

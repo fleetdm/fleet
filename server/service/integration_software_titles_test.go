@@ -15,10 +15,10 @@ import (
 	"time"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps/maintainedappstest"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -124,8 +124,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Len(stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
 
 	// Auto install policy should have the display name
-	var getPolicyResp getPolicyByIDResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID), getPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
+	var getPolicyResp fleet.GetPolicyByIDResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
 	s.Assert().NotNil(getPolicyResp.Policy)
 	s.Assert().Equal("RubyUpdate1", getPolicyResp.Policy.InstallSoftware.DisplayName)
 
@@ -227,6 +227,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	// create MDM enrolled macOS host
 	mdmHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
@@ -248,8 +249,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	}
 
 	// Create a label
-	clr := createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	clr := fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name:    "foo",
 			HostIDs: []uint{mdmHost.ID},
@@ -258,8 +259,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 
 	lbl1Name := clr.Label.Name
 
-	clr = createLabelResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
+	clr = fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
 		LabelPayload: fleet.LabelPayload{
 			Name: "bar",
 		},
@@ -298,7 +299,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Equal(*updateAppReq.DisplayName, stResp.SoftwareTitle.DisplayName)
 
 	// Auto install policy has display name
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.AppStoreApp.AutomaticInstallPolicies[0].ID), getPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.AppStoreApp.AutomaticInstallPolicies[0].ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
 	s.Assert().NotNil(getPolicyResp.Policy)
 	s.Assert().Equal(*updateAppReq.DisplayName, getPolicyResp.Policy.InstallSoftware.DisplayName)
 
@@ -413,7 +414,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{Filename: "ipa_test.ipa", TeamID: &team.ID}, http.StatusOK, "")
 
 	// Get title ID
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE filename = 'ipa_test.ipa'")
 	})
 
@@ -635,7 +636,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	s.uploadSoftwareInstaller(t, payload1, http.StatusOK, "")
 	// Get the installer ID directly from the database
 	var installer1ID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &installer1ID,
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
 			*payload1.TeamID, payload1.Filename)
@@ -663,7 +664,7 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 	s.uploadSoftwareInstaller(t, payload2, http.StatusOK, "")
 	// Get the installer ID and title for the second package
 	var installer2ID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &installer2ID,
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
 			*payload2.TeamID, payload2.Filename)
@@ -900,7 +901,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 
 	latestInstallUUID := func() string {
 		var id string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM upcoming_activities ORDER BY id DESC LIMIT 1`)
 		})
 		return id
@@ -1042,7 +1043,7 @@ func (s *integrationMDMTestSuite) TestGitopsInstallableSoftwareRetries() {
 	defer installerServer.Close()
 
 	// Insert the list of maintained apps
-	maintained_apps.SyncApps(t, s.ds)
+	maintainedappstest.SyncApps(t, s.ds)
 
 	// Mock manifest server — routes by slug path and returns current per-FMA state.
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

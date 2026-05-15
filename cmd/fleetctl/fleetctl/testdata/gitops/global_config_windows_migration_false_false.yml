@@ -17,6 +17,7 @@ controls:
   windows_enabled_and_configured: false
   windows_migration_enabled: false
   enable_turn_on_windows_mdm_manually: false
+  apple_require_hardware_attestation: false
   windows_updates:
     deadline_days: null
     grace_period_days: null

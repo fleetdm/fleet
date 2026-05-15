@@ -35,10 +35,10 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group                                         | Goal _(value for customers and/or community)_                                                                          | Capacity |
 |:------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|:---------|
-| [MDM](#mdm-group)                                     | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 102       |
-| [Software](#software-group)                           | Increase and exceed maturity in the [software management](https://fleetdm.com/software-management) product category.   | 102      |
-| [Orchestration](#orchestration-group)                 | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 49       |
-| [Security & Compliance](#security-compliance-group)   | Increase and exceed maturity in the security and compliance product category.                                          | 102      |
+| [MDM](#mdm-group)                                     | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 60       |
+| [Software](#software-group)                           | Increase and exceed maturity in the [software management](https://fleetdm.com/software-management) product category.   | 60       |
+| [Orchestration](#orchestration-group)                 | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 60       |
+| [Security & Compliance](#security-compliance-group)   | Increase and exceed maturity in the security and compliance product category.                                          | 38       |
 
 \* The number of [estimated story points](https://fleetdm.com/handbook/product-groups#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
@@ -52,8 +52,8 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 | Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
-| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Software Engineer                 | Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen)), [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_
+| Quality Assurance                 | [Christopher Noel](https://www.linkedin.com/in/chrstphr/) _([@chrstphr84](https://github.com/chrstphr84))_
+| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen)), Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_
 
 **Areas of expertise**:
 - MDM protocol & configuration
@@ -75,8 +75,8 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 | Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Carlo DiCelico](https://www.linkedin.com/in/carlodicelico/) _([@cdcme](https://github.com/cdcme))_
-| Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Software Engineer                 | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_, [Jonathan Katz](https://www.linkedin.com/in/jonathan-katz-494362237/) _([@jkatz01](https://github.com/jkatz01))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
+| Quality Assurance                 | [Brayan Jimenez](https://www.linkedin.com/in/brayan-jimenez-19742b286/) _([@Brajim20](https://github.com/Brajim20))_
+| Software Engineer                 | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Jonathan Katz](https://www.linkedin.com/in/jonathan-katz-494362237/) _([@jkatz01](https://github.com/jkatz01))_
 
 **Areas of expertise**:
 - Software Install / uninstall / patch
@@ -123,9 +123,9 @@ The goal of the security and compliance group is to increase and exceed Fleet's 
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
-| Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
+| Tech Lead                         | [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Software Engineer                 | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_, [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_,  [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_, [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
+| Software Engineer                 | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C09HG9VMRSS), [kanban release board](https://github.com/orgs/fleetdm/projects/97), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A%23g-security-compliance) for this product group is `#g-security-compliance`.
 
@@ -160,6 +160,32 @@ Items to cover in the section:
 - Who is involved. This should include who the DRI is.
 - Timeline. When will the working group start? When do we think we'll be done by?
 
+
+### Continuous flow
+
+Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, working groups use a continuous flow process. With AI-augmented engineering, well-drafted stories can often be implemented in a day or two, so batching work into 3-week sprints creates unnecessary latency. Instead, stories flow continuously from "in drafting" to "in progress" to "in QA" to "ready for release."
+
+#### Weekly planning
+
+Each working group holds a weekly planning session where the group and [HPD](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) review what's done, what's in progress, and what's next. There is no formal sprint boundary, sprint commitment, or velocity tracking.
+
+#### What is the same
+
+- **3-week release cadence**: Planning is decoupled from the release boundary.
+- **Daily standups**: These remain important for staying in sync and getting unblocked quickly.
+- **Release retrospectives**: These become even more important as we calibrate a new way of working.
+
+#### Drafting tracks
+
+Working groups use two drafting tracks. Default to fast draft and escalate to full draft only when there is genuine design ambiguity or customer-facing risk. The HPD makes this call. Lower-stakes issues are a good opportunity for Product Designers to develop decision-making capabilities as that becomes a scarce resource.
+
+**Full draft** is for significant new features, architectural changes, and customer deliverables. Issues go through the [drafting board](https://github.com/orgs/fleetdm/projects/67) and keep the product checklist, user story review, and engineering checklist. Target one week from prioritization to implementation-ready.
+
+**Fast draft** is for bug fixes, improvements, well-understood patterns, and internal tooling. Once prioritized as ready, the issue goes straight to the working group's board. The Product Designer picks it up, moves it into the "In drafting" column, and collaborates with the team on what product design guidance is needed to implement the change. This may require Figma wireframes, a quick sketch, or a bulleted list of changes. Increasingly, the team may decide to draft changes by discussing them, implementing different options into the product, and choosing the best one. 
+
+> Fast draft items still receive review from appropriate stakeholders like the HPD and CTO before they ship, but review happens in the [weekly planning session](#weekly-planning), after implementation.
+
+
 ### Website group
 
 The goal of the website group is to increase and exceed Fleet's product maturity goals for fleetdm.com.
@@ -171,7 +197,7 @@ The goal of the website group is to increase and exceed Fleet's product maturity
 | Quality Assurance                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 | Software Engineer                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this working group is `#g-website`.
 
 
 ### First Impressions group
@@ -182,11 +208,25 @@ The goal of the First Impressions working group is to make changes to the core F
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_, [Mike McNeil](https://www.linkedin.com/in/mikermcneil/) _([@mikermcneil](https://github.com/mikermcneil))_
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Quality Assurance                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_, [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_
+| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
 | Software Engineer                 | [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this working group is `#g-first-impressions`.
 
+
+### Power to the PC group
+
+The goal of the Power to the PC working group is to empower Windows users to fully leverage Fleet as an MDM.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
+| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
+| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
+| Software Engineer                 | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this working group is `#g-power-to-pc`.
 
 <!--
 Example working group section
@@ -238,9 +278,9 @@ When a new feature is introduced it may be labeled as experimental. Experimental
 
 1. Apply the `~experimental` label to all associated user stories.
 2. Set the optional `isExperimental` property to "yes" in [pricing-features-table.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/pricing-features-table.yml).
-3. Make sure all API endpoints and configuration surface documentation includes the following message:
+3. Make sure all API endpoints and configuration surface documentation contains the following message (including the anticipated version it will be marked stable):
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows. This feature's experimental status will be reevaluated in Fleet 4.89.0.
 
 
 ### Breaking changes
@@ -286,7 +326,6 @@ The goal of drafting is to deliver software that works every time with less tota
 
 > Fleet's drafting process is focused first and foremost on product development, but it can be used for any kind of change that benefits from planning or a "dry run".  For example, imagine you work for a business who has decided to swap out one of your payroll or device management vendors.  You will probably need to plan and execute changes to a number of complicated onboarding/offboarding processes.
 
-
 #### Drafting process
 
 The DRI for defining and drafting issues for a product group is the product manager, with close involvement from the designer and engineering manager.  But drafting is a team effort, and all contributors participate.
@@ -309,7 +348,7 @@ A user story is considered ready for implementation once:
 Good user stories are short, with clear, unambiguous language.
 - What screen are they looking at?  (`As an observer on the host details page…`)
 - What do they want to do? (`As an observer on the host details page, I want to run a report.`)
-- Don't get hung up on the "so that I can ________" clause.  It is helpful, but optional.
+- Don't get hung up on the "so that I can ________" clause. 
 - Example: "As an admin I would like to be asked for confirmation before deleting a user so that I do not accidentally delete a user."
 
 
@@ -636,11 +675,11 @@ Quickly confirming and reproducing bug reports is a [priority for Fleet](https:/
 
 At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`). 
 
-Then, it's the product group Product Designer's responsibility to decide if it's a bug, make sure reproduction steps are documented, and update the bug's title to focus on the expected behavior instead of what's broken. 
+Then, it's the product group Product Designer's responsibility to decide if it's a bug, specify the expected behavior, and make sure reproduction steps are documented. If the expected behavior is unclear, ask the product group's Tech Lead for help.
 
 If reproduction steps are missing, add them, ask for more reproduction details from the reporter, or ask the QA team for help with reproduction. The Product Designer has **1 business day** to move the bug to the next step ([needs reproduction](#needs-reproduction) or [reproduced](#reproduced)) or request more information.
 
-When more information is needed, it's up to the Product Designer to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the Production Designer will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
+When more information is needed, it's up to the Product Designer to gather information from the reporter. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication, the Product Designer will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
 If the bug is actually expected behavior (not a bug), the Product Designer converts the issue to a feature request by removing the `bug` label, leaving the issue in the "📨 Inbox" column, and @ mentioning the Head of Product Designer and the reporter in the issue.
 
@@ -786,6 +825,8 @@ Each product group maintains two engineers assigned to incident on-call. Enginee
 
 #### Incident on-call responsibilities
 
+The incident on-call engineer leads the incident from acknowledgment through resolution and owns internal communication. Don't assume anyone is already aware. Mention the right people in the incident channel to pull them in: someone from CS (the reporter, if CS reported the issue), the relevant engineering manager, and any engineers or QA needed for investigation. Post regular status updates in the incident channel and keep the incident response issue up to date.
+
 **Outside of business hours**
 
 The incident on-call engineer is responsible for stabilizing the issue well enough to pick it back up in the morning. They should file P1 issues for any immediate follow-up items that need to be addressed during the next business day.
@@ -805,7 +846,9 @@ We have certain design conventions that we include in Fleet. We will document mo
 
 ### Design system
 
-The 🧩 ["Design System"](https://www.figma.com/files/project/15701210) component library in Figma is the source of truth for components. Components in the product (documented in Storybook) should match the style of components defined in the Figma library. If the frontend component is inconsistent with one in the Figma library, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs). As new components are being created, or existing components are being updated, ensure updates are applied to both the Figma Library and Storybook and guidelines are documented in Figma.
+[Fleet's design system](https://www.figma.com/files/project/15701210) in Figma is the source of truth for UI design. Components in the product (documented in Storybook) should match the styles defined in Figma. If the frontend component is inconsistent with Figma, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs). When new UI patterns are created, or existing components are updated, make sure updates are applied to both Figma and Storybook.
+
+To make changes to the design system (e.g. button border-radius, modal width, or a new UI component), [make a new request](https://fleetdm.com/handbook/company/product-groups#making-a-request). Changes to the design system are up to the [Head of Design](#team). Once approved, it's up to the Head of Design to post in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5) and @ mention all [Product Designers](#team) so they're aware.
 
 ### Table empty states
 
@@ -858,8 +901,10 @@ When writing the time in the UI using "am" and "pm" abbreviations, write them **
 ### Writing error messages
 
 When writing error messages in the UI or CLI, follow these rules:
-- If the solution to the error isn't obvious, write a message with the **error** followed by the **solution**. For example, "No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
-- If the solution is obvious when additional info is provided, write a message with the **error** followed by **additional info**. For example, "You don’t have permission to run the script. Only users with the maintainer role and above can run scripts."
+- If the solution to the error isn't obvious, write a message with the failed **action** and its **reason** followed by the **solution**. For example, "Couldn't run MDM command. No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
+- If the solution is obvious when additional info is provided, write a message with only the failed **action** and it's **reason**. For example, "Couldn't run. Only users with the maintainer role and above can run scripts."
+
+Template: `Couldn't {action}. {Reason}. {Solution}`. Solution is optional.
 
 ### Fleetctl commands with `--hosts` or `--host` flag
 
@@ -1016,7 +1061,7 @@ New tickets are estimated, specified, and prioritized on the [drafting board](ht
 
 ### Scrum items
 
-Our scrum boards are exclusively composed of four types of scrum items:
+Our scrum boards are exclusively composed of the following types of scrum items:
 
 1. **User stories**: These are simple and concise descriptions of features or requirements from the user's perspective, marked with the `story` label. They keep our focus on delivering value to our customers.
 
@@ -1027,6 +1072,8 @@ Our scrum boards are exclusively composed of four types of scrum items:
 4. **Bugs**: Representing errors or flaws that result in incorrect or unexpected outcomes, bugs are marked with the `bug` label. Like user stories and sub-tasks, bugs are documented, prioritized, and addressed during a sprint.
 
 5. **Quick wins**: These are small copy or UX improvements that aren't quite bugs but they're so small that they're worthwhile. Quick wins skip user story review and go straight to the current sprint. It's up to the individual who opened the pull request (PR) to make sure the quick win is moved to "Awaiting QA" when the PR is merged. Like other product changes, quick wins are brought to [design review](https://fleetdm.com/handbook/product-design#rituals). To keep momentum, the PR can be approved and merged before design review.
+
+6. **Reliability issues**: These represent scaling, performance, or reliability concerns, including post-mortem action items, marked with the `reliability` label. Reliability issues are prioritized by severity by both product and engineering. They are used to track work that improves system stability, addresses incident follow-ups, and resolves operational risks.
 
 > Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
 

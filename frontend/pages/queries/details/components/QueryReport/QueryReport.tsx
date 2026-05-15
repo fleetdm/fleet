@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useCallback } from "react";
+import React, { useState, useContext, useMemo, useCallback } from "react";
 
 import { Row, Column } from "react-table";
 import FileSaver from "file-saver";
@@ -16,7 +16,7 @@ import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 import TooltipWrapper from "components/TooltipWrapper";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 
@@ -51,21 +51,15 @@ const QueryReport = ({
   const [filteredResults, setFilteredResults] = useState<Row[]>(
     flattenResults(queryReport?.results || [])
   );
-  const [columnConfigs, setColumnConfigs] = useState<Column[]>([]);
-
-  useEffect(() => {
-    if (queryReport && queryReport.results && queryReport.results.length > 0) {
-      const newColumnConfigs = generateReportColumnConfigsFromResults(
+  const columnConfigs = useMemo<Column[]>(() => {
+    if (queryReport?.results?.length) {
+      return generateReportColumnConfigsFromResults(
         flattenResults(queryReport.results),
         queryReport.query_id
       );
-
-      // Update tableHeaders if new headers are found
-      if (newColumnConfigs !== columnConfigs) {
-        setColumnConfigs(newColumnConfigs);
-      }
     }
-  }, [queryReport]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
+    return [];
+  }, [queryReport]);
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -131,9 +125,8 @@ const QueryReport = ({
           // All empty states are handled in QueryDetailsPage.tsx and returned in lieu of QueryReport.tsx
           emptyComponent={() => {
             return (
-              <EmptyTable
+              <EmptyState
                 className={baseClass}
-                graphicName="empty-software"
                 header="Nothing to report yet"
                 info="This report has returned no data so far."
               />
@@ -150,6 +143,7 @@ const QueryReport = ({
           customControl={() => renderTableButtons()}
           setExportRows={setFilteredResults}
           renderCount={renderResultsCount}
+          getRowId={(_row, index) => String(index)}
         />
       </div>
     );

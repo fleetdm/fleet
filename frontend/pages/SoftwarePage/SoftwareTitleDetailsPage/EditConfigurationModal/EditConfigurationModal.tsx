@@ -1,5 +1,10 @@
-import React, { useContext, useState } from "react";
-import { IAppStoreApp } from "interfaces/software";
+import React, { useCallback, useContext, useState } from "react";
+import { Ace } from "ace-builds";
+import {
+  IAppStoreApp,
+  ISoftwarePackage,
+  isSoftwarePackage,
+} from "interfaces/software";
 
 import { NotificationContext } from "context/notification";
 
@@ -13,28 +18,26 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import InstallerDetailsWidget from "../SoftwareInstallerCard/InstallerDetailsWidget";
-import { getErrorMessage } from "./helpers";
+import {
+  getErrorMessage,
+  validateJson,
+  validateXml,
+  getPlatformLabel,
+} from "./helpers";
+import { getDisplayedSoftwareName } from "../../helpers";
 
 const baseClass = "edit-configuration-modal";
-
-// Used to surface error.message in UI of unknown error type
-type ErrorWithMessage = {
-  message: string;
-  [key: string]: unknown;
-};
-
-const isErrorWithMessage = (error: unknown): error is ErrorWithMessage => {
-  return (error as ErrorWithMessage).message !== undefined;
-};
 
 export interface ISoftwareConfigurationFormData {
   configuration: string;
 }
 
-interface EditConfigurationModal {
+interface IEditConfigurationModalProps {
   softwareId: number;
   teamId: number;
-  softwareInstaller: IAppStoreApp;
+  softwareInstaller: IAppStoreApp | ISoftwarePackage;
+  /** Whether this is an iOS/iPadOS app (VPP or in-house .ipa) */
+  isApplePlatform: boolean;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
 }
@@ -43,36 +46,71 @@ const EditConfigurationModal = ({
   softwareInstaller,
   softwareId,
   teamId,
+  isApplePlatform,
   refetchSoftwareTitle,
   onExit,
-}: EditConfigurationModal) => {
+}: IEditConfigurationModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
-  const [canSaveForm, setCanSaveForm] = useState(true);
-  const [jsonFormData, setJsonFormData] = useState<string>(
-    JSON.stringify(softwareInstaller.configuration, null, "\t") || "{}"
-  );
-  const [formError, setFormError] = useState<string | null>(null);
+  const isInHouseApp = isSoftwarePackage(softwareInstaller);
 
-  const validateForm = (curFormData: string) => {
-    let error = null;
+  const XML_EMPTY = "<dict>\n  \n</dict>";
 
-    if (curFormData) {
-      try {
-        JSON.parse(curFormData);
-      } catch (e: unknown) {
-        if (isErrorWithMessage(e)) {
-          error = e.message.toString();
-        } else {
-          throw e;
-        }
-      }
+  const validateForm = (curFormData: string): string | null => {
+    if (isApplePlatform) {
+      return validateXml(curFormData);
     }
-    return error;
+    return validateJson(curFormData);
   };
 
-  // Edit package API call
+  const getInitialValue = () => {
+    if (isApplePlatform) {
+      return softwareInstaller.configuration || XML_EMPTY;
+    }
+    return JSON.stringify(softwareInstaller.configuration, null, "\t") || "{}";
+  };
+
+  // Place cursor between <dict> tags when starting with empty XML scaffold
+  const isEmptyAppleConfig =
+    isApplePlatform && !softwareInstaller.configuration;
+  const onEditorLoad = useCallback(
+    (editor: Ace.Editor) => {
+      if (isEmptyAppleConfig) {
+        // Row 1 (0-indexed) is the blank line between <dict> and </dict>
+        editor.moveCursorTo(1, 2);
+        editor.clearSelection();
+      }
+    },
+    [isEmptyAppleConfig]
+  );
+
+  const initialValue = getInitialValue();
+
+  const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
+  const [canSaveForm, setCanSaveForm] = useState(!validateForm(initialValue));
+  const [formData, setFormData] = useState<string>(initialValue);
+  // Seed from validateForm so the error is visible on open if the stored config
+  // is somehow invalid (unlikely — the backend validates on save, but guards
+  // against older data that predates current validation rules).
+  const [formError, setFormError] = useState<string | null>(() =>
+    validateForm(initialValue)
+  );
+
+  const buildSubmitPayload = (): ISoftwareConfigurationFormData => {
+    if (isApplePlatform) {
+      // iOS/iPadOS: send XML as a string
+      return { configuration: formData };
+    }
+    // Android: send parsed JSON object (cast to string to match interface;
+    // runtime value is an object that gets serialized by sendRequest)
+    if (formData === "") {
+      return { configuration: ({} as unknown) as string };
+    }
+    return {
+      configuration: (JSON.parse(formData) as unknown) as string,
+    };
+  };
+
   const onEditConfiguration = async (
     evt: React.MouseEvent<HTMLFormElement>
   ) => {
@@ -80,43 +118,67 @@ const EditConfigurationModal = ({
 
     evt.preventDefault();
 
-    // Format for API
-    const formDataToSubmit =
-      jsonFormData === ""
-        ? { configuration: {} } // Send empty object if no keys are set
-        : {
-            configuration: (jsonFormData && JSON.parse(jsonFormData)) || null,
-          };
     try {
-      await softwareAPI.editAppStoreApp(softwareId, teamId, formDataToSubmit);
+      if (isInHouseApp) {
+        // In-house .ipa: multipart PATCH via editSoftwarePackage
+        await softwareAPI.editSoftwarePackage({
+          data: buildSubmitPayload(),
+          softwareId,
+          teamId,
+        });
+      } else {
+        // VPP / Android: JSON PATCH via editAppStoreApp
+        await softwareAPI.editAppStoreApp(
+          softwareId,
+          teamId,
+          buildSubmitPayload()
+        );
+      }
 
       renderFlash(
         "success",
         <>
-          <strong>{softwareInstaller.name}</strong> configuration updated.
+          <strong>
+            {getDisplayedSoftwareName(
+              softwareInstaller.name,
+              softwareInstaller.display_name
+            )}
+          </strong>{" "}
+          configuration updated.
         </>
       );
 
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash(
-        "error",
-        getErrorMessage(e, softwareInstaller as IAppStoreApp)
-      );
+      renderFlash("error", getErrorMessage(e, isApplePlatform));
     }
     setIsUpdatingConfiguration(false);
   };
 
   const onInputChange = (value: string) => {
-    setJsonFormData(value);
+    setFormData(value);
 
     const error = validateForm(value);
     setFormError(error);
     setCanSaveForm(!error);
   };
 
+  const editorMode = isApplePlatform ? "xml" : "json";
+
   const renderHelpText = () => {
+    if (isApplePlatform) {
+      return (
+        <div className={`${baseClass}__help-text`}>
+          Managed app configuration, also known as App Config.{" "}
+          <CustomLink
+            newTab
+            text="Learn more"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/ios-software-managed-configuration`}
+          />
+        </div>
+      );
+    }
     return (
       <div className={`${baseClass}__help-text`}>
         The Android app&apos;s configuration in JSON format.{" "}
@@ -129,30 +191,87 @@ const EditConfigurationModal = ({
     );
   };
 
+  const renderDescription = () => {
+    if (!isApplePlatform) {
+      return null;
+    }
+    return (
+      <p className={`${baseClass}__description`}>
+        Configuration and updated values of Fleet{" "}
+        <CustomLink
+          newTab
+          text="variables"
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/fleet-variables`}
+        />{" "}
+        will be applied to future installs and updates.
+      </p>
+    );
+  };
+
   const renderForm = () => (
-    <>
-      <Editor
-        mode="json"
-        value={jsonFormData as string}
-        helpText={renderHelpText()}
-        onChange={onInputChange}
-        error={formError}
-        label="Configuration"
-      />
-    </>
+    <Editor
+      mode={editorMode}
+      value={formData}
+      helpText={renderHelpText()}
+      onChange={onInputChange}
+      onLoad={onEditorLoad}
+      readOnly={isUpdatingConfiguration}
+      error={formError}
+      label="Configuration"
+    />
   );
 
-  return (
-    <Modal className={baseClass} title="Edit configuration" onExit={onExit}>
+  const renderInstallerDetails = () => {
+    if (isApplePlatform) {
+      const version = isInHouseApp
+        ? softwareInstaller.version
+        : (softwareInstaller as IAppStoreApp).latest_version;
+      return (
+        <InstallerDetailsWidget
+          softwareName={softwareInstaller.name}
+          installerType={isInHouseApp ? "package" : "app-store"}
+          version={version}
+          isFma={false}
+          isScriptPackage={false}
+        />
+      );
+    }
+    const appStoreApp = softwareInstaller as IAppStoreApp;
+    return (
       <InstallerDetailsWidget
-        softwareName={softwareInstaller.name}
-        androidPlayStoreId={softwareInstaller.app_store_id}
-        customDetails="Android"
+        softwareName={appStoreApp.name}
+        androidPlayStoreId={appStoreApp.app_store_id}
+        customDetails={getPlatformLabel(appStoreApp.platform)}
         installerType="app-store"
         isFma={false}
         isScriptPackage={false}
       />
-      {renderForm()}
+    );
+  };
+
+  const renderFooter = () => {
+    if (isApplePlatform) {
+      return (
+        <ModalFooter
+          primaryButtons={
+            <>
+              <Button onClick={onExit} variant="inverse">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                onClick={onEditConfiguration}
+                isLoading={isUpdatingConfiguration}
+                disabled={!canSaveForm || isUpdatingConfiguration}
+              >
+                Save
+              </Button>
+            </>
+          }
+        />
+      );
+    }
+    return (
       <ModalFooter
         primaryButtons={
           <Button
@@ -165,6 +284,20 @@ const EditConfigurationModal = ({
           </Button>
         }
       />
+    );
+  };
+
+  return (
+    <Modal
+      className={baseClass}
+      title="Edit configuration"
+      onExit={onExit}
+      width="large"
+    >
+      {renderInstallerDetails()}
+      {renderDescription()}
+      {renderForm()}
+      {renderFooter()}
     </Modal>
   );
 };

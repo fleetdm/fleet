@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -33,6 +34,9 @@ func TestSetupExperience(t *testing.T) {
 		{"TestGetSetupExperienceScriptByID", testGetSetupExperienceScriptByID},
 		{"TestUpdateSetupExperienceScriptWhileEnqueued", testUpdateSetupExperienceScriptWhileEnqueued},
 		{"TestEnqueueSetupExperienceItemsWindows", testEnqueueSetupExperienceItemsWindows},
+		{"EnqueueSetupExperienceItemsWithDisplayName", testEnqueueSetupExperienceItemsWithDisplayName},
+		{"UpdateStatusGuardsTerminalStates", testUpdateStatusGuardsTerminalStates},
+		{"SetSetupExperienceTitlesOnlyMarksActiveInstaller", testSetSetupExperienceTitlesOnlyMarksActiveInstaller},
 	}
 
 	for _, c := range cases {
@@ -326,6 +330,45 @@ func testEnqueueSetupExperienceItemsWindows(t *testing.T, ds *Datastore) {
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host2UUID, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
+
+	// Re-Autopilot of an existing host: last_enrolled_at is >24h old (the
+	// pre-existing record predates this Autopilot cycle), but the host has
+	// just MDM-enrolled and is in awaiting_configuration=Pending.
+	host3UUID := "33333333-3333-3333-3333-333333333333"
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "windows-test-3-reautopilot",
+		OsqueryHostID:  ptr.String("osquery-windows-3"),
+		NodeKey:        ptr.String("node-key-windows-3"),
+		UUID:           host3UUID,
+		Platform:       "windows",
+		HardwareSerial: "654321c-3",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-25*time.Hour), host3UUID)
+		return err
+	})
+	// Insert a Windows MDM enrollment with awaiting_configuration=Pending,
+	// matching what a fresh Autopilot enrollment on the same host would create
+	// before last_enrolled_at gets refreshed.
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "device-host3",
+		MDMHardwareID:          "hw-host3",
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-H3",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               host3UUID,
+		AwaitingConfiguration:  fleet.WindowsMDMAwaitingConfigurationPending,
+	}))
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host3UUID, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued,
+		"re-Autopilot of an existing host (>24h old) with awaiting_configuration!=None must bypass the age guard")
 }
 
 func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
@@ -664,6 +707,271 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 			t.Errorf("team %d shouldn't have any any entries", team)
 		}
 	}
+}
+
+// testEnqueueSetupExperienceItemsWithDisplayName verifies that when a custom
+// display name is set for a software title, the enqueue function uses it to
+// determine the alphabetical install order (instead of the default
+// software_titles.name). This ordering also orders the steps in the
+// setup experience UI. The UI uses the display name if it is set, and
+// the name if not.
+func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_display_name_test"})
+	require.NoError(t, err)
+
+	user := test.NewUser(t, ds, "DisplayNameUser", "displaynameuser@example.com", true)
+
+	// Create two software installers with titles that sort in a known order:
+	//   "AAA_Software" < "ZZZ_Software"  (alphabetically)
+	// We will then assign custom display names that invert this order:
+	//   "AAA_Software" → "Zulu Custom"
+	//   "ZZZ_Software" → "Alpha Custom"
+	// After enqueue, the rows ordered by id (insert order) should reflect
+	// the display-name alphabetical order:
+	//   id=N   → ZZZ_Software (display name "Alpha Custom", sorts first)
+	//   id=N+1 → AAA_Software (display name "Zulu Custom", sorts second)
+	// But the `name` column still stores the original st.name.
+	// Note that the setup experience UI will also follow this ordering;
+	// it will display "Alpha Custom" and then "Zulu Custom".
+
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello1"), t.TempDir)
+	require.NoError(t, err)
+	installerID1, titleID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install1",
+		UninstallScript: "uninstall1",
+		InstallerFile:   tfr1,
+		StorageID:       "storage_dn_1",
+		Filename:        "file_dn_1",
+		Title:           "AAA_Software",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello2"), t.TempDir)
+	require.NoError(t, err)
+	installerID2, titleID2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install2",
+		UninstallScript: "uninstall2",
+		InstallerFile:   tfr2,
+		StorageID:       "storage_dn_2",
+		Filename:        "file_dn_2",
+		Title:           "ZZZ_Software",
+		Version:         "2.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Mark both installers for setup experience
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?)", installerID1, installerID2)
+		return err
+	})
+
+	// Set custom display names that invert the alphabetical order
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, titleID1, "Zulu Custom"); err != nil {
+			return err
+		}
+		return updateSoftwareTitleDisplayName(ctx, q, &team.ID, titleID2, "Alpha Custom")
+	})
+
+	// Create two VPP apps with titles that sort in a known order, then invert with display names.
+	vppApp1 := &fleet.VPPApp{
+		Name:             "AAA_VPP_App",
+		BundleIdentifier: "com.aaa.vpp",
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "dn_adam_1", Platform: fleet.MacOSPlatform}},
+	}
+	vpp1, err := ds.InsertVPPAppWithTeam(ctx, vppApp1, &team.ID)
+	require.NoError(t, err)
+
+	vppApp2 := &fleet.VPPApp{
+		Name:             "ZZZ_VPP_App",
+		BundleIdentifier: "com.zzz.vpp",
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "dn_adam_2", Platform: fleet.MacOSPlatform}},
+	}
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, vppApp2, &team.ID)
+	require.NoError(t, err)
+
+	// Mark both VPP apps for setup experience
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET install_during_setup = 1 WHERE adam_id IN (?, ?)", vpp1.AdamID, vpp2.AdamID)
+		return err
+	})
+
+	// Set custom display names for VPP apps (invert order)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, vppApp1.TitleID, "Zulu VPP Custom"); err != nil {
+			return err
+		}
+		return updateSoftwareTitleDisplayName(ctx, q, &team.ID, vppApp2.TitleID, "Alpha VPP Custom")
+	})
+
+	// Create a host assigned to the team and enqueue setup experience.
+	// The host must be on the team so that ListSetupExperienceResultsByHostUUID
+	// can look up the team's display names.
+	hostUUID := "host-display-name-test-" + uuid.NewString()
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-dn-test",
+		OsqueryHostID:  ptr.String("osquery-dn-test"),
+		NodeKey:        ptr.String("node-key-dn-test"),
+		UUID:           hostUUID,
+		Platform:       "darwin",
+		HardwareSerial: "dn-serial-1",
+	})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID}))
+	require.NoError(t, err)
+
+	anythingEnqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostUUID, team.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+
+	// --- Verify all rows are globally ordered by display name ---
+	// enqueueSetupExperienceItems inserts software (installers and VPP apps)
+	// together in a single query ordered by COALESCE(display_name, st.name),
+	// so the auto-incremented id reflects the global display-name order.
+	// ListSetupExperienceResultsByHostUUID returns rows ordered by sesr.id,
+	// preserving that insert order. Scripts are inserted last.
+	//
+	// Expected order (all software globally sorted by display name):
+	//   0. ZZZ_Software  (installer, display name "Alpha Custom")
+	//   1. ZZZ_VPP_App   (VPP app,   display name "Alpha VPP Custom")
+	//   2. AAA_Software  (installer, display name "Zulu Custom")
+	//   3. AAA_VPP_App   (VPP app,   display name "Zulu VPP Custom")
+	allResults, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, team.ID)
+	require.NoError(t, err)
+	require.Len(t, allResults, 4, "expected 4 results total (2 installers + 2 VPP apps)")
+
+	assert.Equal(t, "ZZZ_Software", allResults[0].Name, "row 0: ZZZ_Software (display name 'Alpha Custom')")
+	assert.Equal(t, "Alpha Custom", allResults[0].DisplayName, "row 0: display name should be 'Alpha Custom'")
+	assert.NotNil(t, allResults[0].SoftwareInstallerID, "row 0: should be a software installer")
+
+	assert.Equal(t, "ZZZ_VPP_App", allResults[1].Name, "row 1: ZZZ_VPP_App (display name 'Alpha VPP Custom')")
+	assert.Equal(t, "Alpha VPP Custom", allResults[1].DisplayName, "row 1: display name should be 'Alpha VPP Custom'")
+	assert.NotNil(t, allResults[1].VPPAppTeamID, "row 1: should be a VPP app")
+	assert.Less(t, allResults[0].ID, allResults[1].ID)
+
+	assert.Equal(t, "AAA_Software", allResults[2].Name, "row 2: AAA_Software (display name 'Zulu Custom')")
+	assert.Equal(t, "Zulu Custom", allResults[2].DisplayName, "row 2: display name should be 'Zulu Custom'")
+	assert.NotNil(t, allResults[2].SoftwareInstallerID, "row 2: should be a software installer")
+	assert.Less(t, allResults[1].ID, allResults[2].ID)
+
+	assert.Equal(t, "AAA_VPP_App", allResults[3].Name, "row 3: AAA_VPP_App (display name 'Zulu VPP Custom')")
+	assert.Equal(t, "Zulu VPP Custom", allResults[3].DisplayName, "row 3: display name should be 'Zulu VPP Custom'")
+	assert.NotNil(t, allResults[3].VPPAppTeamID, "row 3: should be a VPP app")
+
+	// --- Verify fallback: no display name → order uses st.name ---
+	// Add a third installer and a third VPP app, both without custom display
+	// names, then re-enqueue for a new host and verify the globally
+	// interleaved order. Items without a display name fall back to st.name.
+	tfr3, err := fleet.NewTempFileReader(strings.NewReader("hello3"), t.TempDir)
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install3",
+		UninstallScript: "uninstall3",
+		InstallerFile:   tfr3,
+		StorageID:       "storage_dn_3",
+		Filename:        "file_dn_3",
+		Title:           "MMM_NoDisplayName",
+		Version:         "3.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		Platform:        string(fleet.MacOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id NOT IN (?, ?)", installerID1, installerID2)
+		return err
+	})
+
+	vppApp3 := &fleet.VPPApp{
+		Name:             "MMM_VPP_NoDisplayName",
+		BundleIdentifier: "com.mmm.vpp",
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "dn_adam_3", Platform: fleet.MacOSPlatform}},
+	}
+	vpp3, err := ds.InsertVPPAppWithTeam(ctx, vppApp3, &team.ID)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET install_during_setup = 1 WHERE adam_id = ?", vpp3.AdamID)
+		return err
+	})
+
+	// Re-enqueue for a new host (also on the team) to pick up all installers and VPP apps.
+	hostUUID2 := "host-display-name-fallback-" + uuid.NewString()
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-dn-test-2",
+		OsqueryHostID:  ptr.String("osquery-dn-test-2"),
+		NodeKey:        ptr.String("node-key-dn-test-2"),
+		UUID:           hostUUID2,
+		Platform:       "darwin",
+		HardwareSerial: "dn-serial-2",
+	})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID}))
+	require.NoError(t, err)
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostUUID2, team.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued)
+
+	// Verify the globally interleaved order across installers and VPP apps.
+	// The combined INSERT in enqueueSetupExperienceItems orders by
+	// COALESCE(display_name, st.name), and ListSetupExperienceResultsByHostUUID
+	// returns rows ordered by sesr.id (i.e. insert order).
+	//
+	// Expected global order (sorted by COALESCE(display_name, st.name)):
+	//   0. ZZZ_Software          (installer, display name "Alpha Custom")
+	//   1. ZZZ_VPP_App           (VPP app,   display name "Alpha VPP Custom")
+	//   2. MMM_NoDisplayName     (installer, no display name → falls back to st.name)
+	//   3. MMM_VPP_NoDisplayName (VPP app,   no display name → falls back to st.name)
+	//   4. AAA_Software          (installer, display name "Zulu Custom")
+	//   5. AAA_VPP_App           (VPP app,   display name "Zulu VPP Custom")
+	fallbackResults, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID2, team.ID)
+	require.NoError(t, err)
+	require.Len(t, fallbackResults, 6, "expected 6 results total (3 installers + 3 VPP apps)")
+
+	assert.Equal(t, "ZZZ_Software", fallbackResults[0].Name, "row 0: ZZZ_Software (display name 'Alpha Custom')")
+	assert.Equal(t, "Alpha Custom", fallbackResults[0].DisplayName)
+	assert.NotNil(t, fallbackResults[0].SoftwareInstallerID)
+
+	assert.Equal(t, "ZZZ_VPP_App", fallbackResults[1].Name, "row 1: ZZZ_VPP_App (display name 'Alpha VPP Custom')")
+	assert.Equal(t, "Alpha VPP Custom", fallbackResults[1].DisplayName)
+	assert.NotNil(t, fallbackResults[1].VPPAppTeamID)
+	assert.Less(t, fallbackResults[0].ID, fallbackResults[1].ID)
+
+	assert.Equal(t, "MMM_NoDisplayName", fallbackResults[2].Name, "row 2: MMM_NoDisplayName (no display name, falls back to st.name)")
+	assert.Empty(t, fallbackResults[2].DisplayName)
+	assert.NotNil(t, fallbackResults[2].SoftwareInstallerID)
+	assert.Less(t, fallbackResults[1].ID, fallbackResults[2].ID)
+
+	assert.Equal(t, "MMM_VPP_NoDisplayName", fallbackResults[3].Name, "row 3: MMM_VPP_NoDisplayName (no display name, falls back to st.name)")
+	assert.Empty(t, fallbackResults[3].DisplayName)
+	assert.NotNil(t, fallbackResults[3].VPPAppTeamID)
+
+	assert.Equal(t, "AAA_Software", fallbackResults[4].Name, "row 4: AAA_Software (display name 'Zulu Custom')")
+	assert.Equal(t, "Zulu Custom", fallbackResults[4].DisplayName)
+	assert.NotNil(t, fallbackResults[4].SoftwareInstallerID)
+
+	assert.Equal(t, "AAA_VPP_App", fallbackResults[5].Name, "row 5: AAA_VPP_App (display name 'Zulu VPP Custom')")
+	assert.Equal(t, "Zulu VPP Custom", fallbackResults[5].DisplayName)
+	assert.NotNil(t, fallbackResults[5].VPPAppTeamID)
+	assert.Less(t, fallbackResults[4].ID, fallbackResults[5].ID)
 }
 
 type setupExperienceInsertTestRows struct {
@@ -1242,7 +1550,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 		insertSetupExperienceStatusResult(r)
 	}
 
-	res, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	res, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, 0)
 	require.NoError(t, err)
 	require.Len(t, res, 3)
 	for i, s := range expRes {
@@ -1439,14 +1747,14 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
-	host1OriginalItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	host1OriginalItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, host1OriginalItems, 1)
 	require.Equal(t, fleet.SetupExperienceStatusPending, host1OriginalItems[0].Status)
 	require.NotNil(t, host1OriginalItems[0].SetupExperienceScriptID)
 	require.Equal(t, team1OriginalScript.ID, *host1OriginalItems[0].SetupExperienceScriptID)
 
-	host2OriginalItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID)
+	host2OriginalItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID, team2.ID)
 	require.NoError(t, err)
 	require.Len(t, host2OriginalItems, 1)
 	require.Equal(t, fleet.SetupExperienceStatusPending, host2OriginalItems[0].Status)
@@ -1463,13 +1771,13 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.Equal(t, team1OriginalScript.ScriptContentID, team1UpdatedScript.ScriptContentID)
 	require.Equal(t, team1OriginalScript.ID, team1UpdatedScript.ID)
 
-	host1NewItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	host1NewItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, host1NewItems, 1)
 	require.Equal(t, team1OriginalScript.ID, *host1NewItems[0].SetupExperienceScriptID)
 
 	// Should not have perturbed Host 2's enqueued execution either
-	host2NewItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID)
+	host2NewItems, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID, team2.ID)
 	require.NoError(t, err)
 	require.Len(t, host2NewItems, 1)
 	require.Equal(t, team2OriginalScript.ID, *host2NewItems[0].SetupExperienceScriptID)
@@ -1484,12 +1792,12 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, team1OriginalScript.ScriptContentID, team1UpdatedScript.ScriptContentID)
 	require.NotEqual(t, team1OriginalScript.ID, team1UpdatedScript.ID)
 
-	host1NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	host1NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, host1NewItems, 0)
 
 	// Should not have affected host 2's enqueued execution
-	host2NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID)
+	host2NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam2UUID, team2.ID)
 	require.NoError(t, err)
 	require.Len(t, host2NewItems, 1)
 	require.Equal(t, team2OriginalScript.ID, *host2NewItems[0].SetupExperienceScriptID)
@@ -1499,7 +1807,7 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, anythingEnqueued)
 
-	host1NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID)
+	host1NewItems, err = ds.ListSetupExperienceResultsByHostUUID(ctx, hostTeam1UUID, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, host1NewItems, 1)
 	require.Equal(t, team1UpdatedScript.ID, *host1NewItems[0].SetupExperienceScriptID)
@@ -1528,6 +1836,185 @@ func testHostInSetupExperience(t *testing.T, ds *Datastore) {
 	require.False(t, inSetupExperience)
 }
 
+func testUpdateStatusGuardsTerminalStates(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	hostUUID := uuid.NewString()
+
+	// --- Set up foreign-key references ---
+
+	// User (required for software installer)
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Name:       "GuardTest",
+		Email:      "guard@example.com",
+		GlobalRole: new("admin"),
+		Password:   []byte("12characterslong!"),
+	})
+	require.NoError(t, err)
+
+	// Software installer
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Filename:        "guard_test.pkg",
+		Title:           "Guard Test Software",
+		Version:         "1.0.0",
+		Source:          "apps",
+		Platform:        "darwin",
+		Extension:       "pkg",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// VPP token + app
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Guard Kong", "GuardJungle")
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{})
+	require.NoError(t, err)
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		BundleIdentifier: "com.guard.test",
+		Name:             "guard_test.app",
+		LatestVersion:    "1.0.0",
+	}, nil)
+	require.NoError(t, err)
+	var vppAppsTeamsID uint
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &vppAppsTeamsID,
+		`SELECT id FROM vpp_apps_teams WHERE adam_id = ?`, vppApp.AdamID)
+	require.NoError(t, err)
+
+	// Setup experience script (raw SQL, same pattern as testSetupExperienceStatusResults)
+	var scriptID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO setup_experience_scripts (name) VALUES (?)`, "guard_test_script")
+		require.NoError(t, err)
+		id, err := res.LastInsertId()
+		require.NoError(t, err)
+		scriptID = uint(id) //nolint: gosec
+		return nil
+	})
+
+	// --- Helpers ---
+
+	insertRow := func(sesr *fleet.SetupExperienceStatusResult) {
+		stmt := `INSERT INTO setup_experience_status_results
+			(id, host_uuid, name, status, software_installer_id,
+			 host_software_installs_execution_id, vpp_app_team_id,
+			 nano_command_uuid, setup_experience_script_id,
+			 script_execution_id, error)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, stmt,
+				sesr.ID, sesr.HostUUID, sesr.Name, sesr.Status,
+				sesr.SoftwareInstallerID,
+				sesr.HostSoftwareInstallsExecutionID,
+				sesr.VPPAppTeamID, sesr.NanoCommandUUID,
+				sesr.SetupExperienceScriptID,
+				sesr.ScriptExecutionID, sesr.Error)
+			require.NoError(t, err)
+			id, err := res.LastInsertId()
+			require.NoError(t, err)
+			sesr.ID = uint(id) //nolint: gosec
+			return nil
+		})
+	}
+
+	readStatus := func(id uint) fleet.SetupExperienceStatusResultStatus {
+		var status fleet.SetupExperienceStatusResultStatus
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &status,
+				"SELECT status FROM setup_experience_status_results WHERE id = ?", id)
+		})
+		return status
+	}
+
+	// --- Negative tests: terminal states must not be overwritten ---
+
+	terminalStatuses := []fleet.SetupExperienceStatusResultStatus{
+		fleet.SetupExperienceStatusCancelled,
+		fleet.SetupExperienceStatusFailure,
+		fleet.SetupExperienceStatusSuccess,
+	}
+
+	for _, termStatus := range terminalStatuses {
+		// Software installer row
+		execID := uuid.NewString()
+		row := &fleet.SetupExperienceStatusResult{
+			HostUUID:                        hostUUID,
+			Name:                            "sw-" + string(termStatus),
+			Status:                          termStatus,
+			SoftwareInstallerID:             new(installerID),
+			HostSoftwareInstallsExecutionID: new(execID),
+		}
+		insertRow(row)
+		updated, err := ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, hostUUID, execID, fleet.SetupExperienceStatusFailure)
+		require.NoError(t, err)
+		require.False(t, updated, "software installer row in %s should not be updated", termStatus)
+		require.Equal(t, termStatus, readStatus(row.ID))
+
+		// VPP row
+		nanoUUID := uuid.NewString()
+		row = &fleet.SetupExperienceStatusResult{
+			HostUUID:        hostUUID,
+			Name:            "vpp-" + string(termStatus),
+			Status:          termStatus,
+			VPPAppTeamID:    new(vppAppsTeamsID),
+			NanoCommandUUID: new(nanoUUID),
+		}
+		insertRow(row)
+		updated, err = ds.MaybeUpdateSetupExperienceVPPStatus(ctx, hostUUID, nanoUUID, fleet.SetupExperienceStatusFailure)
+		require.NoError(t, err)
+		require.False(t, updated, "VPP row in %s should not be updated", termStatus)
+		require.Equal(t, termStatus, readStatus(row.ID))
+
+		// Script row
+		scriptExecID := uuid.NewString()
+		row = &fleet.SetupExperienceStatusResult{
+			HostUUID:                hostUUID,
+			Name:                    "script-" + string(termStatus),
+			Status:                  termStatus,
+			SetupExperienceScriptID: new(scriptID),
+			ScriptExecutionID:       new(scriptExecID),
+		}
+		insertRow(row)
+		updated, err = ds.MaybeUpdateSetupExperienceScriptStatus(ctx, hostUUID, scriptExecID, fleet.SetupExperienceStatusFailure)
+		require.NoError(t, err)
+		require.False(t, updated, "script row in %s should not be updated", termStatus)
+		require.Equal(t, termStatus, readStatus(row.ID))
+	}
+
+	// --- Positive control: pending row CAN be updated ---
+
+	pendingExecID := uuid.NewString()
+	pendingRow := &fleet.SetupExperienceStatusResult{
+		HostUUID:                        hostUUID,
+		Name:                            "sw-pending-positive",
+		Status:                          fleet.SetupExperienceStatusPending,
+		SoftwareInstallerID:             new(installerID),
+		HostSoftwareInstallsExecutionID: new(pendingExecID),
+	}
+	insertRow(pendingRow)
+	updated, err := ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, hostUUID, pendingExecID, fleet.SetupExperienceStatusFailure)
+	require.NoError(t, err)
+	require.True(t, updated, "pending row should be updated")
+	require.Equal(t, fleet.SetupExperienceStatusFailure, readStatus(pendingRow.ID))
+
+	// --- Bug-scenario test: canceled VPP row must not flip to failure ---
+
+	cancelledNanoUUID := uuid.NewString()
+	cancelledVPPRow := &fleet.SetupExperienceStatusResult{
+		HostUUID:        hostUUID,
+		Name:            "vpp-canceled-bug",
+		Status:          fleet.SetupExperienceStatusCancelled,
+		VPPAppTeamID:    new(vppAppsTeamsID),
+		NanoCommandUUID: new(cancelledNanoUUID),
+	}
+	insertRow(cancelledVPPRow)
+	updated, err = ds.MaybeUpdateSetupExperienceVPPStatus(ctx, hostUUID, cancelledNanoUUID, fleet.SetupExperienceStatusFailure)
+	require.NoError(t, err)
+	require.False(t, updated, "cancelled VPP row must not be overwritten by late failure result")
+	require.Equal(t, fleet.SetupExperienceStatusCancelled, readStatus(cancelledVPPRow.ID))
+}
+
 func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -1551,4 +2038,99 @@ func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {
 	b, err := ds.GetAnyScriptContents(ctx, gotScript.ScriptContentID)
 	require.NoError(t, err)
 	require.Equal(t, script.ScriptContents, string(b))
+}
+
+func testSetSetupExperienceTitlesOnlyMarksActiveInstaller(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_setup_exp_active"})
+	require.NoError(t, err)
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "pkg_active",
+		Slug:             "pkg_active",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.pkg_active",
+	})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+	require.NoError(t, err)
+
+	// Create two cached FMA versions via successive GitOps runs. v1.0 ends
+	// up inactive, v2.0 active.
+	for _, version := range []string{"1.0", "2.0"} {
+		err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+			{
+				FleetMaintainedAppID: &fma.ID,
+				Title:                "pkg_active",
+				Source:               "apps",
+				Platform:             "darwin",
+				PreInstallQuery:      "SELECT 1",
+				InstallScript:        "echo install",
+				PostInstallScript:    "echo post install",
+				UninstallScript:      "echo uninstall",
+				InstallerFile:        tfr,
+				StorageID:            "storage_id",
+				Filename:             "pkg_active.pkg",
+				Version:              version,
+				UserID:               user.ID,
+				ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+				InstallDuringSetup:   new(false),
+				SelfService:          false,
+				TeamID:               &team.ID,
+			},
+		})
+		require.NoError(t, err)
+	}
+
+	// Grab the two installer IDs so we can assert per-row.
+	type row struct {
+		ID      uint `db:"id"`
+		Active  bool `db:"is_active"`
+		InSetup bool `db:"install_during_setup"`
+		TitleID uint `db:"title_id"`
+		Version string
+	}
+	var rows []row
+	tmFilter := fleet.TeamFilter{User: test.UserAdmin, TeamID: &team.ID}
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID, Platform: "darwin", AvailableForInstall: true}, tmFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	titleID := titles[0].ID
+
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, tx, &rows, `
+			SELECT id, is_active, install_during_setup, title_id, version
+			FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ?
+			ORDER BY version ASC
+		`, team.ID, titleID)
+	})
+	require.Len(t, rows, 2, "expected 2 cached FMA versions")
+	require.False(t, rows[0].Active, "v1.0 should be inactive")
+	require.True(t, rows[1].Active, "v2.0 should be active")
+
+	// Sanity: neither row has install_during_setup set yet (BatchSet was
+	// called with InstallDuringSetup=false).
+	require.False(t, rows[0].InSetup)
+	require.False(t, rows[1].InSetup)
+
+	// Add the title to setup experience.
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{titleID})
+	require.NoError(t, err)
+
+	// Re-read: only the active (v2.0) row should have install_during_setup=true.
+	rows = nil
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, tx, &rows, `
+			SELECT id, is_active, install_during_setup, title_id, version
+			FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ?
+			ORDER BY version ASC
+		`, team.ID, titleID)
+	})
+	require.Len(t, rows, 2)
+	require.False(t, rows[0].InSetup, "cached inactive v1.0 must not be marked install_during_setup")
+	require.True(t, rows[1].InSetup, "active v2.0 should be marked install_during_setup")
 }

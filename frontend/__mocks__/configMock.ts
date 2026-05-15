@@ -13,6 +13,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_bm_terms_expired: false,
   enabled_and_configured: true,
   android_enabled_and_configured: false,
+  apple_require_hardware_attestation: false,
   macos_updates: {
     minimum_version: "",
     deadline: "",
@@ -25,17 +26,18 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     minimum_version: "",
     deadline: "",
   },
-  macos_settings: {
-    custom_settings: null,
+  apple_settings: {
+    configuration_profiles: null,
     enable_disk_encryption: false,
   },
-  macos_setup: {
-    bootstrap_package: "",
-    manual_agent_install: false,
+  setup_experience: {
+    macos_bootstrap_package: "",
+    macos_manual_agent_install: false,
     enable_end_user_authentication: false,
-    macos_setup_assistant: null,
-    enable_release_device_manually: false,
+    apple_setup_assistant: null,
+    apple_enable_release_device_manually: false,
     require_all_software_macos: false,
+    require_all_software_windows: false,
     lock_end_user_info: false,
   },
   macos_migration: {
@@ -131,6 +133,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   activity_expiry_settings: {
     activity_expiry_enabled: true,
     activity_expiry_window: 90,
+    preserve_host_activities_on_reenrollment: false,
   },
   agent_options: "",
   license: DEFAULT_LICENSE_MOCK,
@@ -211,6 +214,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     enable_software_inventory: true,
     enable_conditional_access: true,
     enable_conditional_access_bypass: true,
+    historical_data: {
+      uptime: true,
+      vulnerabilities: true,
+    },
   },
   fleet_desktop: {
     transparency_url: "https://fleetdm.com/transparency",
@@ -220,6 +227,11 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   gitops: {
     gitops_mode_enabled: false,
     repository_url: "",
+    exceptions: {
+      labels: false,
+      software: false,
+      secrets: true,
+    },
   },
 };
 

@@ -474,15 +474,15 @@ func TestShouldIncludeInDelta(t *testing.T) {
 		name          string
 		inputDir      string
 		filePath      string
-		changedFiles  map[string]bool
+		changedFiles  map[string]struct{}
 		expectedMatch bool
 	}{
 		{
 			name:     "Unix path: file in changed set",
 			inputDir: "/tmp/ubuntu-osv",
 			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-1234.json",
-			changedFiles: map[string]bool{
-				"osv/cve/CVE-2024-1234.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/CVE-2024-1234.json": {},
 			},
 			expectedMatch: true,
 		},
@@ -490,8 +490,8 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "Unix path: file not in changed set",
 			inputDir: "/tmp/ubuntu-osv",
 			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-9999.json",
-			changedFiles: map[string]bool{
-				"osv/cve/CVE-2024-1234.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/CVE-2024-1234.json": {},
 			},
 			expectedMatch: false,
 		},
@@ -499,8 +499,8 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "Nested directory: file in changed set",
 			inputDir: "/data/osv",
 			filePath: "/data/osv/osv/cve/2024/CVE-2024-1111.json",
-			changedFiles: map[string]bool{
-				"osv/cve/2024/CVE-2024-1111.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/2024/CVE-2024-1111.json": {},
 			},
 			expectedMatch: true,
 		},
@@ -508,8 +508,8 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "File already has osv/cve prefix in relative path",
 			inputDir: "/workspace",
 			filePath: "/workspace/osv/cve/CVE-2024-2222.json",
-			changedFiles: map[string]bool{
-				"osv/cve/CVE-2024-2222.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/CVE-2024-2222.json": {},
 			},
 			expectedMatch: true,
 		},
@@ -517,8 +517,8 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "Changed files with leading slash (should not match)",
 			inputDir: "/tmp/ubuntu-osv",
 			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-3333.json",
-			changedFiles: map[string]bool{
-				"/osv/cve/CVE-2024-3333.json": true, // Wrong: has leading slash
+			changedFiles: map[string]struct{}{
+				"/osv/cve/CVE-2024-3333.json": {}, // Wrong: has leading slash
 			},
 			expectedMatch: false,
 		},
@@ -526,8 +526,8 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "Changed files without osv/cve prefix (should not match)",
 			inputDir: "/tmp/ubuntu-osv",
 			filePath: "/tmp/ubuntu-osv/osv/cve/CVE-2024-4444.json",
-			changedFiles: map[string]bool{
-				"CVE-2024-4444.json": true, // Wrong: missing osv/cve/ prefix
+			changedFiles: map[string]struct{}{
+				"CVE-2024-4444.json": {}, // Wrong: missing osv/cve/ prefix
 			},
 			expectedMatch: false,
 		},
@@ -535,15 +535,15 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:          "Empty changed files set",
 			inputDir:      "/tmp/ubuntu-osv",
 			filePath:      "/tmp/ubuntu-osv/osv/cve/CVE-2024-5555.json",
-			changedFiles:  map[string]bool{},
+			changedFiles:  map[string]struct{}{},
 			expectedMatch: false,
 		},
 		{
 			name:     "File outside input directory tree (relative path doesn't match)",
 			inputDir: "/tmp/ubuntu-osv/subdir",
 			filePath: "/tmp/other-dir/osv/cve/CVE-2024-6666.json",
-			changedFiles: map[string]bool{
-				"osv/cve/CVE-2024-6666.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/CVE-2024-6666.json": {},
 			},
 			expectedMatch: false, // filepath.Rel will work but path won't match
 		},
@@ -551,10 +551,10 @@ func TestShouldIncludeInDelta(t *testing.T) {
 			name:     "Multiple files in changed set, match one",
 			inputDir: "/data/osv",
 			filePath: "/data/osv/osv/cve/CVE-2024-7777.json",
-			changedFiles: map[string]bool{
-				"osv/cve/CVE-2024-1111.json": true,
-				"osv/cve/CVE-2024-7777.json": true,
-				"osv/cve/CVE-2024-9999.json": true,
+			changedFiles: map[string]struct{}{
+				"osv/cve/CVE-2024-1111.json": {},
+				"osv/cve/CVE-2024-7777.json": {},
+				"osv/cve/CVE-2024-9999.json": {},
 			},
 			expectedMatch: true,
 		},
@@ -836,6 +836,299 @@ func TestRunWithVersionFiltering(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExtractRHELVersion(t *testing.T) {
+	tests := []struct {
+		name      string
+		ecosystem string
+		expected  string
+	}{
+		{
+			name:      "RHEL 9 appstream",
+			ecosystem: "Red Hat:enterprise_linux:9::appstream",
+			expected:  "9",
+		},
+		{
+			name:      "RHEL 8 baseos",
+			ecosystem: "Red Hat:enterprise_linux:8::baseos",
+			expected:  "8",
+		},
+		{
+			name:      "RHEL 8 crb",
+			ecosystem: "Red Hat:enterprise_linux:8::crb",
+			expected:  "8",
+		},
+		{
+			name:      "RHEL 10 with minor version",
+			ecosystem: "Red Hat:enterprise_linux:10.0",
+			expected:  "10",
+		},
+		{
+			name:      "RHEL 10.1 with minor version",
+			ecosystem: "Red Hat:enterprise_linux:10.1",
+			expected:  "10",
+		},
+		{
+			name:      "RHEL 7 software collections",
+			ecosystem: "Red Hat:rhel_software_collections:3::el7",
+			expected:  "",
+		},
+		{
+			name:      "RHEL EUS not supported",
+			ecosystem: "Red Hat:rhel_e4s:8.8::appstream",
+			expected:  "",
+		},
+		{
+			name:      "Empty string",
+			ecosystem: "",
+			expected:  "",
+		},
+		{
+			name:      "Ubuntu ecosystem",
+			ecosystem: "Ubuntu:24.04:LTS",
+			expected:  "",
+		},
+		{
+			name:      "RHEL 9 no repository suffix",
+			ecosystem: "Red Hat:enterprise_linux:9",
+			expected:  "9",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractRHELVersion(tt.ecosystem)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestExtractCVEIDs(t *testing.T) {
+	tests := []struct {
+		name     string
+		osv      *OSVData
+		expected []string
+	}{
+		{
+			name: "CVEs in upstream",
+			osv: &OSVData{
+				ID:       "RHSA-2025:9978",
+				Upstream: []string{"CVE-2025-32462"},
+			},
+			expected: []string{"CVE-2025-32462"},
+		},
+		{
+			name: "Multiple CVEs in upstream",
+			osv: &OSVData{
+				ID:       "RHSA-2026:0001",
+				Upstream: []string{"CVE-2025-59375", "CVE-2025-6965", "CVE-2025-8176", "CVE-2025-9900"},
+			},
+			expected: []string{"CVE-2025-59375", "CVE-2025-6965", "CVE-2025-8176", "CVE-2025-9900"},
+		},
+		{
+			name: "CVE in related field as fallback",
+			osv: &OSVData{
+				ID:      "RHSA-2025:1234",
+				Related: []string{"CVE-2025-1111"},
+			},
+			expected: []string{"CVE-2025-1111"},
+		},
+		{
+			name: "CVE as ID fallback",
+			osv: &OSVData{
+				ID: "CVE-2025-9999",
+			},
+			expected: []string{"CVE-2025-9999"},
+		},
+		{
+			name: "No CVE found",
+			osv: &OSVData{
+				ID:       "RHBA-2025:5678",
+				Upstream: []string{"https://example.com"},
+			},
+			expected: nil,
+		},
+		{
+			name: "Non-CVE upstream entries filtered",
+			osv: &OSVData{
+				ID:       "RHSA-2025:0001",
+				Upstream: []string{"https://bugzilla.redhat.com/123", "CVE-2025-4444"},
+			},
+			expected: []string{"CVE-2025-4444"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractCVEIDs(tt.osv)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestRunRHEL(t *testing.T) {
+	inputDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	// Create a RHEL OSV advisory with one CVE affecting sudo on RHEL 9
+	testData := `{
+		"schema_version": "1.7.5",
+		"id": "RHSA-2025:9978",
+		"published": "2025-07-01T10:06:01Z",
+		"modified": "2026-03-18T11:30:33Z",
+		"upstream": ["CVE-2025-32462"],
+		"summary": "sudo security update",
+		"affected": [
+			{
+				"package": {
+					"name": "sudo",
+					"ecosystem": "Red Hat:enterprise_linux:9::appstream"
+				},
+				"ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "0:1.9.5p2-10.el9_6.1"}]}]
+			},
+			{
+				"package": {
+					"name": "sudo",
+					"ecosystem": "Red Hat:enterprise_linux:9::baseos"
+				},
+				"ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "0:1.9.5p2-10.el9_6.1"}]}]
+			}
+		]
+	}`
+	require.NoError(t, os.WriteFile(filepath.Join(inputDir, "RHSA-2025-9978.json"), []byte(testData), 0o644))
+
+	cfg := Config{
+		Platform:           "rhel",
+		InputDir:           inputDir,
+		OutputDir:          outputDir,
+		DateStr:            "2026-04-08",
+		GeneratedTimestamp: "2026-04-08T00:00:00Z",
+		RunTime:            time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC),
+	}
+
+	err := runRHEL(cfg)
+	require.NoError(t, err)
+
+	// Verify artifact was created
+	expectedFile := filepath.Join(outputDir, "osv-rhel-9-2026-04-08.json.gz")
+	require.FileExists(t, expectedFile)
+
+	artifact, err := readRHELArtifact(expectedFile)
+	require.NoError(t, err)
+	require.Equal(t, "1.0", artifact.SchemaVersion)
+	require.Equal(t, "9", artifact.RHELVersion)
+	require.Equal(t, 1, artifact.TotalCVEs)
+	require.Contains(t, artifact.Vulnerabilities, "sudo")
+	// Deduplication: sudo appears in both appstream and baseos, should be deduplicated
+	require.Len(t, artifact.Vulnerabilities["sudo"], 1)
+	require.Equal(t, "CVE-2025-32462", artifact.Vulnerabilities["sudo"][0].CVE)
+	require.Equal(t, "0:1.9.5p2-10.el9_6.1", artifact.Vulnerabilities["sudo"][0].Fixed)
+}
+
+func TestRunRHELMultiCVEAdvisory(t *testing.T) {
+	inputDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	// Advisory with 2 CVEs and packages across RHEL 8 and 9
+	testData := `{
+		"schema_version": "1.7.5",
+		"id": "RHSA-2026:0001",
+		"published": "2026-01-05T10:11:47Z",
+		"modified": "2026-04-03T10:05:48Z",
+		"upstream": ["CVE-2025-1111", "CVE-2025-2222"],
+		"affected": [
+			{
+				"package": {"name": "curl", "ecosystem": "Red Hat:enterprise_linux:9::baseos"},
+				"ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "0:7.76.1-29.el9_4.2"}]}]
+			},
+			{
+				"package": {"name": "curl", "ecosystem": "Red Hat:enterprise_linux:8::baseos"},
+				"ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "0:7.61.1-34.el8_10"}]}]
+			}
+		]
+	}`
+	require.NoError(t, os.WriteFile(filepath.Join(inputDir, "RHSA-2026-0001.json"), []byte(testData), 0o644))
+
+	cfg := Config{
+		Platform:           "rhel",
+		InputDir:           inputDir,
+		OutputDir:          outputDir,
+		DateStr:            "2026-04-08",
+		GeneratedTimestamp: "2026-04-08T00:00:00Z",
+		RunTime:            time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC),
+	}
+
+	err := runRHEL(cfg)
+	require.NoError(t, err)
+
+	// Should produce artifacts for both RHEL 8 and 9
+	rhel9, err := readRHELArtifact(filepath.Join(outputDir, "osv-rhel-9-2026-04-08.json.gz"))
+	require.NoError(t, err)
+	require.Equal(t, 2, rhel9.TotalCVEs)
+	require.Len(t, rhel9.Vulnerabilities["curl"], 2)
+
+	rhel8, err := readRHELArtifact(filepath.Join(outputDir, "osv-rhel-8-2026-04-08.json.gz"))
+	require.NoError(t, err)
+	require.Equal(t, 2, rhel8.TotalCVEs)
+	require.Len(t, rhel8.Vulnerabilities["curl"], 2)
+}
+
+func TestRunRHELVersionFiltering(t *testing.T) {
+	inputDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	testData := `{
+		"schema_version": "1.7.5",
+		"id": "RHSA-2025:1234",
+		"published": "2025-01-01T00:00:00Z",
+		"modified": "2025-01-02T00:00:00Z",
+		"upstream": ["CVE-2025-5555"],
+		"affected": [
+			{"package": {"name": "pkg", "ecosystem": "Red Hat:enterprise_linux:8::baseos"}, "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "0:1.0-1.el8"}]}]},
+			{"package": {"name": "pkg", "ecosystem": "Red Hat:enterprise_linux:9::baseos"}, "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "0:1.0-1.el9"}]}]}
+		]
+	}`
+	require.NoError(t, os.WriteFile(filepath.Join(inputDir, "RHSA-2025-1234.json"), []byte(testData), 0o644))
+
+	cfg := Config{
+		Platform:           "rhel",
+		InputDir:           inputDir,
+		OutputDir:          outputDir,
+		Versions:           "9",
+		DateStr:            "2026-04-08",
+		GeneratedTimestamp: "2026-04-08T00:00:00Z",
+		RunTime:            time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC),
+	}
+
+	err := runRHEL(cfg)
+	require.NoError(t, err)
+
+	// Only RHEL 9 should be generated
+	require.FileExists(t, filepath.Join(outputDir, "osv-rhel-9-2026-04-08.json.gz"))
+	_, err = os.Stat(filepath.Join(outputDir, "osv-rhel-8-2026-04-08.json.gz"))
+	require.True(t, os.IsNotExist(err), "RHEL 8 artifact should not exist when filtering to version 9")
+}
+
+func readRHELArtifact(path string) (*RHELArtifactData, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	gzReader, err := gzip.NewReader(file)
+	if err != nil {
+		return nil, err
+	}
+	defer gzReader.Close()
+
+	var artifact RHELArtifactData
+	if err := json.NewDecoder(gzReader).Decode(&artifact); err != nil {
+		return nil, err
+	}
+
+	return &artifact, nil
 }
 
 func readArtifact(path string) (*ArtifactData, error) {

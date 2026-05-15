@@ -27,16 +27,19 @@
 1. <To be described>
 
 ## Process to publish a public case study
-1. Interview CSM
-2. Write draft case study
-3. Get approved by CSM
-4. Publish case study
+1. Gather all information you can pull from Momentum and take this with you to your meeting with the CSM. 
+2. Interview CSM, and have them go through all the information collected, and anything else they feel is important to the case study.
+3. Write a draft case study
+4. Send to CSM and have them edit it to their approval.
+6. Get approved by CSM
+7. Get CSM to connect you with their point of contact for the customer.
+8. Review with the customer, and make edits and changes where needed.
+9. Finalize case study.
+10. Publish case study to Fleet's [customer page](https://fleetdm.com/customers).
 
 ## Process to publish an anonymous case study
-1.
-Follow this process to publish a case study without identifying the customer. Anonymous case studies help share real outcomes while protecting the customer’s identity.
 
-## Process
+Follow this process to publish a case study without identifying the customer. Anonymous case studies help share real outcomes while protecting the customer’s identity.
 
 1. **Gather customer information using Momentum**
 
@@ -64,26 +67,20 @@ Follow this process to publish a case study without identifying the customer. An
    - How has having direct/instant access to your device data changed how your security team monitors for threats? 
    - Did the choice between Fleet Cloud and self-hosting influence your decision, and why was that control important for your compliance or security needs?
 
-2. **Review the responses**
+2. **Gather information in the Momentum Google Doc**
 
-   Confirm which questions Momentum answered.
+   Copy and paste the answers into one of the following Google Docs [2026 case study doc 1 of 2](https://docs.google.com/document/d/1sKFQltFrxbw3PRxHvuG1w3G4kIYvneqbFczFmRYSw8M/edit?tab=t.q8v261l8024n) or [2026 case study doc 2 of 2](https://docs.google.com/document/d/1VzpHZv4FUUvSQGPcTKXWoFXtkREGnRul-jaaQd6xJ-Y/edit?tab=t.v89887xyfpt#heading=h.gzruz789w7i7), where the rest of the marketing team can have access to the information.
 
-   Document any questions that were not answered.
+   Make sure the information is laid out in a question-and-answer format. 
 
-3. **Schedule a review call with the CSM**
+4. **Review the responses**
 
-   Schedule a 30 minute call with the customer success manager (CSM) who owns the account.
+   [Review](https://docs.google.com/document/d/1sKFQltFrxbw3PRxHvuG1w3G4kIYvneqbFczFmRYSw8M/edit?tab=t.81qbvd8vaocm) which questions Momentum answered, and document any questions that were not answered. 
 
-4. **Validate the information**
+5. **Draft the case study**
 
-   Review the answers with the CSM.
-
-   Confirm the information is accurate and safe to publish anonymously.
-
-5. **Write the case study**
-
-   Create the case study using the validated answers.
-
+   Create the case study using Fleet's writing guidelines and previously published case studies, which can be found on the [customers page](https://fleetdm.com/customers) for reference.
+   
    Remove any information that could identify the customer, including:
 
    - Company name  
@@ -91,20 +88,48 @@ Follow this process to publish a case study without identifying the customer. An
    - Specific geographic identifiers  
    - Any other identifiable details
 
+6. **Validate the information**
+
+   Send the answers and the draft of the case study to the CSM assigned to the account, and have them review the information and case study in 48 hours.
+
+   The CSM will confirm that the information is accurate and safe to publish anonymously. If information needs to be edited or changed, it is up to the CMS to make those changes in the case study.
+
+   CSMs will have 48 hours to inform the marketing team of any changes that need to be made or whether it can be published. If no answer has been given by the CSM within this time, marketing will act as though the case study is good to be published as is. 
+
 6. **Publish the case study**
 
-   Add the case study to the website.
+   Add the case study to the website through create a PR in the articles folder on GitHub.
 
-   Use the **customer code name** listed in the **Fleet Champions Community spreadsheet**. This spreadsheet is the source of truth.
+   Use the **customer's GitHub code name** listed in the [**Fleet Champions Community spreadsheet**](https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772) in the branch name. This spreadsheet is the source of truth.
 
-7. **Add the case study to the customers page**
+   Make sure you include the metatag for the case study on the **Customers** page, so a tile is created and shows up on the [customer reference page](https://fleetdm.com/customers).
 
-   After publishing the case study, add a tile for it on the **Customers** page.
+   Make sure your meta description for the case study stays within 150 words or fewer, and gives an overview of what the case study is about.
+
+7. **Update Fleet Champions Community spreadsheet**
+
+   Once the case study is live on the website, add the link to column N in the [**Fleet Champions Community spreadsheet**](https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772), along with the title.
+
+   Identify in column M if the case study is **anonymous** or **public**
+
+   Once published, post about the new case study in the #help-marketing slack channel.
+
+8. **Add the case study to the marketing assets page**
+
+   Add the new case study to the marketing assets page under the [social proof](https://fleetdm.com/handbook/marketing/fleet-social-proof#social-proof) section in the handbook.
+
+   Add the case study to the correct **Anonymous stories** industry table.
+
+   Include the following information in the table:
+ 
+   - The description of the story.
+   - The devices that are managed: macOS, Windows, Linux. 
+   - The date the case study was published. 
 
 ## Process to publish customer testimonials on the website
 Spontaneous, nice things that customers say about Fleet in:
 - Conversations
-- Offical meetings
+- Official meetings
 - Slack
 - Social media posts
 - Anywhere else
@@ -153,7 +178,25 @@ Device management
 9. There should be a Marketing ritual for processing the commented out spontaneous testimonials at some reasonable interval (quarterly, monthly, etc.) that is either captured here or in another spot in the Marketing handbook.
    
 ## Process to publish logo on website
-1. <To be described>
+Follow this process to add a customer’s logo to the website. Only publish logos that are approved in the contract.
+
+1. **Create an issue after the contract is signed**
+
+   Once the contract is signed, the Content Specialist will create an issue on the marketing board. This is so marketing can keep track of it's process.
+
+   The Content Specialist will then add the issue to the finance board, and assign it to Deal Desk.
+
+2. **Confirm logo approval**
+
+   The Deal Desk reviews the contract and confirms whether we can use the customer’s logo on the website.
+
+3. **Update the Fleet Champions Community spreadsheet**
+
+   Once approved, the Content Specialist marks the customer as “yes” for logo usage (found in column K) in the [Fleet Champions Community spreadsheet](https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772).
+
+4. **Assign to design**
+
+   The Content Specialist will assign the issue to the Head of Design to add the logo to the website.
 
 ## Process to publish quote on peer review site such as Gartner Peer Review or G2
 Follow this process to collect a quote on a peer review site such as Gartner Peer Insights or G2. These reviews help potential customers hear directly from other IT teams using Fleet.

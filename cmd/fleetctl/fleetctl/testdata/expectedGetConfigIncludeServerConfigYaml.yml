@@ -11,6 +11,7 @@ spec:
   activity_expiry_settings:
     activity_expiry_enabled: false
     activity_expiry_window: 0
+    preserve_host_activities_on_reenrollment: false
   conditional_access:
     microsoft_entra_tenant_id: ""
     microsoft_entra_connection_configured: false
@@ -22,6 +23,9 @@ spec:
   features:
     enable_host_users: true
     enable_software_inventory: false
+    historical_data:
+      uptime: true
+      vulnerabilities: true
   integrations:
     conditional_access_enabled: null
     google_calendar: null
@@ -41,6 +45,7 @@ spec:
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
+    apple_require_hardware_attestation: false
     windows_entra_tenant_ids: null
     macos_migration:
       enable: false
@@ -68,21 +73,27 @@ spec:
     macos_setup:
       bootstrap_package:
       enable_end_user_authentication: false
+      enable_managed_local_account: false
       enable_release_device_manually: false
+      end_user_local_account_type: admin
       lock_end_user_info: false
       macos_setup_assistant:
       manual_agent_install:
       require_all_software_macos: false
+      require_all_software_windows: false
       script:
       software:
     setup_experience:
       macos_bootstrap_package:
+      enable_create_local_admin_account: false
       enable_end_user_authentication: false
       apple_enable_release_device_manually: false
+      end_user_local_account_type: admin
       lock_end_user_info: false
       apple_setup_assistant:
       macos_manual_agent_install:
       require_all_software_macos: false
+      require_all_software_windows: false
       macos_script:
       software:
     windows_settings:
@@ -142,6 +153,8 @@ spec:
   org_info:
     org_logo_url: ""
     org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: ""
     contact_url: https://fleetdm.com/company/contact
   server_settings:
@@ -193,6 +206,7 @@ spec:
     databases_path: ""
     disable_data_sync: false
     disable_win_os_vulnerabilities: false
+    osv_for_vulnerabilities: true
     periodicity: 0s
     recent_vulnerability_max_age: 0s
   vulnerability_settings:

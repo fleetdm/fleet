@@ -31,6 +31,10 @@ labels:
   label_membership_type: host_vitals
   name: Label C
 org_settings:
+  activity_expiry_settings:
+    activity_expiry_enabled: false
+    activity_expiry_window: 30
+    preserve_host_activities_on_reenrollment: true
   certificate_authorities:
     custom_est_proxy:
     - name: some-est-name
@@ -77,6 +81,9 @@ org_settings:
       users:
     enable_host_users: true
     enable_software_inventory: true
+    historical_data:
+      uptime: true
+      vulnerabilities: true
   fleet_desktop:
     alternative_browser_host: musica.alternativa
     transparency_url: https://fleetdm.com/transparency
@@ -125,8 +132,8 @@ org_settings:
       location: Fleet Device Management Inc.
   org_info:
     contact_url: https://fleetdm.com/company/contact
-    org_logo_url: http://some-org-logo-url.com
-    org_logo_url_light_background: http://some-org-logo-url-light-background.com
+    org_logo_url_dark_mode: http://some-org-logo-url.com
+    org_logo_url_light_mode: http://some-org-logo-url-light-background.com
     org_name: Fleet
   secrets:
   - secret: # TODO: Add your enroll secrets here
@@ -187,6 +194,19 @@ policies:
   resolution: Do a global thing
   type: dynamic
   webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a global policy with include_all scope
+  labels_include_all:
+  - Label C
+  - Label D
+  name: Global Policy Include All
+  platform: darwin
+  query: SELECT * FROM global_policy WHERE id = 2
+  resolution: Do another global thing
+  type: dynamic
+  webhooks_and_tickets_enabled: false
 reports:
 - automations_enabled: true
   description: This is a global query
@@ -200,4 +220,17 @@ reports:
   name: Global Query
   observer_can_run: true
   platform: darwin
-  query: SELECT * FROM global_query WHERE id = 1
+  query: SELECT * FROM os_version;
+- automations_enabled: false
+  description: This is a global query with include_all scope
+  discard_data: false
+  interval: 7200
+  labels_include_all:
+  - Label C
+  - Label D
+  logging: snapshot
+  min_osquery_version: 1.2.3
+  name: Global Query Include All
+  observer_can_run: false
+  platform: darwin
+  query: SELECT * FROM users;

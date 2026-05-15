@@ -113,9 +113,9 @@ func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, 
 	}
 
 	if downloadRequested {
-		return downloadFileResponse{
-			content:  content,
-			filename: fmt.Sprintf("%s %s", time.Now().Format(time.DateOnly), script.Name),
+		return fleet.DownloadFileResponse{
+			Content:  content,
+			Filename: fmt.Sprintf("%s %s", time.Now().Format(time.DateOnly), script.Name),
 		}, nil
 	}
 
@@ -238,31 +238,40 @@ func (svc *Service) IsAllSetupExperienceSoftwareRequired(ctx context.Context, ho
 }
 
 func isAllSetupExperienceSoftwareRequired(ctx context.Context, ds fleet.Datastore, host *fleet.Host) (bool, error) {
+	// Only macOS and Windows support canceling setup if software fails.
+	if host.Platform != "darwin" && host.Platform != "windows" {
+		return false, nil
+	}
+
 	teamID := host.TeamID
-	requireAllSoftware := false
 	if teamID == nil || *teamID == 0 {
 		ac, err := ds.AppConfig(ctx)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "getting app config")
 		}
-		requireAllSoftware = ac.MDM.MacOSSetup.RequireAllSoftware
-	} else {
-		team, err := ds.TeamLite(ctx, *teamID)
-		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "load team")
+		if host.Platform == "windows" {
+			return ac.MDM.MacOSSetup.RequireAllSoftwareWindows, nil
 		}
-		requireAllSoftware = team.Config.MDM.MacOSSetup.RequireAllSoftware
+		return ac.MDM.MacOSSetup.RequireAllSoftware, nil
 	}
-	return requireAllSoftware, nil
+
+	team, err := ds.TeamLite(ctx, *teamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load team")
+	}
+	if host.Platform == "windows" {
+		return team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows, nil
+	}
+	return team.Config.MDM.MacOSSetup.RequireAllSoftware, nil
 }
 
 func (svc *Service) MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *fleet.Host) error {
-	return maybeCancelPendingSetupExperienceSteps(ctx, svc.ds, host)
+	return maybeCancelPendingSetupExperienceSteps(ctx, svc.ds, host, svc.NewActivity)
 }
 
-func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datastore, host *fleet.Host) error {
-	// If the host is not MacOS, we do nothing.
-	if host.Platform != "darwin" {
+func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datastore, host *fleet.Host, newActivityFn fleet.NewActivityFunc) error {
+	// Only macOS and Windows support canceling setup experience steps.
+	if host.Platform != "darwin" && host.Platform != "windows" {
 		return nil
 	}
 
@@ -277,7 +286,7 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
 	}
-	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, ptr.ValOrZero(host.TeamID))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}
@@ -309,6 +318,26 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	if err := ds.CancelPendingSetupExperienceSteps(ctx, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "cancelling pending setup experience steps")
 	}
+
+	// Emit the canceled_setup_experience activity once at cancellation time.
+	// Find the software item that failed and triggered this cancellation from the
+	// already-loaded statuses (no extra DB call).
+	if newActivityFn != nil {
+		for _, s := range statuses {
+			if s.Status == fleet.SetupExperienceStatusFailure && s.IsForSoftware() {
+				if err := newActivityFn(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
+					HostID:          host.ID,
+					HostDisplayName: host.DisplayName(),
+					SoftwareTitle:   s.Name,
+					SoftwareTitleID: ptr.ValOrZero(s.SoftwareTitleID),
+				}); err != nil {
+					return ctxerr.Wrap(ctx, err, "creating canceled setup experience activity")
+				}
+				break
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -317,9 +346,8 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 // SetupExperienceSoftwareInstallResult, and SetupExperienceVPPInstallResult), it returns a boolean
 // indicating whether the datastore was updated and an error if one occurred. If the result is not of a
 // supported type, it returns false and an error indicated that the type is not supported.
-// If the skipPending parameter is true, the datastore will only be updated if the given result
-// status is not pending.
-func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, result interface{}, requireTerminalStatus bool) (bool, error) {
+// The datastore will only be updated if the given result status is a terminal status.
+func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, result any, newActivityFn fleet.NewActivityFunc) (bool, error) {
 	var updated bool
 	var err error
 	var status fleet.SetupExperienceStatusResultStatus
@@ -329,7 +357,7 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 		status = v.SetupExperienceStatus()
 		if !status.IsValid() {
 			return false, fmt.Errorf("invalid status: %s", status)
-		} else if requireTerminalStatus && !status.IsTerminalStatus() {
+		} else if !status.IsTerminalStatus() {
 			return false, nil
 		}
 		return ds.MaybeUpdateSetupExperienceScriptStatus(ctx, v.HostUUID, v.ExecutionID, status)
@@ -339,7 +367,7 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 		hostUUID = v.HostUUID
 		if !status.IsValid() {
 			return false, fmt.Errorf("invalid status: %s", status)
-		} else if requireTerminalStatus && !status.IsTerminalStatus() {
+		} else if !status.IsTerminalStatus() {
 			return false, nil
 		}
 		updated, err = ds.MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx, v.HostUUID, v.ExecutionID, status)
@@ -351,7 +379,7 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 		hostUUID = v.HostUUID
 		if !status.IsValid() {
 			return false, fmt.Errorf("invalid status: %s", status)
-		} else if requireTerminalStatus && !status.IsTerminalStatus() {
+		} else if !status.IsTerminalStatus() {
 			return false, nil
 		}
 		updated, err = ds.MaybeUpdateSetupExperienceVPPStatus(ctx, v.HostUUID, v.CommandUUID, status)
@@ -368,9 +396,9 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 		if getHostUUIDErr != nil {
 			return updated, fmt.Errorf("getting host by UUID: %w", getHostUUIDErr)
 		}
-		cancelErr := maybeCancelPendingSetupExperienceSteps(ctx, ds, host)
+		cancelErr := maybeCancelPendingSetupExperienceSteps(ctx, ds, host, newActivityFn)
 		if cancelErr != nil {
-			return updated, fmt.Errorf("cancel setup experience after macos software install failure: %w", cancelErr)
+			return updated, fmt.Errorf("cancel setup experience after software install failure: %w", cancelErr)
 		}
 	}
 	return updated, err

@@ -41,7 +41,7 @@ mysqldata/
 
 # test helm charts
 helm-temp
-charts/fleet/charts
+charts/fleet/charts/*.tgz
 
 #editors
 .idea
@@ -53,6 +53,7 @@ backup.sql.gz
 # Common mistake for new developers to run npm install and then end up
 # committing a package-lock.json. Fleet app uses Yarn with yarn.lock.
 package-lock.json
+!website/package-lock.json
 
 # infra
 .terraform
@@ -125,3 +126,4 @@ Fleet\ Desktop.app
 
 # custom golangci-lint executable
 custom-gcl
+/fleet

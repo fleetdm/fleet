@@ -1,7 +1,6 @@
-import React, { useState, useContext, useCallback } from "react";
-import { useQuery } from "react-query";
+import React, { useState, useContext, useCallback, useEffect } from "react";
+import { useQueryClient } from "react-query";
 
-import { IConfig } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -9,18 +8,17 @@ import configAPI from "services/entities/config";
 import paths from "router/paths";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import PageDescription from "components/PageDescription";
 import Card from "components/Card";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { getPathWithQueryParams } from "utilities/url";
 import SettingsSection from "pages/admin/components/SettingsSection";
+
+import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
 
 const CREATING_SERVICE_ACCOUNT =
   "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
@@ -80,9 +78,10 @@ const isErrorWithMessage = (error: unknown): error is ErrorWithMessage => {
 
 const baseClass = "calendars-integration";
 
-const Calendars = (): JSX.Element => {
+const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const { currentTeam, isPremiumTier } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<ICalendarsFormData>({
     domain: "",
@@ -91,40 +90,31 @@ const Calendars = (): JSX.Element => {
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<ICalendarsFormErrors>({});
 
-  const {
-    data: config,
-    isLoading: isLoadingAppConfig,
-    refetch: refetchConfig,
-    error: errorAppConfig,
-  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data,
-    onSuccess: (data) => {
-      if (
-        Array.isArray(data.integrations.google_calendar) &&
-        data.integrations.google_calendar.length > 0
-      ) {
-        const apiKeyJsonObj = data.integrations.google_calendar[0].api_key_json;
+  // Sync form state from config prop passed by IntegrationsPage.
+  useEffect(() => {
+    if (
+      appConfig &&
+      Array.isArray(appConfig.integrations.google_calendar) &&
+      appConfig.integrations.google_calendar.length > 0
+    ) {
+      const apiKeyJsonObj =
+        appConfig.integrations.google_calendar[0].api_key_json;
 
-        // Check if the API key is obfuscated
-        if (isObfuscatedApiKey(apiKeyJsonObj)) {
-          // Show masked value in UI
-          setFormData({
-            domain: data.integrations.google_calendar[0].domain,
-            apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE,
-          });
-        } else {
-          // Show the actual API key JSON
-          setFormData({
-            domain: data.integrations.google_calendar[0].domain,
-            // Formats string for better UI readability
-            apiKeyJson: JSON.stringify(apiKeyJsonObj, null, "\t"),
-          });
-        }
+      if (isObfuscatedApiKey(apiKeyJsonObj)) {
+        setFormData({
+          domain: appConfig.integrations.google_calendar[0].domain,
+          apiKeyJson: UNCHANGED_PASSWORD_API_RESPONSE,
+        });
+      } else {
+        setFormData({
+          domain: appConfig.integrations.google_calendar[0].domain,
+          apiKeyJson: JSON.stringify(apiKeyJsonObj, null, "\t"),
+        });
       }
-    },
-  });
+    }
+  }, [appConfig]);
 
-  const gomEnabled = config?.gitops.gitops_mode_enabled;
+  const gomEnabled = appConfig.gitops.gitops_mode_enabled;
 
   const { apiKeyJson, domain } = formData;
 
@@ -218,7 +208,7 @@ const Calendars = (): JSX.Element => {
         "success",
         "Successfully saved calendar integration settings."
       );
-      refetchConfig();
+      await queryClient.invalidateQueries(["config"]);
     } catch (e) {
       renderFlash("error", "Could not save calendar integration settings.");
     } finally {
@@ -311,64 +301,68 @@ const Calendars = (): JSX.Element => {
                 work calendar.)
               </li>
               <li>
-                Save your changes.
-                <Card>
-                  <form onSubmit={onFormSubmit} autoComplete="off">
-                    <InputField
-                      label="API key JSON"
-                      onChange={onInputChange}
-                      name="apiKeyJson"
-                      value={apiKeyJson}
-                      parseTarget
-                      type="textarea"
-                      placeholder={API_KEY_JSON_PLACEHOLDER}
-                      ignore1password
-                      inputClassName={`${baseClass}__api-key-json`}
-                      error={formErrors.apiKeyJson}
-                      disabled={gomEnabled}
-                      helpText={
-                        apiKeyJson === UNCHANGED_PASSWORD_API_RESPONSE
-                          ? "API key is configured. Replace with a new key to update."
-                          : undefined
-                      }
-                    />
-                    <InputField
-                      label="Primary domain"
-                      onChange={onInputChange}
-                      name="domain"
-                      value={domain}
-                      parseTarget
-                      placeholder="example.com"
-                      helpText={
-                        <>
-                          You can find your primary domain in Google Workspace{" "}
-                          <CustomLink
-                            url={GOOGLE_WORKSPACE_DOMAINS}
-                            text="here"
-                            newTab
-                          />
-                        </>
-                      }
-                      error={formErrors.domain}
-                      disabled={gomEnabled}
-                    />
-                    <div className="button-wrap">
-                      <GitOpsModeTooltipWrapper
-                        tipOffset={8}
-                        renderChildren={(dC) => (
-                          <Button
-                            type="submit"
-                            disabled={Object.keys(formErrors).length > 0 || dC}
-                            className="save-loading"
-                            isLoading={isUpdatingSettings}
-                          >
-                            Save
-                          </Button>
-                        )}
+                <div className={`${baseClass}__save-changes`}>
+                  Save your changes.
+                  <Card>
+                    <form onSubmit={onFormSubmit} autoComplete="off">
+                      <InputField
+                        label="API key JSON"
+                        onChange={onInputChange}
+                        name="apiKeyJson"
+                        value={apiKeyJson}
+                        parseTarget
+                        type="textarea"
+                        placeholder={API_KEY_JSON_PLACEHOLDER}
+                        ignore1password
+                        inputClassName={`${baseClass}__api-key-json`}
+                        error={formErrors.apiKeyJson}
+                        disabled={gomEnabled}
+                        helpText={
+                          apiKeyJson === UNCHANGED_PASSWORD_API_RESPONSE
+                            ? "API key is configured. Replace with a new key to update."
+                            : undefined
+                        }
                       />
-                    </div>
-                  </form>
-                </Card>
+                      <InputField
+                        label="Primary domain"
+                        onChange={onInputChange}
+                        name="domain"
+                        value={domain}
+                        parseTarget
+                        placeholder="example.com"
+                        helpText={
+                          <>
+                            You can find your primary domain in Google Workspace{" "}
+                            <CustomLink
+                              url={GOOGLE_WORKSPACE_DOMAINS}
+                              text="here"
+                              newTab
+                            />
+                          </>
+                        }
+                        error={formErrors.domain}
+                        disabled={gomEnabled}
+                      />
+                      <div className="button-wrap">
+                        <GitOpsModeTooltipWrapper
+                          tipOffset={8}
+                          renderChildren={(dC) => (
+                            <Button
+                              type="submit"
+                              disabled={
+                                Object.keys(formErrors).length > 0 || dC
+                              }
+                              className="save-loading"
+                              isLoading={isUpdatingSettings}
+                            >
+                              Save
+                            </Button>
+                          )}
+                        />
+                      </div>
+                    </form>
+                  </Card>
+                </div>
               </li>
             </ul>
           </p>
@@ -399,15 +393,16 @@ const Calendars = (): JSX.Element => {
                 account.
               </li>
               <li>
-                For the OAuth scopes, paste the following value:
-                <InputField
-                  readOnly
-                  inputWrapperClass={`${baseClass}__oauth-scopes`}
-                  name="oauth-scopes"
-                  enableCopy
-                  type="textarea"
-                  value={OAUTH_SCOPES}
-                />
+                <div className={`${baseClass}__oauth-scopes`}>
+                  For the OAuth scopes, paste the following value:
+                  <InputField
+                    readOnly
+                    name="oauth-scopes"
+                    enableCopy
+                    type="textarea"
+                    value={OAUTH_SCOPES}
+                  />
+                </div>
               </li>
               <li>
                 Click <b>Authorize</b>.
@@ -450,18 +445,8 @@ const Calendars = (): JSX.Element => {
     );
   };
 
-  if (isLoadingAppConfig) {
-    <div className={baseClass}>
-      <Spinner includeContainer={false} />
-    </div>;
-  }
-
-  if (errorAppConfig) {
-    return <DataError />;
-  }
-
   return (
-    <SettingsSection title="Calendars">
+    <SettingsSection title="Calendars" className={baseClass}>
       <PageDescription
         content={
           <>

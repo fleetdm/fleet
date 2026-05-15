@@ -3,7 +3,7 @@ import React from "react";
 import { IMunkiIssue } from "interfaces/host";
 
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 
@@ -38,7 +38,7 @@ const MunkiIssuesTable = ({
             defaultSortDirection="asc"
             resultsTitle="issue"
             emptyComponent={() => (
-              <EmptyTable
+              <EmptyState
                 header="No Munki issues detected"
                 info="The last time Munki ran on this host, no issues were reported."
               />
@@ -49,7 +49,7 @@ const MunkiIssuesTable = ({
           />
         </div>
       ) : (
-        <EmptyTable
+        <EmptyState
           header="No Munki issues detected"
           info="The last time Munki ran on this host, no issues were reported."
         />

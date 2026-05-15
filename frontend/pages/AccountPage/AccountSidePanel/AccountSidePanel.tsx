@@ -11,14 +11,11 @@ import Avatar from "components/Avatar";
 import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
-import {
-  generateRole,
-  generateTeam,
-  greyCell,
-  readableDate,
-} from "utilities/helpers";
+import { generateRole, generateTeam, readableDate } from "utilities/helpers";
+import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
 interface IAccountSidePanelProps {
   currentUser: IUser;
@@ -35,6 +32,15 @@ const AccountSidePanel = ({
 }: IAccountSidePanelProps): JSX.Element => {
   const { isPremiumTier, config } = useContext(AppContext);
   const [versionData, setVersionData] = useState<IVersionData>();
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() =>
+    getThemeMode()
+  );
+
+  const onThemeSelect = (value: string) => {
+    const mode = value as ThemeMode;
+    setThemeModeState(mode);
+    setThemeMode(mode);
+  };
 
   useEffect(() => {
     const getVersionData = async () => {
@@ -43,7 +49,6 @@ const AccountSidePanel = ({
         setVersionData(data);
       } catch (response) {
         console.error(response);
-        return false;
       }
     };
 
@@ -74,20 +79,38 @@ const AccountSidePanel = ({
           newTab
         />
       </div>
-      {isPremiumTier && (
-        <DataSet
-          title="Fleets"
-          value={
-            <span
-              className={`${
-                greyCell(teamsText) ? `${baseClass}__grey-text` : ""
-              }`}
-            >
-              {teamsText}
-            </span>
-          }
+      <div
+        className={`${baseClass}__theme-picker`}
+        role="radiogroup"
+        aria-label="Theme"
+      >
+        <div className={`${baseClass}__theme-picker-label`}>Theme</div>
+        <Radio
+          id="theme-system"
+          name="theme"
+          value="system"
+          label="System"
+          checked={themeMode === "system"}
+          onChange={onThemeSelect}
         />
-      )}
+        <Radio
+          id="theme-light"
+          name="theme"
+          value="light"
+          label="Light"
+          checked={themeMode === "light"}
+          onChange={onThemeSelect}
+        />
+        <Radio
+          id="theme-dark"
+          name="theme"
+          value="dark"
+          label="Dark"
+          checked={themeMode === "dark"}
+          onChange={onThemeSelect}
+        />
+      </div>
+      {isPremiumTier && <DataSet title="Fleets" value={teamsText} />}
       <DataSet title="Role" value={roleText} />
       {isPremiumTier && config && (
         <DataSet

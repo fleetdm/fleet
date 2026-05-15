@@ -259,12 +259,14 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   failed_install_update_available: {
     iconName: "error-outline", // Match update available icon and not failed install icon
+    iconColor: "ui-fleet-black-75",
     displayText: "Update available", // Shows "Update available" modal instead of "Failed" modal as of 4.82 #31663
     // Tooltip indicates failure info in host activity logs
     tooltip: failedInstallTooltip,
   },
   failed_uninstall_update_available: {
     iconName: "error-outline", // Match update available icon and not failed uninstall icon
+    iconColor: "ui-fleet-black-75",
     displayText: "Update available", // Shows "Update available" modal instead of "Failed (uninstall)" modal as of 4.82 #31663
     // Tooltip indicates failure info in host activity logs
     tooltip: failedUninstallTooltip,
@@ -494,16 +496,10 @@ const InstallStatusCell = ({
     const isMissingLastInstallInfo =
       isAppleAppStoreApp && !software.app_store_app?.last_install;
 
-    // These temporary statuses are not clickable because it will show outdated info in modal
-    const recentlyTakenAction =
-      software.ui_status === "recently_installed" ||
-      software.ui_status === "recently_updated" ||
-      software.ui_status === "recently_uninstalled";
-
+    // keep clickable except for App Store apps missing last_install (modal would be empty)
     const shouldOnClickBeDisabled =
-      (isMissingLastInstallInfo &&
-        (software.status === "failed_install" || isInstalledInFleetAndUI)) ||
-      recentlyTakenAction;
+      isMissingLastInstallInfo &&
+      (software.status === "failed_install" || isInstalledInFleetAndUI);
 
     const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(software.source);
 
@@ -542,7 +538,7 @@ const InstallStatusCell = ({
       return (
         <Button
           className={`${baseClass}__item-status-button`}
-          variant="text-link"
+          variant="link"
           onClick={match.onClick}
         >
           {resolvedDisplayText}
@@ -576,7 +572,12 @@ const InstallStatusCell = ({
       >
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (
-          <Spinner size="x-small" includeContainer={false} centered={false} />
+          <Spinner
+            size="x-small"
+            includeContainer={false}
+            centered={false}
+            delay={0}
+          />
         ) : (
           displayConfig?.iconName && (
             <Icon

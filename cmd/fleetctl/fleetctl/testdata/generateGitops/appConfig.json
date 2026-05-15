@@ -63,6 +63,8 @@
     "org_name": "Fleet",
     "org_logo_url": "http://some-org-logo-url.com",
     "org_logo_url_light_background": "http://some-org-logo-url-light-background.com",
+    "org_logo_url_dark_mode": "http://some-org-logo-url.com",
+    "org_logo_url_light_mode": "http://some-org-logo-url-light-background.com",
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
@@ -100,7 +102,8 @@
   },
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
-    "activity_expiry_window": 30
+    "activity_expiry_window": 30,
+    "preserve_host_activities_on_reenrollment": true
   },
   "features": {
     "enable_host_users": true,
@@ -112,6 +115,10 @@
     "detail_query_overrides": {
       "users": null,
       "mdm": "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
+    },
+    "historical_data": {
+      "uptime": true,
+      "vulnerabilities": true
     }
   },
   "agent_options": {
@@ -255,6 +262,7 @@
       "5b84b6dd-d257-415e-b8b4-0240666ba4d4",
       "9d30f55f-d117-4574-acf0-ff593e3e06e3"
     ],
+    "apple_require_hardware_attestation": false,
     "end_user_authentication": {
       "entity_id": "some-mdm-entity-id.com",
       "issuer_uri": "https://some-mdm-issuer-uri.com",
@@ -267,17 +275,7 @@
     "windows_settings": {
       "custom_settings": []
     },
-    "volume_purchasing_program": [
-      {
-        "location": "Fleet Device Management Inc.",
-        "teams": [
-          "💻 Workstations",
-          "💻🐣 Workstations (canary)",
-          "📱🏢 Company-owned mobile devices",
-          "📱🔐 Personal mobile devices"
-        ]
-      }
-    ],
+    "volume_purchasing_program": null,
     "android_enabled_and_configured": true,
     "android_settings": {
       "custom_settings": []

@@ -1,2 +1,0 @@
-- Fix a case where `app_sso_platform` does not return any data if Platform SSO is configured but the user has not yet completed registration.
-- Add `registration_completed` and `login_type` columns to `app_sso_platform` table.

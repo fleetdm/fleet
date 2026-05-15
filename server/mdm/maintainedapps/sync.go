@@ -4,9 +4,9 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"time"
 
@@ -29,11 +29,81 @@ type AppsList struct {
 	Apps    []appListing `json:"apps"`
 }
 
-const fmaOutputsBase = "https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/maintained-apps/outputs"
+const fmaOutputsBase = "https://maintained-apps.fleetdm.com/manifests"
+const fmaOutputsFallbackBase = "https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/maintained-apps/outputs"
 
-// Refresh fetches the latest information about maintained apps from FMA's
-// apps list on GitHub and updates the Fleet database with the new information.
-func Refresh(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
+// resolveBaseURLs returns the primary and fallback base URLs for FMA manifests,
+// taking into account any dev-mode env var overrides.
+func resolveBaseURLs() (primary, fallback string) {
+	primary = fmaOutputsBase
+	if baseFromEnvVar := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
+		primary = baseFromEnvVar
+	}
+
+	fallback = fmaOutputsFallbackBase
+	if fallbackFromEnvVar := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL"); fallbackFromEnvVar != "" {
+		fallback = fallbackFromEnvVar
+	}
+
+	return primary, fallback
+}
+
+// fetchManifestFile fetches a manifest file from the primary FMA CDN, falling back to the
+// fallback CDN if the primary fails.
+func fetchManifestFile(ctx context.Context, path string) ([]byte, error) {
+	primaryBase, fallbackBase := resolveBaseURLs()
+
+	body, primaryErr := doFetch(ctx, primaryBase, path)
+	if primaryErr == nil {
+		return body, nil
+	}
+
+	// Primary failed; try fallback.
+	body, fallbackErr := doFetch(ctx, fallbackBase, path)
+	if fallbackErr == nil {
+		return body, nil
+	}
+
+	return nil, ctxerr.Errorf(ctx, "fetching FMA manifest file %q: primary (%s) failed: %v; fallback (%s) also failed: %v",
+		path, primaryBase, primaryErr, fallbackBase, fallbackErr)
+}
+
+// doFetch performs a single HTTP GET for baseURL+path and returns the response
+// body on success (HTTP 200). Any other outcome is returned as an error.
+func doFetch(ctx context.Context, baseURL, path string) ([]byte, error) {
+	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s%s", baseURL, path), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create http request: %w", err)
+	}
+
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("execute http request: %w", err)
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read http response body: %w", err)
+	}
+
+	switch res.StatusCode {
+	case http.StatusOK:
+		return body, nil
+	case http.StatusNotFound:
+		return nil, errors.New("not found (HTTP 404)")
+	default:
+		if len(body) > 512 {
+			body = body[:512]
+		}
+		return nil, fmt.Errorf("HTTP status %d: %s", res.StatusCode, string(body))
+	}
+}
+
+// SyncAppsList fetches the latest FMA apps list and updates the apps list copy cached in the DB
+func SyncAppsList(ctx context.Context, ds fleet.Datastore) error {
 	appsList, err := FetchAppsList(ctx)
 	if err != nil {
 		return err
@@ -43,38 +113,9 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error
 }
 
 func FetchAppsList(ctx context.Context) (*AppsList, error) {
-	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-	baseURL := fmaOutputsBase
-	if baseFromEnvVar := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
-		baseURL = baseFromEnvVar
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/apps.json", baseURL), nil)
+	body, err := fetchManifestFile(ctx, "/apps.json")
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create http request")
-	}
-
-	res, err := httpClient.Do(req)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute http request")
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "read http response body")
-	}
-
-	switch res.StatusCode {
-	case http.StatusOK:
-		// success, go on
-	case http.StatusNotFound:
-		return nil, ctxerr.New(ctx, "maintained apps list not found")
-	default:
-		if len(body) > 512 {
-			body = body[:512]
-		}
-		return nil, ctxerr.Errorf(ctx, "apps list returned HTTP status %d: %s", res.StatusCode, string(body))
+		return nil, ctxerr.Wrap(ctx, err, "fetch apps list")
 	}
 
 	var appsList AppsList
@@ -163,38 +204,9 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 		return app, nil
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-	baseURL := fmaOutputsBase
-	if baseFromEnvVar := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
-		baseURL = baseFromEnvVar
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s.json", baseURL, app.Slug), nil)
+	body, err := fetchManifestFile(ctx, fmt.Sprintf("/%s.json", app.Slug))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create http request")
-	}
-
-	res, err := httpClient.Do(req)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute http request")
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "read http response body")
-	}
-
-	switch res.StatusCode {
-	case http.StatusOK:
-		// success, go on
-	case http.StatusNotFound:
-		return nil, ctxerr.New(ctx, "app not found in Fleet manifests")
-	default:
-		if len(body) > 512 {
-			body = body[:512]
-		}
-		return nil, ctxerr.Errorf(ctx, "manifest retrieval returned HTTP status %d: %s", res.StatusCode, string(body))
+		return nil, ctxerr.Wrap(ctx, err, "fetch app manifest")
 	}
 
 	var manifest ma.FMAManifestFile
@@ -212,7 +224,7 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 	app.AutomaticInstallQuery = manifest.Versions[0].Queries.Exists
 	app.Categories = manifest.Versions[0].DefaultCategories
 	app.UpgradeCode = manifest.Versions[0].UpgradeCode
-	app.PatchQuery = manifest.Versions[0].Queries.Patch
+	app.PatchQuery = manifest.Versions[0].Queries.Patched
 
 	return app, nil
 }

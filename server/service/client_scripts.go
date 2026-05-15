@@ -138,7 +138,7 @@ func (c *Client) pollForResult(id string) (*fleet.HostScriptResult, error) {
 // no team.
 func (c *Client) ApplyNoTeamScripts(scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) ([]fleet.ScriptResponse, error) {
 	verb, path := "POST", "/api/latest/fleet/scripts/batch"
-	var resp batchSetScriptsResponse
+	var resp fleet.BatchSetScriptsResponse
 	err := c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, opts.RawQuery())
 
 	return resp.Scripts, err
@@ -203,7 +203,7 @@ func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *ui
 	defer response.Body.Close()
 
 	var resp setSetupExperienceScriptResponse
-	if err := c.parseResponse(verb, path, response, &resp); err != nil {
+	if err := c.ParseResponse(verb, path, response, &resp); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 
@@ -213,7 +213,7 @@ func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *ui
 // ListScripts retrieves the saved scripts.
 func (c *Client) ListScripts(query string) ([]*fleet.Script, error) {
 	verb, path := "GET", "/api/latest/fleet/scripts"
-	var responseBody listScriptsResponse
+	var responseBody fleet.ListScriptsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
 		return nil, err
@@ -229,7 +229,7 @@ func (c *Client) GetScriptContents(scriptID uint) ([]byte, error) {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
-	err = c.parseResponse(verb, path, response, nil)
+	err = c.ParseResponse(verb, path, response, nil)
 	if err != nil {
 		return nil, fmt.Errorf("parsing script response: %w", err)
 	}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { InjectedRouter, Link } from "react-router";
+import { InjectedRouter } from "react-router";
 import { isEmpty, noop, omit } from "lodash";
 
 import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
@@ -16,7 +16,6 @@ import Modal from "components/Modal";
 import Slider from "components/forms/fields/Slider";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Radio from "components/forms/fields/Radio";
@@ -310,7 +309,7 @@ const OtherWorkflowsModal = ({
   };
 
   // Disable saving if ticket workflow is selected but no integration is chosen
-  const disableSave = (changedItems: IFormPolicy[]) => {
+  const disableSave = () => {
     if (
       isPolicyAutomationsEnabled &&
       !isWebhookEnabled &&

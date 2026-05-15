@@ -53,9 +53,12 @@ Example URL:
 
 When wiping and re-installing the operating system (OS) on a host, delete the host from Fleet before you re-enroll it. If you re-enroll without deleting, Fleet won't escrow a new disk encryption key.
 
-If you're gifting a company-owned macOS host or you want to prevent the host from automatically re-enrolling to Fleet for some other reason, first release the host from Apple Business Manager (ABM) and then delete the host in Fleet.
+If you're gifting a company-owned macOS host or you want to prevent the host from automatically re-enrolling to Fleet for some other reason, first release the host from Apple Business (AB) and then delete the host in Fleet.
 
 For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected) command by default. According to Microsoft, this leaves the host [unable to boot](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#:~:text=In%20some%20device%20configurations%2C%20this%20command%20may%20leave%20the%20device%20unable%20to%20boot.). However, it is possible to use the [doWipe command via the API](https://fleetdm.com/docs/rest-api/rest-api#parameters57).
+
+If the wipe command fails (MDM protocol returns 500 in [MDM command results](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands)), you can run a [fallback wipe script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/wipe-windows-device.ps1) via Fleet. This script validates and repairs WinRE (the most common cause of wipe failure), suspends BitLocker, and triggers the wipe locally via the WMI-to-CSP bridge, bypassing the MDM command queue.
+For macOS hosts, Fleet uses Erase All Content and Settings (EACS) with the [default fallback behavior documented by Apple](https://developer.apple.com/documentation/devicemanagement/erasedevicecommand/command-data.dictionary#:~:text=devices%20always%20obliterate.-,Default,-%3A%20If%20EACS%20preflight).
 
 ## Unlock a host
 
@@ -71,6 +74,25 @@ For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/
 ### How to unlock offline iOS and iPadOS hosts
 
 If an iPhone/iPad is turned off or restarted while locked, it will disconnect from Wi-Fi and can't be unlocked remotely. Connect your iPhone/iPad to your Mac with a USB and [share the network](https://support.apple.com/en-gb/guide/mac-help/mchlp1540/mac). After connecting your iPhone/iPad to the internet, in Fleet, head to the **Host details** page and select **Actions > Unlock**.
+
+## Clear passcode on iOS/iPadOS host
+
+You can remotely clear the passcode on an iOS or iPadOS host to help end users who have forgotten their passcode.
+
+> Clear passcode is only available for company-owned or manually enrolled iOS/iPadOS hosts. It is not available for hosts with a personal MDM enrollment status, or hosts that are in Lost Mode or pending wipe.
+
+1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the iOS or iPadOS device you want to clear the passcode for. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
+2. Click the host to open the **Host details** page.
+3. Click the **Actions** dropdown, then click **Clear passcode**.
+4. A confirmation dialog will appear. Click **Clear passcode** to confirm.
+
+The clear passcode activity will be logged in the host's activity feed.
+
+You can also clear the passcode using the [REST API](https://fleetdm.com/docs/rest-api/rest-api#clear-iosipados-host-passcode):
+
+```shell
+POST /api/v1/fleet/hosts/:id/clear_passcode
+```
 
 ## Lock and wipe using `fleetctl`
 

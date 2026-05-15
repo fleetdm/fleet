@@ -10,7 +10,6 @@ import {
   trimEnd,
   union,
   uniqueId,
-  upperFirst,
 } from "lodash";
 import md5 from "js-md5";
 import {
@@ -59,7 +58,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import CustomLink from "components/CustomLink";
 
-const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
+const ORG_INFO_ATTRS = ["org_name"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 
 export const addGravatarUrlToResource = (resource: any): any => {
@@ -524,10 +523,7 @@ const setupData = (formData: IRegistrationFormData) => {
 
   return {
     server_url: formData.server_url,
-    org_info: {
-      ...orgInfo,
-      org_logo_url_light_background: orgInfo.org_logo_url || "",
-    },
+    org_info: orgInfo,
     admin: {
       admin: true,
       ...adminInfo,
@@ -730,9 +726,9 @@ export const getPerformanceImpactIndicatorTooltip = (
     case PerformanceImpactIndicatorValue.UNDETERMINED:
       return (
         <>
-          Performance impact will be available when{" "}
-          {isHostSpecific ? "the" : "this"} <br />
-          report runs{isHostSpecific && " on this host"}.
+          Performance impact will be available
+          <br /> when {isHostSpecific ? "the" : "this"} report runs
+          {isHostSpecific && " on this host"}.
         </>
       );
     default:
@@ -763,8 +759,7 @@ export const secondsToHms = (d: number): string => {
 export const abbreviateTimeUnits = (str: string): string =>
   str.replace("minute", "min").replace("second", "sec");
 
-// TODO: Type any because ts files missing the following properties from type 'JSON': parse, stringify, [Symbol.toStringTag]
-export const syntaxHighlight = (json: any): string => {
+export const syntaxHighlight = (json: unknown): string => {
   let jsonStr: string = JSON.stringify(json, undefined, 2);
   jsonStr = jsonStr
     .replace(/&/g, "&amp;")

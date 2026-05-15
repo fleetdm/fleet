@@ -10,7 +10,7 @@ For Android hosts, you can enforce OS updates using a configuration profile with
 
 ## Enforce
 
-You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's best practice GitOps](https://github.com/fleetdm/fleet-gitops).
+You can enforce OS settings using the Fleet UI, Fleet API, or [GitOps](https://fleetdm.com/docs/configuration/yaml-files).
 
 1. Head to the **Controls** > **OS updates** tab.
 
@@ -50,7 +50,9 @@ If you set a past date (ex. yesterday) as the deadline, the end user will immedi
 
 You can require hosts that automatically enroll via ADE to update to the latest version before they enroll to Fleet (during Setup Assistant).
 
-For macOS hosts, in Fleet, head to **Controls > OS updates** and check the **Update new hosts to latest** checkbox.
+For macOS hosts, in Fleet, head to **Controls > OS updates** and check the **Update new hosts to latest** checkbox. 
+
+If **Update new hosts to latest** is checked, hosts below the minimum version are updated to the latest version during Setup Assistant. If a minimum version isn’t set, all hosts get updated.
 
 For iOS/iPadOS hosts, set a minimum version and deadline. New iOS/iPadOS hosts will always update to the latest version (not the minimum version specified). On already enrolled hosts, updates are only enforced if the host is [below the minimum version](#apple-macos-ios-and-ipados-end-user-experience).
 

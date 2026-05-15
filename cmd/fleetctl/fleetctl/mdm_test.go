@@ -263,8 +263,8 @@ func TestMDMRunCommand(t *testing.T) {
 				}
 				return res, nil
 			}
-			ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-				return nil, nil, nil
+			ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+				return &fleet.NanoMDMEnrollmentDetails{}, nil
 			}
 			ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 				return false, nil
@@ -336,7 +336,7 @@ func TestMDMRunCommand(t *testing.T) {
 						return c.appCfg, nil
 					}
 
-					buf, err := RunAppNoChecks(append([]string{"mdm", "run-command"}, c.flags...))
+					buf, err := runAppNoChecks(append([]string{"mdm", "run-command"}, c.flags...))
 					if c.wantErr != "" {
 						require.Error(t, err)
 						require.ErrorContains(t, err, c.wantErr)
@@ -1401,8 +1401,8 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-		return nil, nil, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 		h, ok := hostsByID[hostID]
@@ -1439,7 +1439,7 @@ func runTestCases(t *testing.T, ds *mock.Store, actionType string, successfulOut
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return c.appCfg, nil
 		}
-		buf, err := RunAppNoChecks(append([]string{"mdm", actionType}, c.flags...))
+		buf, err := runAppNoChecks(append([]string{"mdm", actionType}, c.flags...))
 		if c.wantErr != "" {
 			require.Error(t, err, c.desc)
 			require.ErrorContains(t, err, c.wantErr, c.desc)

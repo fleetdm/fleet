@@ -31,6 +31,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
+      - name: Login to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+
       - name: Set up Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
@@ -71,12 +77,20 @@ jobs:
           chmod +x ./trivy
           RELEASES="${{ steps.get_latest_releases.outputs.FLEET_LATEST_RELEASES }}"
           for version in $RELEASES; do
+            unset trivy_exit_code
             ./trivy image \
               --exit-code=1 \
               --pkg-types=os,library \
               --severity=CRITICAL \
               --vex="${{ steps.generate_fleet_vex_files.outputs.FLEET_VEX_FILES }}" \
-              fleetdm/fleet:$version
+              --format=json \
+              --output=trivy-results-fleet-$version.json \
+              fleetdm/fleet:$version || trivy_exit_code=$?
+            # Print a human-readable table to the job log for debugging.
+            ./trivy convert --format table trivy-results-fleet-$version.json
+            if [ -n "${trivy_exit_code:-}" ]; then
+              exit "$trivy_exit_code"
+            fi
           done
 
       - name: List fleetctl VEX files
@@ -97,7 +111,39 @@ jobs:
             --pkg-types=os,library \
             --severity=CRITICAL \
             --vex="${{ steps.generate_fleetctl_vex_files.outputs.FLEETCTL_VEX_FILES }}" \
-            fleetdm/fleetctl:latest
+            --format=json \
+            --output=trivy-results-fleetctl.json \
+            fleetdm/fleetctl:latest || trivy_exit_code=$?
+          # Print a human-readable table to the job log for debugging.
+          ./trivy convert --format table trivy-results-fleetctl.json
+          exit "${trivy_exit_code:-0}"
+
+      - name: Extract CVE list for Slack notification
+        id: extract_cves
+        if: failure()
+        run: |
+          # Aggregate CVEs across every trivy result file produced above. With
+          # `--exit-code=1` fail-fast, only the first failing scan's file will
+          # exist, but we still scoop up whatever's there.
+          shopt -s nullglob
+          files=(trivy-results-*.json)
+          shopt -u nullglob
+          if [ ${#files[@]} -gt 0 ]; then
+            # `safe` JSON-escapes string fields so they can be embedded inline in
+            # the Slack payload JSON (titles can contain quotes, backslashes, etc.).
+            # `\\n` (literal backslash-n) is used as the separator so the value
+            # stays on a single line in $GITHUB_OUTPUT and Slack renders it as a
+            # newline when parsing the JSON payload.
+            cve_list=$(jq -r -s '
+              def safe(s): (s // "") | tojson | .[1:-1];
+              [.[] | (.ArtifactName // "?") as $image | .Results[]?.Vulnerabilities[]? | . + {image: $image}]
+              | unique_by(.VulnerabilityID + "|" + (.PkgName // "") + "|" + .image)
+              | sort_by(.Severity, .VulnerabilityID, .image)
+              | map("• *\(.VulnerabilityID)* (\(.Severity // "UNKNOWN")) in `\(safe(.image))` — \(safe(.PkgName // "?")) \(safe(.InstalledVersion // "?")) → \(safe(.FixedVersion // "?"))\\n    _\(safe(.Title // "(no title)"))_")
+              | join("\\n")
+            ' "${files[@]}")
+          fi
+          echo "cve_list=${cve_list:-(no CVE list available — check job logs)}" >> "$GITHUB_OUTPUT"
 
       - name: Slack notification
         if: github.event.schedule == '0 6 * * *' && failure()
@@ -111,7 +157,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "⚠️ Check vulnerabilities in released docker images failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                    "text": "⚠️ Check vulnerabilities in released docker images failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n\n*Detected CVEs:*\n${{ steps.extract_cves.outputs.cve_list }}"
                   }
                 }
               ]

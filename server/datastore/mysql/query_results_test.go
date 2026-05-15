@@ -895,7 +895,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 			// IncludeReportsDontStoreResults defaults to false: only include discard_data=0 AND logging_type='snapshot'.
 			ListOptions: fleet.ListOptions{OrderKey: "name", IncludeMetadata: true},
 		}
-		reports, total, meta, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, meta, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		// Should get qSave1 and qSave2 but NOT qDiscard (doesn't satisfy discard_data=0 AND logging_type='snapshot').
 		assert.Equal(t, 2, total)
@@ -911,7 +911,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 			IncludeReportsDontStoreResults: true,
 			ListOptions:                    fleet.ListOptions{OrderKey: "name", IncludeMetadata: true},
 		}
-		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		// All 4 queries are returned including both don't-store-results variants.
 		assert.Equal(t, 4, total)
@@ -930,7 +930,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 			IncludeReportsDontStoreResults: true,
 			ListOptions:                    fleet.ListOptions{OrderKey: "name"},
 		}
-		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		require.Len(t, reports, 4)
 
@@ -956,7 +956,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		opts := fleet.ListHostReportsOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name"},
 		}
-		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		require.Len(t, reports, 2)
 
@@ -975,7 +975,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		opts := fleet.ListHostReportsOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name"},
 		}
-		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		require.Len(t, reports, 2)
 
@@ -994,7 +994,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 				MatchQuery: "Alpha",
 			},
 		}
-		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		assert.Equal(t, 1, total)
 		require.Len(t, reports, 1)
@@ -1012,7 +1012,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 				OrderDirection: fleet.OrderAscending,
 			},
 		}
-		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		require.Len(t, reports, 2)
 		assert.Equal(t, "Save Query Alpha", reports[0].Name) // has results
@@ -1020,7 +1020,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 
 		// DESC: non-null values first (newest to oldest), NULLs at bottom.
 		opts.ListOptions.OrderDirection = fleet.OrderDescending
-		reports, _, _, err = ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		reports, _, _, err = ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		require.Len(t, reports, 2)
 		assert.Equal(t, "Save Query Alpha", reports[0].Name) // has results
@@ -1037,7 +1037,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 				IncludeMetadata: true,
 			},
 		}
-		reports, total, meta, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, meta, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		assert.Equal(t, 2, total)
 		require.Len(t, reports, 1)
@@ -1047,7 +1047,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 
 		// Second page.
 		opts.ListOptions.Page = 1
-		reports2, total2, meta2, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		reports2, total2, meta2, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		assert.Equal(t, 2, total2)
 		require.Len(t, reports2, 1)
@@ -1074,7 +1074,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		opts := fleet.ListHostReportsOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name"},
 		}
-		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		// Team-Only query should not appear because host has no team.
 		assert.Equal(t, 2, total)
@@ -1097,7 +1097,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		opts := fleet.ListHostReportsOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name"},
 		}
-		reports, total, _, err := ds.ListHostReports(ctx, teamHost.ID, &team.ID, opts, fleet.DefaultMaxQueryReportRows)
+		reports, total, _, err := ds.ListHostReports(ctx, teamHost.ID, &team.ID, "", opts, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 		// Should see the 2 global save queries plus the team-scoped query.
 		assert.Equal(t, 3, total)
@@ -1130,7 +1130,7 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		opts := fleet.ListHostReportsOptions{
 			ListOptions: fleet.ListOptions{OrderKey: "name"},
 		}
-		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, opts, capacity)
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, capacity)
 		require.NoError(t, err)
 		require.Len(t, reports, 2)
 
@@ -1142,5 +1142,256 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		beta := reports[1]
 		assert.Equal(t, "Save Query Beta", beta.Name)
 		assert.False(t, beta.ReportClipped)
+	})
+
+	t.Run("platform_filtering", func(t *testing.T) {
+		// Create a darwin-only query and a linux-only query.
+		qDarwin, err := ds.NewQuery(ctx, &fleet.Query{
+			Name:     "Darwin Only Query",
+			Query:    "SELECT 7",
+			AuthorID: &user.ID,
+			Saved:    true,
+			Logging:  fleet.LoggingSnapshot,
+			Platform: "darwin",
+		})
+		require.NoError(t, err)
+
+		_, err = ds.NewQuery(ctx, &fleet.Query{
+			Name:     "Linux Only Query",
+			Query:    "SELECT 8",
+			AuthorID: &user.ID,
+			Saved:    true,
+			Logging:  fleet.LoggingSnapshot,
+			Platform: "linux",
+		})
+		require.NoError(t, err)
+
+		// host has platform "darwin" (set by test.NewHost via osqueryID heuristic;
+		// we'll use a darwin host for clarity).
+		darwinHost := test.NewHost(t, ds, "darwin-host", "10.1.1.1", "darwin-key", "darwin-serial", time.Now())
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET platform = 'darwin' WHERE id = ?`, darwinHost.ID)
+			return err
+		})
+
+		opts := fleet.ListHostReportsOptions{
+			IncludeReportsDontStoreResults: true,
+			ListOptions:                    fleet.ListOptions{OrderKey: "name"},
+		}
+
+		reports, _, _, err := ds.ListHostReports(ctx, darwinHost.ID, nil, "darwin", opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		names := make([]string, 0, len(reports))
+		for _, r := range reports {
+			names = append(names, r.Name)
+		}
+		assert.Contains(t, names, qDarwin.Name, "darwin host must see darwin-platform query")
+		assert.NotContains(t, names, "Linux Only Query", "darwin host must not see linux-only query")
+
+		// Queries with no platform restriction must always be visible.
+		assert.Contains(t, names, qSave1.Name, "darwin host must see platform-unrestricted query")
+	})
+
+	t.Run("label_filtering", func(t *testing.T) {
+		// Create a label and a query scoped to that label.
+		label, err := ds.NewLabel(ctx, &fleet.Label{Name: "label-filter-test", Query: "SELECT 1"})
+		require.NoError(t, err)
+
+		qLabeled, err := ds.NewQuery(ctx, &fleet.Query{
+			Name:             "Labeled Query Eta",
+			Query:            "SELECT 6",
+			AuthorID:         &user.ID,
+			Saved:            true,
+			Logging:          fleet.LoggingSnapshot,
+			LabelsIncludeAny: []fleet.LabelIdent{{LabelName: label.Name}},
+		})
+		require.NoError(t, err)
+
+		opts := fleet.ListHostReportsOptions{
+			IncludeReportsDontStoreResults: true,
+			ListOptions:                    fleet.ListOptions{OrderKey: "name"},
+		}
+
+		// host is NOT a member of the label — labeled query must be excluded.
+		reports, _, _, err := ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		names := make([]string, 0, len(reports))
+		for _, r := range reports {
+			names = append(names, r.Name)
+		}
+		assert.NotContains(t, names, qLabeled.Name, "host without label must not see label-scoped query")
+
+		// Add host to the label.
+		err = ds.RecordLabelQueryExecutions(ctx, host, map[uint]*bool{label.ID: new(true)}, time.Now(), false)
+		require.NoError(t, err)
+
+		// host IS now a member of the label — labeled query must be included.
+		reports, _, _, err = ds.ListHostReports(ctx, host.ID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+		names = names[:0]
+		for _, r := range reports {
+			names = append(names, r.Name)
+		}
+		assert.Contains(t, names, qLabeled.Name, "host with matching label must see label-scoped query")
+
+		// Queries with NO labels are always visible regardless of host membership.
+		assert.Contains(t, names, qSave1.Name, "unlabeled query must always be visible")
+	})
+
+	t.Run("label_filtering_include_all", func(t *testing.T) {
+		labelA, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-A", Query: "SELECT 1"})
+		require.NoError(t, err)
+		labelB, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-B", Query: "SELECT 1"})
+		require.NoError(t, err)
+
+		qIncludeAll, err := ds.NewQuery(ctx, &fleet.Query{
+			Name:     "Include All Query",
+			Query:    "SELECT 1",
+			AuthorID: &user.ID,
+			Saved:    true,
+			Logging:  fleet.LoggingSnapshot,
+			LabelsIncludeAll: []fleet.LabelIdent{
+				{LabelName: labelA.Name},
+				{LabelName: labelB.Name},
+			},
+		})
+		require.NoError(t, err)
+
+		newHost := func(name string) *fleet.Host {
+			return test.NewHost(t, ds, name, "10.0.0.1", "k-"+name, "u-"+name, time.Now())
+		}
+		hostNone := newHost("include-all-host-none")
+		hostOnlyA := newHost("include-all-host-onlyA")
+		hostBoth := newHost("include-all-host-both")
+
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostOnlyA, map[uint]*bool{labelA.ID: new(true)}, time.Now(), false))
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostBoth, map[uint]*bool{labelA.ID: new(true), labelB.ID: new(true)}, time.Now(), false))
+
+		opts := fleet.ListHostReportsOptions{
+			IncludeReportsDontStoreResults: true,
+			ListOptions:                    fleet.ListOptions{OrderKey: "name"},
+		}
+
+		hasReport := func(hostID uint) bool {
+			t.Helper()
+			reports, _, _, err := ds.ListHostReports(ctx, hostID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+			require.NoError(t, err)
+			for _, r := range reports {
+				if r.Name == qIncludeAll.Name {
+					return true
+				}
+			}
+			return false
+		}
+
+		assert.False(t, hasReport(hostNone.ID), "host with NO required labels must not see include_all query")
+		assert.False(t, hasReport(hostOnlyA.ID), "host with SUBSET of required labels must not see include_all query")
+		assert.True(t, hasReport(hostBoth.ID), "host with ALL required labels must see include_all query")
+
+		// ExcludeIncludeAllQueries hides include_all queries entirely from
+		// the result set, regardless of host membership.
+		excludeOpts := opts
+		excludeOpts.ExcludeIncludeAllQueries = true
+		hasReportExcluded := func(hostID uint) bool {
+			t.Helper()
+			reports, _, _, err := ds.ListHostReports(ctx, hostID, nil, "", excludeOpts, fleet.DefaultMaxQueryReportRows)
+			require.NoError(t, err)
+			for _, r := range reports {
+				if r.Name == qIncludeAll.Name {
+					return true
+				}
+			}
+			return false
+		}
+		assert.False(t, hasReportExcluded(hostNone.ID), "ExcludeIncludeAllQueries must hide include_all from host with no labels")
+		assert.False(t, hasReportExcluded(hostOnlyA.ID), "ExcludeIncludeAllQueries must hide include_all from host with subset of labels")
+		assert.False(t, hasReportExcluded(hostBoth.ID), "ExcludeIncludeAllQueries must hide include_all from host with all labels")
+	})
+
+	t.Run("combined_platform_label_team_filters", func(t *testing.T) {
+		// This test verifies that all three filters (platform, label, team) are
+		// applied simultaneously and are each independently capable of excluding
+		// a query.
+		//
+		// Setup:
+		//   host: linux platform, member of labelA, no team (global)
+		//   team: teamB
+		//
+		// Queries (all saved, IncludeReportsDontStoreResults=true):
+		//   qAll         – no platform, no label, global → VISIBLE
+		//   qLinux       – linux, no label, global       → VISIBLE (platform matches)
+		//   qLabelA      – no platform, labelA, global   → VISIBLE (label matches)
+		//   qLinuxLabelA – linux, labelA, global         → VISIBLE (both match)
+		//   qDarwin      – darwin, no label, global      → EXCLUDED by platform
+		//   qLabelB      – no platform, labelB, global   → EXCLUDED by label
+		//   qTeamB       – no platform, no label, teamB  → EXCLUDED by team
+		//   qDarwinLabelA– darwin, labelA, global        → EXCLUDED by platform (despite label)
+		//   qLinuxLabelB – linux, labelB, global         → EXCLUDED by label (despite platform)
+
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "combined-filter-team"})
+		require.NoError(t, err)
+
+		labelA, err := ds.NewLabel(ctx, &fleet.Label{Name: "combined-labelA", Query: "SELECT 1"})
+		require.NoError(t, err)
+		labelB, err := ds.NewLabel(ctx, &fleet.Label{Name: "combined-labelB", Query: "SELECT 1"})
+		require.NoError(t, err)
+
+		newQ := func(name, platform string, labels []fleet.LabelIdent, teamID *uint) {
+			t.Helper()
+			_, err := ds.NewQuery(ctx, &fleet.Query{
+				Name:             name,
+				Query:            "SELECT 1",
+				AuthorID:         &user.ID,
+				Saved:            true,
+				Logging:          fleet.LoggingSnapshot,
+				Platform:         platform,
+				LabelsIncludeAny: labels,
+				TeamID:           teamID,
+			})
+			require.NoError(t, err)
+		}
+
+		newQ("combined-qAll", "", nil, nil)
+		newQ("combined-qLinux", "linux", nil, nil)
+		newQ("combined-qLabelA", "", []fleet.LabelIdent{{LabelName: labelA.Name}}, nil)
+		newQ("combined-qLinuxLabelA", "linux", []fleet.LabelIdent{{LabelName: labelA.Name}}, nil)
+		newQ("combined-qDarwin", "darwin", nil, nil)
+		newQ("combined-qLabelB", "", []fleet.LabelIdent{{LabelName: labelB.Name}}, nil)
+		newQ("combined-qTeamB", "", nil, &team.ID)
+		newQ("combined-qDarwinLabelA", "darwin", []fleet.LabelIdent{{LabelName: labelA.Name}}, nil)
+		newQ("combined-qLinuxLabelB", "linux", []fleet.LabelIdent{{LabelName: labelB.Name}}, nil)
+
+		linuxHost := test.NewHost(t, ds, "combined-linux-host", "10.2.2.2", "combined-key", "combined-serial", time.Now())
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE hosts SET platform = 'ubuntu' WHERE id = ?`, linuxHost.ID)
+			return err
+		})
+		// Add the host to labelA only.
+		err = ds.RecordLabelQueryExecutions(ctx, linuxHost, map[uint]*bool{labelA.ID: new(true)}, time.Now(), false)
+		require.NoError(t, err)
+
+		opts := fleet.ListHostReportsOptions{
+			IncludeReportsDontStoreResults: true,
+			ListOptions:                    fleet.ListOptions{OrderKey: "name"},
+		}
+		// host has no team → pass nil teamID; PlatformFromHost("ubuntu") = "linux"
+		reports, _, _, err := ds.ListHostReports(ctx, linuxHost.ID, nil, "linux", opts, fleet.DefaultMaxQueryReportRows)
+		require.NoError(t, err)
+
+		names := make(map[string]bool, len(reports))
+		for _, r := range reports {
+			names[r.Name] = true
+		}
+
+		assert.True(t, names["combined-qAll"], "unrestricted query must be visible")
+		assert.True(t, names["combined-qLinux"], "matching-platform query must be visible")
+		assert.True(t, names["combined-qLabelA"], "matching-label query must be visible")
+		assert.True(t, names["combined-qLinuxLabelA"], "matching platform+label query must be visible")
+
+		assert.False(t, names["combined-qDarwin"], "wrong-platform query must be excluded")
+		assert.False(t, names["combined-qLabelB"], "non-member label query must be excluded")
+		assert.False(t, names["combined-qTeamB"], "other-team query must be excluded")
+		assert.False(t, names["combined-qDarwinLabelA"], "wrong platform must exclude even if label matches")
+		assert.False(t, names["combined-qLinuxLabelB"], "non-member label must exclude even if platform matches")
 	})
 }

@@ -1,6 +1,7 @@
 import PropTypes from "prop-types";
 import teamInterface, { ITeam } from "./team";
 import { IUserSettings } from "./config";
+import { IApiEndpointRef } from "./api_endpoint";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -59,6 +60,7 @@ export interface IUser {
   api_only: boolean;
   teams: ITeam[];
   fleets: ITeam[]; // This will eventually replace `teams`, but for now we need both to avoid breaking changes.
+  api_endpoints?: IApiEndpointRef[];
 }
 
 /**
@@ -80,6 +82,8 @@ export interface IUserFormErrors {
   name?: string | null;
   password?: string | null;
   sso_enabled?: boolean | null;
+  api_endpoints?: string | null;
+  teams?: string | null;
 }
 export interface IResetPasswordFormErrors {
   new_password?: string | null;
@@ -97,7 +101,7 @@ export interface ILoginUserData {
 }
 
 export interface ICreateUserFormData {
-  email: string;
+  email?: string;
   global_role: UserRole | null;
   name: string;
   password?: string | null;
@@ -122,6 +126,7 @@ export interface ICreateUserWithInvitationFormData {
   email: string;
   invite_token: string;
   name: string;
-  password: string;
-  password_confirmation: string;
+  password?: string;
+  password_confirmation?: string;
+  sso_invite?: boolean;
 }

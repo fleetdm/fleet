@@ -3,7 +3,6 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 import { CellProps, Column } from "react-table";
-import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import {
@@ -34,7 +33,6 @@ import {
   hostTeamName,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
-import { COLORS } from "styles/var/colors";
 import {
   IHeaderProps,
   IStringCellProps,
@@ -42,7 +40,7 @@ import {
 } from "interfaces/datatable_config";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import getHostStatusTooltipText from "../helpers";
+import { getHostStatusTooltipText } from "../helpers";
 
 type IHostTableColumnConfig = Column<IHost> & {
   // This is used to prevent these columns from being hidden. This will be
@@ -80,7 +78,14 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     : condensed;
 };
 
-const lastSeenTime = (status: string, seenTime: string): string => {
+const lastSeenTime = (
+  status: string,
+  seenTime: string,
+  platform?: string
+): string => {
+  if (platform && isMobilePlatform(platform)) {
+    return "Last seen: Not supported";
+  }
   if (status !== "online") {
     return `Last seen: ${humanHostLastSeen(seenTime)}`;
   }
@@ -119,49 +124,14 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "display_name",
     id: "display_name",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        // if the host is pending, we want to disable the link to host details
-        cellProps.row.original.mdm.enrollment_status === "Pending" &&
-        // pending status is only supported for Apple devices
-        (cellProps.row.original.platform === "darwin" ||
-          cellProps.row.original.platform === "ios" ||
-          cellProps.row.original.platform === "ipados") &&
-        // osquery version is populated along with the rest of host details so use it
-        // here to check if we already have host details and don't need to disable the link
-        !cellProps.row.original.osquery_version
-      ) {
-        return (
-          <>
-            <span
-              className="text-cell"
-              data-tip
-              data-for={`host__${cellProps.row.original.id}`}
-            >
-              {cellProps.cell.value}
-            </span>
-            <ReactTooltip
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id={`host__${cellProps.row.original.id}`}
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
-                This host was ordered using <br />
-                Apple Business Manager <br />
-                (ABM). You will see host <br />
-                vitals when it is enrolled in Fleet. <br />
-              </span>
-            </ReactTooltip>
-          </>
-        );
-      }
       return (
         <LinkCell
           value={cellProps.cell.value}
           path={PATHS.HOST_DETAILS(cellProps.row.original.id, teamId)}
           title={lastSeenTime(
             cellProps.row.original.status,
-            cellProps.row.original.seen_time
+            cellProps.row.original.seen_time,
+            cellProps.row.original.platform
           )}
         />
       );
@@ -242,6 +212,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
             showArrow
             position="top"
             tipOffset={10}
+            fixedPositionStrategy
           >
             <TextCell italic value={`${numUsers} users`} />
           </TooltipWrapper>
@@ -418,9 +389,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         <TooltipWrapper
           tipContent={
             <>
-              Online hosts will respond to a live report. Offline hosts
-              won&apos;t respond to a live report because they may be shut down,
-              asleep, or not connected to the internet.
+              Online hosts will respond to a live report. Currently only
+              supported for macOS, Windows, and Linux.
             </>
           }
           className="status-header"
@@ -449,9 +419,11 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         isAppleDevice(cellProps.row.original.platform)
       ) {
         const tooltip = {
-          tooltipText: getHostStatusTooltipText("---"),
+          tooltipText: getHostStatusTooltipText(DEFAULT_EMPTY_CELL_VALUE),
         };
-        return <StatusIndicator value="---" tooltip={tooltip} />;
+        return (
+          <StatusIndicator value={DEFAULT_EMPTY_CELL_VALUE} tooltip={tooltip} />
+        );
       }
 
       const value = cellProps.cell.value;

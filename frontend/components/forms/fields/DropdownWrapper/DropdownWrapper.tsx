@@ -130,7 +130,9 @@ export interface IDropdownWrapper {
 const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
 ) => {
-  return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
+  if (state.isFocused) return COLORS["ui-fleet-black-5"];
+  if (state.isSelected) return COLORS["ui-fleet-black-10"];
+  return "transparent";
 };
 
 const getOptionFontWeight = (
@@ -160,7 +162,7 @@ export const generateCustomDropdownStyles = (
       const buttonVariantContainer = {
         borderRadius: "6px",
         "&:active": {
-          backgroundColor: "rgba(25, 33, 71, 0.05)",
+          backgroundColor: COLORS["ui-fleet-black-5"],
         },
         height: "38px",
       };
@@ -190,7 +192,7 @@ export const generateCustomDropdownStyles = (
             stroke: COLORS["ui-fleet-black-75"],
           },
           "&:hover": {
-            backgroundColor: "rgba(25, 33, 71, 0.05)",
+            backgroundColor: COLORS["ui-fleet-black-5"],
             boxShadow: "none",
             ".dropdown-wrapper__placeholder": {
               color: COLORS["ui-fleet-black-75-over"],
@@ -199,8 +201,8 @@ export const generateCustomDropdownStyles = (
               stroke: COLORS["ui-fleet-black-75-over"],
             },
           },
-          ".react-select__control--is-focused": {
-            backgroundColor: "rgba(25, 33, 71, 0.05)",
+          ...(state.isFocused && {
+            backgroundColor: COLORS["ui-fleet-black-5"],
             boxShadow: "none",
             ".dropdown-wrapper__placeholder": {
               color: COLORS["ui-fleet-black-75-down"],
@@ -208,19 +210,15 @@ export const generateCustomDropdownStyles = (
             ".dropdown-wrapper__indicator path": {
               stroke: COLORS["ui-fleet-black-75-down"],
             },
-          },
-          ...(state.isFocused && {
-            backgroundColor: "rgba(25, 33, 71, 0.05)",
+          }),
+          ...(state.menuIsOpen && {
+            backgroundColor: COLORS["ui-fleet-black-5"],
             ".dropdown-wrapper__placeholder": {
               color: COLORS["ui-fleet-black-75-down"],
             },
             ".dropdown-wrapper__indicator path": {
               stroke: COLORS["ui-fleet-black-75-down"],
             },
-          }),
-          // TODO: Figure out a way to apply separate &:focus-visible styling
-          // Currently only relying on &:focus styling for tabbing through app
-          ...(state.menuIsOpen && {
             ".dropdown-wrapper__indicator svg": {
               transform: "rotate(180deg)",
               transition: "transform 0.25s ease",
@@ -327,8 +325,20 @@ export const generateCustomDropdownStyles = (
         ...(variant === "button" && buttonVariantPlaceholder),
       };
     },
-    singleValue: (provided) => ({
+    input: (provided) => {
+      return {
+        ...provided,
+        color: COLORS["core-fleet-black"],
+        fontSize: "13px",
+        margin: 0,
+        padding: 0,
+      };
+    },
+    singleValue: (provided, state) => ({
       ...provided,
+      color: state.isDisabled
+        ? COLORS["ui-fleet-black-50"]
+        : COLORS["core-fleet-black"],
       fontSize: "13px",
       margin: 0,
       padding: 0,
@@ -344,7 +354,8 @@ export const generateCustomDropdownStyles = (
     }),
     menu: (provided) => ({
       ...provided,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: COLORS["core-fleet-white"],
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "4px",
       zIndex: 6,
       overflow: "hidden",

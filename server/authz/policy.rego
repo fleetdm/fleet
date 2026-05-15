@@ -740,10 +740,10 @@ allow {
 # Software
 ##
 
-# Global admins, maintainers, technician, observers, and observer_plus can read all software.
+# Global admins, maintainers, technician, observers, observer_plus and gitops can read all software.
 allow {
   object.type == "software_inventory"
-  subject.global_role == [admin, maintainer, technician, observer, observer_plus][_]
+  subject.global_role == [admin, maintainer, technician, observer, observer_plus, gitops][_]
   action == read
 }
 
@@ -754,32 +754,32 @@ allow {
   action == write
 }
 
-# Team admins, maintainers, technician, observers and observer_plus can read all software in their teams.
+# Team admins, maintainers, technician, observers, observer_plus and gitops can read all software in their teams.
 allow {
   not is_null(object.team_id)
   object.type == "software_inventory"
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer, observer_plus][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician, observer, observer_plus, gitops][_]
   action == read
 }
 
-# Global admins and maintainers can read all maintained apps.
+# Global admins and maintainers and gitops can read all maintained apps.
 allow {
   object.type == "maintained_app"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == read
 }
 
-# Team admins and maintainers can read all maintained apps (no team constraint, unlike installers)
+# Team admins and maintainers and gitops can read all maintained apps (no team constraint, unlike installers)
 allow {
   object.type == "maintained_app"
-  team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
   action == read
 }
 
-# Global admins, maintainers, and technicians can read any installable entity (software installer or VPP app)
+# Global admins, maintainers, technicians and gitops can read any installable entity (software installer or VPP app)
 allow {
   object.type == "installable_entity"
-  subject.global_role == [admin, maintainer, technician][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == read
 }
 
@@ -790,11 +790,11 @@ allow {
   action == write
 }
 
-# Team admins, maintainers, and technicians can read any installable entity (software installer or VPP app) in their teams.
+# Team admins, maintainers, technicians and gitops can read any installable entity (software installer or VPP app) in their teams.
 allow {
   not is_null(object.team_id)
   object.type == "installable_entity"
-  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
   action == read
 }
 
@@ -865,9 +865,9 @@ allow {
 
 # Global admins, maintainers, technicians, and gitops can resend MDM config profiles.
 #
-# GitOps doesn't really need permissions to resend to specific hosts,
+# gitops doesn't really need permissions to resend to specific hosts,
 # but we will keep this as-is to not break any workflows that might be using a
-# GitOps token to do a resend.
+# gitops token to do a resend.
 allow {
   object.type == "mdm_config_profile"
   subject.global_role == [admin, maintainer, technician, gitops][_]
@@ -894,9 +894,9 @@ allow {
 
 # Team admins, maintainers, technicians, and gitops can resend MDM config profiles on their teams.
 #
-# GitOps doesn't really need permissions to resend to specific hosts,
+# gitops doesn't really need permissions to resend to specific hosts,
 # but we will keep this as-is to not break any workflows that might be using a
-# GitOps token to do a resend.
+# gitops token to do a resend.
 allow {
   not is_null(object.team_id)
   object.team_id != 0
@@ -1250,7 +1250,7 @@ allow {
 ##
 # Certificate Authorities
 ##
-# Global admins and GitOps can configure, read, list, and read secrets of certificate authorities.
+# Global admins and gitops can configure, read, list, and read secrets of certificate authorities.
 allow {
   object.type == "certificate_authority"
   subject.global_role == [admin, gitops][_]
@@ -1297,4 +1297,22 @@ allow {
   object.type == "certificate_template"
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
+}
+
+##
+# API Endpoints
+##
+
+# Global admins can read API endpoints.
+allow {
+  object.type == "api_endpoint"
+  subject.global_role == admin
+  action == read
+}
+
+# Any team admin can read API endpoints.
+allow {
+  object.type == "api_endpoint"
+  team_role(subject, subject.teams[_].id) == admin
+  action == read
 }

@@ -130,7 +130,7 @@ export const parseSqlTables = (
       }
 
       // Plain ol' tables.
-      if (node.table) {
+      if (node.table && node.type !== "column_ref") {
         results.push(node.table as string);
       }
     }

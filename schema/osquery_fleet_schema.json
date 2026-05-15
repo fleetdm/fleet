@@ -154,6 +154,81 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ad_config.yml"
   },
   {
+    "name": "adobe_plugins",
+    "platforms": [
+      "darwin",
+      "windows"
+    ],
+    "description": "Detects Adobe plugins (CEP extensions, UXP extensions, and native plug-ins) installed on the host by scanning well-known directories and parsing plugin manifests.",
+    "examples": "List all detected Adobe plugins (CEP and UXP extensions):\n\n```\nSELECT name, version, vendor, host_application, extension_type FROM adobe_plugins;\n```\n\nInclude native plug-ins from application directories (Photoshop, Premiere, etc.):\n\n```\nSELECT * FROM adobe_plugins WHERE scan_level = 'deep';\n```",
+    "columns": [
+      {
+        "name": "path",
+        "type": "text",
+        "required": false,
+        "description": "Full filesystem path to the plugin directory or file."
+      },
+      {
+        "name": "name",
+        "type": "text",
+        "required": false,
+        "description": "Plugin display name. From UXP manifest `name`, else manifest `id`, else directory or file name."
+      },
+      {
+        "name": "version",
+        "type": "text",
+        "required": false,
+        "description": "Plugin version from the manifest. Empty if no manifest is found."
+      },
+      {
+        "name": "vendor",
+        "type": "text",
+        "required": false,
+        "description": "Plugin author or publisher from the manifest. Empty if absent."
+      },
+      {
+        "name": "bundle_id",
+        "type": "text",
+        "required": false,
+        "description": "Plugin bundle identifier from CEP `ExtensionBundleId` or UXP `id`. Empty for native plug-ins."
+      },
+      {
+        "name": "host_application",
+        "type": "text",
+        "required": false,
+        "description": "Target Adobe application(s) such as Photoshop, Illustrator, or Premiere Pro. Comma-separated if multiple."
+      },
+      {
+        "name": "extension_type",
+        "type": "text",
+        "required": false,
+        "description": "One of `CEP`, `UXP`, or `native`. Determined by the scan path, not by manifest presence."
+      },
+      {
+        "name": "user",
+        "type": "text",
+        "required": false,
+        "description": "Local username for user-scoped plugin installs. Empty for system-wide installs."
+      },
+      {
+        "name": "platform",
+        "type": "text",
+        "required": false,
+        "description": "The host platform, either `darwin` or `windows`."
+      },
+      {
+        "name": "scan_level",
+        "type": "text",
+        "required": false,
+        "description": "WHERE-clause constraint that controls scan depth. `standard` (default) scans CEP and UXP directories only. `deep` additionally scans application-specific native plug-in directories."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/adobe_plugins",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/adobe_plugins.yml"
+  },
+  {
     "name": "alf",
     "description": "Details about the status of the built-in firewall protection on this Mac.",
     "url": "https://fleetdm.com/tables/alf",
@@ -9006,7 +9081,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": "```\nselect * from docker_images where id = '6a2f32de169d14e6f8a84538eaa28f2629872d7d4f580a303b296c60db36fbd7'\n```",
+    "examples": "```\nselect * from docker_image_layers where id = '6a2f32de169d14e6f8a84538eaa28f2629872d7d4f580a303b296c60db36fbd7'\n```",
     "columns": [
       {
         "name": "id",
@@ -16626,6 +16701,86 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
   },
   {
+    "name": "macos_soc_power",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Power draw in milliwatts for the CPU, GPU, Apple Neural Engine (ANE), and total System on a Chip (SoC), plus GPU active ratio, sampled via powermetrics. Requires root.",
+    "columns": [
+      {
+        "name": "cpu_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the CPU."
+      },
+      {
+        "name": "gpu_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the GPU."
+      },
+      {
+        "name": "ane_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the Apple Neural Engine."
+      },
+      {
+        "name": "combined_power_mw",
+        "type": "text",
+        "required": false,
+        "description": "Power draw in milliwatts for the total System on a Chip."
+      },
+      {
+        "name": "gpu_active_ratio",
+        "type": "text",
+        "required": false,
+        "description": "Percentage of time a GPU is actively processing commands rather than idling."
+      },
+      {
+        "name": "interval",
+        "type": "integer",
+        "required": false,
+        "description": "Sampling duration in milliseconds. Longer intervals produce more accurate averages. (Default: 3000.)\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/macos_soc_power",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_soc_power.yml"
+  },
+  {
+    "name": "macos_thermal_pressure",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Reports whether macOS is thermally throttling the device, via powermetrics. Returns thermal_pressure (Nominal/Light/Moderate/Heavy/Sleeping) and a derived is_throttling integer (1 if not Nominal). Requires root.",
+    "columns": [
+      {
+        "name": "thermal_pressure",
+        "type": "text",
+        "required": false,
+        "description": "Nominal/Light/Moderate/Heavy/Sleeping."
+      },
+      {
+        "name": "is_throttling",
+        "type": "integer",
+        "required": false,
+        "description": "Value is 1 if thermal_pressure is not Nominal."
+      },
+      {
+        "name": "interval",
+        "type": "integer",
+        "required": false,
+        "description": "Sampling duration in milliseconds. (Default 1000.)\n"
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/macos_thermal_pressure",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_thermal_pressure.yml"
+  },
+  {
     "name": "macos_user_profiles",
     "evented": false,
     "description": "High level information on installed user profiles enrollment.",
@@ -18537,6 +18692,43 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_interfaces.yml"
   },
   {
+    "name": "network_quality",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Output from the macOS `networkQuality` binary, reporting download and upload throughput.",
+    "columns": [
+      {
+        "name": "dl_throughput_kbps",
+        "type": "integer",
+        "required": false,
+        "description": "Download throughput in kilobits per second, as reported by `networkQuality -c`."
+      },
+      {
+        "name": "ul_throughput_kbps",
+        "type": "integer",
+        "required": false,
+        "description": "Upload throughput in kilobits per second, as reported by `networkQuality -c`."
+      },
+      {
+        "name": "dl_throughput_mbps",
+        "type": "text",
+        "required": false,
+        "description": "Download throughput in megabits per second, formatted to two decimal places."
+      },
+      {
+        "name": "ul_throughput_mbps",
+        "type": "text",
+        "required": false,
+        "description": "Upload throughput in megabits per second, formatted to two decimal places."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).\n\nThe `/usr/bin/networkQuality` binary is only available on macOS 12 (Monterey) and later. On hosts where the binary is not present, the table returns no rows.",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/network_quality",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/network_quality.yml"
+  },
+  {
     "name": "nfs_shares",
     "description": "NFS shares exported by the host.",
     "url": "https://fleetdm.com/tables/nfs_shares",
@@ -18706,6 +18898,24 @@
         "hidden": false,
         "required": false,
         "index": true
+      },
+      {
+        "name": "depth",
+        "description": "Nesting depth of the package (0 = direct dependency)",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "max_depth",
+        "description": "Maximum depth to search for nested packages (default 100, -1 = unlimited)",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
       },
       {
         "name": "pid_with_namespace",
@@ -22851,6 +23061,112 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/process_open_files.yml"
   },
   {
+    "name": "process_open_handles",
+    "description": "Enumerate open handles for a specified process. Defaults to the osquery process if no pid constraint is provided.",
+    "url": "https://fleetdm.com/tables/process_open_handles",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": true,
+    "notes": "",
+    "examples": "```\nselect * from process_open_handles where pid = 1234\n```",
+    "columns": [
+      {
+        "name": "pid",
+        "description": "The process identifier that owns the handle.",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": true,
+        "index": true
+      },
+      {
+        "name": "value",
+        "description": "The handle value",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "type",
+        "description": "The type of object referenced by the handle.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "access",
+        "description": "The access permissions of the object referenced by the handle.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "name",
+        "description": "The value of the object referenced by the handle.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "attributes",
+        "description": "Object handle attributes.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "count",
+        "description": "Handle Count.",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "raw_pointer_count",
+        "description": "Raw Pointer/Reference Count. Meaning varies, consult Windows docs.",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "error_stage",
+        "description": "Error Stage.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "error_code",
+        "description": "Error Code.",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/process_open_handles.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fprocess_open_handles.yml&value=name%3A%20process_open_handles%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
     "name": "process_open_pipes",
     "description": "Pipes and partner processes for each process.",
     "url": "https://fleetdm.com/tables/process_open_pipes",
@@ -25550,6 +25866,175 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/secureboot.yml"
+  },
+  {
+    "name": "secureboot_certificates",
+    "description": "X.509 certificates from UEFI Secure Boot signature databases (db and dbx EFI variables). Useful for monitoring CA expiry and adoption of updated certificates (e.g. Microsoft UEFI CA 2023).",
+    "url": "https://fleetdm.com/tables/secureboot_certificates",
+    "platforms": [
+      "linux"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect * from secureboot_certificates where revoked = 1\n```",
+    "columns": [
+      {
+        "name": "common_name",
+        "description": "Certificate CommonName",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "subject",
+        "description": "Certificate subject distinguished name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "issuer",
+        "description": "Certificate issuer distinguished name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "not_valid_before",
+        "description": "Lower bound of valid date",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "not_valid_after",
+        "description": "Certificate expiration date",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "sha1",
+        "description": "SHA1 hash of the raw certificate contents",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "serial",
+        "description": "Certificate serial number",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "revoked",
+        "description": "1 if the certificate is in the dbx revocation list, 0 if it is in the db allowlist",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "Path to the EFI variable file",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "is_ca",
+        "description": "1 if the certificate is a CA, 0 otherwise",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "self_signed",
+        "description": "1 if the certificate is self-signed, 0 otherwise",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "key_usage",
+        "description": "Certificate key usage extension string",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "authority_key_id",
+        "description": "Authority Key Identifier (AKI)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "subject_key_id",
+        "description": "Subject Key Identifier (SKI)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "signing_algorithm",
+        "description": "Algorithm used to sign the certificate",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "key_algorithm",
+        "description": "Public key algorithm",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "key_strength",
+        "description": "Public key size in bits",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/secureboot_certificates.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fsecureboot_certificates.yml&value=name%3A%20secureboot_certificates%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "security_profile_info",
@@ -28889,7 +29374,7 @@
       },
       {
         "name": "level",
-        "description": "the severity level of the entry",
+        "description": "the severity level of the entry (undefined, debug, info, default, error, fault)",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -30230,7 +30715,7 @@
   },
   {
     "name": "wifi_status",
-    "description": "macOS current WiFi status.",
+    "description": "macOS current WiFi status. This table requires Full Disk Access (FDA) permission to retrieve network_name.",
     "url": "https://fleetdm.com/tables/wifi_status",
     "platforms": [
       "darwin"
@@ -30467,7 +30952,7 @@
   },
   {
     "name": "winbaseobj",
-    "description": "Lists named Windows objects in the default object directories, across all terminal services sessions.  Example Windows ojbect types include Mutexes, Events, Jobs and Semaphors.",
+    "description": "Lists named Windows objects in the default object directories, across all terminal services sessions.  Example Windows object types include Mutexes, Events, Jobs and Semaphors.",
     "url": "https://fleetdm.com/tables/winbaseobj",
     "platforms": [
       "windows"
@@ -31696,6 +32181,15 @@
     "examples": "```\nselect filter,consumer,query,command_line_template,wcec.name from wmi_cli_event_consumers wcec left outer join wmi_filter_consumer_binding wcb on consumer = wcec.relative_path left outer join wmi_event_filters wef on wef.relative_path = wcb.filter;\n```",
     "columns": [
       {
+        "name": "namespace",
+        "description": "The WMI namespace where the consumer was found.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
         "name": "name",
         "description": "Unique name of a consumer.",
         "type": "text",
@@ -31756,6 +32250,15 @@
     "notes": "",
     "examples": "```\nselect * from wmi_event_filters\n```",
     "columns": [
+      {
+        "name": "namespace",
+        "description": "The WMI namespace where the filter was found.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
       {
         "name": "name",
         "description": "Unique identifier of an event filter.",
@@ -31818,6 +32321,15 @@
     "examples": "```\nselect * from wmi_filter_consumer_binding\n```",
     "columns": [
       {
+        "name": "namespace",
+        "description": "The WMI namespace where the binding was found.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
         "name": "consumer",
         "description": "Reference to an instance of __EventConsumer that represents the object path to a logical consumer, the recipient of an event.",
         "type": "text",
@@ -31869,6 +32381,15 @@
     "notes": "",
     "examples": "```\nselect filter,consumer,query,scripting_engine,script_file_name,script_text,wsec.name from wmi_script_event_consumers wsec left outer join wmi_filter_consumer_binding wcb on consumer = wsec.relative_path left outer join wmi_event_filters wef on wef.relative_path = wcb.filter;\n```",
     "columns": [
+      {
+        "name": "namespace",
+        "description": "The WMI namespace where the consumer was found.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
       {
         "name": "name",
         "description": "Unique identifier for the event consumer. ",
@@ -32127,116 +32648,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yaml_to_json.yml"
   },
   {
-    "name": "yara",
-    "description": "Triggers one-off YARA query for files at the specified path. Requires one of `sig_group`, `sigfile`, or `sigrule`.",
-    "url": "https://fleetdm.com/tables/yara",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
-    "evented": false,
-    "cacheable": false,
-    "notes": "",
-    "examples": "Look for files under `/root` that match a Yara signature. This example uses the [EICAR test file](https://www.eicar.org/download-anti-malware-testfile/).\n\n```\nSELECT * FROM yara WHERE path like '/root/%%' AND sigrule IN (\n  'rule eicar {\n  strings:\n  $s1 = \"X5O!P%@AP[4\\\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*\" fullword ascii\n  condition:\n  all of them\n}'\n ) AND matches='eicar';\n```",
-    "columns": [
-      {
-        "name": "path",
-        "description": "The path scanned",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": true,
-        "index": true
-      },
-      {
-        "name": "matches",
-        "description": "List of YARA matches",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "count",
-        "description": "Number of YARA matches. \n_Note that `count` is a reserved word and should be wrapped in quotes when referencing this column in a query._",
-        "type": "integer",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "sig_group",
-        "description": "Signature group used",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "sigfile",
-        "description": "Signature file used",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "sigrule",
-        "description": "Signature strings used",
-        "type": "text",
-        "notes": "",
-        "hidden": true,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "strings",
-        "description": "Matching strings",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "tags",
-        "description": "Matching tags",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "sigurl",
-        "description": "Signature url",
-        "type": "text",
-        "notes": "",
-        "hidden": true,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "pid_with_namespace",
-        "description": "Pids that contain a namespace",
-        "type": "integer",
-        "notes": "",
-        "hidden": true,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "linux"
-        ]
-      }
-    ],
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yara.yml"
-  },
-  {
     "name": "yara_events",
     "description": "Track YARA matches for files specified in configuration data.",
     "url": "https://fleetdm.com/tables/yara_events",
@@ -32343,6 +32754,228 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yara_events.yml"
+  },
+  {
+    "name": "yara_file",
+    "description": "Triggers one-off YARA query for files at the specified path. Additionally requires one of `sig_group`, `sigfile`, or `sigrule`.",
+    "url": "https://fleetdm.com/tables/yara_file",
+    "platforms": [
+      "darwin",
+      "linux",
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect * from yara where path = '/etc/passwd' and sigrule = 'rule always_true { condition: true }'\n```",
+    "columns": [
+      {
+        "name": "path",
+        "description": "The path scanned",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": true,
+        "index": true
+      },
+      {
+        "name": "matches",
+        "description": "List of YARA matches",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "count",
+        "description": "Number of YARA matches",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "sig_group",
+        "description": "Signature group used",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "sigfile",
+        "description": "Signature file used",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "sigrule",
+        "description": "Signature strings used",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "strings",
+        "description": "Matching strings",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "tags",
+        "description": "Matching tags",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "sigurl",
+        "description": "Signature url",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "pid_with_namespace",
+        "description": "Pids that contain a namespace",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "linux"
+        ]
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/yara_file.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fyara_file.yml&value=name%3A%20yara_file%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "yara_process",
+    "description": "Triggers one-off YARA query for process memory of the specified pid. Additionally requires one of `sig_group`, `sigfile`, or `sigrule`.",
+    "url": "https://fleetdm.com/tables/yara_process",
+    "platforms": [
+      "darwin",
+      "linux",
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect * from yara where pid = 1234 and sigrule = 'rule always_true { condition: true }'\n```",
+    "columns": [
+      {
+        "name": "pid",
+        "description": "The pid scanned (process memory)",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": true,
+        "index": true
+      },
+      {
+        "name": "matches",
+        "description": "List of YARA matches",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "count",
+        "description": "Number of YARA matches",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "sig_group",
+        "description": "Signature group used",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "sigfile",
+        "description": "Signature file used",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "sigrule",
+        "description": "Signature strings used",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "strings",
+        "description": "Matching strings",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "tags",
+        "description": "Matching tags",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "sigurl",
+        "description": "Signature url",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "pid_with_namespace",
+        "description": "Pids that contain a namespace",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "linux"
+        ]
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/yara_process.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fyara_process.yml&value=name%3A%20yara_process%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "ycloud_instance_metadata",

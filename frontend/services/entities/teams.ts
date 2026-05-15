@@ -26,6 +26,7 @@ interface ILoadTeamsParams {
  */
 export interface ILoadTeamResponse {
   team: ITeamConfig;
+  fleet: ITeamConfig;
 }
 
 export interface ILoadTeamsResponse {
@@ -54,13 +55,19 @@ export interface IUpdateTeamFormData {
       deadline: string;
     };
     windows_updates?: {
-      deadline_days: number;
-      grace_period_days: number;
+      deadline_days: number | null;
+      grace_period_days: number | null;
     };
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
     host_expiry_window: number; // days
+  };
+  features: {
+    historical_data: {
+      uptime: boolean;
+      vulnerabilities: boolean;
+    };
   };
 }
 
@@ -113,6 +120,7 @@ export default {
       integrations,
       mdm,
       host_expiry_settings,
+      features,
     }: Partial<IUpdateTeamFormData>,
     teamId?: number
   ): Promise<ILoadTeamResponse> => {
@@ -154,6 +162,9 @@ export default {
     }
     if (host_expiry_settings) {
       requestBody.host_expiry_settings = host_expiry_settings;
+    }
+    if (features) {
+      requestBody.features = features;
     }
 
     return sendRequest("PATCH", path, requestBody);

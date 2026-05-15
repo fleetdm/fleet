@@ -12,6 +12,7 @@
   var disableChatbotAndIndexing;// Disables the chatbot and adds a noindex meta tag. Used on pages linked to from Fleet.
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
+  var showSearchInMobileMenu;// Shows the Algolia DocSearch input in the mobile navigation menu.
   var defaultMetaDescription = 'Open-source '+(['it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(primaryBuyingSituation) ? 'IT' : ['security-misc','security-vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
   var corporationDisplayName = 'Fleet' + (['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? ' Device Management' : '') + ' Inc.'; // « Fleet has a DBA as "Fleet", with an official Delaware corporation name of "Fleet Device Management Inc".  -mikermcneil, 2024-03-01
 %><!DOCTYPE html>
@@ -33,6 +34,33 @@
     <meta property="og:title" content="Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
     <% if (sails.config.environment === 'production') { %>
+    <% /* ConsentMode */ %>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+          dataLayer.push(arguments);
+      }
+      gtag("consent", "default", {
+          ad_storage: "denied",
+          ad_user_data: "denied", 
+          ad_personalization: "denied",
+          analytics_storage: "denied",
+          functionality_storage: "denied",
+          personalization_storage: "denied",
+          security_storage: "granted",
+          wait_for_update: 2000,
+      });
+      gtag("set", "ads_data_redaction", true);
+    </script>
+
+    <% /* Global site tag (gtag.js) - Google Analytics */%>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
+    <script>
+      window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
+  	// Google Ads configuration (including Enhanced Conversions) 
+  	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
+    </script>      
+
     <% /* Cookie consent banner */ %>
     <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
     <% } %>
@@ -61,13 +89,7 @@
     </script>
    
     <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
-    <% /* Global site tag (gtag.js) - Google Analytics */%>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
-    <script>
-      window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
-	// Google Ads configuration (including Enhanced Conversions) 
-	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
-    </script>
+
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
       _linkedin_partner_id = "4365817";
@@ -168,6 +190,8 @@
                 </div>
                 <div purpose="mobile-nav-container" id="mobileDropdowns">
                   <div purpose="mobile-dropdown-menus">
+                    <div purpose="mobile-search" id="mobile-docsearch" class="<%- showSearchInMobileMenu ? 'd-flex' : 'd-none'%>">
+                    </div>
                     <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">
                       <div><p>Solutions</p></div>
                       <div><img src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="a small chevron"></div>
@@ -287,6 +311,8 @@
                     <hr>
                     <a purpose="mobile-dropdown-toggle" href="/pricing" class="d-flex align-items-center">Pricing</a>
                     <hr>
+                    <a purpose="mobile-dropdown-toggle" href="/partners" class="d-flex align-items-center">Partners</a>
+                    <hr>
                     <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleMore">
                       <div><p>More</p></div>
                       <div>
@@ -331,14 +357,14 @@
                           </div>
                         </div>
                       </a>
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Resources / blog" href="/articles">
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Releases / news" href="/releases">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-news-40x40@2x.png" alt="Resources / blog">
+                            <img src="/images/nav-icon-news-40x40@2x.png" alt="Releases / news">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Resources / blog
+                              Releases / news
                             </p>
                           </div>
                         </div>
@@ -542,6 +568,8 @@
 
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="width: 72px; text-decoration: none; line-height: 23px;">Pricing</a>
 
+                <a purpose="header-nav-btn" button-text="Partners" href="/partners" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'partners' ? 'current-section' : '' %>" style="width: 85px; text-decoration: none; line-height: 23px;">Partners</a>
+
 
                 <div purpose="dropdown-button" class="btn-group" >
                   <span purpose="header-nav-btn" button-text="More" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'more' ? 'current-section' : '' %>" >More <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron"></span>
@@ -610,14 +638,14 @@
                       </a>
                     </div>
                     <div purpose="dropdown-column">
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Resources / blog" href="/articles">
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Releases / news" href="/releases">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-news-40x40@2x.png" alt="Resources / blog">
+                            <img src="/images/nav-icon-news-40x40@2x.png" alt="Releases / news">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Resources / blog
+                              Releases / news
                             </p>
                           </div>
                         </div>
@@ -711,6 +739,7 @@
               <a href="/software-management">Software management</a>
               <a href="/integrations">Integrations</a>
               <a href="/pricing">Pricing</a>
+              <a href="/partners">Partners</a>
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Documentation</strong>
@@ -732,7 +761,7 @@
 
           <div purpose="footer-bottom">
             <div purpose="legal-and-social-nav" class="d-flex flex-lg-row flex-column align-items-lg-center justify-content-lg-between">
-
+              <div class="d-flex flex-column">
               <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
@@ -743,6 +772,9 @@
                   <span purpose="legal-links">
                     <a href="/legal/privacy">Privacy</a>
                   </span>
+                </div>
+              </div>
+                <div purpose="cky-button-container" class="d-block">
                 </div>
               </div>
 
@@ -820,9 +852,6 @@
       by the asset pipeline between "SCRIPTS" and "SCRIPTS END", or both.
       (https://sailsjs.com/docs/concepts/assets/task-automation)
     */ %>
-    <%/* Stripe.js */%>
-    <script src="https://js.stripe.com/v3/"></script>
-
     <%/* bowser.js (for browser detection) -- included inline to avoid issues with minification that could affect the unsupported browser overlay */%>
     <script>!function(e,i,s){if("undefined"!=typeof module&&module.exports)module.exports=s();else if("function"==typeof define&&define.amd)define(i,s);else e[i]=s()}(this,"bowser",function(){var e=true;function i(i){function s(e){var s=i.match(e);return s&&s.length>1&&s[1]||""}function o(e){var s=i.match(e);return s&&s.length>1&&s[2]||""}var r=s(/(ipod|iphone|ipad)/i).toLowerCase(),n=/like android/i.test(i),t=!n&&/android/i.test(i),a=/nexus\s*[0-6]\s*/i.test(i),d=!a&&/nexus\s*[0-9]+/i.test(i),l=/CrOS/.test(i),f=/silk/i.test(i),m=/sailfish/i.test(i),v=/tizen/i.test(i),p=/(web|hpw)os/i.test(i),c=/windows phone/i.test(i),u=/SamsungBrowser/i.test(i),h=!c&&/windows/i.test(i),w=!r&&!f&&/macintosh/i.test(i),b=!t&&!m&&!v&&!p&&/linux/i.test(i),g=o(/edg([ea]|ios)\/(\d+(\.\d+)?)/i),k=s(/version\/(\d+(\.\d+)?)/i),x=/tablet/i.test(i)&&!/tablet pc/i.test(i),y=!x&&/[^-]mobi/i.test(i),S=/xbox/i.test(i),B;if(/opera/i.test(i))B={name:"Opera",opera:e,version:k||s(/(?:opera|opr|opios)[\s\/](\d+(\.\d+)?)/i)};else if(/opr\/|opios/i.test(i))B={name:"Opera",opera:e,version:s(/(?:opr|opios)[\s\/](\d+(\.\d+)?)/i)||k};else if(/SamsungBrowser/i.test(i))B={name:"Samsung Internet for Android",samsungBrowser:e,version:k||s(/(?:SamsungBrowser)[\s\/](\d+(\.\d+)?)/i)};else if(/coast/i.test(i))B={name:"Opera Coast",coast:e,version:k||s(/(?:coast)[\s\/](\d+(\.\d+)?)/i)};else if(/yabrowser/i.test(i))B={name:"Yandex Browser",yandexbrowser:e,version:k||s(/(?:yabrowser)[\s\/](\d+(\.\d+)?)/i)};else if(/ucbrowser/i.test(i))B={name:"UC Browser",ucbrowser:e,version:s(/(?:ucbrowser)[\s\/](\d+(?:\.\d+)+)/i)};else if(/mxios/i.test(i))B={name:"Maxthon",maxthon:e,version:s(/(?:mxios)[\s\/](\d+(?:\.\d+)+)/i)};else if(/epiphany/i.test(i))B={name:"Epiphany",epiphany:e,version:s(/(?:epiphany)[\s\/](\d+(?:\.\d+)+)/i)};else if(/puffin/i.test(i))B={name:"Puffin",puffin:e,version:s(/(?:puffin)[\s\/](\d+(?:\.\d+)?)/i)};else if(/sleipnir/i.test(i))B={name:"Sleipnir",sleipnir:e,version:s(/(?:sleipnir)[\s\/](\d+(?:\.\d+)+)/i)};else if(/k-meleon/i.test(i))B={name:"K-Meleon",kMeleon:e,version:s(/(?:k-meleon)[\s\/](\d+(?:\.\d+)+)/i)};else if(c){B={name:"Windows Phone",osname:"Windows Phone",windowsphone:e};if(g){B.msedge=e;B.version=g}else{B.msie=e;B.version=s(/iemobile\/(\d+(\.\d+)?)/i)}}else if(/msie|trident/i.test(i))B={name:"Internet Explorer",msie:e,version:s(/(?:msie |rv:)(\d+(\.\d+)?)/i)};else if(l)B={name:"Chrome",osname:"Chrome OS",chromeos:e,chromeBook:e,chrome:e,version:s(/(?:chrome|crios|crmo)\/(\d+(\.\d+)?)/i)};else if(/edg([ea]|ios)/i.test(i))B={name:"Microsoft Edge",msedge:e,version:g};else if(/vivaldi/i.test(i))B={name:"Vivaldi",vivaldi:e,version:s(/vivaldi\/(\d+(\.\d+)?)/i)||k};else if(m)B={name:"Sailfish",osname:"Sailfish OS",sailfish:e,version:s(/sailfish\s?browser\/(\d+(\.\d+)?)/i)};else if(/seamonkey\//i.test(i))B={name:"SeaMonkey",seamonkey:e,version:s(/seamonkey\/(\d+(\.\d+)?)/i)};else if(/firefox|iceweasel|fxios/i.test(i)){B={name:"Firefox",firefox:e,version:s(/(?:firefox|iceweasel|fxios)[ \/](\d+(\.\d+)?)/i)};if(/\((mobile|tablet);[^\)]*rv:[\d\.]+\)/i.test(i)){B.firefoxos=e;B.osname="Firefox OS"}}else if(f)B={name:"Amazon Silk",silk:e,version:s(/silk\/(\d+(\.\d+)?)/i)};else if(/phantom/i.test(i))B={name:"PhantomJS",phantom:e,version:s(/phantomjs\/(\d+(\.\d+)?)/i)};else if(/slimerjs/i.test(i))B={name:"SlimerJS",slimer:e,version:s(/slimerjs\/(\d+(\.\d+)?)/i)};else if(/blackberry|\bbb\d+/i.test(i)||/rim\stablet/i.test(i))B={name:"BlackBerry",osname:"BlackBerry OS",blackberry:e,version:k||s(/blackberry[\d]+\/(\d+(\.\d+)?)/i)};else if(p){B={name:"WebOS",osname:"WebOS",webos:e,version:k||s(/w(?:eb)?osbrowser\/(\d+(\.\d+)?)/i)};/touchpad\//i.test(i)&&(B.touchpad=e)}else if(/bada/i.test(i))B={name:"Bada",osname:"Bada",bada:e,version:s(/dolfin\/(\d+(\.\d+)?)/i)};else if(v)B={name:"Tizen",osname:"Tizen",tizen:e,version:s(/(?:tizen\s?)?browser\/(\d+(\.\d+)?)/i)||k};else if(/qupzilla/i.test(i))B={name:"QupZilla",qupzilla:e,version:s(/(?:qupzilla)[\s\/](\d+(?:\.\d+)+)/i)||k};else if(/chromium/i.test(i))B={name:"Chromium",chromium:e,version:s(/(?:chromium)[\s\/](\d+(?:\.\d+)?)/i)||k};else if(/chrome|crios|crmo/i.test(i))B={name:"Chrome",chrome:e,version:s(/(?:chrome|crios|crmo)\/(\d+(\.\d+)?)/i)};else if(t)B={name:"Android",version:k};else if(/safari|applewebkit/i.test(i)){B={name:"Safari",safari:e};if(k)B.version=k}else if(r){B={name:"iphone"==r?"iPhone":"ipad"==r?"iPad":"iPod"};if(k)B.version=k}else if(/googlebot/i.test(i))B={name:"Googlebot",googlebot:e,version:s(/googlebot\/(\d+(\.\d+))/i)||k};else B={name:s(/^(.*)\/(.*) /),version:o(/^(.*)\/(.*) /)};if(!B.msedge&&/(apple)?webkit/i.test(i)){if(/(apple)?webkit\/537\.36/i.test(i)){B.name=B.name||"Blink";B.blink=e}else{B.name=B.name||"Webkit";B.webkit=e}if(!B.version&&k)B.version=k}else if(!B.opera&&/gecko\//i.test(i)){B.name=B.name||"Gecko";B.gecko=e;B.version=B.version||s(/gecko\/(\d+(\.\d+)?)/i)}if(!B.windowsphone&&(t||B.silk)){B.android=e;B.osname="Android"}else if(!B.windowsphone&&r){B[r]=e;B.ios=e;B.osname="iOS"}else if(w){B.mac=e;B.osname="macOS"}else if(S){B.xbox=e;B.osname="Xbox"}else if(h){B.windows=e;B.osname="Windows"}else if(b){B.linux=e;B.osname="Linux"}function O(e){switch(e){case"NT":return"NT";case"XP":return"XP";case"NT 5.0":return"2000";case"NT 5.1":return"XP";case"NT 5.2":return"2003";case"NT 6.0":return"Vista";case"NT 6.1":return"7";case"NT 6.2":return"8";case"NT 6.3":return"8.1";case"NT 10.0":return"10";default:return undefined}}var T="";if(B.windows)T=O(s(/Windows ((NT|XP)( \d\d?.\d)?)/i));else if(B.windowsphone)T=s(/windows phone (?:os)?\s?(\d+(\.\d+)*)/i);else if(B.mac){T=s(/Mac OS X (\d+([_\.\s]\d+)*)/i);T=T.replace(/[_\s]/g,".")}else if(r){T=s(/os (\d+([_\s]\d+)*) like mac os x/i);T=T.replace(/[_\s]/g,".")}else if(t)T=s(/android[ \/-](\d+(\.\d+)*)/i);else if(B.webos)T=s(/(?:web|hpw)os\/(\d+(\.\d+)*)/i);else if(B.blackberry)T=s(/rim\stablet\sos\s(\d+(\.\d+)*)/i);else if(B.bada)T=s(/bada\/(\d+(\.\d+)*)/i);else if(B.tizen)T=s(/tizen[\/\s](\d+(\.\d+)*)/i);if(T)B.osversion=T;var P=!B.windows&&T.split(".")[0];if(x||d||"ipad"==r||t&&(3==P||P>=4&&!y)||B.silk)B.tablet=e;else if(y||"iphone"==r||"ipod"==r||t||a||B.blackberry||B.webos||B.bada)B.mobile=e;if(B.msedge||B.msie&&B.version>=10||B.yandexbrowser&&B.version>=15||B.vivaldi&&B.version>=1||B.chrome&&B.version>=20||B.samsungBrowser&&B.version>=4||B.firefox&&B.version>=20||B.safari&&B.version>=6||B.opera&&B.version>=10||B.ios&&B.osversion&&B.osversion.split(".")[0]>=6||B.blackberry&&B.version>=10.1||B.chromium&&B.version>=20)B.a=e;else if(B.msie&&B.version<10||B.chrome&&B.version<20||B.firefox&&B.version<20||B.safari&&B.version<6||B.opera&&B.version<10||B.ios&&B.osversion&&B.osversion.split(".")[0]<6||B.chromium&&B.version<20)B.c=e;else B.x=e;return B}var s=i("undefined"!==typeof navigator?navigator.userAgent||"":"");s.test=function(e){for(var i=0;i<e.length;++i){var o=e[i];if("string"===typeof o)if(o in s)return true}return false};function o(e){return e.split(".").length}function r(e,i){var s=[],o;if(Array.prototype.map)return Array.prototype.map.call(e,i);for(o=0;o<e.length;o++)s.push(i(e[o]));return s}function n(e){var i=Math.max(o(e[0]),o(e[1]));var s=r(e,function(e){var s=i-o(e);e+=new Array(s+1).join(".0");return r(e.split("."),function(e){return new Array(20-e.length).join("0")+e}).reverse()});while(--i>=0)if(s[0][i]>s[1][i])return 1;else if(s[0][i]===s[1][i]){if(0===i)return 0}else return-1}function t(e,o,r){var t=s;if("string"===typeof o){r=o;o=void 0}if(void 0===o)o=false;if(r)t=i(r);var a=""+t.version;for(var d in e)if(e.hasOwnProperty(d))if(t[d]){if("string"!==typeof e[d])throw new Error("Browser version in the minVersion map should be a string: "+d+": "+String(e));return n([a,e[d]])<0}return o}function a(e,i,s){return!t(e,i,s)}s.isUnsupportedBrowser=t;s.compareVersions=n;s.check=a;s._detect=i;s.detect=i;return s});</script>
 
@@ -849,8 +878,10 @@
     <script src="/js/components/ajax-form.component.js"></script>
     <script src="/js/components/animated-arrow-button.component.js"></script>
     <script src="/js/components/bar-chart.component.js"></script>
+    <script src="/js/components/bubble.component.js"></script>
     <script src="/js/components/call-to-action.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
+    <script src="/js/components/code-block-copy-buttons.component.js"></script>
     <script src="/js/components/docs-nav-and-search.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/logo-carousel.component.js"></script>
@@ -860,9 +891,6 @@
     <script src="/js/components/parallax-city.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
-    <script src="/js/components/stripe-card-element.component.js"></script>
-    <script src="/js/utilities/open-stripe-checkout.js"></script>
-    <script src="/js/pages/account/account-overview.page.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>
     <script src="/js/pages/account/edit-profile.page.js"></script>
     <script src="/js/pages/admin/email-preview.page.js"></script>
@@ -871,21 +899,34 @@
     <script src="/js/pages/admin/query-generator.page.js"></script>
     <script src="/js/pages/admin/reset-trial.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
-    <script src="/js/pages/app-details.page.js"></script>
-    <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/articles/basic-webinar.page.js"></script>
     <script src="/js/pages/articles/basic-whitepaper.page.js"></script>
     <script src="/js/pages/articles/case-study.page.js"></script>
-    <script src="/js/pages/command-details.page.js"></script>
     <script src="/js/pages/configuration-builder.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
+    <script src="/js/pages/customers.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>
     <script src="/js/pages/deals.page.js"></script>
     <script src="/js/pages/device-management.page.js"></script>
+    <script src="/js/pages/docs/app-details.page.js"></script>
+    <script src="/js/pages/docs/app-library.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
+    <script src="/js/pages/docs/command-details.page.js"></script>
+    <script src="/js/pages/docs/mdm-commands.page.js"></script>
+    <script src="/js/pages/docs/os-settings.page.js"></script>
+    <script src="/js/pages/docs/osquery-table-details.page.js"></script>
+    <script src="/js/pages/docs/policy-details.page.js"></script>
+    <script src="/js/pages/docs/policy-library.page.js"></script>
+    <script src="/js/pages/docs/report-details.page.js"></script>
+    <script src="/js/pages/docs/report-library.page.js"></script>
+    <script src="/js/pages/docs/script-details.page.js"></script>
+    <script src="/js/pages/docs/script-library.page.js"></script>
+    <script src="/js/pages/docs/vital-details.page.js"></script>
+    <script src="/js/pages/download.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>
     <script src="/js/pages/entrance/forgot-password.page.js"></script>
     <script src="/js/pages/entrance/login.page.js"></script>
@@ -899,39 +940,37 @@
     <script src="/js/pages/homepage.page.js"></script>
     <script src="/js/pages/infrastructure-as-code.page.js"></script>
     <script src="/js/pages/integrations.page.js"></script>
+    <script src="/js/pages/landing-pages/apple-mdm.page.js"></script>
+    <script src="/js/pages/landing-pages/autonomous-endpoint-management.page.js"></script>
     <script src="/js/pages/landing-pages/basic-comparison.page.js"></script>
     <script src="/js/pages/landing-pages/deployment.page.js"></script>
     <script src="/js/pages/landing-pages/gitops-workshop.page.js"></script>
     <script src="/js/pages/landing-pages/linux-management.page.js"></script>
+    <script src="/js/pages/landing-pages/on-premise.page.js"></script>
+<<<<<<< ak-fleet-open-source
+    <script src="/js/pages/landing-pages/open-source.page.js"></script>
+=======
+    <script src="/js/pages/landing-pages/patch-faster.page.js"></script>
+>>>>>>> main
+    <script src="/js/pages/landing-pages/replace-jamf.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
-    <script src="/js/pages/mdm-commands.page.js"></script>
-    <script src="/js/pages/meetups.page.js"></script>
     <script src="/js/pages/microsoft-proxy/remediate.page.js"></script>
     <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
     <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/okta-conditional-access-error.page.js"></script>
-    <script src="/js/pages/os-settings.page.js"></script>
-    <script src="/js/pages/osquery-table-details.page.js"></script>
-    <script src="/js/pages/policy-details.page.js"></script>
-    <script src="/js/pages/policy-library.page.js"></script>
+    <script src="/js/pages/partners.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
-    <script src="/js/pages/query-detail.page.js"></script>
-    <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
-    <script src="/js/pages/script-details.page.js"></script>
-    <script src="/js/pages/scripts.page.js"></script>
     <script src="/js/pages/software-management.page.js"></script>
     <script src="/js/pages/start.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
-    <script src="/js/pages/testimonials.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
-    <script src="/js/pages/vital-details.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.
@@ -1051,6 +1090,35 @@
           $(this).children('.dropdown-toggle').attr('aria-expanded', false);
         });
       });
+      // Add an event listener to watch for the cookie banner loading.
+      document.addEventListener("cookieyes_banner_load", function (eventData) {
+        //  Check the value in the JSON eventData and perform the desired action.
+        if(eventData.detail) {
+          if(eventData.detail.activeLaw === 'ccpa'){
+            // If this user sees a cookieyes banner for CCPA, add a "Do not sell or share my personal information" link to the bottom of the website footer.
+            $('div[purpose="cky-button-container"]').append(
+              '<a purpose="cky-button">Do Not Sell or Share My Personal Information</a>'
+            );
+            // Add a click event to the added button to bring up the cookie yes menu.
+            $(function(){
+              $('a[purpose="cky-button"]').click(
+                function() {
+                  revisitCkyConsent()
+                }
+              );
+            });
+          }
+        }
+      });
     </script>
+    <% if (sails.config.environment === 'production') { %>
+    <% /* ActiveCampaign */ %>
+    <script>
+      (function(e,t,o,n,p,r,i){e.visitorGlobalObjectAlias=n;e[e.visitorGlobalObjectAlias]=e[e.visitorGlobalObjectAlias]||function(){(e[e.visitorGlobalObjectAlias].q=e[e.visitorGlobalObjectAlias].q||[]).push(arguments)};e[e.visitorGlobalObjectAlias].l=(new Date).getTime();r=t.createElement("script");r.src=o;r.async=true;i=t.getElementsByTagName("script")[0];i.parentNode.insertBefore(r,i)})(window,document,"https://diffuser-cdn.app-us1.com/diffuser/diffuser.js","vgo");
+      vgo('setAccount', '652899825');
+      vgo('setTrackByDefault', true);
+      vgo('process');
+    </script>      
+   <% } %>
   </body>
 </html>

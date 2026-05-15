@@ -1,0 +1,46 @@
+.selected-teams-form {
+  &__list {
+    display: flex;
+    flex-direction: column;
+    border-radius: 4px;
+    border: 1px solid $ui-fleet-black-10;
+    padding-left: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    height: 38px;
+    padding: 0 $pad-medium;
+    font-size: $x-small;
+    font-weight: $bold;
+    background-color: $ui-off-white;
+    border-bottom: 1px solid $ui-fleet-black-10;
+  }
+
+  &__team-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $pad-xsmall $pad-medium;
+    min-height: 38px; // matches react-select control height
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .form-field--dropdown {
+      width: 170px;
+    }
+  }
+
+  &__role-dropdown {
+    .Select-control {
+      border: none;
+      width: 130px;
+    }
+  }
+}

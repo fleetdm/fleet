@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +54,7 @@ func TestVerifyHostMDMProfiles(t *testing.T) {
 			expectedProfiles: map[string]*fleet.ExpectedMDMProfile{"profile1": {}, "profile2": {}},
 			retryCounts: []fleet.HostMDMProfileRetryCount{
 				{ProfileIdentifier: "profile1", Retries: 0},
-				{ProfileIdentifier: "profile2", Retries: 1},
+				{ProfileIdentifier: "profile2", Retries: mdm.MaxAppleProfileRetries},
 			},
 			installed: map[string]*fleet.HostMacOSProfile{},
 			toRetry:   []string{"profile1"},
@@ -78,7 +79,7 @@ func TestVerifyHostMDMProfiles(t *testing.T) {
 				"profile1": {InstallDate: time.Now().Add(-24 * time.Hour)},
 			},
 			retryCounts: []fleet.HostMDMProfileRetryCount{
-				{ProfileIdentifier: "profile1", Retries: 1},
+				{ProfileIdentifier: "profile1", Retries: mdm.MaxAppleProfileRetries},
 			},
 			toFail: []string{"profile1"},
 		},

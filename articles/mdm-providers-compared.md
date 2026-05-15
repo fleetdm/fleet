@@ -20,7 +20,7 @@ Workspace ONE is an MDM product from Omnissa that provides unified endpoint mana
 
 ### Enrollment and provisioning
 
-When new employees join or devices need to be deployed at scale, zero-touch enrollment lets IT ship devices directly to end users without manual setup. Fleet supports zero-touch deployment for macOS, Windows, and iOS/iPadOS, with Apple Business Manager integration for Apple devices and Windows Autopilot for Windows. Workspace ONE also supports zero-touch enrollment across these operating systems.
+When new employees join or devices need to be deployed at scale, zero-touch enrollment lets IT ship devices directly to end users without manual setup. Fleet supports zero-touch deployment for macOS, Windows, and iOS/iPadOS, with Apple Business integration for Apple devices and Windows Autopilot for Windows. Workspace ONE also supports zero-touch enrollment across these operating systems.
 
 Both solutions provide options for preventing end users from removing management and MDM configuration profiles without authorization. Both also support MDM migration using Apple's native capabilities for macOS, iOS, and iPadOS. Fleet extends this further for Windows and Linux. Fleet offers migration scripts and documentation to help IT teams transition these devices with minimal end-user disruption, allowing teams to move enrolled devices to Fleet without requiring employees to re-enroll or lose data.
 
@@ -71,7 +71,7 @@ Fleet's interoperable import/export format avoids vendor lock-in. Workspace ONE 
 
 ## Deployment flexibility
 
-Fleet offers both cloud-hosted and self-hosted deployment options with identical features and no restrictions. Self-hosted deployments enable organizations with strict data sovereignty requirements to keep all device data within their own infrastructure. Fleet manages all device types from a single console, with Apple Business Manager integration for zero-touch deployment on Apple devices.
+Fleet offers both cloud-hosted and self-hosted deployment options with identical features and no restrictions. Self-hosted deployments enable organizations with strict data sovereignty requirements to keep all device data within their own infrastructure. Fleet manages all device types from a single console, with Apple Business integration for zero-touch deployment on Apple devices.
 
 Workspace ONE discourages on-premises deployment, steering organizations toward cloud hosting.
 
@@ -87,7 +87,7 @@ Open-source tools like Fleet provide full transparency into the codebase, allowi
 
 #### How does Fleet manage Apple devices?
 
-Fleet provides full Apple device management including MDM enrollment, configuration profiles, and software deployment for macOS, iOS, and iPadOS. Fleet supports Apple Business Manager integration for zero-touch deployment, and manages Apple devices alongside Windows, Linux, ChromeOS, and Android endpoints from a single console.
+Fleet provides full Apple device management including MDM enrollment, configuration profiles, and software deployment for macOS, iOS, and iPadOS. Fleet supports Apple Business integration for zero-touch deployment, and manages Apple devices alongside Windows, Linux, ChromeOS, and Android endpoints from a single console.
 
 #### How does device reporting speed affect IT and security operations?
 
@@ -102,7 +102,6 @@ Fleet and Workspace ONE each provide MDM enrollment, configuration management, a
 Fleet supports MDM migration without requiring device wipes, allowing organizations to transition devices from an existing MDM with minimal disruption. The migration process preserves device enrollment and user data while transferring management to Fleet. Organizations can migrate gradually, running Fleet alongside an existing tool during the transition period.
 
 <meta name="articleTitle" value="MDM Providers Compared: Fleet vs Workspace ONE">
-<meta name="articleSubtitle" value="Choosing the right MDM solution">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="comparison">

@@ -33,7 +33,7 @@ func TestDEPService(t *testing.T) {
 		logger := slog.New(slog.DiscardHandler)
 		depStorage := new(nanodep_mock.Storage)
 		depSvc := NewDEPService(ds, depStorage, logger)
-		defaultProfile := depSvc.getDefaultProfile()
+		defaultProfile := depSvc.GetDefaultProfile()
 		serverURL := "https://example.com/"
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -580,11 +580,18 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return nil, nil
 		}
 		// Mock clear flow - no hosts need clearing
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
 			return nil, nil
 		}
 
@@ -596,7 +603,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		require.NoError(t, err)
 		assert.False(t, commandSent, "SetRecoveryLock should not be called when no hosts need it")
 	})
@@ -608,12 +615,19 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
 		}
 		// Mock clear flow - no hosts need clearing
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
 			return nil, nil
 		}
 
@@ -636,7 +650,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		require.NoError(t, err)
 
 		// Verify call order: password must be stored BEFORE command is sent
@@ -657,12 +671,19 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
 		}
 		// Mock clear flow - no hosts need clearing
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
 			return nil, nil
 		}
 
@@ -687,7 +708,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "APNs push failed")
 
@@ -706,12 +727,19 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		hostUUID := "host-uuid-1"
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
 		}
 		// Mock clear flow - no hosts need clearing
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
 			return nil, nil
 		}
 
@@ -735,7 +763,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		// Should NOT return error - command was persisted, just push failed
 		require.NoError(t, err)
 
@@ -748,8 +776,9 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 
 // mockRecoveryLockCommander implements RecoveryLockCommander for testing.
 type mockRecoveryLockCommander struct {
-	setRecoveryLockFn   func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
-	clearRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	setRecoveryLockFn    func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	clearRecoveryLockFn  func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	rotateRecoveryLockFn func(ctx context.Context, hostUUID string, cmdUUID string) error
 }
 
 func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
@@ -766,6 +795,13 @@ func (m *mockRecoveryLockCommander) ClearRecoveryLock(ctx context.Context, hostU
 	return nil
 }
 
+func (m *mockRecoveryLockCommander) RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error {
+	if m.rotateRecoveryLockFn != nil {
+		return m.rotateRecoveryLockFn(ctx, hostUUID, cmdUUID)
+	}
+	return nil
+}
+
 func TestSendClearRecoveryLockCommands(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
@@ -775,6 +811,9 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 
 		// Mock restore - no hosts to restore
 		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
 		// No hosts need SET
@@ -787,6 +826,10 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
 			return []string{hostUUID}, nil
 		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
 
 		var clearCalled bool
 		mockCommander := &mockRecoveryLockCommander{
@@ -797,7 +840,7 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		require.NoError(t, err)
 		require.True(t, clearCalled, "ClearRecoveryLock should have been called")
 	})
@@ -809,12 +852,19 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
 		// No hosts need SET
 		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
 			return nil, nil
 		}
 
 		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
 			return nil, nil
 		}
 
@@ -825,7 +875,177 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 			},
 		}
 
-		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger)
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
 		require.NoError(t, err)
+	})
+}
+
+// mockManagedLocalAccountCommander implements ManagedLocalAccountRotationCommander for testing.
+type mockManagedLocalAccountCommander struct {
+	setAutoAdminPasswordFn func(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
+}
+
+func (m *mockManagedLocalAccountCommander) SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+	if m.setAutoAdminPasswordFn != nil {
+		return m.setAutoAdminPasswordFn(ctx, hostUUID, guid, passwordHashPlist, cmdUUID)
+	}
+	return nil
+}
+
+func TestSendManagedLocalAccountRotationCommands(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	t.Run("no hosts due", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetManagedLocalAccountsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error) {
+			return nil, nil
+		}
+		mockCommander := &mockManagedLocalAccountCommander{
+			setAutoAdminPasswordFn: func(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+				t.Fatal("SetAutoAdminPassword must not be called when no hosts are due")
+				return nil
+			},
+		}
+		require.NoError(t, sendManagedLocalAccountRotationCommandsWithCommander(ctx, ds, mockCommander, logger, nil))
+	})
+
+	t.Run("rotates and logs activity for view-driven row", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetManagedLocalAccountsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error) {
+			return []fleet.HostManagedLocalAccountAutoRotationInfo{
+				{HostUUID: "uuid-1", HostID: 1, DisplayName: "host-1", AccountUUID: "acct-1", InitiatedByFleet: true},
+			}, nil
+		}
+		var initiateCalled, setCalled bool
+		ds.InitiateManagedLocalAccountRotationFunc = func(ctx context.Context, hostUUID, plaintextPassword, cmdUUID string) error {
+			initiateCalled = true
+			require.Equal(t, "uuid-1", hostUUID)
+			require.NotEmpty(t, plaintextPassword)
+			require.NotEmpty(t, cmdUUID)
+			return nil
+		}
+		mockCommander := &mockManagedLocalAccountCommander{
+			setAutoAdminPasswordFn: func(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+				setCalled = true
+				require.Equal(t, "uuid-1", hostUUID)
+				require.Equal(t, "acct-1", guid)
+				require.NotEmpty(t, passwordHashPlist)
+				return nil
+			},
+		}
+		var loggedActivities []fleet.ActivityDetails
+		newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			loggedActivities = append(loggedActivities, activity)
+			require.Nil(t, user, "auto-rotation must log with nil user (Fleet actor)")
+			return nil
+		}
+		require.NoError(t, sendManagedLocalAccountRotationCommandsWithCommander(ctx, ds, mockCommander, logger, newActivityFn))
+		require.True(t, initiateCalled)
+		require.True(t, setCalled)
+		require.Len(t, loggedActivities, 1)
+		rotated, ok := loggedActivities[0].(fleet.ActivityTypeRotatedManagedLocalAccountPassword)
+		require.True(t, ok)
+		require.True(t, rotated.FleetInitiated)
+	})
+
+	t.Run("does NOT log activity for deferred manual rotation", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetManagedLocalAccountsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error) {
+			return []fleet.HostManagedLocalAccountAutoRotationInfo{
+				{HostUUID: "uuid-2", HostID: 2, DisplayName: "host-2", AccountUUID: "acct-2", InitiatedByFleet: false},
+			}, nil
+		}
+		ds.InitiateManagedLocalAccountRotationFunc = func(ctx context.Context, hostUUID, plaintextPassword, cmdUUID string) error {
+			return nil
+		}
+		mockCommander := &mockManagedLocalAccountCommander{}
+		var loggedActivities []fleet.ActivityDetails
+		newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			loggedActivities = append(loggedActivities, activity)
+			return nil
+		}
+		require.NoError(t, sendManagedLocalAccountRotationCommandsWithCommander(ctx, ds, mockCommander, logger, newActivityFn))
+		require.Empty(t, loggedActivities, "deferred manual rotations were already logged at click time and must not be re-logged by the cron")
+	})
+
+	t.Run("benign race - rotation pending - skipped silently", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetManagedLocalAccountsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error) {
+			return []fleet.HostManagedLocalAccountAutoRotationInfo{
+				{HostUUID: "uuid-3", HostID: 3, DisplayName: "host-3", AccountUUID: "acct-3", InitiatedByFleet: true},
+			}, nil
+		}
+		ds.InitiateManagedLocalAccountRotationFunc = func(ctx context.Context, hostUUID, plaintextPassword, cmdUUID string) error {
+			return fleet.ErrManagedLocalAccountRotationPending
+		}
+		mockCommander := &mockManagedLocalAccountCommander{
+			setAutoAdminPasswordFn: func(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+				t.Fatal("SetAutoAdminPassword must not be called when initiate failed with benign race")
+				return nil
+			},
+		}
+		require.NoError(t, sendManagedLocalAccountRotationCommandsWithCommander(ctx, ds, mockCommander, logger, nil))
+	})
+
+	t.Run("APNs error keeps pending state and still logs activity", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetManagedLocalAccountsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error) {
+			return []fleet.HostManagedLocalAccountAutoRotationInfo{
+				{HostUUID: "uuid-4", HostID: 4, DisplayName: "host-4", AccountUUID: "acct-4", InitiatedByFleet: true},
+			}, nil
+		}
+		ds.InitiateManagedLocalAccountRotationFunc = func(ctx context.Context, hostUUID, plaintextPassword, cmdUUID string) error {
+			return nil
+		}
+		var clearCalled bool
+		ds.ClearManagedLocalAccountRotationFunc = func(ctx context.Context, hostUUID string) error {
+			clearCalled = true
+			return nil
+		}
+		mockCommander := &mockManagedLocalAccountCommander{
+			setAutoAdminPasswordFn: func(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+				return &APNSDeliveryError{errorsByUUID: map[string]error{hostUUID: errors.New("push failed")}}
+			},
+		}
+		var loggedActivities []fleet.ActivityDetails
+		newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			loggedActivities = append(loggedActivities, activity)
+			return nil
+		}
+		require.NoError(t, sendManagedLocalAccountRotationCommandsWithCommander(ctx, ds, mockCommander, logger, newActivityFn))
+		require.False(t, clearCalled, "APNs failures must not roll back pending rotation — the command is persisted")
+		require.Len(t, loggedActivities, 1)
+	})
+
+	t.Run("persistence error rolls back pending rotation and skips activity", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetManagedLocalAccountsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error) {
+			return []fleet.HostManagedLocalAccountAutoRotationInfo{
+				{HostUUID: "uuid-5", HostID: 5, DisplayName: "host-5", AccountUUID: "acct-5", InitiatedByFleet: true},
+			}, nil
+		}
+		ds.InitiateManagedLocalAccountRotationFunc = func(ctx context.Context, hostUUID, plaintextPassword, cmdUUID string) error {
+			return nil
+		}
+		var clearCalled bool
+		ds.ClearManagedLocalAccountRotationFunc = func(ctx context.Context, hostUUID string) error {
+			clearCalled = true
+			return nil
+		}
+		mockCommander := &mockManagedLocalAccountCommander{
+			setAutoAdminPasswordFn: func(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+				return errors.New("storage write failed")
+			},
+		}
+		var loggedActivities []fleet.ActivityDetails
+		newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			loggedActivities = append(loggedActivities, activity)
+			return nil
+		}
+		err := sendManagedLocalAccountRotationCommandsWithCommander(ctx, ds, mockCommander, logger, newActivityFn)
+		require.Error(t, err)
+		require.True(t, clearCalled)
+		require.Empty(t, loggedActivities)
 	})
 }

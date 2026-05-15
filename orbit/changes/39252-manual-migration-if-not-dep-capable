@@ -1,1 +1,0 @@
-* Fixed an issue where the automatic migration preview would show when the device was not MDM-enrolled and not enrolled via DEP.

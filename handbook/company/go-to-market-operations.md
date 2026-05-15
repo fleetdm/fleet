@@ -28,7 +28,7 @@ The goal of the 🤝Enterprise group is to provide the best possible customer ex
 |:----------------------------------|:--------------------------|
 | Revenue DRI                       | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
 | Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_ <br> [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_ <br> [Henry Stamerjohann](https://www.linkedin.com/in/henry-st/) _([@headmin](https://github.com/headmin))_
-| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Kevin Malkin](https://www.linkedin.com/in/kevin-malkin-04247120/) _([@kevinmalkin12](https://github.com/kevinmalkin12))_  <br> [Nick Blee](https://www.linkedin.com/in/nickablee/) _([@NickBlee](https://github.com/NickBlee))_
+| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_  <br> [Nick Blee](https://www.linkedin.com/in/nickablee/) _([@NickBlee](https://github.com/NickBlee))_ <br> [Manny Mendoza](https://www.linkedin.com/in/mannymendoza1/) _([@mmendm](https://github.com/mmendm))_ 
 | Solutions Specialist              | [Thomas Salomon](https://www.linkedin.com/in/thomassalomon4/) _([@ThomasSalomon4](https://github.com/ThomasSalomon4))_ <br> [Maribell Morales](https://www.linkedin.com/in/maribell-morales-056647139/) _([@maribell-fleetdm](https://github.com/maribell-fleetdm))_
 | Pipeline DRI                      | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala/) _([@akuthiala](https://github.com/akuthiala))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
@@ -97,8 +97,6 @@ At Fleet, our GTM strategy consists of:
 ### Competition
 
 We track competitors' capabilities and adjacent (or commonly integrated) products in [Competition](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) (private document).
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/680adba6-f5b7-4726-b2ea-73d0549a45eb">
 
 > Due to legislation by the U.S. Department of Commerce, we are unable to initiate business with [certain countries and territories including specific U.S. sanction programs.](https://ofac.treasury.gov/sanctions-programs-and-country-information)
 
@@ -169,19 +167,42 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 
 It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
-##### Creating contacts in the wild
 
-Often, Fleeties will engage with new contacts from current and future customers. These profiles are added to Fleet's CRM quickly. If you're at an event, whether it's a conference, dinner with a prospect, training event, or any other in-person meeting. Fleeties can use the [#help-create-contact Slack channel](https://fleetdm.slack.com/archives/C091MLXQKQV) to collect information and get the person [added to Fleet's CRM quickly](https://fleetdm.com/handbook/marketing#monitor-the-help-create-contact-channel). To do this:
-1. Locate the [help-create-contact](https://fleetdm.slack.com/archives/C091MLXQKQV) channel in Fleet Slack.
-2. Add the person's full name and any other details that can help the team identify the correct person. E.g.:
-  - LinkedIn profile URL (this is the best option)
-  - Company name
-  - Company website
-  - Email
+### Field event follow-up
 
-> Please use the following guidelines when posting in the channel:
->   - Use only one top-level message per contact. Don't batch contacts inside one message, and don't create multiple messages for a single person. Use thread replies to add context.
->   - Add as much context as possible to help the team find the right info. At least a full name + one other piece of information is required, but more is preferred.
+#### Solution Specialist: Tradeshows, GitOps & field events
+
+##### Post-event goals
+- Immediate outreach to all scans and attendees within 24 hours
+- Assign Partner, ICP, and pipeline accounts to the correct DRI
+- Direct non-ICP accounts to the "Let's Get You Set Up" engagement
+
+##### Follow-up process
+
+**Immediate**
+
+| Phase | Action | Timing |
+|-------|--------|--------|
+| Prioritize | Sort contacts by status. Tag each as ICP prospect, existing pipeline, partner, or non-ICP. Assign DRI immediately. | Within 2 hrs |
+| Pull from SF | Open recent events dashboard. Pull all "Attended", "Engaged", "Interacted", and "Registered" members from the campaign record. | Within 2 hrs |
+
+**Outreach**
+
+| Phase | Action | Timing |
+|-------|--------|--------|
+| Email | Send a personalized email to every scan/attendee. Reference the event. Lead with value — not a generic follow-up. | Within 24 hrs |
+| Call to Action | ICP/pipeline: request a meeting or demo with a booking link. Non-ICP: direct to self-serve or "Let's Get You Set Up." | Within 24 hrs |
+| LinkedIn | Send a personalized connection request referencing the event. Follow up with a message after acceptance. | Within 24 hrs |
+| Log in SFDC | Update campaign member status. Log all tasks, activities, meetings booked, and opportunities identified. | Within 24 hrs |
+
+**Routing (concurrent with outreach)**
+
+| Phase | Action | Timing |
+|-------|--------|--------|
+| ICP Prospect | Begin discovery. Book intro/demo. Create opportunity in SFDC. | Immediate |
+| Pipeline Account | Notify DRI. Use event touch to accelerate the deal. Log against the open opportunity. | Immediate |
+| Partner Account | Route to channel DRI. Log in CRM. | Immediate |
+| Non-ICP | Send "Let's Get You Set Up." Point to self-serve. Log disposition in CRM. | Immediate |
 
 
 #### SWAG
@@ -192,13 +213,11 @@ Bulk SWAG (Stuff-We-All-Get) orders of any kind are reviewed and placed by the [
 
 Fleet uses YouTube to help keep the community up-to-date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Sprint demos!").  
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/29167232-652c-4c64-a37c-910cc781f2c1">
-
 
 ## Processing intent signals
 
 Intent signals help measure an individual's/organization's current level of engagement with the Fleet brand and help us:  
-- Created/update contact and/or accounts in Fleet's CRM. 
+- Create/update contact and/or accounts in Fleet's CRM. 
 - Prioritize accounts for [research](https://fleetdm.com/handbook/marketing#research-an-account).
 - Identify accounts/contacts that would benefit from a POV conversation.
 
@@ -219,6 +238,86 @@ Warm-up actions are that Fleet will take at any point in time to help move the p
 Our ADRs stay connected with Fleet’s engineering team to keep technical knowledge current and to coordinate any outreach. Everyone’s time is valuable, and this approach ensures that prospects have direct access to engineers who speak their language. (Munki, DDM, patch management, EPSS, etc.)
 
 
+### Solution Specialist inbound lead follow-up
+
+### Objective
+
+Convert high-intent inbound leads into qualified first meetings through fast engagement and strict response SLAs.
+
+### Source queue
+
+Salesforce Report: Solution Specialist — includes:
+- Demo Requests - ICP
+- Demo Requests (evaluate)
+- "Talk to Us" form submissions
+- Webinar Sign-ups
+- Document Downloads
+- Sign-ups and trial starts
+- Swag requests (lower priority)
+- Other website conversions
+
+Monitor hourly, sorted by Created Date (newest first). No lead untouched > 60 minutes. If a Solution Specialist is out of office, etc. another Solution Specialist will assume ownership of the follow-up.
+
+### Lead prioritization
+
+| Tier | SLA | Leads |
+|------|-----|-------|
+| Tier 1 | Immediate | "Talk to Us" forms, demo requests, 1K+ employee accounts |
+| Tier 2 | ≤ 1 hour | Sign-ups and trial starts |
+| Tier 3 | Same day | Swag requests, low-intent conversions — qualify fast or disqualify |
+
+### Workflow
+
+**Check for live engagement (last 10 min)**
+- Attempt real-time engagement via Qualified — SLA: ≤ 5 minutes
+
+**Immediate outreach (same hour, if not live)**
+- Send a personalized email referencing company name, use case, and source
+- LinkedIn connection request
+- Maximum three attempts at contact, if no response
+
+**Qualify quickly**
+- Clear use case? Relevant company size? Relevant role?
+- If unsure → treat as Tier 2 and follow up once
+- If no → disqualify and move on
+
+**Book meeting**
+- Schedule directly on AE calendar
+- Include: use case summary, lead source, and any urgency signals
+
+**Update Salesforce — before moving to next lead**
+- Status updated, activity logged, notes added (use case + tier)
+- Assign to AE if qualified
+
+### Response SLAs
+
+| Scenario | SLA |
+|----------|-----|
+| Live inbound (chat / Qualified) | ≤ 5 minutes |
+| New Tier 1 & 2 inbound | ≤ 1 hour |
+| Tier 3 (swag, low intent) | Same day |
+| Meeting scheduled after qualification | ≤ 48 hours |
+
+### Outreach standards
+
+- Always reference company name and action taken
+- No generic messaging. Keep it direct, outcome-focused, and short
+- No lead ends the day without a clear disposition
+
+### Escalate immediately if
+
+- 2,000+ employees in report
+- Known or high-value target
+- "Talk to Us" submission combined with strong buying signals (e.g., Calendly intent)
+
+### Daily standard
+
+- Zero backlog — every lead has an action taken and clear disposition
+- All priority leads engaged within SLA
+- Salesforce updated before moving to next lead
+
+
+
 ## Proof of value (POV)
 
 When the prospect is ready to "kick the tires/do a POC", the opportunity is moved to "Stage 3 - Requested POV"  in Salesforce. The AE and SC work together with the prospect to define a timeline and the "definition of done" in order to scope the POV. This planning helps us avoid costly detours that can take a long time, and result in folks getting lost. 
@@ -228,7 +327,7 @@ When the prospect is ready to "kick the tires/do a POC", the opportunity is move
 
 You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
 
-- **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key).  Then, once the environment is set up, you'll get a notification and you can let the user know.
+- **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://github.com/fleetdm/confidential/issues/new?template=new-fleet-instance.md).  Then, once the environment is set up, you'll get a notification and you can let the user know.
 - **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/try, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleectl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.
 
 
@@ -239,6 +338,71 @@ NFR (Not For Resale) instances are Fleet environments deployed for partners and 
 #### Deploy an NFR instance
 
 **To deploy an NFR instance:** Create a [new NFR instance issue](https://github.com/fleetdm/confidential/issues/new?template=new-nfr-request.yml). Solutions Consulting will deploy the instance. The infrastructure team will then configure DNS and email, and the requester will be notified in #help-solutions-consulting when the instance is ready.
+
+
+## Quoting
+
+
+### Create a quote
+
+Navigate to the opportunity you are creating a quote for, then follow the steps below.
+
+1. Advance through each pipeline stage sequentially using the stage progression bar. Salesforce enforces sequential progression — skipping a stage will trigger an error.
+
+2. When you attempt to advance to the **"Justification"** stage, Salesforce will block the move with an error indicating an approved quote is required. Scroll down to the **"Quotes"** section and click **"New Quote"**.
+
+3. Enter a proxy name for the quote (the system auto-generates the final name). Review the pre-populated defaults — Billing Frequency is Annual and Payment Terms are Net 30 — and update if needed. Click **"Save"**, then open the newly created quote record.
+
+4. Scroll to **"Related Lists"** and locate **"Quote Line Items"**. Click **"Add Products"** to open the Fleet Price Book, select all products to include, and click **"Next"**.
+
+5. For each line item, set the following fields:
+   - **"Unit Price"**: update if applying a discount from list price
+   - **"Quantity"**: number of endpoints or units
+   - **"Contract Start Date"**: effective date of the contract
+   - **"Contract Term in Months"**: duration (e.g., 12 for one year, 24 for two years)
+
+   The **"Discount Percentage"** field is locked and updates automatically based on the difference between list price and unit price. Click **"Save"**. MRR, ARR, Total Price, and Grand Total will update automatically.
+
+6. Click **"Submit for Approval"**. Complete any remaining required fields:
+   - Billing address
+   - Contact name (selected from associated Salesforce contact records)
+   - Quote expiration date
+   - Contract term in months
+   - Billing frequency and payment terms
+
+   Add any relevant notes in the submission comments field and click **"Submit"**.
+
+   > Chaz is the approver for new business opportunities. Zay is the approver for renewals and upsells.
+
+7. If the quote is rejected, review the feedback, make the necessary changes to the quote or line items, and resubmit following step 6.
+
+8. Once the quote is approved, click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, then send to stakeholders.
+
+   | Template | When to use |
+   | -------- | ----------- |
+   | Direct | Renewing an existing non-channel customer with no partner involved |
+   | Promises or custom terms | Selling directly to the customer with special commitments included |
+   | Authorized partner | Selling through an authorized channel partner |
+   | Unauthorized partner | Selling through a channel partner pending authorization |
+   | 3eye distributorship | Selling through the 3EYE distributor |
+
+
+
+### Remove a contact from the "Top contacts" list in Salesforce
+
+1. Navigate to the contact.
+2. Uncheck the ⭐ field in the system info section at the bottom and save the record.
+
+<img width="2489" height="612" alt="image" src="https://github.com/user-attachments/assets/d67e6890-4eb8-485b-8faf-4eed67a14ce1" />
+
+
+### Mark an account as a "Top target"
+
+Navigate to the account you would like to label as a "Top target". Edit the account, and check the box, and save the record.
+
+> Want to stack rank your target accounts?
+>
+> Once you check the "Top target" box, the "Target tier" field will appear. You can split your target accounts into 3 different tiers. "Tier 1" being the best, "Tier 3" being the least priority but still worth calling out.
 
 
 ## Signatures
@@ -281,6 +445,18 @@ Use the following steps to send Fleet's vendor collateral to a prospect or custo
 
 Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/it/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/it/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/it/security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
+
+## Slide decks
+
+The goal of a slide deck is not necessarily to walk every customer through it.  It's to make sure we're presenting the most impactful outcomes of Fleet to the right people, and standardizing how we talk about the products and customer experience to give people evaluating Fleet the opportunity to understand it, fairly evaluate it, and present it in the best light internally to other people at their organization.
+
+Even if you never show these decks on a screenshare, use them to keep the conversation on track, or to send as a teaser.
+
+- [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
+- [Fleet for digital workplace leaders](https://docs.google.com/presentation/d/1G8BtuhYRX92He3AifA5TAW4YlZO3jlcj8OeCqcSHmOM/edit?slide=id.g3d28ee536a1_2_37#slide=id.g3d28ee536a1_2_37)
+- [Fleet for CISOs](https://docs.google.com/presentation/d/17PUAqa63jTb5yFT3hGg3F5mgGyPtUmg8OlTGyxS6vLI/edit?slide=id.g3d28ee536a1_2_0#slide=id.g3d28ee536a1_2_0)
+- Fleet for CIOs _(work in progress)_
+- [Fleet for partners](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
 
 
 <meta name="maintainedBy" value="sampfluger88">

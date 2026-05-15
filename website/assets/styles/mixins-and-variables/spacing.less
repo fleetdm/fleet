@@ -1,0 +1,73 @@
+// -------------------------------------------
+// Spacing variables
+// Three categories: page, section, inner
+// Plus content max-widths
+// -------------------------------------------
+
+// Page — padding for [purpose='page-container']
+@page-padding: 64px;
+@page-padding-sm: 48px;
+@page-padding-tablet: 32px;
+@page-padding-mobile: 24px;
+@page-padding-tablet-mobile: 32px 24px;
+
+// Section — spacing between and around groups of elements
+@section-padding: 80px;
+@section-padding-sm: 64px;
+@section-gap: 32px;
+@section-gap-sm: 24px;
+@section-gap-lg: 120px;
+
+// Inner — padding inside containers, cards, inputs, buttons
+@inner-padding: 16px;
+@inner-padding-sm: 12px;
+@inner-padding-xs: 8px;
+@inner-padding-xxs: 4px;
+
+// -------------------------------------------
+// Content max-widths for [purpose='page-content']
+// -------------------------------------------
+
+// Docs detail & library pages: vital-details, script-details,
+// query-detail, policy-details, osquery-table-details,
+// command-details, app-details, script-library, query-library,
+// policy-library, os-settings, mdm-commands, app-library,
+// basic-documentation
+@content-max-width-docs: 1104px;
+
+// Product & marketing pages: homepage, customers, software-management,
+// observability, device-management, meetups, case-study, app-details
+@content-max-width: 1072px;
+
+// Narrow form pages: okta-conditional-access-error,
+// microsoft-proxy/remediate, microsoft-proxy/turn-on-mdm, deals
+@content-max-width-narrow: 528px;
+
+// Admin pages: admin/query-generator
+@content-max-width-admin: 800px;
+
+// -------------------------------------------
+// Pages with non-standard spacing (won't use these variables as-is):
+//
+// /infrastructure-as-code — 160px (section gap)
+// /transparency — 60px, 30px (card padding)
+// /handbook/basic-handbook — 75px (quote card padding), 36px (list margins)
+// /pricing — 15px (card button padding), 1120px page-content max-width
+// /fleet-premium-trial — 9px (copy button), 10px (form field gaps)
+// /entrance/signup — 20px (form padding), 128px horizontal padding
+// /customers/dashboard — 30px (license card padding)
+// /articles/basic-article — 72px (quote block margin), 6px (form controls)
+// /articles/basic-whitepaper — 72px (quote block margin)
+// /articles/case-study — 72px (quote block margin)
+// /articles/articles — 6px (carousel controls)
+// /customers — 6px (carousel links), 10px (quote attribution)
+// /landing-pages/deployment — 10px (icon padding)
+// /landing-pages/gitops-workshop — 10px (icon/text gaps)
+// /fast-track — 1080px page-content max-width (could normalize to 1072px)
+// /transparency — responsive max-widths (960px/840px/480px)
+// layout.less — 19px, 20px, 23px (nav items), 5px/6px (badges)
+// call-to-action.component — 60px, 90px, 45px (CTA padding)
+// docs-nav-and-search.component — 6px, 15px (search controls)
+// animated-arrow-button.component — 6px (button padding)
+// scrollable-tweets.component — 20px (mobile card padding)
+// -------------------------------------------

@@ -1,7 +1,9 @@
 <div id="homepage" v-cloak>
+  <%/* Banner hidden — re-enable when there's a new announcement
   <div purpose="announcement-banner">
-    <animated-arrow-button arrow-color="white" text-color="white" href="/compare/jamf-vs-fleet">We are experiencing a high volume of Jamf replacement inquiries.  Want to learn more?  Click here compare Fleet vs. Jamf</animated-arrow-button>
+    <animated-arrow-button arrow-color="white" text-color="white" href="/replace-jamf">We are experiencing a high volume of Jamf replacement inquiries.  Click here to compare Fleet vs. Jamf</animated-arrow-button>
   </div>
+  */%>
   <%/* Hero container */%>
   <div purpose="hero-container">
     <div purpose="hero-background-image">
@@ -9,23 +11,13 @@
         <div class="d-flex flex-row justify-content-start justify-content-sm-center justify-content-md-start align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text" class="d-flex flex-column justify-content-start">
-            <h4>High-agency device management</h4>
             <h1>
-              Configure, update and secure all your devices like it's 2026
+              Manage, update, and secure all your devices like it's 2026
             </h1>
-            <div purpose="hero-quote-author" class="d-flex flex-row align-items-center">
-              <div purpose="hero-quote-profile-image">
-                <img alt="Wes Whetstone" src="/images/homepage-hero-wes-whetstone-86x72@2x.png">
-              </div>
-              <div purpose="quote-author-info">
-                <p purpose="quote-text">“I just moved 10,000 Macs to Fleet”</p>
-                <p purpose="quote-author-name">Wes Whetstone</p>
-                <p purpose="quote-author-title">Client Platform Engineer at Stripe</p>
-              </div>
-            </div>
+            <p purpose="hero-subtitle">Open MDM, patching, and vuln management for every OS.</p>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
-              <a purpose="cta-button" href="/contact">Get a demo</a>
-              <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See how it works<span>3 mins</span></a>
+              <a purpose="cta-button" href="/register">Try it yourself</a>
+              <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
             </div>
           </div>
         </div>
@@ -36,91 +28,78 @@
   <div purpose="hero-logos" class="mx-auto">
     <logo-carousel></logo-carousel>
   </div>
-  <a purpose="statistics" class="d-flex" href="/customers" no-underline>
-    <div purpose="statistics-column">
-      <div purpose="customers" class="d-none d-sm-block">
-        <h4>1,300+</h4>
-        <p>organizations</p>
-      </div>
-      <div purpose="countries" class="d-block d-sm-none">
-        <h4>90+</h4>
-        <p>countries</p>
-      </div>
-      <div purpose="devices">
-        <h4>2,000,000+</h4>
-        <p>computing devices</p>
-      </div>
-    </div>
-    <div purpose="statistics-column">
-      <div purpose="countries" class="d-none d-sm-block">
-        <h4>90+</h4>
-        <p>countries</p>
-      </div>
-      <div purpose="customers" class="d-block d-sm-none">
-        <h4>1,300+</h4>
-        <p>organizations</p>
-      </div>
-      <div purpose="response-time">
-        <h4>21 minutes</h4>
-        <p>avg support response time</p>
-      </div>
-    </div>
-  </a>
   <%/* Homepage content */%>
   <div purpose="homepage-content" class="container">
+    <div purpose="page-section">
+    <div purpose="quote-and-statistics">
+      <div purpose="hero-quote" >
+        <div purpose="hero-quote-profile-image">
+          <img alt="Wes Whetstone" src="/images/homepage-hero-wes-whetstone-86x72@2x.png">
+        </div>
+        <div purpose="quote-author-info">
+          <p purpose="quote-text">“I just moved 10,000 Macs to Fleet”</p>
+          <p purpose="quote-author-name">Wes Whetstone</p>
+          <p purpose="quote-author-title">Client Platform Engineer at Stripe</p>
+        </div>
+      </div>
+      <a purpose="statistics" class="d-flex" href="/customers" no-underline>
+        <div purpose="statistics-column">
+          <div purpose="customers" class="d-none d-sm-block">
+            <h4>1,300+</h4>
+            <p>organizations</p>
+          </div>
+          <div purpose="countries" class="d-block d-sm-none">
+            <h4>90+</h4>
+            <p>countries</p>
+          </div>
+          <div purpose="devices">
+            <h4>2,000,000+</h4>
+            <p>computing devices</p>
+          </div>
+        </div>
+        <div purpose="statistics-column">
+          <div purpose="countries" class="d-none d-sm-block">
+            <h4>90+</h4>
+            <p>countries</p>
+          </div>
+          <div purpose="customers" class="d-block d-sm-none">
+            <h4>1,300+</h4>
+            <p>organizations</p>
+          </div>
+          <div purpose="response-time">
+            <h4>21 minutes</h4>
+            <p>avg support response time</p>
+          </div>
+        </div>
+      </a>
+    </div>
+    </div>
     <div purpose="page-section" class="mb-0">
-      <div purpose="homepage-text-block">
-        <h2>Get things done faster</h2>
-        <p>The world is changing rapidly, and traditional device management systems were built for computer labs.  In Fleet, you can become a power user in the UI, manage infrastructure as code, or adopt new ways of working.  For example:</p>
-      </div>
-      <div purpose="feature-with-image">
-        <div purpose="feature-image">
-          <img alt="Modern change management" src="/images/mdm-modern-change-management-528x377@2x.png">
-        </div>
-        <div purpose="feature-text">
-          <div purpose="feature-list-block">
-            <div purpose="feature-text-content">
-              <h5>Propose a change</h5>
-              <p>Describe a configuration change, CVE fix, or other improvement in natural language using your existing AI.</p>
-            </div>
-          </div>
-          <div purpose="feature-list-block">
-            <div purpose="feature-text-content">
-              <h5>Human review</h5>
-              <p>Review changes from your team (or your bots) before they reach your devices. Inspect the configuration, make edits if needed, then approve it.</p>
-            </div>
-          </div>
-          <div purpose="feature-list-block">
-            <div purpose="feature-text-content">
-              <h5>Apply across your fleet</h5>
-              <p>Merge the change and let Fleet apply it across your devices. Roll back instantly if needed.</p>
-            </div>
-          </div>
-        </div>
-      </div>
       <div purpose="homepage-text-block">
         <h2>Freedom at every level</h2>
         <p>Manage devices your way, without vendor limits. Fleet gives you full control and supports the choices that work for your organization.</p>
       </div>
       <div purpose="feature-with-image" class="reverse">
-
-        <div purpose="feature-text">
-          <div purpose="feature-block">
-            <h5>All features, flexible deployment</h5>
-            <p>Unlike other solutions, you can let us host Fleet for you or deploy it yourself. You get the same experience either way.</p>
-          </div>
-          <div purpose="feature-block">
-            <h5>UI, API, or infrastructure as code</h5>
-            <p>Work in the UI, automate with the API, or manage settings as code.</p>
-          </div>
-          <div purpose="feature-block">
-            <h5>Real device choice, even Linux</h5>
-            <p>Let employees use the OS they need, without compromising management and security.</p>
-          </div>
-        </div>
-
         <div purpose="feature-image">
           <video autoplay loop playsinline muted purpose="calendar-video"><source src="/videos/features-loop.mp4" type="video/mp4"></video>
+        </div>
+        <div purpose="feature-list">
+
+          <div purpose="feature-text">
+            <div purpose="feature-block">
+              <h5>One platform for every OS — even Linux</h5>
+              <p>Manage macOS, Linux, Windows, iOS, and Android from a single console, without compromising management and security.</p>
+            </div>
+            <div purpose="feature-block">
+              <h5>UI, API, or infrastructure as code</h5>
+              <p>Work in the UI, automate with the API, or manage settings as code.</p>
+            </div>
+            <div purpose="feature-block">
+              <h5>All features, flexible deployment</h5>
+              <p>Unlike other solutions, you can let us host Fleet for you or deploy it yourself. You get the same experience either way.</p>
+            </div>
+          </div>
+          <a purpose="platform-button" href="/device-management">Explore device management</a>
         </div>
       </div>
       <div purpose="homepage-text-block">
@@ -131,22 +110,56 @@
         <div purpose="feature-image">
           <img alt="See reality clearly" src="/images/see-reality-clearly-688x516@2x.png">
         </div>
-        <div purpose="feature-text">
-          <div purpose="feature-block">
-            <h5>Cut the busywork</h5>
-            <p>Get answers instantly with live reports. No waiting hours for scripts or manual data collection.</p>
+        <div purpose="feature-list">
+          <div purpose="feature-text">
+            <div purpose="feature-block">
+              <h5>Cut the busywork</h5>
+              <p>Get answers instantly with live reports. No waiting hours for scripts or manual data collection.</p>
+            </div>
+            <div purpose="feature-block">
+              <h5>Enroll any device</h5>
+              <p>Get instant visibility into devices from subsidiaries, partners, or acquisitions. Enroll endpoints without forcing teams to migrate tools.</p>
+            </div>
+            <div purpose="feature-block">
+              <h5>Tell your story</h5>
+              <p>Track AI usage, shadow IT, vulnerabilities, patch SLAs, and security posture with clear reports.</p>
+            </div>
           </div>
-          <div purpose="feature-block">
-            <h5>Enroll any device</h5>
-            <p>Get instant visibility into devices from subsidiaries, partners, or acquisitions. Enroll endpoints without forcing teams to migrate tools.</p>
-          </div>
-          <div purpose="feature-block">
-            <h5>Tell your story</h5>
-            <p>Track AI usage, shadow IT, vulnerabilities, patch SLAs, and security posture with clear reports.</p>
-          </div>
+          <a purpose="platform-button" href="/orchestration">More about visibility</a>
         </div>
       </div>
-
+      <div purpose="homepage-text-block">
+        <h2>Get things done faster</h2>
+        <p>The world is changing rapidly, and traditional device management systems were built for computer labs.  In Fleet, you can become a power user in the UI, manage infrastructure as code, or adopt new ways of working.  For example:</p>
+      </div>
+      <div purpose="feature-with-image" class="reverse">
+        <div purpose="feature-image">
+          <img alt="Modern change management" src="/images/mdm-modern-change-management-600x435@2x.png">
+        </div>
+        <div purpose="feature-list">
+          <div purpose="feature-text">
+            <div purpose="feature-block">
+              <div purpose="feature-text-content">
+                <h5>Propose a change</h5>
+                <p>Describe a configuration change, CVE fix, or other improvement in natural language using your existing AI.</p>
+              </div>
+            </div>
+            <div purpose="feature-block">
+              <div purpose="feature-text-content">
+                <h5>Human review</h5>
+                <p>Review changes from your team (or your bots) before they reach your devices. Inspect the configuration, make edits if needed, then approve it.</p>
+              </div>
+            </div>
+            <div purpose="feature-block">
+              <div purpose="feature-text-content">
+                <h5>Apply across your fleet</h5>
+                <p>Merge the change and let Fleet apply it across your devices. Roll back instantly if needed.</p>
+              </div>
+            </div>
+          </div>
+          <a purpose="platform-button" href="/infrastructure-as-code">Manage devices as code</a>
+        </div>
+      </div>
       <div purpose="testimonials-header">
         <h2>What people are saying</h2>
       </div>
@@ -181,14 +194,14 @@
                 {{comparisonModeFriendlyNames[comparisonModeForIt]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
               </div>
               <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
-                <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Workspace ONE</div>
                 <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
+                <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Workspace ONE</div>
                 <div class="dropdown-item" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
                 <div class="dropdown-item" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
-                <div class="dropdown-item" data-compare-with="ansible" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
-                <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
-                <div class="dropdown-item" data-compare-with="puppet" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
-                <div class="dropdown-item" data-compare-with="chef" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
+                <!-- <div class="dropdown-item" data-compare-with="ansible" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div> -->
+                <!-- <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div> -->
+                <!-- <div class="dropdown-item" data-compare-with="puppet" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div> -->
+                <!-- <div class="dropdown-item" data-compare-with="chef" @click="clickSwitchComparisonTableColumn('chef')">Chef</div> -->
                 <div class="dropdown-item" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')">PatchMyPC</div>
               </div>
             </div>
@@ -258,7 +271,7 @@
 
             <div purpose="table-row">
               <div purpose="feature-name">
-                <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint, server, and cloud instance. Access over 300 tables of system state data. Use presets or create your own queries."></p>
+                <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint, server, and cloud instance. Access over 300 tables of system state data. Use presets or create your own reports."></p>
 
               </div>
               <div purpose="fleet-column">
@@ -594,7 +607,7 @@
           <div purpose="feature-table">
             <div purpose="feature-name">
               <p>Complete device inventory </p>
-              <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint. Access over 300 tables of system state data. Use presets or create your own queries.">
+              <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint. Access over 300 tables of system state data. Use presets or create your own reports.">
             </div>
             <div purpose="feature-table-row">
               <div>Fleet</div>
@@ -1012,7 +1025,7 @@
 
             <div purpose="table-row">
               <div purpose="feature-name">
-                <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint, server, and cloud instance. Access over 300 tables of system state data. Use presets or create your own queries."></p>
+                <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint, server, and cloud instance. Access over 300 tables of system state data. Use presets or create your own reports."></p>
 
               </div>
               <div purpose="fleet-column">
@@ -1272,7 +1285,7 @@
           </div>
           <div purpose="feature-table">
             <div purpose="feature-name">
-              <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint, server, and cloud instance. Access over 300 tables of system state data. Use presets or create your own queries."></p>
+              <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint, server, and cloud instance. Access over 300 tables of system state data. Use presets or create your own reports."></p>
             </div>
             <div purpose="feature-table-row">
               <div>Fleet</div>
@@ -1433,7 +1446,7 @@
 
         <div purpose="button-row">
           <a purpose="cta-button" href="/pricing">Compare all features</a>
-          <animated-arrow-button href="/contact">Get a demo</animated-arrow-button>
+          <animated-arrow-button href="/customers">See case studies</animated-arrow-button>
         </div>
       </div>
 
@@ -1442,27 +1455,23 @@
         <p>At Fleet, everyone can contribute. We are dedicated to making tools that are easy for everyone to understand.</p>
       </div>
 
-      <div purpose="three-column-features" class="mx-auto">
-        <div purpose="feature-row" class="d-flex flex-md-row flex-column align-items-start justify-content-center">
+      <div purpose="three-column-features">
+        <div purpose="feature">
+          <img alt="transparency" src="/images/homepage-icon-transparency-54x64@2x.png">
+          <h5>"Why is this running on my computer?"</h5>
+          <p>Let end users see the source code for exactly <a href="/better">how they are being monitored</a>, and set clear expectations about what is and isn't acceptable use of work computers.</p>
+        </div>
 
-          <div purpose="feature" class="ml-sm-0">
-            <img alt="transparency" src="/images/homepage-icon-transparency-54x64@2x.png" class="mx-auto mx-md-0">
-            <h5>"Why is this running on my computer?"</h5>
-            <p>Let end users see the source code for exactly <a href="/better">how they are being monitored</a>, and set clear expectations about what is and isn't acceptable use of work computers.</p>
-          </div>
+        <div purpose="feature">
+          <img alt="Free as in free" src="/images/homepage-icon-free-48x64@2x.png">
+          <h5>Free as in free</h5>
+          <p>The <a href="https://fleetdm.com/docs/get-started/faq#what-is-your-commitment-to-open-source-stewardship">free version of Fleet</a> will always be free. Fleet is independently backed and actively maintained with the help of many amazing <a target="_blank" href="https://github.com/fleetdm/fleet/graphs/contributors">contributors</a>.</p>
+        </div>
 
-          <div purpose="feature">
-            <img alt="Free as in free" src="/images/homepage-icon-free-48x64@2x.png">
-            <h5>Free as in free</h5>
-            <p>The <a href="https://fleetdm.com/docs/get-started/faq#what-is-your-commitment-to-open-source-stewardship">free version of Fleet</a> will always be free. Fleet is independently backed and actively maintained with the help of many amazing <a target="_blank" href="https://github.com/fleetdm/fleet/graphs/contributors">contributors</a>.</p>
-          </div>
-
-          <div purpose="feature" class="mr-sm-0 mb-0">
-            <img alt="An open book" src="/images/homepage-icon-openness-80x64@2x.png">
-            <h5>Open source</h5>
-            <p>All of Fleet's source code is <a href="/handbook/company/why-this-way#why-open-source">public</a>, and our company <a href="/handbook">handbook</a> is public and open to the world. You can read about the <a href="/handbook/company#history">history of Fleet and osquery</a> and our commitment to improving the product.</p>
-          </div>
-
+        <div purpose="feature">
+          <img alt="An open book" src="/images/homepage-icon-openness-80x64@2x.png">
+          <h5>Open source</h5>
+          <p>All of Fleet's source code is <a href="/handbook/company/why-this-way#why-open-source">public</a>, and our company <a href="/handbook">handbook</a> is public and open to the world. You can read about the <a href="/handbook/company#history">history of Fleet and osquery</a> and our commitment to improving the product.</p>
         </div>
       </div>
     </div>
@@ -1471,7 +1480,7 @@
   <div purpose="bottom-gradient">
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
-        <h4>Reduce agent sprawl</h4>
+        <h4>High-agency device management</h4>
         <h1 class="mx-auto <%= primaryBuyingSituation%>">
           One agent for every<br>
           <div purpose="ticker-container" class="d-flex align-items-center mx-auto flex-row text-nowrap">
@@ -1537,18 +1546,6 @@
   </div>
   <modal v-if="modal === 'unsubscribed'" @close="closeModal()">
     <p class="mb-0">Your email preferences have been updated.</p>
-  </modal>
-  <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp;rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
-  <modal purpose="video-modal" v-if="modal === 'nick-fohs'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/fs5ULAR4e4A?si=pChZBt_sSNj13goP&amp;rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
-  <modal purpose="video-modal" v-if="modal === 'calendar'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/nhufmzGUeNk?si=rtAF6sFZuA7PhYRS&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
-  <modal purpose="video-modal" v-if="modal === 'fleet-in-three-minutes'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/q1Tm3IBcx24?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
   <p style="opacity: 0; line-height: 0px; font-size: 0px; margin: 0;">537c652d-cb1a-440e-ae35-0f0bf5743e75</p>
 </div>

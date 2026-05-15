@@ -53,9 +53,9 @@ Fleet, Jamf, and Intune all handle core device management functions: enrollment,
 
 ### Enrollment and provisioning
 
-All three solutions support zero-touch deployment for the platforms they support. Apple devices enroll through Apple Business Manager. In Fleet and Intune, Windows devices use Windows Autopilot. All three solutions can configure settings that prevent end users from tampering with management profiles.
+All three solutions support zero-touch deployment for the platforms they support. Apple devices enroll through Apple Business. In Fleet and Intune, Windows devices use Windows Autopilot. All three solutions can configure settings that prevent end users from tampering with management profiles.
 
-Jamf Pro's PreStage enrollment configures Apple device onboarding, including signed package deployment during setup. Intune's Autopilot configures Windows device onboarding with comparable automation. Intune also support Apple's Automated Device Enollemnt (ADE) via ABM. Fleet supports both Apple Business Manager and Windows Autopilot, providing consistent zero-touch enrollment across a mixed device fleet.
+Jamf Pro's PreStage enrollment configures Apple device onboarding, including signed package deployment during setup. Intune's Autopilot configures Windows device onboarding with comparable automation. Intune also support Apple's Automated Device Enollemnt (ADE) via AB. Fleet supports both Apple Business and Windows Autopilot, providing consistent zero-touch enrollment across a mixed device fleet.
 
 ### Configuration management
 
@@ -115,7 +115,7 @@ Fleet provides consistent multi-platform capabilities where Jamf Pro is Apple-fi
 
 #### How long does it take to roll out device management software?
 
-Timelines depends on fleet size and configuration complexity. Fleet supports zero-touch enrollment through Apple Business Manager and Windows Autopilot for automated onboarding. Fleet also provides MDM migration workflows and professional services for organizations transitioning from other solutions. [Schedule a demo](https://fleetdm.com/contact) to discuss your rollout timeline.
+Timelines depends on fleet size and configuration complexity. Fleet supports zero-touch enrollment through Apple Business and Windows Autopilot for automated onboarding. Fleet also provides MDM migration workflows and professional services for organizations transitioning from other solutions. [Schedule a demo](https://fleetdm.com/contact) to discuss your rollout timeline.
 
 <meta name="articleTitle" value="Fleet vs. Jamf vs. Intune: Comparing fleet management software">
 <meta name="authorFullName" value="Brock Walters">
@@ -124,6 +124,5 @@ Timelines depends on fleet size and configuration complexity. Fleet supports zer
 <meta name="publishedOn" value="2026-02-26">
 <meta name="description" value="Compare the Fleet, Jamf Pro, and Microsoft Intune product offerings.">
 
-<meta name="articleSubtitle" value="How to choose the right fleet management software">
 <meta name="articleSlugInCategory" value="jamf-vs-intune-vs-fleet"> 
 <meta name="introductionTextBlockOne" value="This guide compares Fleet, Jamf Pro, and Microsoft Intune as device management software options, covering platform support, security capabilities, and automation features."> 

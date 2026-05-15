@@ -1,1 +1,0 @@
-* Fixed observer query bypass by restricting live query/report team targeting to only teams where the user has sufficient permissions, including global observers who are now limited to the query's own team when `observer_can_run` is true.

@@ -31,6 +31,9 @@ builds:
       - -tags=full,fts5,netgo
       - -trimpath
     ldflags:
+      # Reduce binary size by stripping debug symbols.
+      - -s
+      - -w
       - -extldflags "-static"
       - -X github.com/fleetdm/fleet/v4/server/version.appName={{ .ArtifactName }}
       - -X github.com/fleetdm/fleet/v4/server/version.version={{ .Version }}
@@ -51,6 +54,9 @@ builds:
     flags:
       - -trimpath
     ldflags:
+      # Reduce binary size by stripping debug symbols.
+      - -s
+      - -w
       - -X github.com/fleetdm/fleet/v4/server/version.appName={{ .ArtifactName }}
       - -X github.com/fleetdm/fleet/v4/server/version.version={{ .Version }}
       - -X github.com/fleetdm/fleet/v4/server/version.branch={{ .Branch }}
@@ -66,4 +72,4 @@ dockers:
       - fleetctl
     dockerfile: tools/fleet-docker/Dockerfile
     image_templates:
-      - "fleetdm/fleet:{{ .ShortCommit }}"
+      - 'fleetdm/fleet:{{ envOrDefault "DOCKER_IMAGE_TAG" .Branch }}'

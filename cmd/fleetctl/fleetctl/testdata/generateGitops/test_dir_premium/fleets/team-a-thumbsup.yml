@@ -22,6 +22,7 @@ controls:
     certificates:
     - certificate_authority_name: DIGIDOO
       name: my_certypoo
+      subject_alternative_name: DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME
       subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
   apple_settings:
     configuration_profiles:
@@ -70,6 +71,43 @@ policies:
   resolution: Do a team thing
   type: patch
   webhooks_and_tickets_enabled: true
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a team policy with VPP app automation
+  install_software:
+    app_store_id: "1234567890"
+  name: Team VPP policy
+  platform: darwin
+  query: SELECT * FROM team_policy WHERE id = 3
+  resolution: Install the app
+  type: dynamic
+  webhooks_and_tickets_enabled: true
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a team policy with FMA install automation
+  install_software:
+    fleet_maintained_app_slug: fma1/darwin
+  name: Team FMA install policy
+  platform: darwin
+  query: SELECT 1 FROM filevault_status WHERE status LIKE '%on%';
+  resolution: Install the FMA
+  type: dynamic
+  webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a team policy with custom package install automation
+  install_software:
+    hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 13.37
+  name: Team package install policy
+  platform: linux,windows
+  query: SELECT 1 FROM mounts WHERE path = '/' AND CAST(blocks_available AS REAL)
+    / blocks > 0.10;
+  resolution: Install the package
+  type: dynamic
+  webhooks_and_tickets_enabled: false
 reports:
 - automations_enabled: true
   description: This is a team query
@@ -80,11 +118,14 @@ reports:
   name: Team Query
   observer_can_run: false
   platform: linux,windows
-  query: SELECT * FROM team_query WHERE id = 1
+  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';
 settings:
   features:
     enable_host_users: true
     enable_software_inventory: true
+    historical_data:
+      uptime: true
+      vulnerabilities: true
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 1
@@ -107,7 +148,7 @@ settings:
       host_percentage: 2
 software:
   app_store_apps:
-  - app_store_id: com.example.team-software
+  - app_store_id: "1234567890"
     categories:
     - Productivity
     - Utilities
@@ -118,7 +159,9 @@ software:
     - Label D
     platform: darwin
     self_service: true
-  - app_store_id: com.example.setup-experience-software
+  - app_store_id: "55566677778"
+    configuration:
+      path: "../lib/team-a-👍/software/my-setup-experience-app-android-config.json"
     icon:
       path: "../lib/team-a-👍/icons/my-setup-experience-app-android-icon.png"
     labels_include_all:
@@ -127,10 +170,12 @@ software:
     platform: android
     self_service: true
     setup_experience: true
-  - app_store_id: com.example.ios-auto-update
+  - app_store_id: "9999888877"
     auto_update_enabled: true
     auto_update_window_end: "03:00"
     auto_update_window_start: "01:00"
+    configuration:
+      path: "../lib/team-a-👍/software/my-ios-auto-update-app-ios-config.xml"
     icon:
       path: "../lib/team-a-👍/icons/my-ios-auto-update-app-ios-icon.png"
     labels_include_all:
@@ -159,6 +204,8 @@ software:
     - Label B
     self_service: true
     slug: fma2/windows
+  - self_service: true
+    slug: fma3/windows
   packages:
   - categories:
     - Browsers

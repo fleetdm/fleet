@@ -14,7 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -660,6 +661,101 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 	})
 }
 
+func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
+	setupCtx := func(teamAgentOpts, globalAgentOpts *json.RawMessage) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		team := fleet.Team{ID: 1}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			return &fleet.TeamMDM{}, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return teamAgentOpts, nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, sql.ErrNoRows
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+		appCfg := &fleet.AppConfig{AgentOptions: globalAgentOpts}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+
+		ctx = test.HostContext(ctx, &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+			Platform:      "ubuntu",
+			TeamID:        new(team.ID),
+		})
+		return svc, ctx, ds
+	}
+
+	t.Run("team timeout set wins over global", func(t *testing.T) {
+		team := new(json.RawMessage(`{"script_execution_timeout": 600}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 1200}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 600, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team timeout unset falls back to global", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 1200}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 1200, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team timeout zero falls back to global", func(t *testing.T) {
+		team := new(json.RawMessage(`{"script_execution_timeout": 0}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 900}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 900, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team and global both unset", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		global := new(json.RawMessage(`{"config": {}}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 0, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("nil global agent options, team unset", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		svc, ctx, _ := setupCtx(team, nil)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 0, cfg.ScriptExeTimeout)
+	})
+}
+
 func TestGetSoftwareInstallDetails(t *testing.T) {
 	t.Run("hosts can't get each others installers", func(t *testing.T) {
 		ds := new(mock.Store)
@@ -879,7 +975,7 @@ func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
 func TestSoftwareInstallReplicaLag(t *testing.T) {
 	// Create datastore with dummy replica to simulate replication lag
 	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
-	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
 	defer ds.Close()
 
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -924,14 +1020,14 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	opts.RunReplication("software_installers", "software_titles")
 
 	// Mark policy as failing for the host
-	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: ptr.Bool(false)}, time.Now(), false)
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 	opts.RunReplication("policy_membership")
 
 	// simulate Orbit picking up upcoming_activity and activating
 	installUUID := uuid.New().String()
 	var titleID uint
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		err := sqlx.GetContext(ctx, q, &titleID,
 			`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
 		if err != nil {
@@ -949,7 +1045,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	})
 
 	var attemptNumberBeforeResult *int
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &attemptNumberBeforeResult,
 			`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`,
 			installUUID)
@@ -971,7 +1067,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 
 	// Verify the attempt_number was set in the primary
 	var attemptNumberInWriter *int
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &attemptNumberInWriter,
 			`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`,
 			installUUID)
@@ -981,11 +1077,341 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 
 	// verify retry was scheduled, and that we did not throw an error because of nil attempt_number
 	var retryCount int
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &retryCount,
 			`SELECT COUNT(*) FROM upcoming_activities
 			WHERE activity_type = 'software_install'`,
 		)
 	})
 	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
+}
+
+// TestGetOrbitConfigWindowsSetupExperience verifies that GetOrbitConfig sets
+// notifs.RunSetupExperience=true for Windows hosts whose MDM enrollment is
+// in awaiting_configuration Pending or Active, and false otherwise (None,
+// not-enrolled, non-Windows platforms).
+func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
+	setupSvc := func(t *testing.T) (*mock.Store, fleet.Service, context.Context, *fleet.Host) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		host := &fleet.Host{
+			ID:            1,
+			OsqueryHostID: ptr.String("test"),
+			UUID:          "host-uuid-1",
+			Platform:      "windows",
+		}
+
+		appCfg := &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+			},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return &fleet.OperatingSystem{Platform: "windows", Version: "10.0.19045"}, nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+			return true, nil
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet}, nil
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+
+		ctx = test.HostContext(ctx, host)
+		return ds, svc, ctx, host
+	}
+
+	t.Run("Windows host awaiting=Pending sets RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return fleet.WindowsMDMAwaitingConfigurationPending, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.RunSetupExperience)
+		assert.True(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked)
+	})
+
+	t.Run("Windows host awaiting=Active sets RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return fleet.WindowsMDMAwaitingConfigurationActive, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.RunSetupExperience)
+	})
+
+	t.Run("Windows host awaiting=None does not set RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return fleet.WindowsMDMAwaitingConfigurationNone, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.RunSetupExperience)
+	})
+
+	t.Run("Windows host not enrolled (NotFound) does not set RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return 0, &orbitTestNotFoundErr{}
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.RunSetupExperience)
+	})
+
+	t.Run("Windows host with non-NotFound lookup error returns the error", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return 0, errors.New("transient db error")
+		}
+
+		_, err := svc.GetOrbitConfig(ctx)
+		require.Error(t, err)
+	})
+
+	t.Run("non-Windows host does not query awaiting_configuration", func(t *testing.T) {
+		ds, svc, ctx, host := setupSvc(t)
+		host.Platform = "darwin"
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.RunSetupExperience)
+		assert.False(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked,
+			"non-Windows hosts must not invoke the Windows lookup")
+	})
+}
+
+// orbitTestNotFoundErr is a minimal IsNotFound error type for orbit config tests.
+type orbitTestNotFoundErr struct{}
+
+func (e *orbitTestNotFoundErr) Error() string    { return "not found" }
+func (e *orbitTestNotFoundErr) IsNotFound() bool { return true }
+
+func rawJSON(s string) *json.RawMessage {
+	r := json.RawMessage(s)
+	return &r
+}
+
+func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
+	getInternal := func(svc fleet.Service) *Service {
+		return ((svc.(validationMiddleware)).Service).(*Service)
+	}
+
+	t.Run("no agent options -> no stamp", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 1}
+		appCfg := &fleet.AppConfig{}
+
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.False(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
+	})
+
+	t.Run("zero duration -> no stamp", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 1}
+		appCfg := &fleet.AppConfig{
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 0}}`),
+		}
+
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.False(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
+	})
+
+	t.Run("global option set, no team -> stamps from app config", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 42}
+		appCfg := &fleet.AppConfig{
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 3600}}`),
+		}
+
+		var gotID uint
+		var gotUntil time.Time
+		ds.ExtendHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until time.Time) error {
+			gotID = hostID
+			gotUntil = until
+			return nil
+		}
+
+		before := time.Now()
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.True(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
+		require.Equal(t, host.ID, gotID)
+		require.WithinDuration(t, before.Add(time.Hour), gotUntil, time.Minute)
+	})
+
+	t.Run("team option set -> stamps from team agent options, ignores global", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		teamID := uint(7)
+		host := &fleet.Host{ID: 99, TeamID: &teamID}
+		appCfg := &fleet.AppConfig{
+			// Team membership: team options win, global is ignored.
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 86400}}`),
+		}
+
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			require.Equal(t, teamID, id)
+			return rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 1800}}`), nil
+		}
+		var gotUntil time.Time
+		ds.ExtendHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until time.Time) error {
+			gotUntil = until
+			return nil
+		}
+
+		before := time.Now()
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.True(t, ds.TeamAgentOptionsFuncInvoked)
+		require.True(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
+		require.WithinDuration(t, before.Add(30*time.Minute), gotUntil, time.Minute)
+	})
+
+	t.Run("team has no agent options row -> no stamp, no fallback to global", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		teamID := uint(7)
+		host := &fleet.Host{ID: 99, TeamID: &teamID}
+		appCfg := &fleet.AppConfig{
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 3600}}`),
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return nil, nil
+		}
+
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.True(t, ds.TeamAgentOptionsFuncInvoked)
+		require.False(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
+	})
+
+	t.Run("over-cap value defensively clamped at 24h", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 1}
+		// Bypass the validator by stuffing a too-large value directly.
+		appCfg := &fleet.AppConfig{
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 360000}}`),
+		}
+		var gotUntil time.Time
+		ds.ExtendHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until time.Time) error {
+			gotUntil = until
+			return nil
+		}
+
+		before := time.Now()
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.WithinDuration(t, before.Add(fleet.MaxOrbitDebugLoggingOnEnrollDuration), gotUntil, time.Minute)
+	})
+}
+
+func TestResolveOrbitDebugLogging(t *testing.T) {
+	ctx := t.Context()
+	future := time.Now().Add(time.Hour)
+	past := time.Now().Add(-time.Hour)
+
+	cases := []struct {
+		name      string
+		host      *fleet.Host
+		inFlags   json.RawMessage
+		wantDebug *bool
+		wantFlags map[string]any
+	}{
+		{
+			name:      "no host -> nil debug, flags unchanged",
+			host:      nil,
+			inFlags:   nil,
+			wantDebug: nil,
+		},
+		{
+			name:      "no override -> nil debug, flags unchanged",
+			host:      &fleet.Host{},
+			inFlags:   json.RawMessage(`{"distributed_interval":10}`),
+			wantDebug: nil,
+		},
+		{
+			name:      "unexpired override -> debug on, flags merged",
+			host:      &fleet.Host{OrbitDebugUntil: &future},
+			inFlags:   nil,
+			wantDebug: new(true),
+			wantFlags: map[string]any{
+				"verbose": true,
+			},
+		},
+		{
+			name:      "unexpired override with admin flags -> merged",
+			host:      &fleet.Host{OrbitDebugUntil: &future},
+			inFlags:   json.RawMessage(`{"distributed_interval":10}`),
+			wantDebug: new(true),
+			wantFlags: map[string]any{
+				"distributed_interval": float64(10),
+				"verbose":              true,
+			},
+		},
+		{
+			name:      "admin verbose:false wins over debug-on",
+			host:      &fleet.Host{OrbitDebugUntil: &future},
+			inFlags:   json.RawMessage(`{"verbose":false}`),
+			wantDebug: new(true),
+			wantFlags: map[string]any{
+				"verbose": false,
+			},
+		},
+		{
+			name:      "expired override is ignored",
+			host:      &fleet.Host{OrbitDebugUntil: &past},
+			inFlags:   nil,
+			wantDebug: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotFlags, gotDebug, err := resolveOrbitDebugLogging(ctx, tc.host, tc.inFlags)
+			require.NoError(t, err)
+
+			if tc.wantDebug == nil {
+				require.Nil(t, gotDebug)
+				require.Equal(t, tc.inFlags, gotFlags)
+				return
+			}
+
+			require.NotNil(t, gotDebug)
+			require.Equal(t, *tc.wantDebug, *gotDebug)
+			var got map[string]any
+			require.NoError(t, json.Unmarshal(gotFlags, &got))
+			require.Equal(t, tc.wantFlags, got)
+		})
+	}
 }

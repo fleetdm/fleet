@@ -6,7 +6,7 @@ You can modify agent options in **Settings > Organization settings > Agent optio
 
 ## config 
 
-The `config` section allows you to update settings like performance and and how often the agent checks-in.
+The `config` section allows you to update settings like performance and how often the agent checks-in.
 
 #### Example
 
@@ -201,6 +201,8 @@ _Available in Fleet Premium_
 
 Users can configure fleetd component TUF [auto-update channels](https://fleetdm.com/docs/using-fleet/enroll-hosts#specifying-update-channels) from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component.
 
+New agents default to the latest versions unless specific versions are set in the `fleetctl package` command. If `update_channels` specifies versions, agents will use those instead, even if it means downgrading (e.g., generating at 1.53.1 but enrolling with `update_channels.orbit` set to 1.50.0).
+
 > Because Fleet moved the update server from tuf.fleetctl.com to updates.fleetdm.com, Orbit versions below 1.38.1 can’t upgrade directly to newer versions. You’ll see this error in Orbit logs: `update failed error="lookup failed: lookup orbit: tuf: file not found`. To upgrade from a version below 1.38.1 (e.g., 1.29.1) to a newer version (e.g., 1.50.2), first upgrade to 1.38.1, wait for agents to update, then upgrade to the newer version.
 
 #### Examples
@@ -306,3 +308,4 @@ agent_options:
 
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure agent options.">
+<meta name="keywordsForDocsearch" value="command line flags, agent config file">

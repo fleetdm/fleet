@@ -2168,3 +2168,126 @@ spec:
     #!/bin/sh
     
     /Applications/Falcon.app/Contents/Resources/falconctl load
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Ubuntu GNOME password policy
+  platform: linux
+  description: "Checks that the password policy requires at least 12 characters and is complex."
+  query: |
+    SELECT 1
+    FROM file_lines
+    WHERE
+      path = '/etc/pam.d/common-password'
+      AND ltrim(line) NOT LIKE '#%'
+      AND line LIKE '%pam_pwquality.so%'
+      AND line LIKE '%minlen=12%'
+      AND line LIKE '%dcredit=-1%'
+      AND line LIKE '%ucredit=-1%'
+      AND line LIKE '%lcredit=-1%'
+      AND line LIKE '%ocredit=-1%'
+      AND line LIKE '%difok=3%'
+      AND line LIKE '%enforce_for_root%';
+  tags: compliance, hardening, critical
+  contributors: spalmesano0
+  script: |
+    #!/bin/bash
+    
+    # try_first_pass   - Use the password from the previous PAM module before prompting the user
+    # retry=3          - Allow 3 attempts before returning a failure
+    # minlen=12        - Minimum password length of 12 characters
+    # dcredit=-1       - Require at least 1 digit (0-9)
+    # ucredit=-1       - Require at least 1 uppercase letter (A-Z)
+    # lcredit=-1       - Require at least 1 lowercase letter (a-z)
+    # ocredit=-1       - Require at least 1 special character (e.g. !@#$%)
+    # difok=3          - At least 3 characters must differ from the previous password
+    # enforce_for_root - Apply this policy to the root account as well
+    
+    PASSWORD_POLICY="password    requisite   pam_pwquality.so try_first_pass retry=3 minlen=12 dcredit=-1 ucredit=-1 lcredit=-1 ocredit=-1 difok=3 enforce_for_root"
+    PAM_FILE="/etc/pam.d/common-password"
+    
+    
+    # Ensure pam_pwquality is installed
+    apt-get install -y libpam-pwquality
+    
+    # Remove any existing pam_pwquality line to avoid duplicates
+    sed -i '/pam_pwquality\.so/d' "$PAM_FILE"
+    
+    # Add the new policy line (before the pam_unix line is conventional)
+    sed -i "/pam_unix\.so/i $PASSWORD_POLICY" "$PAM_FILE"
+    
+    echo "Password policy applied successfully."
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Ubuntu GNOME lock screen after 5 minutes
+  platform: linux
+  description: "Checks that the lock screen is activated after 5 minutes."
+  query: |
+    SELECT 1
+    WHERE (
+      SELECT COUNT(*) FROM file_lines
+      WHERE path = '/etc/dconf/profile/user'
+        AND ltrim(line) = 'system-db:local'
+        AND ltrim(line) NOT LIKE '#%'
+    ) > 0
+    AND (
+      SELECT COUNT(*) FROM file_lines
+      WHERE path = '/etc/dconf/db/local.d/00-lockscreen'
+        AND trim(line) = 'lock-enabled=true'
+        AND ltrim(line) NOT LIKE '#%'
+    ) > 0
+    AND (
+      SELECT COUNT(*) FROM file_lines
+      WHERE path = '/etc/dconf/db/local.d/00-lockscreen'
+        AND trim(line) = 'lock-delay=uint32 0'
+        AND ltrim(line) NOT LIKE '#%'
+    ) > 0
+    AND (
+      SELECT COUNT(*) FROM file_lines
+      WHERE path = '/etc/dconf/db/local.d/00-lockscreen'
+        AND trim(line) = 'idle-delay=uint32 300'
+        AND ltrim(line) NOT LIKE '#%'
+    ) > 0;
+  tags: compliance, hardening, critical
+  contributors: spalmesano0
+  script: |
+    #!/bin/bash
+    
+    # 1. Create the dconf profile if it doesn't exist
+    PROFILE_FILE="/etc/dconf/profile/user"
+    if ! grep -Eq '^[[:space:]]*system-db:local[[:space:]]*$' "$PROFILE_FILE" 2>/dev/null; then
+        mkdir -p /etc/dconf/profile
+        cat > "$PROFILE_FILE" <<EOF
+    user-db:user
+    system-db:local
+    EOF
+    fi
+    
+    # 2. Write the lock screen settings
+    mkdir -p /etc/dconf/db/local.d
+    cat > /etc/dconf/db/local.d/00-lockscreen <<EOF
+    [org/gnome/desktop/screensaver]
+    lock-enabled=true
+    lock-delay=uint32 0
+    
+    [org/gnome/desktop/session]
+    idle-delay=uint32 300
+    EOF
+    
+    # 3. Lock the keys so users can't override them
+    # Note that the settings may still appear to be mutable to the user
+    # However, the system ignores this and applies the settings from here
+    mkdir -p /etc/dconf/db/local.d/locks
+    cat > /etc/dconf/db/local.d/locks/lockscreen <<EOF
+    /org/gnome/desktop/screensaver/lock-enabled
+    /org/gnome/desktop/screensaver/lock-delay
+    /org/gnome/desktop/session/idle-delay
+    EOF
+    
+    # 4. Update the dconf database
+    dconf update
+    
+    echo "Lock screen policy applied."

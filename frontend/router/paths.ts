@@ -16,7 +16,7 @@ export default {
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
-  CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
+  CONTROLS_USERS: `${URL_PREFIX}/controls/setup-experience/users`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
   CONTROLS_SETUP_ASSISTANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
   CONTROLS_INSTALL_SOFTWARE: (platform: SetupExperiencePlatform) =>
@@ -45,6 +45,10 @@ export default {
 
   ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
+  ADMIN_USERS_NEW_HUMAN: `${URL_PREFIX}/settings/users/new/human`,
+  ADMIN_USERS_NEW_API: `${URL_PREFIX}/settings/users/new/api`,
+  ADMIN_USERS_EDIT: (userId: number) =>
+    `${URL_PREFIX}/settings/users/${userId}/edit`,
 
   // Integrations pages
 
@@ -54,7 +58,7 @@ export default {
   ADMIN_INTEGRATIONS_MDM_APPLE: `${INTEGRATIONS_PREFIX}/mdm/apple`,
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${INTEGRATIONS_PREFIX}/mdm/windows`,
   ADMIN_INTEGRATIONS_MDM_ANDROID: `${INTEGRATIONS_PREFIX}/mdm/android`,
-  ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${INTEGRATIONS_PREFIX}/mdm/abm`,
+  ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${INTEGRATIONS_PREFIX}/mdm/ab`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${INTEGRATIONS_PREFIX}/automatic-enrollment/windows`,
   ADMIN_INTEGRATIONS_SCEP: `${INTEGRATIONS_PREFIX}/mdm/scep`,
   ADMIN_INTEGRATIONS_CALENDARS: `${INTEGRATIONS_PREFIX}/calendars`,
@@ -81,9 +85,10 @@ export default {
 
   // Software pages
   SOFTWARE: `${URL_PREFIX}/software`,
-  SOFTWARE_TITLES: `${URL_PREFIX}/software/titles`,
+  SOFTWARE_INVENTORY: `${URL_PREFIX}/software/inventory`,
   SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
+  SOFTWARE_LIBRARY: `${URL_PREFIX}/software/library`,
   SOFTWARE_TITLE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/titles/${id}`;
   },
@@ -124,8 +129,12 @@ export default {
     `${URL_PREFIX}/reports/${queryId || "new"}/live`,
   REPORT_DETAILS: (queryId: number): string =>
     `${URL_PREFIX}/reports/${queryId}`,
-  EDIT_POLICY: (policyId: number): string =>
+  POLICY_DETAILS: (policyId: number): string =>
     `${URL_PREFIX}/policies/${policyId}`,
+  EDIT_POLICY: (policyId: number): string =>
+    `${URL_PREFIX}/policies/${policyId}/edit`,
+  LIVE_POLICY: (policyId: number | null): string =>
+    `${URL_PREFIX}/policies/${policyId || "new"}/live`,
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   MFA: `${URL_PREFIX}/login/mfa`,
   NO_ACCESS: `${URL_PREFIX}/login/denied`,

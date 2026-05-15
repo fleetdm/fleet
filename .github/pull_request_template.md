@@ -9,6 +9,7 @@ If some of the following don't apply, delete the relevant line.
   See [Changes files](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/committing-changes.md#changes-files) for more information.
 
 - [ ] Input data is properly validated, `SELECT *` is avoided, SQL injection is prevented (using placeholders for values in statements), JS inline code is prevented especially for url redirects, and untrusted data interpolated into shell scripts/commands is validated against shell metacharacters.
+- [ ] Timeouts are implemented and retries are limited to avoid infinite loops
 - [ ] If paths of existing endpoints are modified without backwards compatibility, checked the frontend/CLI for any necessary changes
 
 ## Testing

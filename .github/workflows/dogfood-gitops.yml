@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   fleet-gitops:
-    timeout-minutes: 10
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner

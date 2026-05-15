@@ -2,24 +2,26 @@
 
 _Available in Fleet Premium_
 
-Fleet can help your end users connect to third-party tools like Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [Okta](#okta), [DigiCert](#digicert), [Microsoft NDES](#microsoft-ndes), [Smallstep](#smallstep), [Hydrant](#hydrant), and a custom [SCEP](#custom-scep-simple-certificate-enrollment-protocol) or [EST](#custom-est-enrollment-over-secure-transport) server.
+Fleet can help your end users connect to third-party tools like Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Currently, these are supported platforms for each CA:
+- [Okta](#okta): macOS, iOS, and iPadOS
+- [DigiCert](#digicert): macOS, iOS, and iPadOS
+- [Microsoft NDES](#microsoft-ndes): macOS, iOS, iPadOS and Windows
+- [Smallstep](#smallstep): macOS, iOS, and iPadOS
+- [Hydrant](#hydrant): Linux
+- [Any SCEP (Simple Certificate Enrollment Protocol) CA](#any-scep-simple-certificate-enrollment-protocol-ca): macOS, Windows, iOS, iPadOS, and Android
+- [Any EST (Enrollment over Secure Transport) CA](#any-est-enrollment-over-secure-transport-ca): Linux
 
 Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS), Windows, and Android hosts before expiration. Learn more in the [Renewal section](#renewal).
 
-Currently, these are supported platforms for each certificate authority:
-- **Okta**: macOS, iOS, and iPadOS
-- **DigiCert**: macOS, iOS, and iPadOS
-- **Microsoft NDES**: macOS, iOS, iPadOS and Windows (coming soon)
-- **Smallstep**: macOS, iOS, and iPadOS
-- **Hydrant**: Linux
-- **Custom SCEP server**: macOS, Windows, iOS, iPadOS, and Android
-- **Custom EST**: Linux
+To automatically connect Apple (macOS, iOS, iPadOS) hosts to Wi-Fi without end user action, in the Wi-Fi payload, set the `PayloadCertificateAnchorUUID` ([Apple docs](https://developer.apple.com/documentation/devicemanagement/wifi/eapclientconfiguration-data.dictionary#:~:text=PayloadCertificateAnchorUUID)) to the certificate payloads UUID.
+
+To deploy certificates on a self-hosted Fleet instance, you'll need to configure a [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
 
 ## Okta
 
 The following steps show how to deploy SCEP certificates from Okta's certificate authority (CA). 
 
-We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/enable-okta-verify-on-macos-with-configuration-profile).
+We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet#option-2-static-scep-challenge).
 
 ### Step 1: Get Okta credentials
 
@@ -141,14 +143,73 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 </plist>
 ```
 
-
-
-
 ## Microsoft NDES
 
 The following steps show how to deploy [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview) certificates.
 
-### Step 1: Connect Fleet to NDES
+### Step 1: Prerequisites for Windows hosts
+
+If you’re deploying NDES certificates to Windows hosts, complete the following prerequisites. If you’re deploying certificates to hosts on other platforms, you can skip this and head to [step 2](#step-2-connect-fleet-to-ndes).
+
+#### Deploy root CA certificate
+
+Windows hosts joined to Active Directory (AD) automatically receive the enterprise root CA certificate through Group Policy (GPO). Hosts that aren’t joined to AD (e.g. cloud-only or BYOD devices) won’t get this certificate automatically, so certificate delivery will fail because the host can’t validate the registration authority (RA) certificate chain.
+
+For non-AD-joined hosts, deploy the root CA certificate using the configuration profile below. Scope it to only non-AD-joined hosts using a label or other targeting method.
+
+Configuration profile:
+
+```xml
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/RootCATrustedCertificates/Root/<YOURCA>/EncodedCertificate</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">b64</Format>
+        </Meta>
+        <Data><BASE64_ENCODED_ROOT_CA_CERT></Data>
+    </Item>
+</Add>
+```
+
+Replace `<YOURCA>` in the `LocURI` with a unique identifier for your CA (e.g. `MyOrgRootCA`). See the [RootCATrustedCertificates CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/rootcacertificates-csp) for more details.
+
+Replace `<BASE64_ENCODED_ROOT_CA_CERT>` with your root CA certificate encoded as a Base64 string by first retrieving the certificate from your NDES server using the SCEP `GetCACert` operation:
+
+```
+curl -o ca-certs.p7b "https://<NDES_SERVER>/certsrv/mscep/mscep.dll?operation=GetCACert"
+openssl pkcs7 -inform DER -in ca-certs.p7b -print_certs -out certs.pem
+```
+
+This returns a bundle with multiple certificates. Then, open `certs.pem` and copy the root CA certificate (the one where subject and issuer are the same). Last, save it to `root-ca.pem` and Base64-encode the DER form:
+
+```
+openssl x509 -in root-ca.pem -outform DER -out root-ca.der
+base64 -i root-ca.der
+```
+
+#### Make the CRL reachable over HTTP
+
+By default, NDES puts LDAP URLs in certificates for the CRL (certificate revocation list) location. Hosts that are joined to AD can reach these LDAP endpoints, but hosts that aren’t joined to AD cannot. When a host can’t reach the CRL location, it can’t validate the certificate and will reject the SCEP response with a certificate validity error.
+
+To fix this, configure NDES to publish the CRL over HTTP so any device can reach it. See Microsoft's [documentation](https://learn.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-the-cdp-and-aia-extensions-on-ca1) for instructions. 
+
+For testing, you can use the [quick CRL workaround](#quick-crl-workaround-for-testing-ndes-on-windows).
+
+#### Make sure the CA server clock is correct
+
+If the CA server’s clock is incorrect, certificates may have `notBefore` timestamps in the future. When this happens, the host rejects the certificate because it appears not valid yet, even though the CA issued it successfully.
+
+There are many reasons a CA server’s clock can drift (e.g. misconfigured time sources, virtualization clock skew, Group Policy conflicts). We recommend working with your infrastructure team to ensure the CA server is using a reliable time synchronization method (e.g. NTP).
+
+For testing, you can force the clock to the current time by running the following on the CA server in PowerShell:
+
+```powershell
+Set-Date -Date "2026-03-16 12:00:00"
+```
+
+### Step 2: Connect Fleet to NDES
 
 1. In Fleet, head to **Settings > Integrations > Certificates**.
 2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown.
@@ -159,19 +220,26 @@ The example paths end with `/certsrv/mscep/mscep.dll` and `/certsrv/mscep_admin/
 
 When saving the configuration, Fleet will attempt to connect to the SCEP server to verify the connection, including retrieving a one-time challenge password. This validation also occurs when adding a new SCEP configuration or updating an existing one via API and GitOps, including dry runs. Please ensure the NDES password cache size is large enough to accommodate this validation.
 
-### Step 2: Add SCEP configuration profile to Fleet
+> The default NDES password cache holds only 5 one-time challenge passwords. Each failed enrollment attempt consumes a password. We recommend increasing the cache size on the NDES server for production use.
+
+### Step 3: Add SCEP configuration profile to Fleet
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
-2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
+2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) such as `$FLEET_VAR_HOST_HARDWARE_SERIAL`. For Apple hosts, you can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables)..
 
-3. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
+3. For Windows profiles, you also need to set `CAThumbprint` to the SHA1 fingerprint of your **root CA certificate** (not the RA signing certificate). See [How to get the CAThumbprint for Windows SCEP profiles](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
+
+4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
 When the profile is delivered to your hosts, Fleet will replace the variables. If something fails, errors will appear on each host's **Host details > OS settings**.
 
 ![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile-405x215@2x.png)
 
-#### Example configuration profile
+#### Example configuration profiles
+
+<details>
+<summary>Apple configuration profile (macOS)</summary>
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -234,6 +302,127 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 </dict>
 </plist>
 ```
+
+</details>
+<details>
+<summary>Windows configuration profile (device-scope)</summary>
+
+All options in the example profile are required. Replace `<CA_THUMBPRINT>` with your root CA's SHA1 fingerprint. See [How to get the CAThumbprint for Windows SCEP profiles](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
+
+You can add any other options listed under Device/SCEP in the [Microsoft ClientCertificateInstall CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp).
+
+```xml
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">node</Format>
+        </Meta>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>$FLEET_VAR_NDES_SCEP_PROXY_URL</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/SubjectName</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL NDES Device Cert,OU=$FLEET_VAR_SCEP_RENEWAL_ID</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyUsage</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">int</Format>
+        </Meta>
+        <Data>160</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyLength</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">int</Format>
+        </Meta>
+        <Data>2048</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/HashAlgorithm</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data>SHA-2</Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Data><CA_THUMBPRINT></Data>
+    </Item>
+</Add>
+<Add>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/EKUMapping</LocURI>
+        </Target>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <!-- 1.3.6.1.5.5.7.3.2 is the OID for Client Authentication -->
+        <Data>1.3.6.1.5.5.7.3.2</Data>
+    </Item>
+</Add>
+<Exec>
+    <Item>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll</LocURI>
+        </Target>
+    </Item>
+</Exec>
+```
+
+To create a **user-scope** profile, replace `./Device/` with `./User/` in all `<LocURI>` elements. User-scope profiles require the Windows device to have an Azure AD (Entra ID) user association. Devices with device-only MDM enrollment cannot process user-scope commands.
+
+</details>
 
 ## Smallstep
 
@@ -395,7 +584,7 @@ openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out Cu
 
 # Escape CSR for request
 CSR=$(sed 's/$/\\n/' CustomerUserNetworkAccess.csr | tr -d '\n')
-REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'" }'
+REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'", "return_pem_certificate": true }'
 
 curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<Hydrant-CA-ID>/request_certificate' \
   -X 'POST' \
@@ -406,6 +595,8 @@ curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<Hydra
 
 jq -r .certificate response.json > /opt/company/certificate.pem
 ```
+
+By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard `x509` certificate. The script above passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `certificate.pem`.
 
 This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
 
@@ -437,51 +628,19 @@ SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_v
 
 The following steps show how to deploy certificates from any certificate authority that supports the [SCEP protocol](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate authority (CA).
 
-### Step 1: Connect Fleet to a custom SCEP server
+### Step 1: Connect Fleet to a SCEP CA
 
 1. In Fleet, head to **Settings > Integrations > Certificates**.
-2. Select the **Add CA** button and select **Custom** in the dropdown.
+2. Select the **Add CA** button and select **Custom Simple Certificate Enrollment Protocol (SCEP)** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (for example, "WIFI_AUTHENTICATION"). This name will be used later as a variable name in a configuration profile.
 4. Add your **SCEP URL** and **Challenge**.
-6. Select **Add CA**. Your custom SCEP certificate authority (CA) should appear in the list in Fleet.
+6. Select **Add CA**. Your SCEP certificate authority (CA) should appear in the list in Fleet.
 
 ### Step 2: Add SCEP configuration profile to Fleet
 
 To deploy SCEP certificates to macOS, iOS, iPadOS, and Windows hosts, we'll follow the steps below to add a configuration profile to Fleet. 
 
 For Android hosts, we use a configuration profile and a certificate template. Follow the [Android steps](#android-deploy-certificate) instead.
-
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
-
-2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
-
-3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
-
-4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
-
-When the profile is delivered to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
-
-### Android: Deploy certificate
-
-How to deploy SCEP certificates to Android hosts:
-
-1. Create a `add-certificates-to-work-profile.json` file, copy/paste the below JSON into it, and then, in Fleet, head to **Controls > OS settings > Custom settings**, select **Add profile**, and upload your new `add-certificates-to-work-profile.json` profile.
-
-```json
-{
-  "privateKeySelectionEnabled": true
-}
-```
-
-2. In Fleet, head to **Controls > OS settings > Certificates** and select **Add certificate**.
-3. In **Name**, enter a name for the certificate (e.g., "wifi-certificate"). This name is used as the certificate alias to reference in configuration profiles (e.g. [WiFi configuration](https://developers.google.com/android/management/configure-networks#eap_authentication)).
-4. In **Certificate authority**, select the custom SCEP CA you created in step 1.
-5. In **Subject name**, enter the certificate's subject name (SN). Separate subject fields by a ",". You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) to make the certificate unique to each host. For example: `CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL`.
-6. Select **Save**. Fleet will deploy the certificate to your Android hosts.
-
-If something goes wrong, errors will appear on each host's **Host details > OS settings**.
-
-How does this work? Fleet installs the "Fleet" Android app on each host. Every 15 minutes, the app checks for new certificates, retrieves any from the custom SCEP CA, and installs them in the [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
 
 #### Example configuration profiles
 
@@ -511,13 +670,13 @@ How does this work? Fleet installs the "Fleet" Android app on each host. Every 1
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>%SerialNumber% WIFI</string>
                           </array>
                         </array>
                         <array>
                           <array>
                             <string>OU</string>
-                            <string>FLEET DEVICE MANAGEMENT</string>
+                            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
                           </array>
                         </array>
                     </array>
@@ -668,6 +827,38 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
 
 </details>
 
+1. Create a configuration profile (see examples above) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+
+2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
+
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
+
+4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
+
+When the profile is delivered to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+### Android: Deploy certificate
+
+How to deploy SCEP certificates to Android hosts:
+
+1. Create a `add-certificates-to-work-profile.json` file, copy/paste the below JSON into it, and then, in Fleet, head to **Controls > OS settings > Custom settings**, select **Add profile**, and upload your new `add-certificates-to-work-profile.json` profile.
+
+```json
+{
+  "privateKeySelectionEnabled": true
+}
+```
+
+2. In Fleet, head to **Controls > OS settings > Certificates** and select **Add certificate**.
+3. In **Name**, enter a name for the certificate (e.g., "wifi-certificate"). This name is used as the certificate alias to reference in configuration profiles (e.g. [WiFi configuration](https://developers.google.com/android/management/configure-networks#eap_authentication)).
+4. In **Certificate authority**, select the custom SCEP CA you created in step 1.
+5. In **Subject name**, enter the certificate's subject name (SN). Separate subject fields by a ",". You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) to make the certificate unique to each host. For example: `CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL`.
+6. Select **Save**. Fleet will deploy the certificate to your Android hosts.
+
+If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+How does this work? Fleet installs the "Fleet" Android app on each host. Every 15 minutes, the app checks for new certificates, retrieves any from the custom SCEP CA, and installs them in the [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
+
 ## Any EST (Enrollment over Secure Transport) CA
 
 The following steps show how to deploy certificates from any certificate authority (CA) that supports the [EST protocol](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport).
@@ -680,14 +871,14 @@ The flow for EST is similar to Hydrant, and differs from the other certificate a
 
 This step will vary between providers. EST servers require a `username` and `password` for authentication. These may be obtained from your company's certificate authority administrator.
 
-### Step 2: Connect Fleet to the custom EST server
+### Step 2: Connect Fleet to the EST server
 
 1. In Fleet, head to **Settings > Integrations > Certificates**.
-2. Select **Add CA** and then choose **Custom EST Proxy** in the dropdown.
+2. Select **Add CA** and then choose **Custom Enrollment over Secure Transport (EST)** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
-4. Add your Custom EST Proxy **URL**.
+4. Add your EST **URL**.
 5. Add the username and password as the **Username** and **Password** in Fleet respectively.
-6. Click **Add CA**. Your Custom EST Proxy certificate authority (CA) should appear in the list in Fleet.
+6. Click **Add CA**. Your EST certificate authority (CA) should appear in the list in Fleet.
 
 ### Step 3: Create a custom script
 
@@ -719,7 +910,7 @@ openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out Cu
 
 # Escape CSR for request
 CSR=$(sed 's/$/\\n/' CustomerUserNetworkAccess.csr | tr -d '\n')
-REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'" }'
+REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'", "return_pem_certificate": true }'
 
 curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<EST-CA-ID>/request_certificate' \
   -X 'POST' \
@@ -730,6 +921,8 @@ curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<EST-C
 
 jq -r .certificate response.json > /opt/company/certificate.pem
 ```
+
+By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard `x509` certificate. The script above passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `certificate.pem`.
 
 This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
 
@@ -758,19 +951,19 @@ SELECT 1 FROM certificates WHERE path = '/opt/company/certificate.pem' AND not_v
 
 ## Renewal
 
-Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS), Windows, and Android hosts 30 days before expiration. If the entire validity period is less than 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g. 10 days). Currently, Fleet does not support automatic renewal for Linux hosts.
+Fleet will automatically renew certificates on Apple (macOS, iOS, iPadOS), Windows, and Android hosts 30 days before expiration. If the entire validity period is less than or equal to 30 days (e.g. 20 days), Fleet will automatically renew at half the validity period (e.g. 10 days). Currently, Fleet does not support automatic renewal for Linux hosts.
 
 Automatic renewal is only supported if the validity period is set to 2 days or longer.
 
 If an end user is on vacation (offline for more than 30 days), their certificate might expire, and they'll lose access to Wi-Fi or VPN. To reconnect them, ask your end users to temporarily connect to a different network so that Fleet can deliver a new certificate.
 
-Fleet automatically retries each failed macOS, iOS, iPadOS, and Windows certificate once per host, checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery). Automatic retries for Android is coming soon.
+Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certificate up to 3 times per host and each failed Windows certificate once per host (retries [coming soon](https://github.com/fleetdm/fleet/issues/42981)), checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery). Note that manually resending a profile does not reset the automatic retry counter.
 
-> Currently, for NDES, Smallstep, and custom SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work for Apple and Windows hosts. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
+> Currently, for NDES, Smallstep, and SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work for Apple and Windows hosts. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
 >
 > The ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
 >
-> If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-custom-os-setting-configuration-profile).
+> If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile).
 
 ## Advanced
 
@@ -784,13 +977,15 @@ You can deploy a user-scoped certificate on macOS and Windows hosts using a user
 
 For macOS hosts, user-scoped certificates only work if the `login` keychain is unlocked. If it's locked, MDM commands to install the certificate configuration profile will always return `NotNow`. To check whether the `login` keychain is unlocked, open Keychain Access on the Mac. An unlocked icon should appear to the left of the `login` keychain under **Default keychains**. If it's locked, right-click on the `login` keychain to unlock it.
 
+For Windows hosts, user-scoped profiles require the device to have an Azure AD (Entra ID) user association. Devices with device-only MDM enrollment do not have a user context and will reject all `./User/` CSP commands. Azure AD-joined devices with user enrollment support user-scope profiles.
+
 ### Editing certificate configuration profiles on Apple (macOS, iOS, iPadOS) hosts
 
 When you edit a certificate configuration profile for Apple hosts, via GitOps, a new certificate will be added to each hosts' Keychain and the old certificate will be removed. It takes a couple minutes for the old certificate to be removed.
 
 ### HTTP signatures
 
-If you're deploying certificates from a [custom EST](#custom-est-enrollment-over-secure-transport) certificate authority, you can use HTTP signatures instead of a Fleet API token to authenticate requests to Fleet's ["Request certificate" endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate).
+If you're deploying certificates from an [EST](#any-est-enrollment-over-secure-transport-ca) certificate authority, you can use HTTP signatures instead of a Fleet API token to authenticate requests to Fleet's ["Request certificate" endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate).
 
 This is only supported on Linux hosts with TPM (Trusted Platform Module) hardware that enroll to Fleet using a Fleet agent generated (`fleetctl package`) with the `--fleet-managed-host-identity-certificate` flag.
 
@@ -818,16 +1013,26 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 
 ### Assumptions and limitations
 
-* NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
+* NDES SCEP proxy is currently supported for macOS and Windows devices. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, and Linux.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
 * On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters.
-* The Windows SCEP client adds ⁠/pkiclient.exe to the SCEP server URL. When using Fleet's custom SCEP proxy to deploy certificates, Fleet removes it, allowing you to use non-NDES SCEP servers.
+* The Windows SCEP client adds ⁠/pkiclient.exe to the SCEP server URL. When using Fleet's SCEP proxy to deploy certificates, Fleet removes it, allowing you to use non-NDES SCEP servers.
 * On **Windows** hosts, Fleet will not verify the SCEP profile via osquery. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
-* On **Windows** hosts, Fleet will not remove deployed certificates when configuration profiles are removed from Fleet or when host is transfered to another team.
+* On **Windows** hosts, Fleet will not remove deployed certificates when configuration profiles are removed from Fleet or when host is transfered to another fleet.
+
+### Troubleshooting NDES on Windows
+
+If SCEP enrollment fails on a Windows device, the error `0x800B0101` ("A required certificate is not within its validity period") can indicate any of three issues:
+
+1. **Root CA not trusted**: The device doesn't trust the CA that issued the NDES RA certificates. Fix: deploy the root CA certificate to the device's Trusted Root Certification Authorities store via an MDM profile.
+2. **CRL not reachable**: The device can't fetch the Certificate Revocation List because the CA only publishes CRLs via LDAP. Fix: configure the CA to publish CRLs via an HTTP endpoint. See [Step 1: Prerequisites for Windows hosts](#step-1-prerequisites-for-windows-hosts).
+3. **CA clock skew**: The CA server's clock is ahead of the device, causing certificates to have `notBefore` timestamps in the future. Fix: synchronize the CA server's clock via NTP.
+
+If NDES returns `pkiStatus=FAILURE, failInfo=badRequest`, the NDES password cache may be full. Increase the cache size on the NDES server (see [Step 1: Prerequisites for Windows hosts](#step-1-prerequisites-for-windows-hosts)).
 
 ### How the SCEP proxy works
 
-Fleet acts as a middleman between the host and the NDES or custom SCEP server. When a host requests a certificate from Fleet, Fleet requests a certificate from the NDES or custom SCEP server, retrieves the certificate, and sends it back to the host.
+Fleet acts as a middleman between the host and the NDES or SCEP server. When a host requests a certificate from Fleet, Fleet requests a certificate from the NDES or SCEP server, retrieves the certificate, and sends it back to the host.
 
 Certificates will appear in the System Keychain on macOS. During the profile installation, the OS generates several temporary certificates needed for the SCEP protocol. These certificates may be briefly visible in the Keychain Access app on macOS. The CA certificate must also be installed and marked as trusted on the device for the issued certificate to appear as trusted. The IT admin can send the CA certificate in a separate [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc)
 
@@ -840,13 +1045,13 @@ NDES SCEP proxy:
 - Resends the configuration profile to the host if the one-time challenge password has expired.
   - If the host has been offline and the one-time challenge password is more than 60 minutes old, Fleet assumes the password has expired and will resend the profile to the host with a new one-time challenge password.
 
-Custom SCEP proxy:
+SCEP proxy:
 
 - Generates a one-time passcode that is added to the URL in the SCEP profile.
-  - When a host makes a certificate request via the URL, the passcode is validated by Fleet prior to retrieving a certificate from the custom SCEP server.
+  - When a host makes a certificate request via the URL, the passcode is validated by Fleet prior to retrieving a certificate from the SCEP server.
   - This Fleet-managed passcode is valid for 60 minutes. Fleet automatically resends the SCEP profile
     to the host with a new passcode if the host requests a certificate after the passcode has expired.
-  - The static challenge configured for the custom SCEP server remains in the SCEP profile.
+  - The static challenge configured for the SCEP server remains in the SCEP profile.
 
 
 ### How to get the CAThumbprint for Windows SCEP profiles
@@ -859,6 +1064,29 @@ An example CAThumprint looks like this: `2133EC6A3CFB8418837BB395188D1A62CA2B96A
     2. **PowerShell (Windows)** -> `$cert = Get-PfxCertificate -FilePath "Z:\scep (1).cer";$cert.Thumbprint`
 3. It will return the SHA1 Thumbprint without colons and text. Copy this.
 4. Use the copied value for `./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/CAThumbprint` option.
+
+### Quick CRL workaround for testing NDES on Windows
+
+For production, your CA should publish CRLs via HTTP (see [Step 1: Prerequisites for Windows hosts](#step-1-prerequisites-for-windows-hosts)). For testing, you can manually distribute the CRL to the device instead.
+
+1. On the NDES/CA server, find the CRL files at `C:\Windows\System32\CertSrv\CertEnroll\`. You'll see a base CRL (`<CA-name>.crl`) and possibly a delta CRL (`<CA-name>+.crl`).
+
+2. Copy the CRL files to the Windows test device and install them:
+
+   ```powershell
+   certutil -addstore CA C:\path\to\ca.crl
+   certutil -addstore CA C:\path\to\ca_delta.crl
+   ```
+
+3. Verify that revocation checking now passes:
+
+   ```powershell
+   certutil -verify C:\path\to\ra_cert.cer
+   ```
+
+   The output should end with `CertUtil: -verify command completed successfully.`
+
+> CRLs expire (typically after about a week). You will need to repeat this process when the CRL expires. This workaround does not scale beyond a few test devices.
 
 <meta name="articleTitle" value="Deploy certificates to connect end users to third-party tools">
 <meta name="authorFullName" value="Victor Lyuboslavsky">

@@ -161,19 +161,6 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
 	}
 
-	var stickyEnrollment *string
-	if svc.keyValueStore != nil {
-		// Check for sticky MDM enrollment flag. When set (e.g., after a host transfer),
-		// this prevents enrollment-based team changes for a time window to avoid race conditions
-		// with MDM profile delivery.
-		stickyEnrollment, err = svc.keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+hardwareUUID)
-		if err != nil {
-			// Log error but continue enrollment (fail-open approach). If Redis is unavailable,
-			// enrollment proceeds without sticky behavior rather than blocking.
-			svc.logger.ErrorContext(ctx, "failed to get sticky enrollment", "err", err, "host_uuid", hardwareUUID)
-		}
-	}
-
 	host, err := svc.ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOsqueryHostID(hostIdentifier),
@@ -183,7 +170,6 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryTeamID(secret.TeamID),
 		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
-		fleet.WithEnrollOsqueryIgnoreTeamUpdate(stickyEnrollment != nil),
 	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
@@ -849,15 +835,22 @@ func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.
 }
 
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
-	svc.jitterMu.Lock()
-	defer svc.jitterMu.Unlock()
+	svc.jitterMu.RLock()
+	jh := svc.jitterH[interval]
+	svc.jitterMu.RUnlock()
 
-	if svc.jitterH[interval] == nil {
-		svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
-		svc.logger.DebugContext(context.TODO(), "jitter table created", "bucketCount", svc.jitterH[interval].bucketCount)
+	if jh == nil {
+		svc.jitterMu.Lock()
+		// Double-check after acquiring write lock.
+		if svc.jitterH[interval] == nil {
+			svc.jitterH[interval] = newJitterHashTable(int(int64(svc.config.Osquery.MaxJitterPercent) * int64(interval.Minutes()) / 100.0))
+			svc.logger.DebugContext(context.TODO(), "jitter table created", "bucketCount", svc.jitterH[interval].bucketCount)
+		}
+		jh = svc.jitterH[interval]
+		svc.jitterMu.Unlock()
 	}
 
-	jitter := svc.jitterH[interval].jitterForHost(hostID)
+	jitter := jh.jitterForHost(hostID)
 	cutoff := svc.clock.Now().Add(-(interval + jitter))
 	return lastUpdated.Before(cutoff)
 }
@@ -887,7 +880,7 @@ func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Hos
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
 		}
-		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID)
+		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID, ptr.ValOrZero(host.TeamID))
 		if err != nil && !fleet.IsNotFound(err) {
 			return false, ctxerr.Wrap(ctx, err, "check setup experience pending or running items")
 		}
@@ -897,8 +890,8 @@ func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Hos
 	}
 }
 
-func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string) (bool, error) {
-	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience results")
 	}
@@ -1202,11 +1195,27 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
+		// Compute flipping policies once for all consumers. This replaces up to 5 individual calls to
+		// FlippingPoliciesForHost with a single database query.
+		newFailing, newPassing, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, policyResults)
+		if err != nil {
+			logging.WithErr(ctx, err)
+		}
+		// Ensure newPassing is non-nil so RecordPolicyQueryExecutions can distinguish "pre-computed with zero results"
+		// from "not pre-computed" (nil means compute it yourself).
+		if newPassing == nil {
+			newPassing = []uint{}
+		}
+		newFailingSet := make(map[uint]struct{}, len(newFailing))
+		for _, id := range newFailing {
+			newFailingSet[id] = struct{}{}
+		}
+
 		if err := processCalendarPolicies(ctx, svc.ds, ac, host, policyResults, svc.logger); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
-		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -1219,18 +1228,18 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
 			// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
 			// host details.
-			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
+			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults, newFailingSet); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
 
 		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
 		// host details.
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults, newFailingSet); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
-		// filter policy results for webhooks
+		// Filter policy results for webhooks using pre-computed flipping sets.
 		var policyIDs []uint
 		if globalPolicyAutomationsEnabled(ac.WebhookSettings, ac.Integrations) {
 			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
@@ -1249,12 +1258,13 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		filteredResults := filterPolicyResults(policyResults, policyIDs)
 		if len(filteredResults) > 0 {
-			if failingPolicies, passingPolicies, err := svc.ds.FlippingPoliciesForHost(ctx, host.ID, filteredResults); err != nil {
-				logging.WithErr(ctx, err)
-			} else {
+			// Filter the pre-computed flipping results to only webhook-enabled policies.
+			webhookFailing := filterByPolicyIDs(newFailing, filteredResults)
+			webhookPassing := filterByPolicyIDs(newPassing, filteredResults)
+			if len(webhookFailing) > 0 || len(webhookPassing) > 0 {
 				// Register the flipped policies on a goroutine to not block the hosts on redis requests.
 				go func() {
-					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, host.DisplayName(), failingPolicies, passingPolicies); err != nil {
+					if err := svc.registerFlippedPolicies(ctx, host.ID, host.Hostname, host.DisplayName(), webhookFailing, webhookPassing); err != nil {
 						logging.WithErr(ctx, err)
 					}
 				}()
@@ -1268,12 +1278,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 		// maybe we should impose restrictions between async collection interval
 		// and policy update interval?
 
-		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, newPassing); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	} else if hostWithoutPolicies {
 		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
-		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, []uint{}); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
@@ -1938,6 +1948,18 @@ func filterPolicyResults(incoming map[uint]*bool, webhookPolicies []uint) map[ui
 	return filtered
 }
 
+// filterByPolicyIDs returns only the policy IDs from ids that are present in allowedResults and have a non-nil result
+// (i.e., the policy actually executed). This matches the behavior of FlippingPoliciesForHost which ignores nil results.
+func filterByPolicyIDs(ids []uint, allowedResults map[uint]*bool) []uint {
+	var filtered []uint
+	for _, id := range ids {
+		if val, ok := allowedResults[id]; ok && val != nil {
+			filtered = append(filtered, id)
+		}
+	}
+	return filtered
+}
+
 func (svc *Service) registerFlippedPolicies(ctx context.Context, hostID uint, hostname, displayName string, newFailing, newPassing []uint) error {
 	host := fleet.PolicySetHost{
 		ID:          hostID,
@@ -1964,6 +1986,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	hostPlatform string,
 	hostOrbitNodeKey *string,
 	incomingPolicyResults map[uint]*bool,
+	newFailingSet map[uint]struct{},
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
 		// We do not want to queue software installations on vanilla osquery hosts.
@@ -1979,15 +2002,13 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 
 	// Filter out results that are not failures (we are only interested on failing policies,
 	// we don't care about passing policies or policies that failed to execute).
-	incomingFailingPolicies := make(map[uint]*bool)
 	var incomingFailingPoliciesIDs []uint
 	for policyID, policyResult := range incomingPolicyResults {
 		if policyResult != nil && !*policyResult {
-			incomingFailingPolicies[policyID] = policyResult
 			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
 		}
 	}
-	if len(incomingFailingPolicies) == 0 {
+	if len(incomingFailingPoliciesIDs) == 0 {
 		return nil
 	}
 
@@ -2000,43 +2021,15 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter out results of policies that are not associated to installers.
-	policiesWithInstallersMap := make(map[uint]fleet.PolicySoftwareInstallerData)
-	for _, policyWithInstaller := range policiesWithInstaller {
-		policiesWithInstallersMap[policyWithInstaller.ID] = policyWithInstaller
-	}
-	policyResultsOfPoliciesWithInstallers := make(map[uint]*bool)
-	for policyID, passes := range incomingFailingPolicies {
-		if _, ok := policiesWithInstallersMap[policyID]; !ok {
-			continue
-		}
-		policyResultsOfPoliciesWithInstallers[policyID] = passes
-	}
-	if len(policyResultsOfPoliciesWithInstallers) == 0 {
-		return nil
-	}
-
-	// Get the policies associated with installers that are flipping from passing to failing on this host.
-	policyIDsOfNewlyFailingPoliciesWithInstallers, _, err := svc.ds.FlippingPoliciesForHost(
-		ctx, hostID, policyResultsOfPoliciesWithInstallers,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
-	}
-	if len(policyIDsOfNewlyFailingPoliciesWithInstallers) == 0 {
-		return nil
-	}
-	policyIDsOfNewlyFailingPoliciesWithInstallersSet := make(map[uint]struct{})
-	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithInstallers {
-		policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyID] = struct{}{}
-	}
-
-	// Finally filter out policies with installers that are not newly failing.
+	// Filter to policies with installers that are newly failing, using the pre-computed set.
 	var failingPoliciesWithInstaller []fleet.PolicySoftwareInstallerData
 	for _, policyWithInstaller := range policiesWithInstaller {
-		if _, ok := policyIDsOfNewlyFailingPoliciesWithInstallersSet[policyWithInstaller.ID]; ok {
+		if _, ok := newFailingSet[policyWithInstaller.ID]; ok {
 			failingPoliciesWithInstaller = append(failingPoliciesWithInstaller, policyWithInstaller)
 		}
+	}
+	if len(failingPoliciesWithInstaller) == 0 {
+		return nil
 	}
 
 	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
@@ -2112,6 +2105,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	hostTeamID *uint,
 	hostPlatform string,
 	incomingPolicyResults map[uint]*bool,
+	newFailingSet map[uint]struct{},
 ) error {
 	var policyTeamID uint
 	if hostTeamID == nil {
@@ -2122,15 +2116,13 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 
 	// Filter out results that are not failures (we are only interested on failing policies,
 	// we don't care about passing policies or policies that failed to execute).
-	incomingFailingPolicies := make(map[uint]*bool)
 	var incomingFailingPoliciesIDs []uint
 	for policyID, policyResult := range incomingPolicyResults {
 		if policyResult != nil && !*policyResult {
-			incomingFailingPolicies[policyID] = policyResult
 			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
 		}
 	}
-	if len(incomingFailingPolicies) == 0 {
+	if len(incomingFailingPoliciesIDs) == 0 {
 		return nil
 	}
 
@@ -2143,45 +2135,13 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter out results of policies that are not associated to VPP apps.
-	policiesWithVPPMap := make(map[uint]fleet.PolicyVPPData)
-	for _, policyWithVPP := range policiesWithVPP {
-		policiesWithVPPMap[policyWithVPP.ID] = policyWithVPP
-	}
-	policyResultsOfPoliciesWithVPP := make(map[uint]*bool)
-	for policyID, passes := range incomingFailingPolicies {
-		if _, ok := policiesWithVPPMap[policyID]; !ok {
-			continue
-		}
-		policyResultsOfPoliciesWithVPP[policyID] = passes
-	}
-	if len(policyResultsOfPoliciesWithVPP) == 0 {
-		return nil
-	}
-
-	// Get the policies associated with VPP apps that are flipping from passing to failing on this host.
-	policyIDsOfNewlyFailingPoliciesWithVPP, _, err := svc.ds.FlippingPoliciesForHost(
-		ctx, hostID, policyResultsOfPoliciesWithVPP,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
-	}
-	if len(policyIDsOfNewlyFailingPoliciesWithVPP) == 0 {
-		return nil
-	}
-	policyIDsOfNewlyFailingPoliciesWithVPPSet := make(map[uint]struct{})
-	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithVPP {
-		policyIDsOfNewlyFailingPoliciesWithVPPSet[policyID] = struct{}{}
-	}
-
-	// Finally filter out policies with VPP apps that are not newly failing.
+	// Filter to policies with VPP apps that are newly failing, using the pre-computed set.
 	var failingPoliciesWithVPP []fleet.PolicyVPPData
 	for _, policyWithVPP := range policiesWithVPP {
-		if _, ok := policyIDsOfNewlyFailingPoliciesWithVPPSet[policyWithVPP.ID]; ok {
+		if _, ok := newFailingSet[policyWithVPP.ID]; ok {
 			failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
 		}
 	}
-
 	if len(failingPoliciesWithVPP) == 0 {
 		return nil
 	}
@@ -2262,6 +2222,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 	hostOrbitNodeKey *string,
 	hostScriptsEnabled *bool,
 	incomingPolicyResults map[uint]*bool,
+	newFailingSet map[uint]struct{},
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
 		return nil // vanilla osquery hosts can't run scripts
@@ -2290,15 +2251,13 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 
 	// Filter out results that are not failures (we are only interested on failing policies,
 	// we don't care about passing policies or policies that failed to execute).
-	incomingFailingPolicies := make(map[uint]*bool)
 	var incomingFailingPoliciesIDs []uint
 	for policyID, policyResult := range incomingPolicyResults {
 		if policyResult != nil && !*policyResult {
-			incomingFailingPolicies[policyID] = policyResult
 			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
 		}
 	}
-	if len(incomingFailingPolicies) == 0 {
+	if len(incomingFailingPoliciesIDs) == 0 {
 		return nil
 	}
 
@@ -2311,43 +2270,15 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter out results of policies that are not associated to scripts.
-	policiesWithScriptsMap := make(map[uint]fleet.PolicyScriptData)
-	for _, policyWithScript := range policiesWithScript {
-		policiesWithScriptsMap[policyWithScript.ID] = policyWithScript
-	}
-	policyResultsOfPoliciesWithScripts := make(map[uint]*bool)
-	for policyID, passes := range incomingFailingPolicies {
-		if _, ok := policiesWithScriptsMap[policyID]; !ok {
-			continue
-		}
-		policyResultsOfPoliciesWithScripts[policyID] = passes
-	}
-	if len(policyResultsOfPoliciesWithScripts) == 0 {
-		return nil
-	}
-
-	// Get the policies associated with scripts that are flipping from passing to failing on this host.
-	policyIDsOfNewlyFailingPoliciesWithScripts, _, err := svc.ds.FlippingPoliciesForHost(
-		ctx, hostID, policyResultsOfPoliciesWithScripts,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
-	}
-	if len(policyIDsOfNewlyFailingPoliciesWithScripts) == 0 {
-		return nil
-	}
-	policyIDsOfNewlyFailingPoliciesWithScriptsSet := make(map[uint]struct{})
-	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithScripts {
-		policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyID] = struct{}{}
-	}
-
-	// Finally filter out policies with scripts that are not newly failing.
+	// Filter to policies with scripts that are newly failing, using the pre-computed set.
 	var failingPoliciesWithScript []fleet.PolicyScriptData
 	for _, policyWithScript := range policiesWithScript {
-		if _, ok := policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyWithScript.ID]; ok {
+		if _, ok := newFailingSet[policyWithScript.ID]; ok {
 			failingPoliciesWithScript = append(failingPoliciesWithScript, policyWithScript)
 		}
+	}
+	if len(failingPoliciesWithScript) == 0 {
+		return nil
 	}
 
 	for _, failingPolicyWithScript := range failingPoliciesWithScript {

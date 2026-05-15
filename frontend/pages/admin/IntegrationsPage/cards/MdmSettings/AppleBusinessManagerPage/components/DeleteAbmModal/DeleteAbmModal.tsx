@@ -44,7 +44,7 @@ const DeleteAbmModal = ({
 
   return (
     <Modal
-      title="Delete ABM"
+      title="Delete AB"
       className={baseClass}
       onExit={onCancel}
       isContentDisabled={isDeleting}
@@ -55,7 +55,7 @@ const DeleteAbmModal = ({
       </p>
       <p>
         If you want to re-enable automatic enrollment, you&apos;ll have to
-        upload a new ABM token.
+        upload a new AB token.
       </p>
 
       <div className="modal-cta-wrap">

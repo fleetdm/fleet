@@ -16,6 +16,7 @@ It's simple Open an issue: **[Propose an event](https://github.com/fleetdm/confi
 | Q2 | [GitOps Workshop](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9bojminke8bt) | 2026-04-07 | Minneapolis |
 | Q2 | [HappyHour-Apple](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.2lh2oum4rxur) | 2026-04-TBD | Austin |
 | Q2 | * **[MACAd-UK](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.u1lwe72sguc3)** | 2026-04-21 | Brighton, UK |
+| Q2 | * **[Gartner Digital Workplace UK](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9h2x1faopsyk)** | 2026-04-28 | London |
 | Q2 | * **[MacAdmins Europe](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.qg7ymw2g9ui8)** | 2026-04-30 | Leiden, Netherlands |
 | Q2 | * **[MacDevOpsYVR](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.afz38t4pwdka)** | 2026-06-25 | Montreal |
 | Q2 | * **[PSU MacAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.yibj67h9z2xz)** | 2026-07-07 | PennState |
@@ -38,13 +39,13 @@ See the section "Settle event strategy" below for the process.
 
 ##### Settle event strategy (approve proposed events)
 
-Anyone at Fleet can propose a future event.
-Fleet's [Head of DemandGen](https://fleetdm.com/handbook/marketing#team) serves as the project manager for managing the event approval process. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. 
+Anyone at Fleet can propose a future event. Fleet's [Head of DemandGen](https://fleetdm.com/handbook/marketing#team) serves as the project manager for managing the event approval process. Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. 
 
-- Field/sales events and GitOps workshops are settled 1 sprint in advance.
-- Conferences are settled 1 quarter in advance. 
+The "Settle events strategy" meeting is held on the first Wednesday of every quarter to discuss and lock in all events (conferences, field/sales events, and GitOps workshops) for the next quarter.
 
-Once events have been settled for a particular time frame, i.e, decided in a previous event strategy session, Fleet does not make changes except in extreme circumstances.
+The [Marketing Campaign Manager](https://fleetdm.com/handbook/marketing#team) is the DRI for this meeting. 
+
+Once events have been settled for the upcoming quarter, Fleet does not make changes except in extreme circumstances.
 
 1. Add all upcoming proposed in issues using the template (Propose an event: EVENT_NAME - CITY - YYYY-MM-DD). Approval is tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
 2. Proposed events will include the following information:
@@ -59,9 +60,8 @@ Once events have been settled for a particular time frame, i.e, decided in a pre
   - Who from Fleet will attend?
   - Which talk proposal will Fleet submit?
   - Estimated budget, including sponsorship or airfare, and lodging for attendees.
-2. Set up and attend a 30m meeting with the CMO, Head of Demand Generation, or Manager of Training and Enablement.
-  - First, during this meeting, Marketing will decide which field/sales events and GitOps workshops Fleet will execute in the **following sprint**.
-  - Next, Marketing will decide which conferences in the **following quarter** the company will invest time or money into. 
+2. Attend the 30m quarterly event strategy meeting with the CMO, Head of Demand Generation, and Marketing Campaign Manager.
+  - During this meeting, Marketing will decide which events (conferences, field/sales events, and GitOps workshops) Fleet will execute in the **following quarter**.
 3. After the meeting, the Content Specialist will communicate the settled events by
   - Moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc).
   - Using the following template, post a message in the [#oooh-events Slack channel](https://fleetdm.slack.com/archives/C054TGK0H7X).
@@ -131,7 +131,21 @@ We use GitHub labels to organize the difference between overall event issues and
 We utilize two general event plans, which act as templates depending on the scale and type of the event:
 
 1. **Conference:** Used for large conferences and events where we have a booth, speaking slots, lead scanning, and other major logistical needs.  
-2. **Workshop/Happy hour:** Used for our GitOps workshop series (which often includes happy hours). This smaller template can be used for the full workshop or for bespoke, standalone happy hours.
+2. **Workshop/Dinner:** Used for our GitOps workshop series (which often includes a post workshop dinner).
+3. **Meetups/Happy Hours** ...wip
+
+
+
+### **Partner Involvement at GitOps Workshops**
+
+It is a best practice and a goal for Fleet to have channel partner involvement in every   
+GitOps workshop we host. Partner involvement strengthens the workshop's reach, reinforces   
+Fleet's channel relationships, and increases qualified attendance.
+
+#### **There are three defined partner engagement types for GitOps workshops:**
+1. **Dedicated Partner Workshop:** Fleet hosts the workshop exclusively for a single partner, typically at the partner's office. The audience is the partner's internal staff only — no customers, prospects, or other partners are included. This format is used for partner enablement and training.  
+2. **Partner Co-Sponsored Workshop** *(most common):* A single channel partner co-sponsors the workshop alongside Fleet. Only one partner sponsor is permitted per event, and no other partners may attend. Fleet and the co-sponsoring partner each invite from their combined customer and prospect base to drive attendance.  
+3. **Fleet-Led Open Workshop:** Fleet runs and owns the workshop independently, with no dedicated local partner. This format is used when there is no established partner presence in the workshop's metro area. Any partner is welcome to attend. To drive registration, the channel manager and account executives run a targeted LinkedIn campaign inviting prospects and customers within the workshop's metro area.
 
 ### **Execution process**
 
@@ -152,6 +166,48 @@ Once an event is approved, a Marketing directly responsible individual (DRI) is 
 * Ensure leads and attendance are actively captured during the event.  
 * Pack up the event kit and ship it back.  
 * Coordinate with the Marketing DRI to get leads uploaded and processed.
+
+### **Lead capture at events**
+
+Fleet uses one of three methods to capture leads at events, in priority order.
+
+#### **Scenario 1: Official event scanner (preferred)**
+If the conference provides a lead scanner or rental device, always use it.
+1.  **Pre-event:** Create a dedicated SFDC campaign for the booth (separate from any workshop campaign) before the event starts.
+2. **At the event:** Scan badges, flag lead temperature, and export the lead list at the end of each day.
+3. **Post-event:** Upload leads to SFDC and share in the event Slack channel. Hot leads should receive outreach within 24 hours.
+
+#### **Scenario 2: Popl (no official scanner)**
+When no official scanner is available, use the **Popl** app to scan badges and business cards. Popl is connected to SFDC and leads/scans will be added to the SFDC campaign automatically.
+
+##### **Pre-event setup (marketing DRI)**
+1. Create a dedicated Popl campaign matching the SFDC campaign name, with dates covering the full event.  
+2. Add all booth staff to the campaign. Send Popl invites to anyone who doesn't have an account yet — they'll see the campaign automatically once set up.  
+3. Confirm everyone can see the campaign at least 48 hours before the event.
+
+##### **At the event**
+* Confirm the correct campaign is selected before scanning.  
+* Add notes to each scan immediately after the conversation.  
+* If connectivity is poor or unreliable, revert to [Scenario 3: Google Doc fallback](#scenario-3-google-doc-fallback-no-wi-fi-or-popl-not-working).
+
+**Note:** Popl's badge scan and OCR features require an internet connection to process.
+
+#### **Scenario 3: Google Doc fallback (no Wi-Fi or Popl not working)**
+If there is poor service and/or Wi-Fi and Popl is not a viable option, one person from the on-site team should open a new Google Doc and share it with the other team members. Create one tab per staff member inside the doc.
+
+**Guide:** For a step-by-step visual walkthrough of this process, refer to [How to Guide-Capturing leads using Google doc offline](#https://docs.google.com/document/d/1equ2pwOY4Op3m2zTX-316p0vp9b7Du6Zmjjqdgmueoc/edit?usp=sharing).
+
+##### **At the event — instructions for each team member**
+1. Open a new tab (one per lead).  
+2. Tap **\+** → **Image** → **From camera** to photograph their badge.  
+3. After they leave, tap the mic and dictate your note. Always start with time, customer name, lead rating, and your notes:  
+     
+   `[TIME]: [FULL NAME]: [lead rating — hot / warm / cold]: [your notes]`  
+    
+4. Once done, open a new tab and repeat for each lead.
+
+##### **Post-event**
+When back online, the doc syncs automatically. The event DRI reviews all tabs, transcribes leads into SFDC, and assigns lead temperature based on the notes.
 
 ### **Definition of done**
 
@@ -211,8 +267,8 @@ here's the script
 ```bash
 #!/bin/bash
 # --- Event specifics / details - change this
-EVENT_SLUG="2606-MacDevOpsYVR-Montreal"
-PLANNING_DOC_URL="https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.afz38t4pwdka"
+EVENT_SLUG="2026_04-MC-Gartner_UK"
+PLANNING_DOC_URL="https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9h2x1faopsyk"
 REQUEST_ISSUE = "#14599"
 
 # No need to change anything else to run the script
@@ -247,35 +303,14 @@ Master tracking issue for ${EVENT_SLUG}.
 EXECUTION for request $REQUEST_ISSUE
 
 ## Executive Snapshot & Key Decisions 
-
-Use this section for a quick overview. If someone only reads this part, they should understand the scope and scale of our presence. 
-
-| Category | Details |
-|---|---|
-| Event Name | [e.g., KubeCon NA 2026] |
-| Dates | [Start Date] to [End Date] |
-| Location | [City, State, Venue Name] |
-| Event Website | [Link to official site] |
-| Budget Estimate | [Total estimated cost] |
-| Primary Goal | [e.g., Lead Gen (500 scans), Brand Awareness, Recruiting] |
-| Booth Size | [e.g., 10x20, Island, Tabletop] |
-| Speaking Slot? (details below) | Yes or No |
-| Workshop? | Yes or No |
-| DRI | [Name of person responsible] |
-| Onsite DRI | [Name of person responsible] |
-| Planing Doc | $PLANNING_DOC_URL |
+- [ ] Update the working google doc for the ${EVENT_SLUG}
+See: Planing Doc: $PLANNING_DOC_URL 
 
 - [ ] Finalize sponsorship agreements
-- [ ] Assign issues/tasks
+- [ ] Assign child issues/tasks
 
-## Progress Tracker
-- [ ] 1. Speaking Session & Workshop Details
-- [ ] 2. Promotion & Marketing Plan
-- [ ] 3. Booth Strategy & Messaging
-- [ ] 4. Staffing & Travel Logistics
-- [ ] 5. Execution, Logistics & Swag
-- [ ] 6 Lead Capture & Follow-Up Strategy
-- [ ] 7. Post-Mortem & ROI Analysis
+## Progress Tracker - See SubIssues
+
 EOF
 )
 
@@ -376,11 +411,12 @@ BODY=$(cat << EOF
 **Description**
 Track all details, deadlines, and requirements for any speaking slots or workshops we are hosting before, during, or after the event.
 
-- [ ] Confirm speaking session details (Title, Speaker, Date/Time, Room)
-- [ ] Submit Abstract Link and AV Requirements
-- [ ] Confirm workshop hosting and timing
-- [ ] Update Workshop Planning Doc, Registration Link, and Capacity
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Confirm speaking session details (Title, Speaker, Date/Time, Room)
+- Submit Abstract Link and AV Requirements
+- Confirm workshop hosting and timing
+- Update Workshop Planning Doc, Registration Link, and Capacity
+
 EOF
 )
 create_sub_issue "1. Speaking Session & Workshop Details" "$BODY"
@@ -391,13 +427,11 @@ BODY=$(cat << EOF
 **Description**
 Manage how we are driving traffic to our booth, session, or workshop.
 
-- [ ] Schedule Pre-Event Email Blast 
-- [ ] Schedule LinkedIn and Twitter/X Posts
-- [ ] Create Speaker Promo Graphics and Blog Post 
-- [ ] Assign Customer Invites
-- [ ] Assign Live Social Coverage during event 
-- [ ] Schedule Event App Push Notification
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Schedule Pre-Event Email Blast 
+- Work w/ Social Media Manager to schedule LinkedIn and Twitter/X Posts
+- Create Speaker Promo Graphics and Blog Post 
+- Assign Live Social Coverage during event 
 EOF
 )
 create_sub_issue "2. Promotion & Marketing Plan" "$BODY"
@@ -406,13 +440,13 @@ create_sub_issue "2. Promotion & Marketing Plan" "$BODY"
 # --- Child 3 ---
 BODY=$(cat << EOF
 **Description**
-Define the core purpose, layout, and messaging for our physical footprint on the show floor.
+Define the booth details.
 
-- [ ] Document Booth Number and Exhibit Hall Hours 
-- [ ] Define Core Messaging/Theme 
-- [ ] List Key Demos 
-- [ ] Document Key Requirements (internet, scanners, monitors)
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Document Booth Number and Exhibit Hall Hours 
+- Define Core Messaging/Theme 
+- Define Digital Booth Content (Videos, Slides, Demos)
+- Document Key Requirements (internet, scanners, monitors)
 EOF
 )
 create_sub_issue "3. Booth Strategy & Messaging" "$BODY"
@@ -423,12 +457,12 @@ BODY=$(cat << EOF
 **Description**
 Manage who is going, where they are staying, and when they are working the booth.
 
-- [ ] Assign Staff Manager and Attire 
-- [ ] Select Suggested Hotel 
-- [ ] Set Arrival and Departure Requirements 
-- [ ] Complete Staff Assignments table 
-- [ ] Create Booth Staffing Schedule
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Assign Staff Manager and Attire 
+- Select Suggested Hotel 
+- Set Arrival and Departure Requirements 
+- Complete Staff Assignments table 
+- Create Booth Staffing Schedule
 EOF
 )
 create_sub_issue "4. Staffing & Travel Logistics" "$BODY"
@@ -439,12 +473,12 @@ BODY=$(cat << EOF
 **Description**
 This section is for the operations team to handle on-site setup, booth build, and shipping.
 
-- [ ] Track Shipping & Handling deadlines and tracking numbers 
-- [ ] Create Return Shipping Label 
-- [ ] Confirm Booth Vendor, Graphics Deadline, and Furniture/Electrical 
-- [ ] Order Premium Swag, General Swag, and Raffle/Contest items 
-- [ ] Complete Key Points of Contact table
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Track Shipping & Handling deadlines and tracking numbers 
+- Create Return Shipping Label 
+- Confirm Booth Vendor, Graphics Deadline, and Furniture/Electrical 
+- Order Premium Swag, General Swag, and Raffle/Contest items 
+- Complete Key Points of Contact table
 EOF
 )
 create_sub_issue "5. Execution, Logistics & Swag" "$BODY"
@@ -455,12 +489,13 @@ BODY=$(cat << EOF
 **Description**
 Crucial for ROI. Track how we capture data and what happens next.
 
-- [ ] Define Capture Mechanics, Method, and Device Rental 
-- [ ] Define Incentive to Scan 
-- [ ] Write Qualifying Questions for Booth Staff 
-- [ ] Assign Lead Upload Owner and SLA 
-- [ ] Define Follow Up Strategy and Nurture Sequence
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Define Capture Mechanics, Method, and Device Rental 
+- Define Incentive to Scan 
+- Write Qualifying Questions for Booth Staff 
+- Assign Lead Upload Owner and SLA 
+- Define Follow Up Strategy and Nurture Sequence
+
 EOF
 )
 create_sub_issue "6. Lead Capture & Follow-Up Strategy" "$BODY"
@@ -471,11 +506,11 @@ BODY=$(cat << EOF
 **Description**
 To be filled out within 1 week of event conclusion to analyze performance and ROI.
 
-- [ ] Record The Numbers (Leads, MQLs, Spend, CPL) 
-- [ ] Complete Retrospective (What went well/wrong) 
-- [ ] Document Competitor Intel 
-- [ ] Upload Photo Archive
-- [ ] Update the $PLANNING_DOC_URL
+- [ ] Update the $PLANNING_DOC_URL with these details
+- Record The Numbers (Leads, MQLs, Spend, CPL) 
+- Complete Retrospective (What went well/wrong) 
+- Document Competitor Intel 
+- Upload Photo Archive
 EOF
 )
 create_sub_issue "7. Post-Mortem & ROI Analysis" "$BODY"
@@ -486,7 +521,7 @@ echo "Done."
 
 ## How to automate workshop creation
 
-The workshop tracking process uses the same GitHub parent/child issue structure as conferences, but with a smaller, workshop-specific set of tasks. Use this script instead of the conference script when running a GitOps workshop (with or without a happy hour).
+The workshop tracking process uses the same GitHub parent/child issue structure as conferences, but with a smaller, workshop-specific set of tasks. Use this script instead of the conference script when running a GitOps workshop.
 
 > If you haven't set up the GitHub CLI yet, follow the **Setup** steps in the [How to automate event creation](#how-to-automate-event-creation) section above before continuing.
 
@@ -523,355 +558,8 @@ This will create a parent overview issue and six linked child issues in GitHub t
 
 Here's the script:
 
-```bash
-#!/bin/bash
-# --- Workshop specifics / details - change this
-WORKSHOP_SLUG="2606-GitOps-Workshop-Montreal"
-PLANNING_DOC_URL="https://docs.google.com/document/d/YOUR_PLANNING_DOC_ID/edit"
-REQUEST_ISSUE="#00000"
+see new-workshop.sh in the marketing folder
 
-# No need to change anything else to run the script
-
-# --- Static Configuration ---
-ORG="fleetdm"
-REPO="confidential"
-PROJECT_NUMBER="94"
-
-# 1. Define Labels
-NEW_LABEL=":mktg-event:${WORKSHOP_SLUG}"
-PARENT_LABELS=":mktg-event,:mktg-event:overview,:mktg-event:tp"
-CHILD_LABELS=":mktg-event,:mktg-event:detail,:mktg-event:tp"
-
-# Temp file for issue bodies (avoids heredoc/subshell parenthesis conflicts)
-BODY_FILE=$(mktemp)
-cleanup() { rm -f "$BODY_FILE"; }
-trap cleanup EXIT
-
-# Ensure the specific workshop label exists
-echo "1. Ensuring label '${NEW_LABEL}' exists..."
-gh label create "$NEW_LABEL" --repo "$ORG/$REPO" --force >/dev/null 2>&1 || true
-
-
-# ==========================================
-# STEP 1: CREATE THE PARENT ISSUE
-# ==========================================
-echo "2. Creating Parent Issue (Overview)..."
-
-PARENT_TITLE="${WORKSHOP_SLUG} Workshop Overview"
-
-cat > "$BODY_FILE" << EOF
-Master tracking issue for the GitOps Workshop: ${WORKSHOP_SLUG}.
-
-EXECUTION for request $REQUEST_ISSUE
-
-## Executive Snapshot & Key Decisions
-
-Use this section for a quick overview. If someone only reads this part, they should understand the scope and scale of our workshop.
-
-| Category | Details |
-|---|---|
-| Workshop Name | [e.g., GitOps Workshop — Atlanta] |
-| Date | [Date] |
-| Location | [City, Venue Name] |
-| Capacity | [Max Attendees] |
-| Lead Instructor | @[Name] |
-| Onsite DRI | @[Name] |
-| Marketing DRI | @[Name] |
-| Happy Hour? | Yes or No |
-| Planning Doc | $PLANNING_DOC_URL |
-
-- [ ] Confirm workshop date and venue
-- [ ] Assign issues/tasks to DRIs
-
-## Progress Tracker
-- [ ] 1. Workshop Promotion & Registration Launch
-- [ ] 2. Venue Selection & Logistics
-- [ ] 3. Happy Hour Planning & Promotion
-- [ ] 4. Workshop Catering
-- [ ] 5. Travel & Staffing
-- [ ] 6. Post-Mortem & Follow-Up
-EOF
-
-PARENT_URL=$(gh issue create \
-  --repo "$ORG/$REPO" \
-  --title "$PARENT_TITLE" \
-  --body-file "$BODY_FILE" \
-  --label "$PARENT_LABELS,$NEW_LABEL")
-
-if [ -z "$PARENT_URL" ]; then
-    echo "❌ ERROR: Failed to create Parent Issue. Check if labels exist in the repo."
-    exit 1
-fi
-
-PARENT_NUM=$(echo "$PARENT_URL" | awk -F/ '{print $NF}')
-echo "   ✅ Parent Created: #$PARENT_NUM"
-
-PARENT_NODE_ID=$(gh api graphql -f query='
-  query($owner:String!, $repo:String!, $number:Int!) {
-    repository(owner:$owner, name:$repo) {
-      issue(number:$number) { id }
-    }
-  }' -f owner="$ORG" -f repo="$REPO" -F number="$PARENT_NUM" --jq '.data.repository.issue.id')
-
-if [ -z "$PARENT_NODE_ID" ] || [ "$PARENT_NODE_ID" == "null" ]; then
-    echo "❌ ERROR: Could not fetch GraphQL Node ID for Parent #$PARENT_NUM"
-    exit 1
-fi
-
-echo "   🔹 Parent Node ID: $PARENT_NODE_ID"
-gh project item-add "$PROJECT_NUMBER" --owner "$ORG" --url "$PARENT_URL" >/dev/null 2>&1
-
-
-# ==========================================
-# STEP 2: HELPER FUNCTION FOR CHILD ISSUES
-# ==========================================
-create_sub_issue() {
-    local TITLE="$1"
-    # Body is already written to $BODY_FILE by the caller
-
-    CHILD_URL=$(gh issue create \
-      --repo "$ORG/$REPO" \
-      --title "$TITLE: ${WORKSHOP_SLUG}" \
-      --body-file "$BODY_FILE" \
-      --label "$CHILD_LABELS,$NEW_LABEL")
-
-    if [ -n "$CHILD_URL" ]; then
-        CHILD_NUM=$(echo "$CHILD_URL" | awk -F/ '{print $NF}')
-
-        CHILD_NODE_ID=$(gh api graphql -f query='
-          query($owner:String!, $repo:String!, $number:Int!) {
-            repository(owner:$owner, name:$repo) {
-              issue(number:$number) { id }
-            }
-          }' -f owner="$ORG" -f repo="$REPO" -F number="$CHILD_NUM" --jq '.data.repository.issue.id')
-
-        echo "   ✅ Created Child: #$CHILD_NUM ($TITLE)"
-
-        LINK_RESULT=$(gh api graphql -f query='
-          mutation($parentId: ID!, $childId: ID!) {
-            addSubIssue(input: {issueId: $parentId, subIssueId: $childId}) {
-              clientMutationId
-            }
-          }
-        ' -f parentId="$PARENT_NODE_ID" -f childId="$CHILD_NODE_ID" 2>&1)
-
-        if [[ $? -eq 0 ]]; then
-            echo "      🔗 Linked as Sub-issue to Parent #$PARENT_NUM"
-        else
-            echo "      ⚠️ Failed to link. Error details:"
-            echo "$LINK_RESULT"
-        fi
-
-        gh project item-add "$PROJECT_NUMBER" --owner "$ORG" --url "$CHILD_URL" >/dev/null 2>&1
-    else
-        echo "   ❌ Failed to create child: $TITLE"
-    fi
-}
-
-
-# ==========================================
-# STEP 3: DEFINE & CREATE CHILD ISSUES
-# ==========================================
-echo "3. Creating and Linking Child Issues..."
-
-# --- Child 1 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Get the main workshop event live to start gathering leads.
-
-Note: You can launch with "Venue TBD" or "Downtown [City]" if the specific room isn't booked yet.
-
-**Who:** Marketing DRI
-
-- [ ] Create Workshop Landing Page on Eventbrite or Luma
-- [ ] Schedule Email Blast to target audience
-- [ ] Schedule LinkedIn and Twitter/X posts and request speaker graphics
-- [ ] Notify AEs and Partners to drive personal invites
-- [ ] Monitor registration — watch for waitlists or low attendance and adjust promo if needed
-- [ ] Update the $PLANNING_DOC_URL with "Promotion & Marketing Plan" details and registration link
-EOF
-create_sub_issue "1. Workshop Promotion & Registration Launch"
-
-
-# --- Child 2 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Secure the physical space for the workshop. Once confirmed, notify attendees.
-
-**Who:** Onsite DRI
-
-- [ ] Secure venue — confirm availability for workshop date
-- [ ] Power audit — confirm every seat has access to power, or plan to bring extension cords
-- [ ] AV check — confirm projector/HDMI availability
-- [ ] Update Workshop Landing Page with the specific venue name and address
-- [ ] Update the $PLANNING_DOC_URL with "Venue Details" section
-EOF
-create_sub_issue "2. Venue Selection & Logistics"
-
-
-# --- Child 3 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Plan the post-workshop networking. This is treated as a separate event to allow for broader networking — invite people who couldn't make the workshop itself.
-
-**Who:** Onsite DRI
-
-- [ ] Secure venue — find a bar/restaurant within a 5-minute walk of the workshop area
-- [ ] Confirm menu/tab — decide on Open Bar vs. Fixed Menu and set the budget cap
-- [ ] Create Happy Hour registration page on Eventbrite or Luma and promote separately
-- [ ] Schedule LinkedIn/Twitter posts promoting the Happy Hour
-- [ ] Update the $PLANNING_DOC_URL with "Post-Event Happy Hour" section including venue and registration link
-EOF
-create_sub_issue "3. Happy Hour Planning & Promotion"
-
-
-# --- Child 4 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Finalize in-room food and drink orders.
-
-Wait to complete this until ~1 week before the event so you have an accurate headcount.
-
-**Who:** Onsite DRI
-
-- [ ] Check registration count — confirm headcount from Registered and Waitlist to avoid over-ordering
-- [ ] Order food and drinks
-- [ ] Update the $PLANNING_DOC_URL with "Catering" section and order details
-EOF
-create_sub_issue "4. Workshop Catering"
-
-
-# --- Child 5 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Ensure the instructor and support staff can get to the city and are prepared for the event.
-
-**Who:** Onsite DRI, Marketing DRI, Attendees
-
-- [ ] Book flights for Lead Instructor and TA if traveling
-- [ ] Book hotel — ensure proximity to the venue
-- [ ] Confirm staffing assignments and attire
-- [ ] Update the $PLANNING_DOC_URL with "Staff Travel" and "Logistics" sections
-EOF
-create_sub_issue "5. Travel & Staffing"
-
-
-# --- Child 6 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-To be completed within 48 hours after the event. Close the loop on leads and technical feedback.
-
-- [ ] Calculate stats — record Registered, Attended, and No-Show rates for both Workshop and Happy Hour
-- [ ] Log technical issues — document any WiFi drops or firewall blockers for future reference
-- [ ] CRM upload — upload attendee list to Salesforce/HubSpot
-- [ ] Send follow-up email with slides and repo links
-- [ ] Update the $PLANNING_DOC_URL with completed "Post-Mortem & Follow-Up" section
-EOF
-create_sub_issue "6. Post-Mortem & Follow-Up"
-
-echo "Done."
-```
-
-## **Connecting Eventbrite registrations to Salesforce campaigns (event ID key)**
-
-#### **Purpose**
-
-We need a reliable, repeatable way to associate each Eventbrite registration with the correct Salesforce Campaign **without adding any visible fields to the attendee experience**. This approach uses the Eventbrite **Event ID** as the canonical key to map registrations to Campaigns in Salesforce.
-
-#### **Core idea**
-
-Each Eventbrite event has a unique identifier (`event_id`). We store that identifier on the corresponding Salesforce Campaign. When a new registration occurs, our integration (e.g., Clay) reads the `event_id` from the registration payload, finds the matching Campaign, then creates/updates the Campaign Member.
-
-This creates a clean 1:1 relationship:
-
-**1 Eventbrite Event → 1 Salesforce Campaign → Many Campaign Members (registrants)**
-
-#### **Why this approach**
-
-* **Invisible to attendees:** No hidden checkout questions or user-facing “tags.”  
-* **Stable and unambiguous:** Event IDs are unique and don’t depend on event names.  
-* **Easy to operationalize:** Simple to document and enforce as a process.  
-* **Scalable to other platforms:** The same pattern could be extended to Lu.ma later using a platform-specific ID or key (if we ever want to use Lu.ma)
-
-### **Data model (Salesforce)**
-
-#### **Campaign fields**
-
-Add the following fields to **Campaign**:
-
-* **Event platform** (Picklist) – identifies the source platform
-  * Options: `Eventbrite`, `Luma`, etc.
-
-* **External event ID** (Text) – stores the platform-specific event identifier
-  * Example: Eventbrite event ID `123456789`
-
-* **Event key** (Formula) – composite key for matching integrations
-  * Formula: `"Event platform"&"-"&"External event ID"`
-  * Example output: `Eventbrite-123456789`
-
-The composite key pattern lets us use one matching field across platforms and avoid collisions if we ever want to use [Lu.ma](http://Lu.ma) or others.
-
-
-### **Operational workflow**
-
-##### **1\) Capture the Eventbrite event ID**
-
-The Event ID can be sourced from:
-
-* Eventbrite event page URL (contains the ID), or  
-* Event settings / Event details in Eventbrite, or  
-* Eventbrite API / integration payload
-
-**Important:** Do not use event name as a key (names can change and are not guaranteed unique).
-
-##### **2\) Create the Salesforce Campaign**
-
-* Create a Campaign for the event.
-* Set:
-  * **Event platform**: `Eventbrite` (or the appropriate platform)
-  * **External event ID**: `{event_id}` (e.g., `123456789`)
-  * **Event key**: Auto-populated by formula (no manual entry needed)
-
-##### **3\) Integration logic (Clay)**
-
-When Clay receives a new Eventbrite registration/attendee record:
-
-1. **Extract** `event_id` from the Eventbrite payload
-   * Clay matches the `Event key` from Zapier to the corresponding campaign.
-2. **Find Campaign** in Salesforce where:
-   * *`Event key = Eventbrite-{event_id}`*
-3. **Create/update Person Record**
-   * Match/Create the Contact
-4. **Create/Update Campaign Member**
-   * Add the person as a Campaign Member on the matched Campaign
-   * Optionally set Campaign Member Status (e.g., `Registered`, `Attended`, `No Show`) if we later sync those states
-
-
-### **Assumptions / scope**
-* **One ticket type per Campaign** (i.e., we do not need ticket-type-level mapping).  
-* **One event maps to exactly one Salesforce Campaign**.  
-* We are focusing on **registrations** (Campaign Members). 
-
-### **Governance & quality controls**
-To keep the system clean and prevent broken mappings:
-
-* **Required fields:** Ensure Campaigns intended for Eventbrite syncing have `Event Key` populated.  
-* **Uniqueness guardrails:** Prevent multiple Campaigns from sharing the same Event Key (via process, reporting, or validation rules).  
-* **Monitoring:** Have a Clay/Salesforce report for “registrations received with no matching Campaign” to catch missing IDs early.
-
-### **(FUTURE) Extending this to Lu.ma (future)**
-
-If we adopt Lu.ma later, we can follow the same model:
-
-* Set **Event platform** to `Luma`
-* Set **External event ID** to Lu.ma’s stable event identifier (ID or slug)
-* **Event key** formula automatically generates the composite key: `Luma-{external_event_id}`
-* Clay uses this Event key to map inbound registrations to the correct Campaign
-* No attendee-visible fields required.
-
-### **Summary**
-
-This approach “connects” Eventbrite to Salesforce Campaigns by using the **Eventbrite Event ID as the system-of-record key**. Salesforce Campaigns store that key, and Clay uses it to automatically route registrations to the right Campaign and create/update Campaign Members—cleanly, invisibly, and in a way that can later support additional event platforms.
 
 
 <meta name="maintainedBy" value="johnjeremiah">

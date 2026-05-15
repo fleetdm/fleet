@@ -83,7 +83,7 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 			h.hostname, h.computer_name, h.hardware_model, h.hardware_serial
 			FROM query_results qr
 			LEFT JOIN hosts h ON (qr.host_id=h.id)
-			WHERE query_id = ? AND data IS NOT NULL AND %s
+			WHERE query_id = ? AND has_data = 1 AND %s
 		`, ds.whereFilterHostsByTeams(filter, "h"))
 
 	results := []*fleet.ScheduledQueryResultRow{}
@@ -99,7 +99,7 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter f
 // excluding rows with null data
 func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
 	var count int
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND data IS NOT NULL`, queryID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND has_data = 1`, queryID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "counting query results for query")
 	}
@@ -111,7 +111,7 @@ func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int
 // excluding rows with null data
 func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error) {
 	var count int
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ? AND data IS NOT NULL`, queryID, hostID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ? AND has_data = 1`, queryID, hostID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "counting query results for query and host")
 	}
@@ -191,7 +191,7 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
             SELECT query_id, id,
                 ROW_NUMBER() OVER (PARTITION BY query_id ORDER BY id DESC) as rn
             FROM query_results
-            WHERE query_id IN (?) AND data IS NOT NULL
+            WHERE query_id IN (?) AND has_data = 1
         ) cutoff
         WHERE rn = ?
     `
@@ -214,7 +214,7 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 		for _, c := range queryCutoffs {
 			deleteStmt := `
                 DELETE FROM query_results
-                WHERE query_id = ? AND id < ? AND data IS NOT NULL
+                WHERE query_id = ? AND id < ? AND has_data = 1
                 LIMIT ?
             `
 			for {
@@ -240,7 +240,7 @@ func (ds *Datastore) CleanupExcessQueryResultRows(ctx context.Context, maxQueryR
 	countStmt := `
         SELECT query_id, COUNT(*) as count
         FROM query_results
-        WHERE query_id IN (?) AND data IS NOT NULL
+        WHERE query_id IN (?) AND has_data = 1
         GROUP BY query_id
     `
 	for batch := range slices.Chunk(queryIDs, queryIDBatchSize) {
@@ -293,17 +293,11 @@ type hostReportRow struct {
 // the provided filtering, sorting, and pagination options. maxQueryReportRows
 // is the configured report cap; a query whose total result count (across all
 // hosts) meets or exceeds this value is considered clipped.
-//
-// The implementation uses three queries to avoid N correlated subqueries:
-//  1. A paginated query list (no joins to query_results).
-//  2. A single aggregation over query_results for the page's query IDs to
-//     compute per-query and per-host counts and the most recent fetch time.
-//  3. A window-function query to fetch the most recent result row for
-//     each query on the page.
 func (ds *Datastore) ListHostReports(
 	ctx context.Context,
 	hostID uint,
 	teamID *uint,
+	hostPlatform string,
 	opts fleet.ListHostReportsOptions,
 	maxQueryReportRows int,
 ) ([]*fleet.HostReport, int, *fleet.PaginationMetadata, error) {
@@ -329,6 +323,51 @@ func (ds *Datastore) ListHostReports(
 		whereClause += " AND q.discard_data = 0 AND q.logging_type = 'snapshot'"
 	}
 
+	if opts.ExcludeIncludeAllQueries {
+		whereClause += `
+		AND NOT EXISTS (
+			SELECT 1 FROM query_labels ql
+			WHERE ql.query_id = q.id AND ql.require_all = 1
+		)`
+	}
+
+	// Filter by label membership. Two scopes coexist on query_labels via
+	// require_all:
+	//   include_any (require_all=0): host must be in at least ONE of the labels
+	//   include_all (require_all=1): host must be in EVERY one of the labels
+	whereClause += `
+		AND (
+			NOT EXISTS (
+				SELECT 1 FROM query_labels ql
+				WHERE ql.query_id = q.id AND ql.require_all = 0
+			)
+			OR EXISTS (
+				SELECT 1 FROM query_labels ql
+				JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = ?
+				WHERE ql.query_id = q.id AND ql.require_all = 0
+			)
+		)
+		AND (
+			NOT EXISTS (
+				SELECT 1 FROM query_labels ql
+				WHERE ql.query_id = q.id AND ql.require_all = 1
+			)
+			OR (
+				SELECT COUNT(*) FROM query_labels ql
+				WHERE ql.query_id = q.id AND ql.require_all = 1
+			) = (
+				SELECT COUNT(*) FROM query_labels ql
+				JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = ?
+				WHERE ql.query_id = q.id AND ql.require_all = 1
+			)
+		)`
+	whereArgs = append(whereArgs, hostID, hostID)
+
+	// Filter by platform: include queries with no platform restriction, or
+	// whose platform list contains the host's normalized platform.
+	whereClause += " AND (q.platform = '' OR FIND_IN_SET(?, q.platform) > 0)"
+	whereArgs = append(whereArgs, hostPlatform)
+
 	matchQuery := strings.TrimSpace(opts.ListOptions.MatchQuery)
 	if matchQuery != "" {
 		whereClause, whereArgs = searchLike(whereClause, whereArgs, matchQuery, "q.name")
@@ -336,18 +375,15 @@ func (ds *Datastore) ListHostReports(
 
 	countStmt := "SELECT COUNT(*) FROM queries q " + whereClause
 
-	// The list query LEFT JOINs a per-host aggregation so that last_result_fetched
-	// is available for ORDER BY. The JOIN uses hostID as its only argument, which
-	// must be prepended before the WHERE-clause args.
+	// Do a LATERAL subquery for each row in queries q so that everything stays in index space
 	listStmt := `
 		SELECT q.id, q.name, q.description, q.discard_data, q.logging_type, qr_stats.last_result_fetched
 		FROM queries q
-		LEFT JOIN (
-			SELECT query_id, MAX(last_fetched) AS last_result_fetched
+		LEFT JOIN LATERAL (
+			SELECT MAX(last_fetched) AS last_result_fetched
 			FROM query_results
-			WHERE host_id = ?
-			GROUP BY query_id
-		) qr_stats ON q.id = qr_stats.query_id
+			WHERE query_id = q.id AND host_id = ?
+		) qr_stats ON TRUE
 	` + whereClause
 	listArgs := append([]any{hostID}, whereArgs...)
 
@@ -401,37 +437,55 @@ func (ds *Datastore) ListHostReports(
 		queryIDs = append(queryIDs, r.QueryID)
 	}
 
-	// Batch-fetch result stats for the page in a single aggregation query.
-	// n_query_results counts all hosts (used for report_clipped).
-	// n_host_results is scoped to the current host (used for has_more_results).
-	// last_result_fetched is already available from the list query LEFT JOIN.
-	type statsRow struct {
+	// Fetch the total non-null result count per query across all hosts, used to
+	// determine report_clipped.
+	type totalCountRow struct {
 		QueryID       uint `db:"query_id"`
 		NQueryResults int  `db:"n_query_results"`
-		NHostResults  int  `db:"n_host_results"`
 	}
-	statsStmt, statsArgs, err := sqlx.In(`
-		SELECT
-			query_id,
-			COUNT(data) AS n_query_results,
-			SUM(CASE WHEN host_id = ? AND data IS NOT NULL THEN 1 ELSE 0 END) AS n_host_results
+	totalStmt, totalArgs, err := sqlx.In(`
+		SELECT query_id, COUNT(*) AS n_query_results
 		FROM query_results
-		WHERE query_id IN (?)
+		WHERE query_id IN (?) AND has_data = 1
 		GROUP BY query_id
-	`, hostID, queryIDs)
+	`, queryIDs)
 	if err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "building stats query for host reports")
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "building total count query for host reports")
 	}
-	var statsRows []statsRow
-	if err := sqlx.SelectContext(ctx, dbReader, &statsRows, dbReader.Rebind(statsStmt), statsArgs...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "fetching host report stats")
+	var totalCountRows []totalCountRow
+	if err := sqlx.SelectContext(ctx, dbReader, &totalCountRows, dbReader.Rebind(totalStmt), totalArgs...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "fetching total result counts for host reports")
 	}
-	statsByQueryID := make(map[uint]*statsRow, len(statsRows))
-	for i := range statsRows {
-		statsByQueryID[statsRows[i].QueryID] = &statsRows[i]
+	nQueryResultsByID := make(map[uint]int, len(totalCountRows))
+	for _, r := range totalCountRows {
+		nQueryResultsByID[r.QueryID] = r.NQueryResults
 	}
 
-	// Batch-fetch the most recent result row for each query on the page.
+	// Fetch the host-specific result count per query, used to populate
+	// NHostResults.
+	type hostCountRow struct {
+		QueryID      uint `db:"query_id"`
+		NHostResults int  `db:"n_host_results"`
+	}
+	hostCountStmt, hostCountArgs, err := sqlx.In(`
+		SELECT query_id, COUNT(*) AS n_host_results
+		FROM query_results
+		WHERE query_id IN (?) AND host_id = ? AND has_data = 1
+		GROUP BY query_id
+	`, queryIDs, hostID)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "building host count query for host reports")
+	}
+	var hostCountRows []hostCountRow
+	if err := sqlx.SelectContext(ctx, dbReader, &hostCountRows, dbReader.Rebind(hostCountStmt), hostCountArgs...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "fetching host result counts for host reports")
+	}
+	nHostResultsByID := make(map[uint]int, len(hostCountRows))
+	for _, r := range hostCountRows {
+		nHostResultsByID[r.QueryID] = r.NHostResults
+	}
+
+	// Fetch the single most recent result row per query for this host.
 	type firstDataRow struct {
 		QueryID uint             `db:"query_id"`
 		Data    *json.RawMessage `db:"data"`
@@ -444,7 +498,7 @@ func (ds *Datastore) ListHostReports(
 				data,
 				ROW_NUMBER() OVER (PARTITION BY query_id ORDER BY last_fetched DESC) AS rn
 			FROM query_results
-			WHERE query_id IN (?) AND host_id = ? AND data IS NOT NULL
+			WHERE query_id IN (?) AND host_id = ? AND has_data = 1
 		) ranked
 		WHERE rn = 1
 	`, queryIDs, hostID)
@@ -475,10 +529,8 @@ func (ds *Datastore) ListHostReports(
 			t := qr.LastResultFetched.Time
 			r.LastFetched = &t
 		}
-		if stats, ok := statsByQueryID[qr.QueryID]; ok {
-			r.NHostResults = stats.NHostResults
-			r.ReportClipped = stats.NQueryResults >= maxQueryReportRows
-		}
+		r.NHostResults = nHostResultsByID[qr.QueryID]
+		r.ReportClipped = nQueryResultsByID[qr.QueryID] >= maxQueryReportRows
 		if data, ok := firstDataByQueryID[qr.QueryID]; ok {
 			var cols map[string]string
 			if err := json.Unmarshal(*data, &cols); err != nil {

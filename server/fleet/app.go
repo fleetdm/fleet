@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -172,8 +173,8 @@ type MDMAppleABMAssignmentInfo struct {
 	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
 }
 
-// MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
-// between a VPP token (via location) and the team associations.
+// MDMAppleVolumePurchasingProgramInfo represents a user definition of the association
+// between a VPP token (via organization unit, formerly "location") and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
 	Teams    []string `json:"teams" renameto:"fleets"`
@@ -188,7 +189,7 @@ type MDM struct {
 	AppleServerURL string `json:"apple_server_url"`
 
 	// Deprecated: use AppleBussinessManager instead
-	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"` //nolint:apiparamcheck // not renaming already-deprecated field
 
 	// AppleBusinessManager defines the associations between ABM tokens
 	// and the teams used to assign hosts when they're ingested from ABM.
@@ -200,7 +201,7 @@ type MDM struct {
 	// the server starts.
 	AppleBMEnabledAndConfigured bool `json:"apple_bm_enabled_and_configured"`
 
-	// AppleBMTermsExpired is set to true if an Apple Business Manager request
+	// AppleBMTermsExpired is set to true if an Apple Business request
 	// failed due to Apple's terms and conditions having changed and need the
 	// user to explicitly accept them. It cannot be set manually via the
 	// PATCH /config API, it is only set automatically, internally, by detecting
@@ -237,6 +238,10 @@ type MDM struct {
 	WindowsMigrationEnabled        bool                     `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
 	EndUserAuthentication          MDMEndUserAuthentication `json:"end_user_authentication"`
+
+	// AppleRequireHardwareAttestation indicates whether to require Managed Device Attestation via ACME(including hardware bound keys) for
+	// certain Apple MDM enrollments.
+	AppleRequireHardwareAttestation bool `json:"apple_require_hardware_attestation"`
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
@@ -285,7 +290,24 @@ type GitOpsConfig struct {
 	Exceptions        GitOpsExceptions `json:"exceptions"`
 }
 
+// Subset of Appconfig to pull out only the serverURL and the MDM.AppleServerURL
+type AppConfigUrls struct {
+	ServerSettings struct {
+		ServerURL string `json:"server_url"`
+	} `json:"server_settings"`
+	MDM struct {
+		AppleServerURL string `json:"apple_server_url"`
+	} `json:"mdm"`
+}
+
 func (c *AppConfig) MDMUrl() string {
+	if c.MDM.AppleServerURL == "" {
+		return c.ServerSettings.ServerURL
+	}
+	return c.MDM.AppleServerURL
+}
+
+func (c *AppConfigUrls) MDMUrl() string {
 	if c.MDM.AppleServerURL == "" {
 		return c.ServerSettings.ServerURL
 	}
@@ -548,6 +570,9 @@ type MacOSSetup struct {
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows   bool                               `json:"require_all_software_windows"`
+	EnableManagedLocalAccount   optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
+	EndUserLocalAccountType     optjson.String                     `json:"end_user_local_account_type"`
 }
 
 func (mos *MacOSSetup) Validate() error {
@@ -557,6 +582,10 @@ func (mos *MacOSSetup) Validate() error {
 
 	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	if mos.EndUserLocalAccountType.Valid && mos.EndUserLocalAccountType.Value != "admin" {
+		return NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
 	}
 
 	return nil
@@ -586,6 +615,12 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 	if !mos.ManualAgentInstall.Valid {
 		mos.ManualAgentInstall = optjson.SetBool(false)
+	}
+	if !mos.EnableManagedLocalAccount.Valid {
+		mos.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !mos.EndUserLocalAccountType.Valid {
+		mos.EndUserLocalAccountType = optjson.SetString("admin")
 	}
 }
 
@@ -1137,6 +1172,12 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.LockEndUserInfo.Valid {
 		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(c.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
+	if !c.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		c.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !c.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		c.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)
@@ -1174,12 +1215,92 @@ func (c *AppConfig) assignDeprecatedFields() {
 
 // OrgInfo contains general info about the organization using Fleet.
 type OrgInfo struct {
-	OrgName                   string `json:"org_name"`
-	OrgLogoURL                string `json:"org_logo_url"`
+	OrgName string `json:"org_name"`
+	// Deprecated: use OrgLogoURLDarkMode.
+	OrgLogoURL string `json:"org_logo_url"`
+	// Deprecated: use OrgLogoURLLightMode.
 	OrgLogoURLLightBackground string `json:"org_logo_url_light_background"`
+	OrgLogoURLDarkMode        string `json:"org_logo_url_dark_mode"`
+	OrgLogoURLLightMode       string `json:"org_logo_url_light_mode"`
 	// ContactURL is the URL displayed for users to contact support. By default,
 	// https://fleetdm.com/company/contact is used.
 	ContactURL string `json:"contact_url"`
+}
+
+// Keep deprecated fields (OrgLogoURL and OrgLogoURLLightBackground) in sync
+// with the new fields (OrgLogoURLDarkMode and OrgLogoURLLightMode).
+func (o *OrgInfo) NormalizeLogoFields() *InvalidArgumentError {
+	invalid := &InvalidArgumentError{}
+
+	switch {
+	case o.OrgLogoURL != "" && o.OrgLogoURLDarkMode != "" && o.OrgLogoURL != o.OrgLogoURLDarkMode:
+		invalid.Append("org_logo_url",
+			"cannot specify both org_logo_url and org_logo_url_dark_mode with different values")
+	case o.OrgLogoURL == "" && o.OrgLogoURLDarkMode != "":
+		o.OrgLogoURL = o.OrgLogoURLDarkMode
+	case o.OrgLogoURLDarkMode == "" && o.OrgLogoURL != "":
+		o.OrgLogoURLDarkMode = o.OrgLogoURL
+	}
+
+	switch {
+	case o.OrgLogoURLLightBackground != "" && o.OrgLogoURLLightMode != "" && o.OrgLogoURLLightBackground != o.OrgLogoURLLightMode:
+		invalid.Append("org_logo_url_light_background",
+			"cannot specify both org_logo_url_light_background and org_logo_url_light_mode with different values")
+	case o.OrgLogoURLLightBackground == "" && o.OrgLogoURLLightMode != "":
+		o.OrgLogoURLLightBackground = o.OrgLogoURLLightMode
+	case o.OrgLogoURLLightMode == "" && o.OrgLogoURLLightBackground != "":
+		o.OrgLogoURLLightMode = o.OrgLogoURLLightBackground
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
+}
+
+// orgLogoServingPathPrefix is the relative path Fleet writes into the
+// OrgLogo*URL fields after a successful logo upload (see
+// orgLogoServingURL in server/service/org_logo.go). AbsolutizeLogoURLs
+// uses this to recognize Fleet-hosted logos that need the current
+// ServerURL prepended on read.
+const orgLogoServingPathPrefix = "/api/latest/fleet/logo"
+
+// AbsolutizeLogoURL rewrites a Fleet-hosted relative logo URL into a
+// fully-qualified URL using the supplied serverURL. URLs that don't
+// match the Fleet-hosted serving path (i.e. external URLs set by
+// customers) and empty strings are returned unchanged. Use this when
+// you only need to absolutize one field — see AbsolutizeLogoURLs for
+// the OrgInfo-wide variant.
+func AbsolutizeLogoURL(u, serverURL string) string {
+	if serverURL == "" || !strings.HasPrefix(u, orgLogoServingPathPrefix) {
+		return u
+	}
+	return strings.TrimRight(serverURL, "/") + u
+}
+
+// AbsolutizeLogoURLs applies AbsolutizeLogoURL to all four logo URL
+// fields on OrgInfo (deprecated + mode-aware pairs) in place.
+func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
+	o.OrgLogoURL = AbsolutizeLogoURL(o.OrgLogoURL, serverURL)
+	o.OrgLogoURLLightBackground = AbsolutizeLogoURL(o.OrgLogoURLLightBackground, serverURL)
+	o.OrgLogoURLDarkMode = AbsolutizeLogoURL(o.OrgLogoURLDarkMode, serverURL)
+	o.OrgLogoURLLightMode = AbsolutizeLogoURL(o.OrgLogoURLLightMode, serverURL)
+}
+
+// IsFleetHostedLogoURL reports whether the given URL points at the Fleet logo
+// serving endpoint. Handles both the persisted relative form
+// ("/api/latest/fleet/logo?mode=...") and the absolutized form returned by
+// AbsolutizeLogoURLs. Match must be on the parsed Path so a sibling endpoint
+// like "/api/latest/fleet/logo-proxy" doesn't get falsely identified.
+func IsFleetHostedLogoURL(rawURL string) bool {
+	if rawURL == "" {
+		return false
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return u.Path == orgLogoServingPathPrefix
 }
 
 const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
@@ -1216,18 +1337,53 @@ type HostExpirySettings struct {
 type ActivityExpirySettings struct {
 	ActivityExpiryEnabled bool `json:"activity_expiry_enabled"`
 	ActivityExpiryWindow  int  `json:"activity_expiry_window"`
+
+	// PreserveHostActivitiesOnReenrollment controls whether existing host
+	// activities, MDM commands, etc. are kept when a managed host re-enrolls.
+	// Defaults to true for upgraded installs (preserves prior behavior) and
+	// false for fresh installs.
+	PreserveHostActivitiesOnReenrollment bool `json:"preserve_host_activities_on_reenrollment"`
 }
 
 type Features struct {
-	EnableHostUsers         bool               `json:"enable_host_users"`
-	EnableSoftwareInventory bool               `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage   `json:"additional_queries,omitempty"`
-	DetailQueryOverrides    map[string]*string `json:"detail_query_overrides,omitempty"`
+	EnableHostUsers         bool                   `json:"enable_host_users"`
+	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`     //nolint:apiparamcheck // osquery host-details queries
+	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"` //nolint:apiparamcheck // osquery detail-query overrides
+	HistoricalData          HistoricalDataSettings `json:"historical_data"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the Features Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// HistoricalDataSettings controls per-dataset collection of the time-series
+// rollups that drive the dashboard charts. Each sub-key corresponds to a
+// chart dataset; `true` means collect, `false` means skip.
+//
+// Sub-key names are the public config keys (used in YAML and audit
+// activities). Internal dataset names (the values returned by Dataset.Name())
+// are translated to sub-keys via the Enabled method.
+type HistoricalDataSettings struct {
+	Uptime          bool `json:"uptime"`
+	Vulnerabilities bool `json:"vulnerabilities"`
+}
+
+// Enabled returns whether collection is enabled for the given internal
+// dataset name. The mapping is the single canonical translation between
+// internal dataset names (e.g. "cve") and config sub-keys (e.g.
+// "vulnerabilities"). Callers SHOULD use this method rather than reading
+// fields directly.
+func (h HistoricalDataSettings) Enabled(dataset string) (bool, error) {
+	switch dataset {
+	case "uptime":
+		return h.Uptime, nil
+	case "cve":
+		return h.Vulnerabilities, nil
+	default:
+		return false, fmt.Errorf("unknown dataset %q", dataset)
+	}
 }
 
 func (f *Features) ApplyDefaultsForNewInstalls() {
@@ -1240,6 +1396,8 @@ func (f *Features) ApplyDefaultsForNewInstalls() {
 
 func (f *Features) ApplyDefaults() {
 	f.EnableHostUsers = true
+	f.HistoricalData.Uptime = true
+	f.HistoricalData.Vulnerabilities = true
 }
 
 // Clone implements cloner for Features.
@@ -1386,6 +1544,9 @@ type ListHostReportsOptions struct {
 	// false (default): only queries with discard_data=0 AND logging_type='snapshot' are returned.
 	// true: all queries are returned, including ones that don't store results.
 	IncludeReportsDontStoreResults bool
+	// ExcludeIncludeAllQueries hides queries that have any include_all
+	// (require_all=1) labels.
+	ExcludeIncludeAllQueries bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
@@ -1614,6 +1775,7 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync             bool          `json:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities"`
+	OSVForVulnerabilities       bool          `json:"osv_for_vulnerabilities"`
 }
 
 type LoggingPlugin struct {
@@ -1740,6 +1902,7 @@ type CertificateTemplateSpec struct {
 	Name                     string `json:"name"`
 	CertificateAuthorityName string `json:"certificate_authority_name"`
 	SubjectName              string `json:"subject_name"`
+	SubjectAlternativeName   string `json:"subject_alternative_name,omitempty"`
 }
 
 func (c CertificateTemplateSpec) NameValid() bool {

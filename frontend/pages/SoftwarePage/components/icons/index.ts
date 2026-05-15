@@ -7,19 +7,26 @@ import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
+import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import Codex from "./Codex";
 import CodexCli from "./CodexCli";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import DruvaInSync from "./DruvaInSync";
+import FleetDesktop from "./FleetDesktop";
+import Gemini from "./Gemini";
+import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
+import Marvel from "./Marvel";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
+import OpenvpnConnect from "./OpenvpnConnect";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
@@ -27,7 +34,6 @@ import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
 import AcrobatReader from "./AcrobatReader";
-import AdobeAcrobat from "./AdobeAcrobat";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
 import Aircall from "./Aircall";
@@ -74,7 +80,7 @@ import Claude from "./Claude";
 import ClickUp from "./ClickUp";
 import ClockifyDesktop from "./ClockifyDesktop";
 import Cloudflare from "./Cloudflare";
-import CompanyPortal from "./CompanyPortal";
+
 import CotEditor from "./CotEditor";
 import CreativeCloud from "./AdobeCreativeCloud";
 import Cursor from "./Cursor";
@@ -206,6 +212,7 @@ import SublimeMerge from "./SublimeMerge";
 import SublimeText from "./SublimeText";
 import Surfshark from "./Surfshark";
 import SuspiciousPackage from "./SuspiciousPackage";
+import Swiftdialog from "./Swiftdialog";
 import TableauDesktop from "./TableauDesktop";
 import TablePlus from "./TablePlus";
 import Tailscale from "./Tailscale";
@@ -242,12 +249,15 @@ import Windsurf from "./Windsurf";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
+import XCreds from "./XCreds";
 import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
 import Zed from "./Zed";
+import Zen from "./Zen";
 import Zeplin from "./Zeplin";
 import ZeroOneZeroEditor from "./010Editor";
 import Zoom from "./Zoom";
+import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
@@ -260,7 +270,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "8x8 work": EightXEightWork,
   "1password": OnePassword,
   abstract: Abstract,
-  "adobe acrobat": AdobeAcrobat,
+  "adobe acrobat": AcrobatReader,
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
   "adobe digital editions": AdobeDigitalEditions45,
@@ -297,6 +307,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
+  cavalry: Cavalry,
   charles: Charles,
   "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
@@ -315,10 +326,15 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  "fleet desktop": FleetDesktop,
+  gemini: Gemini,
+  "google credential provider for windows": GoogleCredentialProviderForWindows,
   iina: Iina,
+  insyncclient: DruvaInSync,
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
+  marvel: Marvel,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
@@ -380,6 +396,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google drive": GoogleDrive,
   grammarly: GrammarlyDesktop,
   granola: Granola,
+  imazing: IMazingProfileEditor,
   "imazing profile editor": IMazingProfileEditor,
   insomnia: Insomnia,
   "intellij idea ce": IntelliJIdeaCe,
@@ -418,6 +435,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
+  "openvpn connect": OpenvpnConnect,
   opera: Opera,
   orbstack: OrbStack,
   package: Package,
@@ -465,6 +483,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "sublime text": SublimeText,
   surfshark: Surfshark,
   "suspicious package": SuspiciousPackage,
+  swiftdialog: Swiftdialog,
   tableau: TableauDesktop,
   tableplus: TablePlus,
   tailscale: Tailscale,
@@ -502,10 +521,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
+  xcreds: XCreds,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
   zed: Zed,
+  zen: Zen,
   zeplin: Zeplin,
+  "zoom rooms": ZoomRooms,
   zotero: Zotero,
 } as const;
 

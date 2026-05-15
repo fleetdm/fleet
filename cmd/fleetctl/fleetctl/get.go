@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -91,6 +90,24 @@ func printYaml(spec interface{}, writer io.Writer) error {
 	}
 	fmt.Fprintf(writer, "---\n%s", string(b))
 	return nil
+}
+
+// stripMismatchedLabelFields clears fields that are not meaningful for the
+// label's membership type so that exported YAML can be re-applied cleanly.
+func stripMismatchedLabelFields(label *fleet.LabelSpec) {
+	switch label.LabelMembershipType {
+	case fleet.LabelMembershipTypeManual:
+		label.Query = ""
+		label.Platform = ""
+		label.HostVitalsCriteria = nil
+	case fleet.LabelMembershipTypeDynamic:
+		label.Hosts = nil
+		label.HostVitalsCriteria = nil
+	case fleet.LabelMembershipTypeHostVitals:
+		label.Query = ""
+		label.Platform = ""
+		label.Hosts = nil
+	}
 }
 
 func printLabel(c *cli.Context, label *fleet.LabelSpec) error {
@@ -212,13 +229,13 @@ type UserRoles struct {
 }
 
 type TeamRole struct {
-	Team string `json:"team"`
+	Team string `json:"team" renameto:"fleet"` // renameto doesn't actually do anything here but adding for visibility
 	Role string `json:"role"`
 }
 
 type UserRole struct {
 	GlobalRole *string    `json:"global_role"`
-	Teams      []TeamRole `json:"teams"`
+	Teams      []TeamRole `json:"teams" renameto:"fleets"` // renameto doesn't actually do anything here but adding for visibility
 }
 
 func usersToUserRoles(users []fleet.User) UserRoles {
@@ -304,10 +321,6 @@ func getCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "get",
 		Usage: "Get/list resources",
-		Before: func(c *cli.Context) error {
-			logging.DisableTopic(logging.DeprecatedFieldTopic)
-			return nil
-		},
 		Subcommands: withLogTopicFlags([]*cli.Command{
 			getReportsCommand(),
 			getPacksCommand(),
@@ -350,8 +363,13 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 
 	if len(query.LabelsIncludeAny) > 0 {
 		scheduleInfo += "\nlabels_include_any:"
-
 		for _, label := range query.LabelsIncludeAny {
+			scheduleInfo += fmt.Sprintf("\n  - %s", label.LabelName)
+		}
+	}
+	if len(query.LabelsIncludeAll) > 0 {
+		scheduleInfo += "\nlabels_include_all:"
+		for _, label := range query.LabelsIncludeAll {
 			scheduleInfo += fmt.Sprintf("\n  - %s", label.LabelName)
 		}
 	}
@@ -484,10 +502,6 @@ func getReportsCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
-						labelsAny := []string{}
-						for _, label := range query.LabelsIncludeAny {
-							labelsAny = append(labelsAny, label.LabelName)
-						}
 						if err := printQuerySpec(c, &fleet.QuerySpec{
 							Name:        query.Name,
 							Description: query.Description,
@@ -501,7 +515,8 @@ func getReportsCommand() *cli.Command {
 							AutomationsEnabled: query.AutomationsEnabled,
 							Logging:            query.Logging,
 							DiscardData:        query.DiscardData,
-							LabelsIncludeAny:   labelsAny,
+							LabelsIncludeAny:   fleet.LabelIdentsToNames(query.LabelsIncludeAny),
+							LabelsIncludeAll:   fleet.LabelIdentsToNames(query.LabelsIncludeAll),
 						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
@@ -728,6 +743,7 @@ func getLabelsCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, label := range labels {
+						stripMismatchedLabelFields(label)
 						printLabel(c, label) //nolint:errcheck
 					}
 					return nil
@@ -764,6 +780,7 @@ func getLabelsCommand() *cli.Command {
 				return err
 			}
 
+			stripMismatchedLabelFields(label)
 			printLabel(c, label) //nolint:errcheck
 			return nil
 		},
@@ -869,7 +886,7 @@ func getHostsCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:  "mdm-pending",
-				Usage: "Filters hosts by hosts ordered via Apple Business Manager (ABM). These will automatically enroll to Fleet and turn on MDM when they're unboxed.",
+				Usage: "Filters hosts by hosts ordered via Apple Business (AB). These will automatically enroll to Fleet and turn on MDM when they're unboxed.",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -1460,7 +1477,7 @@ func getMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm-apple-bm",
 		Aliases: []string{"mdm_apple_bm"},
-		Usage:   "Show information about Apple Business Manager for automatic enrollment",
+		Usage:   "Show information about Apple Business for automatic enrollment",
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -1478,7 +1495,7 @@ func getMDMAppleBMCommand() *cli.Command {
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {
-					log(c, "Error: No Apple Business Manager server token found. Use `fleetctl generate mdm-apple-bm` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
+					log(c, "Error: No Apple Business server token found. Use `fleetctl generate mdm-apple-bm` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
 					return nil
 				}
 				return fmt.Errorf("could not get Apple BM information: %w", err)
@@ -1499,10 +1516,10 @@ func getMDMAppleBMCommand() *cli.Command {
 			warnDate := time.Now().Add(expirationWarning)
 			if bm.RenewDate.Before(time.Now()) {
 				// certificate is expired, print an error
-				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business Manager (ABM) server token is expired. Laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business (AB) server token is expired. Laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
 			} else if bm.RenewDate.Before(warnDate) {
 				// certificate will soon expire, print a warning
-				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business Manager (ABM) server token is less than 30 days from expiration. If it expires, laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business (AB) server token is less than 30 days from expiration. If it expires, laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
 			}
 
 			return nil
@@ -1614,16 +1631,25 @@ func getMDMCommandsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm-commands",
 		Aliases: []string{"mdm_commands"},
-		Usage:   "List information about MDM commands that were run.",
+		Usage:   "List information about MDM commands that were run on a host.",
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
-			byHostIdentifier(),
+			&cli.StringFlag{
+				Name:     "host",
+				Usage:    "Filter MDM commands by host specified by hostname, UUID, or serial number. (required)",
+				Required: true,
+			},
 			byMDMCommandRequestType(),
 			withMDMCommandStatusFilter(),
 		},
 		Action: func(c *cli.Context) error {
+			hostIdent := c.String("host")
+			if hostIdent == "" {
+				return errors.New("No host targeted. Please provide --host.")
+			}
+
 			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
@@ -1643,7 +1669,7 @@ func getMDMCommandsCommand() *cli.Command {
 
 			opts := fleet.MDMCommandListOptions{
 				Filters: fleet.MDMCommandFilters{
-					HostIdentifier:  c.String("host"),
+					HostIdentifier:  hostIdent,
 					RequestType:     c.String("type"),
 					CommandStatuses: commandStatuses,
 				},
@@ -1658,12 +1684,7 @@ func getMDMCommandsCommand() *cli.Command {
 			}
 
 			if len(results) == 0 {
-				if opts.Filters.HostIdentifier != "" {
-					log(c, "No MDM commands have been run on this host.\n")
-					return nil
-				}
-
-				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
+				log(c, "No MDM commands have been run on this host.\n")
 				return nil
 			}
 

@@ -14,9 +14,9 @@ func (c *Client) ApplyLabels(
 	teamID *uint,
 	moves []string,
 ) error {
-	req := applyLabelSpecsRequest{TeamID: teamID, Specs: specs, NamesToMove: moves}
+	req := fleet.ApplyLabelSpecsRequest{TeamID: teamID, Specs: specs, NamesToMove: moves}
 	verb, path := "POST", "/api/latest/fleet/spec/labels"
-	var responseBody applyLabelSpecsResponse
+	var responseBody fleet.ApplyLabelSpecsResponse
 
 	if teamID != nil {
 		return c.authenticatedRequestWithQuery(
@@ -33,7 +33,7 @@ func (c *Client) ApplyLabels(
 // GetLabel retrieves information about a label by name
 func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
 	verb, path := "GET", "/api/latest/fleet/spec/labels/"+url.PathEscape(name)
-	var responseBody getLabelSpecResponse
+	var responseBody fleet.GetLabelSpecResponse
 	err := c.authenticatedRequest(nil, verb, path, &responseBody)
 	return responseBody.Spec, err
 }
@@ -41,7 +41,7 @@ func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
 // GetLabels retrieves the list of all LabelSpecs.
 func (c *Client) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
 	verb, path := "GET", "/api/latest/fleet/spec/labels"
-	var responseBody getLabelSpecsResponse
+	var responseBody fleet.GetLabelSpecsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("fleet_id=%d", teamID))
 	return responseBody.Specs, err
 }
@@ -49,6 +49,6 @@ func (c *Client) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
 // DeleteLabel deletes the label with the matching name.
 func (c *Client) DeleteLabel(name string) error {
 	verb, path := "DELETE", "/api/latest/fleet/labels/"+url.PathEscape(name)
-	var responseBody deleteLabelResponse
+	var responseBody fleet.DeleteLabelResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }

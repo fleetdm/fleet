@@ -1,7 +1,6 @@
 /** software/titles/:id > Second section */
 
 import React, { useCallback, useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -156,7 +155,6 @@ export const SoftwareActionButtons = ({
 interface ISoftwareInstallerCardProps {
   softwareId: number;
   teamId: number;
-  teamIdForApi?: number;
   onDelete: () => void;
   isLoading: boolean;
   onToggleViewYaml: () => void;
@@ -170,7 +168,6 @@ interface ISoftwareInstallerCardProps {
 const SoftwareInstallerCard = ({
   softwareId,
   teamId,
-  teamIdForApi,
   onDelete,
   isLoading,
   onToggleViewYaml,
@@ -190,7 +187,6 @@ const SoftwareInstallerCard = ({
 
   const {
     softwareTitleName,
-    softwareDisplayName,
     softwareInstaller,
     name,
     version,
@@ -378,14 +374,11 @@ const SoftwareInstallerCard = ({
       {showViewYamlModal && isCustomPackage && (
         <ViewYamlModal
           softwareTitleName={softwareTitleName}
-          softwareTitleId={softwareId}
-          teamId={teamId}
           iconUrl={iconUrl}
           displayName={displayName}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
           isScriptPackage={isScriptPackage}
-          isIosOrIpadosApp={isIosOrIpadosApp}
         />
       )}
     </Card>

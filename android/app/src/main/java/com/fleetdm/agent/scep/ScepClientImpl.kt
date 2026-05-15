@@ -4,6 +4,8 @@ import com.fleetdm.agent.GetCertificateTemplateResponse
 import org.bouncycastle.asn1.DERPrintableString
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers
 import org.bouncycastle.asn1.x500.X500Name
+import org.bouncycastle.asn1.x509.Extension
+import org.bouncycastle.asn1.x509.ExtensionsGenerator
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
 import org.bouncycastle.jce.provider.BouncyCastleProvider
@@ -33,7 +35,10 @@ import kotlinx.coroutines.withContext
 class ScepClientImpl : ScepClient {
 
     companion object {
-        private const val SCEP_PROFILE = "NDESCA" // Network Device Enrollment Service CA
+        // SCEP `message=` value (CA identifier) sent on GetCACaps and GetCACert. Per RFC 8894
+        // this is OPTIONAL and only meaningful when the endpoint represents multiple CAs.
+        // Sending null causes jScep to omit the parameter; the server returns its default CA.
+        private val SCEP_PROFILE: String? = null
         private const val SELF_SIGNED_CERT_VALIDITY_DAYS = 100L
 
         init {
@@ -79,7 +84,13 @@ class ScepClientImpl : ScepClient {
             val client = Client(server, verifier)
 
             // Step 5: Build Certificate Signing Request (CSR)
-            val csr = buildCsr(entity, keyPair, config.scepChallenge ?: "", config.signatureAlgorithm)
+            val csr = buildCsr(
+                entity,
+                keyPair,
+                config.scepChallenge ?: "",
+                config.signatureAlgorithm,
+                config.subjectAlternativeName,
+            )
 
             // Step 6: Send enrollment request
             val response = try {
@@ -116,9 +127,14 @@ class ScepClientImpl : ScepClient {
                         "Enrollment is pending - requires CA administrator approval",
                     )
                 }
+                response.isFailure -> {
+                    throw ScepEnrollmentException(
+                        "Enrollment failed with SCEP failInfo: ${response.failInfo}",
+                    )
+                }
                 else -> {
                     throw ScepEnrollmentException(
-                        "Enrollment failed - certificate not issued by SCEP server",
+                        "Enrollment failed - unexpected SCEP response",
                     )
                 }
             }
@@ -160,15 +176,36 @@ class ScepClientImpl : ScepClient {
         throw ScepCertificateException("Failed to create self-signed certificate", e)
     }
 
-    private fun buildCsr(entity: X500Name, keyPair: java.security.KeyPair, challenge: String, signatureAlgorithm: String) = try {
+    internal fun buildCsr(
+        entity: X500Name,
+        keyPair: java.security.KeyPair,
+        challenge: String,
+        signatureAlgorithm: String,
+        subjectAlternativeName: String?,
+    ) = try {
         val csrBuilder = JcaPKCS10CertificationRequestBuilder(entity, keyPair.public)
 
         // Add challenge password attribute
         val passwordAttr = DERPrintableString(challenge)
         csrBuilder.addAttribute(PKCSObjectIdentifiers.pkcs_9_at_challengePassword, passwordAttr)
 
+        // Add Subject Alternative Name extension if a non-empty SAN string was provided.
+        val generalNames = try {
+            SubjectAlternativeNameParser.parse(subjectAlternativeName)
+        } catch (e: IllegalArgumentException) {
+            throw ScepCsrException("Invalid subject alternative name: ${e.message}", e)
+        }
+        if (generalNames != null) {
+            val extensions = ExtensionsGenerator().apply {
+                addExtension(Extension.subjectAlternativeName, false, generalNames)
+            }.generate()
+            csrBuilder.addAttribute(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest, extensions)
+        }
+
         val contentSigner = JcaContentSignerBuilder(signatureAlgorithm).build(keyPair.private)
         csrBuilder.build(contentSigner)
+    } catch (e: ScepCsrException) {
+        throw e
     } catch (e: Exception) {
         throw ScepCsrException("Failed to build Certificate Signing Request", e)
     }

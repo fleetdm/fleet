@@ -1,138 +1,118 @@
--
-  task: "Prioritize for next sprint" # Title that will actually show in rituals table
+- task: "Prioritize for next sprint" # Title that will actually show in rituals table
   startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
   frequency: "Triweekly"
   description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "mikermcneil" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
--
-  task: "Refresh event calendar"
+- task: "Refresh event calendar"
   startedOn: "2023-12-31"
   frequency: "Monthly"
   description: "Check the [Event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) and update any new event details."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#refresh-event-calendar"
   dri: "irenareedy"
-  autoIssue:   
-    labels: [ ":help-marketing" ]
+  autoIssue:
+    labels: [":help-marketing"]
     repo: fleet
--
-  task: "Review CTRs of recently boosted posts"
+- task: "Review CTRs of recently boosted posts"
   startedOn: "2026-03-23"
   frequency: "Weekly"
   description: "Review CTR for recently boosted posts to understand performance and inform future content decisions. The CEO will attend the first few monthly sessions to help understand what ads are working. After that, the Content Specialist and the CMO will continue running the ritual."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing/socialmedia"
   dri: "irenareedy"
--
-  task: "Settle event strategy"
+- task: "Settle event strategy"
   startedOn: "2024-01-02"
   frequency: "Quarterly (first Tuesday)"
   description: "https://fleetdm.com/handbook/marketing#settle-event-strategy"
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#settle-event-strategy"
   dri: "irenareedy"
--
-  task: "Optimize ads"
+- task: "Optimize ads"
   startedOn: "2026-03-26"
   frequency: "Weekly"
   description: "Remove all but the top 5 performing ads in each evergreen campaign. Make sure ABM campaigns are using top-performing evergreen (named Awareness (reach) in Campaign Manager) ads."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#optimize-ads-through-experimentation"
   dri: "irenareedy"
--
-  task: "Process pending swag requests" # Title that will actually show in rituals table
+- task: "Process pending swag requests" # Title that will actually show in rituals table
   startedOn: "2025-04-02" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
   frequency: "Daily" # must be supported by
   description: "Complete draft orders." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#process-pending-swag-requests-from-the-website" #URL used to highlight "description:" test in table
   dri: "irenareedy" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
-- 
-  task: "Publish ☁️🌈 Sprint demos"
+- task: "Publish ☁️🌈 Sprint demos"
   startedOn: "2023-11-03"
   frequency: "Triweekly"
   description: "Every release cycle, upload the ☁️🌈 Sprint demos video to YouTube"
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#upload-to-youtube"
   dri: "irenareedy"
-  autoIssue:   
-    labels: [ ":help-marketing" ]
+  autoIssue:
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
--
-  task: "Check ongoing events"
+- task: "Check ongoing events"
   startedOn: "2024-10-21"
   frequency: "Daily"
   description: "Check event issues and complete steps."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#book-an-event"
   dri: "irenareedy"
--
-  task: "Check that there is sufficient availability for scheduling demos via fleetdm.com/contact"
+- task: "Check that there is sufficient availability for scheduling demos via fleetdm.com/contact"
   startedOn: "2024-10-25"
   frequency: "Weekly"
   description: "Check out the meeting booking flow that you get when you schedule a demo from Fleet's contact form, and make sure there is plenty of availability for the rest of the day in US PT thru ET, with significant spots open in the morning (US time) for folks in EMEA and at least one or two spots open in the evening (US time) for folks in APAC / Hawaii."
   moreInfoUrl: ""
   dri: "irenareedy"
--
-  task: "Prepare Let's get you set up meeting notes"
+- task: "Prepare Let's get you set up meeting notes"
   startedOn: "2026-03-05"
   frequency: "Weekly"
   description: "Every Thursday before each group/community demo call that occurs on Fridays, copy the attendees from the Lets get you set up! (group office hours) calendar event and paste them into the correct section of the [Let's get you set up! meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#prepare-lets-get-you-set-up-meeting-notes"
   dri: "irenareedy"
-  autoIssue:  
-    labels: [ ":help-marketing" ] 
+  autoIssue:
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
--
-  task: "Update content calendar"
+- task: "Update content calendar"
   startedOn: "2025-08-04"
   frequency: "Triweekly"
   description: "Every Monday, the Content Specialist will go through the content calendar with the Social media strategy and management (consultant) to verify that the next two months of content are completely planned, LinkedIn links are added for all content, and the content calendar is updated."
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=390351382#gid=390351382"
   dri: "irenareedy"
-  autoIssue:  
-    labels: [ ":help-marketing" ] 
+  autoIssue:
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
--
-  task: "Update KPIs"
+- task: "Update KPIs"
   startedOn: "2025-08-08"
   frequency: "Weekly"
   description: "Every Friday, the Content Specialist will fill out the weekly marketing KPIs."
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0"
   dri: "irenareedy"
-  autoIssue:  
-    labels: [ ":help-marketing" ] 
+  autoIssue:
+    labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
--
-  task: "Check new customers and add them to the Fleet Champions Community."
+- task: "Check new customers and add them to the Fleet Champions Community."
   startedOn: "2026-03-09"
   frequency: "Weekly"
   description: "Check the #general Slack channel for all new customers who have joined Fleet."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing/fleetchampions"
   dri: "irenareedy"
--
-  task: "Populate Fleet Champions Community spreadsheet"
+- task: "Populate Fleet Champions Community spreadsheet"
   startedOn: "2026-03-09"
   frequency: "Weekly"
   description: "Every Monday, make sure Fleet Champions Community spreadsheet is filled out and up to date."
   moreInfoUrl: "https://www.printful.com/dashboard/default/orders"
   dri: "irenareedy"
--
-  task: "Populate Fleet Champions Community spreadsheet"
-  startedOn: "2026-03-09"
-  frequency: "Weekly"
-  description: "Every Monday, make sure Fleet Champions Community spreadsheet is filled out and up to date."
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing/fleetchampions"
-  dri: "irenareedy"
--
-  task: "Follow up on Gartner Peer Review with customers"
+- task: "Follow up on Gartner Peer Review with customers"
   startedOn: "2026-03-09"
   frequency: "Weekly"
   description: "Every week, touch base with customers and/or CMS to make sure they are working on."
   moreInfoUrl: "https://www.printful.com/dashboard/default/orders"
   dri: "irenareedy"
--
+- 
   task: "Save spontaneous customer testimonials"
   startedOn: "2026-03-09"
   frequency: "Weekly"
   description: "Every week, go through Fleet's tagged posts on LinkedIn and through the Slack channels and add them to the testimonial.yml file. Ensure it's commented out & has all required fields in testimonial.yml file. Assign PR to website team."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing/marketing-assets-new"
   dri: "irenareedy"
-
+  autoIssue:  
+    labels: [ ":help-marketing",":mktg-ritual" ] 
+    repo: "confidential"
 -
   task: "Review CTRs of recently boosted posts"
   startedOn: "2026-03-17"
@@ -140,3 +120,60 @@
   description: "Review click-through rates (CTRs) of recently boosted posts on LinkedIn. The CEO will attend the first few sessions, then Irena and the CMO will continue running this ritual going forward."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#review-ctrs-of-recently-boosted-posts"
   dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing",":mktg-ritual" ]  
+    repo: "confidential"	
+- 
+  task: "Check LinkedIn comments"
+  startedOn: "2026-03-26"
+  frequency: "Daily"
+  description: "Review and respond to comments on company LinkedIn page posts. Flag questions requiring SME input to the appropriate team member. Check the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel for tracked post comments."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#monitor-and-respond-to-linkedin-comments"
+  dri: "tombasgil"
+-
+  task: "Update Fleet champions community spreadsheet"
+  startedOn: "2026-04-06"
+  frequency: "Weekly"
+  description: "Every Monday, the Content Specialist will update the Fleet champions community spreadsheet with new customers."
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772"
+  dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing",":mktg-ritual" ] 
+    repo: "confidential"
+-
+  task: "Add new customer closed/won logos to the website"
+  startedOn: "2026-04-06"
+  frequency: "Weekly"
+  description: "Every Monday, the Head of Design will update and add the new customer closed/won logos to the website, leave behind deck, and pitch deck."
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772"
+  dri: "mike-j-thomas"
+  autoIssue:  
+    labels: [ ":help-marketing",":mktg-ritual" ] 
+    repo: "confidential" 
+-
+  task: "Approval draft orders in Printful"
+  startedOn: "2026-04-09"
+  frequency: "Weekly"
+  description: "Once a week, the Content Specialist will go through the Printful orders and confirm the requested swag to be sent out."
+  moreInfoUrl: "https://www.printful.com/dashboard/default/orders"
+  dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing",":mktg-ritual" ] 
+    repo: "confidential"
+-
+  task: "Momentumize all customer closed/won accounts from the previous quarter"
+  startedOn: "2026-04-06"
+  frequency: "Quarterly"
+  description: "Once a quarter, the Content Specialist will go through the Fleet champions community spreadsheet and momentumize the new customers closed/won from the previous quarter as part of the process to create an anonymous case study."
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1fMs7qeZ9Rme1yf9_n8GxfEPzrAxPcvB5yk0w78VY_0A/edit?gid=1407640772#gid=1407640772"
+  dri: "irenareedy"
+  autoIssue:  
+    labels: [ ":help-marketing",":mktg-ritual" ] 
+    repo: "confidential"
+-
+  task: "Catch up on #help-marketing posts"
+  startedOn: "2026-05-01"
+  frequency: "Monthly"
+  description: "Stop by and hang out in #help-marketing monthly and catch up with all new posts."
+  moreInfoUrl: ""
+  dri: "mikermcneil"
