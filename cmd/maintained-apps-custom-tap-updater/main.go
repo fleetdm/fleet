@@ -378,44 +378,73 @@ func checkXCreds(ctx context.Context, client *http.Client, _ *slog.Logger) (*ups
 	}, nil
 }
 
-// druva-insync: Druva doesn't expose a parseable version feed. Best
-// effort here is to scrape the inSync Client release-notes article on
-// help.druva.com — each release block lists the Mac client as
-// "macOS: X.Y.Zr<build>" (e.g., "macOS: 8.0.0r110959"). The newest
-// release appears first on the page. If the page format changes or
-// Druva's TLS cert is expired (their *.druva.com cert lapsed for ~11
-// days in May 2026), the checker returns (nil, nil) and the workflow
-// leaves the file alone instead of erroring.
+// druva-insync: the downloads.druva.com page is driven by a static
+// data.json manifest that lists the currently-downloadable installers
+// per platform. The macOS section's first installerDetails entry is the
+// latest released version with both a downloadURL and an installerVersion
+// string of shape "inSync-X.Y.Z-rBUILD". This is the same source of truth
+// the public downloads page renders from, so it can't drift from what's
+// actually downloadable (unlike help.druva.com's release notes, which
+// list versions before the artifacts are published).
 func checkDruvaInSync(ctx context.Context, client *http.Client, logger *slog.Logger) (*upstream, error) {
-	const docURL = "https://help.druva.com/en/articles/8829600-release-notes-insync-client-insync-web"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, docURL, nil)
+	const manifestURL = "https://downloads.druva.com/insync/js/data.json"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, manifestURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.WarnContext(ctx, "druva docs unreachable", "err", err)
+		logger.WarnContext(ctx, "druva manifest unreachable", "err", err)
 		return nil, nil
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		logger.WarnContext(ctx, "druva docs returned non-200", "status", resp.StatusCode)
+		logger.WarnContext(ctx, "druva manifest returned non-200", "status", resp.StatusCode)
 		return nil, nil
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	// installerDetails stays as RawMessage during the top-level pass:
+	// some non-macOS sections (mobile platforms) use a different schema
+	// for `version` (an array of supported OS versions rather than a
+	// single string), and decoding all of them strictly would error out.
+	var sections []struct {
+		Title            string          `json:"title"`
+		InstallerDetails json.RawMessage `json:"installerDetails"`
 	}
-	m := regexp.MustCompile(`macOS:\s*(\d+\.\d+(?:\.\d+)?)\s*r\s*(\d+)`).FindSubmatch(body)
-	if m == nil {
-		logger.WarnContext(ctx, "no version pattern found on druva release notes page")
-		return nil, nil
+	if err := json.NewDecoder(resp.Body).Decode(&sections); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decoding druva manifest")
 	}
-	ver, build := string(m[1]), string(m[2])
-	return &upstream{
-		version: fmt.Sprintf("%s,%s", ver, build),
-		url:     fmt.Sprintf("https://downloads.druva.com/downloads/inSync/MAC/%s/inSync-%s-r%s.dmg", ver, ver, build),
-	}, nil
+	for _, s := range sections {
+		if s.Title != "macOS" {
+			continue
+		}
+		var details []struct {
+			Version          string `json:"version"`
+			InstallerVersion string `json:"installerVersion"`
+			DownloadURL      string `json:"downloadURL"`
+		}
+		if err := json.Unmarshal(s.InstallerDetails, &details); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "decoding druva macOS installerDetails")
+		}
+		if len(details) == 0 {
+			logger.WarnContext(ctx, "druva manifest has empty macOS installerDetails")
+			return nil, nil
+		}
+		latest := details[0]
+		// installerVersion looks like "inSync-7.6.1-r110931". Pull the
+		// build number out so we can render the comma-CSV the cask DSL
+		// uses ("version.csv.first,version.csv.second").
+		m := regexp.MustCompile(`r(\d+)$`).FindStringSubmatch(latest.InstallerVersion)
+		if m == nil {
+			logger.WarnContext(ctx, "could not parse build from druva installerVersion", "installerVersion", latest.InstallerVersion)
+			return nil, nil
+		}
+		return &upstream{
+			version: fmt.Sprintf("%s,%s", latest.Version, m[1]),
+			url:     latest.DownloadURL,
+		}, nil
+	}
+	logger.WarnContext(ctx, "druva manifest has no macOS section")
+	return nil, nil
 }
 
 // zoom-rooms: Zoom doesn't publish a parseable version feed for the
