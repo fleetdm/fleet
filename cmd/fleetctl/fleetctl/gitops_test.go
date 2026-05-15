@@ -7322,7 +7322,7 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
 
 		saved := *savedAppConfigPtr
-		assert.Equal(t, true, saved.GitOpsConfig.GitopsModeEnabled)
+		assert.True(t, saved.GitOpsConfig.GitopsModeEnabled)
 		assert.Equal(t, "https://github.com/example/fleet-config", saved.GitOpsConfig.RepositoryURL)
 	})
 
@@ -7337,7 +7337,7 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
 
 		saved := *savedAppConfigPtr
-		assert.Equal(t, true, saved.GitOpsConfig.GitopsModeEnabled)
+		assert.True(t, saved.GitOpsConfig.GitopsModeEnabled)
 		assert.Equal(t, "https://prior.example.com", saved.GitOpsConfig.RepositoryURL)
 	})
 
@@ -7351,9 +7351,9 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
 
 		saved := *savedAppConfigPtr
-		assert.Equal(t, true, saved.GitOpsConfig.Exceptions.Labels)
-		assert.Equal(t, true, saved.GitOpsConfig.Exceptions.Software)
-		assert.Equal(t, false, saved.GitOpsConfig.Exceptions.Secrets)
+		assert.True(t, saved.GitOpsConfig.Exceptions.Labels)
+		assert.True(t, saved.GitOpsConfig.Exceptions.Software)
+		assert.False(t, saved.GitOpsConfig.Exceptions.Secrets)
 	})
 
 	t.Run("YAML setting mode and url does not clobber stored exceptions", func(t *testing.T) {
@@ -7366,11 +7366,11 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
 
 		saved := *savedAppConfigPtr
-		assert.Equal(t, true, saved.GitOpsConfig.GitopsModeEnabled)
+		assert.True(t, saved.GitOpsConfig.GitopsModeEnabled)
 		assert.Equal(t, "https://github.com/example/fleet-config", saved.GitOpsConfig.RepositoryURL)
-		assert.Equal(t, true, saved.GitOpsConfig.Exceptions.Labels)
-		assert.Equal(t, true, saved.GitOpsConfig.Exceptions.Software)
-		assert.Equal(t, false, saved.GitOpsConfig.Exceptions.Secrets)
+		assert.True(t, saved.GitOpsConfig.Exceptions.Labels)
+		assert.True(t, saved.GitOpsConfig.Exceptions.Software)
+		assert.False(t, saved.GitOpsConfig.Exceptions.Secrets)
 	})
 }
 
@@ -7440,8 +7440,8 @@ func TestGitOpsModeYamlFreeTierRejected(t *testing.T) {
 	_, err := RunAppNoChecks([]string{"gitops", "-f", yml})
 	require.Error(t, err)
 	// The server-side validation in ModifyAppConfig is what flags this on free tier.
-	assert.ErrorContains(t, err, "missing or invalid license")
+	require.ErrorContains(t, err, "missing or invalid license")
 	// Saved AppConfig should not have been mutated since the PATCH was rejected.
 	saved := *savedAppConfigPtr
-	assert.Equal(t, false, saved.GitOpsConfig.GitopsModeEnabled)
+	assert.False(t, saved.GitOpsConfig.GitopsModeEnabled)
 }
