@@ -1,0 +1,1 @@
+* Fixed Linux total disk space being double-counted when a filesystem was bind-mounted at multiple paths (e.g. snap-confine's `/tmp/snap.rootfs_*`).
