@@ -544,6 +544,7 @@ func (c *Client) ApplyGroup(
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
 	filename *string,
+	afterTeamApply func(teamIDsByName map[string]uint) error,
 ) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, map[string][]fleet.VPPAppResponse, map[string][]fleet.ScriptResponse, error) {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -968,6 +969,16 @@ func (c *Client) ApplyGroup(
 		teamIDsByName, err = c.ApplyTeams(specs.Teams, teamOpts)
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("applying teams: %w", err)
+		}
+
+		// Run any caller-supplied hook between fleet creation and fleet-resource
+		// apply. The GitOps fleet flow uses this to apply fleet-scoped labels
+		// before possible consumers (profiles, policies etc.) validate label
+		// references against the database.
+		if afterTeamApply != nil {
+			if err := afterTeamApply(teamIDsByName); err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("after-team-create hook: %w", err)
+			}
 		}
 
 		// When using GitOps, the team name could change, so we need to check for that
@@ -1996,17 +2007,11 @@ func (c *Client) DoGitOps(
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
-		// Plan org logo upload/delete actions and strip the gitops-only path
-		// keys before the AppConfig PATCH. Execution runs after ApplyGroup so
-		// a PATCH failure leaves the logo store untouched. Skipped entirely
-		// when appConfig wasn't fetched (e.g. validation-only call paths in
-		// tests) — the planner needs the current OrgInfo to decide whether
-		// stale Fleet-hosted blobs should be deleted.
-		if appConfig != nil {
-			orgLogoActions, err = c.planAndStripOrgLogos(incoming.OrgSettings, &appConfig.OrgInfo, baseDir, dryRun, logFn)
-			if err != nil {
-				return nil, err
-			}
+		// Plan PUT uploads and strip the gitops-only `path` keys, which
+		// aren't part of fleet.OrgInfo. URL changes ride on the PATCH.
+		orgLogoActions, err = c.planAndStripOrgLogos(incoming.OrgSettings, baseDir, dryRun, logFn)
+		if err != nil {
+			return nil, err
 		}
 
 		// Update labels if there were any changes.
@@ -2030,6 +2035,9 @@ func (c *Client) DoGitOps(
 		}
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
+		}
+		if enableHostUsers, ok := features.(map[string]any)["enable_host_users"]; !ok || enableHostUsers == nil {
+			features.(map[string]any)["enable_host_users"] = true
 		}
 		// historical_data sub-keys default to true on every gitops apply so a
 		// deployment that doesn't pin them in YAML keeps dashboard collection
@@ -2288,6 +2296,9 @@ func (c *Client) DoGitOps(
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
 		}
+		if enableHostUsers, ok := features.(map[string]any)["enable_host_users"]; !ok || enableHostUsers == nil {
+			features.(map[string]any)["enable_host_users"] = true
+		}
 		// historical_data sub-keys default to true on every gitops apply.
 		// See ensureHistoricalDataDefaults for the rationale.
 		if err := ensureHistoricalDataDefaults(features.(map[string]any)); err != nil {
@@ -2462,6 +2473,25 @@ func (c *Client) DoGitOps(
 		}
 	}
 
+	// For the fleet-scoped flow, apply fleet labels via an ApplyGroup hook that
+	// fires after the fleet is created and before possible label consumers
+	// (profiles, software, policies, declarations) are applied.
+	var afterTeamApply func(teamIDsByName map[string]uint) error
+	if incoming.TeamName != nil && !incoming.IsNoTeam() {
+		afterTeamApply = func(teamIDsByName map[string]uint) error {
+			if len(teamIDsByName) != 1 {
+				return fmt.Errorf("expected 1 fleet spec to be applied, got %d", len(teamIDsByName))
+			}
+			for _, teamID := range teamIDsByName {
+				incoming.TeamID = &teamID
+			}
+			if incoming.Labels == nil || len(incoming.Labels) > 0 {
+				return c.doGitOpsLabels(incoming, logFn, dryRun)
+			}
+			return nil
+		}
+	}
+
 	// Apply org settings, scripts, enroll secrets, certificate authorities, team entities (software, scripts, etc.), and controls.
 	teamIDsByName, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, err := c.ApplyGroup(ctx, true, &group, baseDir, logf, appConfig, fleet.ApplyClientSpecOptions{
 		ApplySpecOptions: fleet.ApplySpecOptions{
@@ -2469,7 +2499,7 @@ func (c *Client) DoGitOps(
 			Overwrite: true,
 		},
 		ExpandEnvConfigProfiles: true,
-	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &filename)
+	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &filename, afterTeamApply)
 	if err != nil {
 		return nil, err
 	}
@@ -2513,17 +2543,8 @@ func (c *Client) DoGitOps(
 				}
 				return nil, fmt.Errorf("fleet %s not created", *incoming.TeamName)
 			}
-			for _, teamID = range teamIDsByName {
-				incoming.TeamID = &teamID
-			}
-
-			// Apply team labels after any possible new teams are created
-			if incoming.Labels == nil || len(incoming.Labels) > 0 {
-				err := c.doGitOpsLabels(incoming, logFn, dryRun)
-				if err != nil {
-					return nil, err
-				}
-			}
+			// incoming.TeamID and fleet-scoped labels were both already applied
+			// by the afterTeamApply closure passed to ApplyGroup above.
 
 			teamSoftwareInstallers = teamsSoftwareInstallers[*incoming.TeamName]
 			teamVPPApps = teamsVPPApps[*incoming.TeamName]

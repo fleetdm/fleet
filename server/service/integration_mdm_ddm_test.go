@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -210,7 +210,7 @@ INSERT INTO mdm_apple_declarations (
 	uploaded_at
 ) VALUES (?,?,?,?,?,?,?)`
 
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), stmt,
 				decl.DeclarationUUID,
 				decl.TeamID,
@@ -235,7 +235,7 @@ INSERT INTO host_mdm_apple_declarations (
 	declaration_identifier
 ) VALUES (?,?,?,UNHEX(?),?,?)`
 
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), stmt,
 				hostUUID,
 				fleet.MDMDeliveryPending,
@@ -581,7 +581,7 @@ FROM mdm_apple_declarations
 WHERE name = ?`
 
 		var decl fleet.MDMAppleDeclaration
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(context.Background(), q, &decl, stmt, name)
 		})
 		return decl
@@ -941,7 +941,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name(), Query: "select 1;"})
 	require.NoError(t, err)
 	// update label with host membership
-	mysql.ExecAdhocSQL(
+	mysqltest.ExecAdhocSQL(
 		t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(
 				context.Background(),
@@ -971,7 +971,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 
 	assertHostDeclarations := func(hostUUID string, wantDecls []*fleet.MDMAppleHostDeclaration) {
 		var gotDecls []*fleet.MDMAppleHostDeclaration
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(context.Background(), q, &gotDecls, `SELECT declaration_identifier, status, operation_type FROM host_mdm_apple_declarations WHERE host_uuid = ?`, hostUUID)
 		})
 		require.ElementsMatch(t, wantDecls, gotDecls)
@@ -1208,7 +1208,7 @@ func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
 	}
 	verifyTransactionRecord := func(want record) {
 		var got record
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(
 				ctx, q, &got,
 				`SELECT
@@ -1344,7 +1344,7 @@ FROM mdm_apple_declarations
 WHERE name = ?`
 
 		var decl fleet.MDMAppleDeclaration
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &decl, stmt, name)
 		})
 		return decl
@@ -1353,7 +1353,7 @@ WHERE name = ?`
 	// Helper: read variables_updated_at for a host/declaration pair
 	getHostDeclVarsUpdatedAt := func(t *testing.T, hostUUID, declUUID string) *time.Time {
 		var result []time.Time
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &result,
 				`SELECT variables_updated_at FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_uuid = ? AND variables_updated_at IS NOT NULL`,
 				hostUUID, declUUID)
@@ -1617,7 +1617,7 @@ WHERE name = ?`
 
 	// Simulate variable value change: set status = NULL on variable declarations.
 	// This is the same operation triggerResendProfilesUsingVariables performs.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`UPDATE host_mdm_apple_declarations SET status = NULL
 			 WHERE host_uuid = ? AND declaration_uuid IN (?, ?)`,
@@ -1687,7 +1687,7 @@ WHERE name = ?`
 	checkNoCommands(mdmDevice3)
 
 	// Simulate variable change for host1 only
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`UPDATE host_mdm_apple_declarations SET status = NULL
 			 WHERE host_uuid = ? AND declaration_uuid IN (?, ?)`,
@@ -1778,7 +1778,7 @@ WHERE name = ?`
 	// fetch (handleDeclarationItems detected unresolvable variables and excluded
 	// the declaration from the manifest).
 	var hostDecl fleet.MDMAppleHostDeclaration
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &hostDecl,
 			`SELECT status, detail FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_uuid = ?`,
 			host1.UUID, dbDeclIdpUsername.DeclarationUUID)

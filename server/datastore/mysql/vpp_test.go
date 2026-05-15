@@ -47,6 +47,7 @@ func TestVPP(t *testing.T) {
 		{"AndroidAppConfigs", testAndroidAppConfigs},
 		{"VPPAppConfigCRUDFlow", testVPPAppConfigCRUDFlow},
 		{"VPPAppConfigHasChanged", testHasVPPAppConfigurationChanged},
+		{"VPPAppConfigDeletedOnTeamDelete", testVPPAppConfigDeletedOnTeamDelete},
 		{"VPPInstallEnqueuesConfigurationDict", testVPPInstallEnqueuesConfigurationDict},
 		{"VPPInstallOmitsConfigurationOnMacOS", testVPPInstallOmitsConfigurationOnMacOS},
 		{"MapAdamIDsPendingInstallVerification", testMapAdamIDsPendingInstallVerification},
@@ -3222,6 +3223,34 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
 	require.ErrorContains(t, err, "not found")
+}
+
+// testVPPAppConfigDeletedOnTeamDelete asserts DeleteTeam clears
+// vpp_app_configurations rows for the team (no FK to teams, parent vpp_apps
+// outlives the team, so the cleanup goes through teamRefs).
+func testVPPAppConfigDeletedOnTeamDelete(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	const adamID = "vppcfg-team-delete"
+	test.CreateInsertGlobalVPPToken(t, ds)
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "vpp-cfg-team-delete"})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx),
+		fleet.IOSPlatform, team.ID, adamID, []byte(`<dict/>`)))
+
+	var beforeCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &beforeCount,
+		`SELECT COUNT(*) FROM vpp_app_configurations WHERE team_id = ?`, team.ID))
+	require.Equal(t, 1, beforeCount)
+
+	require.NoError(t, ds.DeleteTeam(ctx, team.ID))
+
+	var afterCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &afterCount,
+		`SELECT COUNT(*) FROM vpp_app_configurations WHERE team_id = ?`, team.ID))
+	require.Zero(t, afterCount, "vpp_app_configurations rows orphaned after DeleteTeam")
 }
 
 // testVPPInstallEnqueuesConfigurationDict exercises the fan-in point that

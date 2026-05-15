@@ -35,6 +35,7 @@ func TestMDMWindows(t *testing.T) {
 	}{
 		{"TestMDMWindowsEnrolledDevices", testMDMWindowsEnrolledDevice},
 		{"TestMDMWindowsInsertCommandForHosts", testMDMWindowsInsertCommandForHosts},
+		{"TestMDMWindowsBulkInsertCommands", testMDMWindowsBulkInsertCommands},
 		{"TestMDMWindowsInsertCommandAndUpsertHostProfilesForHosts", testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts},
 		{"TestMDMWindowsGetPendingCommands", testMDMWindowsGetPendingCommands},
 		{"TestMDMWindowsCommandResults", testMDMWindowsCommandResults},
@@ -1557,6 +1558,118 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	require.Len(t, cmds, 1)
 }
 
+func testMDMWindowsBulkInsertCommands(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("empty list is a noop", func(t *testing.T) {
+		err := ds.MDMWindowsBulkInsertCommands(ctx, nil)
+		require.NoError(t, err)
+	})
+
+	t.Run("inserts multiple commands in one query", func(t *testing.T) {
+		cmds := []*fleet.MDMWindowsCommand{
+			{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec>1</Exec>"), TargetLocURI: "./test/uri1"},
+			{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec>2</Exec>"), TargetLocURI: "./test/uri2"},
+			{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec>3</Exec>"), TargetLocURI: "./test/uri3"},
+		}
+		err := ds.MDMWindowsBulkInsertCommands(ctx, cmds)
+		require.NoError(t, err)
+
+		// Verify all commands were inserted
+		for _, cmd := range cmds {
+			var count int
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM windows_mdm_commands WHERE command_uuid = ?`, cmd.CommandUUID)
+			})
+			require.Equal(t, 1, count, "command %s should exist", cmd.CommandUUID)
+		}
+	})
+
+	t.Run("duplicates are silently ignored", func(t *testing.T) {
+		cmdUUID := uuid.NewString()
+		cmds := []*fleet.MDMWindowsCommand{
+			{CommandUUID: cmdUUID, RawCommand: []byte("<Exec>first</Exec>"), TargetLocURI: "./test/dup"},
+		}
+		err := ds.MDMWindowsBulkInsertCommands(ctx, cmds)
+		require.NoError(t, err)
+
+		// Insert the same command again — should not error
+		err = ds.MDMWindowsBulkInsertCommands(ctx, cmds)
+		require.NoError(t, err)
+
+		// Verify only one row exists
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM windows_mdm_commands WHERE command_uuid = ?`, cmdUUID)
+		})
+		require.Equal(t, 1, count)
+	})
+
+	t.Run("works with MDMWindowsEnqueueCommandAndUpsertHostProfiles", func(t *testing.T) {
+		// Enroll a device so we can enqueue commands
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          "DESKTOP-BULK",
+			MDMEnrollType:          "ProgrammaticEnrollment",
+			MDMEnrollUserID:        "",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+			MDMNotInOOBE:           false,
+			HostUUID:               uuid.NewString(),
+		}
+		err := ds.MDMWindowsInsertEnrolledDevice(ctx, d)
+		require.NoError(t, err)
+
+		profUUID := InsertWindowsProfileForTest(t, ds, 0)
+		cmdUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			RawCommand:   []byte("<Exec>bulk</Exec>"),
+			TargetLocURI: "./test/bulk",
+		}
+
+		// Bulk-insert the command first
+		err = ds.MDMWindowsBulkInsertCommands(ctx, []*fleet.MDMWindowsCommand{cmd})
+		require.NoError(t, err)
+
+		// Then enqueue without re-inserting the command
+		payload := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:   profUUID,
+				ProfileName:   "bulk-prof",
+				HostUUID:      d.HostUUID,
+				CommandUUID:   cmdUUID,
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        &fleet.MDMDeliveryPending,
+				Checksum:      []byte("checksum-bulk"),
+			},
+		}
+		err = ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, []string{d.HostUUID}, cmd, payload)
+		require.NoError(t, err)
+
+		// Verify the profile was upserted
+		var hostProfiles []*fleet.MDMWindowsProfilePayload
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &hostProfiles,
+				`SELECT profile_uuid, host_uuid, command_uuid FROM host_mdm_windows_profiles WHERE host_uuid = ?`, d.HostUUID)
+		})
+		require.Len(t, hostProfiles, 1)
+		require.Equal(t, profUUID, hostProfiles[0].ProfileUUID)
+		require.Equal(t, cmdUUID, hostProfiles[0].CommandUUID)
+
+		// Verify the command was enqueued in the command queue
+		var queueCount int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &queueCount,
+				`SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?`, cmdUUID)
+		})
+		require.Equal(t, 1, queueCount)
+	})
+}
+
 func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -1659,7 +1772,7 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 		}
 	})
 
-	t.Run("duplicate command uuid returns already exists", func(t *testing.T) {
+	t.Run("duplicate command insert is silently ignored", func(t *testing.T) {
 		profUUID := InsertWindowsProfileForTest(t, ds, 0)
 		cmdUUID := uuid.NewString()
 		cmd := &fleet.MDMWindowsCommand{
@@ -1667,6 +1780,14 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 			RawCommand:   []byte("<Exec></Exec>"),
 			TargetLocURI: "./test/uri",
 		}
+
+		// Insert the command first via bulk insert
+		err := ds.MDMWindowsBulkInsertCommands(ctx, []*fleet.MDMWindowsCommand{cmd})
+		require.NoError(t, err)
+
+		// Calling InsertCommandAndUpsert with the same command UUID should
+		// silently skip the command INSERT (INSERT IGNORE) and proceed
+		// with the queue + upsert.
 		payload := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
 			{
 				ProfileUUID:   profUUID,
@@ -1678,14 +1799,8 @@ func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *
 				Checksum:      []byte("checksum-dup"),
 			},
 		}
-
-		err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.HostUUID}, cmd, payload)
-		require.NoError(t, err)
-
-		// Same command UUID again should fail with already exists
 		err = ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.HostUUID}, cmd, payload)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "already exists")
+		require.NoError(t, err)
 	})
 
 	t.Run("upserts update existing host profiles", func(t *testing.T) {

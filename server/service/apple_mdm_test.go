@@ -33,7 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -231,7 +231,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
-	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 	crt, key, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
@@ -4788,7 +4788,7 @@ func setupTest(t *testing.T) (context.Context, *slog.Logger, *mock.Store, *confi
 		AppleSCEPCert: "./testdata/server.pem",
 		AppleSCEPKey:  "./testdata/server.key",
 	}
-	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appCfg := &fleet.AppConfig{}
@@ -5154,7 +5154,7 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 			}
 
 			appleStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
-				apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+				apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 				require.NoError(t, err)
 				cert, err := tls.X509KeyPair(apnsCert, apnsKey)
 				return &cert, "", err
@@ -5460,7 +5460,7 @@ func TestRenewACMECertificatesBranches(t *testing.T) {
 			}
 
 			appleStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
-				apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+				apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 				require.NoError(t, err)
 				cert, err := tls.X509KeyPair(apnsCert, apnsKey)
 				return &cert, "", err
@@ -7820,7 +7820,7 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 
 	// Extend the existing asset mock to also include the SCEP challenge needed
 	// by generateMDMAppleSCEPEnrollProfile.
-	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 	crt, key, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)

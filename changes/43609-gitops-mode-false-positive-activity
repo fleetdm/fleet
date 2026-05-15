@@ -1,0 +1,1 @@
+- Fixed a false-positive `update_conditional_access_bypass` activity that was created whenever any app config setting was changed while Okta conditional access was already configured with `bypass_disabled: true`. Also stops the related side effect of clearing existing conditional access bypass records on those unrelated saves.

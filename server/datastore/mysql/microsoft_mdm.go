@@ -385,6 +385,34 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 	})
 }
 
+// MDMWindowsBulkInsertCommands inserts multiple MDM commands in a single
+// multi-row INSERT. Duplicate commands are silently ignored. Complementary to
+// MDMWindowsEnqueueCommandAndUpsertHostProfiles
+func (ds *Datastore) MDMWindowsBulkInsertCommands(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error {
+	if len(cmds) == 0 {
+		return nil
+	}
+
+	var sb strings.Builder
+	var args []any
+	for i, cmd := range cmds {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString("(?, ?, ?)")
+		args = append(args, cmd.CommandUUID, cmd.RawCommand, cmd.TargetLocURI)
+	}
+
+	stmt := fmt.Sprintf(`
+		INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE command_uuid = command_uuid`, sb.String())
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk inserting MDMWindowsCommands")
+	}
+	return nil
+}
+
 // this function inserts both the host_mdm_windows_profile entries and the actual mdm_windows_command_queue entries for a given command and list of hosts.
 // We do the host-targeting pieces in a transaction to ensure that we don't end up with queued commands that don't have corresponding host profile entries,
 // which would previously cause issues when processing responses from the device if there was a long delay between enqueing the command and the host profile
@@ -396,22 +424,32 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 		return nil
 	}
 
-	const defaultBatchSize = 1000
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-	}
-
 	// Insert the command once, outside of the batched transactions.
 	cmdStmt := `
 		INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
 		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE command_uuid = command_uuid
 	`
 	if _, err := ds.writer(ctx).ExecContext(ctx, cmdStmt, cmd.CommandUUID, cmd.RawCommand, cmd.TargetLocURI); err != nil {
-		if IsDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommand", cmd.CommandUUID))
-		}
 		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommand")
+	}
+
+	return ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, hostUUIDs, cmd, payload)
+}
+
+// MDMWindowsEnqueueCommandAndUpsertHostProfiles enqueues a command for hosts
+// and upserts their profile tracking rows. The command must already exist in
+// windows_mdm_commands (inserted via MDMWindowsBulkInsertCommands or
+// MDMWindowsInsertCommandAndUpsertHostProfilesForHosts).
+func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
 
 	// Build a map from host UUID to its corresponding profile payload for quick lookup.

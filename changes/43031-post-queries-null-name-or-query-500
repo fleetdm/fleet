@@ -1,0 +1,1 @@
+* Fixed `POST /api/v1/fleet/queries` returning HTTP 500 when `name` or `query` is JSON `null`; the endpoint now returns HTTP 400.

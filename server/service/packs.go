@@ -173,6 +173,12 @@ func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pa
 		return nil, err
 	}
 
+	if p.Name == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "pack payload verification: pack name cannot be empty",
+		})
+	}
+
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("pack payload verification: %s", err),

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useContext, useEffect, useState, useMemo } from "react";
 import { useQuery } from "react-query";
 import { format, parseISO } from "date-fns";
 import { SingleValue } from "react-select-5";
@@ -27,6 +27,8 @@ import {
   HistoricalDataConfigKey,
 } from "interfaces/charts";
 
+import { AppContext } from "context/app";
+
 import ChartFilterModal, { IChartFilterState } from "./ChartFilterModal";
 import LineChartViz from "./LineChartViz";
 import CheckerboardViz from "./CheckerboardViz";
@@ -37,65 +39,6 @@ const baseClass = "chart-card";
 // All charts are currently fixed at a 30-day window. When the server supports
 // configurable ranges we'll add UI and request-param plumbing for this.
 const CHART_DAYS = 30;
-
-const DATASETS: IDataSet[] = [
-  {
-    name: "uptime",
-    label: "Hosts online",
-    defaultChartType: "checkerboard",
-    description: (
-      <>
-        The number of hosts detected online during a given hour.
-        <br />
-        <br />
-        A host is considered online if it&rsquo;s actively checking in to Fleet.
-        <br />
-        This includes sleeping hosts (e.g. lid closed).{" "}
-      </>
-    ),
-    tooltipFormatter: ({ value }: { value: number }) =>
-      `${value.toLocaleString()} host${value === 1 ? "" : "s"} online`,
-    relativeScale: true,
-  },
-  {
-    name: "cve",
-    label: "Vulnerability exposure",
-    defaultChartType: "checkerboard",
-    description: (
-      <>
-        The number of hosts with critical vulnerabilities detected in browsers
-        and{" "}
-        <CustomLink
-          newTab
-          text="other common software "
-          variant="tooltip-link"
-          url="https://fleetdm.com/learn-more-about/vulnerability-exposure-cves"
-        />
-        <br />
-        <br />
-        Want more control? Comprehensive vulnerability filtering is{" "}
-        <CustomLink
-          newTab
-          text="coming soon "
-          variant="tooltip-link"
-          url="https://github.com/fleetdm/fleet/issues/44746"
-        />
-      </>
-    ),
-    tooltipFormatter: ({ value }: { value: number }) =>
-      `${value.toLocaleString()} host${value === 1 ? "" : "s"}`,
-    theme: "red",
-    relativeScale: true,
-  },
-];
-
-const DATASET_OPTIONS: CustomOptionType[] = DATASETS.map((ds) => ({
-  label: ds.label,
-  value: ds.name,
-}));
-
-const getDataset = (name: string): IDataSet =>
-  DATASETS.find((ds) => ds.name === name) || DATASETS[0];
 
 const hasActiveFilters = (filters: IChartFilterState): boolean => {
   const hasHostFilter =
@@ -122,6 +65,69 @@ const ChartCard = ({
     hostFilterMode: "none",
     selectedHosts: [],
   });
+
+  const { isPremiumTier } = useContext(AppContext);
+
+  const DATASETS: IDataSet[] = [
+    {
+      name: "uptime",
+      label: "Hosts online",
+      defaultChartType: "checkerboard",
+      description: (
+        <>
+          The number of hosts detected online (checking in to Fleet) during a
+          given hour.
+          <br />
+          <br />
+          Currently, only macOS, Windows, Linux, and ChromeOS are supported.
+        </>
+      ),
+      tooltipFormatter: ({ value }: { value: number }) =>
+        `${value.toLocaleString()} host${value === 1 ? "" : "s"} online`,
+      relativeScale: true,
+    },
+  ];
+
+  const getDataset = (name: string): IDataSet =>
+    DATASETS.find((ds) => ds.name === name) || DATASETS[0];
+
+  if (isPremiumTier) {
+    DATASETS.push({
+      name: "cve",
+      label: "Vulnerability exposure",
+      defaultChartType: "checkerboard",
+      description: (
+        <>
+          The number of hosts with critical vulnerabilities detected in browsers
+          and{" "}
+          <CustomLink
+            newTab
+            text="other common software "
+            variant="tooltip-link"
+            url="https://fleetdm.com/learn-more-about/vulnerability-exposure-cves"
+          />
+          <br />
+          <br />
+          Want more control? Comprehensive vulnerability filtering is{" "}
+          <CustomLink
+            newTab
+            text="coming soon "
+            variant="tooltip-link"
+            url="https://github.com/fleetdm/fleet/issues/44746"
+          />
+        </>
+      ),
+      tooltipFormatter: ({ value }: { value: number }) =>
+        `${value.toLocaleString()} host${value === 1 ? "" : "s"}`,
+      theme: "red",
+      relativeScale: true,
+    });
+  }
+
+  const DATASET_OPTIONS: CustomOptionType[] = DATASETS.map((ds) => ({
+    label: ds.label,
+    value: ds.name,
+  }));
 
   // Labels and selected hosts are team-scoped, so clear filters when the
   // active fleet changes to avoid submitting stale IDs under the new scope.

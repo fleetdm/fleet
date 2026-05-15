@@ -146,6 +146,40 @@ func (s *s3store) CreateTestBucket(ctx context.Context, name string) error {
 	return err
 }
 
+// CleanupTestBucket empties and deletes the bucket associated with this
+// store. Only recommended for local testing. If the bucket no longer exists,
+// it returns nil.
+func (s *s3store) CleanupTestBucket(ctx context.Context) error {
+	resp, err := s.s3Client.ListObjects(ctx, &s3.ListObjectsInput{
+		Bucket: &s.bucket,
+	})
+	var noSuchBucket *types.NoSuchBucket
+	if errors.As(err, &noSuchBucket) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	var objs []types.ObjectIdentifier
+	for _, o := range resp.Contents {
+		objs = append(objs, types.ObjectIdentifier{Key: o.Key})
+	}
+	if len(objs) > 0 {
+		if _, err := s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+			Bucket: &s.bucket,
+			Delete: &types.Delete{Objects: objs},
+		}); err != nil {
+			return err
+		}
+	}
+
+	_, err = s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
+		Bucket: &s.bucket,
+	})
+	return err
+}
+
 // GCS workaround middleware functions to fix signature issues
 // See: https://github.com/aws/aws-sdk-go-v2/issues/1816#issuecomment-1927281540
 

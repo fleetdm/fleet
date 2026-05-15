@@ -795,6 +795,8 @@ type UpdateHostRefetchRequestedFunc func(ctx context.Context, hostID uint, value
 
 type UpdateHostRefetchCriticalQueriesUntilFunc func(ctx context.Context, hostID uint, until *time.Time) error
 
+type ExtendHostOrbitDebugUntilFunc func(ctx context.Context, hostID uint, until time.Time) error
+
 type FlippingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 
 type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error
@@ -1303,7 +1305,11 @@ type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []s
 
 type MDMWindowsInsertCommandsForHostFunc func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error
 
+type MDMWindowsBulkInsertCommandsFunc func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error
+
 type MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
+
+type MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
 
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error)
 
@@ -3126,6 +3132,9 @@ type DataStore struct {
 	UpdateHostRefetchCriticalQueriesUntilFunc        UpdateHostRefetchCriticalQueriesUntilFunc
 	UpdateHostRefetchCriticalQueriesUntilFuncInvoked bool
 
+	ExtendHostOrbitDebugUntilFunc        ExtendHostOrbitDebugUntilFunc
+	ExtendHostOrbitDebugUntilFuncInvoked bool
+
 	FlippingPoliciesForHostFunc        FlippingPoliciesForHostFunc
 	FlippingPoliciesForHostFuncInvoked bool
 
@@ -3888,8 +3897,14 @@ type DataStore struct {
 	MDMWindowsInsertCommandsForHostFunc        MDMWindowsInsertCommandsForHostFunc
 	MDMWindowsInsertCommandsForHostFuncInvoked bool
 
+	MDMWindowsBulkInsertCommandsFunc        MDMWindowsBulkInsertCommandsFunc
+	MDMWindowsBulkInsertCommandsFuncInvoked bool
+
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc        MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked bool
+
+	MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc        MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc
+	MDMWindowsEnqueueCommandAndUpsertHostProfilesFuncInvoked bool
 
 	MDMWindowsGetPendingCommandsFunc        MDMWindowsGetPendingCommandsFunc
 	MDMWindowsGetPendingCommandsFuncInvoked bool
@@ -7589,6 +7604,13 @@ func (s *DataStore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, h
 	return s.UpdateHostRefetchCriticalQueriesUntilFunc(ctx, hostID, until)
 }
 
+func (s *DataStore) ExtendHostOrbitDebugUntil(ctx context.Context, hostID uint, until time.Time) error {
+	s.mu.Lock()
+	s.ExtendHostOrbitDebugUntilFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExtendHostOrbitDebugUntilFunc(ctx, hostID, until)
+}
+
 func (s *DataStore) FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
 	s.mu.Lock()
 	s.FlippingPoliciesForHostFuncInvoked = true
@@ -9367,11 +9389,25 @@ func (s *DataStore) MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUI
 	return s.MDMWindowsInsertCommandsForHostFunc(ctx, hostUUIDOrDeviceID, cmds)
 }
 
+func (s *DataStore) MDMWindowsBulkInsertCommands(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error {
+	s.mu.Lock()
+	s.MDMWindowsBulkInsertCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsBulkInsertCommandsFunc(ctx, cmds)
+}
+
 func (s *DataStore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 	s.mu.Lock()
 	s.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc(ctx, hostUUIDs, cmd, profilePayloads)
+}
+
+func (s *DataStore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+	s.mu.Lock()
+	s.MDMWindowsEnqueueCommandAndUpsertHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc(ctx, hostUUIDs, cmd, profilePayloads)
 }
 
 func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {

@@ -2241,10 +2241,10 @@
     redux-thunk "^3.1.0"
     reselect "^5.1.0"
 
-"@sgress454/node-sql-parser@5.4.0-fork.1":
-  version "5.4.0-fork.1"
-  resolved "https://registry.npmjs.org/@sgress454/node-sql-parser/-/node-sql-parser-5.4.0-fork.1.tgz"
-  integrity sha512-c8lAK4EYKYpEWkYeFbEpZP2LC0j4QmC8LX86tCV+ogPo8dsbYWW56VNQRZp7d0XvVbvtfo21rooy+wCI/YoGmg==
+"@sgress454/node-sql-parser@5.4.0-fork.2":
+  version "5.4.0-fork.2"
+  resolved "https://registry.yarnpkg.com/@sgress454/node-sql-parser/-/node-sql-parser-5.4.0-fork.2.tgz#d7977e03d48db2abe0a09b39f58a71cd5fd4c15f"
+  integrity sha512-Z1NIQ1wG8WOVaNfGOhoGEalnNvshooPP5cqB93y2MsDxK/Hpp1mRm1I2mcIUme+FhiRtkurlFQxfN3tZ7U3h3g==
   dependencies:
     "@types/pegjs" "^0.10.0"
     big-integer "^1.6.48"
