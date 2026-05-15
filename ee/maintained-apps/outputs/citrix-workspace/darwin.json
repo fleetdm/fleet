@@ -4,7 +4,7 @@
       "version": "26.03.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.citrix.receiver.nomas';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.citrix.receiver.nomas' AND version_compare(bundle_short_version, '26.03.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.citrix.receiver.nomas') AND version_compare(bundle_short_version, '26.03.0') < 0);"
       },
       "installer_url": "https://downloadplugins.citrix.com/ReceiverUpdates/Prod/Receiver/Mac/CitrixWorkspaceAppUniversal26.03.0.49.pkg",
       "install_script_ref": "fe7ba180",

@@ -4,7 +4,7 @@
       "version": "2.51.233",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.box.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.box.desktop' AND version_compare(bundle_short_version, '2.51.233') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.box.desktop') AND version_compare(bundle_short_version, '2.51.233') < 0);"
       },
       "installer_url": "https://e3.boxcdn.net/desktop/releases/mac/BoxDrive-2.51.233.pkg",
       "install_script_ref": "5b80f593",

@@ -4,7 +4,7 @@
       "version": "3.5.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient' AND version_compare(bundle_short_version, '3.5.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient') AND version_compare(bundle_short_version, '3.5.8') < 0);"
       },
       "installer_url": "https://desktop.githubusercontent.com/releases/3.5.8-b1d863ab/GitHubDesktop-arm64.zip",
       "install_script_ref": "98ab6ed8",

@@ -4,7 +4,7 @@
       "version": "1.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mitchellh.ghostty';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mitchellh.ghostty' AND version_compare(bundle_short_version, '1.3.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.mitchellh.ghostty') AND version_compare(bundle_short_version, '1.3.1') < 0);"
       },
       "installer_url": "https://release.files.ghostty.org/1.3.1/Ghostty.dmg",
       "install_script_ref": "a1155274",

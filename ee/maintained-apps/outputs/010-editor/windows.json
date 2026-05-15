@@ -4,7 +4,7 @@
       "version": "16.0.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE '010 Editor %' AND publisher = 'SweetScape Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '010 Editor %' AND publisher = 'SweetScape Software' AND version_compare(version, '16.0.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name LIKE '010 Editor %' AND publisher = 'SweetScape Software') AND version_compare(version, '16.0.4') < 0);"
       },
       "installer_url": "https://download.sweetscape.com/010EditorWin64Installer16.0.4.exe",
       "install_script_ref": "5764f801",

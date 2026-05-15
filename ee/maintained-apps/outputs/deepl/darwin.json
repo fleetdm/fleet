@@ -4,7 +4,7 @@
       "version": "26.4.24484530",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.linguee.DeepLCopyTranslator';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.linguee.DeepLCopyTranslator' AND version_compare(bundle_short_version, '26.4.24484530') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.linguee.DeepLCopyTranslator') AND version_compare(bundle_short_version, '26.4.24484530') < 0);"
       },
       "installer_url": "https://www.deepl.com/macos/download/26.4/24484530/DeepL.dmg",
       "install_script_ref": "acdd1ea2",

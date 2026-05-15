@@ -4,7 +4,7 @@
       "version": "140.10.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox' AND version_compare(bundle_short_version, '140.10.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox') AND version_compare(bundle_short_version, '140.10.2') < 0);"
       },
       "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.10.2esr/mac/en-US/Firefox%20140.10.2esr.dmg",
       "install_script_ref": "f659d0e6",

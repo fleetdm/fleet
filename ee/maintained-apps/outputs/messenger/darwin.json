@@ -4,7 +4,7 @@
       "version": "525.0.0.34.106",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.facebook.archon.developerID';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.facebook.archon.developerID' AND version_compare(bundle_short_version, '525.0.0.34.106') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.facebook.archon.developerID') AND version_compare(bundle_short_version, '525.0.0.34.106') < 0);"
       },
       "installer_url": "https://www.messenger.com/messenger/desktop/downloadV2/?platform=mac&variant=catalyst",
       "install_script_ref": "dcf96cd1",

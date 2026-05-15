@@ -4,7 +4,7 @@
       "version": "2026.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwarden.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwarden.desktop' AND version_compare(bundle_short_version, '2026.3.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.bitwarden.desktop') AND version_compare(bundle_short_version, '2026.3.1') < 0);"
       },
       "installer_url": "https://github.com/bitwarden/clients/releases/download/desktop-v2026.3.1/Bitwarden-2026.3.1-universal.dmg",
       "install_script_ref": "1bffc483",

@@ -4,7 +4,7 @@
       "version": "3.8.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.splashtop.Splashtop-Streamer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.splashtop.Splashtop-Streamer' AND version_compare(bundle_short_version, '3.8.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.splashtop.Splashtop-Streamer') AND version_compare(bundle_short_version, '3.8.2.0') < 0);"
       },
       "installer_url": "https://d17kmd0va0f0mp.cloudfront.net/mac/Splashtop_Streamer_Mac_INSTALLER_v3.8.2.0.dmg",
       "install_script_ref": "f00dbb7b",
