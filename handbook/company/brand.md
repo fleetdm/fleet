@@ -10,7 +10,7 @@ If you have questions or feedback, contact [Head of Design](https://fleetdm.com/
 
 ### Primary logo
 
-![Fleet primary logo](https://github.com/fleetdm/fleet/blob/fc2f031815278c2ae2c15ad9f5ec54f23b38b884/website/assets/images/brand-primary-logo-720x445%402x.png)
+![Fleet primary logo](https://raw.githubusercontent.com/fleetdm/fleet/fc2f031815278c2ae2c15ad9f5ec54f23b38b884/website/assets/images/brand-primary-logo-720x445%402x.png)
 
 Use the primary logo whenever possible.
 
@@ -22,7 +22,7 @@ Use the primary logo whenever possible.
 
 ### Fleet dots
 
-![Fleet dots](https://github.com/fleetdm/fleet/blob/handbook-brand-guidelines/website/assets/images/brand-fleet-dots-720x445%402x.png)
+![Fleet dots](https://raw.githubusercontent.com/fleetdm/fleet/handbook-brand-guidelines/website/assets/images/brand-fleet-dots-720x445%402x.png)
 
 Use Fleet dots for profile avatars on social media and similar platforms. Avoid repeating the full logo and dots together.
 
@@ -36,9 +36,9 @@ Leave clear space around the logo equal to the height of the Fleet dots on all s
 
 > Less clear space may be used in certain placements, like the navigation bar on fleetdm.com and the Fleet product.
 
-![Logo clear space](https://github.com/fleetdm/fleet/blob/handbook-brand-guidelines/website/assets/images/brand-logo-clear-space-720x445%402x.png)
+![Logo clear space](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-logo-clear-space-720x445%402x.png)
 
-![Logo dots clear space](https://github.com/fleetdm/fleet/blob/handbook-brand-guidelines/website/assets/images/brand-logo-dots-clear-space-720x445%402x.png)
+![Logo dots clear space](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-logo-dots-clear-space-720x445%402x.png)
 
 ### Logo placement
 
@@ -46,9 +46,9 @@ Anchor the logo to the top-left or bottom-left of the canvas.
 
 > You can make exceptions when needed. For example, center or right-align the logo on slides, videos, or swag. Default to left alignment whenever possible.
 
-![Top-left logo placement](https://github.com/fleetdm/fleet/blob/handbook-brand-guidelines/website/assets/images/brand-logo-placement-top-left-720x445%402x.png)
+![Top-left logo placement](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-logo-placement-top-left-720x445%402x.png)
 
-![Bottom-left logo placement](https://github.com/fleetdm/fleet/blob/handbook-brand-guidelines/website/assets/images/brand-logo-placement-bottom-left-720x445%402x.png)
+![Bottom-left logo placement](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-logo-placement-bottom-left-720x445%402x.png)
 
 #### Placing over imagery
 
