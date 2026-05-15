@@ -9,10 +9,13 @@ import (
 )
 
 // ActivityWriteService is the subset of the activity bounded context service
-// used by the legacy service layer for write operations.
+// used by the legacy service layer for write operations and for reads from
+// device-authenticated contexts where host access has already been verified by
+// the caller.
 type ActivityWriteService interface {
 	api.NewActivityService
 	api.CleanupHostActivitiesService
+	api.ListHostPastActivitiesForDeviceService
 }
 
 // NewActivityFunc is the function signature for creating a new activity.

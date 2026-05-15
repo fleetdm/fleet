@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1042,5 +1043,143 @@ func TestAuthenticateDeviceRejectsIOSIPadOS(t *testing.T) {
 		require.Equal(t, uint(5), host.ID)
 		require.Equal(t, "ubuntu", host.Platform)
 		require.False(t, debug)
+	})
+}
+
+func TestListHostUpcomingActivities_DeviceAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+	const deviceHostID uint = 42
+	deviceHost := &fleet.Host{ID: deviceHostID, Platform: "darwin"}
+
+	wantActs := []*fleet.UpcomingActivity{{Activity: fleet.Activity{ID: 1, Type: "ran_script"}}}
+	wantMeta := &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 1}
+
+	var gotHostID uint
+	ds.ListHostUpcomingActivitiesFunc = func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
+		gotHostID = hostID
+		return wantActs, wantMeta, nil
+	}
+
+	// Without HostContext (no device authn), the call should fall through to the
+	// user-mode authz path and fail (no viewer in ctx).
+	_, _, err := svc.ListHostUpcomingActivities(ctx, deviceHostID, fleet.ListOptions{})
+	require.Error(t, err)
+	require.False(t, ds.ListHostUpcomingActivitiesFuncInvoked)
+
+	// Device-auth context but hostID arg does not match the host on the ctx:
+	// reject rather than silently swap.
+	deviceCtx := test.HostContext(ctx, deviceHost)
+	_, _, err = svc.ListHostUpcomingActivities(deviceCtx, deviceHostID+1, fleet.ListOptions{})
+	require.Error(t, err)
+	var authErr *fleet.AuthRequiredError
+	require.ErrorAs(t, err, &authErr)
+	require.False(t, ds.ListHostUpcomingActivitiesFuncInvoked)
+
+	// Device-auth context with the matching hostID: succeeds.
+	gotActs, gotMeta, err := svc.ListHostUpcomingActivities(deviceCtx, deviceHostID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.True(t, ds.ListHostUpcomingActivitiesFuncInvoked)
+	require.Equal(t, deviceHostID, gotHostID)
+	require.Equal(t, wantActs, gotActs)
+	require.Equal(t, wantMeta, gotMeta)
+}
+
+func TestListHostPastActivitiesForDevice(t *testing.T) {
+	ds := new(mock.Store)
+	opts := &TestServerOpts{SkipCreateTestUsers: true}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	const deviceHostID uint = 99
+	deviceHost := &fleet.Host{ID: deviceHostID, Platform: "darwin"}
+
+	wantActs := []*fleet.Activity{{ID: 7, Type: "ran_script"}}
+	wantMeta := &activity_api.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 5}
+
+	var gotHostID uint
+	var gotOpt activity_api.ListOptions
+	opts.ActivityMock.ListHostPastActivitiesForDeviceFunc = func(ctx context.Context, hostID uint, opt activity_api.ListOptions) ([]*activity_api.Activity, *activity_api.PaginationMetadata, error) {
+		gotHostID = hostID
+		gotOpt = opt
+		return wantActs, wantMeta, nil
+	}
+
+	t.Run("rejects non-device context", func(t *testing.T) {
+		_, _, err := svc.ListHostPastActivitiesForDevice(ctx, deviceHostID, fleet.ListOptions{})
+		require.Error(t, err)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+		require.False(t, opts.ActivityMock.ListHostPastActivitiesForDeviceFuncInvoked)
+	})
+
+	t.Run("rejects when context host id doesn't match arg", func(t *testing.T) {
+		deviceCtx := test.HostContext(ctx, deviceHost)
+		_, _, err := svc.ListHostPastActivitiesForDevice(deviceCtx, deviceHostID+1, fleet.ListOptions{})
+		require.Error(t, err)
+	})
+
+	t.Run("delegates to activity service for matching device host", func(t *testing.T) {
+		deviceCtx := test.HostContext(ctx, deviceHost)
+		acts, meta, err := svc.ListHostPastActivitiesForDevice(deviceCtx, deviceHostID, fleet.ListOptions{
+			Page: 2, PerPage: 8, OrderDirection: fleet.OrderDescending,
+		})
+		require.NoError(t, err)
+		require.True(t, opts.ActivityMock.ListHostPastActivitiesForDeviceFuncInvoked)
+		require.Equal(t, deviceHostID, gotHostID)
+		require.Equal(t, uint(2), gotOpt.Page)
+		require.Equal(t, uint(8), gotOpt.PerPage)
+		require.Equal(t, activity_api.OrderDescending, gotOpt.OrderDirection)
+		require.Equal(t, wantActs, acts)
+		require.NotNil(t, meta)
+		require.True(t, meta.HasNextResults)
+		require.Equal(t, uint(5), meta.TotalResults)
+	})
+}
+
+func TestListDeviceHostActivitiesEndpoints(t *testing.T) {
+	ds := new(mock.Store)
+	opts := &TestServerOpts{SkipCreateTestUsers: true}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	host := &fleet.Host{ID: 17, Platform: "darwin"}
+	deviceCtx := test.HostContext(ctx, host)
+
+	t.Run("past activities endpoint", func(t *testing.T) {
+		opts.ActivityMock.ListHostPastActivitiesForDeviceFunc = func(ctx context.Context, hostID uint, opt activity_api.ListOptions) ([]*activity_api.Activity, *activity_api.PaginationMetadata, error) {
+			require.Equal(t, host.ID, hostID)
+			return []*activity_api.Activity{{ID: 1, Type: "ran_script"}}, &activity_api.PaginationMetadata{}, nil
+		}
+
+		req := &listDeviceHostPastActivitiesRequest{Token: "tok"}
+		resp, err := listDeviceHostPastActivitiesEndpoint(deviceCtx, req, svc)
+		require.NoError(t, err)
+		require.NoError(t, resp.Error())
+		typed, ok := resp.(listDeviceHostPastActivitiesResponse)
+		require.True(t, ok)
+		require.Len(t, typed.Activities, 1)
+	})
+
+	t.Run("upcoming activities endpoint", func(t *testing.T) {
+		ds.ListHostUpcomingActivitiesFunc = func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
+			require.Equal(t, host.ID, hostID)
+			return []*fleet.UpcomingActivity{{Activity: fleet.Activity{ID: 2, Type: "lock_host"}}}, &fleet.PaginationMetadata{TotalResults: 3}, nil
+		}
+
+		req := &listDeviceHostUpcomingActivitiesRequest{Token: "tok"}
+		resp, err := listDeviceHostUpcomingActivitiesEndpoint(deviceCtx, req, svc)
+		require.NoError(t, err)
+		require.NoError(t, resp.Error())
+		typed, ok := resp.(listDeviceHostUpcomingActivitiesResponse)
+		require.True(t, ok)
+		require.Len(t, typed.Activities, 1)
+		require.Equal(t, uint(3), typed.Count)
+	})
+
+	t.Run("past activities endpoint without host context returns auth error", func(t *testing.T) {
+		req := &listDeviceHostPastActivitiesRequest{Token: "tok"}
+		resp, err := listDeviceHostPastActivitiesEndpoint(ctx, req, svc)
+		require.NoError(t, err)
+		require.Error(t, resp.Error())
 	})
 }

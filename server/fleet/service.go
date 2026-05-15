@@ -684,6 +684,12 @@ type Service interface {
 	// (e.g. it did complete), it returns a not found error.
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
 
+	// ListHostPastActivitiesForDevice lists past activities for the specified
+	// host in a device-token-authenticated context. It bypasses user-mode
+	// authorization since access to the host has already been verified by the
+	// device authentication middleware.
+	ListHostPastActivitiesForDevice(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
 

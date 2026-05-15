@@ -134,6 +134,10 @@ func (m *mockService) ListHostPastActivities(_ context.Context, _ uint, _ api.Li
 	panic("mockService.ListHostPastActivities should not be called in validation tests")
 }
 
+func (m *mockService) ListHostPastActivitiesForDevice(_ context.Context, _ uint, _ api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	panic("mockService.ListHostPastActivitiesForDevice should not be called in validation tests")
+}
+
 func (m *mockService) StreamActivities(_ context.Context, _ api.JSONLogger) error {
 	panic("mockService.StreamActivities should not be called in validation tests")
 }

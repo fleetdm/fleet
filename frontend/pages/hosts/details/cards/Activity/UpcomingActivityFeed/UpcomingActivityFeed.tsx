@@ -17,6 +17,7 @@ interface IUpcomingActivityFeedProps {
   activities?: IHostUpcomingActivitiesResponse;
   isError?: boolean;
   canCancelActivities: boolean;
+  isMyDevicePage?: boolean;
   onShowDetails: ShowActivityDetailsHandler;
   onCancel: (activity: IHostUpcomingActivity) => void;
   onNextPage: () => void;
@@ -27,6 +28,7 @@ const UpcomingActivityFeed = ({
   activities,
   isError = false,
   canCancelActivities,
+  isMyDevicePage = false,
   onShowDetails,
   onCancel,
   onNextPage,
@@ -71,6 +73,7 @@ const UpcomingActivityFeed = ({
               activity={activity}
               onShowDetails={onShowDetails}
               hideCancel={!canCancelActivities}
+              isMyDevicePage={isMyDevicePage}
               onCancel={() => onCancel(activity)}
             />
           );

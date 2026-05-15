@@ -9,6 +9,7 @@ const FailedEnrollmentProfileRenewalActivityItem = ({
   activity,
   onShowDetails,
   isSoloActivity,
+  isMyDevicePage,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   return (
     <ActivityItem
@@ -17,6 +18,7 @@ const FailedEnrollmentProfileRenewalActivityItem = ({
       onShowDetails={onShowDetails}
       isSoloActivity={isSoloActivity}
       hideCancel
+      hideShowDetails={isMyDevicePage}
     >
       <span>
         <b>Fleet</b> enrollment profile renewal failed for this host.{" "}
