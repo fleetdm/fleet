@@ -16,9 +16,9 @@ func TestUp_20260515000600(t *testing.T) {
 		indexName string
 		columns   []string
 	}{
-		{"cve_meta", "idx_cve_meta_exploit", []string{"exploit"}},
-		{"cve_meta", "idx_cve_meta_cvss_score", []string{"cvss_score"}},
-		{"vulnerability_host_counts", "idx_vhc_scope_cve", []string{"scope", "cve"}},
+		{"cve_meta", "idx_cve_meta_exploit", []string{"cisa_known_exploit", "cve"}},
+		{"cve_meta", "idx_cve_meta_cvss_score", []string{"cvss_score", "cve"}},
+		{"vulnerability_host_counts", "idx_vhc_scope_cve", []string{"global_stats", "team_id", "host_count", "cve"}},
 	}
 
 	for _, e := range expected {
