@@ -722,6 +722,89 @@ If the fields below are omitted, they default to values specified in [the app's 
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
 - `categories` is an array of categories, from [supported categories](#labels-and-categories).
 
+## vulnerabilities
+ 
+The `vulnerabilities` section allows you to manage how Fleet handles vulnerability dismissals.
+ 
+A dismissal hides a CVE from active vulnerability reports across all hosts and fleets while preserving the audit trail. CVEs can be dismissed for a fixed window, until the CVSS score increases, or permanently.
+ 
+The `dismissed` list supports inline configuration and references to separate files in your `lib/` folder. Entries support `path:` (single file) and `paths:` (glob pattern) references. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
+ 
+### Options
+ 
+For available options, see the parameters for the [Dismiss vulnerability](https://fleetdm.com/docs/rest-api/rest-api#dismiss-vulnerability) API endpoint.
+ 
+- `cve` specifies the CVE identifier (format must be CVE-YYYY-<4 or more digits>, case-insensitive). Required.
+- `reason` is free-text rationale visible in the activity log and on the dismissed view. Optional but recommended. Max 2,000 characters (default: `""`).
+- `re_evaluate.mode` specifies when the dismissal re-evaluates. Choices for mode are `after`, `on_cvss_increase`, and `never`. Required.
+- `re_evaluate.at` specifies the date the dismissal expires. Required when `re_evaluate.mode` is `after`. Accepts `YYYY-MM-DD` (interpreted as midnight UTC) or a full RFC3339 timestamp.
+- `re_evaluate.cvss_threshold` _Available in Fleet Premium._ Specifies the CVSS score delta that re-surfaces the CVE. Used when `re_evaluate.mode` is `on_cvss_increase` (default: `0.1`).
+- `scope` is reserved for future per-fleet scoping. Currently only `"global"` is supported (default: `"global"`).
+`re_evaluate.mode: never` requires the GitOps service account to have the admin role and emits a high-priority entry in the activity log.
+ 
+> `vulnerabilities` is an optional key: if included in `default.yml`, existing dismissals not listed will be removed. If the `vulnerabilities` key is omitted, existing dismissals will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing dismissals via the UI.
+>
+> Dismissals managed by GitOps cannot be restored from the UI — they must be removed from the YAML and re-synced. If a CVE is dismissed both via the UI and via GitOps, GitOps wins on the next sync.
+ 
+Can only be configured for "All fleets" (`default.yml`).
+ 
+### Example
+ 
+#### Inline
+ 
+`default.yml`
+ 
+```yaml
+vulnerabilities:
+  dismissed:
+    - cve: CVE-2024-5520
+      reason: "Mitigated by network segmentation; tracked in JIRA-3421."
+      re_evaluate:
+        mode: after
+        at: 2026-07-28
+    - cve: CVE-2024-1144
+      reason: "Linux-only CVE on a macOS-only fleet."
+      re_evaluate:
+        mode: on_cvss_increase
+        cvss_threshold: 0.5 # Available in Fleet Premium
+    - cve: CVE-2023-9982
+      reason: "Vendor end-of-life; replaced by alternative tooling Q1 2026."
+      re_evaluate:
+        mode: never
+```
+ 
+#### Separate file
+ 
+`lib/vulnerabilities-dismissed.yml`
+ 
+```yaml
+- cve: CVE-2024-5520
+  reason: "Mitigated by network segmentation; tracked in JIRA-3421."
+  re_evaluate:
+    mode: after
+    at: 2026-07-28
+- cve: CVE-2024-1144
+  reason: "Linux-only CVE on a macOS-only fleet."
+  re_evaluate:
+    mode: on_cvss_increase
+    cvss_threshold: 0.5
+- cve: CVE-2023-9982
+  reason: "Vendor end-of-life; replaced by alternative tooling Q1 2026."
+  re_evaluate:
+    mode: never
+```
+ 
+`default.yml`
+ 
+```yaml
+vulnerabilities:
+  dismissed:
+    - path: ../lib/vulnerabilities-dismissed.yml
+    - paths: ../lib/dismissed/*.yml
+```
+ 
+> Sync errors for unknown CVEs are logged as warnings, not fatal errors. A single invalid entry won't block the rest of the config from syncing.
+
 ## org_settings and settings
 
 Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
