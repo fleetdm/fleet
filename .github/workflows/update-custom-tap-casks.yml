@@ -5,6 +5,10 @@ on:
   schedule:
     - cron: '0 */4 * * *'
 
+concurrency:
+  group: update-custom-tap-casks
+  cancel-in-progress: false
+
 permissions:
   contents: read
   pull-requests: read
@@ -90,7 +94,7 @@ jobs:
           reviewers: allenhouchins
 
       - name: Close Existing PRs
-        if: steps.search_pr.outputs.result != '[]'
+        if: steps.search_pr.outputs.result != '[]' && steps.create-pr.outputs.pull-request-number != ''
         uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
         with:
           script: |

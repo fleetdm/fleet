@@ -463,6 +463,10 @@ func checkZoomRooms(ctx context.Context, client *http.Client, logger *slog.Logge
 		return nil, nil
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		logger.WarnContext(ctx, "zoom latest returned non-200", "status", resp.StatusCode)
+		return nil, nil
+	}
 	finalURL := resp.Request.URL.String()
 	m := regexp.MustCompile(`https://cdn\.zoom\.us/prod/([\d.]+)/ZoomRooms\.pkg`).FindStringSubmatch(finalURL)
 	if m == nil {
