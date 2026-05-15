@@ -1857,17 +1857,12 @@ func newAppleMDMProfileManagerSchedule(
 		defaultInterval = 30 * time.Second
 	)
 
-	useBatchedReconciler := isEnvBoolTrue("FLEET_MDM_APPLE_BATCHED_RECONCILER")
-
 	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			if useBatchedReconciler {
-				return service.ReconcileAppleProfilesBatched(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
-			}
-			return service.ReconcileAppleProfiles(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
+			return service.ReconcileAppleProfilesBatched(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
@@ -1875,22 +1870,6 @@ func newAppleMDMProfileManagerSchedule(
 	)
 
 	return s, nil
-}
-
-// isEnvBoolTrue returns true if the named env var is set to a truthy value
-// (1, t, T, TRUE, true, True). Used to gate the experimental batched Apple
-// MDM profile reconciler.
-func isEnvBoolTrue(name string) bool {
-	v, ok := os.LookupEnv(name)
-	if !ok {
-		return false
-	}
-	switch strings.ToLower(strings.TrimSpace(v)) {
-	case "1", "t", "true", "yes", "y":
-		return true
-	default:
-		return false
-	}
 }
 
 func newWindowsMDMProfileManagerSchedule(
