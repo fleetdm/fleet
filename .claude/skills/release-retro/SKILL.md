@@ -70,6 +70,8 @@ Template:
 ```
 :recycle:  <version> release retro recap <@<USER_GROUP_ID>|<group-handle>>
 
+_Summary via Claude_
+
 <one short framing sentence>. Quick summary:
 
 Wins
