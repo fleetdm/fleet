@@ -222,9 +222,7 @@ describe("QueriesTable", () => {
 
     testData.forEach((tableProps) => {
       renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
-      expect(
-        screen.getByText("No reports for this fleet")
-      ).toBeInTheDocument();
+      expect(screen.getByText("No reports for this fleet")).toBeInTheDocument();
       expect(screen.queryByText("Interval")).toBeNull();
       expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
     });
