@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"golang.org/x/sync/singleflight"
 )
@@ -19,7 +20,7 @@ const hostFilterCacheTTL = 60 * time.Second
 
 // hostBitmapFetcher is the signature used by cache callers to compute a fresh
 // bitmap on a miss. Returning an error bypasses caching for that call.
-type hostBitmapFetcher func(ctx context.Context) ([]byte, error)
+type hostBitmapFetcher func(ctx context.Context) (*roaring.Bitmap, error)
 
 // hostFilterCache maps a canonicalized HostFilter to the bitmap of host IDs
 // that match it. Entries are considered valid for ttl; concurrent misses for
@@ -35,7 +36,7 @@ type hostFilterCache struct {
 }
 
 type hostFilterCacheEntry struct {
-	bitmap    []byte
+	bitmap    *roaring.Bitmap
 	expiresAt time.Time
 }
 
@@ -49,7 +50,11 @@ func newHostFilterCache(ttl time.Duration) *hostFilterCache {
 
 // Get returns the cached bitmap for the filter or computes a fresh one via
 // fetch on miss/expiry. Concurrent misses for the same filter share one fetch.
-func (c *hostFilterCache) Get(ctx context.Context, filter *types.HostFilter, fetch hostBitmapFetcher) ([]byte, error) {
+//
+// The returned *roaring.Bitmap is shared across callers; treat it as read-only
+// (use roaring.And/Or/AndNot rather than (*Bitmap).And/Or/AndNot). The library
+// is safe for concurrent reads but not concurrent reads-with-writes.
+func (c *hostFilterCache) Get(ctx context.Context, filter *types.HostFilter, fetch hostBitmapFetcher) (*roaring.Bitmap, error) {
 	key := hashHostFilter(filter)
 
 	c.mu.RLock()
@@ -92,7 +97,7 @@ func (c *hostFilterCache) Get(ctx context.Context, filter *types.HostFilter, fet
 	if err != nil {
 		return nil, err
 	}
-	return val.([]byte), nil
+	return val.(*roaring.Bitmap), nil
 }
 
 // hashHostFilter produces a deterministic string key for a HostFilter. Slice

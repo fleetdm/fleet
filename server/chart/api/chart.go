@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"time"
+
+	"github.com/RoaringBitmap/roaring"
 )
 
 // SampleStrategy describes how a dataset's samples combine within a bucket and
@@ -92,13 +94,15 @@ type DatasetStore interface {
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket
 	// using the specified sample strategy. See SampleStrategy for semantics.
+	// Bitmaps are passed in op form (*roaring.Bitmap); the datastore
+	// serializes via chart.BitmapToBlob at the storage boundary.
 	RecordBucketData(
 		ctx context.Context,
 		dataset string,
 		bucketStart time.Time,
 		bucketSize time.Duration,
 		strategy SampleStrategy,
-		entityBitmaps map[string][]byte,
+		entityBitmaps map[string]*roaring.Bitmap,
 	) error
 }
 

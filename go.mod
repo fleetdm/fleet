@@ -11,6 +11,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/MicahParks/jwkset v0.11.0
+	github.com/RoaringBitmap/roaring v1.9.4
 	github.com/RobotsAndPencils/buford v0.14.0
 	github.com/VividCortex/mysqlerr v0.0.0-20170204212430-6c6b55f8796f
 	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea
@@ -226,6 +227,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.13 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.17 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bits-and-blooms/bitset v1.12.0 // indirect
 	github.com/c-bata/go-prompt v0.2.3 // indirect
 	github.com/cavaliergopher/cpio v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -315,6 +317,7 @@ require (
 	github.com/moby/sys/signal v0.7.0 // indirect
 	github.com/moby/sys/user v0.3.0 // indirect
 	github.com/moby/sys/userns v0.1.0 // indirect
+	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nats-io/jwt/v2 v2.8.1 // indirect
 	github.com/nats-io/nkeys v0.4.15 // indirect

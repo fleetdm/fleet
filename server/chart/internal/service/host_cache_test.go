@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,16 +65,16 @@ func TestHostFilterCacheServesFromCacheUntilTTL(t *testing.T) {
 	cache.clock = func() time.Time { return time.Unix(0, now.Load()) }
 
 	var calls atomic.Int32
-	fetch := func(_ context.Context) ([]byte, error) {
+	fetch := func(_ context.Context) (*roaring.Bitmap, error) {
 		calls.Add(1)
-		return []byte{0x0F}, nil
+		return roaring.BitmapOf(1, 2, 3), nil
 	}
 
 	filter := &types.HostFilter{LabelIDs: []uint{1}}
 	for range 5 {
 		b, err := cache.Get(t.Context(), filter, fetch)
 		require.NoError(t, err)
-		assert.Equal(t, []byte{0x0F}, b)
+		assert.Equal(t, uint64(3), b.GetCardinality())
 	}
 	assert.Equal(t, int32(1), calls.Load(), "repeated gets within TTL should hit the cache")
 
@@ -88,9 +89,9 @@ func TestHostFilterCacheDistinctFiltersMissSeparately(t *testing.T) {
 	cache := newHostFilterCache(time.Minute)
 
 	var calls atomic.Int32
-	fetch := func(_ context.Context) ([]byte, error) {
+	fetch := func(_ context.Context) (*roaring.Bitmap, error) {
 		calls.Add(1)
-		return []byte{0xFF}, nil
+		return roaring.BitmapOf(1), nil
 	}
 
 	_, err := cache.Get(t.Context(), &types.HostFilter{TeamIDs: []uint{1}}, fetch)
@@ -106,10 +107,10 @@ func TestHostFilterCacheSingleflightCoalescesConcurrentMisses(t *testing.T) {
 
 	var calls atomic.Int32
 	unblock := make(chan struct{})
-	fetch := func(_ context.Context) ([]byte, error) {
+	fetch := func(_ context.Context) (*roaring.Bitmap, error) {
 		calls.Add(1)
 		<-unblock // hold the fetch until all goroutines are parked on singleflight
-		return []byte{0x01}, nil
+		return roaring.BitmapOf(1), nil
 	}
 
 	filter := &types.HostFilter{LabelIDs: []uint{42}}
@@ -122,7 +123,7 @@ func TestHostFilterCacheSingleflightCoalescesConcurrentMisses(t *testing.T) {
 			defer wg.Done()
 			b, err := cache.Get(t.Context(), filter, fetch)
 			assert.NoError(t, err)
-			assert.Equal(t, []byte{0x01}, b)
+			assert.Equal(t, uint64(1), b.GetCardinality())
 		}()
 	}
 
@@ -141,7 +142,7 @@ func TestHostFilterCacheSweepsExpiredEntriesOnWrite(t *testing.T) {
 	now.Store(time.Now().UnixNano())
 	cache.clock = func() time.Time { return time.Unix(0, now.Load()) }
 
-	fetch := func(_ context.Context) ([]byte, error) { return []byte{0x01}, nil }
+	fetch := func(_ context.Context) (*roaring.Bitmap, error) { return roaring.BitmapOf(1), nil }
 
 	// Seed two entries that will later be expired.
 	_, err := cache.Get(t.Context(), &types.HostFilter{LabelIDs: []uint{1}}, fetch)
@@ -169,7 +170,7 @@ func TestHostFilterCacheDoesNotCacheErrors(t *testing.T) {
 
 	var calls atomic.Int32
 	sentinel := errors.New("boom")
-	fetch := func(_ context.Context) ([]byte, error) {
+	fetch := func(_ context.Context) (*roaring.Bitmap, error) {
 		calls.Add(1)
 		return nil, sentinel
 	}

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/testutils"
@@ -13,20 +14,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// rowFixture is a compact way to declare a decodedSCDRow in tests.
+func rowFixture(entityID string, ids []uint, validFrom, validTo time.Time) decodedSCDRow {
+	return decodedSCDRow{
+		entityID:  entityID,
+		bitmap:    chart.NewBitmap(ids),
+		validFrom: validFrom,
+		validTo:   validTo,
+	}
+}
+
 func TestAggregateBucketAccumulate(t *testing.T) {
 	bucketStart := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
 	bucketEnd := bucketStart.Add(24 * time.Hour)
 
 	// Three accumulate rows within the bucket, each observed during a different
 	// hour. Accumulate semantics = union of all overlapping rows.
-	rows := []scdRow{
-		{EntityID: "", HostBitmap: chart.HostIDsToBlob([]uint{1, 2}), ValidFrom: bucketStart.Add(2 * time.Hour), ValidTo: bucketStart.Add(3 * time.Hour)},
-		{EntityID: "", HostBitmap: chart.HostIDsToBlob([]uint{3}), ValidFrom: bucketStart.Add(10 * time.Hour), ValidTo: bucketStart.Add(11 * time.Hour)},
-		{EntityID: "", HostBitmap: chart.HostIDsToBlob([]uint{2, 4}), ValidFrom: bucketStart.Add(15 * time.Hour), ValidTo: bucketStart.Add(16 * time.Hour)},
+	rows := []decodedSCDRow{
+		rowFixture("", []uint{1, 2}, bucketStart.Add(2*time.Hour), bucketStart.Add(3*time.Hour)),
+		rowFixture("", []uint{3}, bucketStart.Add(10*time.Hour), bucketStart.Add(11*time.Hour)),
+		rowFixture("", []uint{2, 4}, bucketStart.Add(15*time.Hour), bucketStart.Add(16*time.Hour)),
 	}
 
 	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategyAccumulate)
-	assert.Equal(t, 4, chart.BlobPopcount(got), "union of {1,2}, {3}, {2,4} = {1,2,3,4}")
+	assert.Equal(t, uint64(4), chart.BlobPopcount(got), "union of {1,2}, {3}, {2,4} = {1,2,3,4}")
 }
 
 func TestAggregateBucketAccumulateMultiEntity(t *testing.T) {
@@ -36,14 +47,14 @@ func TestAggregateBucketAccumulateMultiEntity(t *testing.T) {
 	// Future-style multi-entity accumulate dataset (e.g. software usage):
 	// entity = software name; bitmap = hosts that used that software this hour.
 	// Bucket value = distinct hosts using any tracked software during the hour.
-	rows := []scdRow{
-		{EntityID: "slack", HostBitmap: chart.HostIDsToBlob([]uint{1, 2}), ValidFrom: bucketStart, ValidTo: bucketEnd},
-		{EntityID: "zoom", HostBitmap: chart.HostIDsToBlob([]uint{2, 3}), ValidFrom: bucketStart, ValidTo: bucketEnd},
-		{EntityID: "chrome", HostBitmap: chart.HostIDsToBlob([]uint{4}), ValidFrom: bucketStart, ValidTo: bucketEnd},
+	rows := []decodedSCDRow{
+		rowFixture("slack", []uint{1, 2}, bucketStart, bucketEnd),
+		rowFixture("zoom", []uint{2, 3}, bucketStart, bucketEnd),
+		rowFixture("chrome", []uint{4}, bucketStart, bucketEnd),
 	}
 
 	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategyAccumulate)
-	assert.Equal(t, 4, chart.BlobPopcount(got), "union across entities = {1,2,3,4}")
+	assert.Equal(t, uint64(4), chart.BlobPopcount(got), "union across entities = {1,2,3,4}")
 }
 
 func TestAggregateBucketSnapshotEndOfBucket(t *testing.T) {
@@ -53,13 +64,13 @@ func TestAggregateBucketSnapshotEndOfBucket(t *testing.T) {
 	// One entity "cve-A" changed state mid-bucket: affected hosts were {1,2,3}
 	// from hr 0 to hr 14, then {1,2} from hr 14 onward (H3 patched).
 	// End-of-bucket semantics should return only the *latest* state, not the OR.
-	rows := []scdRow{
-		{EntityID: "cve-A", HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3}), ValidFrom: bucketStart, ValidTo: bucketStart.Add(14 * time.Hour)},
-		{EntityID: "cve-A", HostBitmap: chart.HostIDsToBlob([]uint{1, 2}), ValidFrom: bucketStart.Add(14 * time.Hour), ValidTo: time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)},
+	rows := []decodedSCDRow{
+		rowFixture("cve-A", []uint{1, 2, 3}, bucketStart, bucketStart.Add(14*time.Hour)),
+		rowFixture("cve-A", []uint{1, 2}, bucketStart.Add(14*time.Hour), time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)),
 	}
 
 	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategySnapshot)
-	assert.Equal(t, 2, chart.BlobPopcount(got), "end-of-bucket state is {1,2}, not union {1,2,3}")
+	assert.Equal(t, uint64(2), chart.BlobPopcount(got), "end-of-bucket state is {1,2}, not union {1,2,3}")
 }
 
 func TestAggregateBucketSnapshotMultipleEntities(t *testing.T) {
@@ -70,16 +81,16 @@ func TestAggregateBucketSnapshotMultipleEntities(t *testing.T) {
 
 	// Two entities, each with an end-of-bucket state; snapshot returns OR across
 	// entities of each's latest row.
-	rows := []scdRow{
+	rows := []decodedSCDRow{
 		// cve-A: latest state {1,2}
-		{EntityID: "cve-A", HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3}), ValidFrom: bucketStart, ValidTo: bucketStart.Add(14 * time.Hour)},
-		{EntityID: "cve-A", HostBitmap: chart.HostIDsToBlob([]uint{1, 2}), ValidFrom: bucketStart.Add(14 * time.Hour), ValidTo: sentinel},
+		rowFixture("cve-A", []uint{1, 2, 3}, bucketStart, bucketStart.Add(14*time.Hour)),
+		rowFixture("cve-A", []uint{1, 2}, bucketStart.Add(14*time.Hour), sentinel),
 		// cve-B: latest state {3,4}
-		{EntityID: "cve-B", HostBitmap: chart.HostIDsToBlob([]uint{3, 4}), ValidFrom: bucketStart.Add(5 * time.Hour), ValidTo: sentinel},
+		rowFixture("cve-B", []uint{3, 4}, bucketStart.Add(5*time.Hour), sentinel),
 	}
 
 	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategySnapshot)
-	assert.Equal(t, 4, chart.BlobPopcount(got), "union of cve-A end-state {1,2} and cve-B end-state {3,4}")
+	assert.Equal(t, uint64(4), chart.BlobPopcount(got), "union of cve-A end-state {1,2} and cve-B end-state {3,4}")
 }
 
 func TestAggregateBucketSnapshotEntityDisappears(t *testing.T) {
@@ -89,12 +100,12 @@ func TestAggregateBucketSnapshotEntityDisappears(t *testing.T) {
 	// Entity was active early in bucket but its row was closed mid-bucket with
 	// no replacement (entity disappeared — e.g., last affected host patched).
 	// End-of-bucket semantics exclude it: no row is active at bucketEnd.
-	rows := []scdRow{
-		{EntityID: "cve-A", HostBitmap: chart.HostIDsToBlob([]uint{1, 2, 3}), ValidFrom: bucketStart, ValidTo: bucketStart.Add(14 * time.Hour)},
+	rows := []decodedSCDRow{
+		rowFixture("cve-A", []uint{1, 2, 3}, bucketStart, bucketStart.Add(14*time.Hour)),
 	}
 
 	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategySnapshot)
-	assert.Equal(t, 0, chart.BlobPopcount(got), "entity closed mid-bucket is absent at bucketEnd")
+	assert.Equal(t, uint64(0), chart.BlobPopcount(got), "entity closed mid-bucket is absent at bucketEnd")
 }
 
 func TestAggregateBucketSnapshotRowClosedExactlyAtBucketEnd(t *testing.T) {
@@ -104,12 +115,12 @@ func TestAggregateBucketSnapshotRowClosedExactlyAtBucketEnd(t *testing.T) {
 	// Row's valid_to == bucketEnd. The row represents state up to (but not
 	// including) bucketEnd — i.e., the state just before the bucket ends.
 	// That's exactly what end-of-bucket semantics should pick.
-	rows := []scdRow{
-		{EntityID: "cve-A", HostBitmap: chart.HostIDsToBlob([]uint{1, 2}), ValidFrom: bucketStart, ValidTo: bucketEnd},
+	rows := []decodedSCDRow{
+		rowFixture("cve-A", []uint{1, 2}, bucketStart, bucketEnd),
 	}
 
 	got := aggregateBucket(rows, bucketStart, bucketEnd, api.SampleStrategySnapshot)
-	assert.Equal(t, 2, chart.BlobPopcount(got), "row whose valid_to equals bucketEnd covers bucketEnd-ε")
+	assert.Equal(t, uint64(2), chart.BlobPopcount(got), "row whose valid_to equals bucketEnd covers bucketEnd-ε")
 }
 
 func TestCleanupSCDData(t *testing.T) {
@@ -215,26 +226,24 @@ func TestApplyScrubMaskToDataset(t *testing.T) {
 
 func testScrubEmptyMaskNoOp(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
 	now := time.Now().UTC()
-	bitmap := chart.HostIDsToBlob([]uint{1, 2, 3})
-	id := tdb.InsertSCDRowWithBitmap(t, "uptime", "", bitmap, now.Add(-time.Hour), now)
+	id := tdb.InsertSCDRowWithHostIDs(t, "uptime", "", []uint{1, 2, 3}, now.Add(-time.Hour), now)
+	before := tdb.SCDBlob(t, id)
 
 	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", nil, 0))
-	assert.Equal(t, bitmap, tdb.SCDBitmap(t, id), "nil mask must not modify the row")
+	assert.Equal(t, before, tdb.SCDBlob(t, id), "nil mask must not modify the row")
 
-	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", []byte{}, 0))
-	assert.Equal(t, bitmap, tdb.SCDBitmap(t, id), "empty mask must not modify the row")
+	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", roaring.New(), 0))
+	assert.Equal(t, before, tdb.SCDBlob(t, id), "empty mask must not modify the row")
 }
 
 func testScrubClearsAffectedBits(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
 	now := time.Now().UTC()
-	id := tdb.InsertSCDRowWithBitmap(t, "uptime", "",
-		chart.HostIDsToBlob([]uint{1, 2, 3, 4, 5}), now.Add(-time.Hour), now)
+	id := tdb.InsertSCDRowWithHostIDs(t, "uptime", "", []uint{1, 2, 3, 4, 5}, now.Add(-time.Hour), now)
 
-	mask := chart.HostIDsToBlob([]uint{2, 4})
+	mask := chart.NewBitmap([]uint{2, 4})
 	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", mask, 0))
 
-	got := tdb.SCDBitmap(t, id)
-	assert.Equal(t, chart.HostIDsToBlob([]uint{1, 3, 5}), got)
+	assert.Equal(t, []uint{1, 3, 5}, tdb.SCDHostIDs(t, id))
 }
 
 func testScrubSkipsRowsMaskDoesNotTouch(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
@@ -242,17 +251,15 @@ func testScrubSkipsRowsMaskDoesNotTouch(t *testing.T, tdb *testutils.TestDB, ds 
 	// untouched row's bitmap MUST be byte-for-byte identical post-scrub —
 	// this is the contract the skip-noop optimization promises.
 	now := time.Now().UTC()
-	hitBitmap := chart.HostIDsToBlob([]uint{1, 2, 3})
-	missBitmap := chart.HostIDsToBlob([]uint{10, 11, 12})
+	hitID := tdb.InsertSCDRowWithHostIDs(t, "uptime", "a", []uint{1, 2, 3}, now.Add(-time.Hour), now)
+	missID := tdb.InsertSCDRowWithHostIDs(t, "uptime", "b", []uint{10, 11, 12}, now.Add(-time.Hour), now)
+	missBefore := tdb.SCDBlob(t, missID)
 
-	hitID := tdb.InsertSCDRowWithBitmap(t, "uptime", "a", hitBitmap, now.Add(-time.Hour), now)
-	missID := tdb.InsertSCDRowWithBitmap(t, "uptime", "b", missBitmap, now.Add(-time.Hour), now)
-
-	mask := chart.HostIDsToBlob([]uint{2})
+	mask := chart.NewBitmap([]uint{2})
 	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", mask, 0))
 
-	assert.Equal(t, chart.HostIDsToBlob([]uint{1, 3}), tdb.SCDBitmap(t, hitID))
-	assert.Equal(t, missBitmap, tdb.SCDBitmap(t, missID), "mask doesn't intersect — row must remain unchanged")
+	assert.Equal(t, []uint{1, 3}, tdb.SCDHostIDs(t, hitID))
+	assert.Equal(t, missBefore, tdb.SCDBlob(t, missID), "mask doesn't intersect — row must remain unchanged")
 }
 
 func testScrubChunkedAcrossWriteBatches(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
@@ -263,49 +270,47 @@ func testScrubChunkedAcrossWriteBatches(t *testing.T, tdb *testutils.TestDB, ds 
 	t.Cleanup(func() { scdScrubWriteBatchCap = prev })
 
 	now := time.Now().UTC()
-	mask := chart.HostIDsToBlob([]uint{1})
+	mask := chart.NewBitmap([]uint{1})
 
 	// 7 rows, all containing host 1 → 7 affected rows → 3+3+1 across chunks.
 	// Read batch of 4 forces two read pages, each splitting into multiple
 	// CASE/WHEN UPDATEs.
-	bitmap := chart.HostIDsToBlob([]uint{1, 2})
 	ids := make([]uint, 7)
 	for i := range ids {
-		ids[i] = tdb.InsertSCDRowWithBitmap(t, "uptime", fmt.Sprintf("e%d", i),
-			bitmap, now.Add(-time.Hour), now)
+		ids[i] = tdb.InsertSCDRowWithHostIDs(t, "uptime", fmt.Sprintf("e%d", i),
+			[]uint{1, 2}, now.Add(-time.Hour), now)
 	}
 
 	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", mask, 4))
 
-	want := chart.HostIDsToBlob([]uint{2})
 	for _, id := range ids {
-		assert.Equal(t, want, tdb.SCDBitmap(t, id), "row %d", id)
+		assert.Equal(t, []uint{2}, tdb.SCDHostIDs(t, id), "row %d", id)
 	}
 }
 
 func testScrubHonorsCtxCancellation(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
 	now := time.Now().UTC()
-	bitmap := chart.HostIDsToBlob([]uint{1, 2})
-	id := tdb.InsertSCDRowWithBitmap(t, "uptime", "", bitmap, now.Add(-time.Hour), now)
+	id := tdb.InsertSCDRowWithHostIDs(t, "uptime", "", []uint{1, 2}, now.Add(-time.Hour), now)
+	before := tdb.SCDBlob(t, id)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	err := ds.ApplyScrubMaskToDataset(ctx, "uptime", chart.HostIDsToBlob([]uint{1}), 0)
+	err := ds.ApplyScrubMaskToDataset(ctx, "uptime", chart.NewBitmap([]uint{1}), 0)
 	require.ErrorIs(t, err, context.Canceled)
-	assert.Equal(t, bitmap, tdb.SCDBitmap(t, id), "row must be untouched when ctx was canceled before the first read")
+	assert.Equal(t, before, tdb.SCDBlob(t, id), "row must be untouched when ctx was canceled before the first read")
 }
 
 func testScrubOtherDatasetUnaffected(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
 	now := time.Now().UTC()
-	bitmap := chart.HostIDsToBlob([]uint{1, 2, 3})
 
-	uptimeID := tdb.InsertSCDRowWithBitmap(t, "uptime", "", bitmap, now.Add(-time.Hour), now)
-	cveID := tdb.InsertSCDRowWithBitmap(t, "cve", "CVE-1", bitmap, now.Add(-time.Hour), now)
+	uptimeID := tdb.InsertSCDRowWithHostIDs(t, "uptime", "", []uint{1, 2, 3}, now.Add(-time.Hour), now)
+	cveID := tdb.InsertSCDRowWithHostIDs(t, "cve", "CVE-1", []uint{1, 2, 3}, now.Add(-time.Hour), now)
+	cveBefore := tdb.SCDBlob(t, cveID)
 
-	mask := chart.HostIDsToBlob([]uint{2})
+	mask := chart.NewBitmap([]uint{2})
 	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", mask, 0))
 
-	assert.Equal(t, chart.HostIDsToBlob([]uint{1, 3}), tdb.SCDBitmap(t, uptimeID))
-	assert.Equal(t, bitmap, tdb.SCDBitmap(t, cveID), "cve dataset must not be touched by an uptime scrub")
+	assert.Equal(t, []uint{1, 3}, tdb.SCDHostIDs(t, uptimeID))
+	assert.Equal(t, cveBefore, tdb.SCDBlob(t, cveID), "cve dataset must not be touched by an uptime scrub")
 }

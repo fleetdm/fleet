@@ -5,6 +5,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 )
 
@@ -56,14 +57,15 @@ type Datastore interface {
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket using
 	// the specified sample strategy. See api.SampleStrategy for the semantics of
-	// each strategy.
+	// each strategy. Bitmaps are passed in op form (*roaring.Bitmap); the
+	// datastore serializes via chart.BitmapToBlob at the storage boundary.
 	RecordBucketData(
 		ctx context.Context,
 		dataset string,
 		bucketStart time.Time,
 		bucketSize time.Duration,
 		strategy api.SampleStrategy,
-		entityBitmaps map[string][]byte,
+		entityBitmaps map[string]*roaring.Bitmap,
 	) error
 
 	// GetSCDData returns per-bucket distinct-host counts for a dataset over the
@@ -74,7 +76,7 @@ type Datastore interface {
 	//   - Snapshot: for each entity, pick the row active at bucketEnd, then OR
 	//     across entities ("state as of the end of the bucket").
 	// filterMask is always applied via bitmap AND — callers build it via
-	// GetHostIDsForFilter + chart.HostIDsToBlob, usually through a cache.
+	// GetHostIDsForFilter + chart.NewBitmap, usually through a cache.
 	// The entity filter is applied via entity_id IN.
 	GetSCDData(
 		ctx context.Context,
@@ -82,7 +84,7 @@ type Datastore interface {
 		startDate, endDate time.Time,
 		bucketSize time.Duration,
 		strategy api.SampleStrategy,
-		filterMask []byte,
+		filterMask *roaring.Bitmap,
 		entityIDs []string,
 	) ([]api.DataPoint, error)
 
@@ -109,5 +111,5 @@ type Datastore interface {
 	// dataset in id-order with `batchSize`-row pages, computing
 	// chart.BlobANDNOT(host_bitmap, mask) and writing the result back via
 	// UPDATE. Used by the per-fleet scrub worker.
-	ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask []byte, batchSize int) error
+	ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask *roaring.Bitmap, batchSize int) error
 }
