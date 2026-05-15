@@ -90,6 +90,8 @@ func ReconcileAppleProfilesBatched(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing apple MDM hosts for reconcile batch")
 	}
+	logger.InfoContext(ctx, "batched reconcile: listed hosts",
+		"cursor", cursor, "hosts_in_batch", len(hosts))
 
 	if len(hosts) == 0 {
 		// End of pass or empty universe — reset cursor if it was advanced.
@@ -113,10 +115,20 @@ func ReconcileAppleProfilesBatched(
 	// Defer cursor advance on success only; on error we leave the cursor
 	// untouched so the next tick retries the same window.
 	defer func() {
-		if err == nil && cursor != nextCursor {
+		switch {
+		case err != nil:
+			logger.WarnContext(ctx, "batched reconcile: tick errored; cursor not advanced",
+				"cursor", cursor, "next_cursor", nextCursor, "err", err)
+		case cursor != nextCursor:
 			if cerr := ds.SetMDMAppleReconcileCursor(ctx, nextCursor); cerr != nil {
 				logger.WarnContext(ctx, "failed to advance apple MDM reconcile cursor", "err", cerr)
+			} else {
+				logger.InfoContext(ctx, "batched reconcile: cursor advanced",
+					"cursor", cursor, "next_cursor", nextCursor)
 			}
+		default:
+			logger.InfoContext(ctx, "batched reconcile: tick complete, cursor unchanged",
+				"cursor", cursor)
 		}
 	}()
 
@@ -136,6 +148,8 @@ func ReconcileAppleProfilesBatched(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing apple profiles for reconcile")
 	}
+	logger.InfoContext(ctx, "batched reconcile: loaded profiles",
+		"profile_count", len(allProfiles))
 
 	// Group profiles by team_id (0 = global). Each host evaluates only
 	// global + its team's profiles.
@@ -188,6 +202,10 @@ func ReconcileAppleProfilesBatched(
 
 	// Filter out macOS-only profiles from iOS/iPadOS hosts (matches legacy).
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
+
+	logger.InfoContext(ctx, "batched reconcile: computed deltas",
+		"to_install", len(toInstall), "to_remove", len(toRemove),
+		"host_ids", len(hostIDs), "label_ids", len(labelIDs))
 
 	if len(toInstall) == 0 && len(toRemove) == 0 {
 		// Nothing to do this tick. Still advance the cursor.
@@ -790,6 +808,12 @@ func executeAppleReconcileBatch(
 		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 
+	logger.InfoContext(ctx, "batched reconcile: before bulk upsert",
+		"host_profiles", len(hostProfiles),
+		"install_targets", len(installTargets),
+		"remove_targets", len(removeTargets),
+		"cleanup", len(hostProfilesToCleanup))
+
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
@@ -807,6 +831,7 @@ func executeAppleReconcileBatch(
 		prefetchedContents,
 	)
 	if err != nil {
+		logger.ErrorContext(ctx, "batched reconcile: ProcessAndEnqueueProfiles returned error", "err", err)
 		for _, hp := range hostProfiles {
 			if hp.Status != nil && *hp.Status == fleet.MDMDeliveryPending {
 				hp.Status = nil
@@ -817,6 +842,16 @@ func executeAppleReconcileBatch(
 			return ctxerr.Wrap(ctx, err, "reverting host profiles after failed enqueue")
 		}
 		return ctxerr.Wrap(ctx, err, "processing and enqueuing profiles")
+	}
+
+	if enqueueResult != nil {
+		logger.InfoContext(ctx, "batched reconcile: enqueue complete",
+			"succeeded_cmds", len(enqueueResult.SucceededCmdUUIDs),
+			"failed_cmds", len(enqueueResult.FailedCmdUUIDs))
+		for cmdUUID, ferr := range enqueueResult.FailedCmdUUIDs {
+			logger.WarnContext(ctx, "batched reconcile: failed command UUID",
+				"cmd_uuid", cmdUUID, "err", ferr)
+		}
 	}
 
 	hostProfsByCmdUUID := make(map[string][]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(hostProfiles))
