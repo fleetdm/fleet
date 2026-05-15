@@ -34,9 +34,9 @@ module.exports = {
     let articles = [];
     let category = this.req.path.split('/')[1];
     if (category === 'articles') {
-      // If the category is `/articles` we'll show all articles
+      // If the category is `/articles` we'll show everything but guides, webinars and whitepaper articles.
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
-        if(_.startsWith(page.htmlId, 'articles') && !_.startsWith(page.url, '/guides') && !_.startsWith(page.url, '/whitepapers')) {
+        if(_.startsWith(page.htmlId, 'articles') && !_.startsWith(page.url, '/guides') && !_.startsWith(page.url, '/whitepapers') && !_.startsWith(page.url,  '/webinars')) {
           return page;
         }
       });
