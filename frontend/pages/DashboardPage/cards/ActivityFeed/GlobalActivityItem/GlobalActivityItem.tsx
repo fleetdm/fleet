@@ -1671,7 +1671,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         canceled setup experience on <b>{hostName}</b> because <b>{title}</b>{" "}
-        failed to install.
+        failed to install. End user was asked to restart.
       </>
     );
   },

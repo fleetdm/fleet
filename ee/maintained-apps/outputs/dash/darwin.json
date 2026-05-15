@@ -4,7 +4,7 @@
       "version": "8.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.kapeli.dashdoc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kapeli.dashdoc' AND version_compare(bundle_short_version, '8.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.kapeli.dashdoc') AND version_compare(bundle_short_version, '8.1.1') < 0);"
       },
       "installer_url": "https://kapeli.com/downloads/v8/Dash.zip",
       "install_script_ref": "a498324c",

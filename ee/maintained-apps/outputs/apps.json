@@ -464,6 +464,13 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
+      "name": "Codex CLI",
+      "slug": "codex-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "Codex CLI",
+      "description": "Codex CLI is OpenAI’s coding agent that you can run locally from your terminal."
+    },
+    {
       "name": "Connect Fonts",
       "slug": "connect-fonts/darwin",
       "platform": "darwin",
@@ -1960,6 +1967,13 @@
       "platform": "darwin",
       "unique_identifier": "com.wrike.Wrike",
       "description": "Wrike is a project management app."
+    },
+    {
+      "name": "XCreds",
+      "slug": "xcreds/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.twocanoes.xcreds",
+      "description": "XCreds is an app that syncs a user's cloud identity provider password with their macOS login password."
     },
     {
       "name": "Yubico Authenticator",

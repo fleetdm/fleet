@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.146.0",
+      "version": "1.147.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser' AND version_compare(bundle_short_version, '1.146.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser') AND version_compare(bundle_short_version, '1.147.0') < 0);"
       },
-      "installer_url": "https://releases.arc.net/release/Arc-1.146.0-80402.zip",
+      "installer_url": "https://releases.arc.net/release/Arc-1.147.0-80797.zip",
       "install_script_ref": "bb0dd542",
       "uninstall_script_ref": "d70061d5",
-      "sha256": "36343d9892c96187b85737e43a7abc900b455d4257c5b0e23e865d0d452aa545",
+      "sha256": "6cdfcd2987dc51a91a9cf0bb4edcb6b6435f40d84e33aeb0190189f68378726c",
       "default_categories": [
         "Browsers"
       ]

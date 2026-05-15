@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "1.2.88.483",
+      "version": "1.2.89.539",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.spotify.client';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.spotify.client' AND version_compare(bundle_short_version, '1.2.88.483') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.spotify.client') AND version_compare(bundle_short_version, '1.2.89.539') < 0);"
       },
       "installer_url": "https://download.scdn.co/SpotifyARM64.dmg",
       "install_script_ref": "fc3fdef8",

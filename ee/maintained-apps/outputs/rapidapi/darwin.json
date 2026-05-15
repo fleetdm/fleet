@@ -4,7 +4,7 @@
       "version": "4.5.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.luckymarmot.Paw';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.luckymarmot.Paw' AND version_compare(bundle_short_version, '4.5.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.luckymarmot.Paw') AND version_compare(bundle_short_version, '4.5.5') < 0);"
       },
       "installer_url": "https://cdn-builds.paw.cloud/paw/RapidAPI-4.5.5.zip",
       "install_script_ref": "0df9725c",

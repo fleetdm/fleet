@@ -4,7 +4,7 @@
       "version": "15.76.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'TeamViewer' AND publisher = 'TeamViewer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'TeamViewer' AND publisher = 'TeamViewer' AND version_compare(version, '15.76.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'TeamViewer' AND publisher = 'TeamViewer') AND version_compare(version, '15.76.6') < 0);"
       },
       "installer_url": "https://download.teamviewer.com/download/version_15x/TeamViewer_Setup_x64_15.76.6.exe",
       "install_script_ref": "45f422bf",

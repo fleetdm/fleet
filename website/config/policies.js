@@ -72,9 +72,13 @@ module.exports.policies = {
   'deliver-application-submission': true,
   'landing-pages/*': true,
   'deliver-gitops-workshop-request': true,
+  'view-gitops-workshop': true,
+  'view-deployment': true,
+  'view-linux-management': true,
   'view-infrastructure-as-code': true,
   'deliver-whitepaper-download-request': true,
   'deliver-partner-registration-submission': true,
   'view-partners': true,
   'deliver-webinar-access-request': true,
+  'view-download': true,
 };

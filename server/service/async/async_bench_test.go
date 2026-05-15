@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -51,7 +52,7 @@ import (
 // ok      github.com/fleetdm/fleet/v4/server/service/async        24.291s
 
 func BenchmarkLabelMembershipInsert(b *testing.B) {
-	ds := mysql.CreateMySQLDS(b)
+	ds := mysqltest.CreateMySQLDS(b)
 
 	const targetRows = 100_000
 	batchSizes := []int{10, 100, 1_000, 2_000, 5_000, 10_000}
@@ -60,7 +61,7 @@ func BenchmarkLabelMembershipInsert(b *testing.B) {
 		var labelID uint
 		for _, bsize := range batchSizes {
 			b.Run(fmt.Sprint(bsize), func(b *testing.B) {
-				defer mysql.TruncateTables(b, ds)
+				defer mysqltest.TruncateTables(b, ds)
 
 				batch := make([][2]uint, bsize)
 				b.ResetTimer()
@@ -81,7 +82,7 @@ func BenchmarkLabelMembershipInsert(b *testing.B) {
 				}
 
 				// sanity check
-				mysql.ExecAdhocSQL(b, ds, func(tx sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(b, ds, func(tx sqlx.ExtContext) error {
 					var count int
 					if err := sqlx.GetContext(context.Background(), tx, &count, `SELECT COUNT(*) FROM label_membership`); err != nil {
 						b.Logf("select count sanity check failed: %v", err)
@@ -96,7 +97,7 @@ func BenchmarkLabelMembershipInsert(b *testing.B) {
 	b.Run("UpdateOnly", func(b *testing.B) {
 		for _, bsize := range batchSizes {
 			b.Run(fmt.Sprint(bsize), func(b *testing.B) {
-				defer mysql.TruncateTables(b, ds)
+				defer mysqltest.TruncateTables(b, ds)
 
 				// insert the batch before the benchmark, then always process the
 				// same batch
@@ -121,7 +122,7 @@ func BenchmarkLabelMembershipInsert(b *testing.B) {
 				}
 
 				// sanity check
-				mysql.ExecAdhocSQL(b, ds, func(tx sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(b, ds, func(tx sqlx.ExtContext) error {
 					var count int
 					if err := sqlx.GetContext(context.Background(), tx, &count, `SELECT COUNT(*) FROM label_membership`); err != nil {
 						b.Logf("select count sanity check failed: %v", err)
@@ -135,7 +136,7 @@ func BenchmarkLabelMembershipInsert(b *testing.B) {
 }
 
 func BenchmarkLabelMembershipDelete(b *testing.B) {
-	ds := mysql.CreateMySQLDS(b)
+	ds := mysqltest.CreateMySQLDS(b)
 
 	const (
 		initialRows = 1_000_000
@@ -180,7 +181,7 @@ func BenchmarkLabelMembershipDelete(b *testing.B) {
 			}
 
 			// sanity check
-			mysql.ExecAdhocSQL(b, ds, func(tx sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(b, ds, func(tx sqlx.ExtContext) error {
 				var count int
 				if err := sqlx.GetContext(context.Background(), tx, &count, `SELECT COUNT(*) FROM label_membership`); err != nil {
 					b.Logf("select count sanity check failed: %v", err)
@@ -211,7 +212,7 @@ func deleteLabelMembershipBatch(b *testing.B, ds *mysql.Datastore, batch [][2]ui
 	for _, tup := range batch {
 		vals = append(vals, tup[0], tup[1])
 	}
-	mysql.ExecAdhocSQL(b, ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(b, ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, sql, vals...)
 		if err != nil {
 			b.Logf("exec context failed (might retry): %v", err)
@@ -232,7 +233,7 @@ func insertLabelMembershipBatch(b *testing.B, ds *mysql.Datastore, batch [][2]ui
 	for _, tup := range batch {
 		vals = append(vals, tup[0], tup[1])
 	}
-	mysql.ExecAdhocSQL(b, ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(b, ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, sql, vals...)
 		if err != nil {
 			b.Logf("exec context failed (might retry): %v", err)

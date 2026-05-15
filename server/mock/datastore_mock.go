@@ -315,6 +315,10 @@ type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, erro
 
 type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
 
+type GetHostManagedAppleIDFunc func(ctx context.Context, hostID uint) (string, error)
+
+type SetHostManagedAppleIDFunc func(ctx context.Context, hostID uint, managedAppleID string) error
+
 type GetHostMDMIdentifiersFunc func(ctx context.Context, identifer string, teamFilter fleet.TeamFilter) ([]*fleet.HostMDMIdentifiers, error)
 
 type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (devices []fleet.AppleDevicesToRefetch, err error)
@@ -797,6 +801,8 @@ type UpdateHostRefetchRequestedFunc func(ctx context.Context, hostID uint, value
 
 type UpdateHostRefetchCriticalQueriesUntilFunc func(ctx context.Context, hostID uint, until *time.Time) error
 
+type ExtendHostOrbitDebugUntilFunc func(ctx context.Context, hostID uint, until time.Time) error
+
 type FlippingPoliciesForHostFunc func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
 
 type RecordPolicyQueryExecutionsFunc func(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error
@@ -1249,6 +1255,12 @@ type GetVPPTokenOwningAppInCountryFunc func(ctx context.Context, adamID string, 
 
 type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
 
+type GetVPPClientUserFunc func(ctx context.Context, tokenID uint, managedAppleID string) (*fleet.VPPClientUser, error)
+
+type InsertVPPClientUserFunc func(ctx context.Context, row *fleet.VPPClientUser) error
+
+type ListVPPClientUsersForTokenFunc func(ctx context.Context, tokenID uint) ([]*fleet.VPPClientUser, error)
+
 type SetABMTokenTermsExpiredForOrgNameFunc func(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
 
 type CountABMTokensWithTermsExpiredFunc func(ctx context.Context) (int, error)
@@ -1297,13 +1309,19 @@ type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDe
 
 type MDMWindowsGetEnrolledDeviceWithHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
+type MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error)
+
 type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) error
 
 type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error
 
 type MDMWindowsInsertCommandsForHostFunc func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error
 
+type MDMWindowsBulkInsertCommandsFunc func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error
+
 type MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
+
+type MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
 
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error)
 
@@ -2406,6 +2424,12 @@ type DataStore struct {
 	GetHostMDMCheckinInfoFunc        GetHostMDMCheckinInfoFunc
 	GetHostMDMCheckinInfoFuncInvoked bool
 
+	GetHostManagedAppleIDFunc        GetHostManagedAppleIDFunc
+	GetHostManagedAppleIDFuncInvoked bool
+
+	SetHostManagedAppleIDFunc        SetHostManagedAppleIDFunc
+	SetHostManagedAppleIDFuncInvoked bool
+
 	GetHostMDMIdentifiersFunc        GetHostMDMIdentifiersFunc
 	GetHostMDMIdentifiersFuncInvoked bool
 
@@ -3129,6 +3153,9 @@ type DataStore struct {
 	UpdateHostRefetchCriticalQueriesUntilFunc        UpdateHostRefetchCriticalQueriesUntilFunc
 	UpdateHostRefetchCriticalQueriesUntilFuncInvoked bool
 
+	ExtendHostOrbitDebugUntilFunc        ExtendHostOrbitDebugUntilFunc
+	ExtendHostOrbitDebugUntilFuncInvoked bool
+
 	FlippingPoliciesForHostFunc        FlippingPoliciesForHostFunc
 	FlippingPoliciesForHostFuncInvoked bool
 
@@ -3807,6 +3834,15 @@ type DataStore struct {
 	DeleteVPPTokenFunc        DeleteVPPTokenFunc
 	DeleteVPPTokenFuncInvoked bool
 
+	GetVPPClientUserFunc        GetVPPClientUserFunc
+	GetVPPClientUserFuncInvoked bool
+
+	InsertVPPClientUserFunc        InsertVPPClientUserFunc
+	InsertVPPClientUserFuncInvoked bool
+
+	ListVPPClientUsersForTokenFunc        ListVPPClientUsersForTokenFunc
+	ListVPPClientUsersForTokenFuncInvoked bool
+
 	SetABMTokenTermsExpiredForOrgNameFunc        SetABMTokenTermsExpiredForOrgNameFunc
 	SetABMTokenTermsExpiredForOrgNameFuncInvoked bool
 
@@ -3879,6 +3915,9 @@ type DataStore struct {
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFunc        MDMWindowsGetEnrolledDeviceWithHostUUIDFunc
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked bool
 
+	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc
+	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked bool
+
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc        MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool
 
@@ -3888,8 +3927,14 @@ type DataStore struct {
 	MDMWindowsInsertCommandsForHostFunc        MDMWindowsInsertCommandsForHostFunc
 	MDMWindowsInsertCommandsForHostFuncInvoked bool
 
+	MDMWindowsBulkInsertCommandsFunc        MDMWindowsBulkInsertCommandsFunc
+	MDMWindowsBulkInsertCommandsFuncInvoked bool
+
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc        MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked bool
+
+	MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc        MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc
+	MDMWindowsEnqueueCommandAndUpsertHostProfilesFuncInvoked bool
 
 	MDMWindowsGetPendingCommandsFunc        MDMWindowsGetPendingCommandsFunc
 	MDMWindowsGetPendingCommandsFuncInvoked bool
@@ -5909,6 +5954,20 @@ func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) 
 	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error) {
+	s.mu.Lock()
+	s.GetHostManagedAppleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostManagedAppleIDFunc(ctx, hostID)
+}
+
+func (s *DataStore) SetHostManagedAppleID(ctx context.Context, hostID uint, managedAppleID string) error {
+	s.mu.Lock()
+	s.SetHostManagedAppleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostManagedAppleIDFunc(ctx, hostID, managedAppleID)
+}
+
 func (s *DataStore) GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter fleet.TeamFilter) ([]*fleet.HostMDMIdentifiers, error) {
 	s.mu.Lock()
 	s.GetHostMDMIdentifiersFuncInvoked = true
@@ -7596,6 +7655,13 @@ func (s *DataStore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, h
 	return s.UpdateHostRefetchCriticalQueriesUntilFunc(ctx, hostID, until)
 }
 
+func (s *DataStore) ExtendHostOrbitDebugUntil(ctx context.Context, hostID uint, until time.Time) error {
+	s.mu.Lock()
+	s.ExtendHostOrbitDebugUntilFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExtendHostOrbitDebugUntilFunc(ctx, hostID, until)
+}
+
 func (s *DataStore) FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
 	s.mu.Lock()
 	s.FlippingPoliciesForHostFuncInvoked = true
@@ -9178,6 +9244,27 @@ func (s *DataStore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	return s.DeleteVPPTokenFunc(ctx, tokenID)
 }
 
+func (s *DataStore) GetVPPClientUser(ctx context.Context, tokenID uint, managedAppleID string) (*fleet.VPPClientUser, error) {
+	s.mu.Lock()
+	s.GetVPPClientUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPClientUserFunc(ctx, tokenID, managedAppleID)
+}
+
+func (s *DataStore) InsertVPPClientUser(ctx context.Context, row *fleet.VPPClientUser) error {
+	s.mu.Lock()
+	s.InsertVPPClientUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPClientUserFunc(ctx, row)
+}
+
+func (s *DataStore) ListVPPClientUsersForToken(ctx context.Context, tokenID uint) ([]*fleet.VPPClientUser, error) {
+	s.mu.Lock()
+	s.ListVPPClientUsersForTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListVPPClientUsersForTokenFunc(ctx, tokenID)
+}
+
 func (s *DataStore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error) {
 	s.mu.Lock()
 	s.SetABMTokenTermsExpiredForOrgNameFuncInvoked = true
@@ -9346,6 +9433,13 @@ func (s *DataStore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context,
 	return s.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc(ctx, deviceName)
+}
+
 func (s *DataStore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error {
 	s.mu.Lock()
 	s.MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked = true
@@ -9367,11 +9461,25 @@ func (s *DataStore) MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUI
 	return s.MDMWindowsInsertCommandsForHostFunc(ctx, hostUUIDOrDeviceID, cmds)
 }
 
+func (s *DataStore) MDMWindowsBulkInsertCommands(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error {
+	s.mu.Lock()
+	s.MDMWindowsBulkInsertCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsBulkInsertCommandsFunc(ctx, cmds)
+}
+
 func (s *DataStore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 	s.mu.Lock()
 	s.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc(ctx, hostUUIDs, cmd, profilePayloads)
+}
+
+func (s *DataStore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+	s.mu.Lock()
+	s.MDMWindowsEnqueueCommandAndUpsertHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc(ctx, hostUUIDs, cmd, profilePayloads)
 }
 
 func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {

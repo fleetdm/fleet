@@ -5,6 +5,7 @@ import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-sh";
 import "ace-builds/src-noconflict/mode-powershell";
 import "ace-builds/src-noconflict/mode-python";
+import "ace-builds/src-noconflict/mode-xml";
 import { Ace } from "ace-builds";
 
 import { stringToClipboard } from "utilities/copy_text";
@@ -52,8 +53,10 @@ interface IEditorProps {
   isFormField?: boolean;
   maxLines?: number;
   className?: string;
-  onChange?: (value: string, event?: any) => void;
+  onChange?: (value: string, event?: Ace.Delta) => void;
   onBlur?: () => void;
+  /** Called after the Ace editor mounts with the editor instance. */
+  onLoad?: (editor: Ace.Editor) => void;
 }
 
 /**
@@ -81,6 +84,7 @@ const Editor = ({
   className,
   onChange,
   onBlur,
+  onLoad: onLoadProp,
 }: IEditorProps) => {
   const classNames = classnames(baseClass, className, {
     "form-field": isFormField,
@@ -133,6 +137,7 @@ const Editor = ({
       },
       readOnly: true,
     });
+    onLoadProp?.(editor);
   };
 
   const renderLabel = () => {

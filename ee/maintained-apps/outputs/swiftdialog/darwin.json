@@ -4,7 +4,7 @@
       "version": "3.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog' AND version_compare(bundle_short_version, '3.0.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog') AND version_compare(bundle_short_version, '3.0.1') < 0);"
       },
       "installer_url": "https://github.com/swiftDialog/swiftDialog/releases/download/v3.0.1/dialog-3.0.1-4955.pkg",
       "install_script_ref": "a2e5b6be",

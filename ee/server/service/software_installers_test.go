@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	redismock "github.com/fleetdm/fleet/v4/server/mock/redis"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
@@ -354,13 +353,21 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
 }
 
-func TestInstallSoftwareTitle(t *testing.T) {
+func TestInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
 
+	// Personally-enrolled iOS/iPadOS hosts must reach the install lookup; the
+	// BYOD gate that previously short-circuited them is removed in #43998.
+	// Returning NotFound from the in-house and VPP app lookups makes the code
+	// surface the standard "title not available" error — proving we got past
+	// the old gate without entangling this test in the install flow.
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 		return nil, nil
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
+		return nil, &notFoundError{}
 	}
 
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -370,19 +377,21 @@ func TestInstallSoftwareTitle(t *testing.T) {
 		OrbitNodeKey: ptr.String("orbit_key"),
 		Platform:     "ios",
 		TeamID:       ptr.Uint(1),
+		MDM: fleet.MDMHostData{
+			EnrollmentStatus: ptr.String(string(fleet.MDMEnrollStatusPersonal)),
+		},
 	}
 
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
 
-	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
-		return &fleet.NanoEnrollment{
-			Type: mdm.EnrollType(mdm.UserEnrollmentDevice).String(),
-		}, nil
-	}
-
-	require.ErrorContains(t, svc.InstallSoftwareTitle(ctx, 1, 10), fleet.InstallSoftwarePersonalAppleDeviceErrMsg)
+	err := svc.InstallSoftwareTitle(ctx, 1, 10)
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), fleet.InstallSoftwarePersonalAppleDeviceErrMsg,
+		"BYOD gate must no longer block install for personally-enrolled iOS/iPadOS hosts")
+	require.ErrorContains(t, err, "Software title is not available for install",
+		"control flow must reach the standard not-found path")
 }
 
 func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
@@ -1004,10 +1013,25 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	require.Contains(t, bre.Message, "can be installed only on linux hosts")
 }
 
-func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *testing.T) {
+func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
+
+	// Personally-enrolled iOS/iPadOS hosts must reach the install lookup; the
+	// BYOD gate that previously short-circuited them is removed in #44007.
+	// Returning NotFound from both software-installer and VPP-app lookups makes
+	// the code surface the standard "title not available" error — proving we
+	// got past the old gate without entangling this test in the install flow.
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint, _ bool) (*fleet.SoftwareInstaller, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.VPPApp, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.SoftwareInstaller, error) {
+		return nil, &notFoundError{}
+	}
 
 	for _, platform := range []string{"ios", "ipados"} {
 		fakeHost := &fleet.Host{
@@ -1018,8 +1042,11 @@ func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *test
 		}
 
 		err := svc.SelfServiceInstallSoftwareTitle(t.Context(), fakeHost, 1)
-		require.Error(t, err, "expected error when installing on personally enrolled device for platform %s", platform)
-		require.ErrorContains(t, err, "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts.", "error message should indicate personally enrolled devices aren't supported for platform %s", platform)
+		require.Error(t, err, "platform %s", platform)
+		require.NotContains(t, err.Error(), fleet.InstallSoftwarePersonalAppleDeviceErrMsg,
+			"BYOD gate must no longer block self-service for platform %s", platform)
+		require.ErrorContains(t, err, "Software title is not available for install",
+			"control flow must reach the standard not-found path for platform %s", platform)
 	}
 }
 

@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "0.130.0",
+      "queries": {
+        "exists": "SELECT 1 FROM file WHERE path = 'C:\\Program Files\\Codex CLI\\codex.exe' OR path LIKE '%\\AppData\\Local\\Programs\\Codex CLI\\codex.exe';",
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM file WHERE path = 'C:\\Program Files\\Codex CLI\\codex.exe' OR path LIKE '%\\AppData\\Local\\Programs\\Codex CLI\\codex.exe') AND version_compare(version, '0.130.0') < 0);"
+      },
+      "installer_url": "https://github.com/openai/codex/releases/download/rust-v0.130.0/codex-x86_64-pc-windows-msvc.exe.zip",
+      "install_script_ref": "8bb4b68b",
+      "uninstall_script_ref": "7e1fe544",
+      "sha256": "1aa3b56bcc825c0425185c5a7c17166cd9d56de673def0b93d48815c867d6356",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "7e1fe544": "# Removes layouts created by codex-cli_install.ps1 (machine and per-user fallbacks).\n\n$ErrorActionPreference = \"Continue\"\nforeach ($installRoot in @(\n    (Join-Path $env:ProgramFiles \"Codex CLI\"),\n    (Join-Path $env:LOCALAPPDATA \"Programs\\Codex CLI\")\n)) {\n    if (Test-Path -LiteralPath $installRoot) {\n        Remove-Item -LiteralPath $installRoot -Recurse -Force\n    }\n}\n\nExit 0\n",
+    "8bb4b68b": "# Codex ships as a .zip of portable binaries (winget NestedInstallerType: portable).\n# INSTALLER_PATH points at the downloaded .zip.\n# Prefer Program Files (matches Fleet validation + managed installs); fall back to %LOCALAPPDATA% without admin.\n\n$ErrorActionPreference = \"Stop\"\n$zipPath = \"${env:INSTALLER_PATH}\"\n$machineRoot = Join-Path $env:ProgramFiles \"Codex CLI\"\n$userRoot = Join-Path $env:LOCALAPPDATA \"Programs\\Codex CLI\"\n$extractDir = Join-Path $env:TEMP (\"codex-winget-extract-\" + [Guid]::NewGuid().ToString())\n\nif (-not (Test-Path -LiteralPath $machineRoot)) {\n    try {\n        New-Item -ItemType Directory -Path $machineRoot -Force -ErrorAction Stop | Out-Null\n        $installRoot = $machineRoot\n    } catch {\n        New-Item -ItemType Directory -Path $userRoot -Force | Out-Null\n        $installRoot = $userRoot\n    }\n} else {\n    $installRoot = $machineRoot\n}\n\ntry {\n    if (-not (Test-Path -LiteralPath $zipPath)) {\n        Write-Host \"Installer not found: $zipPath\"\n        Exit 1\n    }\n\n    New-Item -ItemType Directory -Path $installRoot -Force | Out-Null\n    New-Item -ItemType Directory -Path $extractDir -Force | Out-Null\n    Expand-Archive -LiteralPath $zipPath -DestinationPath $extractDir -Force\n\n    # Matches winget manifest NestedInstallerFiles for x64\n    $mainExe = Join-Path $extractDir \"codex-x86_64-pc-windows-msvc.exe\"\n    if (-not (Test-Path -LiteralPath $mainExe)) {\n        Write-Host \"Expected binary codex-x86_64-pc-windows-msvc.exe not found in archive\"\n        Exit 1\n    }\n\n    $destExe = Join-Path $installRoot \"codex.exe\"\n    Copy-Item -LiteralPath $mainExe -Destination $destExe -Force\n\n    foreach ($extra in @(\n        \"codex-command-runner.exe\",\n        \"codex-windows-sandbox-setup.exe\"\n    )) {\n        $src = Join-Path $extractDir $extra\n        if (Test-Path -LiteralPath $src) {\n            Copy-Item -LiteralPath $src -Destination (Join-Path $installRoot $extra) -Force\n        }\n    }\n\n    Exit 0\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n} finally {\n    Remove-Item -LiteralPath $extractDir -Recurse -Force -ErrorAction SilentlyContinue\n}\n"
+  }
+}

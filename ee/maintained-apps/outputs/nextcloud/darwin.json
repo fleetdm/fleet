@@ -4,7 +4,7 @@
       "version": "33.0.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nextcloud.desktopclient';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nextcloud.desktopclient' AND version_compare(bundle_short_version, '33.0.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.nextcloud.desktopclient') AND version_compare(bundle_short_version, '33.0.4') < 0);"
       },
       "installer_url": "https://github.com/nextcloud-releases/desktop/releases/download/v33.0.4/Nextcloud-33.0.4.pkg",
       "install_script_ref": "1072c9cc",

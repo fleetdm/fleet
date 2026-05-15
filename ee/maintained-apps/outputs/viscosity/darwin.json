@@ -4,7 +4,7 @@
       "version": "1.12.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.viscosityvpn.Viscosity';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.viscosityvpn.Viscosity' AND version_compare(bundle_short_version, '1.12.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.viscosityvpn.Viscosity') AND version_compare(bundle_short_version, '1.12.1') < 0);"
       },
       "installer_url": "https://swupdate.sparklabs.com/download/mac/release/viscosity/Viscosity%201.12.1.dmg",
       "install_script_ref": "54b2d2f1",

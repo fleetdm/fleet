@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "46.4.0.34752",
+      "version": "46.5.0.34931",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cisco Webex' AND publisher = 'Cisco Systems, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cisco Webex' AND publisher = 'Cisco Systems, Inc' AND version_compare(version, '46.4.0.34752') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Cisco Webex' AND publisher = 'Cisco Systems, Inc') AND version_compare(version, '46.5.0.34931') < 0);"
       },
-      "installer_url": "https://binaries.webex.com/WebexDesktop-Win-64-Gold/20260422174916/Webex.msi",
+      "installer_url": "https://binaries.webex.com/WebexDesktop-Win-64-Gold/20260513172520/Webex.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "dfe62b07",
-      "sha256": "ddbb038bf9deab0ae2ba9fda453b92655ef830d3575628e39a1e154f5e7b2baf",
+      "sha256": "3ec64fda7267c10e297ae495d505a6b0953f36db838d2041401f77b88e66629a",
       "default_categories": [
         "Communication"
       ],

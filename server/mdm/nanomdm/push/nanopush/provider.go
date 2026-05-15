@@ -114,10 +114,7 @@ func (p *Provider) pushSerial(ctx context.Context, pushInfos []*mdm.Push) (map[s
 // It spawns worker goroutines and feeds them from the list of pushInfos.
 func (p *Provider) pushConcurrent(ctx context.Context, pushInfos []*mdm.Push) (map[string]*push.Response, error) {
 	// don't start more workers than we have pushes to send
-	workers := p.workers
-	if len(pushInfos) < workers {
-		workers = len(pushInfos)
-	}
+	workers := min(p.workers, len(pushInfos))
 
 	// response associates push.Response with token
 	type response struct {

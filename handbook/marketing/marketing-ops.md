@@ -21,20 +21,16 @@ Our go-to-market (GTM) approach is built on a foundation of end-to-end visibilit
 Conversion rates help us to plan, forecast, and improve. There are several key comparisons that we want to understand:
 
 - **Win rate**: From stage X to closed won.  For closed opportunities, this tells us what percentage of opportunities historically will be won for a given stage in the sales cycle.  
-- **Stage to win cycle time**: tbd/todo  
+- **Stage to win cycle time**:   
 - **Stage to stage**:tbd/todo  
-- **Stage to stage cycle time**: tbd/todo
-
+- **Stage to stage cycle time**: 
 
 ## GTM model
 
 We can build a reverse funnel using the conversion rates and an estimated ASP, which will indicate the business demand for top-of-funnel leads/contacts and opportunities in order to attain future revenue targets. 
-See our current model in google docs [link](link to google docs) <Tbd/todo>
 
 
 ## Attribution framework
-
-
 
 To scale demand generation effectively, we need to have a trusted source of data about what works in generating new leads, opportunities, pipeline, and business. Without a consistent framework, our data is messy, reporting is unreliable, and we cannot confidently measure the ROI of our marketing or sales efforts. This framework solves three core problems:
 
@@ -44,10 +40,9 @@ To scale demand generation effectively, we need to have a trusted source of data
 
 This outlines a simple, scalable, and non-negotiable system for tracking all lead-generating activities at Fleet.
 
-
 ### First-touch vs. converting-touch
 
-This framework is **not** just for the Original Lead/Contact Source field. It should be applied to **two separate, critical moments** in the customer journey.
+This framework is **not** just for the Original Lead/Contact Source field. It should be applied to **two separate, critical moments** in the customer journey.  At some point, we may want to look at multi-touch attribution, this model is our starting point and foundation.
 
 
 #### 🌎 First-touch: Original contact source
@@ -70,8 +65,10 @@ Example:
 
 - Six months later, an SDR emails them (2026\_04-SDR-q2\_fintech\_sequence), and they reply to book a demo.   
   - Their Most Recent/Converting-Touch is Prospecting \> SDR Outbound.
+  
+Converting-touch is always stamped fresh at the moment of opportunity creation. If a contact re-engages after a prior opportunity has closed, the new opportunity's Converting-touch reflects whatever campaign or activity drove the current re-engagement,not any historical value. The prior opportunity record retains its own Converting-touch data. If a closed-lost opportunity is re-engaged within 90 days, we typically should reopen the original opportunity rather than creating a new one.
 
-This allows us to see that our webinars are great for *finding* leads, and our SDR team is great at *converting* them.
+**Converting0touch** allows us to see that our webinars are great for *finding* leads, and our SDR team is great at *converting* them.
 
 
 ### Attribution hierarchy
@@ -124,7 +121,7 @@ For all manually tracked, human-to-human recommendations.
 
 For all in-person or virtual events, sponsored or hosted.
 
-| Source detail | Code | Campaign examples (discreet) |
+| Source detail | Code | Campaign examples (discrete) |
 | :---- | :---- | :---- |
 | Major conference (global, 10k+) | MC | 2026\_08-MC-blackhat |
 | Regional conference | RC | 2026\_03-RC-secureworld\_boston |
@@ -148,6 +145,7 @@ For all paid and owned online media and content.
 | Paid media | PM | 2025\_11-PM-riskybiz\_podcast |
 | Content syndication & 3rd-party | CS | 2025\_12-CS-techtarget\_survey |
 | Email marketing (owned list) | EM | 2025\_11-EM-newsletter\_promo |
+| Press Release | PR | 2025\_11-PR-Abc\_launch |  
 
 
 #### 🎯 Prospecting
@@ -156,9 +154,13 @@ For all outbound activities initiated by sales or a 3rd-party vendor.
 
 | Source detail | Code | Campaign examples |
 | :---- | :---- | :---- |
-| SDR outbound | SDR | SDR-General\_Prospecting (Always-On) 2025\_11-SDR-q4\_fintech\_sequence (Discreet) |
-| AE outbound | AE | AE-General\_Prospecting |
+| SDR outbound | SDR | Default-SDR-General\_Prospecting (Always-On) or 2025\_11-SDR-q4\_fintech\_sequence (a discrete campaign) |
+| AE outbound | AE | Default-AE-General\_Prospecting |
 | Meeting Service | MS | 2025\_11-MS-VIB 2026\_01-MS-SageTap |
+
+Other exmaples of campaigns:
+Default-AE-Dripify_LinkedIn
+Default-SDR-Dripify_LinkedIn
 
 
 #### 🤝 Partner
@@ -167,8 +169,8 @@ For all co-marketing and leads generated from formal channel partners.
 
 | Source detail | Code | Campaign examples |
 | :---- | :---- | :---- |
-| Tech partner | TP | 2025\_11-TP-aws\_marketplace |
-| Reseller / VAR | RE | RE-General\_Referrals |
+| Tech partner | TP | Default-TP-TechPartner\_Referral or 2025\_11-TP-aws\_marketplace |
+| Reseller / VAR | RE | Default-RE-Reseller\_Referral |
 | Co-marketing | CM | 2026\_01-CM-crowdstrike\_whitepaper |
 
 
@@ -199,6 +201,53 @@ These are generic "buckets" for continuous inbound channels that don't have a st
   - **\[Code\]:** The 2-4 letter code.
 - **Full example:** Default-OS (for all Organic Search)
 
+
+## SFDC field mapping
+
+The attribution framework is implemented across three record types in Salesforce: Contact/Lead, and Opportunity. Understanding which fields store which attribution values — and how they behave — is essential for building accurate reports and debugging data issues.
+
+### Contact and Lead fields
+
+There are nine attribution fields on the Contact and Lead records, organized into two groups: **Source** (first-touch, locked forever) and **Most Recent** (updated on every new campaign touch).
+
+| Field label | API name | Attribution level | Behavior |
+|---|---|---|---|
+| Source campaign initial URL | `Source_campaign_initial_url__c` | — | The landing page URL from the contact's first touch. Set once, never overwritten. |
+| Source channel | `Source_channel__c` | L1 | The high-level source bucket (e.g., Event, Prospecting). Set once, never overwritten. |
+| Source channel detail | `Source_channel_detail__c` | L2 | The specific tactic (e.g., Webinar Hosted, SDR Outbound). Set once, never overwritten. |
+| Source campaign | `Source_campaign__c` | L3 | The specific campaign name (e.g., `2026_02-WH-fleet_v5_launch`). Set once, never overwritten. |
+| Most recent campaign initial URL | `Most_recent_campaign_initial_url__c` | — | The landing page URL from the contact's most recent touch. Updated on every new touch. |
+| Most recent channel | `Most_recent_channel__c` | L1 | Updated on every new campaign touch. |
+| Most recent channel detail | `Most_recent_channel_detail__c` | L2 | Updated on every new campaign touch. |
+| Most recent campaign | `Most_recent_campaign__c` | L3 | The primary trigger field for the attribution automation. Updated on every new campaign touch. |
+| Most recent campaign member status | `Most_recent_campaign_member_status__c` | — | Reflects the contact's engagement level on their most recent campaign. Updated on every new touch. |
+
+### Opportunity fields
+
+When an opportunity is created from a Contact or Lead, the Most Recent values at that moment are copied into the Opportunity's Converting fields. These represent the converting-touch — the campaign that drove this specific pipeline event.
+
+| Field label | API name | Attribution level | Behavior |
+|---|---|---|---|
+| Converting contact | `Converting_Contact__c` | — | Lookup to the Contact record that triggered opportunity creation. |
+| GCLID | `GCLID__c` | — | Google Click ID. Captured for paid search attribution. |
+| Converting channel | `Converting_channel__c` | L1 | Copied from Most Recent Channel at opportunity creation. |
+| Converting channel detail | `Converting_channel_detail__c` | L2 | Copied from Most Recent Channel Detail at opportunity creation. |
+| Converting campaign | `Converting_campaign__c` | L3 | Copied from Most Recent Campaign at opportunity creation. |
+| Primary Campaign Source | `CampaignId` | L3 | Standard SFDC lookup to the Campaign record. Set at opportunity creation. |
+
+### How the automation works
+
+The attribution system is driven by a single trigger: **when Most Recent Campaign is populated**, a Salesforce Flow fires and handles everything downstream.
+
+**Step 1 — Derive L1 and L2 from the campaign name.** The two-character code embedded in every campaign name (e.g., `WH` in `2026_02-WH-fleet_v5_launch`) is used to look up the correct Source Channel Detail (L2) and Source Channel (L1) values automatically. This is why the campaign naming convention is non-negotiable — the automation depends on it.
+
+**Step 2 — Stamp first-touch if Source fields are blank.** If the Source Channel field is empty, the flow copies the Most Recent values into the Source fields. This happens exactly once per contact — the moment they are first known to us. After that, the Source fields are locked and never overwritten.
+
+**Step 3 — Add to campaign and set member status.** The flow adds the contact as a Campaign Member on the corresponding SFDC Campaign record and sets their member status based on the Most Recent Campaign Member Status field.
+
+**Step 4 — Populate Opportunity on creation.** When an opportunity is created, the Most Recent Channel, Most Recent Channel Detail, and Most Recent Campaign values are copied to the Converting fields on the Opportunity record, capturing the converting-touch at that exact moment.
+
+Note: The Most Recent values on the contact are updated with each engagemet with the contact, overwriting historical values.
 
 ## SFDC campaign hierarchy
 
@@ -294,7 +343,7 @@ To accurately measure marketing ROI and attribution, we must standardize how we 
 
 All campaigns must utilize the following status values. Custom statuses outside this list are to be avoided.
 
-| Status value | Responded? | Funnel stage | Psystage | Definition |
+| Status value | Responded? | Funnel stage | Psystage (legacy) | Definition |
 | ----- | ----- | ----- | ----- | ----- |
 | **Targeted** | No | Unaware | 1 \- Unaware | The individual is on a list or in an audience segment but has taken no action. |
 | **Sent** | No | Awareness | 2 \- Aware | The email was sent, the ad was displayed, or the post was published. |
@@ -355,8 +404,7 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Engaged:** Replied to the email directly.
 
 #### Website chat (qualified)
-- **Interacted:** We chatted and learned about the prospect
-- **Engaged:** We chatted long enough to offer a meeting 
+- **Engaged:** We chatted and learned about the prospect
 - **Meeting Requested:** The prospect has booked a meeting
 
 ## Contact source (Lead source)
@@ -406,7 +454,7 @@ We do not rely on "implied" logic (e.g., "If they have an email, email them"). I
 
 ### The "marketing status" definitions
 
-The `Marketing_Status__c` picklist is the master switch for a contact's eligibility. Every contact in Salesforce must fall into one of the following buckets:
+The `Marketing_Email_Status__c` picklist is the master switch for a contact's eligibility. Every contact in Salesforce must fall into one of the following buckets:
 
 | Status value | Definition | Can marketing email? | Can sales email? |
 | --- | --- | --- | --- |
@@ -423,17 +471,10 @@ To support this status, we use three additional fields to track the "Who, When, 
 
 | Field | API Name | Purpose |
 | --- | --- | --- |
-| **Status Date** | `Marketing_Status_Last_Updated__c` | **The Timestamp.** <br>
-
-<br>Records exactly *when* the status changed. Required for compliance auditing (e.g., "Proof of Consent"). |
 | **Status Reason** | `Marketing_Status_Detail__c` | **The Audit Trail.** <br>
 
 <br>Explains *why* the status changed. <br>
 
-<br>*Examples:* "Inbound Demo Request," "Clay Enrichment Import," "User Clicked Unsubscribe." |
-| **Is Marketable?** | `Is_Marketable__c` | **The Integration Gatekeeper.** <br>
-
-<br>A generic checkbox formula (`TRUE` only if Status = `Marketable`). Our marketing platform (ActiveCampaign) only syncs contacts where this is Checked. |
 
 ### The "Traffic Cop" automation
 

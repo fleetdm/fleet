@@ -1,0 +1,86 @@
+import React, { useState, useCallback, useEffect } from "react";
+
+import { ITeamFormData as IFleetFormData } from "services/entities/teams";
+
+import Modal from "components/Modal";
+import InputField from "components/forms/fields/InputField";
+import Button from "components/buttons/Button";
+
+const baseClass = "rename-fleet-modal";
+
+interface IRenameFleetModalProps {
+  onCancel: () => void;
+  onSubmit: (formData: IFleetFormData) => void;
+  defaultName: string;
+  backendValidators: { [key: string]: string };
+  isUpdatingFleets: boolean;
+}
+
+const RenameFleetModal = ({
+  onCancel,
+  onSubmit,
+  defaultName,
+  backendValidators,
+  isUpdatingFleets,
+}: IRenameFleetModalProps): JSX.Element => {
+  const [name, setName] = useState(defaultName);
+  const [errors, setErrors] = useState<{ [key: string]: string }>(
+    backendValidators
+  );
+
+  useEffect(() => {
+    setErrors(backendValidators);
+  }, [backendValidators]);
+
+  const onInputChange = useCallback(
+    (value: string) => {
+      setName(value);
+      setErrors({});
+    },
+    [setName]
+  );
+
+  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    onSubmit({ name: name.trim() });
+  };
+
+  return (
+    <Modal title="Rename fleet" onExit={onCancel} className={baseClass}>
+      <form
+        className={`${baseClass}__form`}
+        onSubmit={onFormSubmit}
+        autoComplete="off"
+      >
+        <InputField
+          autofocus
+          name="name"
+          onChange={onInputChange}
+          onBlur={() => {
+            setName(name.trim());
+          }}
+          label="Fleet name"
+          placeholder="Fleet name"
+          value={name}
+          error={errors.name}
+          ignore1password
+        />
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            disabled={name.trim() === ""}
+            className="save-loading"
+            isLoading={isUpdatingFleets}
+          >
+            Save
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+export default RenameFleetModal;

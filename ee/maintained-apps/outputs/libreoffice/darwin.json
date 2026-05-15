@@ -4,7 +4,7 @@
       "version": "26.2.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.libreoffice.script';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.libreoffice.script' AND version_compare(bundle_short_version, '26.2.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'org.libreoffice.script') AND version_compare(bundle_short_version, '26.2.3') < 0);"
       },
       "installer_url": "https://download.documentfoundation.org/libreoffice/stable/26.2.3/mac/aarch64/LibreOffice_26.2.3_MacOS_aarch64.dmg",
       "install_script_ref": "4ee74664",
