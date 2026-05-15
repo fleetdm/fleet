@@ -1334,7 +1334,13 @@ func mdmHostEnrollFields(mdmHost *fleet.Host) (refetchRequested bool, lastEnroll
 		// Given the device does not have osquery, we set the last_enrolled_at as the MDM enroll time.
 		lastEnrolledAt = time.Now()
 	}
-	return supportsOsquery, lastEnrolledAt
+	// iOS/iPadOS have no osquery, so their inventory only comes from MDM
+	// refetch commands. Flag freshly-enrolled iPhones/iPads so the
+	// iphone_ipad_refetcher cron picks them up on its next tick instead of
+	// waiting for the 1-hour staleness window — without this the host page
+	// shows no installable software until the user manually clicks Refetch.
+	refetchRequested = supportsOsquery || mdmHost.Platform == "ios" || mdmHost.Platform == "ipados"
+	return refetchRequested, lastEnrolledAt
 }
 
 func updateMDMAppleHostDB(
@@ -6619,10 +6625,19 @@ func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.
 }
 
 // ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched
-// (their details haven't been updated in the given `interval`).
+// (their details haven't been updated in the given `interval`, or they were
+// just enrolled and have refetch_requested=1 still waiting to be cleared by
+// the DeviceInformation ack).
 func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (devices []fleet.AppleDevicesToRefetch,
 	err error,
 ) {
+	// The detail_updated_at staleness check alone skips freshly-enrolled hosts
+	// (their timestamp is set to the enroll time), which would otherwise wait
+	// up to `interval` before getting their first inventory. The
+	// refetch_requested branch lets the next cron tick pick up brand-new
+	// BYOD/manual iOS hosts (set during MDMAppleUpsertHost) and gets cleared
+	// by the DeviceInformation ack handler, so we don't end up resending on
+	// every tick after the first refetch.
 	hostsStmt := `
 SELECT
 	h.id as host_id,
@@ -6636,7 +6651,10 @@ FROM hosts h
 WHERE
 	(h.platform = 'ios' OR h.platform = 'ipados')
 	AND TRIM(h.uuid) != ''
-	AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
+	AND (
+		TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
+		OR h.refetch_requested = 1
+	)
 	AND ne.enabled = 1
 GROUP BY h.id`
 	args := []any{fleet.ListAppleRefetchCommandPrefixes(), interval.Seconds()}

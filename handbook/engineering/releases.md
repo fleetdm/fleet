@@ -139,7 +139,10 @@ README](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
 
 ## Deploy a new release to dogfood
 
-After each Fleet release, the new release is deployed to Fleet's "dogfood" (internal) instance. To avoid interruptions to sales demos using this instance, deploys should occur outside of the business hours of 7am - 5pm Pacific time Monday - Friday. If a deployment is necessary during business hours, coordinate with the Sales department in the #g-sales Slack channel.
+After each Fleet release, the new release is deployed to Fleet's "dogfood" (internal) instance. Because dogfood is used for live sales demos, coordinate deploy timing as follows:
+
+- **During U.S. business hours (7am - 5pm Pacific, Monday - Friday):** `@mention` Allen Houchins (`@allenhouchins`) in Slack before deploying so he can confirm no demos are scheduled. Allen owns deploy approval during business hours.
+- **Outside U.S. business hours:** deploys are okay without coordination. We accept the risk of occasionally interrupting an international demo in exchange for unblocking releases.
 
 How to deploy a new release to dogfood:
 

@@ -864,6 +864,7 @@ CREATE TABLE `host_mdm` (
   `mdm_id` int unsigned DEFAULT NULL,
   `is_server` tinyint(1) DEFAULT NULL,
   `fleet_enroll_ref` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `managed_apple_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `enrollment_status` enum('On (manual)','On (automatic)','Pending','Off','On (personal)') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS ((case when (`is_server` = 1) then NULL when ((`enrolled` = 1) and (`installed_from_dep` = 0) and (`is_personal_enrollment` = 1)) then _utf8mb4'On (personal)' when ((`enrolled` = 1) and (`installed_from_dep` = 0) and (`is_personal_enrollment` = 0)) then _utf8mb4'On (manual)' when ((`enrolled` = 1) and (`installed_from_dep` = 1) and (`is_personal_enrollment` = 0)) then _utf8mb4'On (automatic)' when ((`enrolled` = 0) and (`installed_from_dep` = 1)) then _utf8mb4'Pending' when ((`enrolled` = 0) and (`installed_from_dep` = 0)) then _utf8mb4'Off' else NULL end)) VIRTUAL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -3216,6 +3217,23 @@ CREATE TABLE `vpp_apps_teams` (
   CONSTRAINT `vpp_apps_teams_ibfk_2` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE CASCADE,
   CONSTRAINT `vpp_apps_teams_ibfk_3` FOREIGN KEY (`adam_id`, `platform`) REFERENCES `vpp_apps` (`adam_id`, `platform`) ON DELETE CASCADE
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `vpp_client_users` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `vpp_token_id` int unsigned NOT NULL,
+  `managed_apple_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `client_user_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `apple_user_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('pending','registered','retired') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_vpp_client_users_token_apple_id` (`vpp_token_id`,`managed_apple_id`),
+  UNIQUE KEY `idx_vpp_client_users_token_client_user_id` (`vpp_token_id`,`client_user_id`),
+  CONSTRAINT `fk_vpp_client_users_vpp_token_id` FOREIGN KEY (`vpp_token_id`) REFERENCES `vpp_tokens` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

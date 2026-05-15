@@ -2877,6 +2877,9 @@ WHERE
 	}
 	// Fill out the execution details
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &temp_summary, stmtExecutions, executionID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("batch execution").WithName(executionID)
+		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
 	}
 
@@ -2893,6 +2896,10 @@ WHERE
 
 	// Fill out the script details
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &summary, stmtScriptDetails, executionID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("batch execution").WithName(executionID)
+		}
+
 		return nil, ctxerr.Wrap(ctx, err, "selecting script information for bulk execution summary")
 	}
 
@@ -3020,6 +3027,14 @@ LIMIT %d OFFSET %d
 	var summary []fleet.BatchActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary, stmtExecutions, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
+	}
+
+	if filter.ExecutionID != nil && len(summary) == 0 {
+		nfErr := notFound("batch execution")
+		if filter.ExecutionID != nil {
+			nfErr = nfErr.WithName(*filter.ExecutionID)
+		}
+		return nil, nfErr
 	}
 
 	return summary, nil
