@@ -104,6 +104,10 @@ module.exports = {
         pageTitleForMeta = 'Whitepapers';
         pageDescriptionForMeta = 'Browse our whitepapers to learn how modern teams manage and secure their devices.';
         break;
+      case 'webinars':
+        pageTitleForMeta = 'Webinars';
+        pageDescriptionForMeta = 'Watch Fleet and industry practitioners discuss real-world device management and IT operations.';
+        break;
     }
 
 
