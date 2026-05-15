@@ -17,7 +17,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/landing-pages/basic-comparison'
+      viewTemplatePath: 'pages/articles/basic-comparison'
     },
 
     badConfig: {
