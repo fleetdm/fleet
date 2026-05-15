@@ -6,6 +6,16 @@ output "internal_alb_dns_name" {
   value = resource.aws_lb.internal.dns_name
 }
 
+output "internal_alb_listener_arn" {
+  description = "Internal ALB HTTP listener ARN for adding host-based rules"
+  value       = resource.aws_lb_listener.internal.arn
+}
+
+output "internal_alb_zone_id" {
+  description = "Internal ALB hosted zone ID for Route53 alias records"
+  value       = resource.aws_lb.internal.zone_id
+}
+
 output "ecs_cluster" {
   sensitive = true
   value     = module.loadtest.byo-db.byo-ecs.service.cluster

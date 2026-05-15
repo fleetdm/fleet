@@ -51,9 +51,10 @@ data "terraform_remote_state" "shared" {
   workspace = terraform.workspace
 }
 
-# Read infra state for RDS connection info
+# Read infra state for ECS cluster, IAM roles, RDS info
 data "terraform_remote_state" "infra" {
-  backend = "s3"
+  backend   = "s3"
+  workspace = terraform.workspace
   config = {
     bucket               = "fleet-terraform-state20220408141538466600000002"
     key                  = "loadtesting/loadtesting/terraform.tfstate"
@@ -66,142 +67,253 @@ data "terraform_remote_state" "infra" {
       role_arn = "arn:aws:iam::353365949058:role/terraform-loadtesting"
     }
   }
-  workspace = terraform.workspace
 }
 
 locals {
   customer = "fleet-${terraform.workspace}"
-  # Private Subnets from VPN VPC
-  vpn_cidr_blocks = [
-    "10.255.1.0/24",
-    "10.255.2.0/24",
-    "10.255.3.0/24",
-  ]
 }
 
-# DNS zone for vanity URL
-data "aws_route53_zone" "main" {
-  name         = "loadtest.fleetdm.com."
-  private_zone = false
+# --- PMM Admin Password ---
+
+resource "random_password" "pmm_admin" {
+  length  = 24
+  special = false
 }
 
-# Latest Amazon Linux 2023 AMI
-data "aws_ami" "al2023" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-2023*-x86_64"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
+resource "aws_secretsmanager_secret" "pmm_admin_password" {
+  name                    = "${local.customer}-pmm-admin-password"
+  recovery_window_in_days = 0 # Ephemeral loadtest, allow immediate deletion
 }
 
-# RDS master password from Secrets Manager
+resource "aws_secretsmanager_secret_version" "pmm_admin_password" {
+  secret_id     = aws_secretsmanager_secret.pmm_admin_password.id
+  secret_string = random_password.pmm_admin.result
+}
+
 data "aws_secretsmanager_secret" "rds_password" {
   name = "${local.customer}-database-password"
 }
 
-data "aws_secretsmanager_secret_version" "rds_password" {
-  secret_id = data.aws_secretsmanager_secret.rds_password.id
-}
-
-# IAM role for the PMM EC2 instance
-resource "aws_iam_role" "pmm" {
-  name = "${local.customer}-pmm"
+resource "aws_iam_role" "pmm_execution" {
+  name = "${local.customer}-pmm-execution"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Action = "sts:AssumeRole"
       Effect = "Allow"
       Principal = {
-        Service = "ec2.amazonaws.com"
+        Service = "ecs-tasks.amazonaws.com"
       }
     }]
   })
 }
 
-# Allow SSM Session Manager access (for debugging, no SSH needed)
-resource "aws_iam_role_policy_attachment" "pmm_ssm" {
-  role       = aws_iam_role.pmm.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-resource "aws_iam_instance_profile" "pmm" {
-  name = "${local.customer}-pmm"
-  role = aws_iam_role.pmm.name
-}
-
-# Security group: VPC + VPN access only on port 443
-resource "aws_security_group" "pmm" {
-  name_prefix = "${local.customer}-pmm-"
-  vpc_id      = data.terraform_remote_state.shared.outputs.vpc.vpc_id
-  description = "PMM server - HTTPS access from VPC and VPN only"
-
-  # HTTPS UI + API from VPC
-  ingress {
-    description = "HTTPS from VPC"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [data.terraform_remote_state.shared.outputs.vpc.vpc_cidr_block]
-  }
-
-  # HTTPS from VPN
-  ingress {
-    description = "HTTPS from VPN"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = local.vpn_cidr_blocks
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-# PMM server EC2 instance
-resource "aws_instance" "pmm" {
-  ami                    = data.aws_ami.al2023.id
-  instance_type          = "t3.large"
-  subnet_id              = data.terraform_remote_state.shared.outputs.vpc.private_subnets[0]
-  vpc_security_group_ids = [aws_security_group.pmm.id]
-  iam_instance_profile   = aws_iam_instance_profile.pmm.name
-
-  root_block_device {
-    volume_size = 50
-    volume_type = "gp3"
-    encrypted   = true
-  }
-
-  user_data = templatefile("${path.module}/user-data.sh", {
-    rds_endpoint = data.terraform_remote_state.infra.outputs.rds_cluster_endpoint
-    rds_username = data.terraform_remote_state.infra.outputs.rds_cluster_master_username
-    rds_password = data.aws_secretsmanager_secret_version.rds_password.secret_string
+resource "aws_iam_role_policy" "pmm_execution" {
+  name = "${local.customer}-pmm-execution"
+  role = aws_iam_role.pmm_execution.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ]
+        Resource = "${aws_cloudwatch_log_group.pmm.arn}:*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+        ]
+        Resource = [
+          aws_secretsmanager_secret.pmm_admin_password.arn,
+          data.aws_secretsmanager_secret.rds_password.arn,
+        ]
+      },
+    ]
   })
+}
 
-  tags = {
-    Name = "${local.customer}-pmm"
+# --- DNS zone ---
+
+data "aws_route53_zone" "main" {
+  name         = "loadtest.fleetdm.com."
+  private_zone = false
+}
+
+# --- CloudWatch Logs ---
+
+resource "aws_cloudwatch_log_group" "pmm" {
+  name              = "${local.customer}-pmm"
+  retention_in_days = 30
+}
+
+# --- ECS Task Definition ---
+
+resource "aws_ecs_task_definition" "pmm" {
+  family                   = "${local.customer}-pmm"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = 2048
+  memory                   = 4096
+  execution_role_arn       = aws_iam_role.pmm_execution.arn
+  task_role_arn            = data.terraform_remote_state.infra.outputs.ecs_arn
+
+  ephemeral_storage {
+    size_in_gib = 100
+  }
+
+  container_definitions = jsonencode([
+    {
+      name      = "pmm-server"
+      image     = "percona/pmm-server@sha256:4dd6dab43e7b11b9bc9c6284b690e8056210a047a93793fceb5a0ab706ac3fe4" # percona/pmm-server:2
+      essential = true
+
+      portMappings = [
+        {
+          containerPort = 443
+          protocol      = "tcp"
+        }
+      ]
+
+      entryPoint = ["/bin/bash", "-c"]
+      command = [join("\n", [
+        "# Background: wait for PMM server, then configure it",
+        "(",
+        "  echo 'Waiting for PMM server to become ready...'",
+        "  until curl -sSf -k https://localhost:443/v1/readyz > /dev/null 2>&1; do",
+        "    sleep 5",
+        "  done",
+        "  echo 'PMM server is ready'",
+        "",
+        "  # Change default admin password",
+        "  curl -sSf -k -X PATCH https://localhost:443/v1/users \\",
+        "    -H 'Content-Type: application/json' \\",
+        "    -u admin:admin \\",
+        "    -d \"{\\\"new_password\\\": \\\"$PMM_ADMIN_PASSWORD\\\"}\"",
+        "  echo 'Admin password changed'",
+        "",
+        "  # Add RDS MySQL monitoring",
+        "  pmm-admin add mysql \\",
+        "    --server-url=\"https://admin:$PMM_ADMIN_PASSWORD@localhost:443\" \\",
+        "    --server-insecure-tls \\",
+        "    --username=\"$PMM_MYSQL_USERNAME\" \\",
+        "    --password=\"$PMM_MYSQL_PASSWORD\" \\",
+        "    --host=\"$PMM_MYSQL_HOST\" \\",
+        "    --port=3306 \\",
+        "    --query-source=perfschema \\",
+        "    fleet-mysql",
+        "  echo 'MySQL monitoring configured'",
+        ") &",
+        "",
+        "# Run PMM server as PID 1 (foreground)",
+        "exec /opt/entrypoint.sh",
+      ])]
+
+      environment = [
+        {
+          name  = "PMM_MYSQL_HOST"
+          value = data.terraform_remote_state.infra.outputs.rds_cluster_endpoint
+        },
+        {
+          name  = "PMM_MYSQL_USERNAME"
+          value = data.terraform_remote_state.infra.outputs.rds_cluster_master_username
+        },
+      ]
+
+      secrets = [
+        {
+          name      = "PMM_ADMIN_PASSWORD"
+          valueFrom = aws_secretsmanager_secret.pmm_admin_password.arn
+        },
+        {
+          name      = "PMM_MYSQL_PASSWORD"
+          valueFrom = "${data.aws_secretsmanager_secret.rds_password.arn}:password::"
+        },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.pmm.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "pmm"
+        }
+      }
+    }
+  ])
+}
+
+# --- ECS Service ---
+
+resource "aws_ecs_service" "pmm" {
+  name            = "${local.customer}-pmm"
+  cluster         = data.terraform_remote_state.infra.outputs.ecs_cluster
+  task_definition = aws_ecs_task_definition.pmm.arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets         = data.terraform_remote_state.infra.outputs.vpc_subnets
+    security_groups = data.terraform_remote_state.infra.outputs.security_groups
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.pmm.arn
+    container_name   = "pmm-server"
+    container_port   = 443
   }
 }
 
-# Vanity DNS record (resolves to private IP, accessible via VPN)
+# --- Internal ALB target group + listener rule ---
+
+resource "aws_lb_target_group" "pmm" {
+  name                 = "${local.customer}-pmm"
+  protocol             = "HTTPS"
+  port                 = 443
+  target_type          = "ip"
+  vpc_id               = data.terraform_remote_state.shared.outputs.vpc.vpc_id
+  deregistration_delay = 30
+
+  health_check {
+    protocol            = "HTTPS"
+    path                = "/v1/readyz"
+    matcher             = "200"
+    timeout             = 10
+    interval            = 30
+    healthy_threshold   = 3
+    unhealthy_threshold = 5
+  }
+}
+
+resource "aws_lb_listener_rule" "pmm" {
+  listener_arn = data.terraform_remote_state.infra.outputs.internal_alb_listener_arn
+  priority     = 10
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.pmm.arn
+  }
+
+  condition {
+    host_header {
+      values = ["pmm.${terraform.workspace}.loadtest.fleetdm.com"]
+    }
+  }
+}
+
+# --- DNS ---
+
 resource "aws_route53_record" "pmm" {
   zone_id = data.aws_route53_zone.main.zone_id
   name    = "pmm.${terraform.workspace}.loadtest.fleetdm.com"
   type    = "A"
-  ttl     = 300
-  records = [aws_instance.pmm.private_ip]
+
+  alias {
+    name                   = data.terraform_remote_state.infra.outputs.internal_alb_dns_name
+    zone_id                = data.terraform_remote_state.infra.outputs.internal_alb_zone_id
+    evaluate_target_health = true
+  }
 }

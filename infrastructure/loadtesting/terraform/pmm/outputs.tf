@@ -1,14 +1,9 @@
-output "pmm_private_ip" {
-  description = "Private IP of the PMM server instance"
-  value       = aws_instance.pmm.private_ip
-}
-
-output "pmm_instance_id" {
-  description = "EC2 instance ID of the PMM server"
-  value       = aws_instance.pmm.id
-}
-
 output "pmm_url" {
   description = "URL to access PMM UI (internal only, requires VPN)"
-  value       = "https://pmm.${terraform.workspace}.loadtest.fleetdm.com"
+  value       = "http://pmm.${terraform.workspace}.loadtest.fleetdm.com"
+}
+
+output "pmm_admin_password_secret" {
+  description = "Secrets Manager secret name for PMM admin password"
+  value       = aws_secretsmanager_secret.pmm_admin_password.name
 }
