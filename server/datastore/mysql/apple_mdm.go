@@ -3266,6 +3266,219 @@ func generateDesiredStateQuery(entityType string) string {
 	`, func(s string) string { return dynamicNames[s] })
 }
 
+// generateReconcilerDesiredStateQuery is a variant of generateDesiredStateQuery
+// for the profile reconciler's combined-query path. Branches 1 and 2 are
+// identical to the standard query. Branches 3 and 4 are rewritten:
+//
+//   - Branch 3 (exclude-any) splits the original single NOT EXISTS antijoin
+//     into a hash antijoin against an externally-defined
+//     excluded_in_label_pairs CTE (the dominant "host is in some label"
+//     disqualifier) plus a smaller per-row NOT EXISTS for the rarer
+//     broken-label / stale-label-results disqualifiers. The caller MUST
+//     define excluded_in_label_pairs(profile_uuid, host_id) in the same
+//     statement; see listMDMAppleProfilesToInstallAndRemoveTransaction.
+//
+//   - Branch 4 (include-any) uses SELECT STRAIGHT_JOIN to force the
+//     optimizer to drive from ${mdmEntityLabelsTable} through
+//     label_membership via idx_lm_label_id instead of fanning hosts out per
+//     profile and probing label_membership last.
+//
+// Both rewrites preserve the four-branch UNION's row semantics and column
+// shape. They're only worth their setup cost when the input is the entire
+// host population (the cron tick), so we don't apply them to the per-host
+// or bounded-batch callers of generateDesiredStateQuery.
+func generateReconcilerDesiredStateQuery(entityType string) string {
+	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
+	if dynamicNames == nil {
+		panic(fmt.Sprintf("unknown entity type %q", entityType))
+	}
+
+	return os.Expand(`
+	-- non label-based entities (unchanged from generateDesiredStateQuery)
+	SELECT
+		mae.${entityUUIDColumn},
+		h.uuid as host_uuid,
+		h.platform as host_platform,
+		mae.identifier as ${entityIdentifierColumn},
+		mae.name as ${entityNameColumn},
+		mae.${checksumColumn} as ${checksumColumn},
+		mae.secrets_updated_at as secrets_updated_at,
+		mae.scope as scope,
+		nd.authenticate_at as device_enrolled_at,
+		0 as ${countEntityLabelsColumn},
+		0 as count_non_broken_labels,
+		0 as count_host_labels,
+		0 as count_host_updated_after_labels
+	FROM
+		${mdmAppleEntityTable} mae
+			JOIN hosts h
+				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
+			JOIN nano_enrollments ne
+				ON ne.device_id = h.uuid
+			JOIN nano_devices nd
+				ON nd.id = ne.device_id
+	WHERE
+		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
+		ne.enabled = 1 AND
+		ne.type IN ('Device', 'User Enrollment (Device)') AND
+		NOT EXISTS (
+			SELECT 1
+			FROM ${mdmEntityLabelsTable} mel
+			WHERE mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn}
+		) AND
+		( %s )
+
+	UNION
+
+	-- include-all (unchanged from generateDesiredStateQuery)
+	SELECT
+		mae.${entityUUIDColumn},
+		h.uuid as host_uuid,
+		h.platform as host_platform,
+		mae.identifier as ${entityIdentifierColumn},
+		mae.name as ${entityNameColumn},
+		mae.${checksumColumn} as ${checksumColumn},
+		mae.secrets_updated_at as secrets_updated_at,
+		mae.scope as scope,
+		nd.authenticate_at as device_enrolled_at,
+		1 as ${countEntityLabelsColumn},
+		1 as count_non_broken_labels,
+		1 as count_host_labels,
+		0 as count_host_updated_after_labels
+	FROM
+		${mdmAppleEntityTable} mae
+			JOIN hosts h
+				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
+			JOIN nano_enrollments ne
+				ON ne.device_id = h.uuid
+			JOIN nano_devices nd
+				ON nd.id = ne.device_id
+	WHERE
+		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
+		ne.enabled = 1 AND
+		ne.type IN ('Device', 'User Enrollment (Device)') AND
+		EXISTS (
+			SELECT 1
+			FROM ${mdmEntityLabelsTable} mel
+			WHERE mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn}
+			  AND mel.exclude = 0 AND mel.require_all = 1
+		) AND
+		NOT EXISTS (
+			SELECT 1
+			FROM ${mdmEntityLabelsTable} mel
+				LEFT JOIN label_membership lm
+					ON lm.label_id = mel.label_id AND lm.host_id = h.id
+			WHERE mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn}
+			  AND mel.exclude = 0 AND mel.require_all = 1
+			  AND (mel.label_id IS NULL OR lm.label_id IS NULL)
+		) AND
+		( %s )
+
+	UNION
+
+	-- exclude-any (REWRITTEN: split the single NOT EXISTS into a hash antijoin
+	-- against excluded_in_label_pairs plus a smaller per-row NOT EXISTS that
+	-- covers the broken-label and stale-results cases without touching
+	-- label_membership).
+	SELECT /*+ NO_MERGE(excluded_in_label_pairs) */
+		mae.${entityUUIDColumn},
+		h.uuid as host_uuid,
+		h.platform as host_platform,
+		mae.identifier as ${entityIdentifierColumn},
+		mae.name as ${entityNameColumn},
+		mae.${checksumColumn} as ${checksumColumn},
+		mae.secrets_updated_at as secrets_updated_at,
+		mae.scope as scope,
+		nd.authenticate_at as device_enrolled_at,
+		1 as ${countEntityLabelsColumn},
+		1 as count_non_broken_labels,
+		0 as count_host_labels,
+		1 as count_host_updated_after_labels
+	FROM
+		${mdmAppleEntityTable} mae
+			JOIN hosts h
+				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
+			JOIN nano_enrollments ne
+				ON ne.device_id = h.uuid
+			JOIN nano_devices nd
+				ON nd.id = ne.device_id
+	WHERE
+		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
+		ne.enabled = 1 AND
+		ne.type IN ('Device', 'User Enrollment (Device)') AND
+		EXISTS (
+			SELECT 1
+			FROM ${mdmEntityLabelsTable} mel
+			WHERE mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn}
+			  AND mel.exclude = 1 AND mel.require_all = 0
+		) AND
+		-- host is NOT in any of the profile's exclude-any labels (hash
+		-- antijoin against the externally-materialized CTE)
+		NOT EXISTS (
+			SELECT 1 FROM excluded_in_label_pairs eil
+			WHERE eil.profile_uuid = mae.${entityUUIDColumn} AND eil.host_id = h.id
+		) AND
+		-- no exclude-any label is broken AND label results are fresh enough
+		NOT EXISTS (
+			SELECT 1
+			FROM ${mdmEntityLabelsTable} mel
+				LEFT JOIN labels lbl
+					ON lbl.id = mel.label_id
+			WHERE mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn}
+			  AND mel.exclude = 1 AND mel.require_all = 0
+			  AND (
+			    mel.label_id IS NULL
+			    OR NOT (
+			        (lbl.label_membership_type <> 1 AND lbl.created_at IS NOT NULL AND h.label_updated_at >= lbl.created_at)
+			        OR
+			        (lbl.label_membership_type = 1 AND lbl.created_at IS NOT NULL)
+			    )
+			  )
+		) AND
+		( %s )
+
+	UNION
+
+	-- include-any (REWRITTEN: invert join order to drive from
+	-- ${mdmEntityLabelsTable} through label_membership rather than fanning
+	-- hosts out per profile; STRAIGHT_JOIN forces the optimizer to honor
+	-- the FROM-clause order instead of falling back to its preferred
+	-- mel → mae → h → … → lm shape).
+	SELECT STRAIGHT_JOIN
+		mae.${entityUUIDColumn},
+		h.uuid as host_uuid,
+		h.platform as host_platform,
+		mae.identifier as ${entityIdentifierColumn},
+		mae.name as ${entityNameColumn},
+		mae.${checksumColumn} as ${checksumColumn},
+		mae.secrets_updated_at as secrets_updated_at,
+		mae.scope as scope,
+		nd.authenticate_at as device_enrolled_at,
+		1 as ${countEntityLabelsColumn},
+		1 as count_non_broken_labels,
+		1 as count_host_labels,
+		0 as count_host_updated_after_labels
+	FROM ${mdmEntityLabelsTable} mel
+		JOIN label_membership lm
+			ON lm.label_id = mel.label_id
+		JOIN ${mdmAppleEntityTable} mae
+			ON mae.${entityUUIDColumn} = mel.${appleEntityUUIDColumn}
+		JOIN hosts h
+			ON h.id = lm.host_id
+			AND (h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0))
+		JOIN nano_enrollments ne
+			ON ne.device_id = h.uuid
+		JOIN nano_devices nd
+			ON nd.id = ne.device_id
+	WHERE
+		mel.exclude = 0 AND mel.require_all = 0
+		AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
+		AND ne.enabled = 1
+		AND ne.type IN ('Device', 'User Enrollment (Device)')
+		AND ( %s )
+	`, func(s string) string { return dynamicNames[s] })
+}
+
 // generateEntitiesToInstallQuery is a set difference between:
 //
 //   - Set A (ds), the "desired state", can be obtained from a JOIN between
@@ -3490,16 +3703,46 @@ func (ds *Datastore) ListMDMAppleProfilesToInstallAndRemove(ctx context.Context)
 // reference. Rows are discriminated by a literal `op` column ('install' or
 // 'remove') and split into the two return slices.
 //
-// The WHERE-clause shapes for each half match the install/remove queries in
-// generateEntitiesToInstallQuery/generateEntitiesToRemoveQuery for entity
-// type "profile" with no host filter (the cron path); the SELECT lists
-// align column-by-column for UNION ALL by filling in defaults ('' / NULL)
-// on the side that doesn't carry a value.
+// The desired state itself is built by generateReconcilerDesiredStateQuery,
+// which folds two further reconciler-only optimizations into branches 3
+// (exclude-any) and 4 (include-any). Branch 3 antijoins against the
+// excluded_in_label_pairs CTE defined below for the dominant "host is in
+// some label" disqualifier and only falls back to per-row mel/lbl scans
+// for the rarer broken-label / stale-label-results cases. Branch 4 uses
+// STRAIGHT_JOIN to invert the join order so execution drives from the
+// small mel set through label_membership via idx_lm_label_id instead of
+// fanning out hosts per profile.
+//
+// The WHERE-clause shapes for each half match the install/remove queries
+// in generateEntitiesToInstallQuery/generateEntitiesToRemoveQuery for
+// entity type "profile" with no host filter (the cron path); the SELECT
+// lists align column-by-column for UNION ALL by filling in defaults
+// ('' / NULL) on the side that doesn't carry a value.
 func (ds *Datastore) listMDMAppleProfilesToInstallAndRemoveTransaction(ctx context.Context, tx common_mysql.DBReadTx) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
-	desiredState := fmt.Sprintf(generateDesiredStateQuery("profile"), "TRUE", "TRUE", "TRUE", "TRUE")
+	desiredState := fmt.Sprintf(generateReconcilerDesiredStateQuery("profile"), "TRUE", "TRUE", "TRUE", "TRUE")
 
 	query := fmt.Sprintf(`
-	WITH ds AS (
+	WITH excluded_in_label_pairs AS (
+		-- (profile_uuid, host_id) pairs where the host is a member of at
+		-- least one of the profile's exclude-any labels. Materialized once
+		-- and referenced by branch 3 of the desired state via a hash
+		-- antijoin; see generateReconcilerDesiredStateQuery.
+		--
+		-- STRAIGHT_JOIN drives execution from mel (already small after the
+		-- exclude=1, require_all=0 filter) through label_membership via
+		-- idx_lm_label_id, instead of letting the optimizer pick a host-
+		-- driven plan.
+		SELECT STRAIGHT_JOIN DISTINCT
+			mel.apple_profile_uuid AS profile_uuid,
+			lm.host_id              AS host_id
+		FROM mdm_configuration_profile_labels mel
+			JOIN label_membership lm
+				ON lm.label_id = mel.label_id
+		WHERE mel.exclude = 1
+		  AND mel.require_all = 0
+		  AND mel.label_id IS NOT NULL
+	),
+	ds AS (
 		%s
 	)
 	SELECT /*+ NO_MERGE(ds) */
