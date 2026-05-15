@@ -303,6 +303,10 @@ type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authT
 
 type GetDeviceAuthTokenFunc func(ctx context.Context, hostID uint) (string, error)
 
+type GetDeviceAuthTokenIfFreshFunc func(ctx context.Context, hostID uint, tokenTTL time.Duration) (string, error)
+
+type RotateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, newToken string) error
+
 type FailingPoliciesCountFunc func(ctx context.Context, host *fleet.Host) (uint, error)
 
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
@@ -2403,6 +2407,12 @@ type DataStore struct {
 
 	GetDeviceAuthTokenFunc        GetDeviceAuthTokenFunc
 	GetDeviceAuthTokenFuncInvoked bool
+
+	GetDeviceAuthTokenIfFreshFunc        GetDeviceAuthTokenIfFreshFunc
+	GetDeviceAuthTokenIfFreshFuncInvoked bool
+
+	RotateDeviceAuthTokenFunc        RotateDeviceAuthTokenFunc
+	RotateDeviceAuthTokenFuncInvoked bool
 
 	FailingPoliciesCountFunc        FailingPoliciesCountFunc
 	FailingPoliciesCountFuncInvoked bool
@@ -5905,6 +5915,20 @@ func (s *DataStore) GetDeviceAuthToken(ctx context.Context, hostID uint) (string
 	s.GetDeviceAuthTokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetDeviceAuthTokenFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetDeviceAuthTokenIfFresh(ctx context.Context, hostID uint, tokenTTL time.Duration) (string, error) {
+	s.mu.Lock()
+	s.GetDeviceAuthTokenIfFreshFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDeviceAuthTokenIfFreshFunc(ctx, hostID, tokenTTL)
+}
+
+func (s *DataStore) RotateDeviceAuthToken(ctx context.Context, hostID uint, newToken string) error {
+	s.mu.Lock()
+	s.RotateDeviceAuthTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.RotateDeviceAuthTokenFunc(ctx, hostID, newToken)
 }
 
 func (s *DataStore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {

@@ -15,6 +15,7 @@ import {
 } from "interfaces/platform";
 import {
   getInstallUninstallStatusPredicate,
+  getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import {
@@ -1433,6 +1434,7 @@ const TAGGED_TEMPLATES = {
       software_title: title,
       status,
       source,
+      self_service,
       from_setup_experience,
     } = details;
 
@@ -1440,6 +1442,27 @@ const TAGGED_TEMPLATES = {
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
+
+    // Self-service actions: drop the actor and switch to passive voice so the
+    // sentence reads "<title> was installed on <host> (self-service)." without
+    // misattributing the action.
+    if (self_service) {
+      return (
+        <>
+          {" "}
+          <b>{title}</b>
+          {showSoftwarePackage && ` (${details.software_package})`}{" "}
+          {getInstallUninstallStatusPredicatePassive(
+            status,
+            isScriptPackageSource
+          )}{" "}
+          on <b>{hostName}</b>
+          {from_setup_experience ? " during setup experience" : ""}{" "}
+          (self-service).
+        </>
+      );
+    }
+
     return (
       <>
         {" "}
@@ -1457,13 +1480,29 @@ const TAGGED_TEMPLATES = {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
 
-    const { host_display_name: hostName, software_title: title } = details;
+    const {
+      host_display_name: hostName,
+      software_title: title,
+      self_service,
+    } = details;
     const status =
       details.status === "failed" ? "failed_uninstall" : details.status;
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
+
+    if (self_service) {
+      return (
+        <>
+          {" "}
+          <b>{title}</b>
+          {showSoftwarePackage && ` (${details.software_package})`}{" "}
+          {getInstallUninstallStatusPredicatePassive(status)} on{" "}
+          <b>{hostName}</b> (self-service).
+        </>
+      );
+    }
 
     return (
       <>
@@ -2534,11 +2573,10 @@ const GlobalActivityItem = ({
       case ActivityType.InstalledSoftware:
       case ActivityType.UninstalledSoftware:
       case ActivityType.InstalledAppStoreApp:
-        return activity.details?.self_service ? (
-          <span>An end user</span>
-        ) : (
-          DEFAULT_ACTOR_DISPLAY
-        );
+        // Self-service activities render as a passive-voice sentence in the
+        // template (e.g. "<title> was installed on <host> (self-service).")
+        // without an actor prefix.
+        return activity.details?.self_service ? null : DEFAULT_ACTOR_DISPLAY;
       // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the
       // template function
