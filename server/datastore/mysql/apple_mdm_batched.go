@@ -106,13 +106,19 @@ func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*flee
 
 	// Load label assignments, joining labels to get membership type and
 	// label creation time (needed by the exclude-any handler).
+	//
+	// Do not COALESCE label_created_at to a string literal — MySQL would
+	// coerce the result column to VARCHAR and the driver returns []uint8,
+	// which sql.NullTime cannot scan. The exclude-any handler already
+	// treats a zero CreatedAt as "no timing check", which is the natural
+	// outcome of a NULL → invalid NullTime → zero time.Time.
 	const labelStmt = `
 		SELECT
 			mcpl.apple_profile_uuid AS profile_uuid,
 			mcpl.label_id           AS label_id,
 			mcpl.exclude            AS exclude,
 			mcpl.require_all        AS require_all,
-			COALESCE(lbl.created_at, '2000-01-01 00:00:00') AS label_created_at,
+			lbl.created_at          AS label_created_at,
 			COALESCE(lbl.label_membership_type, 0) AS label_membership_type
 		FROM mdm_configuration_profile_labels mcpl
 		LEFT JOIN labels lbl ON lbl.id = mcpl.label_id
