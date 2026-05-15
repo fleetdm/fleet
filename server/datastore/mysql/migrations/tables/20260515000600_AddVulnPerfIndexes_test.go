@@ -37,7 +37,7 @@ func TestUp_20260515000600(t *testing.T) {
 			actualColumns = append(actualColumns, columnName)
 		}
 		require.NoError(t, rows.Err())
-		require.NoError(t, rows.Close())
+		require.NoError(t, rows.Close()) //nolint:sqlclosecheck // a defer per-iteration would leak until the loop ends; explicit close is fine in this test
 
 		require.Equalf(
 			t,
