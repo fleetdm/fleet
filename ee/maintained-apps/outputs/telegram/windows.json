@@ -4,7 +4,7 @@
       "version": "6.8.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Telegram Desktop' AND publisher = 'Telegram FZ-LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Telegram Desktop' AND publisher = 'Telegram FZ-LLC' AND version_compare(version, '6.8.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Telegram Desktop' AND publisher = 'Telegram FZ-LLC') AND version_compare(version, '6.8.2') < 0);"
       },
       "installer_url": "https://td.telegram.org/tx64/tsetup-x64.6.8.2.exe",
       "install_script_ref": "0b88a95e",

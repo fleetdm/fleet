@@ -4,7 +4,7 @@
       "version": "6.10.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.proxyman.NSProxy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.proxyman.NSProxy' AND version_compare(bundle_short_version, '6.10.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.proxyman.NSProxy') AND version_compare(bundle_short_version, '6.10.0') < 0);"
       },
       "installer_url": "https://download.proxyman.com/61000/Proxyman_6.10.0.dmg",
       "install_script_ref": "0152bcaa",

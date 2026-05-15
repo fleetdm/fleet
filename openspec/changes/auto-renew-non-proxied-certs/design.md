@@ -15,16 +15,17 @@ This change addresses both halves in two phases that ship as independent PR sequ
 
 **Goals:**
 - Make MDM-delivered certs visible on the host details page on macOS (Phase 1).
-- Auto-renew non-proxied ACME (including the customer-cisneros-a Hydrant deployment) and non-proxied SCEP profile-delivered certs on Apple platforms (macOS post-Phase 1, iOS, iPadOS today) and Windows (Phase 2).
+- Auto-renew non-proxied ACME (including the customer-cisneros-a Hydrant deployment) and non-proxied SCEP profile-delivered certs on Apple platforms (macOS post-Phase 1, iOS, iPadOS today) and Windows (Phase 2) — **for profiles that opt in by including the marker variable**.
 - Reuse existing renewal cron unchanged. Reuse existing renewal threshold logic.
 - Use a single mechanism (extracting `fleet-<profile_uuid>` marker from cert Subject) for all platforms and all CA types in scope.
-- Validate at profile upload that renewable certs include the marker, so silent non-renewal becomes impossible to misconfigure.
+- Make the marker opt-in: profiles that don't include it continue to work exactly as in 4.85 (manual redeployment for renewal). No upload-time enforcement, no GitOps breakage, no upgrade-day surprise.
 - Keep Phase 1 and Phase 2 independently mergeable so each is reviewable in isolation.
 
 **Non-Goals:**
 - Custom EST Proxy renewal (deliberately deferred; no customer driver).
 - New first-class CA type for Hydrant ACME (Hydrant does not officially support ACME yet; customer's private fork is the only deployment in scope; the non-proxied mechanism handles it without a CA registration).
 - New first-class CA type for Okta SCEP (renewal works without one).
+- **Forcing customers to add the marker.** Marker is opt-in; missing marker means no auto-renewal for that profile, not an error.
 - Renewal verification / silent-failure detection — orthogonal generic improvement that applies equally to existing proxied flows; out of scope here.
 - Generic operational alerting for unbounded renewal-loop scenarios — same reasoning, generic concern.
 - Recurring macOS `CertificateList` cadence (Phase 1 deliberately uses on-demand-only for load reasons).
@@ -47,9 +48,9 @@ iOS/iPadOS use a recurring hourly cron (`IOSiPadOSRefetch`). macOS instead trigg
 
 This was a course-correction during PR 1.2 review — an earlier draft included `EXISTS` on `host_mdm_commands` for dedup; the race-window concern surfaced in review and the dedup was removed.
 
-### Decision 1.2: No deploy-time backfill — redeploy is the trigger
+### Decision 1.2: No deploy-time backfill — profile activity is the trigger
 
-We do NOT run a one-time `CertificateList` backfill across the macOS fleet at deploy. Rationale: Phase 2 requires customers to redeploy SCEP/ACME profiles with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the cert Subject for renewal to function. Redeploy fires `InstallProfile`, which fires the on-demand `CertificateList` trigger from Decision 1.1, which surfaces the certs into `host_certificates`. The natural flow covers existing fleet without a separate mechanism.
+We do NOT run a one-time `CertificateList` backfill across the macOS fleet at deploy. Rationale: ingestion is tied to profile activity. New ACME profile installs fire `CertificateList` via Decision 1.1. Customers who want auto-renewal opt in by redeploying a profile with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the cert Subject; that redeploy naturally fires the trigger and surfaces the marker-bearing cert. Customers who don't need auto-renewal can leave profiles untouched — those certs simply don't appear in `host_certificates` until something else surfaces them.
 
 **Implications:**
 - Customers who do not redeploy a particular ACME/SCEP profile see no certs from it in the host details page on macOS. Same outcome as today (unchanged behavior). No regression.
@@ -57,7 +58,7 @@ We do NOT run a one-time `CertificateList` backfill across the macOS fleet at de
 - Eliminates the rate-limiting / resumption / runbook complexity that a fleet-wide backfill would introduce.
 
 **Alternatives considered:**
-- *One-time `CertificateList` backfill across the fleet.* Rejected: customers must redeploy anyway to enable renewal, so the backfill duplicates the work the redeploy already triggers. Adds engineering and operational complexity (rate-limiting, completion tracking, resume-on-restart, monitoring) for a transparency benefit that is shorter-lived than the redeploy timeline.
+- *One-time `CertificateList` backfill across the fleet.* Rejected: the redeploy flow (when customers opt into auto-renewal) already surfaces the relevant certs. Customers who don't redeploy explicitly opted out of auto-renewal; backfilling their certs doesn't help them. Adds engineering and operational complexity (rate-limiting, completion tracking, resume-on-restart, monitoring) for a transparency benefit that is shorter-lived than the redeploy timeline.
 - *Synchronously backfill all hosts at first deploy.* Rejected for the same reason plus the thundering-herd problem on APNs / the MDM command queue.
 
 ### Decision 1.3: Unified storage with `origin` column
@@ -131,23 +132,47 @@ We do NOT add a `CAConfigHydrant` constant or include a `hydrant` value in `host
 **Alternatives considered:**
 - *Add `CAConfigHydrant` now and use it for the customer.* Rejected: bakes a name into a shipped enum that may conflict with future official Hydrant ACME work; produces a CA type whose only meaning is "the customer-cisneros-a use case"; doesn't generalize to the next non-proxied customer.
 
-### Decision 2.5: No DB-side linkage backfill — redeploy provides the marker-bearing certs
+### Decision 2.5: No DB-side linkage backfill — opt-in redeploy provides the marker-bearing certs
 
-We do NOT run a DB-side linkage backfill at Phase 2 deploy. Rationale: marker-bearing certs do not exist on devices until the customer redeploys profiles with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the Subject. Before redeploy, existing certs lack the marker — there is nothing to link.
+We do NOT run a DB-side linkage backfill at Phase 2 deploy. Rationale: marker-bearing certs do not exist on devices until a customer opts into auto-renewal by redeploying a profile with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the Subject. Before that opt-in, existing certs lack the marker — there is nothing to link.
 
 When the customer redeploys, the new ACME/SCEP exchange produces a cert with the marker in its Subject. Phase 1's on-demand `CertificateList` ingests it. Phase 2's `UpdateHostCertificates` insert path (Decision 2.1) creates the `host_mdm_managed_certificates` row. The renewal cron then picks it up at threshold.
 
-**Alternatives considered:**
-- *Backfill scan over `host_certificates`.* Rejected: pre-redeploy certs don't carry the marker, so scanning them yields nothing useful. Post-redeploy certs are linked by the natural insert path. The backfill would be a no-op in both regimes.
-- *Re-run Phase 1's `CertificateList` backfill after Phase 2 ships.* Same problem — pre-redeploy certs lack the marker. Even if visible in `host_certificates`, they wouldn't link. And Phase 1's backfill itself was dropped (Decision 1.2).
-
-### Decision 2.6: Profile-upload validation rejects missing marker
-
-If a profile contains a SCEP or ACME payload (Apple) or a `ClientCertificateInstall/SCEP/...` configuration (Windows) and lacks `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the cert Subject, the upload fails with `fleet.NewInvalidArgumentError`. The error message names the variable and explains it's required for auto-renewal.
+Customers who don't include the marker in their profiles simply don't get auto-renewal — same behavior as 4.85 and earlier. No linkage row gets created; the renewal cron has nothing to act on.
 
 **Alternatives considered:**
-- *Allow upload, surface a warning.* Rejected: silent non-renewal is the customer-promise failure mode this story exists to prevent. Hard rejection is worth the small UX cost.
-- *Allow upload, document the requirement.* Same rejection rationale.
+- *Backfill scan over `host_certificates`.* Rejected: pre-opt-in certs don't carry the marker, so scanning them yields nothing useful. Post-opt-in certs are linked by the natural insert path. The backfill would be a no-op in both regimes.
+- *Re-run Phase 1's `CertificateList` backfill after Phase 2 ships.* Same problem — pre-opt-in certs lack the marker. Even if visible in `host_certificates`, they wouldn't link. And Phase 1's backfill itself was dropped (Decision 1.2).
+
+### Decision 2.6: The marker is optional — no profile-upload validation for missing marker
+
+`$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is an **opt-in renewal activator**, not a required field. Profile uploads succeed regardless of whether the marker is present. Omitting it just means auto-renewal doesn't activate for that profile — Fleet falls back to today's manual-redeployment workflow for cert lifecycle, identical to 4.85 behavior.
+
+**Net-new validators (Apple ACME, Apple raw SCEP) are removed entirely.** PR 2.3 and PR 2.3b initially shipped validators that rejected profiles missing the marker; those validators are reverted under this scope. The marker is now purely advisory.
+
+**Pre-existing validators (proxy SCEP — NDES / Custom SCEP / Smallstep, Windows non-proxied SCEP) keep their existing renewal-ID enforcement.** Those validators predate this story (since 4.65) and customers have authored profiles against them for years. Loosening them would have no benefit and might silently flip working renewal off.
+
+The matcher (`host_certificates.go:195`) keeps its defensive CN-or-OU search for `fleet-<profile_uuid>`. If a customer puts the marker in CN instead of OU, the matcher may still find it depending on CA cooperation — no upload-time enforcement gets in the way.
+
+**Why this changed (scope reversal, 2026-05-15):**
+
+Validators initially rejected missing marker on the theory that "silent non-renewal is the failure mode this story exists to prevent." But that framing conflated two different customer scenarios:
+
+1. **Customer wants auto-renewal.** They add the marker. Today's behavior (with or without validators) gives them auto-renewal.
+2. **Customer doesn't want auto-renewal, or doesn't know it's a feature.** They don't add the marker. Today's behavior continues to work — they renew manually as they always have.
+
+Hard-rejecting case 2 breaks existing deployments. Specifically:
+
+- **GitOps trap:** A customer with existing Conditional Access / Okta Verify / ACME profiles in their GitOps spec runs `fleetctl gitops apply` after upgrading to 4.86. The profiles haven't changed. But upload now fails because the validators reject missing markers. Their next sync breaks.
+- **UI-edit trap:** A customer opens an existing profile in the UI, makes an unrelated edit (rename, label change), saves. The validator now rejects, breaking the edit.
+- **Conditional Access:** Fleet's own generated profile lacks the marker (#45580 surfaced this gap). Customers following the published guide can't deploy.
+
+The cost of hard rejection — broken upgrades for the customer base that doesn't even use auto-renewal — exceeded the benefit of catching the misconfiguration that's only relevant to customers who opted in. Marker stays as a documented variable; renewal activates when present; everything else continues unchanged.
+
+**Alternatives considered:**
+- *Reject missing marker (original design).* Rejected: GitOps continuity and upgrade-day breakage outweigh the silent-failure protection. Most customers don't even use auto-renewal; rejecting their existing profiles is a regression.
+- *Accept missing marker but reject misplaced marker (e.g., marker in CN instead of OU).* Considered. Modest benefit (catches typos for opted-in customers) at the cost of a partial validator that's harder to explain. Rejected for simplicity. The matcher's CN-or-OU search means misplaced markers may actually still work in practice; upload-time validation isn't necessary.
+- *Soft warning at upload time.* Considered. No UI surface to display a non-blocking warning today; activity log entries get lost. Discoverability worse than just documenting the requirement in the guide.
 
 ### Decision 2.7: Variable rename — accept both `SCEP_RENEWAL_ID` and `CERTIFICATE_RENEWAL_ID`
 
@@ -155,24 +180,14 @@ The customer-facing variable name was renamed from `$FLEET_VAR_SCEP_RENEWAL_ID` 
 
 Today (4.85 and earlier) the only valid name is `SCEP_RENEWAL_ID`. The rename is half-shipped: docs use the new name, code still defines and substitutes only the old name. Phase 2 closes that gap.
 
-**Implementation approach:** add `FleetVarCertificateRenewalID = "CERTIFICATE_RENEWAL_ID"` alongside the existing `FleetVarSCEPRenewalID`. Both are recognized by `FindFleetVariables`. Both substitute to the same value (`"fleet-" + ProfileUUID`) via the same substitution helper — implemented as a single regex matching either name. Validation error messages reference only the new `CERTIFICATE_RENEWAL_ID` (we want new authoring to use the new name).
+**Implementation approach:** add `FleetVarCertificateRenewalID = "CERTIFICATE_RENEWAL_ID"` alongside the existing `FleetVarSCEPRenewalID`. Both are recognized by `FindFleetVariables`. Both substitute to the same value (`"fleet-" + ProfileUUID`) via the same substitution helper — implemented as a single regex matching either name.
 
-**Acceptance rule — pre-existing surfaces vs net-new surfaces:** the back-compat motivation below applies only to validation surfaces that customers have already authored against. Specifically:
+**Substitution accepts both names everywhere.** The substitution code (`server/mdm/apple/profile_processor.go`, `server/mdm/microsoft/profile_variables.go`) uses the unified `FleetVarRenewalIDRegexp` so a profile authored with either name produces identical `fleet-<profile_uuid>` output at delivery time. New authoring should use the preferred name per documentation, but legacy name continues to work — no validation enforcement either way (see Decision 2.6).
 
-- **Proxy SCEP validators (NDES / Custom SCEP / Smallstep)** — pre-existing since 4.65 (PR #34403). Accept BOTH the legacy `SCEP_RENEWAL_ID` and the preferred `CERTIFICATE_RENEWAL_ID`. Customers may have deployed 4.85-era SCEP profiles using the legacy name; hard-rejecting it would break those on next upload/edit.
-- **ACME validator (PR 2.3)** — net-new. Accept ONLY `CERTIFICATE_RENEWAL_ID`. There are no pre-rename deployed ACME profiles to back-compat against — ACME validation didn't exist before this PR, and pre-rename ACME docs/examples (#40639) already used the new name. Accepting a SCEP-prefixed variable in an ACME context perpetuates the very confusion the rename was meant to fix.
-- **Raw (non-proxied) SCEP validator (PR 2.3b)** — net-new. Accept ONLY `CERTIFICATE_RENEWAL_ID`. Raw-SCEP renewal-ID enforcement did not exist before PR 2.3b, so there are no deployed customer profiles relying on the legacy name being accepted by *this* validator. (Customers using raw SCEP today author the Subject by hand; the renewal-ID requirement is new.) Apply the same net-new rule as ACME — preferred-only, no perpetuation of the SCEP-prefixed name in fresh surfaces.
-- **Windows non-proxied SCEP validator (PR 2.4)** — pre-existing surface. Windows already enforced renewal-ID via `$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID` in 4.85; PR 2.4 swaps the variable name as part of the rename but the validation surface itself predates this story. Accept BOTH legacy and preferred names for the same back-compat reasoning as the proxy SCEP validators.
-
-Substitution is unaffected by this distinction: both names continue to substitute identically across all platforms. The distinction is purely about what validation lets through at upload time.
-
-**Acceptance rule — CN vs OU placement of the marker:** the same pre-existing-vs-net-new distinction applies to *where* the marker is allowed in the cert Subject. Every validator's error message has always read "must be in the SCEP/ACME certificate's organizational unit (OU)" — but the proxy SCEP validators silently accepted the marker in CN as well, an inherited message/behavior mismatch.
-
-- **Pre-existing surfaces (proxy SCEP, Windows non-proxied SCEP)** — keep accepting the marker in CN or OU. The 4.85 test fixture `custom-scep-validation.mobileconfig` places `$FLEET_VAR_SCEP_RENEWAL_ID` in the CN (`WIFI $FLEET_VAR_SCEP_RENEWAL_ID`), proving real-world deployments authored against CN. Hard-rejecting CN would break those profiles on next upload/edit.
-- **Net-new surfaces (ACME PR 2.3, raw Apple SCEP PR 2.3b)** — require the marker in OU only. No deployed profiles to back-compat against on these surfaces. OU is the semantically appropriate field (CN typically encodes principal identity, not metadata) and the error message already says "must be in the OU" — tightening here aligns behavior with the long-standing message and the docs. The ingestion matcher (`host_certificates.go:195`) keeps its defensive CN-or-OU search; tightening validation doesn't loosen the matcher.
+**Pre-existing proxy-SCEP validators retain their existing behavior** (NDES / Custom SCEP / Smallstep, Windows non-proxied SCEP). Those validators predate this story (since 4.65) and continue to require the renewal-ID variable in their authoring patterns. The variable rename adds preferred-name acceptance on those surfaces (PR 2.3 / PR 2.4 / PR 2.5) without dropping legacy-name back-compat. Customers running 4.85 SCEP profiles continue to work; new authoring can use either name.
 
 **Why accept both rather than hard-rename:**
-- Customers running 4.85 likely have `$FLEET_VAR_SCEP_RENEWAL_ID` in deployed SCEP profile Subjects. Hard-renaming the substitution constant would break those profiles on the next upload/edit cycle (validation passes, but substitution leaves the literal `$FLEET_VAR_SCEP_RENEWAL_ID` string in the profile, which the device CA rejects).
+- Customers running 4.85 likely have `$FLEET_VAR_SCEP_RENEWAL_ID` in deployed SCEP profile Subjects. Hard-renaming the substitution constant would break those profiles on the next upload/edit cycle (substitution would leave the literal `$FLEET_VAR_SCEP_RENEWAL_ID` string in the profile, which the device CA rejects).
 - Backwards-compat cost is small: one extra regex alternation, one extra constant. No new datastore work, no migration.
 - We can deprecate `SCEP_RENEWAL_ID` in a later release once telemetry shows the long tail has migrated.
 
@@ -180,6 +195,8 @@ Substitution is unaffected by this distinction: both names continue to substitut
 - *Hard-rename — only `CERTIFICATE_RENEWAL_ID` works.* Rejected per the customer-impact reasoning above.
 - *Hard-rename with a deprecation warning on uploads using the old name.* Considered. Same back-compat issue for already-deployed profiles that don't get re-uploaded — they'd silently stop substituting. Reject for the same reason.
 - *Keep `SCEP_RENEWAL_ID` as the only name and revert the docs PR.* Rejected: docs decision is product-led and reflects the variable's actual scope (any cert, not just SCEP). The mismatch is a code-side gap to close, not a docs error to revert.
+
+**Historical note (2026-05-15 scope change):** earlier drafts of this Decision included a "net-new surfaces accept preferred-name-only and require OU placement" rule for the Apple ACME validator (PR 2.3) and Apple raw-SCEP validator (PR 2.3b). Those validators were removed entirely under Decision 2.6's scope reversal, so the net-new-vs-pre-existing distinction no longer has enforcement behavior to mediate. The matcher accepts the marker in CN or OU regardless. Customers who include the marker should use the preferred name in OU per documentation, but no validator enforces either choice.
 
 ### Decision 2.8: INSERT path inherits the matcher's date-validity filter
 

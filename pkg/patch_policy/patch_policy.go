@@ -19,9 +19,12 @@ type PolicyData struct {
 }
 
 const (
-	templateStart      = "SELECT 1 WHERE NOT EXISTS ("
-	templateEndDarwin  = " AND version_compare(bundle_short_version, '%s') < 0);"
-	templateEndWindows = " AND version_compare(version, '%s') < 0);"
+	// templateStart and templateEnd* wrap the caller-supplied exists query in an
+	// inner set of parentheses so that any OR in the WHERE body binds before the
+	// appended AND version_compare(...) clause.
+	templateStart      = "SELECT 1 WHERE NOT EXISTS (("
+	templateEndDarwin  = ") AND version_compare(bundle_short_version, '%s') < 0);"
+	templateEndWindows = ") AND version_compare(version, '%s') < 0);"
 )
 
 var (

@@ -4,7 +4,7 @@
       "version": "6.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'at.obdev.LittleSnitch';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'at.obdev.LittleSnitch' AND version_compare(bundle_short_version, '6.3.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'at.obdev.LittleSnitch') AND version_compare(bundle_short_version, '6.3.3') < 0);"
       },
       "installer_url": "https://www.obdev.at/downloads/littlesnitch/LittleSnitch-6.3.3.dmg",
       "install_script_ref": "9465ca89",

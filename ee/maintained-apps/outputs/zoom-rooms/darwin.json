@@ -4,7 +4,7 @@
       "version": "7.0.0.12322",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.ZoomPresence';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.ZoomPresence' AND version_compare(bundle_short_version, '7.0.0.12322') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.ZoomPresence') AND version_compare(bundle_short_version, '7.0.0.12322') < 0);"
       },
       "installer_url": "https://cdn.zoom.us/prod/7.0.0.12322/ZoomRooms.pkg",
       "install_script_ref": "6eed23df",

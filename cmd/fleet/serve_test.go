@@ -30,7 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/service/schedule/scheduletest"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
@@ -272,11 +272,11 @@ func TestAutomationsSchedule(t *testing.T) {
 		}, nil
 	}
 
-	mockLocker := schedule.SetupMockLocker("automations", "test_instance", time.Now().UTC())
+	mockLocker := scheduletest.SetupMockLocker("automations", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
 
-	mockStatsStore := schedule.SetUpMockStatsStore("automations")
+	mockStatsStore := scheduletest.SetUpMockStatsStore("automations")
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
@@ -343,11 +343,11 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		return nil
 	}
 
-	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
+	mockLocker := scheduletest.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
 
-	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	mockStatsStore := scheduletest.SetUpMockStatsStore("vulnerabilities")
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
@@ -894,11 +894,11 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
-	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
+	mockLocker := scheduletest.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
 
-	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	mockStatsStore := scheduletest.SetUpMockStatsStore("vulnerabilities")
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
@@ -970,7 +970,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	failingPoliciesClosed := false
 	unknownName := false
 
-	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
+	mockLocker := scheduletest.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 		if expiration != expectedInterval {
 			return false, nil
@@ -992,7 +992,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	}
 	ds.UnlockFunc = mockLocker.Unlock
 
-	mockStatsStore := schedule.SetUpMockStatsStore("vulnerabilities")
+	mockStatsStore := scheduletest.SetUpMockStatsStore("vulnerabilities")
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
@@ -1054,12 +1054,12 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 		}, nil
 	}
 
-	mockLocker := schedule.SetupMockLocker("automations", "test_instance", time.Now().UTC())
+	mockLocker := scheduletest.SetupMockLocker("automations", "test_instance", time.Now().UTC())
 	require.NoError(t, mockLocker.AddChannels(t, "locked"))
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
 
-	mockStatsStore := schedule.SetUpMockStatsStore("automations")
+	mockStatsStore := scheduletest.SetUpMockStatsStore("automations")
 	ds.GetLatestCronStatsFunc = mockStatsStore.GetLatestCronStats
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
@@ -1439,6 +1439,27 @@ func TestGetTLSConfig(t *testing.T) {
 			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 		}, cfg.CipherSuites)
 	})
+}
+
+// TestGetTLSConfigInvalidProfile covers the default case of getTLSConfig,
+// which calls initFatal. Not run in parallel because the test mutates the
+// package-level initFatal var.
+func TestGetTLSConfigInvalidProfile(t *testing.T) {
+	var capturedErr error
+	var capturedMsg string
+	orig := initFatal
+	initFatal = func(err error, msg string) {
+		capturedErr = err
+		capturedMsg = msg
+	}
+	t.Cleanup(func() { initFatal = orig })
+
+	getTLSConfig("not-a-real-profile")
+
+	require.Error(t, capturedErr)
+	require.Contains(t, capturedErr.Error(), "not-a-real-profile")
+	require.Contains(t, capturedErr.Error(), "is invalid")
+	require.Equal(t, "set TLS profile", capturedMsg)
 }
 
 func TestInitLicense(t *testing.T) {

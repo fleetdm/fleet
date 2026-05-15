@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -426,7 +427,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	mcUUID := "a" + uuid.NewString()
 	prof := mcBytesForTest("name-"+mcUUID, "identifier-"+mcUUID, mcUUID)
 	wantTeamProfiles = append(wantTeamProfiles, prof)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
 		_, err := q.ExecContext(context.Background(), stmt, mcUUID, tm.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, test.MakeTestBytes())
 		return err
@@ -444,7 +445,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
 
 	// set the profile to pending, can't resend
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryPending, mcUUID, host.UUID)
 		return err
@@ -455,7 +456,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
 
 	// set the profile to failed, can resend
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryFailed, mcUUID, host.UUID)
 		return err
@@ -472,7 +473,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// set the profile to failed, can resend from device endpoint
 	token := "good_token"
 	updateDeviceTokenForHost(t, s.ds, host.ID, token)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryFailed, mcUUID, host.UUID)
 		return err
@@ -492,7 +493,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Contains(t, errMsg, "Couldn’t resend. Configuration profiles with “pending” or “verifying” status can’t be resent.")
 
 	// set the profile to verified, can resend
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryVerified, mcUUID, host.UUID)
 		return err
@@ -549,7 +550,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Contains(t, errMsg, fleet.CantResendAppleDeclarationProfilesMessage)
 
 	// set the declaration to verified
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_apple_declarations SET status = ? WHERE declaration_uuid = ? AND host_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, fleet.MDMDeliveryVerified, declUUID, host.UUID)
 		return err
@@ -697,7 +698,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		bindVars := strings.TrimSuffix(strings.Repeat("?, ", len(identifiers)), ", ")
 		stmt := fmt.Sprintf("UPDATE mdm_apple_configuration_profiles SET uploaded_at = ? WHERE identifier IN(%s)", bindVars)
 		args := append([]interface{}{uploadedAt}, identifiers...)
-		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, stmt, args...)
 			return err
 		})
@@ -1008,7 +1009,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 
 	t.Run("does not retry after successful delivery", func(t *testing.T) {
 		t.Cleanup(func() {
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				stmt := `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`
 				_, err := q.ExecContext(ctx, stmt, h.UUID)
 				return err
@@ -1027,8 +1028,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	retriesBeforeFailure := servermdm.MaxWindowsProfileRetries
 	t.Run(fmt.Sprintf("retries %d time before marking as failed", retriesBeforeFailure), func(t *testing.T) {
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			mysql.DumpTable(t, q, "host_mdm_windows_profiles")
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysqltest.DumpTable(t, q, "host_mdm_windows_profiles")
 			return nil
 		})
 
@@ -1228,7 +1229,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 	cleanupWindowsHostState := func() {
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
 			http.StatusNoContent)
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			if _, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, h.UUID); err != nil {
 				return err
 			}
@@ -1502,8 +1503,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	s.awaitTriggerProfileSchedule(t)
 
 	// useful for debugging
-	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	// 	mysql.DumpTable(t, q, "host_mdm_apple_profiles")
+	// mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	// 	mysqltest.DumpTable(t, q, "host_mdm_apple_profiles")
 	// 	return nil
 	// })
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
@@ -1529,7 +1530,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		addHostsToTeamRequest{TeamID: &tmLite2.ID, HostIDs: []uint{mdmHost2.ID}}, http.StatusOK)
 
 	// simulate having its profiles installed
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		res, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ?`, fleet.OSSettingsVerifying, mdmHost2.UUID)
 		n, _ := res.RowsAffected()
 		require.Equal(t, 4, int(n))
@@ -2440,7 +2441,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		// this will only mark them as "pending", as the response to confirm
 		// profile deployment is asynchronous, so we simulate it here by
 		// updating any "pending" (not NULL) profiles to "verifying"
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET status = ? WHERE status = ?`, fleet.OSSettingsVerifying, fleet.OSSettingsPending)
 			return err
 		})
@@ -2996,7 +2997,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 
 	var uid string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`, "label_prof")
 	})
 
@@ -3004,7 +3005,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	require.NoError(t, err)
 
 	// Update label with host membership
-	mysql.ExecAdhocSQL(
+	mysqltest.ExecAdhocSQL(
 		t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(
 				context.Background(),
@@ -3017,7 +3018,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	)
 
 	// Update profile <-> label mapping
-	mysql.ExecAdhocSQL(
+	mysqltest.ExecAdhocSQL(
 		t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(
 				context.Background(),
@@ -3663,7 +3664,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAndroidProfileUUIDPrefix)), nil, http.StatusNotFound, &deleteResp)
 
 	// turn back on apple MDM
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err = q.ExecContext(ctx, "UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.enabled_and_configured', true) ")
 		return err
 	})
@@ -3673,7 +3674,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 		// create it directly in the DB to test deletion
 		uid := "a" + uuid.NewString()
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			mc := mcBytesForTest(p, p, uuid.New().String())
 			_, err := q.ExecContext(ctx,
 				"INSERT INTO mdm_apple_configuration_profiles (profile_uuid, identifier, name, mobileconfig, checksum, team_id, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP())",
@@ -3684,7 +3685,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		var deleteResp deleteMDMConfigProfileResponse
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uid), nil, http.StatusBadRequest, &deleteResp)
 
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				"DELETE FROM mdm_apple_configuration_profiles WHERE profile_uuid = ?",
 				uid)
@@ -4009,17 +4010,17 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	require.NoError(t, err)
 
 	globalProfiles := []string{
-		mysql.InsertWindowsProfileForTest(t, s.ds, 0),
-		mysql.InsertWindowsProfileForTest(t, s.ds, 0),
-		mysql.InsertWindowsProfileForTest(t, s.ds, 0),
+		mysqltest.InsertWindowsProfileForTest(t, s.ds, 0),
+		mysqltest.InsertWindowsProfileForTest(t, s.ds, 0),
+		mysqltest.InsertWindowsProfileForTest(t, s.ds, 0),
 	}
 
 	// create a new team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
 	require.NoError(t, err)
 	teamProfiles := []string{
-		mysql.InsertWindowsProfileForTest(t, s.ds, tm.ID),
-		mysql.InsertWindowsProfileForTest(t, s.ds, tm.ID),
+		mysqltest.InsertWindowsProfileForTest(t, s.ds, tm.ID),
+		mysqltest.InsertWindowsProfileForTest(t, s.ds, tm.ID),
 	}
 
 	// create a non-Windows host
@@ -4050,7 +4051,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 				Status  string `db:"status"`
 				Retries int    `db:"retries"`
 			}
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				stmt := `
 				SELECT COALESCE(status, 'pending') as status, retries
 				FROM host_mdm_windows_profiles
@@ -4128,7 +4129,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	checkHostsProfilesMatch := func(host *fleet.Host, wantUUIDs []string) {
 		var gotUUIDs []string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			stmt := `SELECT profile_uuid FROM host_mdm_windows_profiles WHERE host_uuid = ? AND operation_type = ?`
 			return sqlx.SelectContext(context.Background(), q, &gotUUIDs, stmt, host.UUID, fleet.MDMOperationTypeInstall)
 		})
@@ -4187,7 +4188,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	getProfileUUID := func(t *testing.T, profName string, teamID *uint) string {
 		var profUUID string
-		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			var globalOrTeamID uint
 			if teamID != nil {
 				globalOrTeamID = *teamID
@@ -4200,7 +4201,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	checkHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, wantStatus fleet.MDMDeliveryStatus) {
 		var gotStatus fleet.MDMDeliveryStatus
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			stmt := `SELECT status FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`
 			err := sqlx.GetContext(context.Background(), q, &gotStatus, stmt, hostUUID, profUUID)
 			return err
@@ -4266,7 +4267,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Verified: 1,
 	}, nil)
 	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, osUpdatesProf)
 		return err
@@ -4277,7 +4278,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Verified: 1,
 	}, nil)
 	// force another profile to failed, does impact filtered hosts results and summaries
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, globalProfiles[0])
 		return err
@@ -4302,20 +4303,20 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// set new team profiles (delete + addition)
 	oldTeamProfile := teamProfiles[1]
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, oldTeamProfile)
 		return err
 	})
 	// Also clean up the host-profile row for the deleted config profile
 	// since the direct SQL deletion bypasses cancelWindowsHostInstallsForDeletedMDMProfiles.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = ?`, oldTeamProfile)
 		return err
 	})
 	teamProfiles = []string{
 		teamProfiles[0],
-		mysql.InsertWindowsProfileForTest(t, s.ds, tm.ID),
+		mysqltest.InsertWindowsProfileForTest(t, s.ds, tm.ID),
 	}
 
 	// trigger a profile sync, device gets the team profile
@@ -4330,18 +4331,18 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// set new team profiles (delete + addition)
 	oldTeamProfile = teamProfiles[1]
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, oldTeamProfile)
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = ?`, oldTeamProfile)
 		return err
 	})
 	teamProfiles = []string{
 		teamProfiles[0],
-		mysql.InsertWindowsProfileForTest(t, s.ds, tm.ID),
+		mysqltest.InsertWindowsProfileForTest(t, s.ds, tm.ID),
 	}
 	// trigger a profile sync, this time fail the delivery
 	verifyProfiles(mdmDevice, 1, true)
@@ -4374,7 +4375,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Verified: 1,
 	}, nil)
 	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, osUpdatesProf)
 		return err
@@ -4385,7 +4386,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		Verified: 1,
 	}, nil)
 	// force another profile to failed, does impact filtered hosts results and summaries
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[0])
 		return err
@@ -4412,7 +4413,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	verifyProfiles(mdmDevice, 1, false)
 
 	// update to verifying - should not allow resending
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'verifying' WHERE profile_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[0])
 		return err
@@ -4425,7 +4426,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	verifyProfiles(mdmDevice, 0, false)
 
 	// Update to verified, resending allowed again
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'verified' WHERE profile_uuid = ?`
 		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[0])
 		return err
@@ -4438,7 +4439,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// add a macOS profile to the team
 	mcUUID := "a" + uuid.NewString()
 	prof := mcBytesForTest("name-"+mcUUID, "identifier-"+mcUUID, mcUUID)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
 		_, err := q.ExecContext(context.Background(), stmt, mcUUID, tm.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, test.MakeTestBytes())
 		return err
@@ -4499,9 +4500,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		tmOther, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_other_team"})
 		require.NoError(t, err)
 		otherTeamProfiles := []string{
-			mysql.InsertWindowsProfileForTest(t, s.ds, tmOther.ID),
-			mysql.InsertWindowsProfileForTest(t, s.ds, tmOther.ID),
-			mysql.InsertWindowsProfileForTest(t, s.ds, tmOther.ID),
+			mysqltest.InsertWindowsProfileForTest(t, s.ds, tmOther.ID),
+			mysqltest.InsertWindowsProfileForTest(t, s.ds, tmOther.ID),
+			mysqltest.InsertWindowsProfileForTest(t, s.ds, tmOther.ID),
 		}
 
 		// Transfer host from empty team to team with 3 profiles — should install 3
@@ -5558,7 +5559,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 
 	checkMacProfs := func(teamID *uint, names ...string) {
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var tid uint
 			if teamID != nil {
 				tid = *teamID
@@ -5573,7 +5574,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 
 	checkWinProfs := func(teamID *uint, names ...string) {
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var tid uint
 			if teamID != nil {
 				tid = *teamID
@@ -6001,7 +6002,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 		// this will only mark them as "pending", as the response to confirm
 		// profile deployment is asynchronous, so we simulate it here by
 		// updating any "pending" (not NULL) profiles to "verifying"
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			if _, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET status = ? WHERE status = ?`, fleet.OSSettingsVerifying, fleet.OSSettingsPending); err != nil {
 				return err
 			}
@@ -6298,7 +6299,7 @@ func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 		// this will only mark them as "pending", as the response to confirm
 		// profile deployment is asynchronous, so we simulate it here by
 		// updating any "pending" (not NULL) profiles to "verifying"
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			if _, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET status = ? WHERE status = ?`, fleet.OSSettingsVerifying, fleet.OSSettingsPending); err != nil {
 				return err
 			}
@@ -6704,7 +6705,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// Add IdP email to host
-	mysql.ExecAdhocSQL(t, s.ds, func(e sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(e sqlx.ExtContext) error {
 		_, err := e.ExecContext(ctx, `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`, "idp@example.com", host.ID,
 			fleet.DeviceMappingMDMIdpAccounts)
 		return err
@@ -6817,7 +6818,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	// Add another device
 	host2, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// Add IdP email to host
-	mysql.ExecAdhocSQL(t, s.ds, func(e sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(e sqlx.ExtContext) error {
 		_, err := e.ExecContext(ctx, `INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`, "idp2@example.com", host2.ID,
 			fleet.DeviceMappingMDMIdpAccounts)
 		return err
@@ -7199,7 +7200,7 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 	assertIsCommandActiveForHostAndProfile := func(hostUUID, profileUUID string, wantActive bool) {
 		var active bool
 		ctx := t.Context()
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &active, `SELECT neq.active
 			FROM
 				nano_enrollment_queue neq
@@ -7385,7 +7386,7 @@ func forceSetAppleHostProfileStatus(t *testing.T, ds *mysql.Datastore, hostUUID 
 		actualStatus = &status
 	}
 
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
 				(profile_identifier, host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
 			VALUES
@@ -7408,7 +7409,7 @@ func forceSetWindowsHostProfileStatus(t *testing.T, ds *mysql.Datastore, hostUUI
 		actualStatus = &status
 	}
 
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
 				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
 			VALUES
@@ -7431,7 +7432,7 @@ func forceSetAppleHostDeclarationStatus(t *testing.T, ds *mysql.Datastore, hostU
 		actualStatus = &status
 	}
 
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
 				(declaration_identifier, host_uuid, status, operation_type, token, declaration_name, declaration_uuid)
 			VALUES
@@ -7490,7 +7491,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 	}
 	assertHostProfiles := func(want []hostProfile) {
 		var got []hostProfile
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			// for the purpose of this test, we ignore the Fleet-internal profiles
 			// (we only care about the custom profiles)
 			return sqlx.SelectContext(t.Context(), q, &got, `
@@ -7503,7 +7504,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 	}
 
 	forceProfileUploadeddAtTimestamp := func(ident string, ts time.Time) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles
 				SET uploaded_at = ? WHERE identifier = ?`, ts, ident)
 			return err
@@ -7734,7 +7735,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 	// (it doesn't go to failed if it is pending)
 	forceSetAppleHostProfileStatus(t, s.ds, host.UUID,
 		test.ToMDMAppleConfigProfile(profNameToPayload["A3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET retries = ? WHERE host_uuid = ? AND profile_identifier = ?`,
 			servermdm.MaxAppleProfileRetries, host.UUID, profNameToPayload["A3"].Identifier)
 		return err
@@ -7804,7 +7805,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleProfileScopeChanges() {
 	// Create a profile with a scope that is System in the DB but User in the XML. This mimics
 	// our upgrade behavior from versions prior to 4.71 to 4.71+ when we added support for User
 	// scoped profiles
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE mdm_apple_configuration_profiles SET scope=? WHERE identifier=?;`
 		_, err := q.ExecContext(context.Background(), stmt, fleet.PayloadScopeSystem, "G4.user-but-actually-system")
 		return err
@@ -8250,7 +8251,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	//
 	// We need to make sure the host checked in recently (detail_updated_at = now)
 	// but the profiles are old (created more than 1 hour ago)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		// Set profile timestamps to 2 hours ago
 		// IMPORTANT: uploaded_at is used as EarliestInstallDate in verification logic
 		_, err := q.ExecContext(ctx,
@@ -8538,7 +8539,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	}
 	require.NotNil(t, testProfile)
 	require.EqualValues(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be NULL (pending for the user)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status *fleet.MDMDeliveryStatus
 		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE profile_identifier = ?`, testProfile.Identifier)
 		require.Nil(t, status)
@@ -8587,7 +8588,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	}
 	require.NotNil(t, testProfile)
 	require.EqualValues(t, fleet.MDMDeliveryPending, *testProfile.Status)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status *fleet.MDMDeliveryStatus
 		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE profile_identifier = ?`, testProfile.Identifier)
 		require.Nil(t, status)
@@ -8659,7 +8660,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 			http.StatusNoContent)
 
 		expectRetry := func(profileName string, expectedRetries int) {
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				var retryCount int
 				err := sqlx.GetContext(t.Context(), q, &retryCount,
 					`SELECT retries FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_name = ?`,
@@ -8775,7 +8776,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 		require.NoError(t, err)
 
 		// Verify raw DB status is NULL and retries = 1.
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var status sql.NullString
 			var retries int
 			err := sqlx.GetContext(t.Context(), q, &status,
@@ -8956,7 +8957,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 	t.Run("Other hosts can not get all commands", func(t *testing.T) {
 		// Let's insert a command for the original host, with some random raw_command data
 		commandUUID := uuid.NewString()
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			commandData := `<Add><!-- CmdID generated by Fleet --><CmdID>` + commandUUID + `</CmdID><Item><Target><LocURI>./BogusLocURI</LocURI></Target><Meta><Type xmlns="syncml:metinf">text/plain</Type><Format xmlns="syncml:metinf">bool</Format></Meta><Data>true</Data></Item></Add>`
 			_, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri) VALUES (?, ?, '')`, commandUUID, commandData)
 			require.NoError(t, err)
@@ -9028,7 +9029,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 
 	// profiles should be added with NULL status even before the cron job (s.awaitTriggerAndroidProfileSchedule(t))
 	var profiles []fleet.HostMDMAndroidProfile
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.SelectContext(ctx, q, &profiles, "SELECT host_uuid, status, operation_type FROM host_mdm_android_profiles")
 		require.NoError(t, err)
 		return nil
@@ -9135,7 +9136,7 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	// iOS and iPadOS are manual labels; insert label membership directly.
 	require.Contains(t, lblIDs, fleet.BuiltinLabelIOS)
 	require.Contains(t, lblIDs, fleet.BuiltinLabelIPadOS)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?), (?, ?)`,
 			iOSHost.ID, lblIDs[fleet.BuiltinLabelIOS],
@@ -9149,7 +9150,7 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	assertAppleDeclarationQueued := func(hostUUID, identifier string) {
 		t.Helper()
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count,
 				`SELECT COUNT(*) FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_identifier = ?`,
 				hostUUID, identifier)
@@ -9163,7 +9164,7 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	assertAppleDeclarationGone := func(hostUUID, identifier string) {
 		t.Helper()
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count,
 				`SELECT COUNT(*) FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_identifier = ?`,
 				hostUUID, identifier)
@@ -9176,7 +9177,7 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	assertAppleDeclarationVerifying := func(hostUUID, identifier string) {
 		t.Helper()
 		var gotStatus *fleet.MDMDeliveryStatus
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &gotStatus,
 				`SELECT status FROM host_mdm_apple_declarations WHERE host_uuid = ? AND declaration_identifier = ?`,
 				hostUUID, identifier)
@@ -9190,7 +9191,7 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	checkWindowsProfileQueued := func(profUUID string) {
 		t.Helper()
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count,
 				`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ? AND profile_uuid = ?`,
 				windowsHost.UUID, profUUID)

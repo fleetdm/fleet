@@ -4,7 +4,7 @@
       "version": "2025.2.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij.ce';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij.ce' AND version_compare(bundle_short_version, '2025.2.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.intellij.ce') AND version_compare(bundle_short_version, '2025.2.5') < 0);"
       },
       "installer_url": "https://download.jetbrains.com/idea/ideaIC-2025.2.5-aarch64.dmg",
       "install_script_ref": "37b1e122",

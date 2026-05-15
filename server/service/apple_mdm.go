@@ -511,16 +511,6 @@ func CheckProfileIsNotSigned(data []byte) error {
 }
 
 func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
-	// Run before the fleetVars early-return: ACME and raw-SCEP profiles
-	// may carry no Fleet variables besides the renewal-ID marker and would
-	// otherwise skip this check.
-	if err := additionalACMEValidation(contents); err != nil {
-		return nil, err
-	}
-	if err := additionalNonProxiedSCEPValidation(contents); err != nil {
-		return nil, err
-	}
-
 	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
@@ -720,97 +710,6 @@ func additionalSmallstepValidation(contents string, smallstepVars *SmallstepVars
 		for _, ca := range smallstepVars.CAs() {
 			if !slices.Contains(foundCAs, ca) {
 				return &fleet.BadRequestError{Message: fleet.SCEPVariablesNotInSCEPPayloadErrMsg}
-			}
-		}
-	}
-	return nil
-}
-
-// acmePayloadForValidation differs from SCEPPayloadContent because an ACME
-// payload's Subject is a sibling of PayloadType, not nested inside it.
-type acmePayloadForValidation struct {
-	PayloadType string       `plist:"PayloadType"`
-	Subject     [][][]string `plist:"Subject"`
-}
-
-type acmeProfileForValidation struct {
-	PayloadContent []acmePayloadForValidation `plist:"PayloadContent"`
-}
-
-// additionalACMEValidation rejects profiles whose com.apple.security.acme
-// payload Subject OU lacks $FLEET_VAR_CERTIFICATE_RENEWAL_ID. Without the
-// marker the cert can't be linked back to its profile and renewal won't
-// fire.
-func additionalACMEValidation(contents string) error {
-	if !strings.Contains(contents, mobileconfig.ACMEPayloadType) {
-		return nil
-	}
-	// Strip variables embedded in <data> elements so the plist unmarshal
-	// doesn't choke on them (consistent with unmarshalSCEPProfile).
-	contents = variables.ProfileDataVariableRegex.ReplaceAllString(contents, "")
-	var acmeProf acmeProfileForValidation
-	if err := plist.Unmarshal([]byte(contents), &acmeProf); err != nil {
-		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse ACME payload with Fleet variables: %s", err.Error())}
-	}
-	for _, payload := range acmeProf.PayloadContent {
-		if payload.PayloadType != mobileconfig.ACMEPayloadType {
-			continue
-		}
-		var orgUnit strings.Builder
-		for _, rdn := range payload.Subject {
-			for _, kv := range rdn {
-				if len(kv) != 2 || kv[0] != "OU" {
-					continue
-				}
-				if orgUnit.Len() > 0 {
-					orgUnit.WriteByte(',')
-				}
-				orgUnit.WriteString(kv[1])
-			}
-		}
-		if !fleet.FleetVarCertificateRenewalIDRegexp.MatchString(orgUnit.String()) {
-			return &fleet.BadRequestError{
-				Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) +
-					" must be in the ACME certificate's organizational unit (OU).",
-			}
-		}
-	}
-	return nil
-}
-
-// additionalNonProxiedSCEPValidation rejects raw SCEP profiles (those not
-// using Fleet proxy CA variables) whose cert Subject OU lacks
-// $FLEET_VAR_CERTIFICATE_RENEWAL_ID. Profiles that use Fleet proxy
-// variables (NDES, Custom SCEP, Smallstep) are deferred to the per-CA
-// validators downstream, which enforce the same OU requirement.
-func additionalNonProxiedSCEPValidation(contents string) error {
-	if !strings.Contains(contents, mobileconfig.SCEPPayloadType) {
-		return nil
-	}
-	// If the profile uses any Fleet proxy CA variable, the per-CA
-	// validators handle it downstream.
-	for _, v := range variables.Find(contents) {
-		if v == string(fleet.FleetVarNDESSCEPChallenge) ||
-			v == string(fleet.FleetVarNDESSCEPProxyURL) ||
-			strings.HasPrefix(v, string(fleet.FleetVarCustomSCEPChallengePrefix)) ||
-			strings.HasPrefix(v, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) ||
-			strings.HasPrefix(v, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) ||
-			strings.HasPrefix(v, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) {
-			return nil
-		}
-	}
-	scepProf, err := unmarshalSCEPProfile(contents)
-	if err != nil {
-		return err
-	}
-	for _, payload := range scepProf.PayloadContent {
-		if payload.PayloadType != mobileconfig.SCEPPayloadType {
-			continue
-		}
-		if !fleet.FleetVarCertificateRenewalIDRegexp.MatchString(payload.PayloadContent.OrganizationalUnit) {
-			return &fleet.BadRequestError{
-				Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) +
-					" must be in the SCEP certificate's organizational unit (OU).",
 			}
 		}
 	}
@@ -3852,15 +3751,6 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	}
 
 	if svc.keyValueStore != nil {
-		if !scepRenewalInProgress {
-			// Set sticky key for MDM enrollments to avoid updating team id on orbit enrollments
-			err = svc.keyValueStore.Set(r.Context, fleet.StickyMDMEnrollmentKeyPrefix+r.ID, "1", fleet.StickyMDMEnrollmentTTL)
-			if err != nil {
-				// We do not want to fail here, just log the error to notify
-				svc.logger.ErrorContext(r.Context, "failed to set sticky mdm enrollment key", "err", err, "host_uuid", r.ID)
-			}
-		}
-
 		// Set profile processing flag, is being handled by the apple_mdm worker, it will be cleared later if it's a SCEP renewal.
 		if err := svc.keyValueStore.Set(r.Context, fleet.MDMProfileProcessingKeyPrefix+":"+r.ID, "1", fleet.MDMProfileProcessingTTL); err != nil {
 			svc.logger.ErrorContext(r.Context, "failed to set mdm profile processing key", "err", err, "host_uuid", r.ID)
@@ -3951,9 +3841,12 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		} else {
 			enqueueSetupExperienceItems = true
 		}
-	} else if info.Platform != "darwin" && r.Type == mdm.Device && !info.InstalledFromDEP {
-		// For manual iOS/iPadOS device enrollments, check the `TokenUpdateTally` so that
-		// we only run the setup experience enqueueing once per device.
+	} else if info.Platform != "darwin" && (r.Type == mdm.Device || r.Type == mdm.UserEnrollmentDevice) && !info.InstalledFromDEP {
+		// For manual and Account-Driven User Enrolled (BYOD) iOS/iPadOS device
+		// enrollments, check the `TokenUpdateTally` so that we only run the
+		// setup experience enqueueing once per device. The downstream install
+		// flow (via InstallVPPAppPostValidation) handles user-scoped licensing
+		// for User Enrollments.
 		nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")
@@ -3985,13 +3878,14 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		}
 	}
 
-	var acctUUID string
+	var acctUUID, managedAppleID string
 	idp, err := svc.ds.GetMDMIdPAccountByHostUUID(r.Context, r.ID)
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "getting idp account")
 	}
 	if idp != nil {
 		acctUUID = idp.UUID
+		managedAppleID = idp.Email
 	}
 
 	// User (Device) enrollments, also known as Account Driven enrollments or BYOD enrollments,
@@ -4009,9 +3903,31 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				"host_uuid", r.ID, "account_uuid", accountUUID)
 		} else {
 			acctUUID = idpAccount.UUID
+			managedAppleID = idpAccount.Email
 			err = svc.ds.AssociateHostMDMIdPAccount(r.Context, r.ID, acctUUID)
 			if err != nil {
 				return ctxerr.Wrap(r.Context, err, "associating host with idp account")
+			}
+		}
+	}
+
+	// For Account-Driven User Enrollment (BYOD iOS/iPadOS), keep host_mdm's
+	// managed_apple_id in sync with the current IdP-resolved email — including
+	// clearing it when resolution failed, so a stale value from a prior
+	// enrollment can't be reused for user-scoped VPP actions. The canonical
+	// source is the IDP account email resolved from the OAuth Bearer token at
+	// enrollment; Apple does not reliably populate UserLongName for User
+	// Enrollment so we don't fall back to it. NotFound is logged rather than
+	// returned because the lifecycle reset above should have inserted the
+	// host_mdm row already, and we don't want a transient race to break
+	// enrollment.
+	if r.Type == mdm.UserEnrollmentDevice {
+		if err := svc.ds.SetHostManagedAppleID(r.Context, info.HostID, managedAppleID); err != nil {
+			if fleet.IsNotFound(err) {
+				svc.logger.WarnContext(r.Context, "setting managed apple id: host_mdm row not found",
+					"host_id", info.HostID, "host_uuid", r.ID)
+			} else {
+				return ctxerr.Wrap(r.Context, err, "setting managed apple id")
 			}
 		}
 	}
@@ -4307,6 +4223,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.Identifier(), status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
+		// "Already installed" is not a real failure: the end user grabbed the
+		// app from the App Store before Fleet's command landed. Treat it as a
+		// successful install and let the verification flow confirm presence —
+		// no retry, no failure activity. Applies to all enrollment types since
+		// Apple's behavior here is the same regardless of enrollment style.
+		if (cmdResult.Status == fleet.MDMAppleStatusError || cmdResult.Status == fleet.MDMAppleStatusCommandFormatError) &&
+			apple_mdm.IsAppAlreadyInstalledError(cmdResult.ErrorChain) {
+			svc.logger.InfoContext(r.Context, "InstallApplication reported app already installed; treating as success",
+				"host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
+			cmdResult.Status = fleet.MDMAppleStatusAcknowledged
+		}
+
 		// create an activity for installing only if we're in a terminal error state
 		if cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
@@ -4758,17 +4686,15 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		return ctxerr.Wrap(ctx, err, "get VPP token if can install VPP apps")
 	}
 
-	// Check if the device is managed or BYOD.
+	// Confirm the host has a nano enrollment record. User-enrolled (BYOD)
+	// hosts are no longer skipped — InstallVPPAppPostValidation routes them
+	// through the user-scoped VPP path (clientUserIds) downstream.
 	enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting nano mdm enrollment")
 	}
 	if enrollment == nil {
 		logger.DebugContext(ctx, "skipping updates, missing nano enrollment type")
-		return nil
-	}
-	if enrollment.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String() {
-		logger.DebugContext(ctx, "skipping updates, software install isn't supported on personal (BYOD) iOS and iPadOS hosts")
 		return nil
 	}
 

@@ -2,6 +2,7 @@ package vpp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -132,6 +134,32 @@ func TestGetConfig(t *testing.T) {
 	})
 }
 
+func TestAssociateAssetsRequestValidate(t *testing.T) {
+	t.Run("serial numbers only is valid", func(t *testing.T) {
+		req := &AssociateAssetsRequest{SerialNumbers: []string{"SN1"}}
+		require.NoError(t, req.Validate())
+	})
+	t.Run("client user ids only is valid", func(t *testing.T) {
+		req := &AssociateAssetsRequest{ClientUserIds: []string{"user-1"}}
+		require.NoError(t, req.Validate())
+	})
+	t.Run("both populated is rejected", func(t *testing.T) {
+		req := &AssociateAssetsRequest{
+			SerialNumbers: []string{"SN1"},
+			ClientUserIds: []string{"user-1"},
+		}
+		err := req.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "mutually exclusive")
+	})
+	t.Run("neither populated is rejected", func(t *testing.T) {
+		req := &AssociateAssetsRequest{}
+		err := req.Validate()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "required")
+	})
+}
+
 func TestAssociateAssets(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -148,23 +176,81 @@ func TestAssociateAssets(t *testing.T) {
 				SerialNumbers: []string{"SN12345"},
 			},
 			handler: func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, http.MethodPost, r.Method)
-				require.Equal(t, "/assets/associate", r.URL.Path)
-				require.Equal(t, "Bearer valid_token", r.Header.Get("Authorization"))
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/assets/associate", r.URL.Path)
+				assert.Equal(t, "Bearer valid_token", r.Header.Get("Authorization"))
 
 				body, err := io.ReadAll(r.Body)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 
 				var reqParams AssociateAssetsRequest
 				err = json.Unmarshal(body, &reqParams)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 
-				require.Equal(t, []Asset{{AdamID: "12345", PricingParam: "STDQ"}}, reqParams.Assets)
-				require.Equal(t, []string{"SN12345"}, reqParams.SerialNumbers)
+				assert.Equal(t, []Asset{{AdamID: "12345", PricingParam: "STDQ"}}, reqParams.Assets)
+				assert.Equal(t, []string{"SN12345"}, reqParams.SerialNumbers)
+				assert.Empty(t, reqParams.ClientUserIds)
+
+				// Verify omitempty: clientUserIds key should not appear in the wire payload.
+				assert.NotContains(t, string(body), "clientUserIds")
 
 				_, _ = w.Write([]byte(`{"eventId": "123"}`))
 			},
 			expectedErrMsg: "",
+		},
+		{
+			name:  "valid request with client user ids",
+			token: "valid_token",
+			params: &AssociateAssetsRequest{
+				Assets:        []Asset{{AdamID: "12345", PricingParam: "STDQ"}},
+				ClientUserIds: []string{"user-uuid-1", "user-uuid-2"},
+			},
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodPost, r.Method)
+				assert.Equal(t, "/assets/associate", r.URL.Path)
+				assert.Equal(t, "Bearer valid_token", r.Header.Get("Authorization"))
+
+				body, err := io.ReadAll(r.Body)
+				assert.NoError(t, err)
+
+				var reqParams AssociateAssetsRequest
+				err = json.Unmarshal(body, &reqParams)
+				assert.NoError(t, err)
+
+				assert.Equal(t, []Asset{{AdamID: "12345", PricingParam: "STDQ"}}, reqParams.Assets)
+				assert.Empty(t, reqParams.SerialNumbers)
+				assert.Equal(t, []string{"user-uuid-1", "user-uuid-2"}, reqParams.ClientUserIds)
+
+				// Verify omitempty: serialNumbers key should not appear in the wire payload.
+				assert.NotContains(t, string(body), "serialNumbers")
+
+				_, _ = w.Write([]byte(`{"eventId": "456"}`))
+			},
+			expectedErrMsg: "",
+		},
+		{
+			name:  "rejects both serials and client user ids before HTTP",
+			token: "valid_token",
+			params: &AssociateAssetsRequest{
+				Assets:        []Asset{{AdamID: "12345", PricingParam: "STDQ"}},
+				SerialNumbers: []string{"SN12345"},
+				ClientUserIds: []string{"user-uuid-1"},
+			},
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				t.Fatal("HTTP request must not be made when validation fails")
+			},
+			expectedErrMsg: "mutually exclusive",
+		},
+		{
+			name:  "rejects neither serials nor client user ids before HTTP",
+			token: "valid_token",
+			params: &AssociateAssetsRequest{
+				Assets: []Asset{{AdamID: "12345", PricingParam: "STDQ"}},
+			},
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				t.Fatal("HTTP request must not be made when validation fails")
+			},
+			expectedErrMsg: "required",
 		},
 		{
 			name:  "server error",
@@ -506,6 +592,153 @@ func TestDoRetry(t *testing.T) {
 		require.Equal(t, "evt-456", eventID)
 		require.GreaterOrEqual(t, calls, 2)
 	})
+}
+
+func TestCreateUsers(t *testing.T) {
+	t.Run("rejects empty request", func(t *testing.T) {
+		_, err := CreateUsers("token", nil)
+		require.Error(t, err)
+
+		_, err = CreateUsers("token", &CreateUsersRequest{})
+		require.Error(t, err)
+	})
+
+	t.Run("success path returns event id and users", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodPost, r.Method)
+			assert.Equal(t, "/users/create", r.URL.Path)
+			assert.Equal(t, "Bearer valid_token", r.Header.Get("Authorization"))
+			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+			body, err := io.ReadAll(r.Body)
+			assert.NoError(t, err)
+
+			var got CreateUsersRequest
+			assert.NoError(t, json.Unmarshal(body, &got))
+			assert.Equal(t, []CreateUsersUser{
+				{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"},
+				{ClientUserId: "uuid-2", ManagedAppleId: "user2@example.com"},
+			}, got.Users)
+
+			_, _ = w.Write([]byte(`{
+				"eventId": "evt-123",
+				"users": [
+					{"userId":"apple-1","clientUserId":"uuid-1","managedAppleId":"user1@example.com","status":"Registered"},
+					{"userId":"apple-2","clientUserId":"uuid-2","managedAppleId":"user2@example.com","status":"Registered"}
+				]
+			}`))
+		})
+
+		resp, err := CreateUsers("valid_token", &CreateUsersRequest{
+			Users: []CreateUsersUser{
+				{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"},
+				{ClientUserId: "uuid-2", ManagedAppleId: "user2@example.com"},
+			},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.Equal(t, "evt-123", resp.EventID)
+		require.Len(t, resp.Users, 2)
+		require.Equal(t, "apple-1", resp.Users[0].UserId)
+		require.Equal(t, "Registered", resp.Users[0].Status)
+		require.False(t, resp.Users[0].HasError())
+		require.False(t, resp.Users[1].HasError())
+	})
+
+	t.Run("partial failure surfaces per-user error info", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{
+				"eventId": "evt-456",
+				"users": [
+					{"userId":"apple-1","clientUserId":"uuid-1","managedAppleId":"user1@example.com","status":"Registered"},
+					{"clientUserId":"uuid-2","managedAppleId":"user2@example.com","errorMessage":"Managed Apple ID not found","errorNumber":9637}
+				]
+			}`))
+		})
+
+		resp, err := CreateUsers("valid_token", &CreateUsersRequest{
+			Users: []CreateUsersUser{
+				{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"},
+				{ClientUserId: "uuid-2", ManagedAppleId: "user2@example.com"},
+			},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.Equal(t, "evt-456", resp.EventID)
+		require.Len(t, resp.Users, 2)
+
+		require.False(t, resp.Users[0].HasError())
+		require.Equal(t, "apple-1", resp.Users[0].UserId)
+
+		require.True(t, resp.Users[1].HasError())
+		require.Equal(t, "uuid-2", resp.Users[1].ClientUserId)
+		require.Equal(t, "Managed Apple ID not found", resp.Users[1].ErrorMessage)
+		require.EqualValues(t, 9637, resp.Users[1].ErrorNumber)
+		require.Empty(t, resp.Users[1].UserId)
+	})
+
+	t.Run("apple-level error from /users/create", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"errorInfo":{},"errorMessage":"Bad Request","errorNumber":400}`))
+		})
+
+		resp, err := CreateUsers("valid_token", &CreateUsersRequest{
+			Users: []CreateUsersUser{{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"}},
+		})
+		require.Error(t, err)
+		require.Nil(t, resp)
+		require.Contains(t, err.Error(), "error number: 400")
+	})
+}
+
+func TestIsMaxDevicesPerUserError(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "non-VPP error",
+			err:      errors.New("network down"),
+			expected: false,
+		},
+		{
+			name:     "canonical numeric code 9622",
+			err:      &ErrorResponse{ErrorMessage: "License count exceeded", ErrorNumber: 9622},
+			expected: true,
+		},
+		{
+			name:     "matched by case-insensitive message",
+			err:      &ErrorResponse{ErrorMessage: "User has reached the Maximum Number of Devices for this license", ErrorNumber: 99999},
+			expected: true,
+		},
+		{
+			name:     "matched by 'device limit' phrasing",
+			err:      &ErrorResponse{ErrorMessage: "Device limit exceeded for this client user.", ErrorNumber: 0},
+			expected: true,
+		},
+		{
+			name:     "unrelated VPP error 9610",
+			err:      &ErrorResponse{ErrorMessage: "Cannot establish a connection.", ErrorNumber: 9610},
+			expected: false,
+		},
+		{
+			name:     "wrapped via fmt.Errorf %w still detected",
+			err:      fmt.Errorf("calling vpp: %w", &ErrorResponse{ErrorMessage: "User has reached the maximum number of devices.", ErrorNumber: 9622}),
+			expected: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, IsMaxDevicesPerUserError(tt.err))
+		})
+	}
 }
 
 func TestGetBaseURL(t *testing.T) {

@@ -1,0 +1,1 @@
+- Fixed an issue where the MDM solution name reported for a host could flip between values across osquery ingestions when the MDM server URL contained substrings matching multiple known MDM vendors.

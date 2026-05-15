@@ -4,7 +4,7 @@
       "version": "26.3.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console' AND version_compare(bundle_short_version, '26.3.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console') AND version_compare(bundle_short_version, '26.3.2') < 0);"
       },
       "installer_url": "https://download.parallels.com/desktop/v26/26.3.2-57398/ParallelsDesktop-26.3.2-57398.dmg",
       "install_script_ref": "1142d1f5",

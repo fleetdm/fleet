@@ -4,7 +4,7 @@
       "version": "1.2.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.yubico.ykman';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.yubico.ykman' AND version_compare(bundle_short_version, '1.2.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.yubico.ykman') AND version_compare(bundle_short_version, '1.2.5') < 0);"
       },
       "installer_url": "https://developers.yubico.com/yubikey-manager-qt/Releases/yubikey-manager-qt-1.2.5-mac.pkg",
       "install_script_ref": "11ef47ae",

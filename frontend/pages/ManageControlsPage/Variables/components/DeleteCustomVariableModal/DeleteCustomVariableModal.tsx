@@ -2,38 +2,38 @@ import React, { useContext, useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-import { ISecret } from "interfaces/secrets";
+import { IVariable } from "interfaces/variables";
 import { NotificationContext } from "context/notification";
 
 import formatErrorResponse from "utilities/format_error_response";
-import secretsAPI from "services/entities/secrets";
+import variablesAPI from "services/entities/variables";
 
 interface DeleteCustomVariableModalProps {
-  secret: ISecret | undefined;
+  variable: IVariable | undefined;
   onExit: () => void;
-  onDeleteSecret: () => void;
+  onDeleteVariable: () => void;
 }
 
 const baseClass = "delete-custom-variable-modal";
 
 const DeleteCustomVariableModal = ({
-  secret,
+  variable,
   onExit,
-  onDeleteSecret,
+  onDeleteVariable,
 }: DeleteCustomVariableModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { renderFlash } = useContext(NotificationContext);
 
   const onClickDelete = async () => {
-    if (!secret) {
+    if (!variable) {
       return;
     }
     setIsDeleting(true);
     try {
-      await secretsAPI.deleteSecret(secret.id);
+      await variablesAPI.deleteVariable(variable.id);
       renderFlash("success", "Variable successfully deleted.");
-      onDeleteSecret();
+      onDeleteVariable();
     } catch (error) {
       const errorObject = formatErrorResponse(error);
       const isInUseError =
@@ -60,7 +60,7 @@ const DeleteCustomVariableModal = ({
         <span>
           This will delete the
           <b>
-            <TooltipTruncatedText value={secret?.name} />
+            <TooltipTruncatedText value={variable?.name} />
           </b>
           custom variable.
         </span>
