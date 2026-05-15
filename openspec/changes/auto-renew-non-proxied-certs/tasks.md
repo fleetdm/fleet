@@ -72,27 +72,42 @@ Goal: extend `UpdateHostCertificates` to insert `host_mdm_managed_certificates` 
 
 > **Coordination with #44691**: That PR restructures the matcher in `UpdateHostCertificates` (introduces `toInsertBySHA1` map, pool-selection per hmmc row, best-match-wins, monotonic-forward predicate, `hmmcBackfillGrace`). It targets `main` and is expected to land before this PR. Our INSERT path lands as a separate loop alongside that restructured matcher, reusing `toInsertBySHA1`/`incomingBySHA1` it already builds. Plan to rebase against main once #44691 merges.
 
-## 7. PR 2.3 — Apple profile-upload validation + variable rename
+## 7. PR 2.3 — Apple variable rename (validator removed per scope change 2026-05-15)
 
-Goal: hard-reject Apple SCEP/ACME profiles missing the renewal-ID marker, and add code support for the renamed customer-facing variable (`$FLEET_VAR_CERTIFICATE_RENEWAL_ID`, per design.md Decision 2.7). This validation is the customer-facing trigger that drives the redeploy step.
+Goal: add code support for the renamed customer-facing variable (`$FLEET_VAR_CERTIFICATE_RENEWAL_ID`, per design.md Decision 2.7).
+
+**Scope change 2026-05-15:** the ACME upload validator that initially shipped in this PR (rejected profiles missing the marker) is reverted. The marker is now opt-in per design.md Decision 2.6 — missing marker is accepted, no GitOps breakage. Tasks below reflect the original scope; revert work is tracked under §7d.
 
 - [x] 7.1 Add `FleetVarCertificateRenewalID = "CERTIFICATE_RENEWAL_ID"` constant in `server/fleet/mdm.go` alongside the existing `FleetVarSCEPRenewalID`. Both are recognized by `FindFleetVariables`.
 - [x] 7.2 Extend `FleetVarSCEPRenewalIDRegexp` (or add a sibling regex) to match either name, then expose a unified `FleetVarRenewalIDRegexp` used by all substitution sites. Both names substitute to identical output: `"fleet-" + profile_uuid`. Touch points: `server/mdm/apple/profile_processor.go:401-404`, `server/mdm/microsoft/profile_variables.go:124-125`.
-- [x] 7.3 Detect ACME payload types in Apple profile content during validation in `server/service/apple_mdm.go` (around the existing fleet-variable validation) and reject when the renewal-ID marker is missing from the cert Subject. The per-CA SCEP validators (NDES/Custom SCEP/Smallstep) already enforce this requirement for SCEP profiles that use Fleet proxy variables; coverage for raw-SCEP profiles (no proxy vars, e.g. Okta conditional access / Okta Verify with static challenge) is split out into PR 2.3b (§7b below).
-- [x] 7.4 If an ACME payload is present, require `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the cert Subject **OU only** (CN placement is rejected — net-new surface per design.md Decision 2.7); reject with `fleet.NewInvalidArgumentError` naming `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` and stating the OU requirement. The error message MUST NOT mention the legacy `$FLEET_VAR_SCEP_RENEWAL_ID` — net-new surface, preferred name only.
-- [x] 7.5 Confirm the same code path is hit by `fleetctl gitops` profile uploads; add an integration test if not already covered.
-- [x] 7.6 Tests: ACME payload + marker in OU → accepted; payload + marker in CN only → rejected (net-new surface, OU-only per Decision 2.7); payload + legacy variable name → rejected (net-new, preferred only); payload + no marker → rejected with expected error message; non-renewable payloads → unaffected; existing profiles in DB are not retroactively rejected; substitution produces identical output for both variable names (substitution is unchanged; the OU/legacy restrictions are validation-only).
-- [ ] 7.7 Release-notes draft for the validation behavior change, including the redeploy guidance and the variable-name rename note (legacy still accepted, new name preferred for new authoring). (Deferred to PR 2.5 docs consolidation.)
+- [x] 7.3 ~~Detect ACME payload types in Apple profile content during validation in `server/service/apple_mdm.go` and reject when the renewal-ID marker is missing from the cert Subject.~~ **Reverted per §7d.** The per-CA SCEP validators (NDES/Custom SCEP/Smallstep) keep their existing renewal-ID enforcement (pre-existing surface).
+- [x] 7.4 ~~Require `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in cert Subject OU only; reject otherwise.~~ **Reverted per §7d.**
+- [x] 7.5 ~~Confirm the same code path is hit by `fleetctl gitops` profile uploads; add an integration test if not already covered.~~ Verification moot once validator is removed; gitops continuity is the *reason* for the removal.
+- [x] 7.6 ~~Tests that exercise rejection behaviors.~~ **Reverted per §7d** — tests flip to accept missing marker.
+- [ ] 7.7 Release-notes draft: variable-name rename note (legacy still accepted, new name preferred for new authoring) AND the validator-removal scope change. Frame the marker as opt-in for auto-renewal. (Deferred to PR 2.5 docs consolidation.)
 
-## 7b. PR 2.3b — Apple non-proxied SCEP validation
+## 7b. PR 2.3b — Apple non-proxied SCEP validator (reverted per scope change 2026-05-15)
 
-Goal: close the gap left by the three existing per-CA SCEP validators, which only fire when Fleet proxy variables are present in the profile. A raw-SCEP profile (literal Challenge/URL strings, no Fleet proxy vars — the Okta SCEP / Okta Verify-static-challenge flows named in #40639) currently bypasses all renewal-ID enforcement. Mirrors the ACME validator added in PR 2.3 but triggers on `com.apple.security.scep` payload type.
+**Scope change 2026-05-15:** PR 2.3b added `additionalNonProxiedSCEPValidation` to enforce the renewal-ID marker on raw-SCEP profiles. Per design.md Decision 2.6 scope reversal, the marker is opt-in and this validator is reverted entirely.
 
-- [x] 7b.1 In `server/service/apple_mdm.go`, add `additionalNonProxiedSCEPValidation` next to `additionalACMEValidation`. Trigger: profile contains a `com.apple.security.scep` payload AND the profile uses none of the Fleet proxy variables (`FleetVarNDESSCEPChallenge` / `FleetVarNDESSCEPProxyURL`, `FleetVarCustomSCEPChallengePrefix` / `FleetVarCustomSCEPProxyURLPrefix`, `FleetVarSmallstepSCEPChallengePrefix` / `FleetVarSmallstepSCEPProxyURLPrefix`). When the profile DOES use those vars, the existing per-CA validators already enforce the renewal-ID requirement and adding this validator on top would double-validate.
-- [x] 7b.2 Apply the same Subject **OU-only** requirement as ACME: accept ONLY `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`, only in OU. Both restrictions follow design.md Decision 2.7's net-new rule — raw-SCEP renewal-ID enforcement did not exist before this validator, so no back-compat is owed for legacy variable name OR CN placement. Reject with `fleet.NewInvalidArgumentError`; the error message names only the preferred variable and states the OU requirement.
-- [x] 7b.3 Wire the new validator into `validateConfigProfileFleetVariables` before the fleetVars early-return, matching the integration shape of `additionalACMEValidation`.
-- [x] 7b.4 Tests in `apple_mdm_test.go` covering: raw SCEP with new marker in OU → accepted; new marker in CN only → rejected (OU-only on this net-new surface); legacy marker → rejected (preferred-only on this net-new surface); no marker at all → rejected; profile that also uses Fleet proxy vars → falls through to the existing per-CA validator path (no double-validation, no behavioral regression).
-- [ ] 7b.5 Release-notes alignment: this validator is the customer-facing trigger for the Okta SCEP / Okta Verify customers named in #40639. PR 2.5 docs should describe ACME and raw-SCEP redeploy paths together rather than treating them as separate stories. (Deferred to PR 2.5.)
+The original implementation tasks below are kept for history; revert work is tracked under §7d.
+
+- [x] 7b.1 ~~In `server/service/apple_mdm.go`, add `additionalNonProxiedSCEPValidation`.~~ **Reverted per §7d.**
+- [x] 7b.2 ~~OU-only / preferred-name-only enforcement.~~ **Reverted per §7d.**
+- [x] 7b.3 ~~Wire into `validateConfigProfileFleetVariables`.~~ **Reverted per §7d.**
+- [x] 7b.4 ~~Tests covering OU-only / preferred-only acceptance and rejection cases.~~ **Reverted per §7d** — tests flip to accept all shapes.
+- [ ] 7b.5 Release-notes alignment for raw-SCEP customers (Okta SCEP / Okta Verify) — now part of the broader "marker is opt-in" messaging. (Deferred to PR 2.5.)
+
+## 7d. PR 2.3d — Revert Apple ACME and raw-SCEP validators (scope change 2026-05-15)
+
+Goal: implement the Decision 2.6 scope reversal. Remove the upload-time renewal-ID enforcement added in PR 2.3 (#45043) and PR 2.3b (#45364). Marker becomes opt-in.
+
+- [ ] 7d.1 In `server/service/apple_mdm.go`, remove `additionalACMEValidation` and its call site in `validateConfigProfileFleetVariables`. Also remove the supporting `acmeProfileForValidation` / `acmePayloadForValidation` types.
+- [ ] 7d.2 Remove `additionalNonProxiedSCEPValidation` and its call site. Also remove the broadened bypass logic for SCEP payloads in `validateConfigProfileFleetVariables` (the SCEP-or-ACME `HasPayloadType` check from PR 2.3b's `mdm_profiles.go` change) — no longer needed since neither validator runs.
+- [ ] 7d.3 Update `apple_mdm_test.go`: delete `TestAdditionalACMEValidation` and `TestAdditionalNonProxiedSCEPValidation`. Add a regression test that confirms ACME and raw-SCEP profiles without the marker upload successfully.
+- [ ] 7d.4 Update integration tests on `pr-2.5b-integration-tests` (or wherever they land): flip `TestACMEProfileFleetVariableValidation` and `TestRawSCEPProfileFleetVariableValidation` sub-tests from reject to accept; delete `TestConditionalAccessProfileFailsACMEValidator` (the documented failure mode no longer occurs).
+- [ ] 7d.5 Confirm pre-existing proxy SCEP validators (NDES / Custom SCEP / Smallstep) keep their existing renewal-ID enforcement unchanged — they predate this story since 4.65 and are not in scope for the reversal.
+- [ ] 7d.6 Document the scope change in the PR description, referencing Decision 2.6 and the GitOps-continuity rationale.
 
 ## 7c. PR 2.3c — Origin downgrade on osquery rediscovery
 
@@ -107,25 +122,29 @@ See design.md Decision 1.3.
 - [ ] 7c.3 Datastore test: pre-populate a row with `origin='mdm'`, run osquery sync containing the same cert (same SHA1), verify origin flips to `osquery`. Mirror case where osquery sync omits an MDM-only cert: row stays `origin='mdm'` and is not soft-deleted (existing PR 1.1 dedup behavior).
 - [ ] 7c.4 No backfill: existing rows where the cert is actually MDM-delivered will keep `origin='mdm'` until the next ingestion cycle observes them via osquery (if applicable). Customers who care about retroactive correction can run an osquery sync.
 
-## 8. PR 2.4 — Windows profile-upload validation
+## 8. PR 2.4 — Windows variable-rename back-compat (pre-existing surface, scope-change-unaffected)
 
-Goal: same as PR 2.3 for Windows — including the legacy/new variable name back-compat (Decision 2.7).
+Goal: extend the pre-existing Windows proxy-SCEP validators (NDES, Custom SCEP) to accept the preferred variable name in addition to the legacy name, so customers can author either spelling.
+
+**Scope-change note (2026-05-15):** Decision 2.6's reversal does NOT affect this PR. The Windows validators touched here are pre-existing surfaces (since 4.85, originally from PR #37170) that have always enforced a renewal-ID variable in SubjectName for profiles using Fleet's NDES or Custom SCEP proxy variables. PR 2.4 just added preferred-name acceptance; it did not introduce new enforcement.
 
 - [x] 8.1 Resolve the Windows Subject substitution open question (see design.md): can `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` be reused in the Windows profile cert Subject, or does Windows need a new Subject-targeted variable? (Resolved: reuse `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` via the unified regex; PR #45237.)
 - [x] 8.2 If a new variable is required, add it to `server/fleet/mdm.go` and substitution logic in `server/datastore/mysql/microsoft_mdm.go` and `server/mdm/microsoft/profile_variables.go`. Reuse the unified `FleetVarRenewalIDRegexp` from PR 2.3 task 7.2 so Windows accepts both legacy and new names without duplicating regex logic.
-- [x] 8.3 Extend Windows profile validation in `server/service/windows_mdm_profiles.go` to detect SCEP cert configurations and require either renewal-ID variable in the Subject (back-compat per Decision 2.7). Validation error messages reference only `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`.
+- [x] 8.3 Extend the existing Windows NDES / Custom SCEP validators in `server/service/windows_mdm_profiles.go` to accept either renewal-ID variable name in the SubjectName OU (back-compat per Decision 2.7). Validation error messages reference only `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`. **No new validation surface introduced** — the variable presence requirement on these proxy-SCEP paths predates this story.
 - [x] 8.4 Tests mirroring PR 2.3's coverage but for Windows profiles, including legacy-name back-compat.
 
 ## 9. PR 2.5 — Phase 2 documentation
 
 Can ship in parallel with PR 2.3 / 2.4.
 
-- [ ] 9.1 Update Fleet's certificate renewal guide (or create a new guide — Product decision pending) to document non-proxied SCEP and ACME renewal
-- [ ] 9.2 Add example profiles (non-proxied ACME — generic plus a customer's-Hydrant illustration, Okta conditional access SCEP, Okta Verify static challenge SCEP) showing correct marker placement in Subject CN/OU
-- [ ] 9.3 **Customer-facing redeploy guidance**: explicit upgrade-step doc explaining that existing profiles must be re-uploaded with the marker for renewal to activate; ideally include a `fleetctl` snippet or query to identify which existing profiles need updating
-- [ ] 9.4 Reference doc note that `host_mdm_managed_certificates.type` may be NULL for non-proxied rows
-- [ ] 9.5 Variable rename note (Decision 2.7): release-notes entry calling out that `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is the new preferred name (per docs PR #44069); legacy `$FLEET_VAR_SCEP_RENEWAL_ID` remains accepted on pre-existing validators (proxy SCEP — NDES/Custom/Smallstep, Windows non-proxied SCEP) for back-compat, but net-new validators (ACME, raw Apple SCEP) accept only the preferred name. New profiles should use the new name everywhere. Confirm rachaelshaw's customer-facing guide PR (#43293) lands alongside this release.
-- [ ] 9.6 Final release-notes entry consolidating Phase 2 changes
+**Framing under Decision 2.6 scope reversal (2026-05-15):** the marker is opt-in. Customers who add it get auto-renewal; customers who don't continue to manage cert lifecycle as in 4.85. Docs should present the marker as a *new capability* rather than a *required migration step*.
+
+- [ ] 9.1 Update Fleet's certificate renewal guide (or create a new guide — Product decision pending) to document non-proxied SCEP and ACME renewal as an opt-in feature.
+- [ ] 9.2 Add example profiles (non-proxied ACME — generic plus a customer's-Hydrant illustration, Okta conditional access SCEP, Okta Verify static challenge SCEP) showing correct marker placement in Subject OU. Frame these as "to enable auto-renewal, place the marker in OU" rather than "you must add the marker."
+- [ ] 9.3 **Optional opt-in guidance for existing customers**: doc explaining that customers running pre-4.86 profiles can opt into auto-renewal by re-uploading their profile with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the cert Subject OU. Existing profiles without the marker continue to work as they do today (manual redeployment for renewal). Include a `fleetctl` snippet or query to identify which profiles deliver renewable certs, so admins know what they'd need to update if they want to opt in.
+- [ ] 9.4 Reference doc note that `host_mdm_managed_certificates.type` may be NULL for non-proxied rows.
+- [ ] 9.5 Variable rename note (Decision 2.7): release-notes entry calling out that `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is the new preferred name (per docs PR #44069); legacy `$FLEET_VAR_SCEP_RENEWAL_ID` is also accepted everywhere — substitution treats both names identically. New profiles should use the new name. Confirm rachaelshaw's customer-facing guide PR (#43293) lands alongside this release.
+- [ ] 9.6 Final release-notes entry consolidating Phase 2 changes — emphasize "opt-in auto-renewal" as the customer-visible behavior. Note that nothing breaks for customers who don't opt in.
 
 ## 10. Phase 2 verification (QA, not a PR)
 
@@ -134,8 +153,8 @@ Can ship in parallel with PR 2.3 / 2.4.
 - [ ] 10.3 Okta conditional access SCEP on macOS via osquery ingestion path (after profile redeploy)
 - [ ] 10.4 Okta Verify SCEP (static challenge) on macOS (after profile redeploy)
 - [ ] 10.5 Okta SCEP on Windows (after profile redeploy)
-- [ ] 10.6 Negative path: do NOT redeploy a profile; confirm no managed-cert row materializes and no renewal happens (validates the no-backfill design and consistency)
-- [ ] 10.7 Profile-validation rejection: attempt to upload an ACME/SCEP profile without the marker; confirm rejection with the expected error message
+- [ ] 10.6 Opt-out path: deploy a profile WITHOUT the marker; confirm the profile uploads cleanly (no validator rejection per Decision 2.6), the cert lands in `host_certificates` for visibility, but NO `host_mdm_managed_certificates` row materializes and NO renewal happens. Validates the opt-in framing — customers who don't add the marker continue with 4.85-style manual renewal, unbroken.
+- [ ] 10.7 ~~Profile-validation rejection: attempt to upload an ACME/SCEP profile without the marker; confirm rejection with the expected error message.~~ **Removed per Decision 2.6 scope reversal — validators no longer reject missing marker.** Replaced by 10.6 (opt-out path) above.
 
 ---
 
