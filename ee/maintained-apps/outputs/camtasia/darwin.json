@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.0.7",
+      "version": "2026.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.techsmith.camtasia';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.techsmith.camtasia' AND version_compare(bundle_short_version, '2026.0.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.techsmith.camtasia' AND version_compare(bundle_short_version, '2026.1.0') < 0);"
       },
-      "installer_url": "https://download.techsmith.com/camtasiamac/releases/2607/Camtasia.dmg",
+      "installer_url": "https://download.techsmith.com/camtasiamac/releases/2026.1.0/Camtasia.dmg",
       "install_script_ref": "2fda011f",
       "uninstall_script_ref": "252f6f0e",
-      "sha256": "e5bbf9500bef6d3caac3a58eebf54695784af6bf5c04548dd6320a5c728da74d",
+      "sha256": "edf947b8689dc9f6209059f05c29ea39f172b0f028b6f5fd9717754d9ceb64d5",
       "default_categories": [
         "Productivity"
       ]

@@ -1,16 +1,11 @@
 # Deploying Platform SSO with Okta and Fleet
 
-Apple's Platform Single Sign-on (Platform SSO), [introduced at WWDC22](https://developer.apple.com/videos/play/wwdc2022/10045) alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once and automatically access apps and websites that require authentication through an IdP.
+Apple's [Platform Single Sign-on (Platform SSO)](https://support.apple.com/guide/deployment/platform-sso-for-macos-dep7bbb05313/web), enables the following features for macOS hosts:
+- Initial local account creation based on identity provider (IdP) credentials during macOS automatic (ADE) enrollment (aka [Simplified Platform SSO](#simplified-platform-sso-macos-26))
+- Sync local account password with IdP
+- End users sign in to their Mac once and automatically access apps and websites that require authentication through an IdP
 
-This guide details how to deploy Okta's macOS Platform SSO extension (Desktop Password Sync) to your Fleet macOS hosts. It covers both the standard Platform SSO setup (macOS 13+) and the newer [Simplified Platform SSO](#simplified-platform-sso-macos-26) workflow introduced in macOS 26.
-
-If your Identity Provider (IdP) supports Platform Single Sign-on, deploying it in your environment offers a great and secure sign-in experience for your users.
-
-Rather than your users having to enter credentials each time they sign in to an app protected by Okta, the Platform SSO extension will automatically perform the authentication and sync their local macOS password with their Okta password.
-
-This speeds up the authentication process for your employees and enables them to use their Okta credentials to unlock their Mac.
-
-**Important:** This feature requires the **Okta Device Access SKU** to enable Desktop Password Sync and Platform SSO functionality. Contact your Okta account representative if you need to purchase this license for your organization.
+This guide details how to enable these features by deploying Okta's macOS Platform SSO extension (Desktop Password Sync) to your Fleet macOS hosts.
 
 ## Prerequisites
 
@@ -364,7 +359,39 @@ In addition to the [standard prerequisites](#prerequisites) above, Simplified Pl
 
 Simplified Platform SSO uses the same Extensible SSO / Platform SSO profile and Okta Device Access SCEP profile described in the sections above. Follow the existing instructions to create:
 
-- An **Extensible Single Sign-On** profile with Platform SSO settings.
+- An **Extensible Single Sign-On** profile with Simplified Platform SSO settings.
+
+For users to be created during setup and immediately registered with Platform SSO the profile must include **EnableRegistrationDuringSetup** and must list https://yourdomain.okta.com/v1/auth/device-sign within **URLs**
+
+Example configuration for macOS 26:
+
+```xml
+<key>PayloadType</key>
+<string>com.apple.extensiblesso</string>
+<key>PlatformSSO</key>
+<dict>
+    <key>AccountDisplayName</key>
+    <string>Okta Verify</string>
+    <key>AuthenticationMethod</key>
+    <string>Password</string>
+    <key>UseSharedDeviceKeys</key>
+    <true/>
+    <key>EnableRegistrationDuringSetup</key>
+    <true/>
+</dict>
+<key>ExtensionIdentifier</key>
+<string>com.okta.mobile.auth-service-extension</string>
+<key>TeamIdentifier</key>
+<string>B7F62B65BN</string>
+<key>Type</key>
+<string>Redirect</string>
+<key>URLs</key>
+<array>
+    <string>https://yourdomain.okta.com/device-access/api/v1/nonce</string>
+    <string>https://yourdomain.okta.com/oauth2/v1/token</string>
+    <string>https://yourdomain.okta.com/v1/auth/device-sign</string>
+</array>
+```
   - View example **[Extensible Single Sign-On profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-sso-extension-simplified-setup-example.mobileconfig)**
 - An **Associated domains** profile.
   - View example **[Associated domains profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-associated-domains-example.mobileconfig)**

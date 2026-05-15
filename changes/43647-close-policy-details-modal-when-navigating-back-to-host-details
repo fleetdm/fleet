@@ -1,0 +1,1 @@
+* Fixed an issue where the Policy details modal would not close when navigating back to the Host details page with the browser's back button.

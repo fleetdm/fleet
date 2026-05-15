@@ -1,1 +1,0 @@
-- The team's `script_execution_timeout` in agent options now defaults to the global agent options value when unset.

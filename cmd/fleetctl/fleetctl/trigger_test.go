@@ -76,7 +76,7 @@ func TestTrigger(t *testing.T) {
 		if c.delay != 0 {
 			time.Sleep(c.delay)
 		}
-		assert.Equal(t, "", RunAppForTest(t, c.args))
+		assert.Empty(t, runAppForTest(t, c.args))
 	}
 
 	os.Stdout = oldStdout

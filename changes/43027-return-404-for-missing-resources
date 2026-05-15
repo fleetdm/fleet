@@ -1,0 +1,1 @@
+- Fixed an issue where these endpoints returned 200 instead of 404 Not Found when the batch execution ID didn't exist: `/api/v1/fleet/scripts/batch/:id`, `/api/v1/fleet/scripts/batch/summary/:id`, and `/api/v1/fleet/scripts/batch/:id/cancel`
