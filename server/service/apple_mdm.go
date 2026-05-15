@@ -5501,7 +5501,7 @@ const hoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
 // at 5000 hosts / tick on a 30s tick, that's <= 5 min for 50k hosts.
 //
 // var rather than const so tests can shrink the batch size.
-var reconcileAppleProfilesBatchSize = 5000
+var reconcileAppleProfilesBatchSize = 2000
 
 // ReconcileAppleProfiles applies configuration profiles to Apple MDM hosts.
 // Named return so the deferred SetCursor block below sees the actual
