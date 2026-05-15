@@ -1,0 +1,1 @@
+* Fixed an issue where the Actions dropdown in the Run script modal within the Host details page would automatically close after 2-3s.

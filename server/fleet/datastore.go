@@ -1101,6 +1101,10 @@ type Datastore interface {
 	// UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
 	UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, hostID uint, until *time.Time) error
 
+	// ExtendHostOrbitDebugUntil writes `until` only when it is later than the
+	// current value (or NULL): idempotent, never shortens an existing override.
+	ExtendHostOrbitDebugUntil(ctx context.Context, hostID uint, until time.Time) error
+
 	// FlippingPoliciesForHost fetches the policies with incoming results and returns:
 	//	- a list of "new" failing policies; "new" here means those that fail on their first
 	//	run, and those that were passing on the previous run and are failing on the incoming execution.
@@ -1652,8 +1656,11 @@ type Datastore interface {
 	// This is used when a clear command fails with a transient error (not password mismatch).
 	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
 
-	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now.
-	// Called when the password is viewed and returns the scheduled rotation time.
+	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now on
+	// the host's install-state recovery lock row and returns the scheduled
+	// rotation time. If the row is missing or in a state where rotation does
+	// not apply (e.g., operation_type='remove'), returns a zero time and no
+	// error so callers that have already retrieved the password do not 404.
 	MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error)
 
 	// GetHostsForAutoRotation returns hosts where auto_rotate_at <= now
@@ -2055,7 +2062,14 @@ type Datastore interface {
 	// the ESP finalize path so a partial-insert + fresh-UUID retry can't leave orphan rows in the queue.
 	MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*MDMWindowsCommand) error
 
+	MDMWindowsBulkInsertCommands(ctx context.Context, cmds []*MDMWindowsCommand) error
+
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
+
+	// MDMWindowsEnqueueCommandAndUpsertHostProfiles enqueues a pre-inserted
+	// command for hosts and upserts their profile tracking rows. The command
+	// must already exist in windows_mdm_commands.
+	MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
 
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
 	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)
@@ -2854,20 +2868,32 @@ type Datastore interface {
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
-	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error)
-	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error)
-	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error)
+	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error)
+	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error)
+	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error)
 
 	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
 
 	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
 	// all provided apps and returns them indexed by the app id.
-	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error)
+	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error)
 
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
 	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error
 
 	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
+
+	// VPP App Configuration (iOS/iPadOS)
+	GetVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error)
+	HasVPPAppConfigurationChanged(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error)
+	BulkGetVPPAppConfigurations(ctx context.Context, platform InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error)
+	DeleteVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) error
+
+	// In-House App Configuration (iOS/iPadOS).
+	GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error)
+	HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error)
+	BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error)
+	DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM

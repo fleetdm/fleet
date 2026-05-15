@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -87,6 +88,17 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, failOnBlankScript); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
+	}
+
+	// Validate iOS/iPadOS managed app configuration up-front. For non-.ipa extensions, silently drop.
+	if payload.Extension == "ipa" {
+		if len(payload.Configuration) > 0 {
+			if err := fleet.ValidateAppleAppConfiguration(payload.Configuration); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		payload.Configuration = nil
 	}
 
 	// Validate install/post-install/uninstall script contents for non-script
@@ -193,6 +205,14 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		addedInstaller, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &tmID, titleID)
 		if err != nil {
 			return nil, err
+		}
+		// Wrap iOS / iPadOS plist as a JSON string for the response.
+		if len(addedInstaller.Configuration) > 0 {
+			wrapped, err := json.Marshal(string(addedInstaller.Configuration))
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "wrapping configuration for response")
+			}
+			addedInstaller.Configuration = wrapped
 		}
 		return addedInstaller, nil
 	}
@@ -1510,6 +1530,12 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	cmdUUID := uuid.NewString()
 	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, opts)
 	if err != nil {
+		if errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar) {
+			return "", &fleet.BadRequestError{
+				Message:     "Couldn't install. The managed app configuration references Fleet variables that can't be resolved for this host.",
+				InternalErr: err,
+			}
+		}
 		return "", ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
 	}
 
@@ -2505,6 +2531,7 @@ func (svc *Service) softwareBatchUpload(
 				DisplayName:        p.DisplayName,
 				RollbackVersion:    p.RollbackVersion,
 				AlwaysDownload:     p.AlwaysDownload,
+				Configuration:      p.Configuration,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
@@ -2849,6 +2876,11 @@ func (svc *Service) softwareBatchUpload(
 					// this isn't the specified installer, so return an error
 					return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
 				}
+			}
+
+			// Managed app configuration is only supported for iOS / iPadOS in-house apps.
+			if installer.Extension != "ipa" {
+				installer.Configuration = nil
 			}
 
 			// For script packages (.sh and .ps1) and in-house apps (.ipa), clear

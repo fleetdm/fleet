@@ -64,8 +64,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
-	"github.com/fleetdm/fleet/v4/server/datastore/s3"
+	"github.com/fleetdm/fleet/v4/server/datastore/s3/s3test"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
@@ -285,7 +286,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.appleMDMWorker = appleMDMWorker
 
 	// clear the jobs queue of any pending jobs generated via DB migrations
-	mysql.ExecAdhocSQL(s.T(), s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(s.T(), s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), "DELETE FROM jobs")
 		return err
 	})
@@ -311,8 +312,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		(wantStore == "s3" || (wantStore == "" && time.Now().UnixNano()%2 == 0)) {
 
 		s.T().Log(">>> using S3-compatible software installer store")
-		softwareInstallerStore = s3.SetupTestSoftwareInstallerStore(s.T(), "integration-tests", "")
-		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
+		softwareInstallerStore = s3test.SetupSoftwareInstallerStore(s.T(), "integration-tests", "")
+		bootstrapPackageStore = s3test.SetupBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
 	s.softwareInstallerStore = softwareInstallerStore
 	scepTimeout := ptr.Duration(10 * time.Second)
@@ -342,8 +343,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		SoftwareInstallStore:   s.softwareInstallerStore,
 		SoftwareTitleIconStore: softwareTitleIconStore,
 		BootstrapPackageStore:  bootstrapPackageStore,
-		androidMockClient:      androidMockClient,
-		androidModule:          androidSvc,
+		AndroidMockClient:      androidMockClient,
+		AndroidModule:          androidSvc,
 		KeyValueStore:          keyValueStore,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
@@ -898,126 +899,126 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 
 	// use a sql statement to delete all profiles, since the datastore prevents
 	// deleting the fleet-specific ones.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_configuration_profiles")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM mdm_windows_configuration_profiles")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_bootstrap_packages")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM mdm_android_configuration_profiles")
 		return err
 	})
 
 	// Delete certificate templates
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM host_certificate_templates")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM certificate_templates")
 		return err
 	})
 
 	// Delete any CAs
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM certificate_authorities")
 		return err
 	})
 
 	// clear any pending worker job
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM jobs")
 		return err
 	})
 
 	// clear any host dep assignments
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM host_dep_assignments")
 		return err
 	})
 
 	// clear any mdm windows enrollments
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM mdm_windows_enrollments")
 		return err
 	})
 
 	// clear any lingering declarations
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM mdm_apple_declarations")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM host_mdm_apple_declarations")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM mobile_device_management_solutions;")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM host_mdm;")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM abm_tokens;")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_tokens;")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM setup_experience_status_results;")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM setup_experience_scripts;")
 		return err
 	})
 
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
 		return err
 	})
 
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM android_app_configurations;")
 		return err
 	})
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM nano_enrollment_queue")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM nano_command_results")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM nano_cert_auth_associations")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM nano_commands")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM nano_enrollments")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM nano_users")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM nano_devices")
 		return err
 	})
@@ -1145,7 +1146,7 @@ func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 
 	checkStoredCertAuthAssociation := func(id string, expectedCount uint) {
 		// confirm expected cert auth association
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var ct uint
 			// query duplicates the logic in nanomdm/storage/mysql/certauth.go
 			if err := sqlx.GetContext(context.Background(), q, &ct, "SELECT COUNT(*) FROM nano_cert_auth_associations WHERE id = ?", mdmDevice.UUID); err != nil {
@@ -1159,7 +1160,7 @@ func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 
 	checkStoredBootstrapToken := func(id string, expectedToken *string, expectedErr error) {
 		// confirm expected bootstrap token
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var tok *string
 			err := sqlx.GetContext(context.Background(), q, &tok, "SELECT bootstrap_token_b64 FROM nano_devices WHERE id = ?", mdmDevice.UUID)
 			if err != nil || expectedErr != nil {
@@ -1193,7 +1194,7 @@ func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 	t.Run("bootstrap token set", func(t *testing.T) {
 		// device record exists, set bootstrap token
 		token := base64.StdEncoding.EncodeToString([]byte("testtoken"))
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), "UPDATE nano_devices SET bootstrap_token_b64 = ? WHERE id = ?", base64.StdEncoding.EncodeToString([]byte(token)), mdmDevice.UUID)
 			require.NoError(t, err)
 			return nil
@@ -1209,7 +1210,7 @@ func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 
 	t.Run("no device record", func(t *testing.T) {
 		// delete the entire device record
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), "DELETE FROM nano_devices WHERE id = ?", mdmDevice.UUID)
 			require.NoError(t, err)
 			return nil
@@ -1225,7 +1226,7 @@ func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 	t.Run("no cert auth association", func(t *testing.T) {
 		// on mdm checkout, nano soft deletes by calling storage.Disable, which leaves the cert auth
 		// association in place, so what if we hard delete instead?
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), "DELETE FROM nano_cert_auth_associations WHERE id = ?", mdmDevice.UUID)
 			require.NoError(t, err)
 			return nil
@@ -1768,7 +1769,7 @@ func (s *integrationMDMTestSuite) simulateMDMWindowsQueries(t *testing.T, host *
 
 func loadEnrollmentProfileDEPToken(t *testing.T, ds *mysql.Datastore) string {
 	var token string
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &token,
 			`SELECT token FROM mdm_apple_enrollment_profiles`)
 	})
@@ -1818,7 +1819,7 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	t := s.T()
 	// Clear out all activities to other test leaking activities into this one.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), `DELETE FROM activity_past`)
 		return err
 	})
@@ -1841,7 +1842,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 		fmt.Sprintf(`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
 	// Find the ID of Fleet's MDM solution
 	var mdmID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
 			`SELECT id FROM mobile_device_management_solutions WHERE name = ?`, fleet.WellKnownMDMFleet)
 	})
@@ -3179,7 +3180,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
 
 	// host profile is applied but decryptable key does not exist
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(
 			context.Background(),
 			"UPDATE host_disk_encryption_keys SET decryptable = NULL WHERE host_id IN (?, ?)",
@@ -4083,11 +4084,11 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 	require.NoError(t, s.ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
 	var enrollmentID uint
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &enrollmentID, `SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, dev.MDMDeviceID)
 	})
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE id = ?`, dev.HostUUID, enrollmentID)
 		return err
@@ -4097,14 +4098,14 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 	cmdUUID := "some-uuid"
 	cmdTarget := "some-target-loc-uri"
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri) VALUES (?, ?, ?)`, cmdUUID, rawCmd, cmdTarget)
 		return err
 	})
 
 	var responseID int64
 	rawResponse := []byte("some-response")
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, rawResponse)
 		if err != nil {
 			return err
@@ -4115,7 +4116,7 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 
 	rawResult := []byte("some-result")
 	statusCode := "200"
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, ?, ?)`, enrollmentID, cmdUUID, rawResult, responseID, statusCode)
 		return err
 	})
@@ -5862,8 +5863,8 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	// token to use to hit the Apple APIs.
 	otherOrg := t.Name() + "some_other_org"
 	s.enableABM(otherOrg)
-	// mysql.CreateABMKeyCertIfNotExists(t, s.ds)
-	// mysql.CreateAndSetABMToken(t, s.ds, "nurv")
+	// mysqltest.CreateABMKeyCertIfNotExists(t, s.ds)
+	// mysqltest.CreateAndSetABMToken(t, s.ds, "nurv")
 	// err = s.depStorage.StoreConfig(ctx, "nurv", &nanodep_client.Config{BaseURL: srv.URL})
 	s.mockDEPResponse(otherOrg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		encoder := json.NewEncoder(w)
@@ -5952,7 +5953,7 @@ func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint,
 		teamID = ptr.Uint(0)
 	}
 	var cfgProfs []*fleet.MDMAppleConfigProfile
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(context.Background(), q, &cfgProfs, `SELECT * FROM mdm_apple_configuration_profiles WHERE team_id = ?`, teamID)
 	})
 
@@ -5979,7 +5980,7 @@ func (s *integrationMDMTestSuite) assertMacOSConfigProfilesByName(teamID *uint, 
 		teamID = ptr.Uint(0)
 	}
 	var cfgProfs []*fleet.MDMAppleConfigProfile
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(context.Background(), q, &cfgProfs, `SELECT name FROM mdm_apple_configuration_profiles WHERE team_id = ?`, teamID)
 	})
 
@@ -6003,7 +6004,7 @@ func (s *integrationMDMTestSuite) assertMacOSDeclarationsByName(teamID *uint, de
 		teamID = ptr.Uint(0)
 	}
 	var cfgProfs []*fleet.MDMAppleConfigProfile
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(context.Background(), q, &cfgProfs, `SELECT name FROM mdm_apple_declarations WHERE team_id = ?`, teamID)
 	})
 
@@ -6027,7 +6028,7 @@ func (s *integrationMDMTestSuite) assertWindowsConfigProfilesByName(teamID *uint
 		teamID = ptr.Uint(0)
 	}
 	var cfgProfs []*fleet.MDMWindowsConfigProfile
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(context.Background(), q, &cfgProfs,
 			`SELECT profile_uuid, team_id, name, syncml, created_at, uploaded_at FROM mdm_windows_configuration_profiles WHERE team_id = ?`,
 			teamID)
@@ -7586,7 +7587,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		}))
 
 		cleanAssignmentStatus := func() {
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				stmt := `UPDATE host_dep_assignments
 					 SET assign_profile_response = NULL,
 					     response_updated_at = NULL,
@@ -7831,13 +7832,13 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
 
 		// clean up nano tables
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), `
 			DELETE FROM nano_enrollments WHERE id = ?
 			`, host.UUID)
 			return err
 		})
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), `
 			DELETE FROM nano_devices WHERE id = ?
 			`, host.UUID)
@@ -9056,7 +9057,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 
 	getCommandFullResult := func(cmdUUID string) []byte {
 		var fullResult []byte
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(context.Background(), q, &fullResult, `
 			SELECT raw_response
 			FROM windows_mdm_responses wmr
@@ -10936,7 +10937,7 @@ func (s *integrationMDMTestSuite) runWorkerUntilDoneWithChecks(failIfFailedJobs 
 	if failIfFailedJobs {
 		var failedJobs []*fleet.Job
 		t := s.T()
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(t.Context(), q, &failedJobs, "SELECT name, args, state, error FROM jobs WHERE state NOT IN ('queued', 'success')")
 		})
 		require.Empty(s.T(), failedJobs, "some jobs have failed: %s", spew.Sdump(failedJobs))
@@ -13057,7 +13058,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
 
 	checkJobs := func(expectedAppIDs []string) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			w := &worker.SoftwareWorker{}
 			var j fleet.Job
 
@@ -13540,7 +13541,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	assert.Equal(t, "Pending", *hostResp.Host.MDM.EnrollmentStatus)
 
 	// Set iOS detail_updated_at as 2 hours in the past.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, host.ID)
 		return err
 	})
@@ -13675,7 +13676,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
 		var titleID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			ctx := context.Background()
 			return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, app.AdamID, app.Platform)
 		})
@@ -14239,7 +14240,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			addedApp.Name, addedApp.AdamID, macOSTitleID, team.ID, team.ID, team.ID, addedApp.Platform), 0)
 
 	var count int
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, team.ID, macOSTitleID)
 	})
 	require.Equal(t, 0, count)
@@ -14469,7 +14470,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Verify the retry_count was increased to 1 for the failedCmdUUID
 	var retryCount int
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
 	})
 	require.Equal(t, 1, retryCount)
@@ -14487,7 +14488,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	errorOnInstallApplicationCommand(9610)
 	require.NotEqual(t, oldFailedCmdUUID, failedCmdUUID)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
 	})
 	require.Equal(t, 2, retryCount)
@@ -14496,7 +14497,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	errorOnInstallApplicationCommand(9610)
 	require.NotEqual(t, failedCmdUUID, oldFailedCmdUUID)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
 	})
 	require.Equal(t, 3, retryCount)
@@ -14506,7 +14507,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	errorOnInstallApplicationCommand(9610)
 	require.NotEqual(t, failedCmdUUID, oldFailedCmdUUID)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &retryCount, `SELECT retry_count FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, mdmHost.ID, macOSApp.AdamID)
 	})
 	require.Equal(t, 3, retryCount)
@@ -14584,7 +14585,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var types []string
 		err := sqlx.SelectContext(context.Background(), q, &types, "SELECT activity_type FROM upcoming_activities WHERE host_id = ?", mdmHost.ID)
 		require.NoError(t, err)
@@ -14970,7 +14971,7 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 	require.NoError(t, err)
 
 	var count int
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, fleet.PolicyNoTeamID, macOSTitleID)
 	})
 	require.Equal(t, 1, count)
@@ -14983,7 +14984,7 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 		fmt.Sprintf(`{"team_name": null, "fleet_name": null, "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", "team_id": %d, "fleet_id": %d, "platform": "%s"}`,
 			addedApp.Name, addedApp.AdamID, macOSTitleID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, addedApp.Platform), 0)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, fleet.PolicyNoTeamID, macOSTitleID)
 	})
 	require.Equal(t, 0, count)
@@ -15139,7 +15140,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
 		var titleID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?;`, app.AdamID, app.Platform)
 		})
 
@@ -15521,7 +15522,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		},
 	), http.StatusOK, &distributedResp)
 	var countPendingInstalls uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &countPendingInstalls, `SELECT COUNT(*)
 			FROM upcoming_activities
 			WHERE activity_type = 'vpp_app_install'
@@ -15583,7 +15584,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.runWorker()
 
 	// Shouldn't be any more pending installs
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &countPendingInstalls, `SELECT COUNT(*)
 			FROM upcoming_activities
 			WHERE activity_type = 'vpp_app_install'
@@ -15701,7 +15702,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		}
 	}
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &countPendingInstalls, `SELECT COUNT(*)
 			FROM upcoming_activities
 			WHERE activity_type = 'vpp_app_install'
@@ -17237,7 +17238,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 
 	// ////////////////////////////////
 	// Test DigiCert CA with Fleet variables
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(
 			context.Background(),
 			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
@@ -17949,7 +17950,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 
 	// checkChallenge is a helper function to check if the challenge exists in the database.
 	checkChallenge := func(t *testing.T, challenge string, expectFound bool) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var foundChallenge string
 			stmt := "SELECT challenge FROM challenges where challenge = ?"
 			err := sqlx.GetContext(context.Background(), q, &foundChallenge, stmt, challenge)
@@ -18143,7 +18144,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	require.Nil(t, cmd, "Not expecting SCEP profile")
 
 	// Mark the profile as pending so that it can be resent
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := "UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?"
 		r, err := q.ExecContext(context.Background(), stmt, nil, host.UUID, profileUUID)
 		require.NoError(t, err, "Failed to update profile status in the database")
@@ -18157,7 +18158,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	// Check profile status, raw status will be nil (awaiting the reconcile job)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status string
 		stmt := "SELECT coalesce(status, '') FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
 		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
@@ -18167,7 +18168,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	})
 	// Reconcile profiles, raw status becomes pending
 	s.awaitTriggerProfileSchedule(t)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status string
 		stmt := "SELECT coalesce(status, '') FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
 		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
@@ -18181,7 +18182,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	require.NoError(t, err)
 	require.NotNil(t, cmd, "Expecting SCEP profile")
 	// Status should still be pending because we haven't acknowledged the profile command yet
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status string
 		stmt := "SELECT coalesce(status, '')  FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
 		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
@@ -18205,7 +18206,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	require.Equal(t, profileUUID, profileUUID2, "Expected the same profile UUID after re-sending the SCEP profile")
 
 	// Expire the challenge so that the next PKIOperation fails
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := "UPDATE challenges SET created_at = ? WHERE challenge = ?"
 		res, err := q.ExecContext(context.Background(), stmt, time.Now().Add(-2*time.Hour), gotChallenge2)
 		require.NoError(t, err, "Failed to expire the challenge in the database")
@@ -18219,7 +18220,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier2, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	// Check profile status, raw status will be empty (awaiting the reconcile job)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status string
 		stmt := "SELECT coalesce(status, '') FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
 		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
@@ -18236,7 +18237,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 
 	// Reconcile profiles, raw status becomes pending
 	s.awaitTriggerProfileSchedule(t)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status string
 		stmt := "SELECT coalesce(status, '') FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
 		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
@@ -18250,7 +18251,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	require.NoError(t, err)
 	require.NotNil(t, cmd, "Expecting SCEP profile")
 	// Status should still be pending because we haven't acknowledged the profile command yet
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status string
 		stmt := "SELECT coalesce(status, '') FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
 		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
@@ -19633,7 +19634,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneADE() {
 	// Some time later, the refetcher will send commands to refetch that host.
 	// Mimic this by setting its detail_updated_at at least 1h in the past and
 	// triggering the refetch cron job.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, host.ID)
 		return err
 	})
@@ -19883,7 +19884,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 
 	// to be able to simulate the host sending a MDM result post-cancelation,
 	// we need to re-activate the MDM command.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(t.Context(), `UPDATE nano_enrollment_queue SET active = 1 WHERE id = ? AND command_uuid = ?`, mdmHost.UUID, hostActivitiesResp.Activities[0].UUID)
 		return err
 	})
@@ -20368,11 +20369,12 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	require.NotEmpty(t, location)
 	require.True(t, strings.HasPrefix(location, testSAMLIDPBaseURL+"/simplesaml/"))
 
-	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	res = s.LoginOTAEnrollSSOUser("sso_user", "user123#", "idp")
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 	location = res.Header.Get("Location")
+	t.Logf("SSO login redirect location: %s", location)
 	require.NotEmpty(t, location)
-	require.True(t, strings.HasPrefix(location, "/mdm/sso/callback"))
+	require.True(t, strings.HasPrefix(location, "/enroll")) // expect to be redirect from /enroll page for BYOD
 
 	// requesting the /enroll page again and simulating the BYOD IdP cookie being set
 	// still redirects to the SSO login if the cookie value does not match the
@@ -20398,6 +20400,51 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	location = res.Header.Get("Location")
 	require.NotEmpty(t, location)
 	require.True(t, strings.HasPrefix(location, testSAMLIDPBaseURL+"/simplesaml/"))
+}
+
+// TestOTAEnrollSSOWithoutAppleDEPProfile verifies that OTA enrollment SSO
+// (used by Android and BYOD iPhone/iPad) succeeds even when no Apple DEP
+// automatic enrollment profile exists. This is a regression test for #45024
+// where the SSO callback returned "missing profile" on Android-only instances.
+func (s *integrationMDMTestSuite) TestOTAEnrollSSOWithoutAppleDEPProfile() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.setSkipWorkerJobs(t)
+	s.setUpMDMSSO(t, false)
+
+	// Create a team with IdP (end user authentication) enabled and an enroll secret.
+	teamIdP, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team with idp for ota sso test"})
+	require.NoError(t, err)
+	teamIdP.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+	_, err = s.ds.SaveTeam(ctx, teamIdP)
+	require.NoError(t, err)
+	err = s.ds.ApplyEnrollSecrets(ctx, &teamIdP.ID, []*fleet.EnrollSecret{{Secret: "ota-sso-test"}}) //nolint:gosec // test credential
+	require.NoError(t, err)
+
+	// Remove any Apple DEP automatic enrollment profiles to simulate an
+	// instance where Apple MDM is not configured (Android-only).
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_enrollment_profiles")
+		return err
+	})
+
+	// Perform the full OTA enrollment SSO flow: GET /enroll → IdP login → callback.
+	// Before the fix for #45024, this would fail with "missing profile" because the
+	// callback tried to fetch the (now-deleted) Apple DEP enrollment profile.
+	res := s.LoginOTAEnrollSSOUser("sso_user", "user123#", "ota-sso-test")
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+	location := res.Header.Get("Location")
+	require.NotEmpty(t, location)
+
+	u, err := url.Parse(location)
+	require.NoError(t, err)
+
+	// The callback should redirect back to the /enroll page (not to ?error=true).
+	require.True(t, strings.HasPrefix(u.Path, "/enroll"), "expected redirect to /enroll, got: %s", location)
+	require.Empty(t, u.Query().Get("error"), "expected no error in redirect, got: %s", location)
+	require.NotEmpty(t, u.Query().Get("enrollment_reference"), "expected enrollment_reference in redirect")
+	require.Equal(t, fleet.SSOInitiatorOTAEnroll, u.Query().Get("initiator"))
 }
 
 func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
@@ -21529,7 +21576,7 @@ func (s *integrationMDMTestSuite) TestWindowsRekeyFlow() {
 	_, mdmHost := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	// Now we remove the credentials_hash and ack to simulate an existing enrollment to force rekeying
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "UPDATE mdm_windows_enrollments SET credentials_hash = NULL, credentials_acknowledged = FALSE WHERE mdm_device_id = ?", mdmHost.DeviceID)
 		return err
 	})
@@ -21541,7 +21588,7 @@ func (s *integrationMDMTestSuite) TestWindowsRekeyFlow() {
 		CredentialsHash         *[]byte `db:"credentials_hash"`
 		CredentialsAcknowledged bool    `db:"credentials_acknowledged"`
 	}
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.GetContext(ctx, q, &updatedValues, "SELECT credentials_hash, credentials_acknowledged FROM mdm_windows_enrollments WHERE mdm_device_id = ?", mdmHost.DeviceID)
 		return err
 	})
@@ -21653,7 +21700,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Add a configuration profile to t1.
 	mcUUID := "a" + uuid.NewString()
 	prof := mcBytesForTest("name-"+mcUUID, "identifier-"+mcUUID, mcUUID)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
 		_, err := q.ExecContext(t.Context(), stmt, mcUUID, t1.ID, "name-"+mcUUID, "identifier-"+mcUUID, prof, test.MakeTestBytes())
 		return err
@@ -21663,7 +21710,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Add a configuration profile to "No team".
 	mcUUID2 := "a" + uuid.NewString()
 	prof2 := mcBytesForTest("name-"+mcUUID2, "identifier-"+mcUUID2, mcUUID2)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, team_id, name, identifier, mobileconfig, checksum, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);`
 		_, err := q.ExecContext(t.Context(), stmt, mcUUID2, 0, "name-"+mcUUID2, "identifier-"+mcUUID2, prof2, test.MakeTestBytes())
 		return err
@@ -22315,7 +22362,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to resend a profile.
 	// First set the profile to failed, so that we can resend.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
 		_, err := q.ExecContext(t.Context(), stmt, fleet.MDMDeliveryFailed, mcUUID, team1MacOSHost.UUID)
 		return err
@@ -22673,7 +22720,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to resend a profile on t1, should allow.
 	// First set the profile to failed, so that we can resend.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_apple_profiles SET status = ? WHERE profile_uuid = ? AND host_uuid = ?`
 		_, err := q.ExecContext(t.Context(), stmt, fleet.MDMDeliveryFailed, mcUUID, team1MacOSHost.UUID)
 		return err
@@ -23384,7 +23431,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		originalPassword := getPasswordResp.RecoveryLockPassword.Password
 
 		// Manually set auto_rotate_at to the past to trigger auto-rotation
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(t.Context(),
 				`UPDATE host_recovery_key_passwords SET auto_rotate_at = ? WHERE host_uuid = ?`,
 				time.Now().Add(-1*time.Hour), host.UUID)
@@ -23534,7 +23581,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 
 		// Direct DB row is soft-deleted.
 		var deleted bool
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(t.Context(), q, &deleted,
 				`SELECT deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
 		})
@@ -23608,7 +23655,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		readDeleted := func() bool {
 			t.Helper()
 			var deleted bool
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				return sqlx.GetContext(t.Context(), q, &deleted,
 					`SELECT deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
 			})
@@ -23718,7 +23765,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 		// Verify managed account row exists with status = NULL (pending)
 		var status *string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &status,
 				"SELECT status FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
 		})
@@ -23752,7 +23799,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		require.True(t, foundAccountConfig, "AccountConfiguration command should have been queued")
 
 		// Managed account row should be status = verified
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &status,
 				"SELECT status FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
 		})
@@ -23777,7 +23824,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		require.NoError(t, err)
 		require.True(t, hostAfterAck.RefetchRequested, "host should have RefetchRequested set after AccountConfiguration ack")
 		var accountUUIDAfterAck *string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &accountUUIDAfterAck,
 				"SELECT account_uuid FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
 		})
@@ -23824,7 +23871,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 		var accountUUIDAfterIngest *string
 		var updatedAtAfterIngest time.Time
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			row := q.QueryRowxContext(ctx,
 				"SELECT account_uuid, updated_at FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
 			return row.Scan(&accountUUIDAfterIngest, &updatedAtAfterIngest)
@@ -23845,7 +23892,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		submitUsersResult()
 		var accountUUIDAfterRepeat *string
 		var updatedAtAfterRepeat time.Time
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			row := q.QueryRowxContext(ctx,
 				"SELECT account_uuid, updated_at FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice.UUID)
 			return row.Scan(&accountUUIDAfterRepeat, &updatedAtAfterRepeat)
@@ -23925,7 +23972,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 		// Verify status is "failed"
 		var status *string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &status,
 				"SELECT status FROM host_managed_local_account_passwords WHERE host_uuid = ?", mdmDevice3.UUID)
 		})
@@ -24088,7 +24135,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		// Auto rotation: backdate auto_rotate_at into the past, trigger the cron,
 		// ack — assert the activity is logged with FleetInitiated=true.
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`,
 				mdmDevice.UUID)
@@ -24135,7 +24182,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 		// Deferred rotation: clear account_uuid, click rotate, verify deferred state
 		// without a command in the queue.
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				`UPDATE host_managed_local_account_passwords SET account_uuid = NULL WHERE host_uuid = ?`,
 				mdmDevice.UUID)
@@ -24161,7 +24208,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		// Restore account_uuid and run the cron — the row should now be picked up,
 		// the command enqueued, and after ack NO new activity should be added
 		// (the deferred manual click already logged it).
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				`UPDATE host_managed_local_account_passwords SET account_uuid = ? WHERE host_uuid = ?`,
 				"AAAAAAAA-BBBB-CCCC-DDDD-FFFFFFFFFFFF", mdmDevice.UUID)
@@ -24266,7 +24313,7 @@ func (s *integrationMDMTestSuite) TestErrorOnEnrollmentInstallProfileProducesAct
 
 	setRenewCommandUUID := func(cmdUUID *string) {
 		t.Helper()
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				`UPDATE nano_cert_auth_associations SET renew_command_uuid = ? WHERE id = ?`,
 				cmdUUID, host.UUID,
@@ -24279,7 +24326,7 @@ func (s *integrationMDMTestSuite) TestErrorOnEnrollmentInstallProfileProducesAct
 	// so we have to insert a placeholder command before pointing at it.
 	insertNanoCommand := func(cmdUUID string) {
 		t.Helper()
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, 'InstallProfile', '<?xml version="1.0"?>')`,
 				cmdUUID,

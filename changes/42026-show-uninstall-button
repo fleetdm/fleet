@@ -1,0 +1,1 @@
+- Added missing uninstall option on host software library even when an installer has no matching software in the host's inventory.

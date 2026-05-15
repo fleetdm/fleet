@@ -142,6 +142,7 @@ module.exports.routes = {
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
+      showSearchInMobileMenu: true,
     }
   },
 
@@ -198,6 +199,7 @@ module.exports.routes = {
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
+      showSearchInMobileMenu: true,
     }
   },// handles /releases/foo
 
@@ -214,6 +216,7 @@ module.exports.routes = {
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
+      showSearchInMobileMenu: true,
     }
   },// handles /guides/foo
 
@@ -228,6 +231,10 @@ module.exports.routes = {
   'GET /announcements/*': {
     skipAssets: false,
     action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+      showSearchInMobileMenu: true,
+    }
   },// handles /announcements/foo
 
   'GET /podcasts': {
@@ -586,6 +593,23 @@ module.exports.routes = {
     }
   },
 
+
+  'GET /autonomous-endpoint-management': {
+    action: 'landing-pages/view-autonomous-endpoint-management',
+    locals: {
+      pageTitleForMeta: 'Autonomous endpoint management',
+      pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
+    }
+  },
+
+  'GET /imagine/apple-mdm': {
+    action: 'landing-pages/view-apple-mdm',
+    locals: {
+      pageTitleForMeta: 'Apple MDM: open source Mac device management at enterprise scale',
+      pageDescriptionForMeta: 'Fleet is open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. Self-hosted or Fleet-hosted.',
+    }
+  },
+
   'GET /on-premise': {
     action: 'landing-pages/view-on-premise',
     locals: {
@@ -602,6 +626,16 @@ module.exports.routes = {
     action: 'articles/view-articles',
     locals: {
       currentSection: 'more',
+    }
+  },
+
+  'GET /lp/patch-faster': {
+    action: 'landing-pages/view-patch-faster',
+    locals: {
+      currentSection: 'platform',
+      hideHeaderLinks: true,
+      pageTitleForMeta: 'Stop waiting on your MDM catalog. Fleet automated patch management.',
+      pageDescriptionForMeta: 'Fleet\'s maintained app catalog and automated patch policies push updates to every device on a regular, predictable cadence — no manual repackaging, no osquery queries to write.'
     }
   },
 
@@ -636,6 +670,14 @@ module.exports.routes = {
       displayVideo: true,
       disableChatbotAndIndexing: true,
       hideFooterLinks: true,
+    }
+  },
+
+  'GET /download': {
+    action: 'view-download',
+    locals: {
+      pageTitleForMeta: 'Download fleetctl',
+      pageDescriptionForMeta: 'Download fleetctl, Fleet\'s CLI for managing hosts, applying configurations, running reports, and interacting with the Fleet API.'
     }
   },
 
@@ -773,9 +815,9 @@ module.exports.routes = {
   'GET /handbook/company/software-engineer-windows-go': '/handbook/company/open-positions/software-engineer-windows-go',
   'GET /handbook/company/open-positions/technical-product-designer': '/handbook/company/open-positions/product-designer',
   'GET /osquery-management': '/endpoint-ops',
-  'GET /guides/using-github-actions-to-apply-configuration-profiles-with-fleet': 'https://github.com/fleetdm/fleet-gitops',
+  'GET /guides/using-github-actions-to-apply-configuration-profiles-with-fleet': 'https://fleetdm.com/docs/configuration/yaml-files',
   'GET /docs/using-fleet/mdm-macos-updates': '/docs/using-fleet/mdm-os-updates',
-  'GET /example-windows-profile': 'https://github.com/fleetdm/fleet-gitops/blob/860dcf2609e2b25a6d6becf8006a7118a19cd615/lib/windows-screenlock.xml',// « resuable link for OS settings doc page
+  'GET /example-windows-profile': 'https://github.com/fleetdm/fleet/tree/360fa7d1cd309007b7bbf00c6b6643ffeda74d99/it-and-security/lib/windows/configuration-profiles',// « resuable link for OS settings doc page
   'GET /docs/using-fleet/mdm-custom-macos-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /customers/login': '/login',
   'GET /customers/register': '/register',
@@ -1137,6 +1179,7 @@ module.exports.routes = {
   'GET /announcements/consolidate-multiple-tools-with-fleet': '/case-study/stripe',
   'GET /announcements/foursquare-quickly-migrates-to-fleet': '/case-study/foursquare',
 
+  'GET /downloads' : '/download',
   'GET /deals': '/partners#deals',
 
   // Shortlinks for texting friends, radio ads, etc
@@ -1209,6 +1252,7 @@ module.exports.routes = {
   'GET /learn-more-about/exe-install-scripts': '/guides/exe-install-scripts',
   'GET /learn-more-about/install-scripts': '/guides/deploy-software-packages#install-script',
   'GET /learn-more-about/uninstall-scripts': '/guides/deploy-software-packages#uninstall-script',
+  'GET /learn-more-about/batch-scripts': '/guides/scripts#batch-execute-scripts',
   'GET /learn-more-about/package-metadata-extraction': '/guides/deploy-software-packages#package-metadata-extraction',
   'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages#package-metadata-extraction',
   'GET /learn-more-about/fleetctl': '/guides/fleetctl',
@@ -1223,9 +1267,9 @@ module.exports.routes = {
   'GET /learn-more-about/yaml-setup-experience-software': '/docs/configuration/yaml-files#software',
   'GET /learn-more-about/policy-templates': '/policies',
   'GET /learn-more-about/windows-mdm': '/guides/windows-mdm-setup',
-  'GET /learn-more-about/ui-gitops-mode': 'https://github.com/fleetdm/fleet-gitops/?tab=readme-ov-file#fleet-ui',
+  'GET /learn-more-about/ui-gitops-mode': 'https://fleetdm.com/guides/gitops-mode',
   'GET /learn-more-about/certificates-query': '/tables/certificates',
-  'GET /learn-more-about/gitops': 'https://github.com/fleetdm/fleet-gitops/',
+  'GET /learn-more-about/gitops': 'https://fleetdm.com/docs/configuration/yaml-files',
   'GET /learn-more-about/connect-idp': '/guides/foreign-vitals-map-idp-users-to-hosts',
   'GET /learn-more-about/troubleshoot-idp-connection': '/guides/foreign-vitals-map-idp-users-to-hosts#verify-connection',
   'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#create-configuration-profile',
@@ -1276,8 +1320,10 @@ module.exports.routes = {
   'GET /learn-more-about/generate-fleets-agent': 'https://fleetdm.com/guides/enroll-hosts#ui',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
+  'GET /learn-more-about/apple-setup-assistant': 'https://support.apple.com/guide/deployment/manage-setup-assistant-depdeff4a547/web',
   'GET /learn-more-about/psso-local-account': '/guides/setup-experience#platform-sso',
   'GET /learn-more-about/deploy-fleet': '/docs/deploy/deploy-fleet',
+  'GET /learn-more-about/fleets': '/guides/fleets',
   'GET /learn-more-about/vulnerability-exposure-cves': 'https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138',
 
   // Sitemap

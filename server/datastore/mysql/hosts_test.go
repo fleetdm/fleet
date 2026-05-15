@@ -197,6 +197,7 @@ func TestHosts(t *testing.T) {
 		{"GetHostsLockWipeStatusBatch", testGetHostsLockWipeStatusBatch},
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
+		{"ExtendHostOrbitDebugUntil", testExtendHostOrbitDebugUntil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -11415,28 +11416,30 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, "foobar", got.Hostname)
 	require.Equal(t, "darwin", got.Platform)
 
-	// enroll with osquery using uuid identifier, team
+	// enroll with osquery using uuid identifier, team enroll secret
 	_, err = ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryMDMEnabled(true),
 		fleet.WithEnrollOsqueryHostID("uuid"),
 		fleet.WithEnrollOsqueryHardwareUUID("uuid"),
 		fleet.WithEnrollOsqueryHardwareSerial("different-serial"),
 		fleet.WithEnrollOsqueryNodeKey("osquery"),
-		fleet.WithEnrollOsqueryTeamID(&tm.ID),
+		fleet.WithEnrollOsqueryTeamID(&tm.ID), // use team enroll secret
 	)
 	require.NoError(t, err)
 	got, err = ds.LoadHostByOrbitNodeKey(ctx, "orbit")
 	require.NoError(t, err)
+
+	// New osquery node key is set.
+	require.NotNil(t, got.NodeKey)
+	require.Equal(t, "osquery", *got.NodeKey)
+
+	// Verify that the orbit enroll didn't override these values set by the previous orbit enroll.
 	require.Equal(t, h.ID, got.ID)
-	require.Equal(t, "serial", got.HardwareSerial) // unchanged as it was already filled
 	require.Equal(t, "uuid", got.UUID)
 	require.NotNil(t, got.OsqueryHostID)
 	require.Equal(t, "uuid", *got.OsqueryHostID)
-	require.NotNil(t, got.NodeKey)
-	require.Equal(t, "osquery", *got.NodeKey)
-	require.NotNil(t, got.TeamID)
-	require.Equal(t, tm.ID, *got.TeamID)
-	// Verify that the orbit enroll didn't override these values set by a previous osquery enroll.
+	require.Equal(t, "serial", got.HardwareSerial) // unchanged as it was already filled
+	require.Nil(t, got.TeamID)                     // team is sticky
 	require.Equal(t, "foobar", got.Hostname)
 	require.Equal(t, "darwin", got.Platform)
 }
@@ -13732,4 +13735,37 @@ func testHostsDeleteHostsIdPAccounts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, 0, count, "IdP account should be deleted when Windows host is the last one deleted")
 	})
+}
+
+func testExtendHostOrbitDebugUntil(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "ehdu", "1.1.1.2", "2", "2", time.Now())
+
+	// NULL → value.
+	first := time.Now().Add(30 * time.Minute).UTC().Truncate(time.Second)
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, first))
+	got, err := ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.OrbitDebugUntil)
+	require.True(t, got.OrbitDebugUntil.Equal(first))
+
+	// Earlier → later: extends.
+	later := first.Add(2 * time.Hour)
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, later))
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.OrbitDebugUntil.Equal(later))
+
+	// Later → shorter: no-op.
+	shorter := first.Add(5 * time.Minute)
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, shorter))
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.OrbitDebugUntil.Equal(later), "extend must not shorten an existing later value")
+
+	// Equal: no-op.
+	require.NoError(t, ds.ExtendHostOrbitDebugUntil(ctx, host.ID, later))
+	got, err = ds.Host(ctx, host.ID)
+	require.NoError(t, err)
+	require.True(t, got.OrbitDebugUntil.Equal(later))
 }

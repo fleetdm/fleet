@@ -1,0 +1,1 @@
+- Fixed an issue where GitOps would fail if it attempted to create a label and a consumer of that label (e.g. a profile) in the same run.

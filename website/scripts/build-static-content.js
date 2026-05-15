@@ -23,14 +23,13 @@ module.exports = {
     // The data we're compiling will get built into this dictionary and then written on top of the .sailsrc file.
     let builtStaticContent = {};
     let rootRelativeUrlPathsSeen = [];
-    let baseHeadersForGithubRequests;
+    let baseHeadersForGithubRequests = {
+      'User-Agent': 'Fleet-Standard-Query-Library',
+      'Accept': 'application/vnd.github.v3+json',
+    };
 
-    if(githubAccessToken) {// If a github token was provided, set headers for requests to GitHub.
-      baseHeadersForGithubRequests = {
-        'User-Agent': 'Fleet-Standard-Query-Library',
-        'Accept': 'application/vnd.github.v3+json',
-        'Authorization': `token ${githubAccessToken}`,
-      };
+    if(githubAccessToken) {// If a github token was provided, Add an authorization header for requests to GitHub.
+      baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
     } else {
       sails.log('Skipping GitHub API requests for contributer profiles and ritual validation.\nNOTE: The contributors in the standard query library will be populated with fake data.\nTo see how the standard query library will look on fleetdm.com, pass a GitHub access token into this script with the `--githubAccessToken={YOUR_GITHUB_ACCESS_TOKEN}` flag. \n Note: This script can take up to 30s to run.');
     }//ﬁ
@@ -493,6 +492,12 @@ module.exports = {
                   }
                 }
 
+              });//∞
+
+              // Rewrite YouTube embed src URLs to the privacy-enhanced (no-cookie) host so the embedded player doesn't set tracking cookies until the visitor presses play.
+              // This allows us to show embedded youtube videos to users who don't consent to the cookie banner on the website.
+              htmlString = htmlString.replace(/(src="https?:\/\/(?:www\.)?youtube\.com\/embed\/[^"]*")/g, (srcString) => {
+                return srcString.replace(/https?:\/\/(?:www\.)?youtube\.com\/embed\/([^"]*)/, 'https://www.youtube-nocookie.com/embed/$1');
               });//∞
 
               // Modify images in the /articles folder
@@ -1635,8 +1640,41 @@ module.exports = {
         }
         builtStaticContent.mdmCommands = mdmCommandsLibrary;
         builtStaticContent.commandsLibraryYmlRepoPath = RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO;
+      },
+      //
+      //  ╔═╗╦  ╔═╗╔═╗╔╦╗╔═╗╔╦╗╦    ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╦═╗  ╦  ╦╔╗╔╦╔═╔═╗
+      //  ╠╣ ║  ║╣ ║╣  ║ ║   ║ ║    ║║║║╚═╗ ║ ╠═╣║  ║  ║╣ ╠╦╝  ║  ║║║║╠╩╗╚═╗
+      //  ╚  ╩═╝╚═╝╚═╝ ╩ ╚═╝ ╩ ╩═╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╚═╝╩╚═  ╩═╝╩╝╚╝╩ ╩╚═╝
+      // Fetch the latest URLS of the latest fleetctl installers from GitHub for the /download page.
+      // Note: This request is sent to GitHub regardless of whether a githubAccessToken input was provided.
+      async()=>{
+        let latestFleetReleaseDetails = await sails.helpers.http.get.with({
+          url: 'https://api.github.com/repos/fleetdm/fleet/releases/latest',
+          headers: baseHeadersForGithubRequests,
+        }).intercept((err) =>{
+          return new Error(`When sending a request to the GitHub API to get links for the latest released fleetctl installers, an error occurred. Full error: ${util.inspect(err)}`);
+        });
+        let downloadAssets = latestFleetReleaseDetails.assets;
+        let macOsInstaller = _.find(downloadAssets, (asset)=> { return  _.endsWith(asset.browser_download_url, '_mac.pkg');});
+        if(!macOsInstaller) {
+          throw new Error(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for macOS was found in the release assets.`);
+        }
+        let windowsInstaller = _.find(downloadAssets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_amd64.msi');});
+        if(!windowsInstaller) {
+          throw new Error(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for Windows (amd64) was found in the release assets.`);
+        }
+        let windowsArmInstaller = _.find(downloadAssets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_arm64.msi');});
+        if(!windowsArmInstaller) {
+          throw new Error(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for Windows (arm64) was found in the release assets.`);
+        }
+        builtStaticContent.fleetctlDownloadUrls = {
+          macOs: macOsInstaller.browser_download_url,
+          windows: windowsInstaller.browser_download_url,
+          windowsArm: windowsArmInstaller.browser_download_url,
+        };
       }
     ]);
+
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
     //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗
     //  ██████╔╝█████╗  ██████╔╝██║     ███████║██║     █████╗         ███████╗███████║██║██║     ███████╗██████╔╝██║     ╚═╝

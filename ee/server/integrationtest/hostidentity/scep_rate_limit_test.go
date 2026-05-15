@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
@@ -33,7 +33,7 @@ func TestSCEPRateLimit(t *testing.T) {
 		cfg.Osquery.EnrollCooldown = cooldown
 	})
 
-	defer mysql.TruncateTables(t, s.BaseSuite.DS, []string{
+	defer mysqltest.TruncateTables(t, s.BaseSuite.DS, []string{
 		"host_identity_scep_serials", "host_identity_scep_certificates",
 	}...)
 
