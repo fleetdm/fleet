@@ -24,6 +24,58 @@
     display: flex;
     justify-content: center;
   }
+
+  &__filter-dropdowns {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
+  &__platform-dropdown {
+    flex-shrink: 0;
+    width: 200px;
+  }
+
+  // Allow horizontal scrolling when the table is wider than its container so
+  // body cells don't overflow past the table boundary on smaller screens.
+  .table-container__data-table-block .data-table-block .data-table__wrapper {
+    overflow-x: auto;
+  }
+
+  // Stack the search bar above the filter dropdowns on smaller screens so
+  // they don't get scrunched together (matches the Hosts page pattern).
+  .table-container {
+    @media (max-width: $table-controls-break) {
+      &__header {
+        flex-direction: column;
+      }
+
+      &__header-left {
+        order: 2;
+        flex-direction: column;
+        align-items: stretch;
+
+        .results-count {
+          order: 2;
+        }
+
+        .controls {
+          order: -2;
+
+          .policies-table__filter-dropdowns {
+            .form-field--dropdown,
+            .policies-table__platform-dropdown {
+              flex: 1;
+            }
+          }
+        }
+      }
+
+      &__search {
+        align-self: start;
+      }
+    }
+  }
 }
 
 .automations-cell {

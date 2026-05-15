@@ -1,0 +1,2 @@
+* Added "Targeted platforms" column and platform filter dropdown to the Policies page.
+* Added optional `platform` query parameter to `GET /api/v1/fleet/policies` and `GET /api/v1/fleet/fleets/{id}/policies` to filter policies by targeted platform.

@@ -792,8 +792,17 @@ WHERE
 	return nil
 }
 
-func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
-	return listPoliciesDB(ctx, ds.reader(ctx), nil, opts, "", nil)
+func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
+	filterClause, filterArgs := platformFilterClause(platform)
+	return listPoliciesDB(ctx, ds.reader(ctx), nil, opts, filterClause, filterArgs)
+}
+
+func platformFilterClause(platform string) (string, []any) {
+	platform = strings.ReplaceAll(platform, " ", "")
+	if platform == "" {
+		return "", nil
+	}
+	return " AND (p.platforms = '' OR FIND_IN_SET(?, REPLACE(p.platforms, ' ', '')))", []any{platform}
 }
 
 // returns the list of policies associated with the provided teamID, or the
@@ -850,7 +859,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 
 // getInheritedPoliciesForTeam returns the list of global policies with the
 // passing and failing host counts for the provided teamID
-func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, teamID uint, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 	var args []interface{}
 
 	query := `
@@ -868,6 +877,11 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
     `
 
 	args = append(args, teamID)
+
+	if platformClause, platformArgs := platformFilterClause(platform); platformClause != "" {
+		query += platformClause
+		args = append(args, platformArgs...)
+	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
@@ -892,7 +906,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
 
 // CountPolicies returns the total number of team policies.
 // If teamID is nil, it returns the total number of global policies.
-func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string) (int, error) {
+func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string, platform string) (int, error) {
 	var (
 		query string
 		args  []interface{}
@@ -918,6 +932,11 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 		}
 	}
 
+	if platformClause, platformArgs := platformFilterClause(platform); platformClause != "" {
+		query += platformClause
+		args = append(args, platformArgs...)
+	}
+
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(matchQuery)
 	query, args = searchLike(query, args, match, policySearchColumns...)
@@ -930,7 +949,7 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 	return count, nil
 }
 
-func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string) (int, error) {
+func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string, platform string) (int, error) {
 	var args []interface{}
 
 	query := `SELECT count(*) FROM policies p WHERE (p.team_id = ? OR p.team_id IS NULL)`
@@ -944,6 +963,11 @@ func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, m
 	query += automationFilter
 	if len(filterArgs) > 0 {
 		args = append(args, filterArgs...)
+	}
+
+	if platformClause, platformArgs := platformFilterClause(platform); platformClause != "" {
+		query += platformClause
+		args = append(args, platformArgs...)
 	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
@@ -1210,10 +1234,15 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	return policyDB(ctx, db, policyID, &teamID)
 }
 
-func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType string, platform string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	filterClause, filterArgs, err := ds.createAutomationClause(ctx, automationType, teamID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build automation filter clause")
+	}
+
+	if platformClause, platformArgs := platformFilterClause(platform); platformClause != "" {
+		filterClause += platformClause
+		filterArgs = append(filterArgs, platformArgs...)
 	}
 
 	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, opts, filterClause, filterArgs)
@@ -1221,20 +1250,22 @@ func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fle
 		return nil, nil, err
 	}
 	// get inherited (global) policies with counts of hosts for that team
-	inheritedPolicies, err = getInheritedPoliciesForTeam(ctx, ds.reader(ctx), teamID, iopts)
+	inheritedPolicies, err = getInheritedPoliciesForTeam(ctx, ds.reader(ctx), teamID, iopts, platform)
 	if err != nil {
 		return nil, nil, err
 	}
 	return teamPolicies, inheritedPolicies, err
 }
 
-func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType string) ([]*fleet.Policy, error) {
+func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType string, platform string) ([]*fleet.Policy, error) {
 	var args []interface{}
 
 	automationFilter, filterArgs, err := ds.createAutomationClause(ctx, automationType, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build automation filter clause")
 	}
+
+	platformClause, platformArgs := platformFilterClause(platform)
 
 	query := fmt.Sprintf(`
 		SELECT
@@ -1250,11 +1281,15 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 		AND (p.team_id IS NOT NULL OR ps.inherited_team_id = ?)
 		WHERE (p.team_id = ? OR p.team_id IS NULL)
 		%s
-    `, automationFilter)
+		%s
+    `, automationFilter, platformClause)
 
 	args = append(args, teamID, teamID)
 	if len(filterArgs) > 0 {
 		args = append(args, filterArgs...)
+	}
+	if len(platformArgs) > 0 {
+		args = append(args, platformArgs...)
 	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
@@ -2380,7 +2415,7 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 	}
 
 	if hasTeams {
-		globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+		globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list global policies")
 		}

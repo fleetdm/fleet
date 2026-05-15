@@ -3970,7 +3970,7 @@ reports:
 
 	team, err := s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
-	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, pols, 3)
 	policyIDsByName := map[string]uint{}
@@ -3987,7 +3987,7 @@ reports:
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
 	}))
 
-	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Empty(t, pols, "all policies should be removed after FMA installer is removed")
 
@@ -4860,7 +4860,7 @@ settings:
 	installer, err := s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titles[0].ID, false)
 	require.NoError(t, err)
 
-	tmPols, err := s.DS.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{}, "")
+	tmPols, err := s.DS.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, tmPols, 1)
 	require.Equal(t, "Install ruby", tmPols[0].Name)
@@ -4880,7 +4880,7 @@ settings:
 	installer, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &tm.ID, titles[0].ID, false)
 	require.NoError(t, err)
 
-	tmPols, err = s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, "")
+	tmPols, err = s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, tmPols, 1)
 	require.Equal(t, "Install team ruby", tmPols[0].Name)
@@ -4934,7 +4934,7 @@ labels:
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fullFile.Name()}))
 
 	// Verify policy, agent_options, controls, and reports were applied.
-	policies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, "Test Global Policy", policies[0].Name)
@@ -4977,7 +4977,7 @@ org_settings:
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", minimalFile.Name()}))
 
 	// Verify policies were cleared.
-	policies, err = s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err = s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 
@@ -5064,7 +5064,7 @@ labels:
 	fl, err := s.DS.TeamByName(ctx, fleetName)
 	require.NoError(t, err)
 
-	flPols, err := s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "")
+	flPols, err := s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, flPols, 1)
 	require.Equal(t, "Test Fleet Policy", flPols[0].Name)
@@ -5105,7 +5105,7 @@ name: %s
 	}))
 
 	// Verify policies were cleared.
-	flPols, err = s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "")
+	flPols, err = s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, flPols, 0)
 

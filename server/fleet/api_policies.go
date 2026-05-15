@@ -29,7 +29,8 @@ func (r GlobalPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ListGlobalPoliciesRequest struct {
-	Opts ListOptions `url:"list_options"`
+	Opts     ListOptions `url:"list_options"`
+	Platform string      `query:"platform,optional"`
 }
 
 type ListGlobalPoliciesResponse struct {
@@ -60,6 +61,7 @@ func (r GetPolicyByIDResponse) Error() error { return r.Err }
 
 type CountGlobalPoliciesRequest struct {
 	ListOptions ListOptions `url:"list_options"`
+	Platform    string      `query:"platform,optional"`
 }
 
 type CountGlobalPoliciesResponse struct {
@@ -189,6 +191,7 @@ type ListTeamPoliciesRequest struct {
 	InheritedOrderKey       string         `query:"inherited_order_key,optional"`
 	MergeInherited          bool           `query:"merge_inherited,optional"`
 	AutomationType          string         `query:"automation_type,optional"`
+	Platform                string         `query:"platform,optional"`
 }
 
 type ListTeamPoliciesResponse struct {
@@ -208,6 +211,7 @@ type CountTeamPoliciesRequest struct {
 	TeamID         uint        `url:"fleet_id"`
 	MergeInherited bool        `query:"merge_inherited,optional"`
 	AutomationType string      `query:"automation_type,optional"`
+	Platform       string      `query:"platform,optional"`
 }
 
 type CountTeamPoliciesResponse struct {
