@@ -618,6 +618,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /imagine/open-source': {
+    action: 'landing-pages/view-open-source',
+    locals: {
+      pageTitleForMeta: 'Open source MDM | Self-hosted device management',
+      pageDescriptionForMeta: 'Fleet is open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted endpoint management with every line of code public on GitHub.',
+      currentSection: 'platform',
+    }
+  },
+
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
   },
