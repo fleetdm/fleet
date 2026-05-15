@@ -3,23 +3,6 @@
 name: Test native tooling packaging
 
 on:
-  push:
-    branches:
-      - main
-      - patch-*
-      - prepare-*
-  pull_request:
-    paths:
-      - 'cmd/fleetctl/**.go'
-      - 'pkg/**.go'
-      - 'server/service/**.go'
-      - 'server/context/**.go'
-      - 'orbit/**.go'
-      - 'ee/fleetctl/**.go'
-      - 'tools/fleetctl-docker/**'
-      - 'tools/wix-docker/**'
-      - 'tools/bomutils-docker/**'
-      - '.github/workflows/test-native-tooling-packaging.yml'
   workflow_dispatch: # Manual
   schedule:
     - cron: "0 5 * * *"
@@ -43,11 +26,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-4core]
-        # build_type == 'remote' tests fleetdm/fleetctl:latest from Docker Hub (cheap).
-        # build_type == 'local' rebuilds the wix/bomutils/fleetctl Docker images from
-        # source (expensive — adds Go install + three docker image builds).
-        # PRs run only 'remote'; push, schedule, and workflow_dispatch run both.
-        build_type: ${{ fromJSON(github.event_name == 'pull_request' && '["remote"]' || '["remote","local"]') }}
+        # build_type == 'remote' means this job will test the fleetdm/fleetctl:latest from Docker Hub.
+        # build_type == 'local' means this job will build the the image locally.
+        build_type: ["remote", "local"]
     runs-on: ${{ matrix.os }}
 
     steps:
