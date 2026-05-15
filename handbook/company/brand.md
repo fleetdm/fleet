@@ -32,7 +32,7 @@ Use Fleet dots as a standalone mark where the full logo doesn't fit, such as pro
 
 #### Clear space
 
-Leave clear space around the logo equal to the height of the Fleet dots on all sides. This helps maintain clarity when placing the logo near other elements.
+Leave a minimum clear space around logo marks equal to the height of the Fleet dots on all sides. This helps maintain clarity when placing the logo near other elements.
 
 > Less clear space may be used in certain placements, like the navigation bar on fleetdm.com and the Fleet product.
 
