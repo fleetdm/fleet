@@ -34,10 +34,11 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 
 | Website page | Description | Date updated |
 | --- | --- | --- |
-| [Autonomous endpoint management](https://fleetdm.com/autonomous-endpoint-management) | Landing page for autonomous patching and updates across macOS, Windows, and Linux, with humans in the loop. Targets IT and security teams trying to close the gap as time-to-exploitation shrinks. | 2026-05-14 |
-| [Apple MDM](https://fleetdm.com/imagine/apple-mdm) | Landing page for open source Apple MDM at enterprise scale. Covers enrolling, configuring, and securing Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. | 2026-05-14 |
-| [On-premise](https://fleetdm.com/on-premise) | Landing page for running Fleet on-premise, in private cloud (AWS, Azure, GCP), or air-gapped environments. Targets teams with strict data residency or infrastructure requirements. | 2026-05-08 |
-| [Replace Jamf](https://fleetdm.com/replace-jamf) | Landing page for IT teams considering replacing Jamf with Fleet. Covers cross-platform device management, GitOps workflows, and migration messaging. | 2026-04-10 |
+| [The open-source MDM](https://fleetdm.com/imagine/open-source) | Web page explaining why open source matters for device management. | 2026-05-15 |
+| [Autonomous endpoint management](https://fleetdm.com/autonomous-endpoint-management) | Web page for autonomous patching and updates across macOS, Windows, and Linux, with humans in the loop. Targets IT and security teams trying to close the gap as time-to-exploitation shrinks. | 2026-05-14 |
+| [Apple MDM](https://fleetdm.com/imagine/apple-mdm) | Web page for open source Apple MDM at enterprise scale. Covers enrolling, configuring, and securing Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. | 2026-05-14 |
+| [On-premise](https://fleetdm.com/on-premise) | Web page for running Fleet on-premise, in private cloud (AWS, Azure, GCP), or air-gapped environments. Targets teams with strict data residency or infrastructure requirements. | 2026-05-08 |
+| [Replace Jamf](https://fleetdm.com/replace-jamf) | Web page for IT teams considering replacing Jamf with Fleet. Covers cross-platform device management, GitOps workflows, and migration messaging. | 2026-04-10 |
 
 ### 📄 Whitepapers
 
