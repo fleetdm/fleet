@@ -1377,7 +1377,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
-	require.False(t, hostByIdentifierResp.Host.RefetchRequested)
+	// iOS/iPadOS enrollment sets refetch_requested=true so the iphone_ipad_refetcher
+	// cron picks the host up; the flag is cleared by the DeviceInformation ack handler.
+	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 	hostID := hostByIdentifierResp.Host.ID
 
 	triggerRefetchCron(hostID)
@@ -1385,7 +1387,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	hostByIdentifierResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
-	require.False(t, hostByIdentifierResp.Host.RefetchRequested) // refetch cron doesn't set the refetch_requested flag
+	// The cron queues commands but doesn't clear refetch_requested — that happens
+	// only after the device acks the DeviceInformation command below.
+	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 
 	// mu.Lock()
 	// require.Len(t, recordedPushes, 4)
@@ -1431,7 +1435,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	hostByIdentifierResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
-	require.False(t, hostByIdentifierResp.Host.RefetchRequested) // re-enrollment also clears the refetch_requested flag
+	// Re-enrollment re-flags iOS/iPadOS hosts with refetch_requested=true so the cron
+	// will pick them up again; the flag is cleared by the next DeviceInformation ack.
+	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 }
 
 // TestMDMLockHostUnenrolled tests that we cannot lock a macOS host that is not enrolled in MDM.

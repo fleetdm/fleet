@@ -37,10 +37,7 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import {
-  isBYODAccountDrivenUserEnrollment,
-  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
-} from "interfaces/mdm";
+import { FLEET_FILEVAULT_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
@@ -152,8 +149,6 @@ const fullWidthCardClass = `${baseClass}__card--full-width`;
 const tripleHeightCardClass = `${baseClass}__card--triple-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
-const BYOD_SW_INSTALL_LEARN_MORE_LINK =
-  "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
 
@@ -1288,22 +1283,16 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
-               currently supporting software installs. This check should be removed
-               when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
-              {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
-              isAndroidHost ? (
+              {/* Android hosts don't support software installs yet. iOS/iPadOS
+               user-enrolled (BYOD account-driven) hosts now do. */}
+              {isAndroidHost ? (
                 <EmptyState
                   info={
                     <>
                       Software install is coming soon.{" "}
                       <CustomLink
                         text="Learn more"
-                        url={
-                          isAndroidHost
-                            ? ANDROID_SW_INSTALL_LEARN_MORE_LINK
-                            : BYOD_SW_INSTALL_LEARN_MORE_LINK
-                        }
+                        url={ANDROID_SW_INSTALL_LEARN_MORE_LINK}
                         newTab
                       />
                     </>
