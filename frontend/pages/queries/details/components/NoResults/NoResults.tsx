@@ -141,7 +141,7 @@ const NoResults = ({
               {canEditQuery && canLiveQuery && " or "}
               {canLiveQuery && (
                 <>
-                  run a{" "}
+                  {canEditQuery ? "run" : "Run"} a{" "}
                   <CustomLink
                     url={PATHS.LIVE_REPORT(queryId)}
                     text="live report"

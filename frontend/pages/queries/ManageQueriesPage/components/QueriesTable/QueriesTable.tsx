@@ -16,6 +16,7 @@ import { getPathWithQueryParams } from "utilities/url";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import CustomLink from "components/CustomLink";
@@ -31,6 +32,8 @@ export interface IQueriesTableProps {
   curTeamScopeQueriesPresent: boolean;
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
+  onAddReportClick?: () => void;
+  canAddReport?: boolean;
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isAnyTeamObserverPlus: boolean;
@@ -88,6 +91,8 @@ const QueriesTable = ({
   curTeamScopeQueriesPresent,
   isLoading,
   onDeleteQueryClick,
+  onAddReportClick,
+  canAddReport,
   isOnlyObserver,
   isObserverPlus,
   isAnyTeamObserverPlus,
@@ -177,36 +182,34 @@ const QueriesTable = ({
     ]
   );
 
-  const emptyParams: IEmptyStateProps = {
-    header: "You don't have any reports",
-  };
-
-  if (isPremiumTier && !config?.partnerships?.enable_primo) {
-    if (
-      typeof currentTeamId === "undefined" ||
+  const isAllFleets =
+    isPremiumTier &&
+    (typeof currentTeamId === "undefined" ||
       currentTeamId === null ||
-      currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
-    ) {
-      emptyParams.header += " that apply to all fleets";
-    } else {
-      emptyParams.header += " that apply to this fleet";
-    }
+      currentTeamId === APP_CONTEXT_ALL_TEAMS_ID);
+
+  let emptyHeader = "No reports yet";
+  if (isPremiumTier) {
+    emptyHeader = isAllFleets
+      ? "No reports apply to all fleets"
+      : "No reports for this fleet";
   }
 
+  const emptyParams: IEmptyStateProps = {
+    header: emptyHeader,
+    info:
+      "Reports are queries that run on a schedule. Results are saved in Fleet.",
+    primaryButton: canAddReport ? (
+      <Button onClick={onAddReportClick} type="button">
+        Add report
+      </Button>
+    ) : undefined,
+  };
+
   if (searchQuery || curTargetedPlatformFilter !== "all") {
+    delete emptyParams.primaryButton;
     emptyParams.header = "No matching reports";
     emptyParams.info = "No reports match the current filters.";
-  } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
-    emptyParams.additionalInfo = (
-      <>
-        Create a new report, or{" "}
-        <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/standard-query-library"
-          text="import Fleet's standard query library"
-          newTab
-        />
-      </>
-    );
   }
 
   const handlePlatformFilterDropdownChange = useCallback(

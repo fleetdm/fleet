@@ -23,6 +23,7 @@ describe("Policies table", () => {
         policiesList={[]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: -1, name: "All fleets" }}
         searchQuery=""
         page={0}
@@ -32,7 +33,7 @@ describe("Policies table", () => {
       />
     );
 
-    expect(screen.getByText("You don't have any policies")).toBeInTheDocument();
+    expect(screen.getByText("No policies yet")).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
     expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
   });
@@ -52,6 +53,7 @@ describe("Policies table", () => {
         policiesList={[]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
@@ -63,7 +65,7 @@ describe("Policies table", () => {
     );
 
     expect(
-      screen.getByText("You don't have any policies that apply to all fleets")
+      screen.getByText("No policies apply to all fleets")
     ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
     expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
@@ -84,6 +86,7 @@ describe("Policies table", () => {
         policiesList={[]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: 1, name: "Some team" }}
         isPremiumTier
         searchQuery=""
@@ -95,7 +98,7 @@ describe("Policies table", () => {
     );
 
     expect(
-      screen.getByText("You don't have any policies that apply to this fleet")
+      screen.getByText("No policies for this fleet")
     ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
   });
@@ -115,6 +118,7 @@ describe("Policies table", () => {
         policiesList={[]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery="shouldn't match anything"
@@ -147,6 +151,7 @@ describe("Policies table", () => {
         policiesList={[testCriticalPolicy]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
@@ -185,6 +190,7 @@ describe("Policies table", () => {
         policiesList={[testInheritedPolicy]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
         searchQuery=""
@@ -223,6 +229,7 @@ describe("Policies table", () => {
         policiesList={[testGlobalPolicy]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
@@ -264,6 +271,7 @@ describe("Policies table", () => {
         policiesList={policiesList}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
         searchQuery=""
@@ -311,6 +319,7 @@ describe("Policies table", () => {
         policiesList={[testPatchPolicy]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
@@ -341,6 +350,7 @@ describe("Policies table", () => {
         policiesList={[testDynamicPolicy]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
@@ -384,6 +394,7 @@ describe("Policies table", () => {
         policiesList={[policyWithAutomations, policyWithoutAutomations]}
         isLoading={false}
         onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
         currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""

@@ -281,6 +281,8 @@ const ManageQueriesPage = ({
         }
         isLoading={isLoadingQueries || isFetchingQueries}
         onDeleteQueryClick={onDeleteQueryClick}
+        onAddReportClick={onCreateQueryClick}
+        canAddReport={canCustomQuery}
         isOnlyObserver={isOnlyObserver}
         isObserverPlus={isObserverPlus}
         isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
