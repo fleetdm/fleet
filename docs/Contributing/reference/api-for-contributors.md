@@ -1526,18 +1526,15 @@ This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
 This endpoint initiates Account-driven User Enrollment on iOS and iPadOS devices. Devices are
 directed here via service discovery. The first request is unauthenticated and returns 401 with a
 `Www-Authenticate` header pointing at SSO. After authenticating, the device retries with
-`Authorization: Bearer <access-token>`; the access token is single-use and expires in 30 minutes.
+`Authorization: Bearer <access-token>`; Access token returned after SSO authentication.
 
 Two forms exist:
 
 - `POST /api/mdm/apple/account_driven_enroll` — Deprecated. Hosts enrolling here are not assigned
   to a fleet.
-- `POST /api/mdm/apple/account_driven_enroll/:token` — scoped to one of Fleet's Apple Business
-  tokens. Hosts enrolling here are placed in that token's `byod_fleet`. Fleet registers this URL
-  with Apple automatically; admins don't need to handle it.
+- `POST /api/mdm/apple/account_driven_enroll/:token` — scoped to one of Fleet's Apple Business tokens. Hosts enrolling here are placed in that token's `byod_fleet`. Fleet registers this URL with Apple automatically; admins don't need to handle it.
 
-Requires Fleet Premium. Returns 400 if the device is not an iPhone/iPad, 401 if the access token
-is invalid/expired/replayed.
+Requires Fleet Premium. Returns 400 if the device is not an iPhone/iPad, 401 if the access token is invalid or reused.
 
 #### Parameters
 
@@ -1548,10 +1545,10 @@ SUPPLEMENTAL_BUILD_VERSION.
 
 Used by devices to discover the enrollment endpoint.
 
-- `GET /mdm/apple/service_discovery` — legacy form. Hosts enrolling through the returned URL land
-  in "No team."
-- `GET /mdm/apple/service_discovery/:token` — per-ABM-token form. Fleet registers this URL with
-  Apple automatically. Returns 404 if the token doesn't match a known ABM token.
+- `GET /mdm/apple/service_discovery` — deprecated. Hosts enrolling through the returned URL are not assigned to a fleet
+- `GET /mdm/apple/service_discovery/:token` — per-AB-token form. Fleet registers this URL with Apple automatically for each configured AB token. Returns 404 if the token doesn't match a known ABM token.
+
+> The token within the URL is randomly generated and does not correspond to the AB token's id.
 
 ##### Response
 
