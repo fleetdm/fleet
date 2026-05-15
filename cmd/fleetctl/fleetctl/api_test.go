@@ -219,7 +219,7 @@ func TestRunApiCommand(t *testing.T) {
 
 			args = append(args, c.args...)
 
-			b, err := RunAppNoChecks(args)
+			b, err := runAppNoChecks(args)
 			if c.expectErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), c.expectErrMsg)
