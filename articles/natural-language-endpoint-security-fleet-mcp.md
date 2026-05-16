@@ -173,6 +173,6 @@ About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fle
 <meta name="articleTitle" value="Endpoint risk and threat hunting, in plain English: a Fleet MCP manifesto">
 <meta name="authorFullName" value="Dhruv Majumdar">
 <meta name="authorGitHubUsername" value="drvcodenta">
-<meta name="category" value="articles">
+<meta name="category" value="security">
 <meta name="publishedOn" value="2026-05-15">
 <meta name="description" value="A manifesto for natural-language endpoint security with Fleet's MCP server: ask in English, get an osquery scan, see the SQL.">
