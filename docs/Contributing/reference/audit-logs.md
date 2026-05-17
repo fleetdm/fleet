@@ -2562,6 +2562,23 @@ This activity contains the following fields:
 }
 ```
 
+## rotated_managed_local_account_password
+
+Generated when a managed local account password is rotated.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
 ## enabled_managed_local_account
 
 Generated when a user turns on create managed local account for a fleet (or unassigned hosts).
@@ -2604,10 +2621,94 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 
+#### Example
+
 ```json
 {
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+	"host_id": 123,
+	"host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## failed_enrollment_profile_renewal
+
+Generated when an enrollment profile renewal (SCEP or ACME) has failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "command_uuid": Command ID we display details for.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "PWNED-VM-123",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+}
+```
+
+## created_label
+
+Generated when creating labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the new label.
+- "label_name": the name of the new label.
+- "fleet_id": the ID of the fleet the label belongs to.
+- "fleet_name": the name of the fleet the label belongs to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
+}
+```
+
+## edited_label
+
+Generated when editing labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the edited label.
+- "label_name": the name of the edited label.
+- "fleet_id": the ID of the fleet the label belongs to.
+- "fleet_name": the name of the fleet the label belongs to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
+}
+```
+
+## deleted_label
+
+Generated when deleting labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the deleted label.
+- "label_name": the name of the deleted label.
+- "fleet_id": the ID of the fleet the label belonged to.
+- "fleet_name": the name of the fleet the label belonged to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
 }
 ```
 

@@ -12,7 +12,7 @@ With Account-driven User Enrollment, end users can separate work and personal da
 - [Step 2: Add and verify your domain in Apple Business (AB)](#step-2-add-and-verify-your-domain-in-apple-business-manager-abm)
 - [Step 3: Connect (federate) your identity provider (IdP) with Apple Business (AB)](#step-3-connect-federate-your-identity-provider-idp-with-apple-business-manager-abm)
 - [Step 4: Create a fleet for personal hosts](#step-4-create-a-fleet-for-personal-hosts)
-- [Step 5: Log in on the device to enroll to Fleet (end user's iPhone or iPad)](#step-5-log-in-on-the-device-to-enroll-to-fleet-end-users-iphone-or-ipad)
+- [Step 5: Instructions for end users](#step-6-instructions-for-end-users)
 
 
 ## Step 1: Connect Apple Business (AB) to Fleet
@@ -39,18 +39,28 @@ Follow the [Apple documentation](https://support.apple.com/en-gb/guide/business/
 
 Fleet's [best practice](https://fleetdm.com/guides/fleet#best-practice) is to create a fleet, for personal hosts that have access to company resources.
 
+You must enable end user authentication for this fleet. Go to **Controls > Setup experience > End user authentication** and enable it. If it's not enabled, end users can't enroll.
+
 In this fleet you can add custom OS settings that are compatible with hosts enrolled with Account-driven User Enrollment. To find out which payloads are compatible with User Enrollment, visit the [Apple documentation](https://support.apple.com/en-gb/guide/deployment/dep6ae3f1d5a/1/web/1.0).
 
-## Step 5: Log in on the device to enroll to Fleet (end user's iPhone or iPad)
+## Step 5: Instructions for end users
 
-On their iPhone or iPad, ask end users to:
+Share these instructions with end users to enroll their personal iPhone or iPad:
 
 1. Open the **Settings** app.
 2. Go to **General > VPN & Device Management**.
 3. Tap **Sign In to Work or School Account**.
-4. Sign in with their IdP credentials (e.g., Google Workspace or Microsoft Entra ID).
+4. Sign in with your IdP credentials (e.g., Okta, Microsoft Entra ID, or Google Workspace).
 
-After signing in, the device will automatically enroll in Fleet.
+After signing in, your device will enroll to Fleet. 
+
+Apple requires that you sign-in twice: once to Fleet, using your IdP credentials, and once to your Managed Apple Account using your Apple Account credentials. Some organizations connect their IdP to Apple. In this case, the credentials for both logins are the same. If you're not sure, ask your IT admin.
+
+## Migration from other MDM
+
+If you're migrating from another MDM, make sure to uninstall the apps that you want to update with Fleet. If apps from your current MDM aren't removed, after the end user migrates, Fleet won't be able update those apps until the end user manually uninstalls them.
+
+If you or the end user (via self-service) tries to install an app that is already installed, you'll see an error on the **Host details > Activity feed > Past**.
 
 ## Self-host a service discovery file (well-known resource)
 
@@ -87,5 +97,5 @@ Apple limits the amount of host vitals Fleet can collect on personal iOS/iPadOS 
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-08-08">
+<meta name="publishedOn" value="2026-03-31">
 <meta name="description" value="Enroll personal (BYOD) iPhones and iPads with Managed Apple Account">
