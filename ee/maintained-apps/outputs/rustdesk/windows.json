@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "1.4.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'RustDesk' AND publisher = 'RustDesk';"
+      },
+      "installer_url": "https://github.com/rustdesk/rustdesk/releases/download/1.4.1/rustdesk-1.4.1-x86_64.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "40345369",
+      "sha256": "no_check",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "40345369": "# Define acceptable/expected exit codes\n$ExpectedExitCodes = @(0)\n\n# Look up both machine and user uninstall registry locations\n$regPaths = @(\n    'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\RustDesk',\n    'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\RustDesk'\n)\n\n$exitCode = 0\n\ntry {\n    $key = $null\n    foreach ($path in $regPaths) {\n        if (Test-Path $path) {\n            $key = Get-ItemProperty -Path $path -ErrorAction Stop\n            break\n        }\n    }\n\n    if ($null -eq $key) {\n        Write-Host \"RustDesk uninstall registry key not found; app may already be uninstalled.\"\n        Exit 0\n    }\n\n    # Use QuietUninstallString if available (MSI sets this to include /quiet)\n    $uninstallCommand = if ($key.QuietUninstallString) {\n        $key.QuietUninstallString\n    } else {\n        $key.UninstallString\n    }\n\n    Write-Host \"Uninstall command: $uninstallCommand\"\n\n    # MsiExec.exe /X{...} commands should be run directly (not split)\n    if ($uninstallCommand -match 'MsiExec\\.exe') {\n        # Run msiexec uninstall with quiet flag\n        $msiArgs = $uninstallCommand -replace '^.*MsiExec\\.exe\\s*', ''\n        if ($msiArgs -notmatch '/quiet') {\n            $msiArgs = \"$msiArgs /quiet /norestart\"\n        }\n        Write-Host \"Running msiexec with args: $msiArgs\"\n        $process = Start-Process msiexec.exe -ArgumentList $msiArgs -PassThru -Wait\n        $exitCode = $process.ExitCode\n    } else {\n        # Fallback: split quoted command and args\n        $splitArgs = $uninstallCommand.Split('\"')\n        $uninstallExe = $splitArgs[1]\n        $uninstallArgs = if ($splitArgs.Length -eq 3) { $splitArgs[2].Trim() } else { '' }\n\n        $processOptions = @{\n            FilePath = $uninstallExe\n            PassThru = $true\n            Wait     = $true\n        }\n        if ($uninstallArgs -ne '') {\n            $processOptions.ArgumentList = $uninstallArgs\n        }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n    }\n\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    $exitCode = 1\n}\n\n# Treat acceptable exit codes as success\nif ($ExpectedExitCodes -contains $exitCode) {\n    Exit 0\n} else {\n    Exit $exitCode\n}\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}
