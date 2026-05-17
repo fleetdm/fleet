@@ -191,11 +191,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	// Validate OTEL server options
-	if config.Logging.OtelLogsEnabled && !config.Logging.TracingEnabled {
-		initFatal(
-			errors.New("logging.otel_logs_enabled requires logging.tracing_enabled to be true"),
-			"OTEL logs require tracing for trace correlation",
-		)
+	if err := validateOTELLoggingConfig(config); err != nil {
+		initFatal(err, "OTEL logs require tracing for trace correlation")
 	}
 
 	// Init OTEL providers (traces, metrics, logs)
@@ -317,36 +314,19 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		createTestBuckets(cmd.Context(), &config, logger)
 	}
 
-	allowedHostIdentifiers := map[string]bool{
-		"provided": true,
-		"instance": true,
-		"uuid":     true,
-		"hostname": true,
-	}
-	if !allowedHostIdentifiers[config.Osquery.HostIdentifier] {
-		initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
+	if err := validateOsqueryHostIdentifier(config); err != nil {
+		initFatal(err, "set host identifier")
 	}
 
 	config.ConditionalAccess.Validate(initFatal)
 
-	if len(config.Server.URLPrefix) > 0 {
-		// Massage provided prefix to match expected format
-		config.Server.URLPrefix = strings.TrimSuffix(config.Server.URLPrefix, "/")
-		if len(config.Server.URLPrefix) > 0 && !strings.HasPrefix(config.Server.URLPrefix, "/") {
-			config.Server.URLPrefix = "/" + config.Server.URLPrefix
-		}
-
-		if !allowedURLPrefixRegexp.MatchString(config.Server.URLPrefix) {
-			initFatal(
-				fmt.Errorf("prefix must match regexp \"%s\"", allowedURLPrefixRegexp.String()),
-				"setting server URL prefix",
-			)
-		}
+	if err := normalizeAndValidateServerURLPrefix(&config); err != nil {
+		initFatal(err, "setting server URL prefix")
 	}
 
 	// Handle server private key configuration - either direct or via AWS Secrets Manager
-	if config.Server.PrivateKey != "" && config.Server.PrivateKeySecretArn != "" {
-		initFatal(errors.New("cannot specify both private_key and private_key_secret_arn"), "validate private key configuration")
+	if err := validateServerPrivateKeyExclusive(config); err != nil {
+		initFatal(err, "validate private key configuration")
 	}
 
 	// Retrieve private key from AWS Secrets Manager if specified
@@ -364,11 +344,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		config.Server.PrivateKey = privateKey
 	}
 
+	if err := validateServerPrivateKeyLength(config); err != nil {
+		initFatal(err, "validate private key")
+	}
 	if len(config.Server.PrivateKey) > 0 {
-		if len(config.Server.PrivateKey) < 32 {
-			initFatal(errors.New("private key must be at least 32 bytes long"), "validate private key")
-		}
-
 		// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
 		// infra setups generate keys that are longer than 32 bytes.
 		config.Server.PrivateKey = config.Server.PrivateKey[:32]
