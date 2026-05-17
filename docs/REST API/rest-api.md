@@ -12181,18 +12181,18 @@ Deletes software that's available for install. This won't uninstall the software
 `Status: 204`
 
 ## Vulnerabilities
-
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
-
+- [Dismiss vulnerability](#dismiss-vulnerability)
+- [Restore vulnerability](#restore-vulnerability)
 ### List vulnerabilities
-
+ 
 Retrieves a list of all CVEs affecting software and/or OS versions.
-
+ 
 `GET /api/v1/fleet/vulnerabilities`
-
+ 
 #### Parameters
-
+ 
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
 | fleet_id             | integer | query | _Available in Fleet Premium_. Filters only include vulnerabilities affecting the specified fleet. Use `0` to filter by "Unassigned" hosts.  |
@@ -12202,13 +12202,14 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
+| status | string | query | Filter by dismissal state. Allowed values are `"active"`, `"dismissed"`, and `"all"`. Default is `"active"`. |
+| dismissed_by | integer | query | **Requires `status: "dismissed"` or `"all"`**. Filters to only include vulnerabilities dismissed by the specified user ID. |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
-
-
+ 
 ##### Default response
-
+ 
 `Status: 200`
-
+ 
 ```json
 {
   "vulnerabilities": [
@@ -12223,6 +12224,8 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "cisa_known_exploit": false,// Available in Fleet Premium
       "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
       "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+      "dismissed": false,
+      "dismissal": null
     }
   ],
   "count": 123,
@@ -12233,31 +12236,32 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
   }
 }
 ```
-
-
+ 
+When a vulnerability has been dismissed, `dismissed` is `true` and `dismissal` contains the full dismissal record (see [Dismiss vulnerability](#dismiss-vulnerability) for object shape).
+ 
 ### Get vulnerability
-
+ 
 Retrieve details about a vulnerability and its affected software and OS versions.
-
+ 
 If no vulnerable OS versions or software were found, but Fleet is aware of the vulnerability, a 204 status code is returned.
-
+ 
 #### Parameters
-
+ 
 | Name    | Type    | In    | Description                                                                                                                  |
 |---------|---------|-------|------------------------------------------------------------------------------------------------------------------------------|
 | cve     | string  | path  | The cve to get information about (format must be CVE-YYYY-<4 or more digits>, case-insensitive).                             |
 | fleet_id | integer | query | _Available in Fleet Premium_. Filters response data to the specified fleet. Use `0` to filter by "Unassigned" hosts. |
-
+ 
 `GET /api/v1/fleet/vulnerabilities/:cve`
-
+ 
 #### Example
-
+ 
 `GET /api/v1/fleet/vulnerabilities/cve-2022-30190`
-
+ 
 ##### Default response
-
+ 
 `Status: 200`
-
+ 
 ```json
 "vulnerability": {
   "cve": "CVE-2022-30190",
@@ -12270,6 +12274,8 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
   "cisa_known_exploit": false,// Available in Fleet Premium
   "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
   "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+  "dismissed": false,
+  "dismissal": null,
   "os_versions" : [
     {
       "os_version_id": 6,
@@ -12298,9 +12304,138 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
   ]
 }
 ```
-
+ 
 The `extension_for` field is included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
-
+ 
+When a vulnerability has been dismissed, `dismissed` is `true` and `dismissal` contains the full dismissal record (see [Dismiss vulnerability](#dismiss-vulnerability) for object shape).
+### Dismiss vulnerability
+ 
+Dismisses a vulnerability and hides it from active reports across all hosts and teams. Dismissals are recorded in the activity log and re-surface automatically based on the `re_evaluate` rule.
+ 
+`POST /api/v1/fleet/vulnerabilities/:cve/dismiss`
+ 
+#### Parameters
+ 
+| Name        | Type    | In   | Description                                                                                                                          |
+| ---         | ---     | ---  | ---                                                                                                                                  |
+| cve         | string  | path | The CVE to dismiss (format must be CVE-YYYY-<4 or more digits>, case-insensitive).                                                   |
+| reason      | string  | body | Free-text rationale. Optional but recommended; visible in the activity log and on the dismissed view. Max 2,000 characters.          |
+| re_evaluate | object  | body | Re-evaluation rule (see below). Required.                                                                                            |
+| scope       | string  | body | _Reserved for future use._ Defaults to `"global"`.                                                                                   |
+ 
+The `re_evaluate` object accepts the following fields:
+ 
+| Name           | Type    | Description                                                                                                                                            |
+| ---            | ---     | ---                                                                                                                                                    |
+| mode           | string  | One of `"after"`, `"on_cvss_increase"`, `"never"`. Required.                                                                                           |
+| at             | string  | RFC3339 timestamp. Required when `mode` is `"after"`. The CVE re-surfaces at this timestamp if still detected.                                         |
+| cvss_threshold | number  | _Available in Fleet Premium_. Used when `mode` is `"on_cvss_increase"`. The CVE re-surfaces when the NVD CVSS score rises by this delta. Default `0.1`. |
+ 
+`mode: "never"` requires admin role and creates a high-priority entry in the activity log.
+ 
+#### Example
+ 
+`POST /api/v1/fleet/vulnerabilities/CVE-2024-5520/dismiss`
+ 
+##### Request body
+ 
+```json
+{
+  "reason": "Mitigated by network segmentation; tracked in JIRA-3421.",
+  "re_evaluate": {
+    "mode": "after",
+    "at": "2026-07-28T00:00:00Z"
+  }
+}
+```
+ 
+##### Default response
+ 
+`Status: 201`
+ 
+```json
+{
+  "dismissal": {
+    "id": "dsm_8k4Jx2P9",
+    "cve": "CVE-2024-5520",
+    "scope": "global",
+    "reason": "Mitigated by network segmentation; tracked in JIRA-3421.",
+    "re_evaluate": {
+      "mode": "after",
+      "at": "2026-07-28T00:00:00Z"
+    },
+    "dismissed_by": {
+      "id": 412,
+      "email": "justine.hoang@example.com"
+    },
+    "managed_by": "ui",
+    "created_at": "2026-04-29T20:34:11Z"
+  }
+}
+```
+ 
+##### Errors
+ 
+| Status | Error                              | Meaning                                                                                  |
+| ---    | ---                                | ---                                                                                      |
+| 403    | `forbidden_permanent_dismiss`      | A non-admin user attempted `mode: "never"`.                                              |
+| 404    | `vulnerability_not_found`          | The CVE is not present in Fleet's vulnerability database.                                |
+| 409    | `already_dismissed`                | An active dismissal already exists for this CVE. Restore it before dismissing again.     |
+| 422    | `invalid_re_evaluate`              | The `re_evaluate` object is missing required fields or contains an invalid combination.  |
+ 
+### Restore vulnerability
+ 
+Restores a previously dismissed vulnerability and returns it to active reports immediately. The dismissal record is marked `restored` rather than deleted, preserving the audit trail.
+ 
+`POST /api/v1/fleet/vulnerabilities/:cve/restore`
+ 
+#### Parameters
+ 
+| Name   | Type   | In   | Description                                                                                                                  |
+| ---    | ---    | ---  | ---                                                                                                                          |
+| cve    | string | path | The CVE to restore (format must be CVE-YYYY-<4 or more digits>, case-insensitive).                                           |
+| reason | string | body | Free-text rationale for restoring. Optional; recommended for compliance.                                                     |
+ 
+If the dismissal is managed by GitOps (`managed_by: "gitops"`), this endpoint returns `409 managed_by_gitops`. The CVE must be removed from the YAML configuration and re-synced to restore.
+ 
+#### Example
+ 
+`POST /api/v1/fleet/vulnerabilities/CVE-2024-5520/restore`
+ 
+##### Request body
+ 
+```json
+{
+  "reason": "Network segmentation no longer mitigates after VLAN restructure."
+}
+```
+ 
+##### Default response
+ 
+`Status: 200`
+ 
+```json
+{
+  "dismissal": {
+    "id": "dsm_8k4Jx2P9",
+    "cve": "CVE-2024-5520",
+    "restored_at": "2026-05-02T14:11:09Z",
+    "restored_by": {
+      "id": 412,
+      "email": "justine.hoang@example.com"
+    },
+    "restore_reason": "Network segmentation no longer mitigates after VLAN restructure."
+  }
+}
+```
+ 
+##### Errors
+ 
+| Status | Error                  | Meaning                                                                          |
+| ---    | ---                    | ---                                                                              |
+| 404    | `dismissal_not_found`  | No active dismissal exists for this CVE.                                         |
+| 409    | `managed_by_gitops`    | This dismissal is managed by GitOps. Remove from YAML configuration to restore.  |
+ 
 ---
 
 ## Targets
