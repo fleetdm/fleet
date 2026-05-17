@@ -234,7 +234,7 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
-			teamRaw := rawTeam["team"]
+			teamRaw := rawTeam[kind]
 			var err error
 			teamRaw, deprecatedKeysMap, err = rewriteNewToOldKeys(teamRaw, fleet.TeamSpec{})
 			if err != nil {
