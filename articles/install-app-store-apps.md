@@ -77,7 +77,7 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 Apps can be installed manually on each host's **Host details** page. For macOS apps, apps can also be installed via self-service on the end user's **Fleet Desktop > My device** page or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
 > If the install fails with `ErrorCode` 301 and a `LocalizedDescription` of "Invalid Status Code The response has an invalid status code" it may be because the app has a minimum OS version higher than what the targeted host is running.
-> 
+>
 > To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
 
 > VPP app installs are automatically attempted up to 4 times (1 initial attempt + 3 retries) to handle intermittent issues.
@@ -106,7 +106,7 @@ This configuration makes it so the end user won't have to type the portal hostna
   "managedConfiguration": {
     "portal": "example.portal.com",
     "connect_method": "on-demand"
-  }  
+  }
 }
 
 ```
@@ -122,6 +122,17 @@ This configuration allows end users to add widgets from the Google Calendar in t
   "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
 }
 ```
+
+## Migrate from Apple VPP to Fleet-maintained apps
+
+If you're currently using VPP apps and want to switch to [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps), follow these steps:
+
+1. In Fleet, head to the **Software** page and select the relevant fleet.
+2. Remove the VPP app you want to replace.
+3. Add the same app from the Fleet-maintained apps list.
+4. Install the Fleet-maintained app on your hosts.
+
+> **Important:** VPP apps are sandboxed by macOS, which means their preferences and application state are stored in a different location than non-VPP apps. For example, Slack's preferences are stored at `~/Library/Containers/com.tinyspeck.slackmacgap/Data/Library/Preferences/` for VPP, vs. `~/Library/Preferences/` for a regular install. When you replace a VPP app with a Fleet-maintained app, end users may need to reconfigure their app preferences and settings. Plan to communicate this to your end users before making the switch.
 
 ## API and GitOps
 
