@@ -27,10 +27,16 @@ interface IUserProps {
   /** There will be at most 1 end user */
   endUsers: IHostEndUser[];
   canWriteEndUser?: boolean;
+  canViewMyDeviceLink?: boolean;
   disableFullNameTooltip?: boolean;
   disableGroupsTooltip?: boolean;
   className?: string;
   onClickUpdateUser?: (
+    e:
+      | React.MouseEvent<HTMLButtonElement>
+      | React.KeyboardEvent<HTMLButtonElement>
+  ) => void;
+  onClickMyDevice?: (
     e:
       | React.MouseEvent<HTMLButtonElement>
       | React.KeyboardEvent<HTMLButtonElement>
@@ -40,10 +46,12 @@ interface IUserProps {
 const User = ({
   endUsers,
   canWriteEndUser = false,
+  canViewMyDeviceLink = false,
   disableFullNameTooltip = false,
   disableGroupsTooltip = false,
   className,
   onClickUpdateUser,
+  onClickMyDevice,
 }: IUserProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -73,17 +81,25 @@ const User = ({
     >
       <div className={`${baseClass}__header`}>
         <CardHeader header="User" />
-        {canWriteEndUser && (
-          <Button
-            className={`${baseClass}__add-user-btn`}
-            variant="inverse"
-            onClick={onClickUpdateUser}
-            size="small"
-          >
-            <Icon name={writeButtonIcon} />
-            {writeButtonText}
-          </Button>
-        )}
+        <div className={`${baseClass}__header-actions`}>
+          {canViewMyDeviceLink && (
+            <Button variant="inverse" onClick={onClickMyDevice} size="small">
+              My device
+              <Icon name="external-link" />
+            </Button>
+          )}
+          {canWriteEndUser && (
+            <Button
+              className={`${baseClass}__add-user-btn`}
+              variant="inverse"
+              onClick={onClickUpdateUser}
+              size="small"
+            >
+              {writeButtonText}
+              <Icon name={writeButtonIcon} />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className={`${baseClass}__content`}>

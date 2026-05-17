@@ -1586,19 +1586,24 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Test Admin")).toBeInTheDocument();
   });
 
-  it("renders the correct actor for a installed_software activity that was self_service", () => {
+  it("renders self_service installed_software in passive voice without an actor", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledSoftware,
       actor_id: 1,
+      actor_full_name: "Test Admin",
       details: {
         software_title: "Foo Software",
         self_service: true,
         host_display_name: "Foo Host",
+        status: "installed",
       },
     });
 
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
-    expect(screen.getByText("An end user")).toBeInTheDocument();
+    expect(screen.queryByText("An end user")).toBeNull();
+    expect(screen.queryByText("Test Admin")).toBeNull();
+    expect(screen.getByText(/was installed on/)).toBeInTheDocument();
+    expect(screen.getByText(/\(self-service\)\./)).toBeInTheDocument();
   });
 
   it("renders the correct actor for a installed_app_store_app activity without self_service", () => {
@@ -1616,19 +1621,24 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Test Admin")).toBeInTheDocument();
   });
 
-  it("renders the correct actor for a installed_app_store_app activity that was self_service", () => {
+  it("renders self_service installed_app_store_app in passive voice without an actor", () => {
     const activity = createMockActivity({
       type: ActivityType.InstalledAppStoreApp,
       actor_id: 1,
+      actor_full_name: "Test Admin",
       details: {
         software_title: "Foo Software",
         self_service: true,
         host_display_name: "Foo Host",
+        status: "installed",
       },
     });
 
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
-    expect(screen.getByText("An end user")).toBeInTheDocument();
+    expect(screen.queryByText("An end user")).toBeNull();
+    expect(screen.queryByText("Test Admin")).toBeNull();
+    expect(screen.getByText(/was installed on/)).toBeInTheDocument();
+    expect(screen.getByText(/\(self-service\)\./)).toBeInTheDocument();
   });
 
   it("renders script package ran status in InstalledSoftware activity", () => {

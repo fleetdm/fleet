@@ -17205,3 +17205,82 @@ func (s *integrationTestSuite) TestOrbitDebugLoggingOnEnroll() {
 	require.NoError(t, err)
 	require.Nil(t, unstampedHost.OrbitDebugUntil)
 }
+
+func (s *integrationTestSuite) TestHostDeviceURL() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Pin the server URL so the assertion below is stable. Restore the original
+	// on cleanup so other tests aren't affected.
+	origAC, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origServerURL := origAC.ServerSettings.ServerURL
+	// Trailing slash exercises the TrimRight in HostDeviceURL.
+	origAC.ServerSettings.ServerURL = "https://fleet.example.com/"
+	require.NoError(t, s.ds.SaveAppConfig(ctx, origAC))
+	t.Cleanup(func() {
+		ac, err := s.ds.AppConfig(ctx)
+		if err != nil {
+			return
+		}
+		ac.ServerSettings.ServerURL = origServerURL
+		_ = s.ds.SaveAppConfig(ctx, ac)
+	})
+
+	const freshToken = "my-device-link-fresh-token"
+	host := createOrbitEnrolledHost(t, "linux", "device-url-host", s.ds)
+	createDeviceTokenForHost(t, s.ds, host.ID, freshToken)
+
+	// Case 1: host has a fresh token → it should be reused as-is.
+	var resp getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusOK, &resp)
+	require.Equal(t, host.ID, resp.HostID)
+	require.Equal(t, "https://fleet.example.com/device/"+freshToken, resp.DeviceURL)
+
+	// A second call also reuses the same token (still fresh).
+	var resp2 getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusOK, &resp2)
+	require.Equal(t, resp.DeviceURL, resp2.DeviceURL)
+
+	// Case 2: host has a token but it's expired. Push updated_at into the
+	// past, then expect a freshly generated token (different from the stale
+	// one).
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_device_auth SET updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE host_id = ?`, host.ID)
+		return err
+	})
+
+	var respExpired getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusOK, &respExpired)
+	require.True(t, strings.HasPrefix(respExpired.DeviceURL, "https://fleet.example.com/device/"), "URL: %s", respExpired.DeviceURL)
+	require.NotEqual(t, resp.DeviceURL, respExpired.DeviceURL, "expected stale token to be rotated")
+
+	regenToken, err := s.ds.GetDeviceAuthToken(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, freshToken, regenToken)
+	require.Equal(t, "https://fleet.example.com/device/"+regenToken, respExpired.DeviceURL)
+
+	// Case 3: host has never had a token row → Fleet generates one.
+	hostNoToken := createOrbitEnrolledHost(t, "linux", "device-url-no-token", s.ds)
+	var respNew getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", hostNoToken.ID), nil, http.StatusOK, &respNew)
+	require.True(t, strings.HasPrefix(respNew.DeviceURL, "https://fleet.example.com/device/"), "URL: %s", respNew.DeviceURL)
+	newlyMintedToken, err := s.ds.GetDeviceAuthToken(ctx, hostNoToken.ID)
+	require.NoError(t, err)
+	require.Equal(t, "https://fleet.example.com/device/"+newlyMintedToken, respNew.DeviceURL)
+
+	// Unknown host ID: 404.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID+9999), nil, http.StatusNotFound, &resp)
+
+	// Non-global-admin roles: 403. Switch tokens, then restore admin token at end.
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	t.Run("global maintainer is forbidden", func(t *testing.T) {
+		s.setTokenForTest(t, TestMaintainerUserEmail, test.GoodPassword)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
+	})
+	t.Run("global observer is forbidden", func(t *testing.T) {
+		s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
+	})
+}

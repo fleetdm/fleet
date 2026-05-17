@@ -2472,6 +2472,98 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Get host device URL (end-user "My device" page link)
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostDeviceURLRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostDeviceURLResponse struct {
+	HostID    uint   `json:"host_id"`
+	DeviceURL string `json:"device_url"`
+	Err       error  `json:"error,omitempty"`
+}
+
+func (r getHostDeviceURLResponse) Error() error { return r.Err }
+
+func getHostDeviceURLEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getHostDeviceURLRequest)
+	url, err := svc.HostDeviceURL(ctx, req.ID)
+	if err != nil {
+		return getHostDeviceURLResponse{Err: err}, nil
+	}
+	return getHostDeviceURLResponse{HostID: req.ID, DeviceURL: url}, nil
+}
+
+// hostDeviceAuthTokenTTL mirrors the TTL applied by LoadHostByDeviceAuthToken
+// (server/service/devices.go) — any change there should match here so the
+// generated link's lifetime stays consistent with the validator's window.
+const hostDeviceAuthTokenTTL = time.Hour
+
+// HostDeviceURL returns the "My device" page URL for the given host. The
+// returned URL is guaranteed to be valid for the full TTL window:
+//   - If the host already has a fresh token (within TTL), it's reused as-is.
+//   - If the host's token is expired, Fleet generates a new one and replaces
+//     it (clearing previous_token so the old link stops working immediately).
+//   - If the host has never had a token, Fleet creates one — acting in place
+//     of orbit so an admin can always produce a working link.
+//
+// The URL is effectively a credential to act as the device's end user, so
+// access is restricted to global admins regardless of team-scoped
+// permissions.
+func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, error) {
+	// First-pass authz so the middleware is satisfied; we apply a stricter
+	// global-admin check below.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return "", err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return "", fleet.ErrNoContext
+	}
+	if vc.User == nil || vc.User.GlobalRole == nil || *vc.User.GlobalRole != fleet.RoleAdmin {
+		return "", fleet.NewPermissionError("only global admins can retrieve a host's device URL")
+	}
+
+	// Confirm the host exists; 404 cleanly if not.
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get host for device url")
+	}
+
+	// Reuse the existing token if it's still within the TTL — saves us from
+	// invalidating a link a user may already be holding.
+	token, err := svc.ds.GetDeviceAuthTokenIfFresh(ctx, host.ID, hostDeviceAuthTokenTTL)
+	switch {
+	case err == nil:
+		// fresh token in hand
+	case fleet.IsNotFound(err):
+		// Either no token row exists yet, or the existing one is expired.
+		// Generate a fresh token and upsert it, clearing previous_token.
+		newToken, genErr := server.GenerateRandomURLSafeText(24)
+		if genErr != nil {
+			return "", ctxerr.Wrap(ctx, genErr, "generate new device auth token")
+		}
+		if rotErr := svc.ds.RotateDeviceAuthToken(ctx, host.ID, newToken); rotErr != nil {
+			return "", ctxerr.Wrap(ctx, rotErr, "rotate device auth token")
+		}
+		token = newToken
+	default:
+		return "", ctxerr.Wrap(ctx, err, "check fresh device auth token")
+	}
+
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get app config for server url")
+	}
+
+	base := strings.TrimRight(ac.ServerSettings.ServerURL, "/")
+	return fmt.Sprintf("%s/device/%s", base, token), nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // MDM
 ////////////////////////////////////////////////////////////////////////////////
 

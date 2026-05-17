@@ -47,6 +47,25 @@ describe("User card", () => {
     });
   });
 
+  describe("My device button", () => {
+    it("does not render the 'My device' button by default", () => {
+      render(<User endUsers={[]} onClickUpdateUser={noop} />);
+      expect(screen.queryByText("My device")).toBeNull();
+    });
+
+    it("renders the 'My device' button when canViewMyDeviceLink is true", () => {
+      render(
+        <User
+          endUsers={[]}
+          canViewMyDeviceLink
+          onClickMyDevice={noop}
+          onClickUpdateUser={noop}
+        />
+      );
+      expect(screen.getByText("My device")).toBeInTheDocument();
+    });
+  });
+
   it("renders the chrome profiles field when has chrome profile values", () => {
     const endUsers = [
       createMockHostEndUser({
