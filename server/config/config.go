@@ -358,6 +358,7 @@ type SESConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StsExternalID    string `yaml:"sts_external_id"`
 	SourceArn        string `yaml:"source_arn"`
+	SenderDomain     string `yaml:"sender_domain"`
 }
 
 type EmailConfig struct {
@@ -1387,6 +1388,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("ses.sts_assume_role_arn", "", "ARN of role to assume for AWS")
 	man.addConfigString("ses.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigString("ses.source_arn", "", "ARN of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter")
+	man.addConfigString("ses.sender_domain", "", "Optional domain to use in the From address for SES emails. If empty, Fleet uses the hostname from server.server_url")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -1863,6 +1865,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("ses.sts_assume_role_arn"),
 			StsExternalID:    man.getConfigString("ses.sts_external_id"),
 			SourceArn:        man.getConfigString("ses.source_arn"),
+			SenderDomain:     man.getConfigString("ses.sender_domain"),
 		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),

@@ -2544,6 +2544,20 @@ If set, Fleet uses AWS Identity and Access Management (IAM) authentication inste
     ses_source_arn: arn:aws:ses:us-east-1:123456789012:identity/example.com
   ```
 
+### ses_sender_domain
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+Optionally set the domain used in the `From` address for SES emails. When configured, Fleet sends mail as `do-not-reply@<domain>`. If omitted, Fleet keeps the current behavior and uses the hostname from `server.server_url`.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SENDER_DOMAIN`
+- Config file format:
+  ```yaml
+  ses:
+    sender_domain: notifications.example.com
+  ```
+
 ### ses_sts_assume_role_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.

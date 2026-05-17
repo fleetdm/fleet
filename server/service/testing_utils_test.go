@@ -635,6 +635,7 @@ func testSESPluginConfig() config.FleetConfig {
 		SecretAccessKey:  "bar",
 		StsAssumeRoleArn: "baz",
 		SourceArn:        "qux",
+		SenderDomain:     "email.example.com",
 	}
 	return c
 }
