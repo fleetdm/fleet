@@ -153,58 +153,73 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	// sort the list of directories in descending order
 	slices.SortFunc(versionDirs, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
 
-	// this directory has the latest version data in it
-	latestVersionDir := versionDirs[0]
-	if latestVersionDir.GetName() == "" {
-		return nil, ctxerr.New(ctx, "latest version for app not found")
-	}
-
-	// this is the path to the specific manifest file we need
-	installerManifestPath := path.Join(
-		dirPath,
-		latestVersionDir.GetName(),
-		fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
-	)
-
-	fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
-		"microsoft",
-		"winget-pkgs",
-		installerManifestPath,
-		i.ghClientOpts,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "downloading file contents for installer manifest")
-	}
-
-	contents, err := fileContents.GetContent()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
-	}
-
+	// Try version directories in descending order. Some packages have nested
+	// grouping directories (e.g. "2020/20.001.30002") that look like version
+	// dirs but don't contain manifest files at the expected depth. Skip those
+	// and fall through to the next candidate.
 	var m installerManifest
-	if err := yaml.Unmarshal([]byte(contents), &m); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
-	}
-
-	localeManifestPath := path.Join(dirPath, latestVersionDir.GetName(), fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
-	fileContents, _, _, err = i.githubClient.Repositories.GetContents(ctx,
-		"microsoft",
-		"winget-pkgs",
-		localeManifestPath,
-		i.ghClientOpts,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
-	}
-
-	contents, err = fileContents.GetContent()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
-	}
-
 	var l localeManifest
-	if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
+	var versionFound bool
+	for _, versionDir := range versionDirs {
+		vName := versionDir.GetName()
+		if vName == "" {
+			continue
+		}
+
+		installerManifestPath := path.Join(
+			dirPath,
+			vName,
+			fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
+		)
+
+		fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
+			"microsoft",
+			"winget-pkgs",
+			installerManifestPath,
+			i.ghClientOpts,
+		)
+		if err != nil {
+			i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName, "err", err)
+			continue
+		}
+
+		contents, err := fileContents.GetContent()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
+		}
+
+		if err := yaml.Unmarshal([]byte(contents), &m); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
+		}
+
+		localeManifestPath := path.Join(dirPath, vName, fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
+		fileContents, _, _, err = i.githubClient.Repositories.GetContents(ctx,
+			"microsoft",
+			"winget-pkgs",
+			localeManifestPath,
+			i.ghClientOpts,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
+		}
+
+		contents, err = fileContents.GetContent()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
+		}
+
+		if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
+		}
+
+		versionFound = true
+		break
+	}
+
+	if !versionFound {
+		return nil, ctxerr.NewWithData(ctx, "no valid version manifest found for app", map[string]any{
+			"path": dirPath,
+		})
 	}
 
 	var out maintained_apps.FMAManifestApp

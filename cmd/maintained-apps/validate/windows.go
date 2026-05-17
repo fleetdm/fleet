@@ -120,6 +120,20 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
 				return true, nil
 			}
+
+			// Adobe Acrobat Pro: programs.version often does not match winget PackageVersion
+			// (e.g. 21.x in Add/Remove Programs vs 26.x in the manifest). Same existence-only
+			// fallback as Google Chrome; exclude Reader so we do not accept the wrong SKU.
+			if appName == "Adobe Acrobat Pro" {
+				ln := strings.ToLower(result.Name)
+				if strings.Contains(ln, "reader") {
+					continue
+				}
+				if strings.Contains(ln, "adobe acrobat") && strings.Contains(ln, "64-bit") {
+					logger.InfoContext(ctx, "Adobe Acrobat Pro detected - skipping strict version check (programs.version does not match winget PackageVersion)")
+					return true, nil
+				}
+			}
 		}
 	}
 
