@@ -5750,7 +5750,7 @@ func ReconcileAppleProfiles(
 				if fleet.IsAppleMobilePlatform(p.HostPlatform) {
 					errorDetail = "This setting couldn't be enforced because the user channel isn't available on iOS and iPadOS hosts."
 				} else {
-					errorDetail = "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll."
+					errorDetail = "This setting couldn't be enforced because the user channel doesn't exist for this host."
 					logger.WarnContext(ctx, "host does not have a user enrollment, failing profile installation",
 						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
 				}
