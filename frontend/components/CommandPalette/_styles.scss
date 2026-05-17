@@ -1,0 +1,284 @@
+.command-palette {
+  // Overlay backdrop
+  &__overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 99999;
+    background-color: rgba(0, 0, 0, 0.25);
+    animation: command-palette-fade-in 150ms ease-out;
+  }
+
+  // Radix Dialog content wrapper (the div[role="dialog"])
+  &__content {
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100000;
+    width: 600px;
+    max-width: 75vw;
+    animation: command-palette-fade-in 150ms ease-out;
+  }
+
+  // cmdk root (inside the content wrapper)
+  &[cmdk-root] {
+    background-color: $core-fleet-white;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 8px; // Match modal border radius
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+  }
+
+  &__input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid $ui-fleet-black-10;
+  }
+
+  &__input-icon {
+    position: absolute;
+    left: $pad-medium;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+  }
+
+  &__input {
+    width: 100%;
+    box-sizing: border-box;
+    height: 44px;
+    padding: $pad-small $pad-medium $pad-small $pad-xxlarge;
+    font-size: $x-small;
+    color: $core-fleet-black;
+    background-color: $core-fleet-white;
+    border: none;
+    outline: none;
+
+    &::placeholder {
+      color: $ui-fleet-black-50;
+    }
+  }
+
+  &__fleet-switcher-wrapper {
+    position: relative;
+    z-index: 10;
+    padding: $pad-xsmall $pad-small;
+    border-bottom: 1px solid $ui-fleet-black-10;
+  }
+
+  &__fleet-switcher {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: $pad-xsmall $pad-small;
+    border: none;
+    background: none;
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $ui-fleet-black-75;
+    cursor: pointer;
+    white-space: nowrap;
+    border-radius: $border-radius;
+
+    &:hover {
+      background-color: $ui-fleet-black-5;
+    }
+
+    &:focus-visible {
+      outline: 1px solid $ui-fleet-black-75;
+      outline-offset: -1px;
+    }
+  }
+
+  &__fleet-switcher-caret {
+    transition: transform 150ms ease;
+
+    &.rotated {
+      transform: rotate(180deg);
+    }
+  }
+
+  &__fleet-dropdown {
+    position: absolute;
+    top: 100%;
+    left: $pad-small;
+    z-index: 10;
+    min-width: 300px;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: $core-fleet-white;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: $pad-xsmall;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: $ui-fleet-black-25;
+      border-radius: 3px;
+    }
+  }
+
+  &__fleet-dropdown-item {
+    display: block;
+    width: 100%;
+    padding: $pad-small $pad-medium;
+    border: none;
+    background: none;
+    font-size: $x-small;
+    color: $core-fleet-black;
+    text-align: left;
+    cursor: pointer;
+    border-radius: $border-radius;
+    white-space: nowrap;
+
+    &:hover {
+      background-color: $ui-fleet-black-5;
+    }
+  }
+
+  &__list {
+    // ~8 items visible before scrolling
+    max-height: 320px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: $pad-small;
+    border-radius: $border-radius $border-radius 0 0;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: $ui-fleet-black-25;
+      border-radius: 3px;
+    }
+  }
+
+  &__empty {
+    padding: $pad-large $pad-medium;
+    text-align: center;
+    color: $ui-fleet-black-50;
+    font-size: $x-small;
+  }
+
+  &__group {
+    [cmdk-group-heading] {
+      padding: 10px $pad-small;
+      font-size: $x-small;
+      font-weight: $bold;
+      color: $core-fleet-black;
+      pointer-events: none;
+      user-select: none;
+    }
+  }
+
+  &__separator {
+    height: 1px;
+    background-color: $ui-fleet-black-10;
+    margin: $pad-small 0;
+  }
+
+  &__item {
+    padding: 10px $pad-medium;
+    font-size: $x-small;
+    color: $core-fleet-black;
+    background-color: transparent;
+    cursor: pointer;
+    border-radius: $border-radius;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+    transition: background-color 100ms;
+
+    &[data-selected="true"] {
+      background-color: $ui-fleet-black-5;
+    }
+
+    &:active {
+      background-color: $ui-fleet-black-10;
+    }
+  }
+
+  &__item--sub {
+    padding-left: $pad-large;
+  }
+
+  &__item-left {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  &__item-label {
+    min-width: 0;
+  }
+
+  &__item-more {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: $pad-small;
+    padding: $pad-xsmall $pad-small;
+    background: none;
+    border: none;
+    border-radius: $border-radius;
+    cursor: pointer;
+    transition: background-color 150ms ease;
+
+    .icon {
+      transition: transform 200ms ease;
+    }
+
+    &:hover {
+      background-color: $ui-fleet-black-10;
+    }
+
+    &:focus-visible {
+      position: relative;
+      outline: none;
+
+      &::after {
+        content: "";
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        border: 1px solid $core-focused-outline;
+        border-radius: $border-radius;
+      }
+    }
+
+    &--expanded .icon {
+      transform: rotate(180deg);
+    }
+  }
+
+  &__item-team {
+    flex-shrink: 0;
+    margin-left: auto;
+    padding-left: $pad-medium;
+    font-size: $x-small;
+    color: $ui-fleet-black-50;
+    font-style: italic;
+  }
+}
+
+@keyframes command-palette-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
