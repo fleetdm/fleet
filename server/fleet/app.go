@@ -1100,8 +1100,9 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	agentOptions := json.RawMessage(`{"config": {"options": {"pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
 	c.AgentOptions = &agentOptions
 
-	// Make sure an empty SSOSettings is set.
+	// Add default values for SSOSettings.
 	var ssoSettings SSOSettings
+	ssoSettings.EnableJITProvisioning = true
 	c.SSOSettings = &ssoSettings
 
 	c.Features.ApplyDefaultsForNewInstalls()

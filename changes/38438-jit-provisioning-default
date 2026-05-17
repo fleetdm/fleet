@@ -1,0 +1,2 @@
+- Enabled JIT (just-in-time) SSO user provisioning by default for new Fleet
+installations.
