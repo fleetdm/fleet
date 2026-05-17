@@ -1,0 +1,85 @@
+name: Close stale Fleetie-initiated issues
+
+# Marks open issues authored by current or former Fleeties as stale after 2 years of no activity, then
+# closes them after 14 more days of inactivity once labeled stale. Activity (any comment or update) bumps
+# `updated_at` and resets both clocks. Issues with the `bug`, `:product`, or any `customer-*` label are
+# exempt.
+#
+# Why this isn't just `actions/stale`: that action filters by labels, not by author. We can't pre-tag
+# issues with a "fleetie-initiated" label and hand off to actions/stale either, because adding a label
+# bumps `updated_at` and resets the staleness clock for the entire backlog. The closest upstream PR is
+# https://github.com/actions/stale/pull/1181 (`anyOfAuthors` allowlist input). It has been open with no
+# review since October 2024. When it merges, we should be able to replace this whole flow with a small
+# `actions/stale` config that passes the handle list from `build-fleetie-handles.js` as `anyOfAuthors`
+# and delete `stale-fleetie-issues.js` and its tests.
+#
+# Initial rollout: workflow_dispatch only, dry_run defaults to true. After the dry-run output has been
+# reviewed, switch dry_run to false and add a schedule trigger in a follow-up PR.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'If true, log candidates without writing labels, comments, or closing issues.'
+        type: boolean
+        default: true
+      max_operations:
+        description: 'Maximum GitHub API write operations per run. Each modified issue costs 2 writes (comment + label, or comment + close).'
+        type: number
+        default: 400
+  # TEMPORARY: lets the workflow run once on this PR so GitHub registers it, after which it can be
+  # triggered via `gh workflow run ... --ref <branch>`. PR runs are always treated as dry-run via the
+  # env guards below. Remove this `pull_request` block before flipping `dry_run` default to false.
+  pull_request:
+    paths:
+      - .github/workflows/close-stale-fleetie-initiated-issues.yml
+
+concurrency:
+  # Scope by event_name + ref so a pull_request trigger doesn't preempt an in-flight
+  # workflow_dispatch run, and vice versa. Same-event same-ref runs still cancel as expected.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  close-stale-fleetie-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repo
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0
+
+      - name: Build Fleetie handle list
+        env:
+          # Fine-scoped PAT with read:org on the fleetdm org. Provisioned by IT; without it the script
+          # falls back to handbook-only sources and emits a warning.
+          READ_ORG_TOKEN: ${{ secrets.FLEET_GITHUB_TOKEN_MEMBERS_READ }}
+          FLEETIE_HANDLES_OUT: ${{ runner.temp }}/fleeties.txt
+        run: node .github/scripts/build-fleetie-handles.js
+
+      - name: Stale and close Fleetie-authored issues
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          FLEETIE_HANDLES_FILE: ${{ runner.temp }}/fleeties.txt
+          # Force dry-run for every event other than workflow_dispatch.
+          DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) && 'false' || 'true' }}
+          MAX_OPERATIONS: ${{ inputs.max_operations || 400 }}
+        with:
+          script: |
+            const run = require('./.github/scripts/stale-fleetie-issues.js');
+            await run({ github, context, core });
