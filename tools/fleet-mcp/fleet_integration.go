@@ -186,6 +186,7 @@ type Policy struct {
 	ID               uint   `json:"id"`
 	Name             string `json:"name"`
 	Description      string `json:"description"`
+	Query            string `json:"query"`
 	Platform         string `json:"platform"`
 	PassingHostCount int    `json:"passing_host_count"`
 	FailingHostCount int    `json:"failing_host_count"`
