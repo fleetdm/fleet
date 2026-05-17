@@ -1,0 +1,12 @@
+{
+  "name": "Vivaldi",
+  "slug": "vivaldi/windows",
+  "package_identifier": "Vivaldi.Vivaldi",
+  "unique_identifier": "Vivaldi",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/vivaldi_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/vivaldi_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Browsers"]
+}

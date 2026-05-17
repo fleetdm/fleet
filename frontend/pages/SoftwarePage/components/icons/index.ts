@@ -233,6 +233,7 @@ import Utm from "./Utm";
 import VirtualBox from "./VirtualBox";
 import Viscosity from "./Viscosity";
 import VisualStudioCode from "./VisualStudioCode";
+import Vivaldi from "./Vivaldi";
 import Vlc from "./Vlc";
 import VncViewer from "./VncViewer";
 import WacomCenter from "./WacomCenter";
@@ -504,8 +505,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   utm: Utm,
   virtualbox: VirtualBox,
   viscosity: Viscosity,
+  vivaldi: Vivaldi,
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,
+  vivaldi: Vivaldi,
   vlc: Vlc,
   "wacom center": WacomCenter,
   "wacom tablet": WacomCenter,

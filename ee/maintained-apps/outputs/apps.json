@@ -1871,6 +1871,20 @@
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
+      "name": "Vivaldi",
+      "slug": "vivaldi/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vivaldi.Vivaldi",
+      "description": "Vivaldi is a customizable web browser designed for power users."
+    },
+    {
+      "name": "Vivaldi",
+      "slug": "vivaldi/windows",
+      "platform": "windows",
+      "unique_identifier": "Vivaldi",
+      "description": "Vivaldi is a customizable web browser designed for power users."
+    },
+    {
       "name": "VLC media player",
       "slug": "vlc/darwin",
       "platform": "darwin",
