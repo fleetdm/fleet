@@ -875,6 +875,21 @@ Enable this to significantly reduce the outbound bandwidth from the Fleet server
     gzip_responses: true
   ```
 
+### server_enable_csp
+
+If enabled, the server sends a Content-Security-Policy header on responses.
+
+A Content-Security-Policy is a defense-in-depth mechanism to protect malicious script/style injection such as XSS attacks. It should generally be enabled,
+
+- Default value: true
+- Environment variable: `FLEET_SERVER_ENABLE_CSP`
+- Config file format:
+  ```yaml
+  server:
+    enable_csp: true
+  ```
+
+
 ## Auth
 
 ### auth_sso_session_validity_period
