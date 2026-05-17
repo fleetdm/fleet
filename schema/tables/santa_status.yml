@@ -29,8 +29,20 @@ columns:
     description: Hash of the currently applied file access ruleset
     required: false
     type: text
+  - name: sync_full_sync_interval_seconds
+    description: The full sync interval in seconds
+    required: false
+    type: integer
+  - name: sync_push_notifications_full_sync_interval_seconds
+    description: The push notifications full sync interval in seconds
+    required: false
+    type: integer
   - name: sync_file_access_rules_hash
     description: Hash of the currently applied execution ruleset
+    required: false
+    type: text
+  - name: sync_push_server
+    description: The push server address
     required: false
     type: text
   - name: sync_bundle_scanning
@@ -148,7 +160,7 @@ columns:
   - name: metrics_server
     description: The address of the server Santa sends metrics to.
     required: false
-    type: integer
+    type: text
   - name: watch_items_config_path
     description: Path to the configuration file that defines watch items
     required: false
