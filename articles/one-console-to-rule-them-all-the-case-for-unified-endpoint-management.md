@@ -8,6 +8,7 @@ Your Mac fleet gets managed by one tool. Your Windows machines get another. Linu
 
 This is the hidden tax of fragmented endpoint management - and most organizations don't see the full bill until they try to add it up.
 
+
 ## The "right tool for each OS" trap
 
 The argument for point solutions is intuitive: macOS has unique management APIs, Windows has its own ecosystem, Linux is its own world. Surely a tool built specifically for each platform will do a better job than a generalist?
