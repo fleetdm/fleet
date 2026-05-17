@@ -231,17 +231,181 @@ func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint
 	return
 }
 
+// vulnerabilitiesCMOrderKeys are the columns sourced from cve_meta that the API
+// allows clients to sort by. When the OrderKey is one of these, the inner query
+// must LEFT JOIN cve_meta so the ORDER BY in the paginated subquery can
+// reference the column.
+var vulnerabilitiesCMOrderKeys = map[string]struct{}{
+	"cvss_score":         {},
+	"epss_probability":   {},
+	"cisa_known_exploit": {},
+	"cve_published":      {},
+}
+
 func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
-	// Define base select statements for EE and Free versions
-	//
-	// created_at: Use MIN() to get earliest discovery date across both tables.
-	// This is important because users can sort by this field, and in production (Dogfood)
-	// data shows significant differences (>1 year) between tables.
-	// Note: created_at can be NULL in schema but never is in practice.
-	//
-	// source: Pick first match, prioritizing software_cve.
-	// This field is not exposed in the API (json:"-").
-	// Note: source can be NULL in schema but never is in practice.
+	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
+
+	selectStmt, args, err := buildListVulnerabilitiesSQL(&opt)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list vulnerabilities")
+	}
+
+	var vulns []fleet.VulnerabilityWithMetadata
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &vulns, selectStmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list vulnerabilities")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.ListOptions.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		if len(vulns) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
+			metaData.HasNextResults = true
+			vulns = vulns[:len(vulns)-1]
+		}
+	}
+
+	return vulns, metaData, nil
+}
+
+// buildListVulnerabilitiesSQL constructs the SQL for ListVulnerabilities.
+//
+// The query is split into two stages so the expensive correlated scalar
+// subqueries that compute `created_at` (MIN across software_cve and
+// operating_system_vulnerabilities) and `source` only run on the paginated
+// page, not on every matching row in vulnerability_host_counts.
+//
+// Inner query: filter, sort, and paginate vulnerability_host_counts (with
+// an optional LEFT JOIN to cve_meta when filtering or sorting by a cve_meta
+// column). The new idx_vhc_scope_cve makes the scope filter
+// (global_stats, team_id, host_count > 0) an index range scan instead of
+// the full-table scan previously observed.
+//
+// Outer query: enrich the paginated page with the cve_meta metadata
+// columns (EE only) and the heavy created_at / source scalar subqueries.
+//
+// Special case: when OrderKey == "created_at" the value to sort by is the
+// scalar subquery output itself, so the inner query has to include it.
+// That falls back to the legacy single-statement form (preserved verbatim
+// below) — performance is unchanged for that specific sort, but every
+// other sort key benefits from the two-stage refactor.
+func buildListVulnerabilitiesSQL(opt *fleet.VulnListOptions) (string, []any, error) {
+	if opt.ListOptions.OrderKey == "created_at" {
+		return buildListVulnerabilitiesLegacySQL(opt)
+	}
+
+	_, cmOrderKey := vulnerabilitiesCMOrderKeys[opt.ListOptions.OrderKey]
+	needCMInInner := cmOrderKey || opt.KnownExploit
+
+	var inner strings.Builder
+	inner.WriteString(`
+		SELECT
+			vhc.cve,
+			vhc.host_count AS hosts_count,
+			vhc.updated_at AS hosts_count_updated_at`)
+	if cmOrderKey {
+		inner.WriteString(`,
+			cm.cvss_score,
+			cm.epss_probability,
+			cm.cisa_known_exploit,
+			cm.published AS cve_published`)
+	}
+	inner.WriteString(`
+		FROM vulnerability_host_counts vhc`)
+	if needCMInInner {
+		inner.WriteString(`
+		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve`)
+	}
+	inner.WriteString(`
+		WHERE vhc.host_count > 0
+		AND (
+			EXISTS (SELECT 1 FROM software_cve WHERE cve = vhc.cve)
+			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = vhc.cve)
+		)`)
+
+	var args []any
+	if opt.TeamID == nil {
+		inner.WriteString(" AND vhc.global_stats = 1")
+	} else {
+		inner.WriteString(" AND vhc.global_stats = 0 AND vhc.team_id = ?")
+		args = append(args, *opt.TeamID)
+	}
+	if opt.KnownExploit {
+		inner.WriteString(" AND cm.cisa_known_exploit = 1")
+	}
+
+	innerSQL := inner.String()
+	if match := opt.ListOptions.MatchQuery; match != "" {
+		innerSQL, args = searchLike(innerSQL, args, match, "vhc.cve")
+	}
+
+	// Add cve as a deterministic tie-breaker so pagination is stable across
+	// pages — vhc.cve is unique within a (global_stats, team_id) scope, so it
+	// fully orders any rows that tie on the primary sort column. See
+	// query_results.go for prior art using TestSecondaryOrderKey for this.
+	if opt.ListOptions.OrderKey != "" && opt.ListOptions.OrderKey != "cve" {
+		opt.ListOptions.TestSecondaryOrderKey = "cve"
+		opt.ListOptions.TestSecondaryOrderDirection = fleet.OrderAscending
+	}
+
+	innerSQL, args, err := appendListOptionsWithCursorToSQLSecure(innerSQL, args, &opt.ListOptions, vulnerabilitiesAllowedOrderKeys)
+	if err != nil {
+		return "", nil, err
+	}
+
+	var outer strings.Builder
+	outer.WriteString(`
+		SELECT
+			p.cve,
+			(SELECT MIN(created_at) FROM (
+				SELECT created_at FROM software_cve WHERE cve = p.cve
+				UNION ALL
+				SELECT created_at FROM operating_system_vulnerabilities WHERE cve = p.cve
+			) AS combined_dates) AS created_at,
+			COALESCE(
+				(SELECT source FROM software_cve WHERE cve = p.cve LIMIT 1),
+				(SELECT source FROM operating_system_vulnerabilities WHERE cve = p.cve LIMIT 1)
+			) AS source,`)
+	if opt.IsEE {
+		outer.WriteString(`
+			cm.cvss_score,
+			cm.epss_probability,
+			cm.cisa_known_exploit,
+			cm.published AS cve_published,
+			cm.description,`)
+	}
+	outer.WriteString(`
+			p.hosts_count,
+			p.hosts_count_updated_at
+		FROM (`)
+	outer.WriteString(innerSQL)
+	outer.WriteString(`) AS p`)
+	if opt.IsEE {
+		outer.WriteString(`
+		LEFT JOIN cve_meta cm ON cm.cve = p.cve`)
+	}
+
+	// The optimizer may not preserve the inner ORDER BY when wrapped in an
+	// outer SELECT, so restate the sort. The inner has already limited rows
+	// to the page, so this re-sort is bounded to perPage rows. Tie-break on
+	// p.cve so within-page order matches the inner's secondary sort.
+	if orderCol, ok := vulnerabilitiesAllowedOrderKeys[opt.ListOptions.OrderKey]; ok && orderCol != "" {
+		direction := "ASC"
+		if opt.ListOptions.OrderDirection == fleet.OrderDescending {
+			direction = "DESC"
+		}
+		outer.WriteString(fmt.Sprintf(" ORDER BY %s %s", orderCol, direction))
+		if orderCol != "cve" {
+			outer.WriteString(", p.cve ASC")
+		}
+	}
+
+	return outer.String(), args, nil
+}
+
+// buildListVulnerabilitiesLegacySQL preserves the original single-statement
+// query used when OrderKey == "created_at" (the only sort key that has to
+// reference the cross-table scalar subquery result).
+func buildListVulnerabilitiesLegacySQL(opt *fleet.VulnListOptions) (string, []any, error) {
 	eeSelectStmt := `
 		SELECT
 			vhc.cve as cve,
@@ -291,80 +455,64 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		)
 		`
 
-	// Choose the appropriate select statement based on EE or Free
-	var selectStmt string
-	if opt.IsEE {
-		selectStmt = eeSelectStmt
-	} else {
+	selectStmt := eeSelectStmt
+	if !opt.IsEE {
 		selectStmt = freeSelectStmt
 	}
 
-	// Prepare arguments for the query
-	var args []interface{}
+	var args []any
 	if opt.TeamID == nil {
 		selectStmt += " AND vhc.global_stats = 1"
 	} else {
 		selectStmt += " AND vhc.global_stats = 0 AND vhc.team_id = ?"
 		args = append(args, *opt.TeamID)
 	}
-
 	if opt.KnownExploit {
 		selectStmt += " AND cm.cisa_known_exploit = 1"
 	}
-
 	if match := opt.ListOptions.MatchQuery; match != "" {
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 
-	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
-	selectStmt, args, err := appendListOptionsWithCursorToSQLSecure(selectStmt, args, &opt.ListOptions, vulnerabilitiesAllowedOrderKeys)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "list vulnerabilities")
+	// Tie-break on cve so pagination is stable across pages when the primary
+	// sort column has ties.
+	if opt.ListOptions.OrderKey != "" && opt.ListOptions.OrderKey != "cve" {
+		opt.ListOptions.TestSecondaryOrderKey = "cve"
+		opt.ListOptions.TestSecondaryOrderDirection = fleet.OrderAscending
 	}
 
-	// Execute the query
-	var vulns []fleet.VulnerabilityWithMetadata
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &vulns, selectStmt, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "list vulnerabilities")
-	}
-
-	// Prepare metadata
-	var metaData *fleet.PaginationMetadata
-	if opt.ListOptions.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
-		if len(vulns) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
-			metaData.HasNextResults = true
-			vulns = vulns[:len(vulns)-1]
-		}
-	}
-
-	return vulns, metaData, nil
+	return appendListOptionsWithCursorToSQLSecure(selectStmt, args, &opt.ListOptions, vulnerabilitiesAllowedOrderKeys)
 }
 
 func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) (uint, error) {
+	// vhc.cve is already unique within a (global_stats, team_id) scope due to
+	// the existing UNIQUE KEY (cve, team_id, global_stats), so COUNT(*) gives
+	// the same result as COUNT(DISTINCT vhc.cve) but lets the optimizer pick
+	// idx_vhc_scope_cve without a dedup step.
 	selectStmt := `
-		SELECT
-			COUNT(DISTINCT vhc.cve)
+		SELECT COUNT(*)
 		FROM vulnerability_host_counts vhc
-		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
-		WHERE vhc.host_count > 0
+		`
+	if opt.KnownExploit {
+		selectStmt += `LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
+		`
+	}
+	selectStmt += `WHERE vhc.host_count > 0
 		AND (
 			EXISTS (SELECT 1 FROM software_cve WHERE cve = vhc.cve)
 			OR EXISTS (SELECT 1 FROM operating_system_vulnerabilities WHERE cve = vhc.cve)
 		)
 	`
-	var args []interface{}
+	var args []any
 	if opt.TeamID == nil {
 		selectStmt += " AND vhc.global_stats = 1"
 	} else {
 		selectStmt += " AND vhc.global_stats = 0 AND vhc.team_id = ?"
-		args = append(args, opt.TeamID)
+		args = append(args, *opt.TeamID)
 	}
-
 	if opt.KnownExploit {
 		selectStmt += " AND cm.cisa_known_exploit = 1"
 	}
-
 	if match := opt.ListOptions.MatchQuery; match != "" {
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
