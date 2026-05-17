@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -1400,4 +1401,25 @@ func (s *integrationMDMTestSuite) TestAndroidWebAppsDuplicateName() {
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		AppStoreID: webAppID2, Platform: fleet.AndroidPlatform, TeamID: &tm2.ID,
 	}, http.StatusOK, &addResp2)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidPubSubStatusReport_MissingHardwareInfo() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.enableAndroidMDM(t)
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	require.NoError(t, err)
+	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
+	require.NotEmpty(t, pubsubToken.Value)
+
+	deviceJSON := fmt.Sprintf(`{"name":%q,"appliedState":"ACTIVE"}`, createAndroidDeviceID("missing-hardware-info"))
+	req := android_service.PubSubPushRequest{
+		PubSubMessage: android.PubSubMessage{
+			Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
+			Data:       base64.StdEncoding.EncodeToString([]byte(deviceJSON)),
+		},
+	}
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 }
