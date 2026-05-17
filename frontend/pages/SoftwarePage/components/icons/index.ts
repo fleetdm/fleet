@@ -29,6 +29,7 @@ import OpenvpnConnect from "./OpenvpnConnect";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
+import RustDesk from "./RustDesk";
 import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
@@ -462,6 +463,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rider: Rider,
   "royal tsx": RoyalTsx,
   rubymine: RubyMine,
+  rustdesk: RustDesk,
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
