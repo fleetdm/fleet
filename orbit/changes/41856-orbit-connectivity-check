@@ -1,0 +1,1 @@
+* Added `orbit connectivity-check` subcommand to verify the Fleet API endpoints required for enrolled hosts, MDM, and device-facing features are reachable from the host's network path.
