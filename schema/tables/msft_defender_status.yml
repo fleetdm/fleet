@@ -1,0 +1,158 @@
+name: mdatp_status
+description: The output of `mdatp health` showing current Microsoft Defender for Endpoint statistics and configuration.
+platforms: 
+  - darwin
+evented: false
+examples: |-
+  Confirm Microsoft Defender for Endpoint is running and healthy.
+  ```
+  SELECT healthy FROM mdatp_status;
+  ```
+  
+  Check if real-time protection is enabled.
+  ```
+  SELECT real_time_protection_enabled, real_time_protection_available FROM mdatp_status;
+  ```
+  
+  View the current antivirus engine and definitions version.
+  ```
+  SELECT engine_version, definitions_version, definitions_updated FROM mdatp_status;
+  ```
+
+columns:
+  - name: app_version
+    description: Microsoft Defender application version.
+    required: false
+    type: text
+  - name: automatic_definition_update_enabled
+    description: True if automatic antivirus definition updates are enabled; otherwise, false.
+    required: false
+    type: text
+  - name: behavior_monitoring
+    description: Feature to detect real-time threats and prevention by monitoring the behavior of applications, services, and files. Values can be 'disabled' (default) or 'enabled'.
+    required: false
+    type: text
+  - name: cloud_automatic_sample_submission_consent
+    description: Current sample submission level. Can be 'None' (no submission), 'safe' (default, only non-personal data), or 'All' (all samples submitted).
+    required: false
+    type: text
+  - name: cloud_diagnostic_enabled
+    description: True if optional diagnostic data collection is enabled; otherwise, false.
+    required: false
+    type: text
+  - name: cloud_enabled
+    description: True if cloud-delivered protection is enabled; otherwise, false.
+    required: false
+    type: text
+  - name: conflicting_applications
+    description: List of applications that are possibly conflicting with Microsoft Defender for Endpoint. Includes other security products and applications known to cause compatibility issues.
+    required: false
+    type: text
+  - name: definitions_status
+    description: Status of antivirus definitions. Can be 'up_to_date', 'updating', or 'unavailable'.
+    required: false
+    type: text
+  - name: definitions_updated
+    description: Date and time of last antivirus definition update.
+    required: false
+    type: text
+  - name: definitions_updated_minutes_ago
+    description: Number of minutes since last antivirus definition update.
+    required: false
+    type: text
+  - name: definitions_version
+    description: Antivirus definition version.
+    required: false
+    type: text
+  - name: edr_client_version
+    description: Version of the EDR client running on the device.
+    required: false
+    type: text
+  - name: edr_configuration_version
+    description: EDR configuration version.
+    required: false
+    type: text
+  - name: edr_device_tags
+    description: List of tags associated with the device in the EDR system.
+    required: false
+    type: text
+  - name: edr_early_preview_enabled
+    description: Setting of EDR early preview. Can be 'disabled' or 'enabled'.
+    required: false
+    type: text
+  - name: edr_group_ids
+    description: Group ID that the device is associated with.
+    required: false
+    type: text
+  - name: edr_machine_id
+    description: Device identifier used in the Microsoft Defender portal.
+    required: false
+    type: text
+  - name: engine_load_status
+    description: Status of antivirus engine. Can be 'Engine not loaded' (process down) or 'Engine load succeeded' (process up and running).
+    required: false
+    type: text
+  - name: engine_version
+    description: Version of the antivirus engine.
+    required: false
+    type: text
+  - name: healthy
+    description: True if the product is healthy; otherwise, false.
+    required: false
+    type: text
+  - name: health_issues
+    description: Lists health issues if any exist.
+    required: false
+    type: text
+  - name: licensed
+    description: True if the device is onboarded to a tenant; otherwise, false.
+    required: false
+    type: text
+  - name: log_level
+    description: Current log level for the product. Can be 'info' or 'debug'.
+    required: false
+    type: text
+  - name: machine_guid
+    description: Unique machine identifier used by the antivirus component.
+    required: false
+    type: text
+  - name: network_protection_enforcement_level
+    description: Mode of network protection. Can be 'disabled' (all components disabled), 'block' (prevents connection to malicious websites), or 'audit' (check how blocks occur).
+    required: false
+    type: text
+  - name: network_protection_status
+    description: Status of the network protection component. Can be 'starting', 'failed_to_start', 'started', 'restarting', 'stopping', or 'stopped'.
+    required: false
+    type: text
+  - name: org_id
+    description: Organization that the device is onboarded to. Shows 'unavailable' if not yet onboarded.
+    required: false
+    type: text
+  - name: passive_mode_enabled
+    description: True if the antivirus component is set to run in passive mode; otherwise, false.
+    required: false
+    type: text
+  - name: product_expiration
+    description: Date and time when the current product version reaches end of support.
+    required: false
+    type: text
+  - name: real_time_protection_available
+    description: True if the real-time protection component is healthy; otherwise, false.
+    required: false
+    type: text
+  - name: real_time_protection_enabled
+    description: True if real-time antivirus protection is enabled; otherwise, false.
+    required: false
+    type: text
+  - name: real_time_protection_subsystem
+    description: Subsystem used to serve real-time protection. Shows 'unavailable' if real-time protection isn't operating as expected.
+    required: false
+    type: text
+  - name: release_ring
+    description: Release ring for the product deployment.
+    required: false
+    type: text
+  - name: supplementary_events_subsystem
+    description: Subsystem that provides supplementary event data. Can be 'ebpf' (default from app version 101.2408.0000 onwards) or 'auditd'.
+    required: false
+    type: text
