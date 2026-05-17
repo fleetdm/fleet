@@ -45,6 +45,11 @@ export interface IHostActivityItemComponentProps {
    * @default false
    */
   hideCancel?: boolean;
+  /** Set this to `true` when rendering on the My Device page. Items whose
+   * details modal is admin-only use this to hide the show-info button.
+   * @default false
+   */
+  isMyDevicePage?: boolean;
 }
 
 /** Used for activity items component that need a show details handler */

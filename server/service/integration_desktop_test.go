@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
@@ -549,4 +550,88 @@ func (s *integrationEnterpriseTestSuite) TestAlternativeBrowserHostSetting() {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 	require.NoError(t, res.Body.Close())
 	require.Equal(t, "althost", getDesktopResp.AlternativeBrowserHost)
+}
+
+func (s *integrationTestSuite) TestDeviceAuthenticatedActivities() {
+	t := s.T()
+
+	newHostWithToken := func(label string) (*fleet.Host, string) {
+		h, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(t.Name() + label),
+			NodeKey:         ptr.String(t.Name() + label),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s%s.local", t.Name(), label),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+
+		tok := fmt.Sprintf("token_test_device_activities_%s", label)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, h.ID, tok)
+			return err
+		})
+		return h, tok
+	}
+
+	hostA, tokenA := newHostWithToken("a")
+	hostB, tokenB := newHostWithToken("b")
+
+	// Seed a distinct past activity for each host.
+	ctx := context.Background()
+	u := s.users["admin1@example.com"]
+	activitySvc := mysqltest.NewTestActivityService(t, s.ds)
+	apiUser := &activity_api.User{ID: u.ID, Name: u.Name, Email: u.Email}
+	require.NoError(t, activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeRanScript{
+		HostID:            hostA.ID,
+		HostDisplayName:   hostA.Hostname,
+		ScriptExecutionID: "exec-a",
+		ScriptName:        "host-a.sh",
+	}))
+	require.NoError(t, activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeRanScript{
+		HostID:            hostB.ID,
+		HostDisplayName:   hostB.Hostname,
+		ScriptExecutionID: "exec-b",
+		ScriptName:        "host-b.sh",
+	}))
+
+	// hostA's token sees only hostA's activity (previously 403'd because the
+	// device-authenticated context has no user subject for the enrichment path).
+	var pastRespA listDeviceHostPastActivitiesResponse
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+tokenA+"/activities?page=0&per_page=8", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&pastRespA))
+	require.NoError(t, res.Body.Close())
+	require.Len(t, pastRespA.Activities, 1)
+	require.Equal(t, "ran_script", pastRespA.Activities[0].Type)
+	require.NotNil(t, pastRespA.Activities[0].ActorEmail)
+	require.Equal(t, u.Email, *pastRespA.Activities[0].ActorEmail)
+
+	// Host isolation: hostB's token must not surface hostA's activity. We assert
+	// the response contains only hostB's row, identified by its unique
+	// script_execution_id in the activity details payload.
+	var pastRespB listDeviceHostPastActivitiesResponse
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+tokenB+"/activities?page=0&per_page=8", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&pastRespB))
+	require.NoError(t, res.Body.Close())
+	require.Len(t, pastRespB.Activities, 1)
+	require.NotNil(t, pastRespB.Activities[0].Details)
+	require.Contains(t, string(*pastRespB.Activities[0].Details), "exec-b")
+	require.NotContains(t, string(*pastRespB.Activities[0].Details), "exec-a")
+
+	// Upcoming for hostA: empty list.
+	var upcomingResp listDeviceHostUpcomingActivitiesResponse
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+tokenA+"/activities/upcoming?page=0&per_page=8", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&upcomingResp))
+	require.NoError(t, res.Body.Close())
+	require.NotNil(t, upcomingResp.Activities)
+	require.Empty(t, upcomingResp.Activities)
+
+	// Invalid token: should be unauthorized.
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/no_such_token/activities", nil, http.StatusUnauthorized)
+	require.NoError(t, res.Body.Close())
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/no_such_token/activities/upcoming", nil, http.StatusUnauthorized)
+	require.NoError(t, res.Body.Close())
 }

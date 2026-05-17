@@ -14,6 +14,7 @@ const RanScriptActivityItem = ({
   onCancel,
   isSoloActivity,
   hideCancel,
+  isMyDevicePage,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   let ranScriptPrefix = tab === "past" ? "ran" : "told Fleet to run";
   if (tab !== "past" && activity.fleet_initiated) {
@@ -28,6 +29,7 @@ const RanScriptActivityItem = ({
       onCancel={onCancel}
       isSoloActivity={isSoloActivity}
       hideCancel={hideCancel}
+      hideShowDetails={isMyDevicePage}
     >
       <b>{activity.actor_full_name ?? "Fleet"}</b>
       <>

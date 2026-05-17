@@ -15,6 +15,10 @@ import deviceUserAPI, {
   IGetDeviceCertificatesResponse,
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
+import activitiesAPI, {
+  IHostPastActivitiesResponse,
+  IHostUpcomingActivitiesResponse,
+} from "services/entities/activities";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import { IMacadminsResponse, IDUPDetails, IHostDevice } from "interfaces/host";
 import { IListSort } from "interfaces/list_options";
@@ -30,7 +34,12 @@ import {
   isLinuxLike,
   isWindows,
 } from "interfaces/platform";
-import { IHostSoftware } from "interfaces/software";
+import {
+  IHostSoftware,
+  resolveUninstallStatus,
+  SCRIPT_PACKAGE_SOURCES,
+  SoftwareInstallUninstallStatus,
+} from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
 
 import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
@@ -54,6 +63,28 @@ import {
 } from "utilities/constants";
 
 import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
+
+import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+import {
+  VppInstallDetailsModal,
+  IVppInstallDetails,
+} from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import {
+  SoftwareInstallDetailsModal,
+  IPackageInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import { SoftwareScriptDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+import {
+  SoftwareIpaInstallDetailsModal,
+  ISoftwareIpaInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal/SoftwareIpaInstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import CertificateInstallDetailsModal, {
+  ICertificateInstallDetails,
+} from "components/ActivityDetails/InstallDetails/CertificateInstallDetailsModal";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import VitalsCard from "../cards/Vitals";
@@ -80,6 +111,7 @@ import SelfService from "../cards/Software/SelfService";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
+import ActivityCard from "../cards/Activity";
 import UserCard from "../cards/User";
 import HostHeader from "../cards/HostHeader/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
@@ -177,6 +209,38 @@ const DeviceUserPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
 
+  // activity card states
+  const [activeActivityTab, setActiveActivityTab] = useState<
+    "past" | "upcoming"
+  >("past");
+  const [activityPage, setActivityPage] = useState(0);
+
+  // activity details modal states (info icon on an activity item)
+  const [
+    packageInstallDetails,
+    setPackageInstallDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    scriptPackageDetails,
+    setScriptPackageDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    ipaPackageInstallDetails,
+    setIpaPackageInstallDetails,
+  ] = useState<ISoftwareIpaInstallDetails | null>(null);
+  const [
+    packageUninstallDetails,
+    setPackageUninstallDetails,
+  ] = useState<ISWUninstallDetailsParentState | null>(null);
+  const [
+    activityVPPInstallDetails,
+    setActivityVPPInstallDetails,
+  ] = useState<IVppInstallDetails | null>(null);
+  const [
+    activityCertificateInstallDetails,
+    setActivityCertificateInstallDetails,
+  ] = useState<ICertificateInstallDetails | null>(null);
+
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
@@ -223,9 +287,62 @@ const DeviceUserPage = ({
     }
   );
 
+  const DEVICE_ACTIVITY_PAGE_SIZE = 8;
+
+  const {
+    data: pastActivities,
+    isFetching: pastActivitiesIsFetching,
+    isError: pastActivitiesIsError,
+    refetch: refetchPastActivities,
+  } = useQuery<IHostPastActivitiesResponse, Error, IHostPastActivitiesResponse>(
+    ["device-past-activities", deviceAuthToken, activityPage],
+    () =>
+      activitiesAPI.getDeviceHostPastActivities(
+        deviceAuthToken,
+        activityPage,
+        DEVICE_ACTIVITY_PAGE_SIZE
+      ),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!deviceAuthToken,
+      keepPreviousData: true,
+    }
+  );
+
+  const {
+    data: upcomingActivities,
+    isFetching: upcomingActivitiesIsFetching,
+    isError: upcomingActivitiesIsError,
+    refetch: refetchUpcomingActivities,
+  } = useQuery<
+    IHostUpcomingActivitiesResponse,
+    Error,
+    IHostUpcomingActivitiesResponse
+  >(
+    ["device-upcoming-activities", deviceAuthToken, activityPage],
+    () =>
+      activitiesAPI.getDeviceHostUpcomingActivities(
+        deviceAuthToken,
+        activityPage,
+        DEVICE_ACTIVITY_PAGE_SIZE
+      ),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!deviceAuthToken,
+      keepPreviousData: true,
+    }
+  );
+
   const refetchExtensions = useCallback(() => {
     deviceCertificates && refetchDeviceCertificates();
-  }, [deviceCertificates, refetchDeviceCertificates]);
+    refetchPastActivities();
+    refetchUpcomingActivities();
+  }, [
+    deviceCertificates,
+    refetchDeviceCertificates,
+    refetchPastActivities,
+    refetchUpcomingActivities,
+  ]);
 
   /**
    * Hides refetch spinner and resets refetch timer,
@@ -555,6 +672,82 @@ const DeviceUserPage = ({
     setSelectedCertificate(certificate);
   };
 
+  // Handler for the "info" icon on an activity item. Mirrors the admin host
+  // page handler (HostDetailsPage `onShowActivityDetails`) but only opens the
+  // detail modals whose underlying API supports the device auth token. Ran
+  // script details are not currently exposed to device-authenticated callers
+  // so we leave that activity type without a modal.
+  const onShowActivityDetails = useCallback(
+    ({ type, details }: IShowActivityDetailsData) => {
+      const hostDisplayName =
+        host?.display_name || details?.host_display_name || "";
+      switch (type) {
+        case "installed_software":
+          if (details?.command_uuid) {
+            setIpaPackageInstallDetails({
+              fleetInstallStatus: details?.status as SoftwareInstallUninstallStatus,
+              hostDisplayName,
+              appName: getDisplayedSoftwareName(
+                details.software_title,
+                details.software_display_name
+              ),
+              commandUuid: details?.command_uuid,
+            });
+          } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
+            setScriptPackageDetails({
+              ...details,
+              host_display_name: hostDisplayName,
+            });
+          } else {
+            setPackageInstallDetails({
+              ...details,
+              host_display_name: hostDisplayName,
+            });
+          }
+          break;
+        case "uninstalled_software":
+          setPackageUninstallDetails({
+            ...details,
+            softwareName: getDisplayedSoftwareName(
+              details?.software_title,
+              details?.software_display_name
+            ),
+            uninstallStatus: resolveUninstallStatus(details?.status),
+            scriptExecutionId: details?.script_execution_id || "",
+            hostDisplayName,
+          });
+          break;
+        case "installed_app_store_app":
+          setActivityVPPInstallDetails({
+            appName: getDisplayedSoftwareName(
+              details?.software_title,
+              details?.software_display_name
+            ),
+            fleetInstallStatus: (details?.status ||
+              "pending_install") as SoftwareInstallUninstallStatus,
+            commandUuid: details?.command_uuid || "",
+            hostDisplayName,
+            platform: details?.host_platform || host?.platform,
+          });
+          break;
+        case "installed_certificate":
+          setActivityCertificateInstallDetails({
+            certificateName: details?.certificate_name || "",
+            hostDisplayName,
+            status: details?.status || "",
+            detail: details?.detail || "",
+          });
+          break;
+        default:
+          // No device-mode modal for the remaining types. Items whose modal is
+          // admin-only (ran_script, FailedEnrollmentProfileRenewal) hide their
+          // show-info icon entirely via the ActivityCard's isMyDevicePage prop.
+          break;
+      }
+    },
+    [host?.display_name, host?.platform]
+  );
+
   const resendProfile = useCallback(
     (profileUUID: string): Promise<void> => {
       return deviceUserAPI.resendProfile(deviceAuthToken, profileUUID);
@@ -775,8 +968,42 @@ const DeviceUserPage = ({
                   vitalsData={vitalsData}
                   munki={deviceMacAdminsData?.munki}
                 />
+                <ActivityCard
+                  activeTab={activeActivityTab}
+                  activities={
+                    activeActivityTab === "past"
+                      ? pastActivities
+                      : upcomingActivities
+                  }
+                  isLoading={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsFetching
+                      : upcomingActivitiesIsFetching
+                  }
+                  isError={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsError
+                      : upcomingActivitiesIsError
+                  }
+                  upcomingCount={upcomingActivities?.count || 0}
+                  canCancelActivities={false}
+                  isUpcomingDisabled={host.platform === "android"}
+                  isMyDevicePage
+                  showMDMCommandsToggle={false}
+                  showMDMCommands={false}
+                  onChangeTab={(index: number) => {
+                    setActiveActivityTab(index === 0 ? "past" : "upcoming");
+                    setActivityPage(0);
+                  }}
+                  onNextPage={() => setActivityPage(activityPage + 1)}
+                  onPreviousPage={() => setActivityPage(activityPage - 1)}
+                  onShowDetails={onShowActivityDetails}
+                  onShowCommandDetails={() => undefined}
+                  onCancel={() => undefined}
+                  onShowMDMCommands={() => undefined}
+                  onHideMDMCommands={() => undefined}
+                />
                 <UserCard
-                  className={fullWidthCardClass}
                   canWriteEndUser={false}
                   endUsers={host.end_users ?? []}
                   disableFullNameTooltip
@@ -901,6 +1128,54 @@ const DeviceUserPage = ({
           <CertificateDetailsModal
             certificate={selectedCertificate}
             onExit={() => setSelectedCertificate(null)}
+          />
+        )}
+        {!!packageInstallDetails && (
+          <SoftwareInstallDetailsModal
+            details={packageInstallDetails}
+            deviceAuthToken={deviceAuthToken}
+            onCancel={() => setPackageInstallDetails(null)}
+          />
+        )}
+        {scriptPackageDetails && (
+          <SoftwareScriptDetailsModal
+            details={scriptPackageDetails}
+            deviceAuthToken={deviceAuthToken}
+            onCancel={() => setScriptPackageDetails(null)}
+          />
+        )}
+        {ipaPackageInstallDetails && (
+          <SoftwareIpaInstallDetailsModal
+            details={{
+              appName: ipaPackageInstallDetails.appName || "",
+              fleetInstallStatus: (ipaPackageInstallDetails.fleetInstallStatus ||
+                "pending_install") as SoftwareInstallUninstallStatus,
+              hostDisplayName: ipaPackageInstallDetails.hostDisplayName || "",
+              commandUuid: ipaPackageInstallDetails.commandUuid || "",
+            }}
+            deviceAuthToken={deviceAuthToken}
+            onCancel={() => setIpaPackageInstallDetails(null)}
+          />
+        )}
+        {packageUninstallDetails && (
+          <SoftwareUninstallDetailsModal
+            {...packageUninstallDetails}
+            hostDisplayName={packageUninstallDetails.hostDisplayName || ""}
+            deviceAuthToken={deviceAuthToken}
+            onCancel={() => setPackageUninstallDetails(null)}
+          />
+        )}
+        {!!activityVPPInstallDetails && (
+          <VppInstallDetailsModal
+            details={activityVPPInstallDetails}
+            deviceAuthToken={deviceAuthToken}
+            onCancel={() => setActivityVPPInstallDetails(null)}
+          />
+        )}
+        {!!activityCertificateInstallDetails && (
+          <CertificateInstallDetailsModal
+            details={activityCertificateInstallDetails}
+            onCancel={() => setActivityCertificateInstallDetails(null)}
           />
         )}
       </>

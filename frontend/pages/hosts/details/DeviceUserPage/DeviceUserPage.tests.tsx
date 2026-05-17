@@ -4,7 +4,11 @@ import { screen, waitFor } from "@testing-library/react";
 import { IDUPDetails, IHostDevice } from "interfaces/host";
 import createMockHost from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import {
+  baseUrl,
+  createCustomRenderer,
+  createMockRouter,
+} from "test/test-utils";
 import createMockLicense from "__mocks__/licenseMock";
 
 import { IGetSetupExperienceStatusesResponse } from "services/entities/device_user";
@@ -13,11 +17,18 @@ import { IHostPolicy } from "interfaces/policy";
 
 import {
   customDeviceHandler,
+  customDevicePastActivitiesHandler,
+  customDeviceUpcomingActivitiesHandler,
   defaultDeviceCertificatesHandler,
   defaultDeviceHandler,
+  defaultDevicePastActivitiesHandler,
+  defaultDeviceUpcomingActivitiesHandler,
   deviceSetupExperienceHandler,
   emptySetupExperienceHandler,
 } from "test/handlers/device-handler";
+import { createMockHostPastActivity } from "__mocks__/activityMock";
+import { ActivityType } from "interfaces/activity";
+import { http, HttpResponse } from "msw";
 import DeviceUserPage from "./DeviceUserPage";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 
@@ -623,6 +634,227 @@ describe("Device User Page", () => {
       expect(
         screen.queryByRole("button", { name: "Resolve later" })
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Activity card", () => {
+    const detailsLocation = {
+      ...mockLocation,
+      pathname: "/device/testToken",
+    };
+
+    const setupActivityTest = () => {
+      mockServer.use(defaultDeviceHandler);
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+    };
+
+    it("renders the Activity card with Past and Upcoming tabs", async () => {
+      setupActivityTest();
+      mockServer.use(defaultDevicePastActivitiesHandler);
+      mockServer.use(defaultDeviceUpcomingActivitiesHandler);
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={detailsLocation}
+        />
+      );
+
+      // The activity card header is rendered inside the Details tab panel.
+      expect(await screen.findByText("Activity")).toBeInTheDocument();
+      // Both sub-tabs of the activity card are present.
+      expect(screen.getByText("Past")).toBeInTheDocument();
+      expect(screen.getByText("Upcoming")).toBeInTheDocument();
+    });
+
+    it("renders both Activity and User cards in the Details panel", async () => {
+      setupActivityTest();
+      mockServer.use(defaultDevicePastActivitiesHandler);
+      mockServer.use(defaultDeviceUpcomingActivitiesHandler);
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={detailsLocation}
+        />
+      );
+
+      expect(await screen.findByText("Activity")).toBeInTheDocument();
+      expect(await screen.findByText("User")).toBeInTheDocument();
+    });
+
+    it("renders past activity items returned by the device endpoint", async () => {
+      setupActivityTest();
+      mockServer.use(
+        customDevicePastActivitiesHandler({
+          activities: [
+            createMockHostPastActivity({
+              id: 101,
+              actor_full_name: "Admin User",
+            }),
+          ],
+        })
+      );
+      mockServer.use(defaultDeviceUpcomingActivitiesHandler);
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={detailsLocation}
+        />
+      );
+
+      // The past activity actor should appear inside the activity feed.
+      expect(await screen.findByText(/Admin User/)).toBeInTheDocument();
+    });
+
+    it("opens the software install details modal when clicking the info icon on an installed_software activity", async () => {
+      setupActivityTest();
+      mockServer.use(
+        customDevicePastActivitiesHandler({
+          activities: [
+            createMockHostPastActivity({
+              id: 202,
+              actor_full_name: "Admin User",
+              type: ActivityType.InstalledSoftware,
+              details: {
+                install_uuid: "test-install-uuid",
+                software_title: "Test Software",
+                status: "installed",
+              },
+            }),
+          ],
+        })
+      );
+      mockServer.use(defaultDeviceUpcomingActivitiesHandler);
+      // Stub the device install-result lookup the modal makes once opened, so
+      // the test isn't tripped by an unhandled request.
+      mockServer.use(
+        http.get(baseUrl("/device/:token/software/install/:uuid/results"), () =>
+          HttpResponse.json({ results: {} })
+        )
+      );
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      const { user } = render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={detailsLocation}
+        />
+      );
+
+      // Click the "show info" button on the activity item.
+      const infoButton = await screen.findByRole("button", {
+        name: /show info/i,
+      });
+      await user.click(infoButton);
+
+      // The modal opens with the software install details dialog.
+      expect(await screen.findByText("Install details")).toBeInTheDocument();
+    });
+
+    it("hides the show-info icon for ran_script activities (no device-mode modal)", async () => {
+      setupActivityTest();
+      mockServer.use(
+        customDevicePastActivitiesHandler({
+          activities: [
+            createMockHostPastActivity({
+              id: 303,
+              actor_full_name: "Admin User",
+              type: ActivityType.RanScript,
+              details: {
+                script_name: "noop.sh",
+                script_execution_id: "exec-noop",
+              },
+            }),
+          ],
+        })
+      );
+      mockServer.use(defaultDeviceUpcomingActivitiesHandler);
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={detailsLocation}
+        />
+      );
+
+      // The activity row renders, but the info button is hidden.
+      expect(await screen.findByText(/Admin User/)).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /show info/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides the show-info icon for failed enrollment profile renewal activities", async () => {
+      setupActivityTest();
+      mockServer.use(
+        customDevicePastActivitiesHandler({
+          activities: [
+            createMockHostPastActivity({
+              id: 404,
+              actor_full_name: "Fleet",
+              type: ActivityType.FailedEnrollmentProfileRenewal,
+              details: { command_uuid: "cmd-fail" },
+            }),
+          ],
+        })
+      );
+      mockServer.use(defaultDeviceUpcomingActivitiesHandler);
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={detailsLocation}
+        />
+      );
+
+      expect(
+        await screen.findByText(/enrollment profile renewal failed/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /show info/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it("disables the Upcoming tab on Android hosts", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.platform = "android";
+
+      mockServer.use(customDeviceHandler({ host }));
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+      mockServer.use(defaultDevicePastActivitiesHandler);
+      mockServer.use(
+        customDeviceUpcomingActivitiesHandler({ activities: [], count: 0 })
+      );
+
+      const render = createCustomRenderer({ withBackendMock: true });
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={detailsLocation}
+        />
+      );
+
+      await screen.findByText("Activity");
+      const upcomingTab = (await screen.findByText("Upcoming")).closest(
+        '[role="tab"]'
+      );
+      expect(upcomingTab).toHaveAttribute("aria-disabled", "true");
     });
   });
 });

@@ -9,6 +9,7 @@ import createMockLicense from "__mocks__/licenseMock";
 import createMockMacAdmins from "__mocks__/macAdminsMock";
 import { createMockHostCertificate } from "__mocks__/certificatesMock";
 import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
+import { createMockHostPastActivity } from "__mocks__/activityMock";
 
 import { baseUrl } from "test/test-utils";
 import { IDUPDetails } from "interfaces/host";
@@ -17,6 +18,10 @@ import {
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
+import {
+  IHostPastActivitiesResponse,
+  IHostUpcomingActivitiesResponse,
+} from "services/entities/activities";
 
 export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
   return HttpResponse.json({
@@ -89,6 +94,50 @@ export const deviceSetupExperienceHandler = (
 export const emptySetupExperienceHandler = deviceSetupExperienceHandler({
   setup_experience_results: { software: [], scripts: [] },
 });
+
+export const defaultDevicePastActivitiesHandler = http.get(
+  baseUrl("/device/:token/activities"),
+  () => {
+    return HttpResponse.json<IHostPastActivitiesResponse>({
+      activities: [],
+      meta: { has_next_results: false, has_previous_results: false },
+    });
+  }
+);
+
+export const customDevicePastActivitiesHandler = (
+  overrides?: Partial<IHostPastActivitiesResponse>
+) =>
+  http.get(baseUrl("/device/:token/activities"), () => {
+    return HttpResponse.json<IHostPastActivitiesResponse>({
+      activities: [createMockHostPastActivity()],
+      meta: { has_next_results: false, has_previous_results: false },
+      ...overrides,
+    });
+  });
+
+export const defaultDeviceUpcomingActivitiesHandler = http.get(
+  baseUrl("/device/:token/activities/upcoming"),
+  () => {
+    return HttpResponse.json<IHostUpcomingActivitiesResponse>({
+      activities: [],
+      count: 0,
+      meta: { has_next_results: false, has_previous_results: false },
+    });
+  }
+);
+
+export const customDeviceUpcomingActivitiesHandler = (
+  overrides?: Partial<IHostUpcomingActivitiesResponse>
+) =>
+  http.get(baseUrl("/device/:token/activities/upcoming"), () => {
+    return HttpResponse.json<IHostUpcomingActivitiesResponse>({
+      activities: [],
+      count: 0,
+      meta: { has_next_results: false, has_previous_results: false },
+      ...overrides,
+    });
+  });
 
 export const getDeviceVppCommandResultHandler = http.get(
   `/device/:token/software/commands/:uuid/results`,

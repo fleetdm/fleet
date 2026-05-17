@@ -7,6 +7,7 @@ package api
 type Service interface {
 	ListActivitiesService
 	ListHostPastActivitiesService
+	ListHostPastActivitiesForDeviceService
 	StreamActivitiesService
 	NewActivityService
 	CleanupExpiredActivitiesService

@@ -110,4 +110,40 @@ export default {
     const { HOST_CANCEL_ACTIVITY } = endpoints;
     return sendRequest("DELETE", HOST_CANCEL_ACTIVITY(hostId, uuid));
   },
+
+  getDeviceHostPastActivities: (
+    token: string,
+    page = DEFAULT_PAGE,
+    perPage = DEFAULT_PAGE_SIZE
+  ): Promise<IHostPastActivitiesResponse> => {
+    const { DEVICE_HOST_PAST_ACTIVITIES } = endpoints;
+
+    const queryParams = {
+      page,
+      per_page: perPage,
+    };
+
+    const queryString = buildQueryStringFromParams(queryParams);
+    const path = `${DEVICE_HOST_PAST_ACTIVITIES(token)}?${queryString}`;
+
+    return sendRequest("GET", path);
+  },
+
+  getDeviceHostUpcomingActivities: (
+    token: string,
+    page = DEFAULT_PAGE,
+    perPage = DEFAULT_PAGE_SIZE
+  ): Promise<IHostUpcomingActivitiesResponse> => {
+    const { DEVICE_HOST_UPCOMING_ACTIVITIES } = endpoints;
+
+    const queryParams = {
+      page,
+      per_page: perPage,
+    };
+
+    const queryString = buildQueryStringFromParams(queryParams);
+    const path = `${DEVICE_HOST_UPCOMING_ACTIVITIES(token)}?${queryString}`;
+
+    return sendRequest("GET", path);
+  },
 };

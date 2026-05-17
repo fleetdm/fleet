@@ -29,6 +29,9 @@ type MockActivityService struct {
 	CleanupHostActivitiesFunc        func(ctx context.Context, hostIDs []uint) error
 	CleanupHostActivitiesFuncInvoked bool
 
+	ListHostPastActivitiesForDeviceFunc        func(ctx context.Context, hostID uint, opt activity_api.ListOptions) ([]*activity_api.Activity, *activity_api.PaginationMetadata, error)
+	ListHostPastActivitiesForDeviceFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -59,4 +62,14 @@ func (m *MockActivityService) CleanupHostActivities(ctx context.Context, hostIDs
 		return m.CleanupHostActivitiesFunc(ctx, hostIDs)
 	}
 	return nil
+}
+
+func (m *MockActivityService) ListHostPastActivitiesForDevice(ctx context.Context, hostID uint, opt activity_api.ListOptions) ([]*activity_api.Activity, *activity_api.PaginationMetadata, error) {
+	m.mu.Lock()
+	m.ListHostPastActivitiesForDeviceFuncInvoked = true
+	m.mu.Unlock()
+	if m.ListHostPastActivitiesForDeviceFunc != nil {
+		return m.ListHostPastActivitiesForDeviceFunc(ctx, hostID, opt)
+	}
+	return nil, &activity_api.PaginationMetadata{}, nil
 }
