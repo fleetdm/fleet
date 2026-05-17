@@ -37,6 +37,7 @@ func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, i
 		certificate_user_principal_names,
 		certificate_seat_id,
 		admin_url,
+		allow_basic_auth,
 		challenge_url,
 		username,
 		password_encrypted,
@@ -132,6 +133,7 @@ func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSe
 		certificate_user_principal_names,
 		certificate_seat_id,
 		admin_url,
+		allow_basic_auth,
 		username,
 		password_encrypted,
 		challenge_url,
@@ -210,7 +212,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	return ca, nil
 }
 
-const argsCountInsertCertificateAuthority = 15
+const argsCountInsertCertificateAuthority = 16
 
 const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	type,
@@ -222,6 +224,7 @@ const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	certificate_user_principal_names,
 	certificate_seat_id,
 	admin_url,
+	allow_basic_auth,
 	challenge_url,
 	username,
 	password_encrypted,
@@ -240,6 +243,7 @@ const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLI
 	certificate_user_principal_names = VALUES(certificate_user_principal_names),
 	certificate_seat_id = VALUES(certificate_seat_id),
 	admin_url = VALUES(admin_url),
+	allow_basic_auth = VALUES(allow_basic_auth),
 	challenge_url = VALUES(challenge_url),
 	username = VALUES(username),
 	password_encrypted = VALUES(password_encrypted),
@@ -286,6 +290,11 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		}
 	}
 
+	allowBasicAuth := false
+	if ca.AllowBasicAuth != nil {
+		allowBasicAuth = *ca.AllowBasicAuth
+	}
+
 	args := []interface{}{
 		ca.Type,
 		ca.Name,
@@ -296,6 +305,7 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		upns,
 		ca.CertificateSeatID,
 		ca.AdminURL,
+		allowBasicAuth,
 		ca.ChallengeURL,
 		ca.Username,
 		encryptedPassword,
@@ -303,7 +313,7 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		ca.ClientID,
 		encryptedClientSecret,
 	}
-	placeholders := "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+	placeholders := "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
 	return args, placeholders, nil
 }
@@ -550,6 +560,10 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		if ca.AdminURL != nil {
 			updates = append(updates, "admin_url = ?")
 			*args = append(*args, *ca.AdminURL)
+		}
+		if ca.AllowBasicAuth != nil {
+			updates = append(updates, "allow_basic_auth = ?")
+			*args = append(*args, *ca.AllowBasicAuth)
 		}
 		if ca.Username != nil {
 			updates = append(updates, "username = ?")

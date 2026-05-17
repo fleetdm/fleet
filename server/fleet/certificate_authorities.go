@@ -74,7 +74,8 @@ type CertificateAuthority struct {
 	CertificateSeatID             *string   `json:"certificate_seat_id,omitempty" db:"certificate_seat_id"`
 
 	// NDES SCEP Proxy
-	AdminURL *string `json:"admin_url,omitempty" db:"admin_url"`
+	AdminURL       *string `json:"admin_url,omitempty" db:"admin_url"`
+	AllowBasicAuth *bool   `json:"allow_basic_auth,omitempty" db:"allow_basic_auth"`
 
 	// Smallstep
 	ChallengeURL *string `json:"challenge_url,omitempty" db:"challenge_url"`
@@ -194,11 +195,12 @@ func (h *HydrantCA) Preprocess() {
 
 // NDESSCEPProxyCA configures SCEP proxy for NDES SCEP server. Premium feature.
 type NDESSCEPProxyCA struct {
-	ID       uint   `json:"-"`
-	URL      string `json:"url"`
-	AdminURL string `json:"admin_url"`
-	Username string `json:"username"`
-	Password string `json:"password"` // not stored here -- encrypted in DB
+	ID             uint   `json:"-"`
+	URL            string `json:"url"`
+	AdminURL       string `json:"admin_url"`
+	Username       string `json:"username"`
+	Password       string `json:"password"` // not stored here -- encrypted in DB
+	AllowBasicAuth bool   `json:"allow_basic_auth,omitempty"`
 }
 
 func (n *NDESSCEPProxyCA) Preprocess() {
@@ -316,15 +318,16 @@ func (dcp *DigiCertCAUpdatePayload) Preprocess() {
 }
 
 type NDESSCEPProxyCAUpdatePayload struct {
-	URL      *string `json:"url"`
-	AdminURL *string `json:"admin_url"`
-	Username *string `json:"username"`
-	Password *string `json:"password"`
+	URL            *string `json:"url"`
+	AdminURL       *string `json:"admin_url"`
+	Username       *string `json:"username"`
+	Password       *string `json:"password"`
+	AllowBasicAuth *bool   `json:"allow_basic_auth"`
 }
 
 // IsEmpty checks if the struct only has all empty values
 func (ndesp *NDESSCEPProxyCAUpdatePayload) IsEmpty() bool {
-	return ndesp.URL == nil && ndesp.AdminURL == nil && ndesp.Username == nil && ndesp.Password == nil
+	return ndesp.URL == nil && ndesp.AdminURL == nil && ndesp.Username == nil && ndesp.Password == nil && ndesp.AllowBasicAuth == nil
 }
 
 // ValidateRelatedFields verifies that fields that are related to each other are set correctly.
@@ -536,12 +539,17 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				return nil, errors.New("multiple NDESSCEP proxy CAs found when grouping")
 			}
 
+			allowBasicAuth := false
+			if ca.AllowBasicAuth != nil {
+				allowBasicAuth = *ca.AllowBasicAuth
+			}
 			grouped.NDESSCEP = &NDESSCEPProxyCA{
-				ID:       ca.ID,
-				URL:      *ca.URL,
-				AdminURL: *ca.AdminURL,
-				Username: *ca.Username,
-				Password: *ca.Password,
+				ID:             ca.ID,
+				URL:            *ca.URL,
+				AdminURL:       *ca.AdminURL,
+				Username:       *ca.Username,
+				Password:       *ca.Password,
+				AllowBasicAuth: allowBasicAuth,
 			}
 
 		case string(CATypeHydrant):
