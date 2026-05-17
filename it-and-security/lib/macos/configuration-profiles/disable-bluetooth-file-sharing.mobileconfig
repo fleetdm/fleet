@@ -2,28 +2,29 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-
-	<key>PayloadDescription</key>
-	<string>This profile configuration is designed to apply the CIS Benchmark for macOS 10.14 (v2.0.0), 10.15 (v2.0.0), 11.0 (v2.0.0), and 12.0 (v1.0.0)</string>
-	<key>PayloadDisplayName</key>
-	<string>Disable Bluetooth sharing</string>
-	<key>PayloadEnabled</key>
-	<true/>
-	<key>PayloadIdentifier</key>
-	<string>cis.macOSBenchmark.section2.BluetoothSharing</string>
-	<key>PayloadScope</key>
-	<string>System</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>5CEBD712-28EB-432B-84C7-AA28A5A383D8</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
-    <key>PayloadRemovalDisallowed</key>
-    <true/>
+	<key>PayloadIdentifier</key>
+	<string>cis.macOSBenchmark.section2.BluetoothSharing</string>
+	<key>PayloadUUID</key>
+	<string>CC10A605-0639-4DE0-9BF1-E391F6C6DE05</string>
+	<key>PayloadDisplayName</key>
+	<string>Disable Bluetooth sharing</string>
 	<key>PayloadContent</key>
 	<array>
 		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.ManagedClient.preferences</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>0240DD1C-70DC-4766-9018-04322BFEEAD1</string>
+			<key>PayloadUUID</key>
+			<string>F0998078-BC41-4340-9201-E9F987063CFC</string>
+			<key>PayloadEnabled</key>
+			<true/>
 			<key>PayloadContent</key>
 			<dict>
 				<key>com.apple.Bluetooth</key>
@@ -44,17 +45,15 @@
 			<string>Disables Bluetooth Sharing</string>
 			<key>PayloadDisplayName</key>
 			<string>Custom</string>
-			<key>PayloadEnabled</key>
-			<true/>
-			<key>PayloadIdentifier</key>
-			<string>0240DD1C-70DC-4766-9018-04322BFEEAD1</string>
-			<key>PayloadType</key>
-			<string>com.apple.ManagedClient.preferences</string>
-			<key>PayloadUUID</key>
-			<string>0240DD1C-70DC-4766-9018-04322BFEEAD1</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
 		</dict>
 	</array>
+	<key>PayloadDescription</key>
+	<string>This profile configuration is designed to apply the CIS Benchmark for macOS 10.14 (v2.0.0), 10.15 (v2.0.0), 11.0 (v2.0.0), and 12.0 (v1.0.0)</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadEnabled</key>
+	<true/>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
 </dict>
 </plist>

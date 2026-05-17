@@ -2,30 +2,30 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>PayloadContent</key>
-    <array>
-        <dict>
-            <key>DisableGuestAccount</key>
-            <true/>
-            <key>PayloadIdentifier</key>
-            <string>com.example.myaccountpayload</string>
-            <key>PayloadType</key>
-            <string>com.apple.MCX</string>
-            <key>PayloadUUID</key>
-            <string>5d4e377c-108c-44af-a46e-97a5aac1e270</string>
-            <key>PayloadVersion</key>
-            <integer>1</integer>
-        </dict>
-    </array>
-    <key>PayloadDisplayName</key>
-    <string>Disable guest account</string>
-    <key>PayloadIdentifier</key>
-    <string>com.fleet.disable-guest-account</string>
-    <key>PayloadType</key>
-    <string>Configuration</string>
-    <key>PayloadUUID</key>
-    <string>8cd28a9d-625e-4056-bbd0-43617bb8efb7</string>
-    <key>PayloadVersion</key>
-    <integer>1</integer>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.fleet.disable-guest-account</string>
+	<key>PayloadUUID</key>
+	<string>D05166FA-3FD4-4EF4-AAFF-CF79FA5E0C0E</string>
+	<key>PayloadDisplayName</key>
+	<string>Disable guest account</string>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.MCX</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.example.myaccountpayload</string>
+			<key>PayloadUUID</key>
+			<string>7D09119D-3019-4A39-A1BC-89B076142B4D</string>
+			<key>DisableGuestAccount</key>
+			<true/>
+		</dict>
+	</array>
 </dict>
 </plist>

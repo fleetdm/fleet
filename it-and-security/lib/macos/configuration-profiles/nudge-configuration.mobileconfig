@@ -2,46 +2,27 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.nudge.managed</string>
+	<key>PayloadUUID</key>
+	<string>2F554729-CAAD-4F5F-A5FC-948D9DF8B443</string>
+	<key>PayloadDisplayName</key>
+	<string>Nudge settings</string>
 	<key>PayloadContent</key>
 	<array>
 		<dict>
-			<key>PayloadDisplayName</key>
-			<string>Nudge Preferences</string>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.nudge.preferences</string>
 			<key>PayloadType</key>
 			<string>com.github.macadmins.Nudge</string>
-			<key>PayloadUUID</key>
-			<string>69B22694-8FF8-40A0-AEE6-D5385BBF765D</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
-			<key>optionalFeatures</key>
-			<dict>
-				<key>acceptableApplicationBundleIDs</key>
-				<array>
-					<string>us.zoom.xos</string>
-				</array>
-				<key>acceptableCameraUsage</key>
-				<true/>
-				<key>acceptableScreenSharingUsage</key>
-				<true/>
-				<key>aggressiveUserExperience</key>
-				<false/>
-				<key>asynchronousSoftwareUpdate</key>
-				<true/>
-				<key>attemptToFetchMajorUpgrade</key>
-				<true/>
-				<key>disableNudgeForStandardInstalls</key>
-				<false/>
-				<key>disableSoftwareUpdateWorkflow</key>
-				<false/>
-				<key>enforceMinorUpdates</key>
-				<true/>
-				<key>utilizeSOFAFeed</key>
-				<true/>
-				<key>refreshSOFAFeedTime</key>
-				<string>300</string>
-			</dict>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.nudge.preferences</string>
+			<key>PayloadUUID</key>
+			<string>75E35729-7B1B-4B35-8604-F6AFDCB6E443</string>
 			<key>osVersionRequirements</key>
 			<array>
 				<dict>
@@ -61,41 +42,6 @@
 					<string>26</string>
 				</dict>
 			</array>
-			<key>userExperience</key>
-			<dict>
-				<key>allowGracePeriods</key>
-				<true/>
-				<key>allowLaterDeferralButton</key>
-				<true/>
-				<key>allowMovableWindow</key>
-				<false/>
-				<key>allowUserQuitDeferrals</key>
-				<true/>
-				<key>allowedDeferrals</key>
-				<integer>1000000</integer>
-				<key>approachingRefreshCycle</key>
-				<integer>86400</integer>
-				<key>approachingWindowTime</key>
-				<integer>120</integer>
-				<key>elapsedRefreshCycle</key>
-				<integer>7200</integer>
-				<key>gracePeriodInstallDelay</key>
-				<integer>336</integer>
-				<key>gracePeriodLaunchDelay</key>
-				<integer>168</integer>
-				<key>imminentRefreshCycle</key>
-				<integer>86400</integer>
-				<key>imminentWindowTime</key>
-				<integer>0</integer>
-				<key>initialRefreshCycle</key>
-				<integer>259200</integer>
-				<key>nudgeMajorUpgradeEventLaunchDelay</key>
-				<integer>0</integer>
-				<key>nudgeMinorUpdateEventLaunchDelay</key>
-				<integer>0</integer>
-				<key>randomDelay</key>
-				<false/>
-			</dict>
 			<key>userInterface</key>
 			<dict>
 				<key>fallbackLanguage</key>
@@ -158,18 +104,80 @@ If you have any questions or need any assistance, please reach out via #help-it 
 					</dict>
 				</array>
 			</dict>
+			<key>userExperience</key>
+			<dict>
+				<key>allowGracePeriods</key>
+				<true/>
+				<key>allowLaterDeferralButton</key>
+				<true/>
+				<key>allowMovableWindow</key>
+				<false/>
+				<key>allowUserQuitDeferrals</key>
+				<true/>
+				<key>allowedDeferrals</key>
+				<integer>1000000</integer>
+				<key>approachingRefreshCycle</key>
+				<integer>86400</integer>
+				<key>approachingWindowTime</key>
+				<integer>120</integer>
+				<key>elapsedRefreshCycle</key>
+				<integer>7200</integer>
+				<key>gracePeriodInstallDelay</key>
+				<integer>336</integer>
+				<key>gracePeriodLaunchDelay</key>
+				<integer>168</integer>
+				<key>imminentRefreshCycle</key>
+				<integer>86400</integer>
+				<key>imminentWindowTime</key>
+				<integer>0</integer>
+				<key>initialRefreshCycle</key>
+				<integer>259200</integer>
+				<key>nudgeMajorUpgradeEventLaunchDelay</key>
+				<integer>0</integer>
+				<key>nudgeMinorUpdateEventLaunchDelay</key>
+				<integer>0</integer>
+				<key>randomDelay</key>
+				<false/>
+			</dict>
+			<key>PayloadDisplayName</key>
+			<string>Nudge Preferences</string>
+			<key>optionalFeatures</key>
+			<dict>
+				<key>acceptableApplicationBundleIDs</key>
+				<array>
+					<string>us.zoom.xos</string>
+				</array>
+				<key>acceptableCameraUsage</key>
+				<true/>
+				<key>acceptableScreenSharingUsage</key>
+				<true/>
+				<key>aggressiveUserExperience</key>
+				<false/>
+				<key>asynchronousSoftwareUpdate</key>
+				<true/>
+				<key>attemptToFetchMajorUpgrade</key>
+				<true/>
+				<key>disableNudgeForStandardInstalls</key>
+				<false/>
+				<key>disableSoftwareUpdateWorkflow</key>
+				<false/>
+				<key>enforceMinorUpdates</key>
+				<true/>
+				<key>utilizeSOFAFeed</key>
+				<true/>
+				<key>refreshSOFAFeedTime</key>
+				<string>300</string>
+			</dict>
 		</dict>
 		<dict>
-			<key>PayloadDisplayName</key>
-			<string>Allow Nudge background tasks</string>
-			<key>PayloadIdentifier</key>
-			<string>com.apple.servicemanagement.9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
 			<key>PayloadType</key>
 			<string>com.apple.servicemanagement</string>
-			<key>PayloadUUID</key>
-			<string>9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.servicemanagement.9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
+			<key>PayloadUUID</key>
+			<string>BF921684-81A8-4429-95EB-79F5BD6F808E</string>
 			<key>Rules</key>
 			<array>
 				<dict>
@@ -179,21 +187,13 @@ If you have any questions or need any assistance, please reach out via #help-it 
 					<string>com.github.macadmins.Nudge</string>
 				</dict>
 			</array>
+			<key>PayloadDisplayName</key>
+			<string>Allow Nudge background tasks</string>
 		</dict>
 	</array>
-	<key>PayloadDisplayName</key>
-	<string>Nudge settings</string>
-	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.nudge.managed</string>
-	<key>PayloadOrganization</key>
-	<string>Fleet</string>
 	<key>PayloadScope</key>
 	<string>System</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>4B4C950F-995A-4567-B0B2-9A34EB4C22AC</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
 </dict>
 </plist>
