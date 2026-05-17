@@ -4942,6 +4942,7 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
+
 On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again.
 
 On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
@@ -12184,6 +12185,9 @@ Deletes software that's available for install. This won't uninstall the software
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
+- [Dismiss vulnerabilities](#dismiss-vulnerabilities)
+- [Restore vulnerabilities](#restore-vulnerabilities)
+  
 
 ### List vulnerabilities
 
@@ -12203,6 +12207,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+| dismissed | string | query | Filters by dismissal status. Options: `true` (dismissed only), `false` (active only, default), `all` (both). When `all`, dismissed vulnerabilities include a dismissed object in the response. |
 
 
 ##### Default response
@@ -12223,6 +12228,16 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "cisa_known_exploit": false,// Available in Fleet Premium
       "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
       "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+      "dismissed": {
+        "dismissed_at": "2026-05-01T14:32:00Z",
+        "dismissed_by": {
+          "id": 42,
+          "email": "jane@example.com",
+          "name": "Jane Doe"
+        },
+        "reason": "acceptable_risk",
+        "comment": "Reviewed with security team..."
+      }
     }
   ],
   "count": 123,
@@ -12270,6 +12285,16 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
   "cisa_known_exploit": false,// Available in Fleet Premium
   "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
   "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+  "dismissed": {
+      "dismissed_at": "2026-05-01T14:32:00Z",
+      "dismissed_by": {
+        "id": 42,
+        "email": "jane@example.com",
+        "name": "Jane Doe"
+      },
+      "reason": "acceptable_risk",
+      "comment": "Reviewed with security team..."
+    }
   "os_versions" : [
     {
       "os_version_id": 6,
@@ -12300,6 +12325,148 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 ```
 
 The `extension_for` field is included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
+
+### Dismiss vulnerabilities
+
+Marks one or more vulnerabilities as dismissed. Dismissed vulnerabilities are hidden from the default list view, excluded from webhook notifications, and excluded from Jira/Zendesk ticket automations.
+Dismissing vulnerabilities generates `dismissed_vulnerability` activity entries (see audit logs).
+
+#### Parameters
+
+| Name    | Type    | In    | Description                                                                                                                  |
+|---------|---------|-------|------------------------------------------------------------------------------------------------------------------------------|
+| cves     | array  | body  | **Required.** Array of CVE identifiers to dismiss.                            |
+| reason | string | body | **Required.** Reason for dismissal. See accepted values below. |
+| comment | string | body | Optional additional context. Max 500 characters. |
+| fleet_id | integer | query | *Fleet Premium.* Scope the dismissal to the specified fleet. When omitted, applies globally. |
+
+`POST /api/v1/fleet/vulnerabilities/dismiss`
+
+#### Accepted Reason Values
+`false_positive`
+`acceptable_risk`
+`mitigated_by_other_controls`
+`pending_vendor_fix`
+`not_applicable`
+`other`
+
+
+#### Request Body
+
+```json
+{
+  "cves": ["CVE-2024-7521", "CVE-2024-3094"],
+  "reason": "acceptable_risk",
+  "comment": "Reviewed with security team..."
+}
+```
+
+
+#### Default Response
+`Status: 200`
+
+```json
+{
+  "dismissed_count": 2,
+  "cves": ["CVE-2024-7521", "CVE-2024-3094"]
+}
+```
+#### Unprocessable Entity
+`Status: 422`
+
+The same error will be returned whenever one of the required parameters fails the validation.
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "reason",
+      "reason": "must be one of: false_positive, ..."
+    }
+  ]
+}
+```
+
+#### Not Found
+`Status: 404`
+
+```json
+{
+  "message": "Not Found",
+  "errors": [
+    {
+      "name": "cves",
+      "reason": "CVE-0000-0000 not found"
+    }
+  ]
+}
+```
+
+#### Conflict
+`Status: 409`
+
+Returned when cve(s) have already been dismissed.
+
+```json
+{
+  "message": "Conflict",
+  "errors": [
+    {
+      "name": "cves",
+      "reason": "CVE-2024-7521 is already dismissed"
+    }
+  ]
+}
+```
+
+### Restore vulnerabilities
+
+Removes the dismissal from one or more vulnerabilities, returning them to active status. Restored vulnerabilities will once again appear in the default list view and be included in automations.
+Restoring vulnerabilities generates `restored_vulnerability` activity entries (see audit logs).
+
+`POST /api/v1/fleet/vulnerabilities/restore`
+
+#### Parameters
+
+| Name    | Type    | In    | Description                                                                                                                  |
+|---------|---------|-------|------------------------------------------------------------------------------------------------------------------------------|
+| cves     | array  | body  | **Required.** Array of CVE identifiers to restore.                          |
+| fleet_id | integer | query | *Fleet Premium.* Scope the restoration to the specified fleet. When omitted, applies globally. |
+
+#### Request Body
+
+```json
+{
+  "cves": ["CVE-2024-7521", "CVE-2024-3094"],
+}
+```
+
+
+#### Default response
+`Status: 200`
+```json
+{
+  "restored_count": 1,
+  "cves": ["CVE-2024-7521"]
+}
+```
+
+
+#### Bad Request
+`Status: 400`
+
+```json
+{
+  "message": "Bad Request",
+  "errors": [
+    {
+      "name": "cves",
+      "reason": "CVE-2024-7521 is not currently dismissed"
+    }
+  ]
+}
+```
 
 ---
 
