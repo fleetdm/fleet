@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"crypto/md5" //nolint:gosec // (only used for tests)
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -51,6 +52,7 @@ func TestPolicies(t *testing.T) {
 		{"Save", testPoliciesSave},
 		{"DelUser", testPoliciesDelUser},
 		{"FlippingPoliciesForHost", testFlippingPoliciesForHost},
+		{"NarrowedMembershipUpsert", testPoliciesNarrowedMembershipUpsert},
 		{"PlatformUpdate", testPolicyPlatformUpdate},
 		{"CleanupPolicyMembership", testPolicyCleanupPolicyMembership},
 		{"DeleteAllPolicyMemberships", testDeleteAllPolicyMemberships},
@@ -2916,6 +2918,101 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, newFailing)
 	require.Empty(t, newPassing)
+}
+
+// testPoliciesNarrowedMembershipUpsert pins the five delta cases that
+// RecordPolicyQueryExecutions handles (via policiesNeedingMembershipWrite)
+// after the #44191 optimization: first-run-pass writes a row, steady-state
+// re-reports skip the UPSERT (preserving updated_at), real flips update the
+// row, nil-incoming clears existing rows to NULL, and first-run-nil does
+// not create a row.
+func testPoliciesNarrowedMembershipUpsert(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("narrowed-upsert-host"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("narrowed-upsert-host"),
+		UUID:            "narrowed-upsert-host",
+		Hostname:        "narrowed-upsert-host.local",
+	})
+	require.NoError(t, err)
+
+	policyA, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "narrowed-upsert-policyA",
+		Query: "select 1;",
+	})
+	require.NoError(t, err)
+	policyB, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "narrowed-upsert-policyB",
+		Query: "select 2;",
+	})
+	require.NoError(t, err)
+
+	type membershipRow struct {
+		Passes    sql.NullBool `db:"passes"`
+		UpdatedAt time.Time    `db:"updated_at"`
+	}
+	getRow := func(t *testing.T, policyID uint) (membershipRow, bool) {
+		var row membershipRow
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &row,
+			`SELECT passes, updated_at FROM policy_membership WHERE host_id = ? AND policy_id = ?`,
+			host.ID, policyID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return membershipRow{}, false
+		}
+		require.NoError(t, err)
+		return row, true
+	}
+
+	// 1. First-run passing → row created with passes=true.
+	t1 := time.Now().UTC().Truncate(time.Second)
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{policyA.ID: new(true)}, t1, false, nil))
+	row, ok := getRow(t, policyA.ID)
+	require.True(t, ok, "first-run passing should create the row")
+	require.True(t, row.Passes.Valid)
+	require.True(t, row.Passes.Bool)
+	originalUpdatedAt := row.UpdatedAt
+
+	// 2. Steady-state re-report → no UPSERT, updated_at unchanged. We pass a
+	// clearly different timestamp; if our optimization works, the stored
+	// updated_at should still match the original (not the new t2).
+	t2 := t1.Add(2 * time.Minute)
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{policyA.ID: new(true)}, t2, false, nil))
+	row, _ = getRow(t, policyA.ID)
+	require.True(t, row.Passes.Valid)
+	require.True(t, row.Passes.Bool)
+	require.Equal(t, originalUpdatedAt.Unix(), row.UpdatedAt.Unix(),
+		"steady-state re-report should not refresh updated_at")
+
+	// 3. Real flip (passing → failing) → row updated.
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{policyA.ID: new(false)}, time.Now(), false, nil))
+	row, ok = getRow(t, policyA.ID)
+	require.True(t, ok)
+	require.True(t, row.Passes.Valid)
+	require.False(t, row.Passes.Bool, "flip should update stored value to false")
+
+	// 4. Nil-incoming over existing known value → cleared to NULL.
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{policyA.ID: nil}, time.Now(), false, nil))
+	row, ok = getRow(t, policyA.ID)
+	require.True(t, ok, "row should still exist after nil-clear")
+	require.False(t, row.Passes.Valid, "passes should be NULL after nil-incoming clears it")
+
+	// 5. First-run nil → no row created (nothing to record).
+	_, exists := getRow(t, policyB.ID)
+	require.False(t, exists, "precondition: no row for policyB")
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{policyB.ID: nil}, time.Now(), false, nil))
+	_, exists = getRow(t, policyB.ID)
+	require.False(t, exists, "first-run nil should not create a row")
 }
 
 func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
