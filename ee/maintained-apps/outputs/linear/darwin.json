@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.30.0",
+      "version": "1.30.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear' AND version_compare(bundle_short_version, '1.30.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear') AND version_compare(bundle_short_version, '1.30.2') < 0);"
       },
-      "installer_url": "https://releases.linear.app/Linear-1.30.0-universal.dmg",
+      "installer_url": "https://releases.linear.app/Linear-1.30.2-universal.dmg",
       "install_script_ref": "a8868f79",
       "uninstall_script_ref": "86c828e9",
-      "sha256": "81802428822e83a10997f2b5545fc00102c9444ddb340d705754b3517c50fc86",
+      "sha256": "b9db4deec3a76d3d41ebce2afc984f146abc998be173909b4f1b898ba35815a7",
       "default_categories": [
         "Developer tools"
       ]

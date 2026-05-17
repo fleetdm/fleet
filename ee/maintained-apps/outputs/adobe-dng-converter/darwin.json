@@ -4,7 +4,7 @@
       "version": "18.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.DNGConverter';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.DNGConverter' AND version_compare(bundle_short_version, '18.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.DNGConverter') AND version_compare(bundle_short_version, '18.3') < 0);"
       },
       "installer_url": "https://download.adobe.com/pub/adobe/dng/mac/DNGConverter_18_3.dmg",
       "install_script_ref": "f3bdbd2a",

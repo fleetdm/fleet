@@ -4,7 +4,7 @@
       "version": "9.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.philandro.anydesk';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.philandro.anydesk' AND version_compare(bundle_short_version, '9.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.philandro.anydesk') AND version_compare(bundle_short_version, '9.7.0') < 0);"
       },
       "installer_url": "https://download.anydesk.com/anydesk.dmg",
       "install_script_ref": "a3e522af",

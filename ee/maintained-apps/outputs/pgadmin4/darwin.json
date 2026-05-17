@@ -4,7 +4,7 @@
       "version": "9.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.pgadmin.pgadmin4';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.pgadmin.pgadmin4' AND version_compare(bundle_short_version, '9.15') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'org.pgadmin.pgadmin4') AND version_compare(bundle_short_version, '9.15') < 0);"
       },
       "installer_url": "https://ftp.postgresql.org/pub/pgadmin/pgadmin4/v9.15/macos/pgadmin4-9.15-arm64.dmg",
       "install_script_ref": "f011b895",

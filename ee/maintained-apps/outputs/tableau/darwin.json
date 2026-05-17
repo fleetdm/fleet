@@ -4,7 +4,7 @@
       "version": "2026.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tableausoftware.Desktop.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tableausoftware.Desktop.app' AND version_compare(bundle_short_version, '2026.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.tableausoftware.Desktop.app') AND version_compare(bundle_short_version, '2026.1.1') < 0);"
       },
       "installer_url": "https://downloads.tableau.com/esdalt/2026.1.1/TableauDesktop-2026-1-1-arm64.dmg",
       "install_script_ref": "3d60fdfd",

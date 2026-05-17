@@ -4,7 +4,7 @@
       "version": "3.5.208",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'ClickUp' AND publisher = 'ClickUp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ClickUp' AND publisher = 'ClickUp' AND version_compare(version, '3.5.208') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'ClickUp' AND publisher = 'ClickUp') AND version_compare(version, '3.5.208') < 0);"
       },
       "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp-3.5.208-build-260505zrf6t7imk-x64.msi",
       "install_script_ref": "8959087b",
