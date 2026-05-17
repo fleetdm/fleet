@@ -4963,6 +4963,7 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "bundle_identifier": "com.google.Chrome",
       "icon_url": null,
       "software_package": {
         "name": "GoogleChrome.pkg",
@@ -4997,27 +4998,169 @@ Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only su
       ]
     },
     {
-      "id": 134,
-      "name": "Falcon.app",
+      "id": 147,
+      "name": "Logic Pro",
+      "bundle_identifier": "com.apple.logic10",
+      "icon_url": "/api/latest/fleet/software/titles/147/icon?fleet_id=2",
+      "software_package": null,
+      "app_store_app": {
+        "app_store_id": "1091189122",
+        "platform": "darwin",
+        "version": "2.04",
+        "self_service": false,
+        "last_install": {
+          "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
+          "installed_at": "2024-05-15T15:23:57Z"
+        },
+      },
+      "source": "apps",
+      "status": "installed",
+      "installed_versions": [
+        {
+          "version": "118.0",
+          "bundle_identifier": "com.apple.logic10",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234"],
+          "installed_paths": ["/Applications/Logic Pro.app"],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Logic Pro.app",
+              "team_identifier": "",
+              "hash_sha256": null,
+              "executable_sha256": null,
+              "executable_path": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 150,
+      "name": "GitHub Copilot",
+      "software_package": null,
+      "app_store_app": null,
+      "source": "jetbrains_plugins",
+      "extension_for": "goland",
+      "installed_versions": [
+        {
+          "version": "1.2.3",
+          "vulnerabilities": [],
+          "installed_paths": ["/Users/username/Library/Application Support/JetBrains/GoLand2025.2/plugins/github-copilot-intellij"],
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "MyCustomApp",
+      "software_package": {
+        "name": "MyCustomApp-1.12.ipa",
+        "platform": "ios",
+        "version": "1.12",
+        "self_service": false,
+        "automatic_install_policies": null,
+        "last_install": null,
+        "last_uninstall": null
+      },
+      "app_store_app": null,
+      "versions_count": 1,
+      "source": "ios_apps",
+      "hosts_count": 48,
+      "versions": [
+        {
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": null
+        }
+      ],
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Get host's software by Fleet Desktop token
+
+`GET /api/v1/fleet/device/:token/software`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| token   | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| query   | string | query | Search query keywords. Searchable fields include `name`. |
+| available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`. |
+| self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`. |
+| vulnerable | boolean | query | If `true` or `1`, only list software that have vulnerabilities. Default is `false`. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+| order_key | string | query | What to order results by. Options include `"name"`. Default is `"name"`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+
+On macOS hosts, `last_opened_at` is supported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again.
+
+On Windows hosts, `last_opened_at` is supported for software from the `programs` source. On Linux hosts, `last_opened_at` is supported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
+
+Currently, `hash_sha256`, `executable_sha256`, and `executable_path` are only supported for macOS software from the `apps` source. `hash_sha256` is the [`cdhash_sha256`](https://fleetdm.com/tables/codesign).
+
+#### Example
+
+`GET /api/v1/fleet/device/:token/software`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 3,
+  "software": [
+    {
+      "id": 121,
+      "name": "Google Chrome.app",
+      "bundle_identifier": "com.google.Chrome"
       "icon_url": null,
       "software_package": {
-        "name": "FalconSensor-6.44.pkg",
+        "name": "GoogleChrome.pkg",
         "platform": "darwin",
-        "self_service": false,
-        "last_install": null,
-        "last_uninstall": {
-          "script_execution_id": "ed579e73-0f41-46c8-aaf4-3c1e5880ed27",
-          "uninstalled_at": "2024-05-15T15:23:57Z"
+        "version": "125.12.0.3",
+        "self_service": true,
+        "last_install": {
+          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+          "installed_at": "2024-05-15T15:23:57Z"
         }
       },
       "app_store_app": null,
-      "source": "",
-      "status": "pending_uninstall",
-      "installed_versions": [],
+      "source": "apps",
+      "status": "failed_install",
+      "installed_versions": [
+        {
+          "version": "121.0",
+          "bundle_identifier": "com.google.Chrome",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Applications/Google Chrome.app"],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Google Chrome.app",
+              "team_identifier": "EQHXZ8M8AV",
+              "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b",
+              "executable_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
+              "executable_path": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": 147,
       "name": "Logic Pro",
+      "bundle_identifier": "com.apple.logic10"
       "icon_url": "/api/latest/fleet/software/titles/147/icon?fleet_id=2",
       "software_package": null,
       "app_store_app": {
@@ -5800,7 +5943,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 | Name        | Type   | In   | Description                                                                                                                                                                                                                                  |
 | ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| token        | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| token        | string | path | **Required.** The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
 
 
 #### Example 

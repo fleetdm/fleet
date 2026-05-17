@@ -3430,6 +3430,7 @@ type hostSoftware struct {
 	ExitCode              *int       `db:"exit_code"`
 	LastOpenedAt          *time.Time `db:"last_opened_at"`
 	BundleIdentifier      *string    `db:"bundle_identifier"`
+	TitleBundleIdentifier *string    `db:"title_bundle_identifier"`
 	Version               *string    `db:"version"`
 	SoftwareID            *uint      `db:"software_id"`
 	SoftwareSource        *string    `db:"software_source"`
@@ -4911,6 +4912,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				st.source,
 				st.extension_for,
 				st.upgrade_code,
+				st.bundle_identifier as title_bundle_identifier,
 				si.id as installer_id,
 				si.self_service as package_self_service,
 				si.filename as package_name,
@@ -5941,6 +5943,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
 					software_titles.upgrade_code AS upgrade_code, -- should be empty or non-empty string for "programs" sourced software, null otherwise
+					software_titles.bundle_identifier AS title_bundle_identifier,
 					software_installers.id AS installer_id,
 					software_installers.self_service AS package_self_service,
 					software_installers.filename AS package_name,
@@ -5969,6 +5972,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source,
 					software_titles.extension_for,
 					software_titles.upgrade_code,
+					software_titles.bundle_identifier,
 					software_installers.id,
 					software_installers.self_service,
 					software_installers.filename,
@@ -5986,6 +5990,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
 					software_titles.upgrade_code AS upgrade_code, -- should always be null for vpp (mac) apps
+					software_titles.bundle_identifier AS title_bundle_identifier,
 					NULL AS installer_id,
 					NULL AS package_self_service,
 					NULL AS package_name,
@@ -6013,7 +6018,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.name,
 					software_titles.source,
 					software_titles.extension_for,
-					software_titles.upgrade_code
+					software_titles.upgrade_code,
+					software_titles.bundle_identifier
 			`)
 		}
 
@@ -6027,6 +6033,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
 					software_titles.upgrade_code AS upgrade_code,
+					software_titles.bundle_identifier AS title_bundle_identifier,
 					NULL AS installer_id,
 					NULL AS package_self_service,
 					NULL AS package_name,
@@ -6054,7 +6061,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.name,
 					software_titles.source,
 					software_titles.extension_for,
-					software_titles.upgrade_code
+					software_titles.upgrade_code,
+					software_titles.bundle_identifier
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
@@ -6454,6 +6462,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	software := make([]*fleet.HostSoftwareWithInstaller, 0, len(hostSoftwareList))
 	for _, hs := range hostSoftwareList {
+		// Populate top-level bundle_identifier from the software_titles table
+		// (available even when installed_versions is empty), falling back to
+		// the first installed version for backwards compatibility.
+		switch {
+		case hs.TitleBundleIdentifier != nil && *hs.TitleBundleIdentifier != "":
+			hs.HostSoftwareWithInstaller.BundleIdentifier = *hs.TitleBundleIdentifier
+		case len(hs.InstalledVersions) > 0 && hs.InstalledVersions[0].BundleIdentifier != "":
+			hs.HostSoftwareWithInstaller.BundleIdentifier = hs.InstalledVersions[0].BundleIdentifier
+		}
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 
