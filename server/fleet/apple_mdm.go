@@ -439,6 +439,96 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Scope              PayloadScope
 }
 
+// AppleHostReconcileInfo is a per-host record used by the batched Apple
+// profile reconciler. It contains only the fields needed to decide which
+// profiles should be installed on the host given its team, platform, and
+// label membership.
+type AppleHostReconcileInfo struct {
+	HostID           uint       `db:"id"`
+	UUID             string     `db:"uuid"`
+	TeamID           *uint      `db:"team_id"`
+	Platform         string     `db:"platform"`
+	LabelUpdatedAt   time.Time  `db:"label_updated_at"`
+	DeviceEnrolledAt *time.Time `db:"device_enrolled_at"`
+}
+
+// EffectiveTeamID returns 0 for hosts not in a team (matching how Apple
+// MDM profiles are stored, where team_id=0 means "no team / global").
+func (h *AppleHostReconcileInfo) EffectiveTeamID() uint {
+	if h.TeamID == nil {
+		return 0
+	}
+	return *h.TeamID
+}
+
+// AppleProfileIncludeMode indicates how a profile's include-labels gate
+// applicability to a host. Independent of exclude-labels, which always
+// have "exclude any" semantics. A single profile may carry both include
+// labels (with one consistent mode) and exclude labels.
+type AppleProfileIncludeMode int
+
+const (
+	// AppleProfileIncludeNone means the profile has no include labels —
+	// applicability is determined entirely by team, platform, and any
+	// exclude labels present.
+	AppleProfileIncludeNone AppleProfileIncludeMode = iota
+	// AppleProfileIncludeAll requires the host to be a member of every
+	// (non-broken) include label.
+	AppleProfileIncludeAll
+	// AppleProfileIncludeAny requires the host to be a member of at
+	// least one include label.
+	AppleProfileIncludeAny
+)
+
+// AppleProfileLabelRef is a single label reference attached to a profile.
+// A nil LabelID means the label was deleted (the assignment is "broken").
+type AppleProfileLabelRef struct {
+	LabelID   *uint
+	CreatedAt time.Time
+	// LabelMembershipType mirrors labels.label_membership_type: 0=dynamic,
+	// 1=manual. Needed by the exclude-any handler so dynamic labels that
+	// were created after a host's last label_updated_at are treated as
+	// "results not yet reported" instead of "host is not a member".
+	LabelMembershipType int
+}
+
+// AppleProfileForReconcile is the profile data needed by the batched
+// reconciler to compute desired state per host in memory.
+//
+// Include and exclude labels are stored separately so a profile can carry
+// both: applicability becomes (include gate passes) AND (exclude gate
+// passes), with each gate skipped when its slice is empty.
+type AppleProfileForReconcile struct {
+	ProfileUUID       string
+	ProfileIdentifier string
+	ProfileName       string
+	TeamID            uint // 0 means global
+	Checksum          []byte
+	SecretsUpdatedAt  *time.Time
+	Scope             PayloadScope
+	IncludeMode       AppleProfileIncludeMode
+	IncludeLabels     []AppleProfileLabelRef
+	ExcludeLabels     []AppleProfileLabelRef
+}
+
+// HasBrokenLabel reports whether any include or exclude label on the
+// profile references a deleted label. Used to keep broken-label profiles
+// exempt from removal (matches legacy behaviour: a profile with a broken
+// label is never auto-removed from a host that already has it).
+func (p *AppleProfileForReconcile) HasBrokenLabel() bool {
+	for _, l := range p.IncludeLabels {
+		if l.LabelID == nil {
+			return true
+		}
+	}
+	for _, l := range p.ExcludeLabels {
+		if l.LabelID == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
 // encryption profiles. Each host may be counted in only one of six mutually-exclusive categories:
 // Verified, Verifying, ActionRequired, Enforcing, Failed, RemovingEnforcement.

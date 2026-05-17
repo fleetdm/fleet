@@ -2245,6 +2245,42 @@ type Datastore interface {
 	// the Windows MDM reconciliation cron. See GetMDMWindowsReconcileCursor.
 	SetMDMWindowsReconcileCursor(ctx context.Context, cursor string) error
 
+	// ListAppleMDMHostsForReconcileBatch returns up to batchSize Apple MDM-
+	// enrolled hosts (host_uuid > afterHostUUID, ordered ascending) with the
+	// fields needed by the batched Apple profile reconciler to compute
+	// desired state in memory. Used by ReconcileAppleProfilesBatched.
+	ListAppleMDMHostsForReconcileBatch(ctx context.Context, afterHostUUID string, batchSize int) ([]*AppleHostReconcileInfo, error)
+
+	// ListAppleProfilesForReconcile returns every Apple configuration
+	// profile in the system along with its label assignments. The result is
+	// used by the batched reconciler to evaluate desired state per host in
+	// memory. Returned profiles are intended to be small relative to the
+	// host population and are loaded once per tick.
+	ListAppleProfilesForReconcile(ctx context.Context) ([]*AppleProfileForReconcile, error)
+
+	// BulkGetHostLabelMemberships returns the subset of (hostID, labelID)
+	// pairs from label_membership that are present, restricted to the
+	// provided host IDs and label IDs. The outer map is keyed by host ID and
+	// the inner set holds the label IDs the host is a member of.
+	BulkGetHostLabelMemberships(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[uint]map[uint]struct{}, error)
+
+	// BulkGetHostMDMAppleProfilesByUUIDs returns the current host_mdm_apple_profiles
+	// rows for the given host UUIDs, grouped by host UUID. Used by the
+	// batched reconciler to compute install/remove deltas against the
+	// in-memory desired state.
+	BulkGetHostMDMAppleProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMAppleProfilePayload, error)
+
+	// GetMDMAppleReconcileCursor returns the persisted host_uuid cursor
+	// used by the batched Apple MDM reconciliation cron to bound per-tick
+	// work. Returns "" if no cursor is set or if the implementation does
+	// not support cursor persistence (the bare mysql.Datastore returns ""
+	// here; the mysqlredis wrapper backs it with Redis).
+	GetMDMAppleReconcileCursor(ctx context.Context) (string, error)
+
+	// SetMDMAppleReconcileCursor persists the host_uuid cursor used by the
+	// batched Apple MDM reconciliation cron.
+	SetMDMAppleReconcileCursor(ctx context.Context, cursor string) error
+
 	// BulkUpsertMDMWindowsHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*MDMWindowsBulkUpsertHostProfilePayload) error
