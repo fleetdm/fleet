@@ -26,14 +26,16 @@ Variables are global, meaning they can be used in scripts and profiles across al
 
 1. Add the variable to your [GitHub](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#creating-secrets-for-a-repository) or [GitLab](https://docs.gitlab.com/ci/variables/#define-a-cicd-variable-in-the-ui) repository's secrets to use the variable in GitOps.
 
-2. Define the variable in the `env` section of in your `workflows.yml` file, as shown below:
+2. Define the variable in the `env` section of in your `workflows.yml` file, as shown below. Any variable defined here that begins with `FLEET_SECRET` will be automatically uploaded to Fleet during GitOps runs:
 
 ```yaml
     env:
-      ###  Variables used by the GitOps workflow ###
+      ###  Local variables used by the GitOps workflow ###
       FLEET_URL: ${{ secrets.FLEET_URL }}
       FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
       WORKSTATIONS_ENROLL_SECRET: ${{ secrets.WORKSTATIONS_ENROLL_SECRET }}
+      ### Variables to upload to Fleet for use in scripts and profiles. Any variable
+      FLEET_SECRET_EXAMPLE_API_TOKEN: ${{ secrets.FLEET_SECRET_EXAMPLE_API_TOKEN }}
 ```
 
 ### Scripts and configuration profiles
