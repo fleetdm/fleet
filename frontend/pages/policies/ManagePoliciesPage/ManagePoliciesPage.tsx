@@ -976,8 +976,8 @@ const ManagePolicyPage = ({
     : globalPoliciesError;
 
   const policyResults = !isAllTeamsSelected
-    ? teamPolicies && teamPolicies.length > 0
-    : globalPolicies && globalPolicies.length > 0;
+    ? teamPolicies !== undefined
+    : globalPolicies !== undefined;
 
   // Show CTA buttons if there are no errors
   const showCtaButtons = !policiesErrors;
@@ -1142,6 +1142,7 @@ const ManagePolicyPage = ({
           policiesList={globalPolicies || []}
           isLoading={isFetchingGlobalPolicies || isFetchingGlobalConfig}
           onDeletePoliciesClick={onDeletePoliciesClick}
+          onAddPolicyClick={onAddPolicyClick}
           canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}
@@ -1181,6 +1182,7 @@ const ManagePolicyPage = ({
             isFetchingGlobalConfig
           }
           onDeletePoliciesClick={onDeletePoliciesClick}
+          onAddPolicyClick={onAddPolicyClick}
           canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}
