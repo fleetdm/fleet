@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/bzip2"
+	"context"
 	cryptorand "crypto/rand"
 	"crypto/sha1" // nolint:gosec
 	"crypto/sha256"
@@ -1544,11 +1545,39 @@ func (a *agent) runWindowsMDMLoop() {
 			continue
 		}
 
+		// Detect SCEP CertificateInstall CSPs and ACK them now while kicking off the SCEP exchange in the background.
+		// The helper queues a follow-up Alert that will piggyback on the next SendResponse once SCEP completes.
+		scepCtx, cancelSCEP := context.WithTimeout(context.Background(), 2*a.MDMCheckInInterval)
+		handled, scepResults := a.winMDMClient.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
+		if len(handled) > 0 {
+			go func() {
+				defer cancelSCEP()
+				// One SCEPResult is emitted per CSP; increment per-result so the request counter
+				// matches the per-CSP success/error counters even when multiple CSPs ride one SyncML.
+				for res := range scepResults {
+					a.stats.IncrementMDMSCEPRequests()
+					if res.Err != nil {
+						log.Printf("MDM SCEP exchange failed: %s", res.Err)
+						a.stats.IncrementMDMSCEPErrors()
+						continue
+					}
+					a.stats.IncrementMDMSCEPSuccess()
+				}
+			}()
+		} else {
+			cancelSCEP()
+		}
+
 		for _, c := range cmds {
 			// Skip the server's own <Status> entries. MS-MDM's "Status on a Status" is only for auth-renegotiation edge cases (see
 			// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/36b1a4d9-fd93-48ce-b865-6a9d396c52a4
 			// "While this case is not usually encountered"); real Windows does not emit Status-on-Status during normal check-ins.
 			if c.Verb == fleet.CmdStatus {
+				continue
+			}
+			if _, ok := handled[c.Cmd.CmdID.Value]; ok {
+				// Already ACKed by AppendSCEPInstallResponses.
+				a.stats.IncrementMDMCommandsReceived()
 				continue
 			}
 			a.stats.IncrementMDMCommandsReceived()

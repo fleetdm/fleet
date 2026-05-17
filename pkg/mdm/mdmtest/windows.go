@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -46,6 +47,11 @@ type TestWindowsMDMClient struct {
 	// queuedCommandResponses tracks the commands that will be sent next
 	// time the device responds to the server.
 	queuedCommandResponses map[string]fleet.SyncMLCmd
+	// pendingAlerts tracks Alert commands queued by asynchronous handlers
+	// (currently only the SCEP install helper) that should be flushed on
+	// the next SendResponse. Guarded by pendingAlertsMu.
+	pendingAlerts   []fleet.SyncMLCmd
+	pendingAlertsMu sync.Mutex
 	// jwtSigningKey is the key used to sign JWTs
 	jwtSigningKey *rsa.PrivateKey
 	// jwtSigningKeyID is the ID to report in the header for the signing key
@@ -301,7 +307,18 @@ func (c *TestWindowsMDMClient) shouldAuth(req *fleet.SyncML) (bool, *string) {
 	return false, nil
 }
 
-func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperation, error) {
+func (c *TestWindowsMDMClient) SendResponse() (cmds map[string]fleet.ProtoCmdOperation, err error) {
+	// Drain alerts queued by async helpers (e.g., the post-SCEP-completion alert) so they
+	// piggyback on the next sync. If we fail to send the request, re-queue them so they'll be
+	// retried on the next SendResponse instead of being silently dropped.
+	pendingAlerts := c.takePendingAlerts()
+	sent := false
+	defer func() {
+		if !sent && len(pendingAlerts) > 0 {
+			c.requeuePendingAlerts(pendingAlerts)
+		}
+	}()
+
 	// A real Windows client does not POST a message that contains only a SyncHdr Status ack and
 	// no protocol commands. Per [MS-MDM] §2.2.7.8 (Status):
 	//   "when a client creates a message containing only a successful Status in a SyncHdr,
@@ -309,8 +326,10 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 	// (https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/36b1a4d9-fd93-48ce-b865-6a9d396c52a4)
 	// This is the same section that limits Status-on-Status to auth-renegotiation edge cases, so
 	// when Fleet's response contained only <Status> acks, the client has nothing to send back.
-	// Fleet also rejects such a body with "invalid SyncML body: no SyncML protocol commands"
-	if len(c.queuedCommandResponses) == 0 {
+	// Fleet also rejects such a body with "invalid SyncML body: no SyncML protocol commands".
+	// An Alert IS a protocol command, so a sync that carries only an Alert is fine to send.
+	if len(c.queuedCommandResponses) == 0 && len(pendingAlerts) == 0 {
+		sent = true // nothing to send is success; no alerts to re-queue.
 		return nil, nil
 	}
 
@@ -348,13 +367,21 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 	for _, protoCmd := range c.queuedCommandResponses {
 		msg.AppendCommand(fleet.MDMRaw, protoCmd)
 	}
+	for _, alert := range pendingAlerts {
+		msg.AppendCommand(fleet.MDMRaw, alert)
+	}
 
 	xmlReq, err := xml.MarshalIndent(msg, "", "\t")
 	if err != nil {
 		return nil, fmt.Errorf("serializing XML req: %w", err)
 	}
 
-	return c.doManagementReq(xmlReq)
+	cmds, err = c.doManagementReq(xmlReq)
+	if err != nil {
+		return nil, err
+	}
+	sent = true
+	return cmds, nil
 }
 
 func (c *TestWindowsMDMClient) getCredHDR() *fleet.CredHdr {
