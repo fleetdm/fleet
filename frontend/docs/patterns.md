@@ -397,6 +397,23 @@ const PageOrComponent = (props) => {
 };
 ```
 
+##### Query keys
+
+The `queryKey` must list every parameter that the `queryFn` passes to the API. The `QueryClient` is a singleton shared across the app, so any parameter missing from the key causes cross-entity cache bleed (for example, data fetched for team A being served to team B).
+
+Rules:
+- Always use an array, even when there are no parameters — `useQuery(["me"], ...)`, not `useQuery("me", ...)`.
+- Every argument the `queryFn` forwards to the API must also appear in the key.
+
+Example:
+
+```ts
+useQuery(
+  ["aggregateProfileStatuses", teamId], // teamId is in the key...
+  () => mdmAPI.getProfilesStatusSummary(teamId) // ...because the API call receives it
+);
+```
+
 ### Handling API errors
 
 We pull the logic for handling error message into a `getErrorMessage` handler that lives in a sibling
