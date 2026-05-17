@@ -1,0 +1,65 @@
+{{- if and .Values.gatewayApi.enabled .Values.ingress.enabled }}
+{{- fail "gatewayApi.enabled and ingress.enabled are mutually exclusive — enable one or the other, not both" }}
+{{- end }}
+{{- if .Values.gatewayApi.enabled -}}
+{{- $serviceName := include "fleet.servicename" . -}}
+{{- $svcPort := ternary .Values.fleet.listenPort .Values.fleet.servicePort (eq .Values.fleet.servicePort nil) -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "fleet.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "fleet.labels" . | nindent 4 }}
+    {{- with .Values.gatewayApi.httpRoute.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with .Values.gatewayApi.httpRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+    {{- if .Values.gatewayApi.gateway.enabled }}
+    - name: {{ include "fleet.fullname" . }}-gateway
+      namespace: {{ .Release.Namespace }}
+      {{- with .Values.gatewayApi.httpRoute.sectionName }}
+      sectionName: {{ . }}
+      {{- end }}
+    {{- else }}
+    {{- range .Values.gatewayApi.httpRoute.parentRefs }}
+    - name: {{ .name }}
+      {{- with .namespace }}
+      namespace: {{ . }}
+      {{- end }}
+      {{- with .sectionName }}
+      sectionName: {{ . }}
+      {{- end }}
+      {{- with .port }}
+      port: {{ . }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+  {{- if .Values.gatewayApi.httpRoute.hostnames }}
+  hostnames:
+    {{- range .Values.gatewayApi.httpRoute.hostnames }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- if .Values.gatewayApi.httpRoute.rules }}
+    {{- toYaml .Values.gatewayApi.httpRoute.rules | nindent 4 }}
+    {{- else }}
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ $serviceName }}
+          port: {{ $svcPort }}
+      {{- with .Values.gatewayApi.httpRoute.timeouts }}
+      timeouts:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- end }}
+{{- end }}

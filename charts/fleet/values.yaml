@@ -61,6 +61,100 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
+# Gateway API support (alternative to Ingress, using the Kubernetes Gateway API)
+# ref: https://gateway-api.sigs.k8s.io/
+gatewayApi:
+  enabled: false
+  # Optional: deploy a Gateway resource managed by this chart.
+  # Most clusters manage Gateways at the infrastructure level; set enabled: false
+  # and configure httpRoute.parentRefs to reference an existing Gateway.
+  gateway:
+    enabled: false
+    className: "" # e.g. "istio", "envoy", "gke-l7-global-external-managed"
+    labels: {}
+    annotations: {}
+    # listeners: Override the default HTTP/HTTPS listeners entirely
+    # listeners:
+    #   - name: https
+    #     protocol: HTTPS
+    #     port: 443
+    #     tls:
+    #       mode: Terminate
+    #       certificateRefs:
+    #         - name: fleet-tls
+    #     allowedRoutes:
+    #       namespaces:
+    #         from: Same
+    # addresses: Assign static IPs or hostnames to the Gateway
+    # addresses:
+    #   - type: IPAddress
+    #     value: "203.0.113.10"
+    tls: {}
+    #  certificateRefs:
+    #    - name: fleet-tls
+  httpRoute:
+    labels: {}
+    annotations: {}
+    # parentRefs: Used when gateway.enabled is false to reference an existing Gateway
+    parentRefs: []
+    #  - name: my-gateway
+    #    namespace: gateway-infra
+    #    sectionName: https
+    #    port: 443
+    # sectionName: Used when gateway.enabled is true to target a specific listener
+    # sectionName: https
+    hostnames: []
+    #  - fleet.example.com
+    # timeouts: Set request timeouts on the default rule (Gateway API v1)
+    # timeouts:
+    #   request: 30s
+    #   backendRequest: 10s
+    # rules: Override the default catch-all rule. If empty, a PathPrefix "/" rule is generated.
+    # rules:
+    #   - matches:
+    #       - path:
+    #           type: PathPrefix
+    #           value: /
+    #     backendRefs:
+    #       - name: my-service
+    #         port: 8080
+  # GRPCRoute: Optional route for gRPC traffic.
+  # Only needed when the gateway performs protocol-aware routing. If the gateway
+  # passes all traffic as HTTP/2, the HTTPRoute alone is sufficient.
+  grpcRoute:
+    enabled: false
+    labels: {}
+    annotations: {}
+    # parentRefs: Used when gateway.enabled is false to reference an existing Gateway
+    parentRefs: []
+    #  - name: my-gateway
+    #    namespace: gateway-infra
+    #    sectionName: https
+    #    port: 443
+    # sectionName: Used when gateway.enabled is true to target a specific listener
+    # sectionName: https
+    hostnames: []
+    #  - fleet.example.com
+    # rules: Override the default catch-all rule. If empty, a rule matching all gRPC
+    # services is generated pointing to the Fleet backend.
+    # rules:
+    #   - backendRefs:
+    #       - name: my-service
+    #         port: 8080
+  # ReferenceGrant: Allow cross-namespace references (e.g. a shared Gateway in another namespace
+  # routing to the Fleet Service). Only needed when the Gateway lives in a different namespace.
+  referenceGrant:
+    enabled: false
+    labels: {}
+    annotations: {}
+    # from: List of namespaces/resources allowed to reference the Fleet Service
+    from: []
+    #  - group: gateway.networking.k8s.io
+    #    kind: HTTPRoute
+    #    namespace: gateway-infra
+    # toServiceName: Optionally restrict the grant to a specific Service name
+    # toServiceName: fleet-service
+
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
 fleet:
