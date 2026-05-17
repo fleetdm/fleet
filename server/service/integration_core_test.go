@@ -10588,7 +10588,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 57)         // total number of cols
+	assert.Len(t, rows[0], 58)         // total number of cols
 	// Validate that both team_id and fleet_id columns are present.
 	assert.Contains(t, rows[0], "team_id")
 	assert.Contains(t, rows[0], "fleet_id")
@@ -12985,7 +12985,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 57)         // total number of cols
+	assert.Len(t, rows1[0], 58)         // total number of cols
 
 	var (
 		idIdx     int
@@ -13015,7 +13015,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 57)         // total number of cols
+	assert.Len(t, rows2[0], 58)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {
