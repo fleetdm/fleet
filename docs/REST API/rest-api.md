@@ -7860,11 +7860,11 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
+| host_identifier           | string  | query | **Required.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below). Requests w/o it continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. Support will be removed in Fleet 5. |
 | page                      | integer | query | Page number of the results to fetch.                                      |
 | per_page                  | integer | query | Results per page. Default is `10`.                                        |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. Default is `updated_at`. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. |
 | request_type              | string  | query | The request type to filter commands by. |
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
 | after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -7877,7 +7877,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 #### Example
 
-`GET /api/v1/fleet/commands?per_page=5`
+`GET /api/v1/fleet/commands?host_identifier=A1B2C3D4-E5F6-7890-1234-567890ABCDEF&per_page=5`
 
 ##### Default response
 
@@ -7885,27 +7885,31 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 ```json
 {
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  },
   "count": null,
   "results": [
     {
-      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
-      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "host_uuid": "A1B2C3D4-E5F6-7890-1234-567890ABCDEF",
+      "command_uuid": "a3650ec9-6dd0-40e9-b5d8-feffe9939461",
       "status": "Acknowledged",
       "command_status": "ran",
-      "updated_at": "2023-04-04:00:00Z",
-      "request_type": "ProfileList",
+      "updated_at": "2026-03-20T19:45:27Z",
+      "request_type": "DeclarativeManagement",
       "name": null,
-      "hostname": "mycomputer"
+      "hostname": "Mac-mini.local"
     },
     {
-      "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
-      "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
-      "status": "200",
-      "command_status": "ran",
-      "updated_at": "2023-05-04:00:00Z",
-      "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
+      "host_uuid": "A1B2C3D4-E5F6-7890-1234-567890ABCDEF",
+      "command_uuid": "97ceaa39-eadc-4953-98a8-2ffe72ab120d",
+      "status": "Error",
+      "command_status": "failed",
+      "updated_at": "2026-03-24T21:37:32Z",
+      "request_type": "InstallProfile",
       "name": null,
-      "hostname": "myhost"
+      "hostname": "Mac-mini.local"
     }
   ]
 }
