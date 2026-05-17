@@ -3556,6 +3556,17 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	ds.ListMDMAppleProfilesToInstallAndRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
 		return baseProfilesToInstall, baseProfilesToRemove, nil
 	}
+	// Scoped variant proxies to the legacy mock so subtest overrides flow
+	// through. The cursor-related mocks are tick stubs: the test doesn't
+	// exercise multi-tick paging, just wants one batch covering all hosts.
+	ds.ListMDMAppleProfilesToInstallAndRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
+		return ds.ListMDMAppleProfilesToInstallAndRemove(ctx)
+	}
+	ds.ListNextMDMAppleHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+		return []string{hostUUID1, hostUUID2}, nil
+	}
+	ds.GetMDMAppleReconcileCursorFunc = func(ctx context.Context) (string, error) { return "", nil }
+	ds.SetMDMAppleReconcileCursorFunc = func(ctx context.Context, cursor string) error { return nil }
 
 	kv.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
 		return map[string]*string{}, nil
@@ -4310,6 +4321,15 @@ func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
 	ds.ListMDMAppleProfilesToInstallAndRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
 		return profilesToInstall, nil, nil
 	}
+	// Scoped variant proxies to the legacy mock so subtest overrides flow through.
+	ds.ListMDMAppleProfilesToInstallAndRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
+		return ds.ListMDMAppleProfilesToInstallAndRemove(ctx)
+	}
+	ds.ListNextMDMAppleHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+		return hostUUIDs, nil
+	}
+	ds.GetMDMAppleReconcileCursorFunc = func(ctx context.Context) (string, error) { return "", nil }
+	ds.SetMDMAppleReconcileCursorFunc = func(ctx context.Context, cursor string) error { return nil }
 
 	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
 		return map[string]mobileconfig.Mobileconfig{
@@ -4553,6 +4573,15 @@ func TestReconcileAppleProfilesSkipsHostBeingProcessed(t *testing.T) {
 			{ProfileUUID: profileUUID, ProfileIdentifier: "com.test.profile", ProfileName: "Test Profile", HostUUID: nonSetupHostUUID, Scope: fleet.PayloadScopeSystem},
 		}, nil, nil
 	}
+	// Scoped variant proxies to the legacy mock so subtest overrides flow through.
+	ds.ListMDMAppleProfilesToInstallAndRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
+		return ds.ListMDMAppleProfilesToInstallAndRemove(ctx)
+	}
+	ds.ListNextMDMAppleHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+		return []string{blockedHostUUID, nonSetupHostUUID}, nil
+	}
+	ds.GetMDMAppleReconcileCursorFunc = func(ctx context.Context) (string, error) { return "", nil }
+	ds.SetMDMAppleReconcileCursorFunc = func(ctx context.Context, cursor string) error { return nil }
 	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
 		return map[string]mobileconfig.Mobileconfig{profileUUID: profileContent}, nil
 	}

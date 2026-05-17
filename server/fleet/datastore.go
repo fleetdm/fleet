@@ -1528,6 +1528,32 @@ type Datastore interface {
 	// lists reflect the same system state and no changes can be introduced between the queries.
 	ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*MDMAppleProfilePayload, []*MDMAppleProfilePayload, error)
 
+	// ListMDMAppleProfilesToInstallAndRemoveForHosts is the scoped variant of
+	// ListMDMAppleProfilesToInstallAndRemove: it returns rows only for the
+	// given host UUIDs. Both lists are still read in an isolated manner so
+	// they reflect the same system state. Used by the cron's batched
+	// reconciliation path; see ReconcileAppleProfiles.
+	ListMDMAppleProfilesToInstallAndRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMAppleProfilePayload, []*MDMAppleProfilePayload, error)
+
+	// ListNextMDMAppleHostUUIDs returns up to batchSize Apple MDM host
+	// UUIDs (sorted ascending, lexicographic) where host_uuid >
+	// afterHostUUID. Does NOT pre-filter by pending work — the scoped
+	// install/remove query that follows in the cron tick does that
+	// filtering. Used by the cron's batched reconciliation path; see
+	// ReconcileAppleProfiles.
+	ListNextMDMAppleHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
+
+	// GetMDMAppleReconcileCursor returns the persisted host_uuid cursor used
+	// by the Apple MDM reconciliation cron to bound per-tick work. Returns
+	// "" if no cursor is set or if the implementation does not support
+	// cursor persistence (the bare mysql.Datastore returns "" here; the
+	// mysqlredis wrapper backs it with Redis). See ReconcileAppleProfiles.
+	GetMDMAppleReconcileCursor(ctx context.Context) (string, error)
+
+	// SetMDMAppleReconcileCursor persists the host_uuid cursor used by the
+	// Apple MDM reconciliation cron. See GetMDMAppleReconcileCursor.
+	SetMDMAppleReconcileCursor(ctx context.Context, cursor string) error
+
 	// BulkUpsertMDMAppleHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error

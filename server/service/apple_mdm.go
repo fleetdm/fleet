@@ -5525,6 +5525,25 @@ func ReconcileAppleDeclarations(
 // delivered to the device-channel.
 const hoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
 
+// reconcileAppleProfilesBatchSize bounds how many distinct Apple MDM
+// hosts the reconciliation cron considers per tick. The cron uses a
+// host_uuid cursor (persisted in Redis via the mysqlredis wrapper) to
+// page through every Apple MDM host in batches, running the full
+// desired-state install/remove query scoped to each window. Only the
+// subset of hosts with actual changes gets written/enqueued, so the
+// writer load is bounded by real work and the reader load is bounded by
+// the per-tick window. Pass-through latency to detect a new change
+// (e.g. label drift) is total_apple_hosts / batchSize × tick_interval —
+// at 5000 hosts / tick on a 30s tick, that's <= 5 min for 50k hosts.
+//
+// var rather than const so tests can shrink the batch size.
+var reconcileAppleProfilesBatchSize = 2000
+
+// ReconcileAppleProfiles applies configuration profiles to Apple MDM hosts.
+// Named return so the deferred SetCursor block below sees the actual
+// function exit error. With a named return, every `return X` assigns X to
+// the named err before the defer fires, so any failure path correctly
+// skips the cursor write.
 func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -5532,7 +5551,7 @@ func ReconcileAppleProfiles(
 	redisKeyValue fleet.AdvancedKeyValueStore,
 	logger *slog.Logger,
 	certProfilesLimit int,
-) error {
+) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
@@ -5561,8 +5580,82 @@ func ReconcileAppleProfiles(
 		logger.ErrorContext(ctx, "unable to ensure a fleetd configuration profiles are in place", "details", err)
 	}
 
-	// retrieve the profiles to install/remove.
-	toInstall, toRemove, err := ds.ListMDMAppleProfilesToInstallAndRemove(ctx)
+	// Read the cursor; on error, treat as start-of-pass and continue. A
+	// stale or missing cursor is harmless because the listing predicates
+	// filter out hosts whose state already matches desired state.
+	cursor, err := ds.GetMDMAppleReconcileCursor(ctx)
+	if err != nil {
+		logger.WarnContext(ctx, "failed to read apple MDM reconcile cursor; starting from beginning",
+			"err", err)
+		cursor = ""
+	}
+
+	hostUUIDs, err := ds.ListNextMDMAppleHostUUIDs(ctx, cursor, reconcileAppleProfilesBatchSize)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing next Apple MDM host window")
+	}
+
+	if len(hostUUIDs) == 0 {
+		// Either no work, or we've reached the end of the cursor pass.
+		// Reset to "" so the next tick starts from the beginning.
+		//
+		// Decision: cursor write failures here (and in the deferred
+		// advance below) are logged-and-swallowed rather than returned
+		// as tick failures.
+		if cursor != "" {
+			logger.InfoContext(ctx, "apple MDM reconcile pass complete; resetting cursor",
+				"cursor", cursor)
+			if cerr := ds.SetMDMAppleReconcileCursor(ctx, ""); cerr != nil {
+				// We assume a transient Redis failure here.
+				logger.WarnContext(ctx, "failed to reset apple MDM reconcile cursor", "err", cerr)
+			}
+		}
+		return nil
+	}
+
+	// Compute the next cursor before processing so we can advance after a
+	// successful pass. If we got fewer than the batch size, the next tick
+	// should restart from the beginning.
+	var nextCursor string
+	if len(hostUUIDs) >= reconcileAppleProfilesBatchSize {
+		nextCursor = hostUUIDs[len(hostUUIDs)-1]
+	}
+
+	// Only log when the cursor is actually in play - i.e. the pending
+	// universe didn't fit in a single tick. The four state combos:
+	//   cursor=="", nextCursor!=""  - starting a multi-tick pass
+	//   cursor!="", nextCursor!=""  - continuing mid-pass
+	//   cursor!="", nextCursor==""  - completing the final tick of a pass
+	//   cursor=="", nextCursor==""  - silent: the entire universe fit in
+	//                                 this one tick, no cursor needed
+	if cursor != "" || nextCursor != "" {
+		logger.InfoContext(ctx, "apple MDM reconcile tick using cursor",
+			"cursor", cursor,
+			"next_cursor", nextCursor,
+			"batch_size", reconcileAppleProfilesBatchSize,
+			"hosts_in_batch", len(hostUUIDs),
+		)
+	}
+
+	// On any error during the body below, leave the cursor where it was.
+	// The next tick will retry the same host window. The body's writes
+	// flip status from NULL to 'pending' on success, which removes those
+	// rows from the listing on retry, so a partial failure converges.
+	//
+	// Skip the write when the cursor isn't changing (steady-state ticks
+	// where the entire pending universe fit in one batch: cursor="",
+	// nextCursor=""). Mirrors the empty-result branch's `cursor != ""`
+	// guard above.
+	defer func() {
+		if err == nil && cursor != nextCursor {
+			if cerr := ds.SetMDMAppleReconcileCursor(ctx, nextCursor); cerr != nil {
+				logger.WarnContext(ctx, "failed to advance apple MDM reconcile cursor", "err", cerr)
+			}
+		}
+	}()
+
+	// retrieve the profiles to install/remove, scoped to this tick's host window.
+	toInstall, toRemove, err := ds.ListMDMAppleProfilesToInstallAndRemoveForHosts(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to install and remove")
 	}
