@@ -682,11 +682,18 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	var mdmPushService push.Pusher
 	nanoMDMLogger := service.NewNanoMDMLogger(logger.With("component", "apple-mdm-push"))
-	pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
-		return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
-			Certificates: []tls.Certificate{*cert},
-		})), nil
-	}))
+	// Set a 24h APNs expiration so that if a device is not currently attached
+	// to APNs when a command is queued, Apple will hold the push and deliver
+	// it when the device reconnects (instead of silently dropping it, which
+	// is the behavior for a push with no/0 expiration). See #40693.
+	pushProviderFactory := buford.NewPushProviderFactory(
+		buford.WithExpiration(24*time.Hour),
+		buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
+			return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+				Certificates: []tls.Certificate{*cert},
+			})), nil
+		}),
+	)
 	if dev_mode.Env("FLEET_DEV_MDM_APPLE_DISABLE_PUSH") == "1" {
 		mdmPushService = nopPusher{}
 	} else {
