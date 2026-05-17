@@ -587,8 +587,8 @@ module.exports.routes = {
   'GET /linux-management': {
     action: 'view-linux-management',
     locals: {
-      pageTitleForMeta: 'Linux device management',
-      pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
+      pageTitleForMeta: 'Open source Linux MDM',
+      pageDescriptionForMeta: 'Open source Linux MDM and device management for Ubuntu, Debian, Fedora, RHEL, CentOS, Amazon Linux, and openSUSE. Patch software, monitor compliance, and run scripts across Linux, macOS, and Windows from one console.',
       currentSection: 'platform',
     }
   },
