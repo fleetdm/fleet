@@ -190,10 +190,25 @@ func (s *integrationMDMTestSuite) TestWindowsSCEPProfilePreferredVariableAccepte
 	})
 	require.NoError(t, err)
 
+	// Guard against the fixture drifting: if the legacy token vanishes from
+	// the embedded XML, ReplaceAll silently no-ops and we'd test the legacy
+	// path twice instead of the preferred one.
+	require.True(t,
+		bytes.Contains(windowsDeviceSCEPProfileForRenewalTest, []byte("$FLEET_VAR_SCEP_RENEWAL_ID")),
+		"fixture must contain $FLEET_VAR_SCEP_RENEWAL_ID for the swap to test the preferred name",
+	)
 	preferred := bytes.ReplaceAll(
 		windowsDeviceSCEPProfileForRenewalTest,
 		[]byte("$FLEET_VAR_SCEP_RENEWAL_ID"),
 		[]byte("$FLEET_VAR_CERTIFICATE_RENEWAL_ID"),
+	)
+	require.True(t,
+		bytes.Contains(preferred, []byte("$FLEET_VAR_CERTIFICATE_RENEWAL_ID")),
+		"preferred-name swap did not produce the expected token",
+	)
+	require.False(t,
+		bytes.Contains(preferred, []byte("$FLEET_VAR_SCEP_RENEWAL_ID")),
+		"legacy token must be fully replaced",
 	)
 
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
