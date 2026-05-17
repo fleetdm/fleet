@@ -1,0 +1,51 @@
+---
+# Reports for the Personal mobile devices fleet (personal laptops / BYOD)
+#
+# Note: The "fleet" field must match the exact fleet name. The seed script
+# substitutes FLEET_NAME automatically. To apply manually, replace FLEET_NAME
+# with your fleet's exact name.
+#
+# These are unique to this fleet — not duplicates of global reports.
+apiVersion: v1
+kind: report
+spec:
+  name: Personal devices - Homebrew packages
+  platform: darwin
+  fleet: FLEET_NAME
+  description: Lists all Homebrew packages installed on personal macOS devices.
+  query: SELECT name, version, description FROM homebrew_packages;
+  purpose: Informational
+  tags: inventory, dev tools
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Personal devices - Disk space usage
+  platform: darwin, linux, windows
+  fleet: FLEET_NAME
+  description: Returns disk usage information for personal devices to identify low storage.
+  query: SELECT path, type, blocks_size, blocks_available, blocks_free, ROUND((blocks_available * 1.0 / blocks_size) * 100, 1) AS percent_free FROM mounts WHERE path = '/' OR path = 'C:\';
+  purpose: Informational
+  tags: inventory, troubleshooting
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Personal devices - SSH client configuration
+  platform: darwin, linux
+  fleet: FLEET_NAME
+  description: Lists SSH client configuration options on personal devices.
+  query: SELECT * FROM ssh_configs;
+  purpose: Informational
+  tags: ssh, inventory
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Personal devices - Browser extensions by user
+  platform: darwin, linux, windows
+  fleet: FLEET_NAME
+  description: Lists all Chrome and Firefox extensions across all users on personal devices.
+  query: SELECT u.username, 'Chrome' AS browser, ce.name, ce.version FROM users u JOIN chrome_extensions ce ON u.uid = ce.uid UNION ALL SELECT u.username, 'Firefox' AS browser, fa.name, fa.version FROM users u JOIN firefox_addons fa ON u.uid = fa.uid;
+  purpose: Informational
+  tags: browser, inventory

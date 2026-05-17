@@ -1,0 +1,51 @@
+---
+# Reports for the Workstations fleet (managed corporate macOS)
+#
+# Note: The "fleet" field must match the exact fleet name. The seed script
+# substitutes FLEET_NAME automatically. To apply manually, replace FLEET_NAME
+# with your fleet's exact name.
+#
+# These are unique to this fleet — not duplicates of global reports.
+apiVersion: v1
+kind: report
+spec:
+  name: Workstations - FileVault status
+  platform: darwin
+  fleet: FLEET_NAME
+  description: Returns the FileVault encryption status for each macOS workstation.
+  query: SELECT * FROM disk_encryption;
+  purpose: Informational
+  tags: compliance, encryption
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Workstations - MDM enrollment details
+  platform: darwin
+  fleet: FLEET_NAME
+  description: Returns MDM enrollment status and server URL for managed macOS workstations.
+  query: SELECT enrolled, server_url, install_date FROM mdm;
+  purpose: Informational
+  tags: mdm, compliance
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Workstations - Gatekeeper configuration
+  platform: darwin
+  fleet: FLEET_NAME
+  description: Returns the current Gatekeeper configuration on macOS workstations.
+  query: SELECT * FROM gatekeeper;
+  purpose: Informational
+  tags: security, compliance
+---
+apiVersion: v1
+kind: report
+spec:
+  name: Workstations - Managed configuration profiles
+  platform: darwin
+  fleet: FLEET_NAME
+  description: Lists all managed configuration profiles installed via MDM on macOS workstations.
+  query: SELECT * FROM managed_policies;
+  purpose: Informational
+  tags: mdm, configuration

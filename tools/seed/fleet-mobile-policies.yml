@@ -1,0 +1,51 @@
+---
+# Policies for the Personal mobile devices fleet (personal laptops / BYOD)
+#
+# Usage:
+#   fleetctl apply -f tools/seed/fleet-mobile-policies.yml --policies-fleet "Personal mobile devices"
+#
+# These are unique to this fleet — not duplicates of global policies.
+apiVersion: v1
+kind: policy
+spec:
+  name: Personal devices - No plaintext passwords in common dotfiles
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE (path LIKE '/Users/%/.bashrc' OR path LIKE '/Users/%/.zshrc' OR path LIKE '/Users/%/.bash_profile' OR path LIKE '/Users/%/.profile' OR path LIKE '/home/%/.bashrc' OR path LIKE '/home/%/.zshrc') AND size > 0);
+  description: "Checks that no common shell dotfiles with content exist on personal devices. This is a lightweight proxy to flag dotfiles that may contain hardcoded passwords or secrets — manual review is still recommended."
+  resolution: "Review your shell configuration files for any hardcoded passwords or secrets."
+  platform: darwin,linux
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Personal devices - Screen saver password enabled
+  query: SELECT 1 FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.screensaver.plist' AND key = 'askForPassword' AND value = '1' LIMIT 1;
+  description: "Checks that at least one user has screen saver password protection enabled on personal macOS devices."
+  resolution: "Go to System Settings > Lock Screen and enable 'Require password after screen saver begins.'"
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Personal devices - Find My Mac enabled
+  query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.icloud.managed' AND name = 'DisableFMMiCloudSetting' AND value = '0' LIMIT 1;
+  description: "Checks that Find My Mac is not disabled by MDM policy on personal devices."
+  resolution: "Go to System Settings > Apple ID > iCloud and enable Find My Mac."
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Personal devices - Automatic OS updates enabled
+  query: SELECT 1 FROM plist WHERE path = '/Library/Preferences/com.apple.SoftwareUpdate.plist' AND key = 'AutomaticallyInstallMacOSUpdates' AND value = '1';
+  description: "Checks that automatic macOS updates are enabled on personal devices via the local preference (not MDM-managed)."
+  resolution: "Go to System Settings > General > Software Update > Automatic Updates and enable 'Install macOS updates.'"
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Personal devices - No world-writable files in home directory
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE (path LIKE '/Users/%/Desktop/%%' OR path LIKE '/Users/%/Documents/%%' OR path LIKE '/Users/%/Downloads/%%') AND (mode LIKE '%2' OR mode LIKE '%3' OR mode LIKE '%6' OR mode LIKE '%7') AND type = 'regular' LIMIT 1);
+  description: "Checks that there are no world-writable files in common user directories on personal devices."
+  resolution: "Fix file permissions with: chmod o-w <file>"
+  platform: darwin
