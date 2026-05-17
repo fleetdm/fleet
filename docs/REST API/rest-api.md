@@ -3269,24 +3269,33 @@ To filter hosts by platform (macOS, Windows, Linux), use the ["List label's host
       "software": [
         {
           "id": 1,
-          "name": "glibc",
-          "version": "2.12",
-          "source": "rpm_packages",
-          "generated_cpe": "cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*",
-          "last_opened_at": "2021-08-18T21:14:00Z",
+          "name": "Firefox.app",
+          "version": "117.0",
+          "source": "apps",
+          "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
           "vulnerabilities": [
             {
-              "cve": "CVE-2009-5155",
-              "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2009-5155",
-              "cvss_score": 7.5, // Fleet Premium only
-              "epss_probability": 0.01537, // Fleet Premium only
-              "cisa_known_exploit": false, // Fleet Premium only
-              "cve_published": "2022-01-01 12:32:00", // Fleet Premium only
-              "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.", // Fleet Premium only
-              "resolved_in_version": "2.28" // Fleet Premium only
+              "cve": "CVE-2023-4863",
+              "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-4863",
+              "created_at": "2024-07-01T00:15:00Z",
+              "cvss_score": 8.8, // Available in Fleet Premium
+              "epss_probability": 0.4101, // Available in Fleet Premium
+              "cisa_known_exploit": true, // Available in Fleet Premium
+              "cve_published": "2023-09-12T15:15:00Z", // Available in Fleet Premium
+              "cve_description": "Memory safety bugs present in Firefox 147 and Thunderbird 147. Some of these bugs showed evidence of memory corruption and we presume that with enough effort some of these could have been exploited to run arbitrary code. This vulnerability affects Firefox < 148 and Thunderbird < 148.", // Available in Fleet Premium
+              "resolved_in_version": "118.0" // Available in Fleet Premium
             }
           ],
-          "installed_paths": ["/usr/lib/some-path-1"]
+          "installed_paths": ["/Applications/Firefox.app"],
+          "signature_information": [
+            {
+              "installed_path": "/Applications/Firefox.app",
+              "team_identifier": "EQHXZ8M8AV",
+              "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b",
+              "executable_sha256": "7afc9d01a62f03a2de9637936d4afe68090d2de18d03f29c88cfb0b1ba63587f",
+              "executable_path": "/Applications/Firefox.app/Contents/MacOS/Firefox"
+            }
+          ]
         }
       ],
       "policies": [
