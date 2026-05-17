@@ -17,6 +17,7 @@ import (
 	"fyne.io/systray"
 	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/cmd/desktop/menu"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/backoff"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/go-paniclog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
@@ -150,6 +151,11 @@ func main() {
 	const pingInterval = 10 * time.Second // same value as default distributed/read
 	pingTicker := time.NewTicker(pingInterval)
 
+	// Backoff tracker for the ping/poll loop. Backs off exponentially
+	// on server errors to avoid overwhelming the server (see #44816).
+	const maxPingBackoff = 30 * time.Minute
+	pingBackoff := backoff.New(pingInterval, maxPingBackoff)
+
 	// Used to trigger a policy check when clicking on "My device" or "About Fleet".
 	var fleetDesktopCheckTrigger atomic.Bool
 
@@ -266,7 +272,9 @@ func main() {
 			done := make(chan interface{})
 
 			go func() {
-				ticker := time.NewTicker(5 * time.Second)
+				const checkTokenBase = 5 * time.Second
+				tokenBackoff := backoff.New(checkTokenBase, maxPingBackoff)
+				ticker := time.NewTicker(checkTokenBase)
 				defer ticker.Stop()
 				defer close(done)
 
@@ -286,7 +294,11 @@ func main() {
 						return
 					}
 
-					log.Error().Err(err).Msg("get device URL")
+					tokenBackoff.RecordFailure()
+					nextInterval := tokenBackoff.Interval()
+					log.Error().Err(err).Str("next_retry", nextInterval.String()).
+						Msg("get device URL, backing off")
+					ticker.Reset(nextInterval)
 
 					<-ticker.C
 				}
@@ -335,12 +347,19 @@ func main() {
 			for {
 				<-pingTicker.C
 
-				// Reset the ticker to the intended interval,
-				// in case we reset it to 1ms (when clicking on "My device").
-				pingTicker.Reset(pingInterval)
+				// Reset the ticker to the appropriate interval. Normally this
+				// is pingInterval, but during backoff it increases exponentially.
+				// The 1ms reset from user clicks will be overridden here.
+				pingTicker.Reset(pingBackoff.Interval())
 
 				if err := client.Ping(); err != nil {
-					log.Error().Err(err).Int("count", pingErrCount).Msg("ping failed")
+					pingBackoff.RecordFailure()
+					// Reset the ticker to the new (longer) backoff interval.
+					pingTicker.Reset(pingBackoff.Interval())
+
+					log.Error().Err(err).Int("count", pingErrCount).
+						Str("next_retry", pingBackoff.Interval().String()).
+						Msg("ping failed, backing off")
 					pingErrCount++
 					// We try 5 more times to make sure one bad request doesn't trigger the offline indicator.
 					// So it might take up to ~1m (6 * 10s) for Fleet Desktop to show the offline indicator.
@@ -351,6 +370,12 @@ func main() {
 				}
 
 				// Successfully connected to Fleet.
+				if pingBackoff.InBackoff() {
+					log.Info().Str("backoff_duration", pingBackoff.BackoffDuration().String()).
+						Msg("ping succeeded, exiting backoff")
+				}
+				pingBackoff.RecordSuccess()
+				pingTicker.Reset(pingInterval)
 				pingErrCount = 0
 
 				// Check if we need to fetch the "Fleet desktop" summary from Fleet.
