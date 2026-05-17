@@ -765,6 +765,13 @@
       "description": "Fork is a git client."
     },
     {
+      "name": "Foxit PDF Editor",
+      "slug": "foxit-pdf-editor/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.foxit.PDFEditor",
+      "description": "Foxit PDF Editor is a PDF editor."
+    },
+    {
       "name": "Front",
       "slug": "front/darwin",
       "platform": "darwin",
