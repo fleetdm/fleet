@@ -90,6 +90,7 @@ func TestLabels(t *testing.T) {
 		{"SingleByName", testLabelByName},
 		{"Save", testLabelsSave},
 		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
+		{"QueriesForLinuxPlatformLabel", testLabelsQueriesForLinuxPlatformLabel},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
 		{"DeleteLabel", testDeleteLabel},
 		{"LabelsSummaryAndListTeamFiltering", testLabelsSummaryAndListTeamFiltering},
@@ -1219,6 +1220,87 @@ func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, queries, 1)
 	assert.Equal(t, "select 1;", queries[fmt.Sprint(label.ID)])
+}
+
+func testLabelsQueriesForLinuxPlatformLabel(t *testing.T, db *Datastore) {
+	ctx := t.Context()
+
+	// Create a label with platform "linux" (generic, matches all Linux distros).
+	linuxLabel, err := db.NewLabel(ctx, &fleet.Label{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
+		},
+		Name:                "linux label",
+		Query:               "select 1;",
+		Platform:            "linux",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	// Create an ubuntu-specific label for backward-compat testing.
+	ubuntuLabel, err := db.NewLabel(ctx, &fleet.Label{
+		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
+			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
+		},
+		Name:                "ubuntu label",
+		Query:               "select 2;",
+		Platform:            "ubuntu",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	cases := []struct {
+		name       string
+		platform   string
+		osVersion  string
+		wantLinux  bool
+		wantUbuntu bool
+	}{
+		{"ubuntu host matches linux and ubuntu labels", "ubuntu", "Ubuntu 22.04", true, true},
+		{"debian host matches linux label only", "debian", "Debian GNU/Linux 12", true, false},
+		{"rhel host matches linux label", "rhel", "Red Hat Enterprise Linux 9", true, false},
+		// CentOS-via-rhel: matches linux label. Backward compat for centos-specific labels
+		// is covered by testLabelsQueriesForCentOSHost.
+		{"centos host matches linux label", "rhel", "CentOS 7", true, false},
+		{"darwin host matches neither", "darwin", "macOS 14.0", false, false},
+		{"windows host matches neither", "windows", "Windows 11", false, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			host, err := db.EnrollOsquery(ctx,
+				fleet.WithEnrollOsqueryHostID(tc.platform+tc.osVersion),
+				fleet.WithEnrollOsqueryNodeKey(tc.platform+tc.osVersion),
+			)
+			require.NoError(t, err)
+
+			host.Platform = tc.platform
+			host.OSVersion = tc.osVersion
+			err = db.UpdateHost(ctx, host)
+			require.NoError(t, err)
+
+			queries, err := db.LabelQueriesForHost(ctx, host)
+			require.NoError(t, err)
+
+			linuxKey := fmt.Sprint(linuxLabel.ID)
+			ubuntuKey := fmt.Sprint(ubuntuLabel.ID)
+
+			if tc.wantLinux {
+				assert.Contains(t, queries, linuxKey, "expected linux label for %s host", tc.platform)
+			} else {
+				assert.NotContains(t, queries, linuxKey, "did not expect linux label for %s host", tc.platform)
+			}
+			if tc.wantUbuntu {
+				assert.Contains(t, queries, ubuntuKey, "expected ubuntu label for %s host", tc.platform)
+			} else {
+				assert.NotContains(t, queries, ubuntuKey, "did not expect ubuntu label for %s host", tc.platform)
+			}
+		})
+	}
 }
 
 func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore) {

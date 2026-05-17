@@ -891,25 +891,33 @@ func applyLabelTeamFilter(query string, filter fleet.TeamFilter, initialParams .
 	return maybeIn(query)
 }
 
-func platformForHost(host *fleet.Host) string {
-	if host.Platform != "rhel" {
-		return host.Platform
+func platformsForHost(host *fleet.Host) []string {
+	specific := host.Platform
+	if host.Platform == "rhel" && strings.Contains(strings.ToLower(host.OSVersion), "centos") {
+		specific = "centos"
 	}
-	if strings.Contains(strings.ToLower(host.OSVersion), "centos") {
-		return "centos"
+	// For Linux hosts, also include the generic "linux" platform so labels
+	// with platform="linux" match all distros. Skip adding "linux" if the
+	// host already reports platform="linux" to avoid duplicates in the IN clause.
+	if fleet.IsLinux(specific) && specific != "linux" {
+		return []string{specific, "linux"}
 	}
-	return host.Platform
+	return []string{specific}
 }
 
 func (ds *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	var rows *sql.Rows
 	var err error
-	platform := platformForHost(host)
+	platforms := platformsForHost(host)
 	query := `SELECT id, query FROM labels WHERE
-		(platform = ? OR platform = '') AND
+		(platform IN (?) OR platform = '') AND
 		label_membership_type = ? AND
 		(team_id IS NULL OR team_id = ?)`
-	rows, err = ds.reader(ctx).QueryContext(ctx, query, platform, fleet.LabelMembershipTypeDynamic, host.TeamID)
+	query, args, err := sqlx.In(query, platforms, fleet.LabelMembershipTypeDynamic, host.TeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building label queries for host")
+	}
+	rows, err = ds.reader(ctx).QueryContext(ctx, query, args...)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "selecting label queries for host")
 	}
