@@ -274,6 +274,7 @@ type GenerateGitopsCommand struct {
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "generate-gitops",
+		Hidden:      true,
 		Usage:       "Generate GitOps configuration files for Fleet.",
 		Description: "This command generates GitOps configuration files for Fleet.",
 		Action:      createGenerateGitopsAction(nil),
