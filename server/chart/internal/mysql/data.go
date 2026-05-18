@@ -1,12 +1,12 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -40,10 +40,11 @@ var scdScrubWriteBatchCap = 1000
 
 // scdRow is a single row of host_scd_data as fetched by GetSCDData.
 type scdRow struct {
-	EntityID   string    `db:"entity_id"`
-	HostBitmap []byte    `db:"host_bitmap"`
-	ValidFrom  time.Time `db:"valid_from"`
-	ValidTo    time.Time `db:"valid_to"`
+	EntityID     string    `db:"entity_id"`
+	HostBitmap   []byte    `db:"host_bitmap"`
+	EncodingType uint8     `db:"encoding_type"`
+	ValidFrom    time.Time `db:"valid_from"`
+	ValidTo      time.Time `db:"valid_to"`
 }
 
 func (ds *Datastore) RecordBucketData(
@@ -52,7 +53,7 @@ func (ds *Datastore) RecordBucketData(
 	bucketStart time.Time,
 	bucketSize time.Duration,
 	strategy api.SampleStrategy,
-	entityBitmaps map[string][]byte,
+	entityBitmaps map[string]*roaring.Bitmap,
 ) error {
 	bucketStart = bucketStart.UTC()
 
@@ -87,7 +88,7 @@ func (ds *Datastore) recordAccumulate(
 	dataset string,
 	bucketStart time.Time,
 	bucketSize time.Duration,
-	entityBitmaps map[string][]byte,
+	entityBitmaps map[string]*roaring.Bitmap,
 ) error {
 	validTo := bucketStart.Add(bucketSize)
 
@@ -97,10 +98,10 @@ func (ds *Datastore) recordAccumulate(
 	}
 
 	// Fetch the current in-bucket bitmaps so we can OR-merge before writing.
-	existing := make(map[string][]byte, len(entityIDs))
+	existing := make(map[string]*roaring.Bitmap, len(entityIDs))
 	if len(entityIDs) > 0 {
 		query, args, err := sqlx.In(
-			`SELECT entity_id, host_bitmap FROM host_scd_data
+			`SELECT entity_id, host_bitmap, encoding_type FROM host_scd_data
 			 WHERE dataset = ? AND valid_from = ? AND entity_id IN (?)`,
 			dataset, bucketStart, entityIDs)
 		if err != nil {
@@ -109,8 +110,9 @@ func (ds *Datastore) recordAccumulate(
 		query = ds.rebind(query)
 
 		type row struct {
-			EntityID   string `db:"entity_id"`
-			HostBitmap []byte `db:"host_bitmap"`
+			EntityID     string `db:"entity_id"`
+			HostBitmap   []byte `db:"host_bitmap"`
+			EncodingType uint8  `db:"encoding_type"`
 		}
 		var rows []row
 		// Using writer here since a stale read would OR-merge against an older
@@ -120,18 +122,22 @@ func (ds *Datastore) recordAccumulate(
 			return ctxerr.Wrap(ctx, err, "fetch in-bucket bitmaps")
 		}
 		for _, r := range rows {
-			existing[r.EntityID] = r.HostBitmap
+			rb, err := chart.DecodeBitmap(chart.Blob{Bytes: r.HostBitmap, Encoding: r.EncodingType})
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "decode in-bucket bitmap for entity %q", r.EntityID)
+			}
+			existing[r.EntityID] = rb
 		}
 	}
 
 	type upsertRow struct {
 		entityID string
-		bitmap   []byte
+		blob     chart.Blob
 	}
 	toUpsert := make([]upsertRow, 0, len(entityBitmaps))
 	for entityID, newBitmap := range entityBitmaps {
 		merged := chart.BlobOR(existing[entityID], newBitmap)
-		toUpsert = append(toUpsert, upsertRow{entityID: entityID, bitmap: merged})
+		toUpsert = append(toUpsert, upsertRow{entityID: entityID, blob: chart.BitmapToBlob(merged)})
 	}
 
 	for i := 0; i < len(toUpsert); i += scdUpsertBatch {
@@ -139,15 +145,15 @@ func (ds *Datastore) recordAccumulate(
 		batch := toUpsert[i:end]
 
 		placeholders := make([]string, 0, len(batch))
-		args := make([]any, 0, len(batch)*5)
+		args := make([]any, 0, len(batch)*6)
 		for _, r := range batch {
-			placeholders = append(placeholders, "(?, ?, ?, ?, ?)")
-			args = append(args, dataset, r.entityID, r.bitmap, bucketStart, validTo)
+			placeholders = append(placeholders, "(?, ?, ?, ?, ?, ?)")
+			args = append(args, dataset, r.entityID, r.blob.Bytes, r.blob.Encoding, bucketStart, validTo)
 		}
-		// Concatenating hardcoded "(?,?,?,?,?)" placeholder strings, not user input.
-		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from, valid_to) VALUES ` + //nolint:gosec // G202
+		// Concatenating hardcoded "(?,?,?,?,?,?)" placeholder strings, not user input.
+		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, encoding_type, valid_from, valid_to) VALUES ` + //nolint:gosec // G202
 			strings.Join(placeholders, ", ") +
-			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`
+			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), encoding_type = VALUES(encoding_type)`
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert accumulate rows")
 		}
@@ -164,46 +170,62 @@ func (ds *Datastore) recordSnapshot(
 	ctx context.Context,
 	dataset string,
 	bucketStart time.Time,
-	entityBitmaps map[string][]byte,
+	entityBitmaps map[string]*roaring.Bitmap,
 ) error {
 	type openRow struct {
-		EntityID   string    `db:"entity_id"`
-		HostBitmap []byte    `db:"host_bitmap"`
-		ValidFrom  time.Time `db:"valid_from"`
+		EntityID     string    `db:"entity_id"`
+		HostBitmap   []byte    `db:"host_bitmap"`
+		EncodingType uint8     `db:"encoding_type"`
+		ValidFrom    time.Time `db:"valid_from"`
 	}
 	var openRows []openRow
 	// Reader is safe here: the close UPDATE filters by valid_to = sentinel and the
 	// insert uses ODKU on uniq_entity_bucket, so a stale read at worst produces
 	// idempotent re-work (a no-op close or a same-bucket overwrite).
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &openRows,
-		`SELECT entity_id, host_bitmap, valid_from
+		`SELECT entity_id, host_bitmap, encoding_type, valid_from
 		 FROM host_scd_data
 		 WHERE dataset = ? AND valid_to = ?`,
 		dataset, scdOpenSentinel); err != nil {
 		return ctxerr.Wrap(ctx, err, "fetch open SCD rows")
 	}
 
-	openByEntity := make(map[string]openRow, len(openRows))
+	// Decode every open row to op form so change-detection compares semantically
+	// rather than byte-wise. Mixed encodings (a dense legacy row vs an incoming
+	// roaring bitmap) would never byte-equal even when representing the same host
+	// set; comparing op-form bitmaps via roaring.Equals sidesteps this.
+	type openEntity struct {
+		row    openRow
+		bitmap *roaring.Bitmap
+	}
+	openByEntity := make(map[string]openEntity, len(openRows))
 	for _, r := range openRows {
-		openByEntity[r.EntityID] = r
+		rb, err := chart.DecodeBitmap(chart.Blob{Bytes: r.HostBitmap, Encoding: r.EncodingType})
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "decode open bitmap for entity %q", r.EntityID)
+		}
+		openByEntity[r.EntityID] = openEntity{row: r, bitmap: rb}
 	}
 
 	var toClose []string
 	type upsertRow struct {
 		entityID string
-		bitmap   []byte
+		blob     chart.Blob
 	}
 	var toUpsert []upsertRow
 
-	for entityID, bitmap := range entityBitmaps {
+	for entityID, incoming := range entityBitmaps {
 		existing, hasOpen := openByEntity[entityID]
-		if hasOpen && bytes.Equal(existing.HostBitmap, bitmap) {
+		if hasOpen && existing.bitmap.Equals(incoming) {
 			continue // unchanged state — leave the row alone
 		}
-		if hasOpen && existing.ValidFrom.Before(bucketStart) {
+		if hasOpen && existing.row.ValidFrom.Before(bucketStart) {
 			toClose = append(toClose, entityID)
 		}
-		toUpsert = append(toUpsert, upsertRow{entityID: entityID, bitmap: bitmap})
+		toUpsert = append(toUpsert, upsertRow{
+			entityID: entityID,
+			blob:     chart.BitmapToBlob(incoming),
+		})
 	}
 
 	// Entities that disappeared entirely — close their open rows. If the row
@@ -238,15 +260,15 @@ func (ds *Datastore) recordSnapshot(
 		batch := toUpsert[i:end]
 
 		placeholders := make([]string, 0, len(batch))
-		args := make([]any, 0, len(batch)*4)
+		args := make([]any, 0, len(batch)*5)
 		for _, r := range batch {
-			placeholders = append(placeholders, "(?, ?, ?, ?)")
-			args = append(args, dataset, r.entityID, r.bitmap, bucketStart)
+			placeholders = append(placeholders, "(?, ?, ?, ?, ?)")
+			args = append(args, dataset, r.entityID, r.blob.Bytes, r.blob.Encoding, bucketStart)
 		}
-		// Concatenating hardcoded "(?,?,?,?)" placeholder strings, not user input.
-		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from) VALUES ` + //nolint:gosec // G202
+		// Concatenating hardcoded "(?,?,?,?,?)" placeholder strings, not user input.
+		stmt := `INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, encoding_type, valid_from) VALUES ` + //nolint:gosec // G202
 			strings.Join(placeholders, ", ") +
-			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap)`
+			` ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), encoding_type = VALUES(encoding_type)`
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert snapshot rows")
 		}
@@ -284,7 +306,7 @@ func (ds *Datastore) GetSCDData(
 	startDate, endDate time.Time,
 	bucketSize time.Duration,
 	strategy api.SampleStrategy,
-	filterMask []byte,
+	filterMask *roaring.Bitmap,
 	entityIDs []string,
 ) ([]api.DataPoint, error) {
 	startDate = startDate.UTC()
@@ -313,7 +335,7 @@ func (ds *Datastore) GetSCDData(
 	}
 
 	query := fmt.Sprintf(`
-		SELECT entity_id, host_bitmap, valid_from, valid_to
+		SELECT entity_id, host_bitmap, encoding_type, valid_from, valid_to
 		FROM host_scd_data
 		WHERE dataset = ?
 			AND valid_from <  ?
@@ -330,20 +352,43 @@ func (ds *Datastore) GetSCDData(
 		return nil, ctxerr.Wrap(ctx, err, "get SCD data")
 	}
 
+	// Decode every row to op form once before the per-bucket walk. Decode work
+	// is O(set bits) for roaring rows and O(byte count) for legacy dense rows;
+	// doing it once here avoids re-decoding the same row across overlapping
+	// buckets.
+	decoded := make([]decodedSCDRow, len(rows))
+	for i, r := range rows {
+		rb, err := chart.DecodeBitmap(chart.Blob{Bytes: r.HostBitmap, Encoding: r.EncodingType})
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "decode bitmap for entity %q", r.EntityID)
+		}
+		decoded[i] = decodedSCDRow{entityID: r.EntityID, bitmap: rb, validFrom: r.ValidFrom, validTo: r.ValidTo}
+	}
+
 	results := make([]api.DataPoint, numBuckets)
 	for i := range numBuckets {
 		bucketStart := startDate.Add(time.Duration(i+1) * bucketSize)
 		bucketEnd := bucketStart.Add(bucketSize)
-		merged := aggregateBucket(rows, bucketStart, bucketEnd, strategy)
-		if merged != nil {
+		merged := aggregateBucket(decoded, bucketStart, bucketEnd, strategy)
+		if merged != nil && filterMask != nil {
 			merged = chart.BlobAND(merged, filterMask)
 		}
 		results[i] = api.DataPoint{
 			Timestamp: bucketStart,
-			Value:     chart.BlobPopcount(merged),
+			Value:     int(chart.BlobPopcount(merged)), //nolint:gosec // host counts fit comfortably in int
 		}
 	}
 	return results, nil
+}
+
+// decodedSCDRow is the in-memory op-form view of an scdRow, produced by
+// decoding the storage-form bytes once at SELECT time and shared across the
+// per-bucket aggregation walk.
+type decodedSCDRow struct {
+	entityID  string
+	bitmap    *roaring.Bitmap
+	validFrom time.Time
+	validTo   time.Time
 }
 
 // aggregateBucket returns the merged bitmap for a single bucket given the
@@ -351,35 +396,49 @@ func (ds *Datastore) GetSCDData(
 // collapses into the union — correct for "distinct hosts seen doing anything
 // tracked"). For Snapshot, picks the row active at bucketEnd per entity and
 // ORs across entities.
-func aggregateBucket(rows []scdRow, bucketStart, bucketEnd time.Time, strategy api.SampleStrategy) []byte {
+func aggregateBucket(rows []decodedSCDRow, bucketStart, bucketEnd time.Time, strategy api.SampleStrategy) *roaring.Bitmap {
 	if strategy == api.SampleStrategySnapshot {
 		// Per entity, the row "active at bucketEnd" is the one whose
 		// [valid_from, valid_to) covers the instant bucketEnd-ε. For interval
 		// boundaries, that's valid_from < bucketEnd AND valid_to >= bucketEnd.
 		// Write semantics ensure at most one such row per (entity, moment).
-		var merged []byte
+		var merged *roaring.Bitmap
 		seen := make(map[string]struct{})
 		for _, r := range rows {
-			if !r.ValidFrom.Before(bucketEnd) || r.ValidTo.Before(bucketEnd) {
+			if !r.validFrom.Before(bucketEnd) || r.validTo.Before(bucketEnd) {
 				continue
 			}
-			if _, dup := seen[r.EntityID]; dup {
+			if _, dup := seen[r.entityID]; dup {
 				continue
 			}
-			seen[r.EntityID] = struct{}{}
-			merged = chart.BlobOR(merged, r.HostBitmap)
+			seen[r.entityID] = struct{}{}
+			merged = orInto(merged, r.bitmap)
 		}
 		return merged
 	}
 
 	// Accumulate: OR every row that overlaps the bucket.
-	var merged []byte
+	var merged *roaring.Bitmap
 	for _, r := range rows {
-		if !r.ValidFrom.Before(bucketEnd) || !r.ValidTo.After(bucketStart) {
+		if !r.validFrom.Before(bucketEnd) || !r.validTo.After(bucketStart) {
 			continue
 		}
-		merged = chart.BlobOR(merged, r.HostBitmap)
+		merged = orInto(merged, r.bitmap)
 	}
+	return merged
+}
+
+// orInto returns merged OR rb. When merged is nil, returns a clone of rb so
+// subsequent ORs on merged don't mutate the source row's cached bitmap. Once
+// merged is non-nil, future ORs mutate merged in place (cheap; we own it).
+func orInto(merged, rb *roaring.Bitmap) *roaring.Bitmap {
+	if rb == nil || rb.IsEmpty() {
+		return merged
+	}
+	if merged == nil {
+		return rb.Clone()
+	}
+	merged.Or(rb)
 	return merged
 }
 
@@ -481,27 +540,31 @@ func (ds *Datastore) HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([]ui
 //   - Surviving updates are flushed in chunked CASE/WHEN UPDATE statements
 //     so a read-page of N rows costs O(N / writeBatch) round trips instead
 //     of O(N).
-func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask []byte, batchSize int) error {
+func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask *roaring.Bitmap, batchSize int) error {
 	if batchSize <= 0 {
 		batchSize = 5000
 	}
-	if len(mask) == 0 {
+	if mask == nil || mask.IsEmpty() {
 		// Nothing to clear; avoid the row walk entirely.
 		return nil
 	}
 
-	// Size each CASE/WHEN UPDATE so its payload (~writeBatch * len(mask) bytes
-	// of new bitmap data) stays under scdScrubWriteByteBudget. Bounded above
-	// by scdScrubWriteBatchCap to keep parser cost predictable.
-	writeBatch := min(max(scdScrubWriteByteBudget/len(mask), 1), scdScrubWriteBatchCap)
+	// Size each CASE/WHEN UPDATE so its payload (~writeBatch * estimated bitmap
+	// bytes per row) stays under scdScrubWriteByteBudget. Use the mask's
+	// serialized size as a rough proxy for typical row size, since most rows
+	// after scrubbing will be at most as large as the mask. Bounded above by
+	// scdScrubWriteBatchCap to keep parser cost predictable.
+	maskBlob := chart.BitmapToBlob(mask)
+	writeBatch := min(max(scdScrubWriteByteBudget/max(len(maskBlob.Bytes), 1), 1), scdScrubWriteBatchCap)
 
 	type row struct {
-		ID         uint   `db:"id"`
-		HostBitmap []byte `db:"host_bitmap"`
+		ID           uint   `db:"id"`
+		HostBitmap   []byte `db:"host_bitmap"`
+		EncodingType uint8  `db:"encoding_type"`
 	}
 	type pendingRow struct {
-		id       uint
-		scrubbed []byte
+		id   uint
+		blob chart.Blob
 	}
 
 	// Paging select reads from the primary: the loop terminates on
@@ -524,7 +587,7 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 		var rows []row
 		// reader(ctx) honors RequirePrimary set above and returns the writer connection.
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows,
-			`SELECT id, host_bitmap FROM host_scd_data
+			`SELECT id, host_bitmap, encoding_type FROM host_scd_data
 			 WHERE dataset = ? AND id > ?
 			 ORDER BY id LIMIT ?`,
 			dataset, lastID, batchSize); err != nil {
@@ -544,9 +607,14 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 		// produce no UPDATE.
 		pending := make([]pendingRow, 0, len(rows))
 		for _, r := range rows {
-			scrubbed := chart.BlobANDNOT(r.HostBitmap, mask)
-			if !bytes.Equal(scrubbed, r.HostBitmap) {
-				pending = append(pending, pendingRow{id: r.ID, scrubbed: scrubbed})
+			rb, err := chart.DecodeBitmap(chart.Blob{Bytes: r.HostBitmap, Encoding: r.EncodingType})
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "decode bitmap for scrub row id %d", r.ID)
+			}
+			before := rb.GetCardinality()
+			scrubbed := chart.BlobANDNOT(rb, mask)
+			if scrubbed.GetCardinality() != before {
+				pending = append(pending, pendingRow{id: r.ID, blob: chart.BitmapToBlob(scrubbed)})
 			}
 			lastID = r.ID
 		}
@@ -555,12 +623,17 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 			end := min(i+writeBatch, len(pending))
 			chunk := pending[i:end]
 
-			caseClauses := make([]string, 0, len(chunk))
+			caseBitmapClauses := make([]string, 0, len(chunk))
+			caseEncodingClauses := make([]string, 0, len(chunk))
 			inPlaceholders := make([]string, 0, len(chunk))
-			args := make([]any, 0, len(chunk)*3)
+			args := make([]any, 0, len(chunk)*4)
 			for _, p := range chunk {
-				caseClauses = append(caseClauses, "WHEN ? THEN ?")
-				args = append(args, p.id, p.scrubbed)
+				caseBitmapClauses = append(caseBitmapClauses, "WHEN ? THEN ?")
+				args = append(args, p.id, p.blob.Bytes)
+			}
+			for _, p := range chunk {
+				caseEncodingClauses = append(caseEncodingClauses, "WHEN ? THEN ?")
+				args = append(args, p.id, p.blob.Encoding)
 			}
 			for _, p := range chunk {
 				inPlaceholders = append(inPlaceholders, "?")
@@ -568,7 +641,9 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 			}
 			// Concatenating hardcoded "WHEN ? THEN ?" / "?" placeholders, not user input.
 			stmt := `UPDATE host_scd_data SET host_bitmap = CASE id ` + //nolint:gosec // G202
-				strings.Join(caseClauses, " ") +
+				strings.Join(caseBitmapClauses, " ") +
+				` END, encoding_type = CASE id ` +
+				strings.Join(caseEncodingClauses, " ") +
 				` END WHERE id IN (` +
 				strings.Join(inPlaceholders, ", ") + `)`
 			if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/chart"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	mysql_testing_utils "github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/jmoiron/sqlx"
@@ -65,16 +66,16 @@ func (tdb *TestDB) InsertSCDRow(t *testing.T, dataset, entityID string, validFro
 	require.NoError(t, err)
 }
 
-// InsertSCDRowWithBitmap inserts a host_scd_data row with a caller-supplied
-// host_bitmap and returns the auto-assigned id.
-func (tdb *TestDB) InsertSCDRowWithBitmap(t *testing.T, dataset, entityID string, bitmap []byte, validFrom, validTo time.Time) uint {
+// InsertSCDRowWithBlob inserts a host_scd_data row with a caller-supplied
+// chart.Blob (bytes + encoding) and returns the auto-assigned id.
+func (tdb *TestDB) InsertSCDRowWithBlob(t *testing.T, dataset, entityID string, blob chart.Blob, validFrom, validTo time.Time) uint {
 	t.Helper()
 	ctx := t.Context()
 
 	res, err := tdb.DB.ExecContext(ctx, `
-		INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from, valid_to)
-		VALUES (?, ?, ?, ?, ?)
-	`, dataset, entityID, bitmap, validFrom, validTo)
+		INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, encoding_type, valid_from, valid_to)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, dataset, entityID, blob.Bytes, blob.Encoding, validFrom, validTo)
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
@@ -82,15 +83,34 @@ func (tdb *TestDB) InsertSCDRowWithBitmap(t *testing.T, dataset, entityID string
 	return uint(id) //nolint:gosec // G115: id is a positive AUTO_INCREMENT primary key
 }
 
-// SCDBitmap returns the host_bitmap column for the given row id.
-func (tdb *TestDB) SCDBitmap(t *testing.T, id uint) []byte {
+// InsertSCDRowWithHostIDs is a convenience wrapper for tests that just want to
+// store a set of host IDs — produces a roaring-encoded row.
+func (tdb *TestDB) InsertSCDRowWithHostIDs(t *testing.T, dataset, entityID string, hostIDs []uint, validFrom, validTo time.Time) uint {
+	t.Helper()
+	return tdb.InsertSCDRowWithBlob(t, dataset, entityID, chart.HostIDsToBlob(hostIDs), validFrom, validTo)
+}
+
+// SCDBlob returns the host_bitmap + encoding_type for the given row id.
+func (tdb *TestDB) SCDBlob(t *testing.T, id uint) chart.Blob {
 	t.Helper()
 	ctx := t.Context()
 
-	var b []byte
-	err := tdb.DB.GetContext(ctx, &b, `SELECT host_bitmap FROM host_scd_data WHERE id = ?`, id)
+	type row struct {
+		HostBitmap   []byte `db:"host_bitmap"`
+		EncodingType uint8  `db:"encoding_type"`
+	}
+	var r row
+	err := tdb.DB.GetContext(ctx, &r, `SELECT host_bitmap, encoding_type FROM host_scd_data WHERE id = ?`, id)
 	require.NoError(t, err)
-	return b
+	return chart.Blob{Bytes: r.HostBitmap, Encoding: r.EncodingType}
+}
+
+// SCDHostIDs returns the decoded host IDs for the given row id.
+func (tdb *TestDB) SCDHostIDs(t *testing.T, id uint) []uint {
+	t.Helper()
+	rb, err := chart.DecodeBitmap(tdb.SCDBlob(t, id))
+	require.NoError(t, err)
+	return chart.BitmapToHostIDs(rb)
 }
 
 // CountSCDRows returns the total number of rows in host_scd_data.
