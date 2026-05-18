@@ -79,10 +79,7 @@ func snapshotCardinality(fleetSize int) int {
 	case r < 0.99: // moderate: popular software
 		count = 25 + rand.IntN(100) //nolint:gosec
 	default: // wide: browser/kernel-tier, up to ~10% of fleet
-		wideMax := fleetSize / 10
-		if wideMax < 200 {
-			wideMax = 200
-		}
+		wideMax := max(fleetSize/10, 200)
 		count = 125 + rand.IntN(wideMax) //nolint:gosec
 	}
 	if count > fleetSize {

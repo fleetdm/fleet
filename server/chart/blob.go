@@ -69,7 +69,7 @@ func NewBitmap(ids []uint) *roaring.Bitmap {
 		if id == 0 {
 			continue
 		}
-		rb.Add(uint32(id))
+		rb.Add(uint32(id)) //nolint:gosec // G115: Fleet host IDs are MySQL AUTO_INCREMENT and fit in uint32
 	}
 	rb.RunOptimize()
 	return rb
@@ -158,7 +158,7 @@ func decodeDense(blob []byte) *roaring.Bitmap {
 			continue
 		}
 		base := uint32(i) * 8
-		for bit := uint32(0); bit < 8; bit++ {
+		for bit := range uint32(8) {
 			if byteVal&(1<<bit) != 0 {
 				rb.Add(base + bit)
 			}

@@ -62,7 +62,7 @@ func TestHostIDsToBlob(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, uint64(len(ids)), rb.GetCardinality())
 		for _, id := range ids {
-			assert.Truef(t, rb.Contains(uint32(id)), "expected bit %d to be set", id)
+			assert.Truef(t, rb.Contains(uint32(id)), "expected bit %d to be set", id) //nolint:gosec // G115: test IDs fit in uint32
 		}
 	})
 }
@@ -117,7 +117,7 @@ func TestDecodeBitmap(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, uint64(len(ids)), rb.GetCardinality())
 		for _, id := range ids {
-			assert.True(t, rb.Contains(uint32(id)))
+			assert.True(t, rb.Contains(uint32(id))) //nolint:gosec // G115: test IDs fit in uint32
 		}
 	})
 
@@ -138,7 +138,7 @@ func TestDecodeBitmap(t *testing.T) {
 		rb, err := DecodeBitmap(Blob{Bytes: dense, Encoding: EncodingDense})
 		require.NoError(t, err)
 		for _, id := range ids {
-			assert.Truef(t, rb.Contains(uint32(id)), "expected bit %d to be set", id)
+			assert.Truef(t, rb.Contains(uint32(id)), "expected bit %d to be set", id) //nolint:gosec // G115: test IDs fit in uint32
 		}
 	})
 
@@ -324,14 +324,14 @@ func TestMixedEncoding(t *testing.T) {
 func TestContainerTypes(t *testing.T) {
 	// Array container: 50 scattered ids within one chunk (cardinality << 4096).
 	arrayIDs := make([]uint, 0, 50)
-	for i := uint(0); i < 50; i++ {
+	for i := range uint(50) {
 		arrayIDs = append(arrayIDs, 1000+i*7)
 	}
 	array := NewBitmap(arrayIDs)
 
 	// Bitmap container: 5000 ids in one chunk (cardinality > 4096 forces bitmap).
 	bitmapIDs := make([]uint, 0, 5000)
-	for i := uint(0); i < 5000; i++ {
+	for i := range uint(5000) {
 		bitmapIDs = append(bitmapIDs, 10000+i)
 	}
 	bitmapRB := NewBitmap(bitmapIDs)
@@ -339,7 +339,7 @@ func TestContainerTypes(t *testing.T) {
 	// Run container: a contiguous range of 10000 ids — RunOptimize will pick
 	// a run container as the compact representation.
 	runIDs := make([]uint, 0, 10000)
-	for i := uint(0); i < 10000; i++ {
+	for i := range uint(10000) {
 		runIDs = append(runIDs, 100+i)
 	}
 	run := NewBitmap(runIDs)
