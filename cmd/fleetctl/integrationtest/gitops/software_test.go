@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/fleetctltest"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -164,7 +165,7 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 				return nil
 			}
 
-			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "-f", c.file})
+			_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
 				require.NoError(t, err)
 			} else {
@@ -210,7 +211,7 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 		return nil, nil
 	}
 
-	_, err := fleetctl.RunAppNoChecks([]string{"gitops", "-f", "../../fleetctl/testdata/gitops/team_software_installer_valid_env_query.yml"})
+	_, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", "../../fleetctl/testdata/gitops/team_software_installer_valid_env_query.yml"})
 	require.NoError(t, err)
 }
 
@@ -229,7 +230,7 @@ func TestGitOpsTeamSoftwareInstallersEmptyPackagesDryRun(t *testing.T) {
 		return nil, nil
 	}
 
-	_, err := fleetctl.RunAppNoChecks([]string{
+	_, err := fleetctltest.RunAppNoChecks([]string{
 		"gitops", "--dry-run",
 		"-f", "../../fleetctl/testdata/gitops/team_software_installer_valid_empty_packages.yml",
 	})
@@ -355,7 +356,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 			})
 			err = file.Copy(c.noTeamFile, dstPath, 0o755)
 			require.NoError(t, err)
-			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "-f", globalFile, "-f", dstPath})
+			_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "-f", globalFile, "-f", dstPath})
 			if c.wantErr == "" {
 				require.NoError(t, err)
 			} else {
@@ -502,7 +503,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			})
 			err = file.Copy(c.noTeamFile, dstPath, 0o755)
 			require.NoError(t, err)
-			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "-f", globalFile, "-f", dstPath})
+			_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "-f", globalFile, "-f", dstPath})
 			if c.wantErr == "" {
 				require.NoError(t, err)
 			} else {
@@ -646,7 +647,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				return nil
 			}
 
-			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "-f", c.file})
+			_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "-f", c.file})
 
 			if c.wantErr == "" {
 				require.NoError(t, err)
@@ -730,7 +731,7 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 		return &fleet.TeamLite{}, nil
 	}
 
-	buf, err := fleetctl.RunAppNoChecks([]string{
+	buf, err := fleetctltest.RunAppNoChecks([]string{
 		"gitops", "-f", "../../fleetctl/testdata/gitops/global_config_vpp.yml", "-f",
 		"../../fleetctl/testdata/gitops/team_vpp_valid_app.yml",
 	})
@@ -871,7 +872,7 @@ software:
 	newTeamFile := filepath.Join(tmpDir, "new-team.yml")
 	require.NoError(t, os.WriteFile(newTeamFile, []byte(teamCfg(newTeamName)), 0o644))
 
-	buf, err := fleetctl.RunAppNoChecks([]string{
+	buf, err := fleetctltest.RunAppNoChecks([]string{
 		"gitops", "-f", globalFile, "-f", existingTeamFile, "-f", newTeamFile,
 	})
 	require.NoError(t, err)
@@ -1207,18 +1208,18 @@ software:
 			}
 
 			// Dry run
-			out, err := fleetctl.RunAppNoChecks(append(args, "--dry-run"))
+			out, err := fleetctltest.RunAppNoChecks(append(args, "--dry-run"))
 			tt.dryRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
 			if t.Failed() {
 				t.FailNow()
 			}
 
 			// Real run
-			out, err = fleetctl.RunAppNoChecks(args)
+			out, err = fleetctltest.RunAppNoChecks(args)
 			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
 
 			// Second real run, now that all the teams are saved
-			out, err = fleetctl.RunAppNoChecks(args)
+			out, err = fleetctltest.RunAppNoChecks(args)
 			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
 		})
 	}
@@ -1306,7 +1307,7 @@ func TestGitOpsTeamVPPAppleConfiguration(t *testing.T) {
 				return nil
 			}
 
-			_, err = fleetctl.RunAppNoChecks([]string{"gitops", "-f", c.yaml})
+			_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "-f", c.yaml})
 
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)
@@ -1389,7 +1390,7 @@ func TestGitOpsTeamInHouseAppleConfiguration(t *testing.T) {
 				return nil
 			}
 
-			_, err := fleetctl.RunAppNoChecks([]string{"gitops", "-f", c.yaml})
+			_, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", c.yaml})
 
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)

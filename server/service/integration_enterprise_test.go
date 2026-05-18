@@ -57,6 +57,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps/maintainedappstest"
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -20527,7 +20528,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	insertedApps := maintained_apps.SyncApps(t, s.ds)
+	insertedApps := maintainedappstest.SyncApps(t, s.ds)
 	expectedApps := insertedApps
 
 	h := sha256.New()
@@ -21143,7 +21144,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	http.DefaultTransport = mockTransport
 
 	// Insert the list of maintained apps
-	maintained_apps.SyncApps(t, s.ds)
+	maintainedappstest.SyncApps(t, s.ds)
 
 	// verify WARP is in `fleet_maintained_apps` table but not in `software_installers`
 	var warpFmaId uint
@@ -27017,7 +27018,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	maintained_apps.SyncApps(t, s.ds)
+	maintainedappstest.SyncApps(t, s.ds)
 
 	// Mock manifest server — routes by slug path and returns current per-FMA state.
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -4,7 +4,7 @@
       "version": "1.4.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.inkscape.Inkscape';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.inkscape.Inkscape' AND version_compare(bundle_short_version, '1.4.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'org.inkscape.Inkscape') AND version_compare(bundle_short_version, '1.4.4') < 0);"
       },
       "installer_url": "https://media.inkscape.org/dl/resources/file/Inkscape-1.4.4_arm64.dmg",
       "install_script_ref": "ab3c3b86",

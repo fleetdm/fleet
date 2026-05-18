@@ -4,7 +4,7 @@
       "version": "4.73.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND publisher = 'Docker Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND publisher = 'Docker Inc.' AND version_compare(version, '4.73.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND publisher = 'Docker Inc.') AND version_compare(version, '4.73.0') < 0);"
       },
       "installer_url": "https://desktop.docker.com/win/main/amd64/226246/Docker%20Desktop%20Installer.exe",
       "install_script_ref": "b06042dd",

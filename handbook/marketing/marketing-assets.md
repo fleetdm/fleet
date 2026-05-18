@@ -34,10 +34,11 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 
 | Website page | Description | Date updated |
 | --- | --- | --- |
-| [Autonomous endpoint management](https://fleetdm.com/autonomous-endpoint-management) | Landing page for autonomous patching and updates across macOS, Windows, and Linux, with humans in the loop. Targets IT and security teams trying to close the gap as time-to-exploitation shrinks. | 2026-05-14 |
-| [Apple MDM](https://fleetdm.com/imagine/apple-mdm) | Landing page for open source Apple MDM at enterprise scale. Covers enrolling, configuring, and securing Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. | 2026-05-14 |
-| [On-premise](https://fleetdm.com/on-premise) | Landing page for running Fleet on-premise, in private cloud (AWS, Azure, GCP), or air-gapped environments. Targets teams with strict data residency or infrastructure requirements. | 2026-05-08 |
-| [Replace Jamf](https://fleetdm.com/replace-jamf) | Landing page for IT teams considering replacing Jamf with Fleet. Covers cross-platform device management, GitOps workflows, and migration messaging. | 2026-04-10 |
+| [The open-source MDM](https://fleetdm.com/imagine/open-source) | Web page explaining why open source matters for device management. | 2026-05-15 |
+| [Autonomous endpoint management](https://fleetdm.com/autonomous-endpoint-management) | Web page for autonomous patching and updates across macOS, Windows, and Linux, with humans in the loop. Targets IT and security teams trying to close the gap as time-to-exploitation shrinks. | 2026-05-14 |
+| [Apple MDM](https://fleetdm.com/imagine/apple-mdm) | Web page for open source Apple MDM at enterprise scale. Covers enrolling, configuring, and securing Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. | 2026-05-14 |
+| [On-premise](https://fleetdm.com/on-premise) | Web page for running Fleet on-premise, in private cloud (AWS, Azure, GCP), or air-gapped environments. Targets teams with strict data residency or infrastructure requirements. | 2026-05-08 |
+| [Replace Jamf](https://fleetdm.com/replace-jamf) | Web page for IT teams considering replacing Jamf with Fleet. Covers cross-platform device management, GitOps workflows, and migration messaging. | 2026-04-10 |
 
 ### 📄 Whitepapers
 
@@ -144,7 +145,7 @@ Why Linux is now a critical enterprise platform and how to manage and secure it 
 | <nobr>3 of 6</nobr> | [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux) | Ashish Kuthiala | 2026-02-23 |
 | <nobr>4 of 6</nobr> | [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates) | Ashish Kuthiala | 2026-03-04 |
 | <nobr>5 of 6</nobr> | [Protecting the Linux device: remote wipe, USB & sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo) | Ashish Kuthiala | 2026-03-10 |
-| <nobr>6 of 6</nobr> | [Owning your Linux destiny with open source](https://fleetdm.com/articles/owning-your-linux-destiny-with-open-source) | Ashish Kuthiala | 2026-03-06 |
+| <nobr>6 of 6</nobr> | [Software and data sovereignty for Linux management](https://fleetdm.com/articles/data-and-endpoint-sovereignty-owning-your-destiny) | Ashish Kuthiala | 2026-04-30 |
 
 #### 📚 OpenClaw - Governing Autonomous AI Agents (3-part series)
 
@@ -184,6 +185,9 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
+| [Detecting the Mini Shai-Hulud npm supply chain worm with Fleet](https://fleetdm.com/articles/detecting-the-mini-shai-hulud-npm-supply-chain-worm-with-fleet) | How Fleet's security team detected the Mini Shai-Hulud npm supply chain worm across its fleet using live queries and deep scan scripts. | Dhruv Majumdar | 2026-05-13 |
+| [What is the principle of least privilege for device management?](https://fleetdm.com/articles/principle-of-least-privilege-dm) | How to enforce least privilege on macOS, Windows, and Linux and map it to compliance frameworks auditors care about. | Dan Gordon | 2026-05-13 |
+| [Threat prevention: a guide for multi-platform fleets](https://fleetdm.com/articles/enterprise-threat-prevention) | How threat prevention protects device fleets, supports compliance, and keeps controls aligned across macOS, Windows, and Linux. | Dan Gordon | 2026-05-13 |
 | [What is device attestation, and why does it matter for Apple enrollment?](https://fleetdm.com/articles/what-is-device-attestation) | Fleet 4.84.0 adds hardware-attested MDM enrollment for Apple Silicon Macs. What device attestation is and why it matters. | Kitzy | 2026-04-24 |
 | [One console to rule them all: The case for unified endpoint management](https://fleetdm.com/articles/one-console-to-rule-them-all-the-case-for-unified-endpoint-management) | Why the "best tool for each OS" argument is costing you more than you think. | Ashish Kuthiala | 2026-04-22 |
 | [How to define your Linux device management needs](https://fleetdm.com/articles/how-to-define-your-linux-device-management-needs) | Key questions to ask, plus a maturity model for defining your organization's Linux device management goals. | Anthony Critelli | 2026-04-17 |
@@ -357,6 +361,7 @@ Command-line tools for managing Fleet configurations, running queries, and deplo
 
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
+| [Conditional access](https://fleetdm.com/guides/conditional-access) | Overview of Fleet's conditional access feature for enforcing access controls on macOS and Windows hosts based on policy status. | Rachael Shaw | 2026-04-27 |
 | [Recovery lock password](https://fleetdm.com/guides/recovery-lock-password) | Set, view, and rotate recovery lock passwords on Apple Silicon Macs with Fleet MDM. | Jacob Shandling | 2026-03-13 |
 | [Secure local admin passwords with LAPS and 1Password](https://fleetdm.com/guides/secure-local-admin-passwords) | A guide to implementing LAPS (Local Administrator Password Solution) with Fleet and 1Password Connect. | Josh Roskos | 2026-02-13 |
 | [Conditional access: Okta](https://fleetdm.com/guides/okta-conditional-access-integration) | Learn how to enforce conditional access with Fleet and Okta. | Rachael Shaw | 2025-12-04 |
@@ -488,6 +493,7 @@ Feature launches, OS support announcements, integration announcements, and roadm
 | --- | --- | --- | --- |
 | [A lot has changed.](https://fleetdm.com/announcements/a-lot-has-changed) | Fleet now manages macOS, Windows, Linux, iOS, Android, and ChromeOS from a single GitOps-native platform. What shipped in the last year. | Noah Talerman | 2026-04-16 |
 | [Fleet supports Apple's latest operating systems: macOS Tahoe 26, iOS 26, and iPadOS 26](https://fleetdm.com/announcements/fleet-supports-apples-latest-operating-systems-macos-tahoe-26) | Fleet is pleased to announce full support for macOS Tahoe 26, iOS 26, and iPadOS 26. | Andrey Kizimenko | 2025-09-15 |
+| [Live office hours: Ask Fleet engineers anything](https://fleetdm.com/announcements/live-office-hours-announcement) | Bi-weekly live Q&A sessions with Fleet engineers covering device management, deployment, and contributing to Fleet's open-source platform. | Victor Lyuboslavsky | 2025-08-06 |
 | [Secureframe adopts Fleet as its default agent for security compliance](https://fleetdm.com/announcements/secureframe-adopts-fleet-as-its-default-agent) | Secureframe has selected Fleet as its default agent for collecting device compliance data across customer environments. | Mike McNeil | 2025-07-10 |
 | [Fleet supports Apple's latest operating systems: macOS 15 Sequoia, iOS 18, and iPadOS 18](https://fleetdm.com/announcements/fleet-supports-apples-latest-operating-systems-macos-15-sequoia) | Fleet is pleased to announce full support for macOS 15 Sequoia, iOS 18, and iPadOS 18. | JD Strong | 2024-09-27 |
 | [Fleet now supports iOS and iPadOS, software deployment, and automated patch management](https://fleetdm.com/announcements/fleet-now-supports-ios-and-ipados) | Fleet announces support for iOS and iPadOS, software deployment, and automated patch management. | Andrew Baker | 2024-09-26 |

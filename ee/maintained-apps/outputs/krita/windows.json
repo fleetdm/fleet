@@ -4,7 +4,7 @@
       "version": "5.3.1.100",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Krita_x64' AND publisher = 'Krita Foundation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Krita_x64' AND publisher = 'Krita Foundation' AND version_compare(version, '5.3.1.100') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Krita_x64' AND publisher = 'Krita Foundation') AND version_compare(version, '5.3.1.100') < 0);"
       },
       "installer_url": "https://download.kde.org/stable/krita/5.3.1/krita-x64-5.3.1-setup.exe",
       "install_script_ref": "4899cb9d",

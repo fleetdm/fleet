@@ -4,7 +4,7 @@
       "version": "3.73.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.frontapp.Front';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.frontapp.Front' AND version_compare(bundle_short_version, '3.73.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.frontapp.Front') AND version_compare(bundle_short_version, '3.73.0') < 0);"
       },
       "installer_url": "https://dl.frontapp.com/desktop/builds/3.73.0/Front-3.73.0-arm64.zip",
       "install_script_ref": "42b34fcd",

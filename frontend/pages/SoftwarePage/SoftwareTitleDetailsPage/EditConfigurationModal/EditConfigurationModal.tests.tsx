@@ -73,7 +73,7 @@ describe("EditConfigurationModal", () => {
       render(<EditConfigurationModal {...ANDROID_PROPS} />);
 
       expect(
-        screen.queryByText(/will be applied to future installs/i)
+        screen.queryByText(/applied during future installs/i)
       ).not.toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Cancel" })
@@ -133,7 +133,7 @@ describe("EditConfigurationModal", () => {
         screen.getByText(/Managed app configuration, also known as App Config/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/will be applied to future installs and updates/i)
+        screen.getByText(/applied during future installs and updates/i)
       ).toBeInTheDocument();
     });
 
@@ -189,7 +189,7 @@ describe("EditConfigurationModal", () => {
         screen.getByText(/Managed app configuration, also known as App Config/i)
       ).toBeInTheDocument();
       expect(
-        screen.getByText(/will be applied to future installs and updates/i)
+        screen.getByText(/applied during future installs and updates/i)
       ).toBeInTheDocument();
     });
 

@@ -4,7 +4,7 @@
       "version": "5.2.1.32035",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ScooterSoftware.BeyondCompare';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ScooterSoftware.BeyondCompare' AND version_compare(bundle_short_version, '5.2.1.32035') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.ScooterSoftware.BeyondCompare') AND version_compare(bundle_short_version, '5.2.1.32035') < 0);"
       },
       "installer_url": "https://www.scootersoftware.com/files/BCompareOSX-5.2.1.32035.zip",
       "install_script_ref": "5fca1cb5",

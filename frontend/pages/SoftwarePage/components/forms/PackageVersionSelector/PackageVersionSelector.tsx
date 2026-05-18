@@ -27,6 +27,7 @@ interface IPackageVersionSelectorProps {
   versionOptions: CustomOptionType[];
   selectedVersion: string;
   onSelectVersion: (version: string) => void;
+  isGitOpsMode?: boolean;
 }
 
 const PackageVersionSelector = ({
@@ -34,6 +35,7 @@ const PackageVersionSelector = ({
   versionOptions,
   selectedVersion,
   onSelectVersion,
+  isGitOpsMode = false,
 }: IPackageVersionSelectorProps) => {
   if (versionOptions.length === 0) {
     return null;
@@ -47,24 +49,30 @@ const PackageVersionSelector = ({
       onChange={(version) => onSelectVersion(version?.value || "")}
       options={disableAllUIOptions(versionOptions, selectedVersion)} // Replace with "versions" when we want to enable selecting versions in the UI
       placeholder="Select a version"
+      isDisabled={isGitOpsMode}
     />
   );
 
+  if (isGitOpsMode || versionOptions.length < 2) {
+    return renderDropdown();
+  }
+
+  const tipContent =
+    selectedVersion === versionOptions[0].value ? (
+      <>
+        Currently, you can only use GitOps <br />
+        to roll back (UI coming soon).
+      </>
+    ) : (
+      <>
+        Currently, to update to latest you have
+        <br /> to delete and re-add the software.
+      </>
+    );
+
   return (
     <TooltipWrapper
-      tipContent={
-        selectedVersion === versionOptions[0].value ? (
-          <>
-            Currently, you can only use GitOps <br />
-            to roll back (UI coming soon).
-          </>
-        ) : (
-          <>
-            Currently, to update to latest you have
-            <br /> to delete and re-add the software.
-          </>
-        )
-      }
+      tipContent={tipContent}
       position="top"
       showArrow
       underline={false}
