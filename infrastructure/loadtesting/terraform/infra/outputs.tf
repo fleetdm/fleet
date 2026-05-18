@@ -11,9 +11,19 @@ output "internal_alb_listener_arn" {
   value       = resource.aws_lb_listener.internal.arn
 }
 
+output "internal_alb_https_listener_arn" {
+  description = "Internal ALB HTTPS listener ARN for adding host-based rules"
+  value       = resource.aws_lb_listener.internal_https.arn
+}
+
 output "internal_alb_zone_id" {
   description = "Internal ALB hosted zone ID for Route53 alias records"
   value       = resource.aws_lb.internal.zone_id
+}
+
+output "internal_alb_security_group_id" {
+  description = "Internal ALB security group ID"
+  value       = resource.aws_security_group.internal.id
 }
 
 output "ecs_cluster" {

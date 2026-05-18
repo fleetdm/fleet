@@ -201,6 +201,7 @@ resource "aws_ecs_task_definition" "pmm" {
         "    --password=\"$PMM_MYSQL_PASSWORD\" \\",
         "    --host=\"$PMM_MYSQL_HOST\" \\",
         "    --port=3306 \\",
+        "    --tls --tls-skip-verify \\",
         "    --query-source=perfschema \\",
         "    fleet-mysql",
         "  echo 'MySQL monitoring configured'",
@@ -244,6 +245,33 @@ resource "aws_ecs_task_definition" "pmm" {
   ])
 }
 
+# --- Security Group ---
+
+resource "aws_security_group" "pmm" {
+  name_prefix = "${local.customer}-pmm-"
+  vpc_id      = data.terraform_remote_state.shared.outputs.vpc.vpc_id
+  description = "PMM server - allows HTTPS from internal ALB"
+
+  ingress {
+    description     = "HTTPS from internal ALB"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [data.terraform_remote_state.infra.outputs.internal_alb_security_group_id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 # --- ECS Service ---
 
 resource "aws_ecs_service" "pmm" {
@@ -255,7 +283,7 @@ resource "aws_ecs_service" "pmm" {
 
   network_configuration {
     subnets         = data.terraform_remote_state.infra.outputs.vpc_subnets
-    security_groups = data.terraform_remote_state.infra.outputs.security_groups
+    security_groups = [aws_security_group.pmm.id]
   }
 
   load_balancer {
@@ -287,7 +315,7 @@ resource "aws_lb_target_group" "pmm" {
 }
 
 resource "aws_lb_listener_rule" "pmm" {
-  listener_arn = data.terraform_remote_state.infra.outputs.internal_alb_listener_arn
+  listener_arn = data.terraform_remote_state.infra.outputs.internal_alb_https_listener_arn
   priority     = 10
 
   action {
@@ -297,7 +325,7 @@ resource "aws_lb_listener_rule" "pmm" {
 
   condition {
     host_header {
-      values = ["pmm.${terraform.workspace}.loadtest.fleetdm.com"]
+      values = ["pmm-${terraform.workspace}.loadtest.fleetdm.com"]
     }
   }
 }
@@ -306,7 +334,7 @@ resource "aws_lb_listener_rule" "pmm" {
 
 resource "aws_route53_record" "pmm" {
   zone_id = data.aws_route53_zone.main.zone_id
-  name    = "pmm.${terraform.workspace}.loadtest.fleetdm.com"
+  name    = "pmm-${terraform.workspace}.loadtest.fleetdm.com"
   type    = "A"
 
   alias {

@@ -1,6 +1,6 @@
 output "pmm_url" {
   description = "URL to access PMM UI (internal only, requires VPN)"
-  value       = "http://pmm.${terraform.workspace}.loadtest.fleetdm.com"
+  value       = "https://pmm-${terraform.workspace}.loadtest.fleetdm.com"
 }
 
 output "pmm_admin_password_secret" {
