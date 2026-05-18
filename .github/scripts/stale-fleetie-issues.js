@@ -3,61 +3,68 @@
 // `actions/github-script` from `.github/workflows/close-stale-fleetie-initiated-issues.yml`.
 //
 // If a stale-labeled issue receives activity (e.g. a comment) after being labeled, the close phase
-// removes the stale label instead of closing — mirroring `actions/stale`'s `remove-stale-when-updated`
+// removes the stale label instead of closing, mirroring `actions/stale`'s `remove-stale-when-updated`
 // behavior. Detected by comparing `updated_at` against the most recent `labeled` event for `stale`.
 //
 // Inputs (env):
-//   FLEETIE_HANDLES_FILE  Path to newline-delimited lowercased GitHub usernames (built by
-//                         `build-fleetie-handles.js`).
+//   FLEETIE_HANDLES_FILE  Path to newline-delimited lowercased GitHub usernames (built by `build-fleetie-handles.js`).
 //   DRY_RUN               'true' to log candidates without writing.
 //   MAX_OPERATIONS        Cap on API write operations per run. Default 400. `0` disables writes.
 //
 // Exports: `async function run({ github, context, core })`. Returns a summary object for tests.
 
-'use strict';
+"use strict";
 
-const fs = require('node:fs');
+const fs = require("node:fs");
 
 const STALE_DAYS = 730;
 const CLOSE_DAYS = 14;
-const STALE_LABEL = 'stale';
+const STALE_LABEL = "stale";
 const STALE_MSG =
-  'This issue is stale because it was opened by a current or former Fleetie and has had ' +
-  'no activity for 2 years. Please update the issue if it is still relevant; otherwise it ' +
-  'will be closed in 14 days.';
+  "This issue is stale because it was opened by a current or former Fleetie and has had " +
+  "no activity for 2 years. Please update the issue if it is still relevant; otherwise it " +
+  "will be closed in 14 days.";
 const CLOSE_MSG =
-  'This issue was closed because it received no further activity for 14 days after being marked stale. ' +
-  'Any comment would have removed the stale label and prevented closure.';
+  "This issue was closed because it received no further activity for 14 days after being marked stale. " +
+  "Any comment would have removed the stale label and prevented closure.";
 // Tolerance for our own label+comment landing milliseconds apart. Distinguishes the bot's own
 // activity bump from genuine user activity after labeling.
 const SELF_ACTIVITY_EPSILON_MS = 60 * 1000;
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const isExempt = (name) => {
-  const lower = (name || '').toLowerCase();
-  return lower === 'bug' || lower === ':product' || lower.startsWith('customer-');
+  const lower = (name || "").toLowerCase();
+  return (
+    lower === "bug" || lower === ":product" || lower.startsWith("customer-")
+  );
 };
 
 const parseMaxOps = (raw) => {
-  const parsed = Number.parseInt(raw ?? '', 10);
+  const parsed = Number.parseInt(raw ?? "", 10);
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : 400;
 };
 
-module.exports = async function run({ github, context, core }) {
+async function run({ github, context, core }) {
   const handles = new Set(
     fs
-      .readFileSync(process.env.FLEETIE_HANDLES_FILE, 'utf8')
-      .split('\n')
+      .readFileSync(process.env.FLEETIE_HANDLES_FILE, "utf8")
+      .split("\n")
       .map((s) => s.trim().toLowerCase())
-      .filter(Boolean),
+      .filter(Boolean)
   );
 
-  const dryRun = String(process.env.DRY_RUN).toLowerCase() === 'true';
+  const dryRun = String(process.env.DRY_RUN).toLowerCase() === "true";
   const maxOps = parseMaxOps(process.env.MAX_OPERATIONS);
 
+  // All time math is in UTC-equivalent epoch milliseconds: Date.now() is UTC, and the GitHub
+  // REST API returns ISO 8601 strings with a `Z` suffix, so timezone and DST cannot affect the
+  // result. `daysSince` is a 24-hour-day count, not a calendar-day count.
   const now = Date.now();
-  const daysSince = (iso) => (now - new Date(iso).getTime()) / (1000 * 60 * 60 * 24);
+  const daysSince = (iso) => (now - new Date(iso).getTime()) / MS_PER_DAY;
 
-  core.info(`Loaded ${handles.size} Fleetie handles. dry_run=${dryRun}, max_operations=${maxOps}`);
+  core.info(
+    `Loaded ${handles.size} Fleetie handles. dry_run=${dryRun}, max_operations=${maxOps}`
+  );
 
   // Collect candidates by scanning all open issues. Two groups qualify:
   //   1. Idle >= CLOSE_DAYS — feeds the stale and close phases.
@@ -67,9 +74,9 @@ module.exports = async function run({ github, context, core }) {
   const iterator = github.paginate.iterator(github.rest.issues.listForRepo, {
     owner: context.repo.owner,
     repo: context.repo.repo,
-    state: 'open',
-    sort: 'updated',
-    direction: 'asc',
+    state: "open",
+    sort: "updated",
+    direction: "asc",
     per_page: 100,
   });
   for await (const { data } of iterator) {
@@ -77,14 +84,18 @@ module.exports = async function run({ github, context, core }) {
       if (issue.pull_request) continue;
       const idleDays = daysSince(issue.updated_at);
       const hasStaleLabel = (issue.labels || []).some(
-        (l) => (typeof l === 'string' ? l : (l && l.name) || '').toLowerCase() === STALE_LABEL,
+        (l) =>
+          (typeof l === "string" ? l : (l && l.name) || "").toLowerCase() ===
+          STALE_LABEL
       );
       if (idleDays >= CLOSE_DAYS || hasStaleLabel) {
         candidates.push(issue);
       }
     }
   }
-  core.info(`Collected ${candidates.length} open candidate issues (idle >= ${CLOSE_DAYS}d or stale-labeled)`);
+  core.info(
+    `Collected ${candidates.length} open candidate issues (idle >= ${CLOSE_DAYS}d or stale-labeled)`
+  );
 
   const staled = [];
   const closed = [];
@@ -109,20 +120,27 @@ module.exports = async function run({ github, context, core }) {
       break;
     }
 
-    const author = (issue.user && issue.user.login ? issue.user.login : '').toLowerCase();
+    const author = (issue.user && issue.user.login
+      ? issue.user.login
+      : ""
+    ).toLowerCase();
     if (!handles.has(author)) {
       skippedNonFleetie++;
       continue;
     }
 
-    const labelNames = (issue.labels || []).map((l) => (typeof l === 'string' ? l : l.name) || '');
+    const labelNames = (issue.labels || []).map(
+      (l) => (typeof l === "string" ? l : l.name) || ""
+    );
     if (labelNames.some(isExempt)) {
       skippedExempt++;
       continue;
     }
 
     const idleDays = daysSince(issue.updated_at);
-    const alreadyStale = labelNames.some((n) => n.toLowerCase() === STALE_LABEL);
+    const alreadyStale = labelNames.some(
+      (n) => n.toLowerCase() === STALE_LABEL
+    );
 
     if (alreadyStale) {
       // Determine whether there's been activity after the stale label was applied. If so, remove the
@@ -136,32 +154,48 @@ module.exports = async function run({ github, context, core }) {
           per_page: 100,
         });
       } catch (err) {
-        core.warning(`listEvents failed for #${issue.number}: ${err.message}; skipping`);
-        errored.push({ number: issue.number, phase: 'check-activity', message: err.message });
+        core.warning(
+          `listEvents failed for #${issue.number}: ${err.message}; skipping`
+        );
+        errored.push({
+          number: issue.number,
+          phase: "check-activity",
+          message: err.message,
+        });
         continue;
       }
 
       let lastStaleLabelEvent = null;
       for (let i = events.length - 1; i >= 0; i--) {
         const e = events[i];
-        if (e.event === 'labeled' && e.label && e.label.name === STALE_LABEL) {
+        if (e.event === "labeled" && e.label && e.label.name === STALE_LABEL) {
           lastStaleLabelEvent = e;
           break;
         }
       }
 
       if (!lastStaleLabelEvent) {
-        core.warning(`#${issue.number}: has '${STALE_LABEL}' label but no labeling event in history; skipping`);
+        core.warning(
+          `#${issue.number}: has '${STALE_LABEL}' label but no labeling event in history; skipping`
+        );
         continue;
       }
 
       const labeledAt = new Date(lastStaleLabelEvent.created_at).getTime();
       const updatedAt = new Date(issue.updated_at).getTime();
-      const activityAfterLabel = updatedAt > labeledAt + SELF_ACTIVITY_EPSILON_MS;
+      const activityAfterLabel =
+        updatedAt > labeledAt + SELF_ACTIVITY_EPSILON_MS;
 
       if (activityAfterLabel) {
-        const entry = { number: issue.number, url: issue.html_url, author, idleDays };
-        core.info(`unstale: #${issue.number} by @${author} (activity after label)`);
+        const entry = {
+          number: issue.number,
+          url: issue.html_url,
+          author,
+          idleDays,
+        };
+        core.info(
+          `unstale: #${issue.number} by @${author} (activity after label)`
+        );
         if (dryRun) {
           unstaled.push(entry);
         } else {
@@ -176,11 +210,17 @@ module.exports = async function run({ github, context, core }) {
             unstaled.push(entry);
           } catch (err) {
             if (err && err.status === 404) {
-              // Label already gone — idempotent success.
+              // Label already gone (idempotent success).
               unstaled.push(entry);
             } else {
-              core.warning(`unstale failed for #${issue.number}: ${err.message}`);
-              errored.push({ number: issue.number, phase: 'unstale', message: err.message });
+              core.warning(
+                `unstale failed for #${issue.number}: ${err.message}`
+              );
+              errored.push({
+                number: issue.number,
+                phase: "unstale",
+                message: err.message,
+              });
             }
           }
         }
@@ -195,8 +235,15 @@ module.exports = async function run({ github, context, core }) {
         skippedNotReadyToClose++;
         continue;
       }
-      const entry = { number: issue.number, url: issue.html_url, author, idleDays };
-      core.info(`close: #${issue.number} by @${author}, idle ${idleDays.toFixed(1)}d`);
+      const entry = {
+        number: issue.number,
+        url: issue.html_url,
+        author,
+        idleDays,
+      };
+      core.info(
+        `close: #${issue.number} by @${author}, idle ${idleDays.toFixed(1)}d`
+      );
       if (dryRun) {
         closed.push(entry);
       } else {
@@ -211,19 +258,30 @@ module.exports = async function run({ github, context, core }) {
             owner,
             repo,
             issue_number: issue.number,
-            state: 'closed',
-            state_reason: 'not_planned',
+            state: "closed",
+            state_reason: "not_planned",
           });
           writes += 2;
           closed.push(entry);
         } catch (err) {
           core.warning(`close failed for #${issue.number}: ${err.message}`);
-          errored.push({ number: issue.number, phase: 'close', message: err.message });
+          errored.push({
+            number: issue.number,
+            phase: "close",
+            message: err.message,
+          });
         }
       }
     } else if (idleDays >= STALE_DAYS) {
-      const entry = { number: issue.number, url: issue.html_url, author, idleDays };
-      core.info(`stale: #${issue.number} by @${author}, idle ${idleDays.toFixed(1)}d`);
+      const entry = {
+        number: issue.number,
+        url: issue.html_url,
+        author,
+        idleDays,
+      };
+      core.info(
+        `stale: #${issue.number} by @${author}, idle ${idleDays.toFixed(1)}d`
+      );
       if (dryRun) {
         staled.push(entry);
       } else {
@@ -244,7 +302,11 @@ module.exports = async function run({ github, context, core }) {
           staled.push(entry);
         } catch (err) {
           core.warning(`stale failed for #${issue.number}: ${err.message}`);
-          errored.push({ number: issue.number, phase: 'stale', message: err.message });
+          errored.push({
+            number: issue.number,
+            phase: "stale",
+            message: err.message,
+          });
         }
       }
     } else {
@@ -255,15 +317,22 @@ module.exports = async function run({ github, context, core }) {
   const fmt = (list) =>
     list.length
       ? list
-          .map((e) => `- [#${e.number}](${e.url}) by @${e.author} (idle ${e.idleDays.toFixed(1)}d)`)
-          .join('\n')
-      : '_none_';
+          .map(
+            (e) =>
+              `- [#${e.number}](${e.url}) by @${
+                e.author
+              } (idle ${e.idleDays.toFixed(1)}d)`
+          )
+          .join("\n")
+      : "_none_";
   const fmtErrors = (list) =>
-    list.length ? list.map((e) => `- #${e.number} (${e.phase}): ${e.message}`).join('\n') : '_none_';
+    list.length
+      ? list.map((e) => `- #${e.number} (${e.phase}): ${e.message}`).join("\n")
+      : "_none_";
 
   await core.summary
-    .addHeading('Fleetie stale-issue closer')
-    .addRaw(`Mode: **${dryRun ? 'dry-run' : 'live'}**`)
+    .addHeading("Fleetie stale-issue closer")
+    .addRaw(`Mode: **${dryRun ? "dry-run" : "live"}**`)
     .addBreak()
     .addRaw(`Fleetie handles loaded: **${handles.size}**`)
     .addBreak()
@@ -278,19 +347,21 @@ module.exports = async function run({ github, context, core }) {
       `Un-staled this run (activity after label): ${unstaled.length}`,
       `Errors: ${errored.length}`,
     ])
-    .addHeading('Marked stale', 3)
+    .addHeading("Marked stale", 3)
     .addRaw(fmt(staled))
     .addBreak()
-    .addHeading('Closed', 3)
+    .addHeading("Closed", 3)
     .addRaw(fmt(closed))
     .addBreak()
-    .addHeading('Un-staled (activity after label)', 3)
+    .addHeading("Un-staled (activity after label)", 3)
     .addRaw(fmt(unstaled))
     .addBreak()
-    .addHeading('Errors', 3)
+    .addHeading("Errors", 3)
     .addRaw(fmtErrors(errored))
     .write();
 
+  // Returned for test assertions only. The production caller (the workflow) discards this and
+  // reads `core.summary` instead.
   return {
     dryRun,
     candidates: candidates.length,
@@ -302,7 +373,14 @@ module.exports = async function run({ github, context, core }) {
     skippedExempt,
     skippedNotStaleYet,
     skippedNotReadyToClose,
-    writes,
     hitCap,
   };
-};
+}
+
+module.exports = run;
+// Exported for test boundary assertions so a future change to STALE_DAYS / CLOSE_DAYS /
+// SELF_ACTIVITY_EPSILON_MS surfaces in the test that exercises the boundary, instead of silently
+// passing because the test hardcoded the old value.
+module.exports.STALE_DAYS = STALE_DAYS;
+module.exports.CLOSE_DAYS = CLOSE_DAYS;
+module.exports.SELF_ACTIVITY_EPSILON_MS = SELF_ACTIVITY_EPSILON_MS;

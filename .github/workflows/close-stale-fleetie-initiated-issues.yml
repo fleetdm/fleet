@@ -12,9 +12,6 @@ name: Close stale Fleetie-initiated issues
 # review since October 2024. When it merges, we should be able to replace this whole flow with a small
 # `actions/stale` config that passes the handle list from `build-fleetie-handles.js` as `anyOfAuthors`
 # and delete `stale-fleetie-issues.js` and its tests.
-#
-# Initial rollout: workflow_dispatch only, dry_run defaults to true. After the dry-run output has been
-# reviewed, switch dry_run to false and add a schedule trigger in a follow-up PR.
 
 on:
   workflow_dispatch:
@@ -64,6 +61,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # 4.4.0
+        with:
+          node-version: '24'
+
       - name: Build Fleetie handle list
         env:
           # Fine-scoped PAT with read:org on the fleetdm org. Provisioned by IT; without it the script
@@ -78,7 +80,8 @@ jobs:
           FLEETIE_HANDLES_FILE: ${{ runner.temp }}/fleeties.txt
           # Force dry-run for every event other than workflow_dispatch.
           DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) && 'false' || 'true' }}
-          MAX_OPERATIONS: ${{ inputs.max_operations || 400 }}
+          # parseMaxOps in the script applies the 400 default when the value is empty.
+          MAX_OPERATIONS: ${{ inputs.max_operations }}
         with:
           script: |
             const run = require('./.github/scripts/stale-fleetie-issues.js');
