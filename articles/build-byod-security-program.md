@@ -134,8 +134,8 @@ Disallow BYOD when you can't enforce required handling for the data or role. Com
 In practice, this is often implemented as an access tier decision: BYOD is allowed for lower-risk resources, while higher-risk resources require corporate-owned devices or controlled environments such as virtual desktops. Tier decisions rest on actual compliance state, not self-attestation. Fleet policies evaluate posture signals per device and report compliance state, which teams can use to gate access tier decisions. [Contact us](https://fleetdm.com/contact) to see how Fleet handles tiered access decisions across a multi-platform environment.
 
 <meta name="articleTitle" value="Building a BYOD security program that holds up across platforms">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-14">
-<meta name="description" value="How to structure a multi-platform BYOD security program, from enrollment models and access tiers to posture signals, standards, and compliance evidence.">
+<meta name="publishedOn" value="2026-05-15">
+<meta name="description" value="How to structure a multi-platform BYOD security program, from enrollment models & access tiers to posture signals, standards, and compliance evidence.">
