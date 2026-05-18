@@ -1449,8 +1449,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Update configuration](#update-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)
 - [Update global enroll secrets](#update-global-enroll-secrets)
-- [Get fleet enroll secrets](#get-fleet-enroll-secrets)
-- [Update fleet enroll secrets](#update-fleet-enroll-secrets)
+- [Get fleet-level enroll secrets](#get-fleet-level-enroll-secrets)
+- [Update fleet-level enroll secrets](#update-fleet-level-enroll-secrets)
 - [Get version](#get-version)
 
 The Fleet server exposes API endpoints that handle the configuration of Fleet as well as endpoints that manage enroll secret operations. These endpoints require prior authentication, you so you'll need to log in before calling any of the endpoints documented below.
@@ -2878,7 +2878,7 @@ Delete all global enroll secrets.
 {}
 ```
 
-### Get fleet enroll secrets
+### Get fleet-level enroll secrets
 
 Returns the fleet's enroll secrets.
 
@@ -2910,7 +2910,7 @@ None.
 ```
 
 
-### Update fleet enroll secrets
+### Update fleet-level enroll secrets
 
 Replaces all existing enroll secrets for a fleet.
 
@@ -12474,7 +12474,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [Create fleet](#create-fleet)
 - [Update fleet](#update-fleet)
 - [Add users to fleet](#add-users-to-fleet)
-- [Update fleet's agent options](#update-fleets-agent-options)
+- [Update fleet-level agent options](#update-fleets-agent-options)
 - [Delete fleet](#delete-fleet)
 
 ### List fleets
@@ -13378,7 +13378,7 @@ _Available in Fleet Premium_
 }
 ```
 
-### Update fleet's agent options
+### Update fleet-level agent options
 
 _Available in Fleet Premium_
 
