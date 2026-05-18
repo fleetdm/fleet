@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260507160833, Down_20260507160833)
+	MigrationClient.AddMigration(Up_20260518124441, Down_20260518124441)
 }
 
-func Up_20260507160833(tx *sql.Tx) error {
+func Up_20260518124441(tx *sql.Tx) error {
 	// Allow NULL and remove the 'ndes' default on host_mdm_managed_certificates.type
 	// so rows created from cert ingestion (PR 2.2) — for non-proxied flows where
 	// Fleet isn't in the issuance path and doesn't know the CA type — can be
@@ -30,6 +30,6 @@ func Up_20260507160833(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260507160833(tx *sql.Tx) error {
+func Down_20260518124441(tx *sql.Tx) error {
 	return nil
 }
