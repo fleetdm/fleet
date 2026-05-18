@@ -193,7 +193,7 @@ const EditScriptModal = ({
           <Editor
             mode={mode}
             error={formError}
-            label="Script"
+            label={`Script: id ${scriptId}`}
             onBlur={onBlur}
             onChange={onChange}
             value={scriptFormData}
