@@ -87,6 +87,20 @@ Refinement of Decision 1.3 surfaced during 2026-05-14 local validation. Today th
 - *Three-valued `origin` column (`osquery` / `mdm` / `both`).* Rejected: doesn't add information — `both` would mean "observed by both," which is equivalent to "osquery saw it" since osquery is the superset. And it'd require enum migration plus a third soft-delete branch.
 - *Backfill existing rows on deploy.* Rejected: the next natural osquery sync downgrades affected rows. Adding a deploy-time scan is unnecessary churn for a slowly-self-correcting issue.
 
+### Decision 1.5: `RemoveProfile` ack also triggers on-demand `CertificateList` on macOS
+
+Symmetric companion to Decision 1.1. When a `RemoveProfile` is acked for a profile containing an ACME or SCEP payload on a macOS host, fire `CertificateList`. Per Apple's ACME-DA lifecycle (verified during 2026-05-14 local testing), the device drops the associated identity from its keychain when the delivering profile is removed; the refetch lets `UpdateHostCertificates`' source-scoped soft-delete clear the stale `host_certificates` row.
+
+Tracked as bug #45596 — surfaced during the Phase 2 demo-readiness review. The install side was closed by PR 1.2; the removal side was an oversight in the on-demand design.
+
+**Why this fits Phase 1 rather than a new feature:** the same architectural model as Decision 1.1 — refetch on the events that change cert state. Install and remove are symmetric events; closing only the install side leaves a visibility bug, not a missing feature.
+
+**iOS/iPadOS unaffected** — they continue to self-correct via the existing `IOSiPadOSRefetch` cron.
+
+**Out of scope:**
+- *Windows*: Windows uses osquery for cert visibility; `host_certificates` cleanup happens on the next osquery sync. No equivalent MDM-side trigger needed.
+- *Profile replacement (re-upload)*: already works via the install-side trigger. `RemoveProfile` for old + `InstallProfile` for new → install trigger fires `CertificateList` → soft-delete catches the old cert. Verified during 2026-05-14 local testing.
+
 ## Phase 2 Decisions (#40639 renewal extension)
 
 ### Decision 2.1: Extend `UpdateHostCertificates` to insert managed-cert rows
