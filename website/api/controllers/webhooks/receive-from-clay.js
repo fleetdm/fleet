@@ -150,7 +150,7 @@ module.exports = {
       eventContent: historicalContent,
       eventContentUrl: historicalContentUrl,
       linkedinUrl: trimmedLinkedinUrl,
-      relatedCampaign,
+      relatedCampaign: relatedCampaign || recordIds.mostRecentCampaign,
     })
     .intercept((err)=>{
       sails.log.warn(`When the receive-from-clay webhook received information about LinkedIn activity, a historical event record could not be created. Full error: ${require('util').inspect(err)}`);

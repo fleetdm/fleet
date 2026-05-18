@@ -97,6 +97,7 @@ module.exports = {
         eventType: 'Intent signal',
         intentSignal: 'Submitted the "GitOps workshop request" form',
         eventContent: descriptionForCrmUpdate,
+        relatedCampaign: recordIds.mostRecentCampaign,
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });

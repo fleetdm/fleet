@@ -245,6 +245,7 @@ the account verification message.)`,
         salesforceContactId: recordIds.salesforceContactId,
         eventType: 'Intent signal',
         intentSignal: 'Signed up for a fleetdm.com account',
+        relatedCampaign: recordIds.mostRecentCampaign,
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });

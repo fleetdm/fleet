@@ -381,7 +381,8 @@ will be disabled and/or hidden in the UI.
                       salesforceAccountId: recordIds.salesforceAccountId,
                       fleetWebsitePageUrl: `https://fleetdm.com${req.url}`,
                       eventType: 'Website page view',
-                      websiteVisitReason: websiteVisitReason
+                      websiteVisitReason: websiteVisitReason,
+                      relatedCampaign: recordIds.mostRecentCampaign,
                     }).intercept((err)=>{
                       return new Error(`Could not create new Fleet website page view record. Error: ${err}`);
                     });

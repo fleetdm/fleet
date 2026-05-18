@@ -120,6 +120,7 @@ Fleet Premium subscription details:
           eventType: 'Intent signal',
           intentSignal: 'Submitted the "Send a message" form',
           eventContent: message,
+          relatedCampaign: recordIds.mostRecentCampaign,
         }).intercept((err)=>{
           return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
         });

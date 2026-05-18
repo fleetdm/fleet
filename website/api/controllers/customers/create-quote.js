@@ -103,6 +103,7 @@ module.exports = {
         eventType: 'Intent signal',
         intentSignal: 'Created a quote for a self-service Fleet Premium license',
         eventContent: descriptionForContactUpdate,
+        relatedCampaign: recordIds.mostRecentCampaign,
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });

@@ -656,7 +656,8 @@ module.exports = {
 
     return {
       salesforceAccountId,
-      salesforceContactId
+      salesforceContactId,
+      mostRecentCampaign: attributionDetails ? attributionDetails.campaign : undefined
     };
 
   }

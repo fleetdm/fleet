@@ -67,6 +67,7 @@ module.exports = {
         salesforceContactId: recordIds.salesforceContactId,
         eventType: 'Intent signal',
         intentSignal: 'Subscribed to the Fleet newsletter',
+        relatedCampaign: recordIds.mostRecentCampaign,
       });
     }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
       if(err) {
