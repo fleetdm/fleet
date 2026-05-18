@@ -291,6 +291,8 @@ resource "aws_ecs_service" "pmm" {
     container_name   = "pmm-server"
     container_port   = 443
   }
+
+  depends_on = [aws_lb_listener_rule.pmm]
 }
 
 # --- Internal ALB target group + listener rule ---
