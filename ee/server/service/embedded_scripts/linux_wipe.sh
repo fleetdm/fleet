@@ -117,7 +117,9 @@ wipe_btrfs_snapshots() {
             continue
         fi
 
-        # -s lists only snapshots. Sort deepest first so children are deleted before parents.
+        # -s lists only snapshots. Paths are system-generated (e.g. @/.snapshots/1/snapshot)
+        # and never contain spaces, so $NF safely extracts the path field.
+        # Sort deepest first so children are deleted before parents.
         btrfs subvolume list -s "$_tmp" 2>/dev/null \
             | awk '{print $NF}' \
             | awk '{n=gsub("/","/"); print n, $0}' \
