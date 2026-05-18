@@ -138,7 +138,7 @@ Robust Linux desktop management requires a complete inventory of your hosts and 
 
 Fleet provides a cross-platform approach, built on osquery, that enables deep insight into your hosts. Inventory and visibility are only the first step in a complete Linux management strategy. The following chapters will build on these foundational concepts to enable drift management, automated software installation, and automatic remediation.
 
-To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/contact?utm_source=Fleet&utm_medium=OS&utm_campaign=2026_05-OS-Linux_desktop).
+To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/contact).
 
 <meta name="articleTitle" value="Linux desktop inventory and visibility">
 <meta name="authorFullName" value="Anthony Critelli">
