@@ -738,20 +738,9 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		// Dedupe the policyRequestUUID across all pending install profiles
 		var policyRequestUUID string
 		for _, profile := range pendingInstallProfiles {
-			if profile.IncludedInPolicyVersion == nil {
-				continue
-			}
 			if int64(*profile.IncludedInPolicyVersion) == device.AppliedPolicyVersion && profile.PolicyRequestUUID != nil {
 				policyRequestUUID = *profile.PolicyRequestUUID
 			}
-		}
-
-		// No pending profile matches the applied policy version, so there's nothing
-		// to map the non-compliance details back to. Skip the datastore lookup that
-		// would otherwise emit a spurious "policy request not found" error.
-		if policyRequestUUID == "" {
-			svc.logger.DebugContext(ctx, "no matching policy request for non-compliance evaluation", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
-			return
 		}
 
 		// Iterate over all policy request uuids, fetch them and unmarshal the payload into the type.
