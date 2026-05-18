@@ -518,7 +518,7 @@ type Service interface {
 	// HostDeviceURL returns the full "My device" end-user URL for the
 	// specified host, embedding its device auth token. Global admin only —
 	// the URL is effectively a credential to that host's device-user page.
-	// Returns a NotFoundError if the host has no device auth token yet.
+	// If the host does not yet have a device auth token, one is created.
 	HostDeviceURL(ctx context.Context, hostID uint) (string, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
