@@ -14,7 +14,7 @@ name: Close stale Fleetie-initiated issues
 # and delete `stale-fleetie-issues.js` and its tests.
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Manual
     inputs:
       dry_run:
         description: 'If true, log candidates without writing labels, comments, or closing issues.'
@@ -24,12 +24,6 @@ on:
         description: 'Maximum GitHub API write operations per run. Each modified issue costs 2 writes (comment + label, or comment + close).'
         type: number
         default: 400
-  # TEMPORARY: lets the workflow run once on this PR so GitHub registers it, after which it can be
-  # triggered via `gh workflow run ... --ref <branch>`. PR runs are always treated as dry-run via the
-  # env guards below. Remove this `pull_request` block before flipping `dry_run` default to false.
-  pull_request:
-    paths:
-      - .github/workflows/close-stale-fleetie-initiated-issues.yml
 
 concurrency:
   # Scope by event_name + ref so a pull_request trigger doesn't preempt an in-flight

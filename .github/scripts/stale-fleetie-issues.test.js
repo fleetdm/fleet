@@ -13,7 +13,6 @@ const { STALE_DAYS, CLOSE_DAYS, SELF_ACTIVITY_EPSILON_MS } = run;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const daysAgoIso = (days) => new Date(Date.now() - days * DAY_MS).toISOString();
-const msAgoIso = (ms) => new Date(Date.now() - ms).toISOString();
 
 function makeIssue(overrides = {}) {
   return {
