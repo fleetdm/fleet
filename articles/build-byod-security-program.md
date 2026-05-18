@@ -138,4 +138,4 @@ In practice, this is often implemented as an access tier decision: BYOD is allow
 <meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-05-15">
-<meta name="description" value="How to structure a multi-platform BYOD security program, from enrollment models & access tiers to posture signals, standards, and compliance evidence.">
+<meta name="description" value="How to structure a multi-platform BYOD security program, from enrollment models and access tiers to posture signals, standards, and compliance.">
