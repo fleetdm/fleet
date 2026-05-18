@@ -80,6 +80,12 @@ The next step to ensure Okta detects the device as managed is to issue a SCEP ce
             	<string>%ComputerName% managementAttestation %HardwareUUID%</string>
           	</array>
         	</array>
+        	<array>
+          	<array>
+            	<string>OU</string>
+            	<string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
+          	</array>
+        	</array>
       	</array>
     	</dict>
     	<key>PayloadIdentifier</key>
@@ -98,6 +104,10 @@ The next step to ensure Okta detects the device as managed is to issue a SCEP ce
 ```
 
 > Make sure to use `.mobileconfig` as the file extension
+
+> **Automatic renewal**: the `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable in the OU is what enables Fleet to auto-renew this certificate. Include it to opt in; omit it to manage renewal manually (the cert will continue to work but won't auto-renew before expiry). The legacy name `$FLEET_VAR_SCEP_RENEWAL_ID` is also accepted for back-compat.
+>
+> **CA-side requirement**: your SCEP CA must preserve the Subject OU in issued certificates for auto-renewal to work. Verify by decoding an issued cert (Keychain Access → Get Info, or `openssl x509 -text`) and confirming the OU contains `fleet-<profile_uuid>` after deployment.
 
 * Enforce the configuration profile on your hosts. You can follow [this guide on enforcing custom OS settings in Fleet](https://fleetdm.com/guides/custom-os-settings).
 * You can optionally verify the issued certificate by opening Keychain Access on the device or by running a [live report](https://fleetdm.com/guides/get-current-telemetry-from-your-devices-with-live-queries):

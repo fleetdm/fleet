@@ -42,7 +42,7 @@ We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates
 
 ### Step 3: Add SCEP configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to `OU`.
 
 2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
 
@@ -224,7 +224,7 @@ When saving the configuration, Fleet will attempt to connect to the SCEP server 
 
 ### Step 3: Add SCEP configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to `OU`.
 
 2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) such as `$FLEET_VAR_HOST_HARDWARE_SERIAL`. For Apple hosts, you can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables)..
 
@@ -270,7 +270,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
                         <array>
                           <array>
                             <string>OU</string>
-                            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
                           </array>
                         </array>
                     </array>
@@ -352,7 +352,7 @@ You can add any other options listed under Device/SCEP in the [Microsoft ClientC
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL NDES Device Cert,OU=$FLEET_VAR_SCEP_RENEWAL_ID</Data>
+        <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL NDES Device Cert,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID</Data>
     </Item>
 </Add>
 <Add>
@@ -456,7 +456,7 @@ Currently, using the Smallstep-Jamf connector is the best practice. Fleet is tes
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. 
   - For `Challenge`, use `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_{CA_NAME}`. 
-  - For `URL`, use `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+  - For `URL`, use `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to `OU`.
 
 2. Replace the `{CA_NAME}` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
@@ -497,7 +497,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
                         <array>
                           <array>
                             <string>OU</string>
-                            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
                           </array>
                         </array>
                     </array>
@@ -676,7 +676,7 @@ For Android hosts, we use a configuration profile and a certificate template. Fo
                         <array>
                           <array>
                             <string>OU</string>
-                            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
                           </array>
                         </array>
                     </array>
@@ -769,7 +769,7 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
         <Meta>
             <Format xmlns="syncml:metinf">chr</Format>
         </Meta>
-        <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL WIFI,OU=$FLEET_VAR_SCEP_RENEWAL_ID</Data>
+        <Data>CN=$FLEET_VAR_HOST_HARDWARE_SERIAL WIFI,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID</Data>
     </Item>
 </Replace>
 <Replace>
@@ -827,7 +827,7 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
 
 </details>
 
-1. Create a configuration profile (see examples above) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+1. Create a configuration profile (see examples above) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to `OU`.
 
 2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
@@ -959,9 +959,11 @@ If an end user is on vacation (offline for more than 30 days), their certificate
 
 Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certificate up to 3 times per host and each failed Windows certificate once per host (retries [coming soon](https://github.com/fleetdm/fleet/issues/42981)), checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery). Note that manually resending a profile does not reset the automatic retry counter.
 
-> Currently, for NDES, Smallstep, and SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work for Apple and Windows hosts. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
+> Currently, for NDES, Smallstep, and SCEP CAs, Fleet requires that the `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work for Apple and Windows hosts. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
 >
-> The ⁠`$FLEET_VAR_SCEP_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
+> The `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
+>
+> The legacy name `$FLEET_VAR_SCEP_RENEWAL_ID` is also accepted and substitutes to the same value. New profiles should use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`.
 >
 > If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile).
 
