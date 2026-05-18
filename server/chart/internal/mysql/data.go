@@ -563,8 +563,8 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 		EncodingType uint8  `db:"encoding_type"`
 	}
 	type pendingRow struct {
-		id   uint
-		blob chart.Blob
+		id    uint
+		bytes []byte
 	}
 
 	// Paging select reads from the primary: the loop terminates on
@@ -614,7 +614,7 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 			before := rb.GetCardinality()
 			scrubbed := chart.BlobANDNOT(rb, mask)
 			if scrubbed.GetCardinality() != before {
-				pending = append(pending, pendingRow{id: r.ID, blob: chart.BitmapToBlob(scrubbed)})
+				pending = append(pending, pendingRow{id: r.ID, bytes: chart.BitmapToBlob(scrubbed).Bytes})
 			}
 			lastID = r.ID
 		}
@@ -623,18 +623,17 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 			end := min(i+writeBatch, len(pending))
 			chunk := pending[i:end]
 
+			// Scrubbed bytes are always roaring (chart.BitmapToBlob has no other
+			// code path), so encoding_type is set with a literal rather than a
+			// per-row CASE.
 			caseBitmapClauses := make([]string, 0, len(chunk))
-			caseEncodingClauses := make([]string, 0, len(chunk))
 			inPlaceholders := make([]string, 0, len(chunk))
-			args := make([]any, 0, len(chunk)*4)
+			args := make([]any, 0, len(chunk)*3+1)
 			for _, p := range chunk {
 				caseBitmapClauses = append(caseBitmapClauses, "WHEN ? THEN ?")
-				args = append(args, p.id, p.blob.Bytes)
+				args = append(args, p.id, p.bytes)
 			}
-			for _, p := range chunk {
-				caseEncodingClauses = append(caseEncodingClauses, "WHEN ? THEN ?")
-				args = append(args, p.id, p.blob.Encoding)
-			}
+			args = append(args, chart.EncodingRoaring)
 			for _, p := range chunk {
 				inPlaceholders = append(inPlaceholders, "?")
 				args = append(args, p.id)
@@ -642,9 +641,7 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 			// Concatenating hardcoded "WHEN ? THEN ?" / "?" placeholders, not user input.
 			stmt := `UPDATE host_scd_data SET host_bitmap = CASE id ` + //nolint:gosec // G202
 				strings.Join(caseBitmapClauses, " ") +
-				` END, encoding_type = CASE id ` +
-				strings.Join(caseEncodingClauses, " ") +
-				` END WHERE id IN (` +
+				` END, encoding_type = ? WHERE id IN (` +
 				strings.Join(inPlaceholders, ", ") + `)`
 			if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "scrub batch")
