@@ -1,0 +1,220 @@
+> **Phase boundaries**: This change covers two stories. **Phase 1 (#42827)** is MDM cert ingestion for macOS — independently shippable. **Phase 2 (#40639)** is non-proxied cert renewal — depends on Phase 1 for the macOS hardware-bound leg. Expected to ship together.
+>
+> **No backfills**: Customers must redeploy ACME/SCEP profiles with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the cert Subject to enable renewal. Redeploy fires `InstallProfile` → on-demand `CertificateList` (Phase 1) → cert ingestion → managed-cert row insert (Phase 2). The natural redeploy flow replaces what would have been a deploy-time backfill in either phase.
+>
+> **Status at archive (2026-05-18):** all implementation PRs merged or in flight as drafts (PRs #45531, #45662, #45663, #45695). Remaining unchecked items are post-implementation work tracked outside this change:
+> - **§2b** RemoveProfile cleanup — tracked as bug #45596.
+> - **§4** Phase 1 QA verification — real silicon Mac, requires hardware.
+> - **§9.4** Internal field doc — intentionally skipped (not customer-facing).
+> - **§10.1–10.7** Phase 2 QA verification — Smallstep local validation complete; Hydrant verification still pending external dependency. Tracked in #40639 verification section.
+
+---
+
+# Phase 1 — #42827 cert ingestion for macOS
+
+> Customer outcome: ACME and other MDM-delivered certs become visible on macOS host details *after the customer redeploys the delivering profile*. No automatic backfill.
+
+## 1. PR 1.1 — Storage foundation (origin column, dedup)
+
+Goal: prepare `host_certificates` to store certs from a second ingestion source. No new behavior triggered yet.
+
+- [x] 1.1.1 Migration: add `host_certificates.origin` column (`enum('osquery','mdm')`, default `'osquery'` for existing rows) — `server/datastore/mysql/migrations/tables/20260505115111_AddOriginToHostCertificates.go` + test file (timestamp bumped from 20260428151210 to land after newer migrations on main; merged via PR #44339)
+- [x] 1.1.2 Update `UpdateHostCertificates` in `server/datastore/mysql/host_certificates.go` to set `origin` based on the ingestion source parameter; default to `osquery` when called from existing osquery paths
+- [x] 1.1.3 Update soft-delete logic so each ingestion source only deletes its own `origin`-matching rows (osquery sync doesn't delete `mdm` rows; MDM response doesn't delete `osquery` rows)
+- [x] 1.1.4 Datastore tests for source-scoped deletion: pre-populate rows with mixed origin, run osquery sync omitting an `mdm` row, verify it survives; mirror for MDM-side
+- [x] 1.1.5 Run `make generate-mock` if datastore interface signatures change
+
+## 2. PR 1.2 — On-demand CertificateList for macOS
+
+Goal: hook `CertificateList` into the ACME `InstallProfile` ack flow on macOS. Activates ingestion for new and renewed profile installs.
+
+- [x] 2.1 In `server/service/apple_mdm.go` `CommandAndReportResults` `case "InstallProfile"`, detect when an acked profile contained a `com.apple.security.acme` payload on a macOS host (PR #44372)
+- [x] 2.2 Enqueue `CertificateList` for the host using existing commander; reuse `RefetchCertsCommandUUIDPrefix` for tracking
+- [x] 2.3 Ensure `handleRefetchCertsResults` continues to process the response and call `UpdateHostCertificates` with `origin='mdm'`
+- [x] 2.4 Tests: simulate an ACME `InstallProfile` ack on a macOS host and verify `CertificateList` is queued; verify result handler ingests certs with `origin='mdm'`
+- [x] 2.5 Verify iOS/iPadOS path (`server/mdm/apple/apple_mdm.go:1585-1605`) still works unchanged — no regressions
+- [x] 2.6 Implementation note: gating happens server-side via a single indexed lookup (`ProfileHasACMEPayloadForCommand`) that bundles platform check and ACME-payload presence (`LOCATE` on `mobileconfig`). No plist parse on the hot path. Tracking row is added AFTER the commander succeeds (matching the iOS/iPadOS pattern) so a CertificateList enqueue failure doesn't leave a stale tracking row. Pending-refetch dedup was deliberately NOT included — see design.md Decision 1.1's "No pending-refetch deduplication" note. Duplicates collapse via the `host_mdm_commands` `(host_id, command_type)` PK and `handleRefetchCertsResults` is idempotent.
+
+> **Known gap — Flow B (enrollment-time)**: PR 1.2 covers Flow A (profile-install ack triggers refetch) but not Flow B (DEP enrollment with hardware attestation issues an ACME enrollment cert that's invisible to osquery). Hooking into `mdmlifecycle.turnOnApple` or `TokenUpdate` for newly-enrolled silicon Macs is required to fully close #42827 for the customer-cisneros-a use case. Tracked as a follow-up sub-task; not in PR 1.2's scope.
+
+## 2b. PR 1.2b — RemoveProfile cleanup (bug #45596)
+
+Goal: symmetric companion to PR 1.2. RemoveProfile ack on macOS should trigger CertificateList so stale `host_certificates` rows clean up via the existing source-scoped soft-delete. See design.md Decision 1.5.
+
+Tracked as bug rather than sub-task because the install-side trigger (PR 1.2) closed only half the lifecycle; the removal side is a visibility bug in the on-demand design.
+
+- [ ] 2b.1 In `server/service/apple_mdm.go` `CommandAndReportResults` `case "RemoveProfile"`, detect ACME or SCEP payload removals on macOS hosts. Extend `ProfileHasACMEPayloadForCommand` (and the `ProfileACMECommandResult` type) to also report `HasSCEPPayload` so the same query serves both triggers.
+- [ ] 2b.2 Enqueue `CertificateList` via the existing commander. Tracking row added AFTER commander success — same pattern as PR 1.2 (§2.6).
+- [ ] 2b.3 Tests in `apple_mdm_test.go`: macOS+ACME → triggers; macOS+SCEP → triggers; macOS+neither → no trigger; iOS → no trigger; command-not-found → no error, no trigger. Mirror the matrix from `TestMaybeQueueCertificateListForACMEProfile`.
+- [ ] 2b.4 No changes needed for `host_mdm_managed_certificates` cleanup: when `UpdateOrDeleteHostMDMAppleProfile` removes the profile row, the orphaned hmmc row is cleaned up by the existing `CleanUpMDMManagedCertificates` cron on the next tick.
+
+## 3. PR 1.3 — Phase 1 documentation
+
+- [x] 3.1 Update host details documentation to mention macOS ACME / MDM-delivered cert visibility — explicitly note that visibility activates per-host on profile install/redeploy. (Shipped via PR #44997.)
+- [x] 3.2 Release notes entry for Phase 1. (Shipped via PR #44997 — `changes/42827-macos-mdm-certificate-ingestion`.)
+
+## 4. Phase 1 verification (QA, not a PR)
+
+- [ ] 4.1 Real silicon Mac via ABM/DEP enrollment with hardware attestation enabled — install a fresh ACME profile, verify cert appears on host details after `InstallProfile` ack
+- [ ] 4.2 Hardware-bound ACME cert visible only via `CertificateList` — confirm it appears in API response with `origin=mdm` recorded internally
+- [ ] 4.3 Dedup verification: a cert visible to both osquery and `CertificateList` appears as exactly one row
+- [ ] 4.4 Existing-profile scenario: install an ACME profile, then verify that without re-pushing the profile no new ingestion occurs (validates the no-backfill design)
+
+---
+
+# Phase 2 — #40639 non-proxied cert renewal
+
+> Depends on Phase 1 for the macOS leg. iOS/iPadOS/Windows legs work independently. Customer outcome: non-proxied ACME (e.g. customer's Hydrant deployment) and Okta SCEP certs auto-renew before expiration *for profiles redeployed with the marker variable*.
+
+## 5. PR 2.1 — Schema and renewal-cron foundation
+
+Goal: prepare the data model for ingestion-created managed-cert rows. No behavior change yet. Independently mergeable.
+
+- [x] 5.1 Verify `profile_uuid` format across `host_mdm_apple_profiles` / `host_mdm_windows_profiles` — empirically resolved by reading the substitution code (`server/mdm/microsoft/profile_variables.go:125`, `server/mdm/apple/profile_processor.go:401-404`): the marker is always literally `"fleet-" + profile_uuid`. PR 2.2 marker extraction can rely on substring matching against CN/OU; no regex needed.
+- [x] 5.2 Migration: allow `host_mdm_managed_certificates.type` to be NULL — `server/datastore/mysql/migrations/tables/20260507160833_AllowNullTypeOnHostMDMManagedCertificates.go` + test file. NOTE: revise the stashed migration to drop the `'hydrant'` enum addition — Hydrant is not modeled as a CA type (see design.md Decision 2.4).
+- [ ] 5.3 (REMOVED — see design.md Decision 2.4) ~~Add `CAConfigHydrant` legacy constant; include in renewal lists~~. Hydrant is not modeled as a CA type. The NULL-`type` mechanism (5.4) is the entire renewal path for non-proxied flows.
+- [x] 5.4 Update `RenewMDMManagedCertificates` SELECT in `server/datastore/mysql/mdm.go` to iterate `ListCATypesWithRenewalSupport()` plus a single NULL bucket using null-safe equal (`hmmc.type <=> ?`).
+- [x] 5.5 Datastore tests: existing-type rows still selected, NULL-type rows now selected, non-renewable types still ignored. (Reduce the stashed test — drop the `hydrant` arm; keep the `ndes` and NULL arms.)
+
+## 6. PR 2.2 — Ingestion-driven managed-cert row creation
+
+Goal: extend `UpdateHostCertificates` to insert `host_mdm_managed_certificates` rows when ingested certs carry a renewal-ID marker. Core change.
+
+- [x] 6.1 Marker extraction strategy: use substring search for `"fleet-" + profile_uuid` against ingested certs' CN/OU, mirroring the existing matcher loop's approach (origin/main `host_certificates.go:188-189`). No new regex helper needed — the source-of-truth profile UUID list comes from the host's `host_mdm_apple_profiles` / `host_mdm_windows_profiles` rows and can be enumerated.
+- [x] 6.2 Extend `UpdateHostCertificates` in `server/datastore/mysql/host_certificates.go` to add an INSERT pass: for each profile installed on the host without a corresponding `host_mdm_managed_certificates` row, search the incoming/toInsert pool for a cert whose CN or OU contains `"fleet-" + profile_uuid`; if found, INSERT a row populated with the cert's `serial`, `not_valid_before`, `not_valid_after`, NULL `type`, NULL `ca_name`, NULL `challenge_retrieved_at`. Reuse `toInsertBySHA1` / `incomingBySHA1` already built by #44691.
+- [x] 6.3 **Matcher-guard fix (load-bearing for ingestion-created rows):** adjust the existing matcher's `if !hostMDMManagedCert.Type.SupportsRenewalID() { continue }` skip so empty/NULL `Type` rows are NOT excluded. Without this, ingestion-created NULL-`type` rows would never have their `not_valid_after` advanced after a renewal completes, producing a non-terminating renewal loop. See design.md Decision 2.2.
+- [x] 6.4 Datastore tests covering: first-time ingestion creates NULL-`type` row; subsequent ingestion updates existing NULL-`type` row's `not_valid_after` (validates 6.3); mismatched UUID ignored; marker present but profile not installed on this host; existing proxied-`type` rows continue to work as before (no regression)
+- [x] 6.5 Service-level integration test: simulate an osquery cert report with a marker-bearing cert and verify the managed-cert row materializes
+- [x] 6.6 Run `make generate-mock` if datastore interface signatures change
+
+> **Coordination with #44691**: That PR restructures the matcher in `UpdateHostCertificates` (introduces `toInsertBySHA1` map, pool-selection per hmmc row, best-match-wins, monotonic-forward predicate, `hmmcBackfillGrace`). It targets `main` and is expected to land before this PR. Our INSERT path lands as a separate loop alongside that restructured matcher, reusing `toInsertBySHA1`/`incomingBySHA1` it already builds. Plan to rebase against main once #44691 merges.
+
+## 7. PR 2.3 — Apple variable rename (validator removed per scope change 2026-05-15)
+
+Goal: add code support for the renamed customer-facing variable (`$FLEET_VAR_CERTIFICATE_RENEWAL_ID`, per design.md Decision 2.7).
+
+**Scope change 2026-05-15:** the ACME upload validator that initially shipped in this PR (rejected profiles missing the marker) is reverted. The marker is now opt-in per design.md Decision 2.6 — missing marker is accepted, no GitOps breakage. Tasks below reflect the original scope; revert work is tracked under §7d.
+
+- [x] 7.1 Add `FleetVarCertificateRenewalID = "CERTIFICATE_RENEWAL_ID"` constant in `server/fleet/mdm.go` alongside the existing `FleetVarSCEPRenewalID`. Both are recognized by `FindFleetVariables`.
+- [x] 7.2 Extend `FleetVarSCEPRenewalIDRegexp` (or add a sibling regex) to match either name, then expose a unified `FleetVarRenewalIDRegexp` used by all substitution sites. Both names substitute to identical output: `"fleet-" + profile_uuid`. Touch points: `server/mdm/apple/profile_processor.go:401-404`, `server/mdm/microsoft/profile_variables.go:124-125`.
+- [x] 7.3 ~~Detect ACME payload types in Apple profile content during validation in `server/service/apple_mdm.go` and reject when the renewal-ID marker is missing from the cert Subject.~~ **Reverted per §7d.** The per-CA SCEP validators (NDES/Custom SCEP/Smallstep) keep their existing renewal-ID enforcement (pre-existing surface).
+- [x] 7.4 ~~Require `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in cert Subject OU only; reject otherwise.~~ **Reverted per §7d.**
+- [x] 7.5 ~~Confirm the same code path is hit by `fleetctl gitops` profile uploads; add an integration test if not already covered.~~ Verification moot once validator is removed; gitops continuity is the *reason* for the removal.
+- [x] 7.6 ~~Tests that exercise rejection behaviors.~~ **Reverted per §7d** — tests flip to accept missing marker.
+- [x] 7.7 Release-notes draft: variable-name rename note (legacy still accepted, new name preferred for new authoring) AND the validator-removal scope change. Frame the marker as opt-in for auto-renewal. (Shipped in PR 2.5 / #45695 — `changes/40639-non-proxied-cert-renewal`.)
+
+## 7b. PR 2.3b — Apple non-proxied SCEP validator (reverted per scope change 2026-05-15)
+
+**Scope change 2026-05-15:** PR 2.3b added `additionalNonProxiedSCEPValidation` to enforce the renewal-ID marker on raw-SCEP profiles. Per design.md Decision 2.6 scope reversal, the marker is opt-in and this validator is reverted entirely.
+
+The original implementation tasks below are kept for history; revert work is tracked under §7d.
+
+- [x] 7b.1 ~~In `server/service/apple_mdm.go`, add `additionalNonProxiedSCEPValidation`.~~ **Reverted per §7d.**
+- [x] 7b.2 ~~OU-only / preferred-name-only enforcement.~~ **Reverted per §7d.**
+- [x] 7b.3 ~~Wire into `validateConfigProfileFleetVariables`.~~ **Reverted per §7d.**
+- [x] 7b.4 ~~Tests covering OU-only / preferred-only acceptance and rejection cases.~~ **Reverted per §7d** — tests flip to accept all shapes.
+- [x] 7b.5 Release-notes alignment for raw-SCEP customers (Okta SCEP / Okta Verify) — now part of the broader "marker is opt-in" messaging. (Shipped in PR 2.5 / #45695.)
+
+## 7d. PR 2.3d — Revert Apple ACME and raw-SCEP validators (scope change 2026-05-15)
+
+Goal: implement the Decision 2.6 scope reversal. Remove the upload-time renewal-ID enforcement added in PR 2.3 (#45043) and PR 2.3b (#45364). Marker becomes opt-in.
+
+- [x] 7d.1 In `server/service/apple_mdm.go`, remove `additionalACMEValidation` and its call site in `validateConfigProfileFleetVariables`. Also remove the supporting `acmeProfileForValidation` / `acmePayloadForValidation` types. (PR #45643.)
+- [x] 7d.2 Remove `additionalNonProxiedSCEPValidation` and its call site. (PR #45643. The SCEP-or-ACME bypass in `mdm_profiles.go` was retained since it's still correct for non-validator reasons; comment updated.)
+- [x] 7d.3 Update `apple_mdm_test.go`: delete `TestAdditionalACMEValidation` and `TestAdditionalNonProxiedSCEPValidation`. Add a regression test that confirms ACME and raw-SCEP profiles without the marker upload successfully. (PR #45643 — `TestApplePayloadValidatorsAreOptional`.)
+- [x] 7d.4 Update integration tests: flip rejection assertions to acceptance; delete the obsolete Conditional Access failure-mode test. (Shipped in PR 2.5b / #45663.)
+- [x] 7d.5 Confirm pre-existing proxy SCEP validators (NDES / Custom SCEP / Smallstep) keep their existing renewal-ID enforcement unchanged — they predate this story since 4.65 and are not in scope for the reversal. (Verified in PR #45643.)
+- [x] 7d.6 Document the scope change in the PR description, referencing Decision 2.6 and the GitOps-continuity rationale. (PR #45643.)
+
+## 7c. PR 2.3c — Origin downgrade on osquery rediscovery
+
+Goal: fix the `origin` column semantics so it reflects "delivery channel" rather than "first ingestion source to see this cert." Today MDM `CertificateList` ingests every cert in the device keychain on InstallProfile ack — including Root CAs and other system certs the user installed manually. If MDM sees a system cert before the next osquery sync, the row gets `origin=mdm`, which is misleading (the cert was not MDM-delivered).
+
+Surfaced during 2026-05-14 local validation: user-installed `localdev-tim Root CA` ended up with `origin=mdm` because the ACME profile install fired `CertificateList` before the next osquery cert sync, and `CertificateList` returns the entire keychain.
+
+See design.md Decision 1.3.
+
+- [x] 7c.1 In `server/datastore/mysql/host_certificates.go`'s osquery-side ingestion path (`UpdateHostCertificates` when called with `origin='osquery'`), if an UPSERT matches an existing row with `origin='mdm'`, set `origin='osquery'`. The downgrade is one-way (mdm → osquery). MDM ingestion still creates rows with `origin='mdm'` for first-seen certs. (PR #45531, draft.)
+- [x] 7c.2 Rationale captured in design.md Decision 1.4.
+- [x] 7c.3 Datastore test for the downgrade. (PR #45531 — `testUpdateHostCertificatesOriginDowngrade`.)
+- [x] 7c.4 No backfill — natural osquery sync cycles correct affected rows over time. Reclassified as cleanup task #45528 (no longer a sub-task).
+
+## 8. PR 2.4 — Windows variable-rename back-compat (pre-existing surface, scope-change-unaffected)
+
+Goal: extend the pre-existing Windows proxy-SCEP validators (NDES, Custom SCEP) to accept the preferred variable name in addition to the legacy name, so customers can author either spelling.
+
+**Scope-change note (2026-05-15):** Decision 2.6's reversal does NOT affect this PR. The Windows validators touched here are pre-existing surfaces (since 4.85, originally from PR #37170) that have always enforced a renewal-ID variable in SubjectName for profiles using Fleet's NDES or Custom SCEP proxy variables. PR 2.4 just added preferred-name acceptance; it did not introduce new enforcement.
+
+- [x] 8.1 Resolve the Windows Subject substitution open question (see design.md): can `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` be reused in the Windows profile cert Subject, or does Windows need a new Subject-targeted variable? (Resolved: reuse `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` via the unified regex; PR #45237.)
+- [x] 8.2 If a new variable is required, add it to `server/fleet/mdm.go` and substitution logic in `server/datastore/mysql/microsoft_mdm.go` and `server/mdm/microsoft/profile_variables.go`. Reuse the unified `FleetVarRenewalIDRegexp` from PR 2.3 task 7.2 so Windows accepts both legacy and new names without duplicating regex logic.
+- [x] 8.3 Extend the existing Windows NDES / Custom SCEP validators in `server/service/windows_mdm_profiles.go` to accept either renewal-ID variable name in the SubjectName OU (back-compat per Decision 2.7). Validation error messages reference only `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`. **No new validation surface introduced** — the variable presence requirement on these proxy-SCEP paths predates this story.
+- [x] 8.4 Tests mirroring PR 2.3's coverage but for Windows profiles, including legacy-name back-compat.
+
+## 9. PR 2.5 — Phase 2 documentation
+
+Can ship in parallel with PR 2.3 / 2.4.
+
+**Framing under Decision 2.6 scope reversal (2026-05-15):** the marker is opt-in. Customers who add it get auto-renewal; customers who don't continue to manage cert lifecycle as in 4.85. Docs should present the marker as a *new capability* rather than a *required migration step*.
+
+- [x] 9.1 Update Fleet's certificate renewal guide to document non-proxied SCEP and ACME renewal as an opt-in feature. (PR #45695 — `articles/connect-end-user-to-wifi-with-certificate.md` migrated.)
+- [x] 9.2 Add example profile snippets showing correct marker placement in Subject OU; framed as opt-in. (PR #45695 — Okta Verify macOS and Windows guides updated.)
+- [x] 9.3 Optional opt-in guidance for existing customers. (PR #45695 — added to Okta Verify macOS, Windows, and Conditional Access guides.)
+- [ ] 9.4 Reference doc note that `host_mdm_managed_certificates.type` may be NULL for non-proxied rows. (Internal field — not customer-facing; intentionally not added to public docs.)
+- [x] 9.5 Variable rename note: legacy `$FLEET_VAR_SCEP_RENEWAL_ID` still works. (PR #45695 — back-compat callout in WiFi guide. rachaelshaw's #43293 already merged to `docs-v4.86.0`.)
+- [x] 9.6 Release-notes entry consolidating Phase 2 changes. (PR #45695 — `changes/40639-non-proxied-cert-renewal`.)
+
+## 10. Phase 2 verification (QA, not a PR)
+
+- [ ] 10.1 Non-proxied ACME (customer-cisneros-a's Hydrant deployment) on real silicon Mac (Phase 1 fully shipped): redeploy a profile with the marker, force a cert near expiration, verify renewal cron triggers, profile re-pushes, new cert ingested via on-demand `CertificateList`, managed-cert row updated; row remains NULL `type` throughout. (Local end-to-end validation completed 2026-05-14 against a Smallstep ACME-DA test CA: profile install → cert ingest → managed-cert row materialized → renewal cron picked up the row when `not_valid_after` was advanced into the threshold → InstallProfile re-push → new cert ingested → row's `not_valid_after` advanced. **Hydrant verification still required** — Smallstep needed CA-side template fix to preserve OU; whether Hydrant preserves OU by default is unverified and load-bearing for the customer promise.)
+- [ ] 10.2 Non-proxied ACME on iOS / iPadOS: redeploy profile with marker, verify existing `IOSiPadOSRefetch` cron path picks up the new flow without regression
+- [ ] 10.3 Okta conditional access SCEP on macOS via osquery ingestion path (after profile redeploy)
+- [ ] 10.4 Okta Verify SCEP (static challenge) on macOS (after profile redeploy)
+- [ ] 10.5 Okta SCEP on Windows (after profile redeploy)
+- [ ] 10.6 Opt-out path: deploy a profile WITHOUT the marker; confirm the profile uploads cleanly (no validator rejection per Decision 2.6), the cert lands in `host_certificates` for visibility, but NO `host_mdm_managed_certificates` row materializes and NO renewal happens. Validates the opt-in framing — customers who don't add the marker continue with 4.85-style manual renewal, unbroken.
+- [ ] 10.7 ~~Profile-validation rejection: attempt to upload an ACME/SCEP profile without the marker; confirm rejection with the expected error message.~~ **Removed per Decision 2.6 scope reversal — validators no longer reject missing marker.** Replaced by 10.6 (opt-out path) above.
+
+---
+
+## 11. Per-PR checklist (apply to each implementation PR)
+
+- [x] 11.1 `make lint-go` passes — verified on each merged PR via CI.
+- [x] 11.2 Datastore tests pass.
+- [x] 11.3 Service tests pass.
+- [x] 11.4 `make generate-mock` run where needed.
+- [x] 11.5 PR descriptions name the parent story and phase/PR position.
+
+---
+
+## PR sequencing summary
+
+```
+   PHASE 1 (#42827)
+   ──────────────────────────────────────────────────────
+   PR 1.1 (origin column, dedup)  ─── foundation
+       │
+       ▼
+   PR 1.2 (CertificateList trigger) ── activates ingestion
+       │
+       ▼
+   PR 1.3 (docs)                  ─── parallel-able
+
+   ──────────────── PHASE 1 SHIPS ────────────────
+
+   PHASE 2 (#40639)
+   ──────────────────────────────────────────────────────
+   PR 2.1 (schema + CA list)      ─── foundation
+       │
+       ▼
+   PR 2.2 (UpdateHostCertificates) ── core change
+       │
+       ├──────────────────┬───────────────────┐
+       ▼                  ▼                   ▼
+   PR 2.3 (Apple        PR 2.4 (Windows    PR 2.5 (docs,
+   validation)          validation,        parallel)
+                        blocked on
+                        Windows TODO)
+```
+
+Phase 1: 3 PRs (was 4 — backfill dropped).
+Phase 2: 5 PRs (was 6 — linkage backfill dropped).
+Total: 8 implementation/docs PRs (down from 10).
