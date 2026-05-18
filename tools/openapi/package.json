@@ -10,7 +10,8 @@
   },
   "scripts": {
     "generate": "node src/index.js",
-    "generate:stdout": "node src/index.js --stdout"
+    "generate:stdout": "node src/index.js --stdout",
+    "view": "node src/index.js --out spec.yml && http-server . -o /viewer.html -c-1"
   },
   "engines": {
     "node": ">=18"
@@ -18,5 +19,8 @@
   "dependencies": {
     "@readme/openapi-parser": "^2.7.0",
     "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
   }
 }

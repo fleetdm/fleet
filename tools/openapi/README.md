@@ -55,6 +55,21 @@ The generator validates the produced document against the OpenAPI 3.1 schema
 before writing. If validation fails, it exits non-zero (exit code `2`) and
 prints the validator's error.
 
+## Viewing the spec
+
+For a UI view of the generated spec, run:
+
+```sh
+cd tools/openapi
+npm install
+npm run view
+```
+
+This regenerates the spec to `tools/openapi/spec.yml` (gitignored), starts a
+local [`http-server`](https://www.npmjs.com/package/http-server), and opens
+[Redoc](https://redocly.com/redoc) in your browser pointed at the spec. The
+Redoc bundle is loaded from a CDN; nothing is hosted by Fleet.
+
 ## Library choices
 
 | Concern | Library | Why |
