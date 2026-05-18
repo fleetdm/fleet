@@ -112,6 +112,18 @@ Sometimes there is a change in the champion within the customer's organization.
 4. Fill out all the required fields making sure to pick "Expansion" in the  "Type" dropdown menu and then click "Save".
 
 
+### Monitor and respond to LinkedIn comments
+
+The Customer Support team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel and sent to Unthread.
+
+To monitor and respond to LinkedIn comments:
+1. Address LinkedIn mentions and comments once within 1 day.
+2. From the Fleet LinkedIn company page, Like mentions and respond to any questions asked in comments.
+3. Repost content related to GitOps certification or from Fleeties.
+4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
+
+
+
 ### Schedule a Fast-track engagement
 
 Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.

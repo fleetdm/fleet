@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep/sceptest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -63,7 +64,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	returnPageFromFile := func(path string) []byte {
 		dat, err := os.ReadFile(path)
 		require.NoError(t, err)
-		datUTF16, err := utf16FromString(string(dat))
+		datUTF16, err := sceptest.UTF16FromString(string(dat))
 		require.NoError(t, err)
 		byteData := make([]byte, len(datUTF16)*2)
 		for i, v := range datUTF16 {
@@ -74,14 +75,14 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 
 	// Catch ths issue when NDES password cache is full
 	returnPage = func() []byte {
-		return returnPageFromFile("./testdata/mscep_admin_cache_full.html")
+		return returnPageFromFile("./sceptest/testdata/mscep_admin_cache_full.html")
 	}
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "the password cache is full")
 
 	// Catch ths issue when account has insufficient permissions
 	returnPage = func() []byte {
-		return returnPageFromFile("./testdata/mscep_admin_insufficient_permissions.html")
+		return returnPageFromFile("./sceptest/testdata/mscep_admin_insufficient_permissions.html")
 	}
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "does not have sufficient permissions")
@@ -95,7 +96,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 
 	// All good
 	returnPage = func() []byte {
-		return returnPageFromFile("./testdata/mscep_admin_password.html")
+		return returnPageFromFile("./sceptest/testdata/mscep_admin_password.html")
 	}
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.NoError(t, err)
@@ -103,7 +104,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	// Test UTF-8 response (like Okta returns) - should also work with auto-detection
 	returnPage = func() []byte {
 		// Return UTF-8 directly without converting to UTF-16
-		dat, err := os.ReadFile("./testdata/mscep_admin_password.html")
+		dat, err := os.ReadFile("./sceptest/testdata/mscep_admin_password.html")
 		require.NoError(t, err)
 		return dat
 	}
@@ -180,7 +181,7 @@ func TestDecodeHTMLResponse(t *testing.T) {
 
 func TestValidateSCEPURL(t *testing.T) {
 	t.Parallel()
-	srv := NewTestSCEPServer(t)
+	srv := sceptest.NewTestSCEPServer(t)
 
 	proxy := fleet.NDESSCEPProxyCA{
 		URL: srv.URL + "/scep",

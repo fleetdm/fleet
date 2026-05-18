@@ -40,17 +40,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// HostDetailResponse is the response struct that contains the full host information
-// with the HostDetail details.
-type HostDetailResponse struct {
-	fleet.HostDetail
-	Status      fleet.HostStatus   `json:"status"`
-	DisplayText string             `json:"display_text"`
-	DisplayName string             `json:"display_name"`
-	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
-}
-
-func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*HostDetailResponse, error) {
+func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*fleet.HostDetailResponse, error) {
 	var isADEEnrolledIDevice bool
 	if host.Platform == "ipados" || host.Platform == "ios" {
 		ac, err := svc.AppConfigObfuscated(ctx)
@@ -82,7 +72,7 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 		geoLoc = svc.LookupGeoIP(ctx, host.PublicIP)
 	}
 
-	return &HostDetailResponse{
+	return &fleet.HostDetailResponse{
 		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
@@ -833,8 +823,8 @@ type getHostRequest struct {
 }
 
 type getHostResponse struct {
-	Host *HostDetailResponse `json:"host"`
-	Err  error               `json:"error,omitempty"`
+	Host *fleet.HostDetailResponse `json:"host"`
+	Err  error                     `json:"error,omitempty"`
 }
 
 func (r getHostResponse) Error() error { return r.Err }
