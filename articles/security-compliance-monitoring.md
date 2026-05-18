@@ -125,8 +125,8 @@ Offline devices create an evidence gap, even if their last known state was passi
 Ask to see how the solution handles evidence retention, stale-device reporting, exception tracking, and review of check changes in a workflow that matches your environment. Compare those details against your own compliance requirements instead of relying on a feature list alone. Fleet's approach of separating MDM delivery from osquery-based state collection directly addresses the verification gap covered in this guide. [Schedule a demo](https://fleetdm.com/contact) to walk through how Fleet handles your specific framework requirements.
 
 <meta name="articleTitle" value="Security compliance monitoring for multi-platform environments">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-05-12">
 <meta name="description" value="Continuous compliance monitoring across macOS, Windows, Linux, iPhone, iPad, Android, and ChromeOS with audit-ready evidence.">
