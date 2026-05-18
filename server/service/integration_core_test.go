@@ -3728,8 +3728,8 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	b, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	var r struct {
-		Host *HostDetailResponse `json:"host"`
-		Err  error               `json:"error,omitempty"`
+		Host *fleet.HostDetailResponse `json:"host"`
+		Err  error                     `json:"error,omitempty"`
 	}
 	err = json.Unmarshal(b, &r)
 	require.NoError(t, err)
