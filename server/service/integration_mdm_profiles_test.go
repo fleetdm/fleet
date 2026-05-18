@@ -9567,11 +9567,13 @@ func (s *integrationMDMTestSuite) TestConditionalAccessProfileUploadsCleanly() {
 		RootPayloadUUID:  "55555555-5555-5555-5555-555555555555",
 	}))
 
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
-		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-			{Name: "ConditionalAccessProfile", Contents: buf.Bytes()},
-		}},
-		http.StatusNoContent)
+	// Use the single-profile endpoint (POST /configuration_profiles) — that's
+	// the route the custom-OS-settings UI uses when an admin uploads a
+	// .mobileconfig copied out of Settings > Integrations > Conditional access.
+	body, headers := generateNewProfileMultipartRequest(
+		t, "ConditionalAccessProfile.mobileconfig", buf.Bytes(), s.token, nil,
+	)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 }
 
 // TestWindowsSCEPProfilePreferredVariableAccepted exercises the
