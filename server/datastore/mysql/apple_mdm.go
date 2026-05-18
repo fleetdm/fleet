@@ -1852,14 +1852,17 @@ func upsertHostDisplayNames(ctx context.Context, tx sqlx.ExtContext, hosts ...fl
 // considered the most accurate source) is preserved when the host later
 // enrolls into MDM.
 func insertHostDisplayNamesIfAbsent(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
-	if len(hosts) == 0 {
-		return nil
-	}
 	var args []any
 	var parts []string
 	for _, h := range hosts {
+		if h.DisplayName() == "" {
+			continue
+		}
 		args = append(args, h.ID, h.DisplayName())
 		parts = append(parts, "(?, ?)")
+	}
+	if len(parts) == 0 {
+		return nil
 	}
 
 	_, err := tx.ExecContext(ctx, fmt.Sprintf(
