@@ -169,20 +169,40 @@
   }
 
 
-  // ── STACK HUB (3x3 grid with Fleet at the center) ──────
+  // ── FLEET ECOSYSTEM MAP (3x3 grid w/ SVG spokes) ───────
   [purpose='stack-hub'] {
+    position: relative;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
     align-self: stretch;
     width: 100%;
+    padding: 8px;
+    background: radial-gradient(ellipse at center, #F7F6FF 0%, transparent 70%);
+    border-radius: 24px;
+  }
+
+  [purpose='stack-connectors-svg'] {
+    position: absolute;
+    inset: 8px;
+    width: ~'calc(100% - 16px)';
+    height: ~'calc(100% - 16px)';
+    z-index: 0;
+    pointer-events: none;
+    line {
+      stroke: @core-vibrant-blue-25;
+      stroke-width: 1.5;
+      stroke-dasharray: 5 5;
+    }
   }
 
   [purpose='stack-card'] {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    gap: 12px;
     padding: 24px;
     border-radius: 12px;
     border: 1px solid @core-fleet-black-10;
@@ -194,38 +214,45 @@
     min-height: 0;
     &:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(25, 33, 71, 0.08);
+      box-shadow: 0 8px 24px rgba(25, 33, 71, 0.1);
       border-color: @core-vibrant-blue-25;
       text-decoration: none;
       color: @core-fleet-black;
     }
     [purpose='stack-card-icon'] {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
       background: @core-vibrant-blue-10;
       color: @core-vibrant-blue;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 4px;
       svg {
-        width: 18px;
-        height: 18px;
+        width: 20px;
+        height: 20px;
       }
     }
     [purpose='stack-card-title'] {
       color: @core-fleet-black;
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 700;
       line-height: @heading-lineheight;
     }
     [purpose='stack-card-text'] {
       color: @core-fleet-black-75;
-      font-size: 13px;
+      font-size: 13.5px;
       font-weight: 400;
       line-height: 1.55;
       flex: 1;
+      code {
+        font-family: @code-font;
+        font-size: 12px;
+        background: @core-vibrant-blue-10;
+        color: @core-vibrant-blue;
+        padding: 1px 5px;
+        border-radius: 4px;
+      }
     }
     [purpose='stack-card-vendors'] {
       display: flex;
@@ -237,7 +264,7 @@
       width: 100%;
       span {
         font-size: 11px;
-        font-weight: 500;
+        font-weight: 600;
         color: @core-fleet-black-75;
         background: @core-fleet-black-5;
         padding: 3px 8px;
@@ -248,21 +275,24 @@
   }
 
   [purpose='stack-card-fleet'] {
+    position: relative;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 24px;
-    border-radius: 12px;
-    border: 2px dashed @core-vibrant-blue-25;
+    padding: 28px 24px;
+    border-radius: 14px;
+    border: 1px solid @core-vibrant-blue-25;
     background: linear-gradient(135deg, #F7F6FF 0%, #EDF7FF 100%);
+    box-shadow: 0 12px 40px rgba(106, 103, 254, 0.18), 0 2px 8px rgba(25, 33, 71, 0.05);
     text-align: center;
-    gap: 12px;
+    gap: 14px;
     img {
-      max-height: 48px;
+      max-height: 44px;
       width: auto;
     }
-    p {
+    [purpose='fleet-tagline'] {
       color: @core-fleet-black-75;
       font-family: 'Roboto Mono';
       font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
@@ -270,12 +300,63 @@
       font-weight: 400;
       line-height: @text-lineheight;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
+    }
+    [purpose='fleet-pillars'] {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      padding-top: 12px;
+      width: 100%;
+      border-top: 1px solid @core-vibrant-blue-25;
+      span {
+        font-size: 11px;
+        font-weight: 700;
+        color: @core-vibrant-blue;
+        background: #fff;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid @core-vibrant-blue-25;
+      }
     }
   }
 
 
-  // ── DETAILS WRAP (holds sticky nav + 8 sections) ───────
+  // ── DIVE DEEPER DIVIDER ────────────────────────────────
+  [purpose='dive-deeper-divider'] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    align-self: stretch;
+    text-align: center;
+    padding: 8px 0;
+    [purpose='divider-label'] {
+      display: inline-block;
+      color: @core-vibrant-blue;
+      font-feature-settings: 'salt' on, 'ss01' on, 'ss02' on;
+      font-family: 'Roboto Mono';
+      font-size: 12px;
+      font-weight: 600;
+      line-height: @text-lineheight;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 4px 14px;
+      background: @core-vibrant-blue-10;
+      border-radius: 999px;
+    }
+    p {
+      color: @core-fleet-black-75;
+      font-size: 15px;
+      font-weight: 400;
+      line-height: @text-lineheight;
+      max-width: 620px;
+    }
+  }
+
+
+  // ── DETAILS WRAP (sticky pill-nav + 8 sections) ────────
   [purpose='details-wrap'] {
     display: flex;
     flex-direction: column;
@@ -673,13 +754,24 @@
     }
     [purpose='stack-hub'] {
       grid-template-columns: repeat(2, 1fr);
+      background: none;
+    }
+    [purpose='stack-connectors-svg'] {
+      display: none;
     }
     [purpose='stack-card-fleet'] {
       grid-column: 1 / -1;
       flex-direction: row;
       padding: 20px 24px;
-      p {
+      gap: 20px;
+      [purpose='fleet-tagline'] {
         text-align: left;
+      }
+      [purpose='fleet-pillars'] {
+        border-top: none;
+        border-left: 1px solid @core-vibrant-blue-25;
+        padding-top: 0;
+        padding-left: 16px;
       }
     }
     [purpose='primitive-cards'] {
@@ -726,6 +818,18 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
       &::-webkit-scrollbar { display: none; }
+    }
+    [purpose='stack-card-fleet'] {
+      flex-direction: column;
+      [purpose='fleet-pillars'] {
+        border-top: 1px solid @core-vibrant-blue-25;
+        border-left: none;
+        padding-top: 12px;
+        padding-left: 0;
+      }
+      [purpose='fleet-tagline'] {
+        text-align: center;
+      }
     }
     [purpose='cross-link'] {
       padding: 28px;

@@ -1,6 +1,6 @@
 {
   "alt-require": true,
-  "attr-lowercase": ["viewBox"],
+  "attr-lowercase": ["viewBox", "preserveAspectRatio"],
   "attr-no-duplication": true,
   "attr-unsafe-chars": true,
   "attr-value-double-quotes": true,

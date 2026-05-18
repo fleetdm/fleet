@@ -40,20 +40,33 @@
       </div>
 
 
-      <%// ─── THE STACK HUB ───────────────────────────────────── %>
+      <%// ─── THE FLEET ECOSYSTEM MAP ─────────────────────────── %>
       <div purpose="landing-page-section" id="stack-hub">
         <div purpose="section-heading">
-          <h4>Fleet at the center</h4>
+          <h4>The Fleet ecosystem</h4>
           <h2>Connects the tools your team already uses</h2>
           <p>Fleet sits at the middle of your IT and security stack, sharing real device truth with every layer of your infrastructure. Choose a category below to see how Fleet fits in.</p>
         </div>
         <div purpose="stack-hub">
+
+          <%// SVG connector spokes drawn behind the cards %>
+          <svg purpose="stack-connectors-svg" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="150" y1="150" x2="50" y2="50"/>
+            <line x1="150" y1="150" x2="150" y2="50"/>
+            <line x1="150" y1="150" x2="250" y2="50"/>
+            <line x1="150" y1="150" x2="50" y2="150"/>
+            <line x1="150" y1="150" x2="250" y2="150"/>
+            <line x1="150" y1="150" x2="50" y2="250"/>
+            <line x1="150" y1="150" x2="150" y2="250"/>
+            <line x1="150" y1="150" x2="250" y2="250"/>
+          </svg>
+
           <a href="#gitops" purpose="stack-card">
             <div purpose="stack-card-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></svg>
             </div>
             <p purpose="stack-card-title">GitOps and CI/CD</p>
-            <p purpose="stack-card-text">Manage device config like code: versioned, peer-reviewed, and instantly rollback-able.</p>
+            <p purpose="stack-card-text">Apply Fleet config from your CI/CD pipeline with <code>fleetctl gitops</code>. Every change peer-reviewed and reversible.</p>
             <div purpose="stack-card-vendors">
               <span>GitHub Actions</span><span>GitLab CI</span><span>fleetctl</span>
             </div>
@@ -64,7 +77,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
             <p purpose="stack-card-title">SIEM and data lakes</p>
-            <p purpose="stack-card-text">Stream endpoint telemetry to your SIEM for threat detection, correlation, and investigation.</p>
+            <p purpose="stack-card-text">Stream osquery results and CVE data to your SIEM via Firehose, Kinesis, Kafka, or PubSub.</p>
             <div purpose="stack-card-vendors">
               <span>Splunk</span><span>Snowflake</span><span>Elastic</span><span>Chronicle</span>
             </div>
@@ -75,7 +88,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
             </div>
             <p purpose="stack-card-title">Ticketing and ITSM</p>
-            <p purpose="stack-card-text">Auto-create tickets for CVEs and policy failures so remediation is tracked, not forgotten.</p>
+            <p purpose="stack-card-text">Open Jira or ServiceNow tickets automatically when Fleet detects new CVEs or policy failures.</p>
             <div purpose="stack-card-vendors">
               <span>Jira</span><span>ServiceNow</span><span>Zendesk</span><span>Webhooks</span>
             </div>
@@ -86,7 +99,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             </div>
             <p purpose="stack-card-title">SOAR and automation</p>
-            <p purpose="stack-card-text">Trigger no-code playbooks when devices drift, go offline, or new vulnerabilities appear.</p>
+            <p purpose="stack-card-text">Fire webhooks to Tines, Torq, or Swimlane when devices drift, go offline, or fail policies.</p>
             <div purpose="stack-card-vendors">
               <span>Tines</span><span>Torq</span><span>Swimlane</span>
             </div>
@@ -94,7 +107,10 @@
 
           <div purpose="stack-card-fleet">
             <img alt="Fleet" src="/images/fleet-logo-black-118x40@2x.png">
-            <p>at the center of your stack</p>
+            <p purpose="fleet-tagline">powers your IT stack</p>
+            <div purpose="fleet-pillars">
+              <span>Open APIs</span><span>GitOps</span><span>Self-hosted</span>
+            </div>
           </div>
 
           <a href="#config-management" purpose="stack-card">
@@ -102,7 +118,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </div>
             <p purpose="stack-card-title">Configuration management</p>
-            <p purpose="stack-card-text">Fleet detects drift, your CM tool remediates it. A closed loop from visibility to enforcement.</p>
+            <p purpose="stack-card-text">Fleet sees the drift, your CM tool fixes it, Fleet verifies the fix. A closed loop.</p>
             <div purpose="stack-card-vendors">
               <span>Ansible</span><span>Puppet</span><span>Chef</span><span>Salt</span><span>Munki</span>
             </div>
@@ -113,7 +129,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
             </div>
             <p purpose="stack-card-title">Cloud and infrastructure</p>
-            <p purpose="stack-card-text">Run Fleet in your cloud, on-prem, or air-gapped. Same features everywhere, zero lock-in.</p>
+            <p purpose="stack-card-text">Run Fleet in your AWS, Azure, or GCP account, or fully on-prem. Same features everywhere.</p>
             <div purpose="stack-card-vendors">
               <span>AWS</span><span>Azure</span><span>GCP</span><span>On-prem</span>
             </div>
@@ -124,7 +140,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M12 12v.01"/></svg>
             </div>
             <p purpose="stack-card-title">Asset management and compliance</p>
-            <p purpose="stack-card-text">Sync live device data into ITAM and compliance tools. Automate audit evidence collection.</p>
+            <p purpose="stack-card-text">Push live host data to Vanta, Oomnitza, or runZero. ITAM and audit evidence stay current.</p>
             <div purpose="stack-card-vendors">
               <span>Vanta</span><span>Oomnitza</span><span>Adaptive Shield</span><span>runZero</span>
             </div>
@@ -135,7 +151,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15c-3 0-6 1.5-6 3v1h12v-1c0-1.5-3-3-6-3z"/><circle cx="12" cy="9" r="3"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
             </div>
             <p purpose="stack-card-title">Identity and access</p>
-            <p purpose="stack-card-text">Sign in to Fleet with corporate SSO, and feed real-time device posture into your access decisions.</p>
+            <p purpose="stack-card-text">Sign in via SAML SSO. Share Fleet's real-time device posture with your IdP for conditional access.</p>
             <div purpose="stack-card-vendors">
               <span>Okta</span><span>Active Directory</span><span>Entra ID</span><span>Any SAML IdP</span>
             </div>
@@ -144,7 +160,14 @@
       </div>
 
 
-      <%// ─── DETAIL SECTIONS (sticky pill-nav + 8 sections) ── %>
+      <%// ─── DIVE DEEPER DIVIDER ─────────────────────────────── %>
+      <div purpose="dive-deeper-divider">
+        <span purpose="divider-label">Optional deep dive</span>
+        <p>The map above is the big picture. The sections below walk through top use cases and how it works, one category at a time. Skip ahead by clicking a tile, or read straight through.</p>
+      </div>
+
+
+      <%// ─── DETAIL SECTIONS (sticky pill-nav + 8 sections) ─── %>
       <div purpose="details-wrap">
 
         <div purpose="detail-nav-wrap">
@@ -187,7 +210,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet validates the configuration and rolls it out to targeted hosts, with full version history.</p></div>
           </div>
         </div>
-        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
+        <a purpose="back-to-overview" href="#stack-hub">Back to ecosystem map</a>
       </div>
 
 
@@ -219,7 +242,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>Build dashboards, alerts, and detection rules alongside the rest of your security telemetry.</p></div>
           </div>
         </div>
-        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
+        <a purpose="back-to-overview" href="#stack-hub">Back to ecosystem map</a>
       </div>
 
 
@@ -250,7 +273,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>Outbound webhooks fire on CVE detection, policy failure, or host status changes. No polling needed.</p></div>
           </div>
         </div>
-        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
+        <a purpose="back-to-overview" href="#stack-hub">Back to ecosystem map</a>
       </div>
 
 
@@ -281,7 +304,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet's REST API supports bidirectional communication, so your SOAR can query Fleet and trigger actions programmatically.</p></div>
           </div>
         </div>
-        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
+        <a purpose="back-to-overview" href="#stack-hub">Back to ecosystem map</a>
       </div>
 
 
@@ -313,7 +336,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>CM tools deploy <code>fleetd</code> through their package workflows (cookbooks, playbooks, manifests).</p></div>
           </div>
         </div>
-        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
+        <a purpose="back-to-overview" href="#stack-hub">Back to ecosystem map</a>
       </div>
 
 
@@ -344,7 +367,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>IaC support through Terraform modules and Helm charts means Fleet follows the same GitOps workflow as the rest of your stack.</p></div>
           </div>
         </div>
-        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
+        <a purpose="back-to-overview" href="#stack-hub">Back to ecosystem map</a>
       </div>
 
 
@@ -376,7 +399,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>Connect Vanta to Fleet in a few clicks from the Fleet UI, no custom scripting required.</p></div>
           </div>
         </div>
-        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
+        <a purpose="back-to-overview" href="#stack-hub">Back to ecosystem map</a>
       </div>
 
 
@@ -408,7 +431,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>SAML-based SSO uses standard protocols. No custom connectors required.</p></div>
           </div>
         </div>
-        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
+        <a purpose="back-to-overview" href="#stack-hub">Back to ecosystem map</a>
       </div>
 
       </div><%// /details-wrap %>

@@ -48,8 +48,8 @@ parasails.registerPage('how-fleet-fits-your-stack', {
     window.addEventListener('scroll', onScroll, { passive: true });
     setActive();
 
-    // Smooth-scroll for all in-page anchor links on this page (hub cards,
-    // pill-nav, and "back to overview" links).
+    // Smooth-scroll for in-page anchor links (ecosystem-map tile clicks,
+    // pill-nav, and "back to ecosystem map" links).
     let hashLinks = Array.from(document.querySelectorAll('#how-fleet-fits-your-stack a[href^="#"]'));
     hashLinks.forEach((link) => {
       link.addEventListener('click', (event) => {
