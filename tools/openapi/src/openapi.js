@@ -50,8 +50,15 @@ function mapParameterSchema(rawType) {
 function buildParameters(parsedParams, endpointSpec) {
   /** @type {any[]} */
   const out = [];
+  // OpenAPI requires (in, name) to be unique across an operation's parameters.
+  // The manifest's pathParameters and the Markdown table can overlap once
+  // path-templated endpoints (e.g. `Get host`) are added — dedupe defensively.
+  const seen = new Set();
 
   for (const pp of endpointSpec.pathParameters || []) {
+    const key = `path:${pp.name}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     out.push({
       name: pp.name,
       in: 'path',
@@ -71,6 +78,9 @@ function buildParameters(parsedParams, endpointSpec) {
       );
       continue;
     }
+    const key = `${where}:${p.name}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     out.push({
       name: p.name,
       in: where,

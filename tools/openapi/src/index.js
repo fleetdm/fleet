@@ -40,11 +40,15 @@ function parseArgs(argv) {
         break;
       case '--out':
         args.out = argv[++i];
-        if (!args.out) throw new Error('--out requires a path');
+        if (!args.out || args.out.startsWith('-')) {
+          throw new Error('--out requires a path');
+        }
         break;
       case '--markdown':
         args.markdown = argv[++i];
-        if (!args.markdown) throw new Error('--markdown requires a path');
+        if (!args.markdown || args.markdown.startsWith('-')) {
+          throw new Error('--markdown requires a path');
+        }
         break;
       case '-h':
       case '--help':
