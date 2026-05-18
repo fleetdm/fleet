@@ -25,12 +25,6 @@ import (
 	smallstepscep "github.com/smallstep/scep"
 )
 
-// WindowsMDMSCEPAlertType is the OMA-DM Alert <Type> emitted by real Windows MDM clients to
-// report the outcome of an asynchronous SCEP CertificateInstall to the MDM server. Fleet's
-// processGenericAlert ignores it (only unenrollment alerts are acted on), so this is for
-// parity with real-client traffic and for visibility in server logs.
-const WindowsMDMSCEPAlertType = "com.microsoft:mdm.SCEP"
-
 // SCEPCommand describes a single SCEP CertificateInstall CSP that the test client received.
 // Returned by ExtractSCEPCommands. All fields except UniqueID may be empty if the corresponding
 // CSP node was not present.
@@ -254,7 +248,6 @@ func (c *TestWindowsMDMClient) AppendSCEPInstallResponses(
 		go func(sc SCEPCommand) {
 			defer wg.Done()
 			cert, err := c.RunSCEP(ctx, sc, logger)
-			c.queueSCEPAlert(sc, err)
 			out <- SCEPResult{UniqueID: sc.UniqueID, Cert: cert, Err: err}
 		}(sc)
 	}
@@ -363,58 +356,6 @@ func (c *TestWindowsMDMClient) RunSCEP(ctx context.Context, sc SCEPCommand, logg
 		return nil, errors.New("scep response contained no certificate")
 	}
 	return pkiResp.CertRepMessage.Certificate, nil
-}
-
-// queueSCEPAlert builds a generic Alert reporting the SCEP outcome and stages it on the test
-// client. The alert is flushed on the next SendResponse.
-func (c *TestWindowsMDMClient) queueSCEPAlert(sc SCEPCommand, scepErr error) {
-	status := "success"
-	if scepErr != nil {
-		status = "failure"
-	}
-	typeContent := WindowsMDMSCEPAlertType
-	formatContent := "chr"
-	data := fmt.Sprintf(`{"unique_id":%q,"status":%q}`, sc.UniqueID, status)
-
-	alert := fleet.SyncMLCmd{
-		XMLName: xml.Name{Local: fleet.CmdAlert},
-		CmdID:   fleet.CmdID{Value: uuid.NewString()},
-		Data:    ptr.String(syncml.CmdAlertGeneric),
-		Items: []fleet.CmdItem{{
-			Meta: &fleet.Meta{
-				Type:   &fleet.MetaAttr{XMLNS: syncml.SyncMLMetaNamespace, Content: ptr.String(typeContent)},
-				Format: &fleet.MetaAttr{XMLNS: syncml.SyncMLMetaNamespace, Content: ptr.String(formatContent)},
-			},
-			Data: &fleet.RawXmlData{Content: data},
-		}},
-	}
-
-	c.pendingAlertsMu.Lock()
-	c.pendingAlerts = append(c.pendingAlerts, alert)
-	c.pendingAlertsMu.Unlock()
-}
-
-// takePendingAlerts removes and returns any alerts queued by async helpers.
-func (c *TestWindowsMDMClient) takePendingAlerts() []fleet.SyncMLCmd {
-	c.pendingAlertsMu.Lock()
-	defer c.pendingAlertsMu.Unlock()
-	if len(c.pendingAlerts) == 0 {
-		return nil
-	}
-	out := c.pendingAlerts
-	c.pendingAlerts = nil
-	return out
-}
-
-// requeuePendingAlerts puts alerts back at the head of the queue so a failed SendResponse can be
-// retried on the next sync without losing the post-SCEP-completion alert.
-func (c *TestWindowsMDMClient) requeuePendingAlerts(alerts []fleet.SyncMLCmd) {
-	if len(alerts) == 0 {
-		return
-	}
-	c.pendingAlertsMu.Lock()
-	defer c.pendingAlertsMu.Unlock()
-	c.pendingAlerts = append(alerts, c.pendingAlerts...)
 }
 
 func newStatusCmd(msgID, cmdRef, cmd, status string) fleet.SyncMLCmd {

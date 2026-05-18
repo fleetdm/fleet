@@ -8299,8 +8299,7 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 		}
 		require.Equal(t, wantProfiles, atomicCmds)
 
-		// Drain SCEP results and assert success. Each successful exchange queues an Alert that will
-		// be flushed on the next sync (see follow-up StartManagementSession below).
+		// Drain SCEP results and assert success.
 		scepCount := 0
 		for res := range scepResults {
 			scepCount++
@@ -8368,29 +8367,6 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 
 	scepCount := verifyCommands(1, syncml.CmdStatusOK)
 	require.Equal(t, 1, scepCount, "SCEP exchange should have run exactly once")
-
-	// Run a follow-up sync to flush the post-SCEP Alert. A real Windows client initiates a new
-	// session after async cert install completes; here we simulate the same flow. The server will
-	// return only its 2 protocol acks (no new commands), so we just SendResponse to push the alert.
-	cmds2, err := mdmDevice.StartManagementSession()
-	require.NoError(t, err)
-	msgID2, err := mdmDevice.GetCurrentMsgID()
-	require.NoError(t, err)
-	for _, c := range cmds2 {
-		if c.Verb == fleet.CmdStatus {
-			continue
-		}
-		mdmDevice.AppendResponse(fleet.SyncMLCmd{
-			XMLName: xml.Name{Local: fleet.CmdStatus},
-			MsgRef:  &msgID2,
-			CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-			Cmd:     ptr.String(c.Verb),
-			Data:    ptr.String(syncml.CmdStatusOK),
-			CmdID:   fleet.CmdID{Value: uuid.NewString()},
-		})
-	}
-	_, err = mdmDevice.SendResponse()
-	require.NoError(t, err)
 
 	// Verify profile status is Verified due to successful response
 	profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
@@ -8477,29 +8453,6 @@ func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 			}
 			require.Equal(t, 1, scepCount, "expected one SCEP exchange against the hardcoded URL")
 
-			_, err = mdmDevice.SendResponse()
-			require.NoError(t, err)
-
-			// Run a follow-up sync to flush the post-SCEP completion Alert (queued by
-			// AppendSCEPInstallResponses). A real Windows client initiates a new session after async
-			// cert install; here we mimic the same flow so the alert-after-exchange path is exercised.
-			cmds2, err := mdmDevice.StartManagementSession()
-			require.NoError(t, err)
-			msgID2, err := mdmDevice.GetCurrentMsgID()
-			require.NoError(t, err)
-			for _, c := range cmds2 {
-				if c.Verb == fleet.CmdStatus {
-					continue
-				}
-				mdmDevice.AppendResponse(fleet.SyncMLCmd{
-					XMLName: xml.Name{Local: fleet.CmdStatus},
-					MsgRef:  &msgID2,
-					CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-					Cmd:     ptr.String(c.Verb),
-					Data:    ptr.String(syncml.CmdStatusOK),
-					CmdID:   fleet.CmdID{Value: uuid.NewString()},
-				})
-			}
 			_, err = mdmDevice.SendResponse()
 			require.NoError(t, err)
 

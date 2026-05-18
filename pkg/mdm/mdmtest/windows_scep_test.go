@@ -3,7 +3,6 @@ package mdmtest
 import (
 	"context"
 	"encoding/xml"
-	"errors"
 	"log/slog"
 	"strings"
 	"testing"
@@ -102,33 +101,6 @@ func TestSCEPInstallPathHandlesIndentedLocURI(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "abc", p.UniqueID)
 	assert.Equal(t, "ServerURL", p.Field)
-}
-
-func TestSendResponseFlushesPendingAlertWhenQueueEmpty(t *testing.T) {
-	c := &TestWindowsMDMClient{}
-	c.queueSCEPAlert(SCEPCommand{UniqueID: "abc"}, nil)
-
-	// Mimic what AppendSCEPInstallResponses needs: pendingAlerts present, queuedCommandResponses empty.
-	// SendResponse usually requires lastManagementResp to be populated; we only call takePendingAlerts
-	// here to confirm the queue contents survive until drain time.
-	got := c.takePendingAlerts()
-	require.Len(t, got, 1)
-	assert.Equal(t, fleet.CmdAlert, got[0].XMLName.Local)
-	require.Len(t, got[0].Items, 1)
-	require.NotNil(t, got[0].Items[0].Data)
-	assert.Contains(t, got[0].Items[0].Data.Content, `"unique_id":"abc"`)
-	assert.Contains(t, got[0].Items[0].Data.Content, `"status":"success"`)
-
-	// Subsequent calls return empty.
-	assert.Empty(t, c.takePendingAlerts())
-}
-
-func TestQueueSCEPAlertReportsFailureStatus(t *testing.T) {
-	c := &TestWindowsMDMClient{}
-	c.queueSCEPAlert(SCEPCommand{UniqueID: "xyz"}, errors.New("boom"))
-	alerts := c.takePendingAlerts()
-	require.Len(t, alerts, 1)
-	assert.Contains(t, alerts[0].Items[0].Data.Content, `"status":"failure"`)
 }
 
 func TestParseSCEPSubject(t *testing.T) {

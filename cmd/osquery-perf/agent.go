@@ -1544,7 +1544,7 @@ func (a *agent) runWindowsMDMLoop() {
 		}
 
 		// Detect SCEP CertificateInstall CSPs and ACK them now while kicking off the SCEP exchange in the background.
-		// The helper queues a follow-up Alert that will piggyback on the next SendResponse once SCEP completes.
+		// Results are drained from the channel to drive the per-CSP success/error counters.
 		scepCtx, cancelSCEP := context.WithTimeout(context.Background(), 2*a.MDMCheckInInterval)
 		handled, scepResults := a.winMDMClient.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
 		if len(handled) > 0 {

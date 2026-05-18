@@ -92,9 +92,7 @@ func (d *noopCertDepot) Put(_ string, _ *x509.Certificate) error {
 // touching any on-disk depot. Each issued cert gets a unique serial derived from a counter so
 // the signer is safe under concurrent calls.
 //
-// The signer does not validate the SCEP challenge: tests that rely on Fleet's SCEP proxy do
-// challenge enforcement at the proxy layer (via ConsumeChallenge); tests that hit this server
-// directly use whatever challenge the profile carried.
+// The signer does not validate the SCEP challenge.
 func newInMemorySigner(caCert *x509.Certificate, caKey *rsa.PrivateKey) scepserver.CSRSignerContextFunc {
 	var counter atomic.Int64
 	return func(_ context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
@@ -108,9 +106,6 @@ func newInMemorySigner(caCert *x509.Certificate, caKey *rsa.PrivateKey) scepserv
 			KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 			BasicConstraintsValid: true,
-			// Leave SignatureAlgorithm zero so x509.CreateCertificate picks one matching the CA key
-			// type. The CSR's algorithm describes how the requester signed the CSR, not how the CA
-			// should sign the issued cert; copying it across can mismatch the CA key.
 		}
 		der, err := x509.CreateCertificate(cryptorand.Reader, tpl, caCert, m.CSR.PublicKey, caKey)
 		if err != nil {
