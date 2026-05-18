@@ -1099,6 +1099,7 @@ func PlatformSupportsOsquery(platform string) bool {
 var HostLinuxOSs = []string{
 	"linux",
 	"ubuntu",
+	"zorin",
 	"debian",
 	"rhel",
 	"centos",
@@ -1141,6 +1142,7 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 var HostDebPackageOSs = map[string]struct{}{
 	"linux":     {}, // let DEBs through if we're looking at a generic Linux host
 	"ubuntu":    {},
+	"zorin":     {},
 	"debian":    {},
 	"kali":      {},
 	"pop":       {},

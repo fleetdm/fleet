@@ -66,6 +66,20 @@ func getMajorMinorVer(osVersion string) (string, string) {
 }
 
 func format(platform string, major string, minor string) string {
+	if platform == "zorin" {
+		// Zorin OS is Ubuntu-based; map to the underlying Ubuntu LTS OVAL feed.
+		// Unknown future versions fall through to "zorin_<major>", which
+		// IsSupported() rejects so vuln scanning is skipped rather than served
+		// stale data from an aging LTS feed.
+		switch major {
+		case "16":
+			return "ubuntu_2004"
+		case "17":
+			return "ubuntu_2204"
+		case "18":
+			return "ubuntu_2404"
+		}
+	}
 	if platform == "ubuntu" {
 		return fmt.Sprintf("%s_%s%s", platform, major, minor)
 	}
