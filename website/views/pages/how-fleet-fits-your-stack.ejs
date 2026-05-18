@@ -41,7 +41,7 @@
 
 
       <%// ─── THE STACK HUB ───────────────────────────────────── %>
-      <div purpose="landing-page-section">
+      <div purpose="landing-page-section" id="stack-hub">
         <div purpose="section-heading">
           <h4>Fleet at the center</h4>
           <h2>Connects the tools your team already uses</h2>
@@ -144,6 +144,23 @@
       </div>
 
 
+      <%// ─── DETAIL SECTIONS (sticky pill-nav + 8 sections) ── %>
+      <div purpose="details-wrap">
+
+        <div purpose="detail-nav-wrap">
+          <div purpose="detail-nav">
+            <a href="#gitops" data-target="gitops">GitOps</a>
+            <a href="#siem" data-target="siem">SIEM</a>
+            <a href="#ticketing" data-target="ticketing">Ticketing</a>
+            <a href="#soar" data-target="soar">SOAR</a>
+            <a href="#config-management" data-target="config-management">Configuration</a>
+            <a href="#cloud" data-target="cloud">Cloud</a>
+            <a href="#asset-management" data-target="asset-management">Asset mgmt</a>
+            <a href="#identity" data-target="identity">Identity</a>
+          </div>
+        </div>
+
+
       <%// ─── DETAIL: GITOPS ──────────────────────────────────── %>
       <div purpose="detail-section" id="gitops">
         <div purpose="detail-heading">
@@ -170,6 +187,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet validates the configuration and rolls it out to targeted hosts, with full version history.</p></div>
           </div>
         </div>
+        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
       </div>
 
 
@@ -201,6 +219,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>Build dashboards, alerts, and detection rules alongside the rest of your security telemetry.</p></div>
           </div>
         </div>
+        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
       </div>
 
 
@@ -231,6 +250,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>Outbound webhooks fire on CVE detection, policy failure, or host status changes. No polling needed.</p></div>
           </div>
         </div>
+        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
       </div>
 
 
@@ -261,6 +281,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet's REST API supports bidirectional communication, so your SOAR can query Fleet and trigger actions programmatically.</p></div>
           </div>
         </div>
+        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
       </div>
 
 
@@ -292,6 +313,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>CM tools deploy <code>fleetd</code> through their package workflows (cookbooks, playbooks, manifests).</p></div>
           </div>
         </div>
+        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
       </div>
 
 
@@ -322,6 +344,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>IaC support through Terraform modules and Helm charts means Fleet follows the same GitOps workflow as the rest of your stack.</p></div>
           </div>
         </div>
+        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
       </div>
 
 
@@ -353,6 +376,7 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>Connect Vanta to Fleet in a few clicks from the Fleet UI, no custom scripting required.</p></div>
           </div>
         </div>
+        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
       </div>
 
 
@@ -384,7 +408,10 @@
             <div purpose="how-step"><span purpose="how-dot"></span><p>SAML-based SSO uses standard protocols. No custom connectors required.</p></div>
           </div>
         </div>
+        <a purpose="back-to-overview" href="#stack-hub">Back to overview</a>
       </div>
+
+      </div><%// /details-wrap %>
 
 
       <%// ─── BUILD WITH FLEET PRIMITIVES ─────────────────────── %>
