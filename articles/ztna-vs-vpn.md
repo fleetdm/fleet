@@ -81,11 +81,11 @@ Both VPN and ZTNA require network connectivity to function, and ZTNA's ongoing v
 
 ### How does device posture checking affect ZTNA performance?
 
-Ongoing posture verification introduces some latency from policy evaluation, but this is typically offset by eliminating VPN backhaul routing for cloud applications. The net performance impact depends on your specific access patterns. Organizations with significant cloud application usage often see improved latency despite posture checking overhead. Fleet's [conditional access guide](https://fleetdm.com/guides/conditional-access) walks through configuring device compliance checks that feed directly into your identity provider. [Try Fleet](https://fleetdm.com/contact) to see how Fleet handles conditional access across macOS, Windows, and Linux.
+Ongoing posture verification introduces some latency from policy evaluation, but this is typically offset by eliminating VPN backhaul routing for cloud applications. The net performance impact depends on your specific access patterns. Organizations with significant cloud application usage often see improved latency despite posture checking overhead. Fleet's [conditional access guide](https://fleetdm.com/guides/conditional-access) walks through configuring device compliance checks that feed directly into your identity provider. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet handles conditional access across macOS, Windows, and Linux.
 
 <meta name="articleTitle" value="ZTNA vs VPN: choosing the right access model for your organization">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-05-08">
 <meta name="description" value="Compare ZTNA and VPN architectures, when each model fits your environment, and how device posture verification shapes modern access decisions.">
