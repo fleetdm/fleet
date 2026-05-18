@@ -5794,7 +5794,7 @@ The live query will stop if the targeted host is offline, or if the query times 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
 
 
-## Bypass host's conditional access
+### Bypass host's conditional access
 
 Grant a blocked host access for a single login. Requires Okta conditional access configured with bypass enabled.
 
@@ -5815,7 +5815,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `Status: 200` 
 
-## Clear iOS/iPadOS host passcode
+### Clear host passcode
 
 _Available in Fleet Premium._
 
@@ -5846,9 +5846,9 @@ Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sen
 }
 ```
 
-## Get host's managed account password
+### Get host's managed account password
 
-Retrieves the managed account password for a host.
+Retrieves the managed account password for a macOS host.
 
 The host will only return a password if its managed account password status is "Verified".
 
