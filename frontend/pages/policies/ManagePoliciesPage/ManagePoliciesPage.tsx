@@ -1097,14 +1097,16 @@ const ManagePolicyPage = ({
 
   const renderAutomationFilter = isPremiumTier
     ? () => {
-        // Hide dropdown if there are errors OR there are no policy results with no filters (search or automation dropdown)
-        const hide =
-          policiesErrors ||
-          (!policyResults && searchQuery === "" && !automationFilter);
-
-        if (hide) {
+        // Hide dropdown only on errors
+        if (policiesErrors) {
           return null;
         }
+
+        const policiesCount = isAllTeamsSelected
+          ? globalPoliciesCount
+          : teamPoliciesCountMergeInherited;
+        const isTrulyEmpty =
+          (policiesCount ?? 0) === 0 && searchQuery === "" && !automationFilter;
 
         // No team ID = All fleets → only show "all" and "other" options
         const optionsForTeam = teamIdForApi
@@ -1122,6 +1124,7 @@ const ManagePolicyPage = ({
             placeholder="Filter by automation"
             options={optionsForTeam}
             variant="table-filter"
+            isDisabled={isTrulyEmpty}
           />
         );
       }

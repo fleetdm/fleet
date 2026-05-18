@@ -158,7 +158,7 @@ const PoliciesTable = ({
         searchable
         disableSearch={isTrulyEmpty}
         disableActionButton={isTrulyEmpty}
-        customControl={!isTrulyEmpty ? customControl : undefined}
+        customControl={customControl}
       />
     </div>
   );

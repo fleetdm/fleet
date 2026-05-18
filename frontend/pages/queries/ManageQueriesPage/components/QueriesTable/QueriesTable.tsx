@@ -19,7 +19,6 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
 
 import generateColumnConfigs from "./QueriesTableConfig";
@@ -243,19 +242,6 @@ const QueriesTable = ({
     }
   };
 
-  const renderPlatformDropdown = useCallback(() => {
-    return (
-      <DropdownWrapper
-        name="platform-dropdown"
-        value={curTargetedPlatformFilter}
-        className={`${baseClass}__platform-dropdown`}
-        options={PLATFORM_FILTER_OPTIONS}
-        onChange={handlePlatformFilterDropdownChange}
-        variant="table-filter"
-      />
-    );
-  }, [curTargetedPlatformFilter, handlePlatformFilterDropdownChange]);
-
   const columnConfigs = useMemo(
     () =>
       currentUser &&
@@ -269,6 +255,24 @@ const QueriesTable = ({
 
   const isTrulyEmpty =
     (totalQueriesCount ?? 0) === 0 && !targetedPlatformParam && !searchQuery;
+
+  const renderPlatformDropdown = useCallback(() => {
+    return (
+      <DropdownWrapper
+        name="platform-dropdown"
+        value={curTargetedPlatformFilter}
+        className={`${baseClass}__platform-dropdown`}
+        options={PLATFORM_FILTER_OPTIONS}
+        onChange={handlePlatformFilterDropdownChange}
+        variant="table-filter"
+        isDisabled={isTrulyEmpty}
+      />
+    );
+  }, [
+    curTargetedPlatformFilter,
+    handlePlatformFilterDropdownChange,
+    isTrulyEmpty,
+  ]);
 
   const trimmedSearchQuery = searchQuery.trim();
 
@@ -303,8 +307,7 @@ const QueriesTable = ({
           onQueryChange={onQueryChange}
           searchable
           disableSearch={isTrulyEmpty}
-          disableActionButton={isTrulyEmpty}
-          customControl={!isTrulyEmpty ? renderPlatformDropdown : undefined}
+          customControl={renderPlatformDropdown}
           disableMultiRowSelect={!curTeamScopeQueriesPresent}
           onClickRow={handleRowSelect}
           selectedDropdownFilter={curTargetedPlatformFilter}
