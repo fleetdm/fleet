@@ -38,7 +38,21 @@ How to connect Fleet to APNs:
 
 > Available in Fleet Premium
 
-Connect Fleet to your AB to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
+Connect Fleet to your ABM to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
+
+### Re-enrolling AB hosts
+
+When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
+  - Cancels pending MDM commands, script runs, and software installs
+  - Clears completed commands, scripts, and software from the previous enrollment
+  - Resets host labels
+
+This means you **do not need to delete** an ABM host from Fleet before 
+re-enrolling it. Fleet handles clearing stale state automatically.
+
+> This automatic state clearing does not apply to hosts undergoing ABM MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+
+### To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token:
 
 1. In Fleet, navigate to the **Settings > Integrations > MDM** page.
 2. Under **Apple Business (AB)**, select **Add AB**.
@@ -75,7 +89,30 @@ When one of your uploaded AB tokens has expired or is within 30 days of expiring
 
 > If no default fleet is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "Unassigned".
 
-> A host can be transferred to a new (not default) fleet before it enrolls. In the Fleet UI, you can do this under **Settings** > **Fleets**.
+ > A host can be transferred to a new (not default) fleet before it enrolls. In the Fleet UI, you can do this under **Settings** > **Fleets**.
+
+### Default automatic enrollment profile
+
+When macOS, iOS, or iPadOS hosts automatically enroll through Apple Business, Fleet sends an automatic enrollment (ADE) profile to Apple that controls how the Setup Assistant behaves. If no custom profile is uploaded for a fleet, Fleet uses a built-in default profile.
+
+The default profile sets options such as whether enrollment is mandatory, which Setup Assistant panes are skipped, and whether the MDM profile is removable. See the [Setup Assistant pane options](https://fleetdm.com/learn-more-about/apple-setup-assistant).
+
+#### Where to view the default profile
+
+- **Fleet UI:** Navigate to **Controls > Setup experience > Setup Assistant**. When no custom profile is uploaded, you can select **Download** to download the default profile JSON that your Fleet instance is currently using.
+- **API:** `GET /api/v1/fleet/enrollment_profiles/automatic/default`
+
+#### Stored once, never auto-refreshed
+
+The default profile is stored once per Fleet instance — at the time of your first automatic enrollment registration with Apple — and is **not** refreshed by Fleet upgrades, by adding or removing AB tokens, or by any other normal operation. This means that even if a newer version of Fleet ships updated default values, existing Fleet instances will continue using the default profile that was originally stored.
+
+#### Updating to Fleet's latest defaults
+
+There is no in-product "reset to latest default" action today. If you want your Fleet instance to use newer default values introduced in a later Fleet release:
+
+1. Check the latest defaults by reviewing the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-default-mdm-setup-enrollment-profile) or by checking a freshly created Fleet instance.
+2. Create a custom enrollment profile JSON containing the desired values. See the [Setup Assistant section of the setup experience guide](https://fleetdm.com/guides/setup-experience#setup-assistant) for instructions on creating and uploading a custom profile.
+3. Upload it via the Fleet UI (**Controls > Setup experience > Setup Assistant > Add profile**) or the [API](https://fleetdm.com/docs/rest-api/rest-api#update-custom-mdm-setup-enrollment-profile).
 
 ## Turn on MDM on a host
 
@@ -218,6 +255,8 @@ To view an AB issue:
 
 2. Select a host and click on the MDM status to view details.
 
+
+> For AB hosts, you do not need to delete the host from Fleet before re-enrolling. Fleet automatically clears pending and completed commands, scripts, software installs, and labels when the host re-enrolls. See [Re-enrolling AB hosts](#re-enrolling-ab-hosts).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
