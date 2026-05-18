@@ -17220,22 +17220,24 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 	require.NoError(t, s.ds.SaveAppConfig(ctx, origAC))
 	t.Cleanup(func() {
 		ac, err := s.ds.AppConfig(ctx)
-		if err != nil {
-			return
-		}
+		require.NoError(t, err)
 		ac.ServerSettings.ServerURL = origServerURL
-		_ = s.ds.SaveAppConfig(ctx, ac)
+		require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
 	})
 
 	const freshToken = "my-device-link-fresh-token"
 	host := createOrbitEnrolledHost(t, "linux", "device-url-host", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, freshToken)
 
+	retrievedActivity := fleet.ActivityTypeRetrievedHostMyDeviceURL{}.ActivityName()
+
 	// Case 1: host has a fresh token → it should be reused as-is.
 	var resp getHostDeviceURLResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusOK, &resp)
 	require.Equal(t, host.ID, resp.HostID)
 	require.Equal(t, "https://fleet.example.com/device/"+freshToken, resp.DeviceURL)
+	// Each successful retrieval logs an audit activity tied to the host.
+	s.lastActivityOfTypeMatches(retrievedActivity, fmt.Sprintf(`"host_id": %d`, host.ID), 0)
 
 	// A second call also reuses the same token (still fresh).
 	var resp2 getHostDeviceURLResponse
@@ -17271,6 +17273,13 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 
 	// Unknown host ID: 404.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID+9999), nil, http.StatusNotFound, &resp)
+
+	// iOS and iPadOS hosts can't use device-token auth, so the endpoint
+	// rejects them with 400 instead of minting an unusable URL.
+	iosHost := createOrbitEnrolledHost(t, "ios", "device-url-ios", s.ds)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", iosHost.ID), nil, http.StatusBadRequest, &resp)
+	ipadHost := createOrbitEnrolledHost(t, "ipados", "device-url-ipad", s.ds)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusBadRequest, &resp)
 
 	// Non-global-admin roles: 403. Switch tokens, then restore admin token at end.
 	defer func() { s.token = s.getTestAdminToken() }()

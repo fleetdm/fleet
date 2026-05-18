@@ -400,13 +400,6 @@ type Datastore interface {
 	// successfully via LoadHostByDeviceAuthToken). Returns a NotFoundError
 	// if the host has no token row or the existing token is expired.
 	GetDeviceAuthTokenIfFresh(ctx context.Context, hostID uint, tokenTTL time.Duration) (string, error)
-	// RotateDeviceAuthToken upserts the host's device auth token to the
-	// given new value and clears previous_token, so any prior link stops
-	// working immediately (no transition window). If no token row exists
-	// for the host, one is created. Used when Fleet itself generates a
-	// "My device" link for an admin and the host either has no token or
-	// has an expired one.
-	RotateDeviceAuthToken(ctx context.Context, hostID uint, newToken string) error
 
 	// FailingPoliciesCount returns the number of failling policies for 'host'
 	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)

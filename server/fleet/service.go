@@ -518,7 +518,12 @@ type Service interface {
 	// HostDeviceURL returns the full "My device" end-user URL for the
 	// specified host, embedding its device auth token. Global admin only —
 	// the URL is effectively a credential to that host's device-user page.
-	// If the host does not yet have a device auth token, one is created.
+	// If the host has no token, or its existing token is expired, a new
+	// token is generated on demand so the returned URL is always valid for
+	// the full TTL window. Each call also logs a
+	// ActivityTypeRetrievedHostMyDeviceURL admin activity for the audit
+	// trail. iOS and iPadOS hosts return a BadRequestError because device
+	// token authentication is not supported on those platforms.
 	HostDeviceURL(ctx context.Context, hostID uint) (string, error)
 
 	// /////////////////////////////////////////////////////////////////////////////

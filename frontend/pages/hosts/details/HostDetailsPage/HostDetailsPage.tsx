@@ -1074,12 +1074,17 @@ const HostDetailsPage = ({
     if (!host) return;
     try {
       const { device_url } = await hostAPI.getDeviceURL(host.id);
-      window.open(device_url, "_blank", "noopener,noreferrer");
+      // window.open returns null when the browser blocks the popup, so an
+      // explicit check is needed — the promise will not reject.
+      const opened = window.open(device_url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        renderFlash(
+          "error",
+          "Couldn't open My device page. Please allow pop-ups and try again."
+        );
+      }
     } catch (e) {
-      renderFlash(
-        "error",
-        "Couldn't open My device page. The host may not have checked in yet."
-      );
+      renderFlash("error", "Couldn't open My device page. Please try again.");
     }
   };
 

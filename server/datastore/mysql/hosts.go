@@ -3025,12 +3025,13 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 // GetDeviceAuthTokenIfFresh returns the host's current device auth token
 // only if its updated_at is within the given TTL. Returns a NotFoundError
 // when the row is missing or the token would be rejected by
-// LoadHostByDeviceAuthToken.
+// LoadHostByDeviceAuthToken. Reads from the primary so admin-issued links
+// see SetOrUpdate/orbit writes immediately (no replica-lag rotations).
 func (ds *Datastore) GetDeviceAuthTokenIfFresh(ctx context.Context, hostID uint, tokenTTL time.Duration) (string, error) {
 	const stmt = `SELECT token FROM host_device_auth WHERE host_id = ? AND updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)` //nolint:gosec // G101 false positive, this is a SQL query
 
 	var token string
-	switch err := sqlx.GetContext(ctx, ds.reader(ctx), &token, stmt, hostID, tokenTTL.Seconds()); {
+	switch err := sqlx.GetContext(ctx, ds.writer(ctx), &token, stmt, hostID, tokenTTL.Seconds()); {
 	case err == nil:
 		return token, nil
 	case errors.Is(err, sql.ErrNoRows):
@@ -3038,29 +3039,6 @@ func (ds *Datastore) GetDeviceAuthTokenIfFresh(ctx context.Context, hostID uint,
 	default:
 		return "", ctxerr.Wrap(ctx, err, "get fresh device auth token")
 	}
-}
-
-// RotateDeviceAuthToken upserts the host's device auth token to the given
-// new value and clears previous_token, so any prior link stops working
-// immediately. updated_at gets bumped by the token change. If no row
-// exists for the host, one is created.
-func (ds *Datastore) RotateDeviceAuthToken(ctx context.Context, hostID uint, newToken string) error {
-	const stmt = `
-		INSERT INTO
-			host_device_auth ( host_id, token )
-		VALUES
-			(?, ?)
-		ON DUPLICATE KEY UPDATE
-			token = VALUES(token),
-			previous_token = NULL
-`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, newToken); err != nil {
-		if IsDuplicate(err) {
-			return fleet.ConflictError{Message: "auth token conflicts with another host"}
-		}
-		return ctxerr.Wrap(ctx, err, "rotate host's device auth token")
-	}
-	return nil
 }
 
 // GetDeviceAuthToken returns the current auth token for a given host.

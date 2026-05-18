@@ -2503,11 +2503,21 @@ const hostDeviceAuthTokenTTL = time.Hour
 
 // HostDeviceURL returns the "My device" page URL for the given host. The
 // returned URL is guaranteed to be valid for the full TTL window:
-//   - If the host already has a fresh token (within TTL), it's reused as-is.
-//   - If the host's token is expired, Fleet generates a new one and replaces
-//     it (clearing previous_token so the old link stops working immediately).
-//   - If the host has never had a token, Fleet creates one — acting in place
-//     of orbit so an admin can always produce a working link.
+//   - If the host already has a fresh token (within TTL), it's reused as-is
+//     so any link the end user is already holding keeps working.
+//   - If the host's token is expired or no row exists yet, Fleet generates
+//     a fresh token and upserts it via SetOrUpdateDeviceAuthToken. That
+//     helper's expiry-aware previous_token logic immediately invalidates
+//     stale links while still tolerating a concurrent orbit check-in
+//     during the brief transition window.
+//
+// Rejects iOS and iPadOS hosts up front because device-token authentication
+// is unsupported on those platforms (AuthenticateDevice errors with
+// "must use certificate authentication"), so an admin-issued URL could
+// never load anyway.
+//
+// Every successful call also emits an ActivityTypeRetrievedHostMyDeviceURL
+// admin activity so the audit trail records who minted the credential.
 //
 // The URL is effectively a credential to act as the device's end user, so
 // access is restricted to global admins regardless of team-scoped
@@ -2533,6 +2543,12 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 		return "", ctxerr.Wrap(ctx, err, "get host for device url")
 	}
 
+	if host.Platform == "ios" || host.Platform == "ipados" {
+		return "", &fleet.BadRequestError{
+			Message: "My device URL is not available for iOS or iPadOS hosts; those platforms use certificate authentication instead.",
+		}
+	}
+
 	// Reuse the existing token if it's still within the TTL — saves us from
 	// invalidating a link a user may already be holding.
 	token, err := svc.ds.GetDeviceAuthTokenIfFresh(ctx, host.ID, hostDeviceAuthTokenTTL)
@@ -2540,16 +2556,15 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 	case err == nil:
 		// fresh token in hand
 	case fleet.IsNotFound(err):
-		// Either no token row exists yet, or the existing one is expired.
-		// Generate a fresh token and upsert it, clearing previous_token.
-		newToken, genErr := server.GenerateRandomURLSafeText(24)
-		if genErr != nil {
-			return "", ctxerr.Wrap(ctx, genErr, "generate new device auth token")
+		// No token row, or existing token is expired. Generate a new one
+		// and upsert via the same helper orbit uses on its check-in. The
+		// host_device_auth.token column is UNIQUE — defend against the
+		// (vanishingly rare) random collision by checking for an existing
+		// row with the same token on a different host before upserting.
+		token, err = svc.mintHostDeviceAuthToken(ctx, host.ID)
+		if err != nil {
+			return "", err
 		}
-		if rotErr := svc.ds.RotateDeviceAuthToken(ctx, host.ID, newToken); rotErr != nil {
-			return "", ctxerr.Wrap(ctx, rotErr, "rotate device auth token")
-		}
-		token = newToken
 	default:
 		return "", ctxerr.Wrap(ctx, err, "check fresh device auth token")
 	}
@@ -2559,8 +2574,55 @@ func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, err
 		return "", ctxerr.Wrap(ctx, err, "get app config for server url")
 	}
 
+	if err := svc.NewActivity(
+		ctx,
+		vc.User,
+		fleet.ActivityTypeRetrievedHostMyDeviceURL{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "create activity for retrieved host my device url")
+	}
+
 	base := strings.TrimRight(ac.ServerSettings.ServerURL, "/")
 	return fmt.Sprintf("%s/device/%s", base, token), nil
+}
+
+// mintHostDeviceAuthToken generates a fresh URL-safe random token, defends
+// against a token-uniqueness collision with another host (astronomically
+// unlikely given the entropy but cheap to check), and upserts via
+// SetOrUpdateDeviceAuthToken — the same helper orbit calls — so the
+// previous_token transition-window semantics behave consistently with the
+// agent path.
+func (svc *Service) mintHostDeviceAuthToken(ctx context.Context, hostID uint) (string, error) {
+	// Two attempts is enough headroom: 24 random bytes is 192 bits of
+	// entropy, so a collision on the first try implies a second one is
+	// astronomically improbable.
+	const maxAttempts = 2
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		newToken, err := server.GenerateRandomURLSafeText(24)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "generate new device auth token")
+		}
+
+		// Pre-check: does this token already belong to a different host? The
+		// upsert below would otherwise update that host's row.
+		ownerID, lookupErr := svc.ds.LoadHostByDeviceAuthToken(ctx, newToken, hostDeviceAuthTokenTTL)
+		switch {
+		case lookupErr == nil && ownerID != nil && ownerID.ID != hostID:
+			// Collision with a different host — retry.
+			continue
+		case lookupErr != nil && !fleet.IsNotFound(lookupErr):
+			return "", ctxerr.Wrap(ctx, lookupErr, "check device auth token collision")
+		}
+
+		if err := svc.ds.SetOrUpdateDeviceAuthToken(ctx, hostID, newToken); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "set device auth token")
+		}
+		return newToken, nil
+	}
+	return "", ctxerr.New(ctx, "exhausted device auth token generation retries")
 }
 
 ////////////////////////////////////////////////////////////////////////////////
