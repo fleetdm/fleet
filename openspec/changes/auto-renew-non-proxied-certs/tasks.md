@@ -31,6 +31,17 @@ Goal: hook `CertificateList` into the ACME `InstallProfile` ack flow on macOS. A
 
 > **Known gap — Flow B (enrollment-time)**: PR 1.2 covers Flow A (profile-install ack triggers refetch) but not Flow B (DEP enrollment with hardware attestation issues an ACME enrollment cert that's invisible to osquery). Hooking into `mdmlifecycle.turnOnApple` or `TokenUpdate` for newly-enrolled silicon Macs is required to fully close #42827 for the customer-cisneros-a use case. Tracked as a follow-up sub-task; not in PR 1.2's scope.
 
+## 2b. PR 1.2b — RemoveProfile cleanup (bug #45596)
+
+Goal: symmetric companion to PR 1.2. RemoveProfile ack on macOS should trigger CertificateList so stale `host_certificates` rows clean up via the existing source-scoped soft-delete. See design.md Decision 1.5.
+
+Tracked as bug rather than sub-task because the install-side trigger (PR 1.2) closed only half the lifecycle; the removal side is a visibility bug in the on-demand design.
+
+- [ ] 2b.1 In `server/service/apple_mdm.go` `CommandAndReportResults` `case "RemoveProfile"`, detect ACME or SCEP payload removals on macOS hosts. Extend `ProfileHasACMEPayloadForCommand` (and the `ProfileACMECommandResult` type) to also report `HasSCEPPayload` so the same query serves both triggers.
+- [ ] 2b.2 Enqueue `CertificateList` via the existing commander. Tracking row added AFTER commander success — same pattern as PR 1.2 (§2.6).
+- [ ] 2b.3 Tests in `apple_mdm_test.go`: macOS+ACME → triggers; macOS+SCEP → triggers; macOS+neither → no trigger; iOS → no trigger; command-not-found → no error, no trigger. Mirror the matrix from `TestMaybeQueueCertificateListForACMEProfile`.
+- [ ] 2b.4 No changes needed for `host_mdm_managed_certificates` cleanup: when `UpdateOrDeleteHostMDMAppleProfile` removes the profile row, the orphaned hmmc row is cleaned up by the existing `CleanUpMDMManagedCertificates` cron on the next tick.
+
 ## 3. PR 1.3 — Phase 1 documentation
 
 - [ ] 3.1 Update host details documentation to mention macOS ACME / MDM-delivered cert visibility — explicitly note that visibility activates per-host on profile install/redeploy
