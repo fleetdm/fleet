@@ -9423,7 +9423,7 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	assertAppleDeclarationGone(iPadOSHost.UUID, iPadOSUpdateIdent)
 }
 
-// Phase 2 (#40639) — integration coverage for non-proxied cert renewal
+// #40639 — integration coverage for non-proxied cert renewal
 // profile uploads. The renewal-ID marker is opt-in; ACME and non-proxied
 // SCEP profiles upload regardless of marker presence or placement. Auto-
 // renewal activates when the marker is in OU; otherwise the profile
@@ -9548,7 +9548,7 @@ func (s *integrationMDMTestSuite) TestRawSCEPProfileUploadAcceptsAllMarkerPlacem
 // TestConditionalAccessProfileUploadsCleanly verifies that the Fleet-
 // generated Conditional Access SCEP profile uploads cleanly via the
 // documented custom-OS-settings path. The template includes the renewal
-// marker (PR #45662), so deploying from the Settings UI activates
+// marker, so deploying from the Settings UI activates
 // auto-renewal by default.
 func (s *integrationMDMTestSuite) TestConditionalAccessProfileUploadsCleanly() {
 	t := s.T()
@@ -9574,8 +9574,8 @@ func (s *integrationMDMTestSuite) TestConditionalAccessProfileUploadsCleanly() {
 		http.StatusNoContent)
 }
 
-// TestWindowsSCEPProfilePreferredVariableAccepted exercises PR #45237's
-// Windows validator change on a pre-existing surface: NDES / Custom SCEP
+// TestWindowsSCEPProfilePreferredVariableAccepted exercises the
+// Windows validator on a pre-existing surface: NDES / Custom SCEP
 // proxy validators accept both legacy $FLEET_VAR_SCEP_RENEWAL_ID and
 // preferred $FLEET_VAR_CERTIFICATE_RENEWAL_ID. The existing
 // TestWindowsDeviceSCEPProfile covers the legacy spelling.
