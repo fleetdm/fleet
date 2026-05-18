@@ -116,7 +116,7 @@ jobs:
         go-version-file: 'go.mod'
 
     - name: Install gotestsum
-      run: go install gotest.tools/gotestsum@latest
+      run: go install gotest.tools/gotestsum@v1.13.0
 
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
