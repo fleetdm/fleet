@@ -680,6 +680,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /lp/windows-mdm': {
+    action: 'landing-pages/view-windows-mdm',
+    locals: {
+      pageTitleForMeta: 'Windows MDM: open source Windows device management at enterprise scale',
+      pageDescriptionForMeta: 'Fleet is open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with Microsoft Entra ID, Windows Autopilot, BitLocker, and GitOps. Self-hosted or Fleet-hosted.',
+    }
+  },
+
   'GET /lp/on-premise': {
     action: 'landing-pages/view-on-premise',
     locals: {
@@ -1147,6 +1155,7 @@ module.exports.routes = {
   'GET /replace-jamf': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/replace-jamf' + originalQueryString); },
   'GET /on-premise': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/on-premise' + originalQueryString); },
   'GET /imagine/apple-mdm': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/apple-mdm' + originalQueryString); },
+  'GET /imagine/windows-mdm': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/windows-mdm' + originalQueryString); },
   'GET /autonomous-endpoint-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/autonomous-endpoint-management' + originalQueryString); },
   'GET /imagine/open-source': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/open-source' + originalQueryString); },
 
