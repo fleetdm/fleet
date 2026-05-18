@@ -106,6 +106,18 @@ wipe_btrfs_snapshots() {
     [ -f /proc/mounts ] || return
 
     awk '$3 == "btrfs" {print $1}' /proc/mounts | sort -u | while read -r dev; do
+        # Skip devices where any btrfs mountpoint is on a network filesystem, consistent
+        # with how the rest of the script avoids touching network-backed data.
+        _net_mnt=$(awk -v dev="$dev" '$1 == dev && $3 == "btrfs" {print $2}' /proc/mounts \
+            | while read -r mnt_esc; do
+                mnt=$(printf '%b' "$mnt_esc")
+                is_network_mount "$mnt" && printf '%s\n' "$mnt" && break
+            done)
+        if [ -n "$_net_mnt" ]; then
+            echo "Skipping btrfs snapshots on $dev (network-mounted at $_net_mnt)"
+            continue
+        fi
+
         _tmp=$(mktemp -d 2>/dev/null) || continue
 
         # Mount the btrfs top-level (subvolid=5) for full subvolume visibility.
