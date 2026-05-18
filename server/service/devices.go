@@ -108,7 +108,7 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 }
 
 type getDeviceHostResponse struct {
-	Host                      *HostDetailResponse      `json:"host"`
+	Host                      *fleet.HostDetailResponse `json:"host"`
 	SelfService               bool                     `json:"self_service"`
 	OrgLogoURL                string                   `json:"org_logo_url"`
 	OrgLogoURLLightBackground string                   `json:"org_logo_url_light_background"`
