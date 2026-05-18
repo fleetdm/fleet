@@ -1259,8 +1259,7 @@ describe("Activity Feed", () => {
     expect(
       screen.getByText((_, node) => {
         return (
-          node?.innerHTML ===
-          "<b>MacBookPro18,1 (ABCD)</b> enrolled in Fleet."
+          node?.innerHTML === "<b>MacBookPro18,1 (ABCD)</b> enrolled in Fleet."
         );
       })
     ).toBeInTheDocument();
