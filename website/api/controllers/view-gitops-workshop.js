@@ -10,7 +10,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/landing-pages/gitops-workshop'
+      viewTemplatePath: 'pages/gitops-workshop'
     }
 
   },

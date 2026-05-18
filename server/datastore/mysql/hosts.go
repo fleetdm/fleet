@@ -4866,6 +4866,7 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 			hm.installed_from_dep,
 			hm.mdm_id,
 			hm.is_personal_enrollment,
+			hm.managed_apple_id,
 			COALESCE(hm.is_server, false) AS is_server,
 			COALESCE(mdms.name, ?) AS name,
 			hdep.assign_profile_response AS dep_profile_assign_status
@@ -4885,6 +4886,43 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
 	}
 	return &hmdm, nil
+}
+
+func (ds *Datastore) GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error) {
+	var maid sql.NullString
+	// Read from the primary: managed_apple_id is set during TokenUpdate and
+	// consumed seconds later by the VPP user-provisioning flow, so replica lag
+	// could otherwise yield a false "no Managed Apple ID" miss.
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &maid,
+		`SELECT managed_apple_id FROM host_mdm WHERE host_id = ?`, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("HostMDMData").WithID(hostID))
+		}
+		return "", ctxerr.Wrapf(ctx, err, "getting managed_apple_id from host_mdm for host_id %d", hostID)
+	}
+	return maid.String, nil
+}
+
+func (ds *Datastore) SetHostManagedAppleID(ctx context.Context, hostID uint, managedAppleID string) error {
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_mdm SET managed_apple_id = ? WHERE host_id = ?`,
+		managedAppleID, hostID,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "setting managed_apple_id on host_mdm for host_id %d", hostID)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "checking managed_apple_id update result for host_id %d", hostID)
+	}
+	if rows == 0 {
+		// A missing host_mdm row means the host hasn't checked in yet (or has
+		// been unenrolled). Returning NotFound prevents silently dropping the
+		// value — the caller should treat this as a retryable condition.
+		return ctxerr.Wrap(ctx, notFound("HostMDMData").WithID(hostID))
+	}
+	return nil
 }
 
 func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {

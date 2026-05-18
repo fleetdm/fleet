@@ -133,6 +133,11 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 			}
 		}
+		// Refetch is handled by the iphone_ipad_refetcher cron, which now
+		// picks up freshly-enrolled hosts on its next tick (see
+		// ListIOSAndIPadOSToRefetch). That avoids tying the host's inventory
+		// catch-up to the synchronous enrollment path and keeps a single
+		// source of truth for refetch command emission.
 	}
 
 	return nil
