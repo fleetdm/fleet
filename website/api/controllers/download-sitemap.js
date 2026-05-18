@@ -62,6 +62,8 @@ module.exports = {
       '/announcements',// « article category page
       '/deploy',// « article category page
       '/podcasts',// « article category page
+      '/whitepapers',// « article category page
+      '/webinars',// « article category page
       // Product category pages:
       '/orchestration',
       '/device-management',
