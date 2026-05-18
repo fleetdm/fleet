@@ -4,7 +4,7 @@
       "version": "4.50.121",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Slack' AND publisher = 'Slack Technologies Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND publisher = 'Slack Technologies Inc.' AND version_compare(version, '4.50.121') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Slack' AND publisher = 'Slack Technologies Inc.') AND version_compare(version, '4.50.121') < 0);"
       },
       "installer_url": "https://downloads.slack-edge.com/desktop-releases/windows/x64/4.50.121/Slack.msix",
       "install_script_ref": "1d82bbc6",

@@ -4,7 +4,7 @@
       "version": "4.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'pro.betterdisplay.BetterDisplay';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'pro.betterdisplay.BetterDisplay' AND version_compare(bundle_short_version, '4.3.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'pro.betterdisplay.BetterDisplay') AND version_compare(bundle_short_version, '4.3.3') < 0);"
       },
       "installer_url": "https://github.com/waydabber/BetterDisplay/releases/download/v4.3.3/BetterDisplay-v4.3.3.dmg",
       "install_script_ref": "d892af0a",

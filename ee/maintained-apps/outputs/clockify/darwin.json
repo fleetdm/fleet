@@ -4,7 +4,7 @@
       "version": "2.12.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'coing.ClockifyDesktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'coing.ClockifyDesktop' AND version_compare(bundle_short_version, '2.12.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'coing.ClockifyDesktop') AND version_compare(bundle_short_version, '2.12.4') < 0);"
       },
       "installer_url": "https://clockify.me/downloads/ClockifyDesktop.zip",
       "install_script_ref": "de01ae28",

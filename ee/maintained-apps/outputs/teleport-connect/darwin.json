@@ -4,7 +4,7 @@
       "version": "18.8.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'gravitational.teleport.connect';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'gravitational.teleport.connect' AND version_compare(bundle_short_version, '18.8.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'gravitational.teleport.connect') AND version_compare(bundle_short_version, '18.8.0') < 0);"
       },
       "installer_url": "https://cdn.teleport.dev/Teleport%20Connect-18.8.0.dmg",
       "install_script_ref": "2d18e0ca",

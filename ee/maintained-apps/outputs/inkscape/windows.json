@@ -4,7 +4,7 @@
       "version": "1.4.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Inkscape' AND publisher = 'Inkscape';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Inkscape' AND publisher = 'Inkscape' AND version_compare(version, '1.4.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Inkscape' AND publisher = 'Inkscape') AND version_compare(version, '1.4.4') < 0);"
       },
       "installer_url": "https://media.inkscape.org/dl/resources/file/inkscape-1.4.4_2026-05-05_dcaf3e7-x64.signed_xMx7DJV.msi",
       "install_script_ref": "8959087b",

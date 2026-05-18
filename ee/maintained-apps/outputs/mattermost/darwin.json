@@ -4,7 +4,7 @@
       "version": "6.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'Mattermost.Desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'Mattermost.Desktop' AND version_compare(bundle_short_version, '6.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'Mattermost.Desktop') AND version_compare(bundle_short_version, '6.2.0') < 0);"
       },
       "installer_url": "https://releases.mattermost.com/desktop/6.2.0/mattermost-desktop-6.2.0-mac-arm64.zip",
       "install_script_ref": "b8367a3b",

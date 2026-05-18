@@ -4,7 +4,7 @@
       "version": "5.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.twocanoes.xcreds';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.twocanoes.xcreds' AND version_compare(bundle_short_version, '5.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.twocanoes.xcreds') AND version_compare(bundle_short_version, '5.9') < 0);"
       },
       "installer_url": "https://github.com/twocanoes/xcreds/releases/download/tag-5.9(9148)/XCreds_Build-9148_Version-5.9.pkg",
       "install_script_ref": "319ed828",

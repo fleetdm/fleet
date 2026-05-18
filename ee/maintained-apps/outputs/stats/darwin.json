@@ -4,7 +4,7 @@
       "version": "2.12.13",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats' AND version_compare(bundle_short_version, '2.12.13') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats') AND version_compare(bundle_short_version, '2.12.13') < 0);"
       },
       "installer_url": "https://github.com/exelban/stats/releases/download/v2.12.13/Stats.dmg",
       "install_script_ref": "f88ba8e0",

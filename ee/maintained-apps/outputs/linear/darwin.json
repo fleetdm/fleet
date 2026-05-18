@@ -4,7 +4,7 @@
       "version": "1.30.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear' AND version_compare(bundle_short_version, '1.30.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.linear') AND version_compare(bundle_short_version, '1.30.0') < 0);"
       },
       "installer_url": "https://releases.linear.app/Linear-1.30.0-universal.dmg",
       "install_script_ref": "a8868f79",

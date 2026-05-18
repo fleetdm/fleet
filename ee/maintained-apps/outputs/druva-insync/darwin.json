@@ -4,7 +4,7 @@
       "version": "7.6.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.druva.inSyncClient';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.druva.inSyncClient' AND version_compare(bundle_short_version, '7.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.druva.inSyncClient') AND version_compare(bundle_short_version, '7.6.1') < 0);"
       },
       "installer_url": "https://downloads.druva.com/downloads/inSync/MAC/7.6.1/inSync-7.6.1-r110931.dmg",
       "install_script_ref": "72f0f8fe",

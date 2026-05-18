@@ -4,7 +4,7 @@
       "version": "2.1.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.balena.etcher';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.balena.etcher' AND version_compare(bundle_short_version, '2.1.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'io.balena.etcher') AND version_compare(bundle_short_version, '2.1.6') < 0);"
       },
       "installer_url": "https://github.com/balena-io/etcher/releases/download/v2.1.6/balenaEtcher-2.1.6-arm64.dmg",
       "install_script_ref": "2e2f21f8",

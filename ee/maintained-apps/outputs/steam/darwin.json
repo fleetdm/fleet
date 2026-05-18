@@ -4,7 +4,7 @@
       "version": "6.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.valvesoftware.steam';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.valvesoftware.steam' AND version_compare(bundle_short_version, '6.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.valvesoftware.steam') AND version_compare(bundle_short_version, '6.0') < 0);"
       },
       "installer_url": "https://cdn.cloudflare.steamstatic.com/client/installer/steam.dmg",
       "install_script_ref": "11351382",
