@@ -4,7 +4,7 @@
       "version": "139.0.6697.68",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.avast.AvastSecureBrowser';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.avast.AvastSecureBrowser' AND version_compare(bundle_short_version, '139.0.6697.68') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.avast.AvastSecureBrowser') AND version_compare(bundle_short_version, '139.0.6697.68') < 0);"
       },
       "installer_url": "https://cdn-update.avast.securebrowser.com/browser/mac/arm/139.0.6697.68/AvastSecureBrowser.dmg",
       "install_script_ref": "a5cd4886",

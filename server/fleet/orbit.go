@@ -67,6 +67,8 @@ type OrbitConfig struct {
 	//
 	// If UpdateChannels is nil it means the server isn't using/setting this feature.
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
+	// nil = no opinion (orbit keeps its current level); true/false sets it.
+	DebugLogging *bool `json:"debug_logging,omitempty"`
 }
 
 type OrbitConfigReceiver interface {

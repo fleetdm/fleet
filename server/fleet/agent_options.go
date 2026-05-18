@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -28,7 +29,22 @@ type AgentOptions struct {
 	Extensions json.RawMessage `json:"extensions,omitempty"`
 	// UpdateChannels holds the configured channels for fleetd components.
 	UpdateChannels json.RawMessage `json:"update_channels,omitempty"`
+	// Orbit-agent options. Kept separate from osquery so they bypass the
+	// osquery schema validator.
+	Orbit *OrbitAgentOptions `json:"orbit,omitempty"`
 }
+
+type OrbitAgentOptions struct {
+	// DebugLoggingOnEnrollDuration is the number of seconds (0 to
+	// MaxOrbitDebugLoggingOnEnrollDurationSeconds) that every host enrolling
+	// under this scope is stamped with orbit_debug_until = now() + duration.
+	DebugLoggingOnEnrollDuration int `json:"debug_logging_on_enroll_duration"`
+}
+
+const (
+	MaxOrbitDebugLoggingOnEnrollDurationSeconds = 24 * 60 * 60 // 86400 = 24h
+	MaxOrbitDebugLoggingOnEnrollDuration        = MaxOrbitDebugLoggingOnEnrollDurationSeconds * time.Second
+)
 
 type AgentOptionsOverrides struct {
 	// Platforms is a map from platform name to the config override.
@@ -112,6 +128,17 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		var updateChannels OrbitUpdateChannels
 		if err := JSONStrictDecode(bytes.NewReader(opts.UpdateChannels), &updateChannels); err != nil {
 			return fmt.Errorf("update_channels: %w", err)
+		}
+	}
+
+	if opts.Orbit != nil {
+		if s := opts.Orbit.DebugLoggingOnEnrollDuration; s != 0 {
+			if s < 0 {
+				return errors.New("orbit.debug_logging_on_enroll_duration must not be negative")
+			}
+			if s > MaxOrbitDebugLoggingOnEnrollDurationSeconds {
+				return fmt.Errorf("orbit.debug_logging_on_enroll_duration must not exceed %d seconds", MaxOrbitDebugLoggingOnEnrollDurationSeconds)
+			}
 		}
 	}
 

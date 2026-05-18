@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 
 import { Row } from "react-table";
 
@@ -26,8 +26,8 @@ interface IPoliciesProps {
   isLoading: boolean;
   deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
+  closePolicyDetailsModal: () => void;
   hostPlatform: string;
-
   currentTeamId?: number;
   conditionalAccessEnabled?: boolean;
   conditionalAccessBypassed?: boolean;
@@ -44,8 +44,8 @@ const Policies = ({
   isLoading,
   deviceUser,
   togglePolicyDetailsModal,
+  closePolicyDetailsModal,
   hostPlatform,
-
   currentTeamId,
   conditionalAccessEnabled,
   conditionalAccessBypassed,
@@ -59,6 +59,12 @@ const Policies = ({
   }
   const failingResponses: IHostPolicy[] =
     policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
+
+  useEffect(() => {
+    return () => {
+      closePolicyDetailsModal();
+    };
+  }, [closePolicyDetailsModal]);
 
   const onClickRow = useCallback(
     (row: IHostPoliciesRowProps) => {
