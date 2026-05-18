@@ -204,6 +204,7 @@ Fleet will attempt to parse SAML custom attributes with the following format:
 
 Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus`, `technician` and `null`.
 A role attribute with value `null` will be ignored by Fleet. (This is to support limitations on some IdPs which do not allow you to choose what keys are sent to Fleet when creating a new user.)
+Attribute values that are empty, whitespace-only, or omit the `<saml:AttributeValue>` element entirely are also treated as `null` and ignored.
 SAML supports multi-valued attributes, Fleet will always use the last value.
 
 NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>` will cause an error during login as users cannot be both global users and belong to fleets.
