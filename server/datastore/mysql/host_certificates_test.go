@@ -1163,8 +1163,8 @@ func testUpdateHostCertificatesOriginDowngrade(t *testing.T, ds *Datastore) {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String("downgrade-host-osquery-id"),
-		NodeKey:         ptr.String("downgrade-host-node-key"),
+		OsqueryHostID:   new("downgrade-host-osquery-id"),
+		NodeKey:         new("downgrade-host-node-key"),
 		UUID:            "downgrade-host-uuid",
 		Hostname:        "downgrade-host",
 	})
