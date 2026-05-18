@@ -1,6 +1,6 @@
 ---
-name: pr-approvals
-description: Analyze a PR to determine which files still need approval and from whom, based on CODEOWNERS and website/config/custom.js. Use when the user asks "who needs to approve", "why is the PR blocked", "pr approvals", or similar.
+name: who-blocks-this-pr
+description: Analyze a PR to determine which files still need approval and from whom, based on CODEOWNERS and website/config/custom.js. Use when the user asks "who needs to approve", "why is the PR blocked", "who blocks this PR", or similar.
 ---
 
 # PR Approvals
