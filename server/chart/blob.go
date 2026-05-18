@@ -41,6 +41,7 @@ package chart
 
 import (
 	"math"
+	"strconv"
 
 	"github.com/RoaringBitmap/roaring"
 )
@@ -172,12 +173,7 @@ func decodeDense(blob []byte) *roaring.Bitmap {
 type errUnknownEncoding uint8
 
 func (e errUnknownEncoding) Error() string {
-	return "chart: unknown bitmap encoding " + hexByte(uint8(e))
-}
-
-func hexByte(v uint8) string {
-	const hex = "0123456789abcdef"
-	return "0x" + string([]byte{hex[v>>4], hex[v&0xF]})
+	return "chart: unknown bitmap encoding " + strconv.Itoa(int(e))
 }
 
 // BitmapToHostIDs returns the set bits of a *roaring.Bitmap as a sorted []uint.
