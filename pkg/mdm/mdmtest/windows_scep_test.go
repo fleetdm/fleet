@@ -22,7 +22,8 @@ func TestExtractSCEPCommandsAtomicLayout(t *testing.T) {
 	}
 
 	c := &TestWindowsMDMClient{}
-	got := c.ExtractSCEPCommands(cmds)
+	got, incomplete := c.ExtractSCEPCommands(cmds)
+	require.Empty(t, incomplete)
 	require.Len(t, got, 1)
 	assert.Equal(t, "uniq-1", got[0].UniqueID)
 	assert.Equal(t, "https://scep.example.com/scep", got[0].ServerURL)
@@ -38,7 +39,8 @@ func TestExtractSCEPCommandsUserLocURI(t *testing.T) {
 	cmds := map[string]fleet.ProtoCmdOperation{
 		atomic.CmdID.Value: {Verb: fleet.CmdAtomic, Cmd: atomic},
 	}
-	got := (&TestWindowsMDMClient{}).ExtractSCEPCommands(cmds)
+	got, incomplete := (&TestWindowsMDMClient{}).ExtractSCEPCommands(cmds)
+	require.Empty(t, incomplete)
 	require.Len(t, got, 1)
 	assert.Equal(t, "user-uniq", got[0].UniqueID)
 }
@@ -72,15 +74,16 @@ func TestExtractSCEPCommandsFlatLayout(t *testing.T) {
 		addSubject.CmdID.Value:   {Verb: fleet.CmdAdd, Cmd: addSubject},
 		execEnroll.CmdID.Value:   {Verb: fleet.CmdExec, Cmd: execEnroll},
 	}
-	got := (&TestWindowsMDMClient{}).ExtractSCEPCommands(cmds)
+	got, incomplete := (&TestWindowsMDMClient{}).ExtractSCEPCommands(cmds)
+	require.Empty(t, incomplete)
 	require.Len(t, got, 1)
 	assert.Empty(t, got[0].AtomicCmdID, "flat layout should not stamp an Atomic CmdID")
 	assert.Equal(t, execEnroll.CmdID.Value, got[0].EnrollCmdID)
 	assert.Len(t, got[0].AddCmdIDs, 3)
 }
 
-func TestExtractSCEPCommandsIgnoresIncomplete(t *testing.T) {
-	// Missing ServerURL: should be dropped.
+func TestExtractSCEPCommandsSurfacesIncomplete(t *testing.T) {
+	// Only Challenge is set: missing ServerURL, SubjectName, and the Enroll Exec.
 	loc := "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/incomplete/Install/Challenge"
 	add := fleet.SyncMLCmd{
 		XMLName: xml.Name{Local: fleet.CmdAdd},
@@ -90,8 +93,16 @@ func TestExtractSCEPCommandsIgnoresIncomplete(t *testing.T) {
 	cmds := map[string]fleet.ProtoCmdOperation{
 		add.CmdID.Value: {Verb: fleet.CmdAdd, Cmd: add},
 	}
-	got := (&TestWindowsMDMClient{}).ExtractSCEPCommands(cmds)
-	assert.Empty(t, got)
+	complete, incomplete := (&TestWindowsMDMClient{}).ExtractSCEPCommands(cmds)
+	assert.Empty(t, complete)
+	require.Len(t, incomplete, 1)
+	assert.Equal(t, "incomplete", incomplete[0].UniqueID)
+
+	// The error string built by AppendSCEPInstallResponses lists what's missing.
+	missing := missingSCEPFields(incomplete[0])
+	assert.Contains(t, missing, "ServerURL")
+	assert.Contains(t, missing, "SubjectName")
+	assert.Contains(t, missing, "/Install/Enroll Exec")
 }
 
 func TestSCEPInstallPathHandlesIndentedLocURI(t *testing.T) {

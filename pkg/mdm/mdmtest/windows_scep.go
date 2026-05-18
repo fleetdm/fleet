@@ -51,8 +51,13 @@ type SCEPResult struct {
 
 // ExtractSCEPCommands walks the commands map and groups SCEP CSP nodes by UniqueID. Both
 // ./Device/... and ./User/... LocURIs are recognized. Both Atomic-wrapped and flat layouts
-// are handled. Incomplete CSPs (missing ServerURL or SubjectName) are dropped silently.
-func (c *TestWindowsMDMClient) ExtractSCEPCommands(cmds map[string]fleet.ProtoCmdOperation) []SCEPCommand {
+// are handled.
+//
+// Returns two slices: complete CSPs that have ServerURL, SubjectName, and the /Install/Enroll
+// Exec (ready to drive a SCEP exchange); and incomplete CSPs that are missing at least one
+// of those. Incomplete CSPs are surfaced rather than dropped so callers can fail loudly on a
+// malformed profile or parser bug instead of silently never running SCEP.
+func (c *TestWindowsMDMClient) ExtractSCEPCommands(cmds map[string]fleet.ProtoCmdOperation) (complete, incomplete []SCEPCommand) {
 	byID := map[string]*SCEPCommand{}
 
 	get := func(uniqueID string) *SCEPCommand {
@@ -136,17 +141,30 @@ func (c *TestWindowsMDMClient) ExtractSCEPCommands(cmds map[string]fleet.ProtoCm
 		}
 	}
 
-	out := make([]SCEPCommand, 0, len(byID))
 	for _, sc := range byID {
 		if sc.ServerURL == "" || sc.SubjectName == "" || sc.EnrollCmdID == "" {
-			// Not a complete SCEP install request: missing one of ServerURL, SubjectName, or the
-			// /Install/Enroll Exec that triggers the exchange. Skip silently and let a later message
-			// deliver the missing pieces.
+			incomplete = append(incomplete, *sc)
 			continue
 		}
-		out = append(out, *sc)
+		complete = append(complete, *sc)
 	}
-	return out
+	return complete, incomplete
+}
+
+// missingSCEPFields returns a comma-separated list of the required fields that are not set on
+// sc. Used to build a descriptive error for incomplete CSPs surfaced by ExtractSCEPCommands.
+func missingSCEPFields(sc SCEPCommand) string {
+	var missing []string
+	if sc.ServerURL == "" {
+		missing = append(missing, "ServerURL")
+	}
+	if sc.SubjectName == "" {
+		missing = append(missing, "SubjectName")
+	}
+	if sc.EnrollCmdID == "" {
+		missing = append(missing, "/Install/Enroll Exec")
+	}
+	return strings.Join(missing, ", ")
 }
 
 func collectKeys(m map[string]*SCEPCommand) map[string]struct{} {
@@ -194,15 +212,20 @@ func scepInstallPath(loc string) (scepCSPPath, bool) {
 	return scepCSPPath{UniqueID: uniqueID, Field: field}, true
 }
 
-// AppendSCEPInstallResponses appends Status acks for each SCEP CSP it finds, kicks off the SCEP
-// exchanges in goroutines, and queues a generic Alert per CSP to be flushed on the next sync
-// once the exchange completes.
+// AppendSCEPInstallResponses appends Status acks for each complete SCEP CSP it finds and kicks
+// off the SCEP exchanges in goroutines.
+//
+// Incomplete CSPs (missing ServerURL, SubjectName, or the /Install/Enroll Exec) are not ACKed
+// here: the caller's normal iteration over cmds will ACK whatever partial Add/Atomic CmdIDs
+// exist with its usual status. Each incomplete CSP is emitted on the result channel as a
+// SCEPResult with a descriptive Err so the caller fails loudly instead of silently never
+// running SCEP.
 //
 // Returned values:
 //   - handled: CmdIDs that the helper has already ACKed. Callers iterating remaining commands
 //     should skip these so they don't double-ACK.
-//   - done: receives one SCEPResult per CSP and is closed when all exchanges complete. Callers
-//     that don't need synchronization can ignore it.
+//   - done: receives one SCEPResult per complete-or-incomplete CSP and is closed when all
+//     exchanges complete. Callers that don't need synchronization can ignore it.
 func (c *TestWindowsMDMClient) AppendSCEPInstallResponses(
 	ctx context.Context,
 	cmds map[string]fleet.ProtoCmdOperation,
@@ -210,8 +233,8 @@ func (c *TestWindowsMDMClient) AppendSCEPInstallResponses(
 	logger *slog.Logger,
 ) (handled map[string]struct{}, done <-chan SCEPResult) {
 	handled = map[string]struct{}{}
-	sceps := c.ExtractSCEPCommands(cmds)
-	if len(sceps) == 0 {
+	sceps, incomplete := c.ExtractSCEPCommands(cmds)
+	if len(sceps) == 0 && len(incomplete) == 0 {
 		ch := make(chan SCEPResult)
 		close(ch)
 		return handled, ch
@@ -241,7 +264,13 @@ func (c *TestWindowsMDMClient) AppendSCEPInstallResponses(
 		}
 	}
 
-	out := make(chan SCEPResult, len(sceps))
+	out := make(chan SCEPResult, len(sceps)+len(incomplete))
+	for _, sc := range incomplete {
+		out <- SCEPResult{
+			UniqueID: sc.UniqueID,
+			Err:      fmt.Errorf("incomplete SCEP CSP for %q: missing %s", sc.UniqueID, missingSCEPFields(sc)),
+		}
+	}
 	var wg sync.WaitGroup
 	for _, sc := range sceps {
 		wg.Add(1)
