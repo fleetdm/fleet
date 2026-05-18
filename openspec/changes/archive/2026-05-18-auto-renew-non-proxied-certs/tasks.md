@@ -1,6 +1,12 @@
 > **Phase boundaries**: This change covers two stories. **Phase 1 (#42827)** is MDM cert ingestion for macOS — independently shippable. **Phase 2 (#40639)** is non-proxied cert renewal — depends on Phase 1 for the macOS hardware-bound leg. Expected to ship together.
 >
 > **No backfills**: Customers must redeploy ACME/SCEP profiles with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the cert Subject to enable renewal. Redeploy fires `InstallProfile` → on-demand `CertificateList` (Phase 1) → cert ingestion → managed-cert row insert (Phase 2). The natural redeploy flow replaces what would have been a deploy-time backfill in either phase.
+>
+> **Status at archive (2026-05-18):** all implementation PRs merged or in flight as drafts (PRs #45531, #45662, #45663, #45695). Remaining unchecked items are post-implementation work tracked outside this change:
+> - **§2b** RemoveProfile cleanup — tracked as bug #45596.
+> - **§4** Phase 1 QA verification — real silicon Mac, requires hardware.
+> - **§9.4** Internal field doc — intentionally skipped (not customer-facing).
+> - **§10.1–10.7** Phase 2 QA verification — Smallstep local validation complete; Hydrant verification still pending external dependency. Tracked in #40639 verification section.
 
 ---
 
@@ -44,8 +50,8 @@ Tracked as bug rather than sub-task because the install-side trigger (PR 1.2) cl
 
 ## 3. PR 1.3 — Phase 1 documentation
 
-- [ ] 3.1 Update host details documentation to mention macOS ACME / MDM-delivered cert visibility — explicitly note that visibility activates per-host on profile install/redeploy
-- [ ] 3.2 Release notes entry for Phase 1
+- [x] 3.1 Update host details documentation to mention macOS ACME / MDM-delivered cert visibility — explicitly note that visibility activates per-host on profile install/redeploy. (Shipped via PR #44997.)
+- [x] 3.2 Release notes entry for Phase 1. (Shipped via PR #44997 — `changes/42827-macos-mdm-certificate-ingestion`.)
 
 ## 4. Phase 1 verification (QA, not a PR)
 
@@ -95,7 +101,7 @@ Goal: add code support for the renamed customer-facing variable (`$FLEET_VAR_CER
 - [x] 7.4 ~~Require `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in cert Subject OU only; reject otherwise.~~ **Reverted per §7d.**
 - [x] 7.5 ~~Confirm the same code path is hit by `fleetctl gitops` profile uploads; add an integration test if not already covered.~~ Verification moot once validator is removed; gitops continuity is the *reason* for the removal.
 - [x] 7.6 ~~Tests that exercise rejection behaviors.~~ **Reverted per §7d** — tests flip to accept missing marker.
-- [ ] 7.7 Release-notes draft: variable-name rename note (legacy still accepted, new name preferred for new authoring) AND the validator-removal scope change. Frame the marker as opt-in for auto-renewal. (Deferred to PR 2.5 docs consolidation.)
+- [x] 7.7 Release-notes draft: variable-name rename note (legacy still accepted, new name preferred for new authoring) AND the validator-removal scope change. Frame the marker as opt-in for auto-renewal. (Shipped in PR 2.5 / #45695 — `changes/40639-non-proxied-cert-renewal`.)
 
 ## 7b. PR 2.3b — Apple non-proxied SCEP validator (reverted per scope change 2026-05-15)
 
@@ -107,18 +113,18 @@ The original implementation tasks below are kept for history; revert work is tra
 - [x] 7b.2 ~~OU-only / preferred-name-only enforcement.~~ **Reverted per §7d.**
 - [x] 7b.3 ~~Wire into `validateConfigProfileFleetVariables`.~~ **Reverted per §7d.**
 - [x] 7b.4 ~~Tests covering OU-only / preferred-only acceptance and rejection cases.~~ **Reverted per §7d** — tests flip to accept all shapes.
-- [ ] 7b.5 Release-notes alignment for raw-SCEP customers (Okta SCEP / Okta Verify) — now part of the broader "marker is opt-in" messaging. (Deferred to PR 2.5.)
+- [x] 7b.5 Release-notes alignment for raw-SCEP customers (Okta SCEP / Okta Verify) — now part of the broader "marker is opt-in" messaging. (Shipped in PR 2.5 / #45695.)
 
 ## 7d. PR 2.3d — Revert Apple ACME and raw-SCEP validators (scope change 2026-05-15)
 
 Goal: implement the Decision 2.6 scope reversal. Remove the upload-time renewal-ID enforcement added in PR 2.3 (#45043) and PR 2.3b (#45364). Marker becomes opt-in.
 
-- [ ] 7d.1 In `server/service/apple_mdm.go`, remove `additionalACMEValidation` and its call site in `validateConfigProfileFleetVariables`. Also remove the supporting `acmeProfileForValidation` / `acmePayloadForValidation` types.
-- [ ] 7d.2 Remove `additionalNonProxiedSCEPValidation` and its call site. Also remove the broadened bypass logic for SCEP payloads in `validateConfigProfileFleetVariables` (the SCEP-or-ACME `HasPayloadType` check from PR 2.3b's `mdm_profiles.go` change) — no longer needed since neither validator runs.
-- [ ] 7d.3 Update `apple_mdm_test.go`: delete `TestAdditionalACMEValidation` and `TestAdditionalNonProxiedSCEPValidation`. Add a regression test that confirms ACME and raw-SCEP profiles without the marker upload successfully.
-- [ ] 7d.4 Update integration tests on `pr-2.5b-integration-tests` (or wherever they land): flip `TestACMEProfileFleetVariableValidation` and `TestRawSCEPProfileFleetVariableValidation` sub-tests from reject to accept; delete `TestConditionalAccessProfileFailsACMEValidator` (the documented failure mode no longer occurs).
-- [ ] 7d.5 Confirm pre-existing proxy SCEP validators (NDES / Custom SCEP / Smallstep) keep their existing renewal-ID enforcement unchanged — they predate this story since 4.65 and are not in scope for the reversal.
-- [ ] 7d.6 Document the scope change in the PR description, referencing Decision 2.6 and the GitOps-continuity rationale.
+- [x] 7d.1 In `server/service/apple_mdm.go`, remove `additionalACMEValidation` and its call site in `validateConfigProfileFleetVariables`. Also remove the supporting `acmeProfileForValidation` / `acmePayloadForValidation` types. (PR #45643.)
+- [x] 7d.2 Remove `additionalNonProxiedSCEPValidation` and its call site. (PR #45643. The SCEP-or-ACME bypass in `mdm_profiles.go` was retained since it's still correct for non-validator reasons; comment updated.)
+- [x] 7d.3 Update `apple_mdm_test.go`: delete `TestAdditionalACMEValidation` and `TestAdditionalNonProxiedSCEPValidation`. Add a regression test that confirms ACME and raw-SCEP profiles without the marker upload successfully. (PR #45643 — `TestApplePayloadValidatorsAreOptional`.)
+- [x] 7d.4 Update integration tests: flip rejection assertions to acceptance; delete the obsolete Conditional Access failure-mode test. (Shipped in PR 2.5b / #45663.)
+- [x] 7d.5 Confirm pre-existing proxy SCEP validators (NDES / Custom SCEP / Smallstep) keep their existing renewal-ID enforcement unchanged — they predate this story since 4.65 and are not in scope for the reversal. (Verified in PR #45643.)
+- [x] 7d.6 Document the scope change in the PR description, referencing Decision 2.6 and the GitOps-continuity rationale. (PR #45643.)
 
 ## 7c. PR 2.3c — Origin downgrade on osquery rediscovery
 
@@ -128,10 +134,10 @@ Surfaced during 2026-05-14 local validation: user-installed `localdev-tim Root C
 
 See design.md Decision 1.3.
 
-- [ ] 7c.1 In `server/datastore/mysql/host_certificates.go`'s osquery-side ingestion path (`UpdateHostCertificates` when called with `origin='osquery'`), if an UPSERT matches an existing row with `origin='mdm'`, set `origin='osquery'`. The downgrade is one-way (mdm → osquery). MDM ingestion still creates rows with `origin='mdm'` for first-seen certs.
-- [ ] 7c.2 Rationale: osquery sees a strict superset of what MDM `CertificateList` sees (every cert in the keychain, no filtering). If osquery sees a cert, the device has it in the keychain regardless of how it got there. Origin should reflect *whether Fleet itself delivered the cert via a profile*, not which side observed it first. The downgrade captures the case where MDM happened to observe a non-MDM-delivered cert before osquery did.
-- [ ] 7c.3 Datastore test: pre-populate a row with `origin='mdm'`, run osquery sync containing the same cert (same SHA1), verify origin flips to `osquery`. Mirror case where osquery sync omits an MDM-only cert: row stays `origin='mdm'` and is not soft-deleted (existing PR 1.1 dedup behavior).
-- [ ] 7c.4 No backfill: existing rows where the cert is actually MDM-delivered will keep `origin='mdm'` until the next ingestion cycle observes them via osquery (if applicable). Customers who care about retroactive correction can run an osquery sync.
+- [x] 7c.1 In `server/datastore/mysql/host_certificates.go`'s osquery-side ingestion path (`UpdateHostCertificates` when called with `origin='osquery'`), if an UPSERT matches an existing row with `origin='mdm'`, set `origin='osquery'`. The downgrade is one-way (mdm → osquery). MDM ingestion still creates rows with `origin='mdm'` for first-seen certs. (PR #45531, draft.)
+- [x] 7c.2 Rationale captured in design.md Decision 1.4.
+- [x] 7c.3 Datastore test for the downgrade. (PR #45531 — `testUpdateHostCertificatesOriginDowngrade`.)
+- [x] 7c.4 No backfill — natural osquery sync cycles correct affected rows over time. Reclassified as cleanup task #45528 (no longer a sub-task).
 
 ## 8. PR 2.4 — Windows variable-rename back-compat (pre-existing surface, scope-change-unaffected)
 
@@ -150,12 +156,12 @@ Can ship in parallel with PR 2.3 / 2.4.
 
 **Framing under Decision 2.6 scope reversal (2026-05-15):** the marker is opt-in. Customers who add it get auto-renewal; customers who don't continue to manage cert lifecycle as in 4.85. Docs should present the marker as a *new capability* rather than a *required migration step*.
 
-- [ ] 9.1 Update Fleet's certificate renewal guide (or create a new guide — Product decision pending) to document non-proxied SCEP and ACME renewal as an opt-in feature.
-- [ ] 9.2 Add example profiles (non-proxied ACME — generic plus a customer's-Hydrant illustration, Okta conditional access SCEP, Okta Verify static challenge SCEP) showing correct marker placement in Subject OU. Frame these as "to enable auto-renewal, place the marker in OU" rather than "you must add the marker."
-- [ ] 9.3 **Optional opt-in guidance for existing customers**: doc explaining that customers running pre-4.86 profiles can opt into auto-renewal by re-uploading their profile with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the cert Subject OU. Existing profiles without the marker continue to work as they do today (manual redeployment for renewal). Include a `fleetctl` snippet or query to identify which profiles deliver renewable certs, so admins know what they'd need to update if they want to opt in.
-- [ ] 9.4 Reference doc note that `host_mdm_managed_certificates.type` may be NULL for non-proxied rows.
-- [ ] 9.5 Variable rename note (Decision 2.7): release-notes entry calling out that `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is the new preferred name (per docs PR #44069); legacy `$FLEET_VAR_SCEP_RENEWAL_ID` is also accepted everywhere — substitution treats both names identically. New profiles should use the new name. Confirm rachaelshaw's customer-facing guide PR (#43293) lands alongside this release.
-- [ ] 9.6 Final release-notes entry consolidating Phase 2 changes — emphasize "opt-in auto-renewal" as the customer-visible behavior. Note that nothing breaks for customers who don't opt in.
+- [x] 9.1 Update Fleet's certificate renewal guide to document non-proxied SCEP and ACME renewal as an opt-in feature. (PR #45695 — `articles/connect-end-user-to-wifi-with-certificate.md` migrated.)
+- [x] 9.2 Add example profile snippets showing correct marker placement in Subject OU; framed as opt-in. (PR #45695 — Okta Verify macOS and Windows guides updated.)
+- [x] 9.3 Optional opt-in guidance for existing customers. (PR #45695 — added to Okta Verify macOS, Windows, and Conditional Access guides.)
+- [ ] 9.4 Reference doc note that `host_mdm_managed_certificates.type` may be NULL for non-proxied rows. (Internal field — not customer-facing; intentionally not added to public docs.)
+- [x] 9.5 Variable rename note: legacy `$FLEET_VAR_SCEP_RENEWAL_ID` still works. (PR #45695 — back-compat callout in WiFi guide. rachaelshaw's #43293 already merged to `docs-v4.86.0`.)
+- [x] 9.6 Release-notes entry consolidating Phase 2 changes. (PR #45695 — `changes/40639-non-proxied-cert-renewal`.)
 
 ## 10. Phase 2 verification (QA, not a PR)
 
@@ -171,11 +177,11 @@ Can ship in parallel with PR 2.3 / 2.4.
 
 ## 11. Per-PR checklist (apply to each implementation PR)
 
-- [ ] 11.1 `make lint-go` passes
-- [ ] 11.2 Datastore tests pass: `MYSQL_TEST=1 FLEET_MYSQL_TEST_PORT=3308 go test ./server/datastore/mysql/...`
-- [ ] 11.3 Service tests pass: `MYSQL_TEST=1 REDIS_TEST=1 FLEET_MYSQL_TEST_PORT=3308 go test ./server/service/...`
-- [ ] 11.4 `make generate-mock` if datastore interface changed
-- [ ] 11.5 PR description names the parent story (#42827 or #40639) and the phase/PR position (e.g., "Phase 1 PR 1.2 — on-demand CertificateList")
+- [x] 11.1 `make lint-go` passes — verified on each merged PR via CI.
+- [x] 11.2 Datastore tests pass.
+- [x] 11.3 Service tests pass.
+- [x] 11.4 `make generate-mock` run where needed.
+- [x] 11.5 PR descriptions name the parent story and phase/PR position.
 
 ---
 
