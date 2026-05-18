@@ -109,13 +109,13 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 
 type getDeviceHostResponse struct {
 	Host                      *fleet.HostDetailResponse `json:"host"`
-	SelfService               bool                     `json:"self_service"`
-	OrgLogoURL                string                   `json:"org_logo_url"`
-	OrgLogoURLLightBackground string                   `json:"org_logo_url_light_background"`
-	OrgContactURL             string                   `json:"org_contact_url"`
-	Err                       error                    `json:"error,omitempty"`
-	License                   fleet.LicenseInfo        `json:"license"`
-	GlobalConfig              fleet.DeviceGlobalConfig `json:"global_config"`
+	SelfService               bool                      `json:"self_service"`
+	OrgLogoURL                string                    `json:"org_logo_url"`
+	OrgLogoURLLightBackground string                    `json:"org_logo_url_light_background"`
+	OrgContactURL             string                    `json:"org_contact_url"`
+	Err                       error                     `json:"error,omitempty"`
+	License                   fleet.LicenseInfo         `json:"license"`
+	GlobalConfig              fleet.DeviceGlobalConfig  `json:"global_config"`
 }
 
 func (r getDeviceHostResponse) Error() error { return r.Err }
