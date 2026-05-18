@@ -1178,6 +1178,94 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Alphas", { exact: false })).toBeInTheDocument();
   });
 
+  it("renders a 'fleet_enrolled' type activity with display name and serial", () => {
+    const activity = createMockActivity({
+      type: ActivityType.FleetEnrolled,
+      details: {
+        host_display_name: "Foobar's Mac",
+        host_serial: "ABCD",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((_, node) => {
+        return (
+          node?.innerHTML === "<b>Foobar's Mac (ABCD)</b> enrolled in Fleet."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'fleet_enrolled' type activity with display name only", () => {
+    const activity = createMockActivity({
+      type: ActivityType.FleetEnrolled,
+      details: {
+        host_display_name: "Foobar's Mac",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((_, node) => {
+        return node?.innerHTML === "<b>Foobar's Mac</b> enrolled in Fleet.";
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'fleet_enrolled' type activity with serial only", () => {
+    const activity = createMockActivity({
+      type: ActivityType.FleetEnrolled,
+      details: {
+        host_serial: "ABCD",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((_, node) => {
+        return (
+          node?.innerHTML ===
+          "A host with serial number <b>ABCD</b> enrolled in Fleet."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'fleet_enrolled' type activity with no display name and no serial", () => {
+    const activity = createMockActivity({
+      type: ActivityType.FleetEnrolled,
+      details: {},
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((_, node) => {
+        return node?.innerHTML === "A host enrolled in Fleet.";
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'fleet_enrolled' type activity without duplicating serial when display name already contains it", () => {
+    const activity = createMockActivity({
+      type: ActivityType.FleetEnrolled,
+      details: {
+        host_display_name: "MacBookPro18,1 (ABCD)",
+        host_serial: "ABCD",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((_, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>MacBookPro18,1 (ABCD)</b> enrolled in Fleet."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
   it("renders a 'mdm_enrolled' type for apple if mdm_platform is not provided", () => {
     const activity = createMockActivity({
       type: ActivityType.MdmEnrolled,
@@ -1188,10 +1276,9 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText((content, node) => {
-        return (
-          node?.innerHTML ===
-          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (manual)</b>."
+      screen.getByText((_, node) => {
+        return !!node?.innerHTML.endsWith(
+          "An end user turned on MDM features for a host with serial number <b>ABCD (manual)</b>."
         );
       })
     ).toBeInTheDocument();
@@ -1209,10 +1296,47 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText((content, node) => {
-        return (
-          node?.innerHTML ===
-          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (automatic)</b>."
+      screen.getByText((_, node) => {
+        return !!node?.innerHTML.endsWith(
+          "An end user turned on MDM features for a host with serial number <b>ABCD (automatic)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type for apple with display name and serial", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        host_display_name: "Foobar's Mac",
+        host_serial: "ABCD",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((_, node) => {
+        return !!node?.innerHTML.endsWith(
+          "An end user turned on MDM features for <b>Foobar's Mac (ABCD) (manual)</b>."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'mdm_enrolled' type for apple without duplicating serial when display name already contains it", () => {
+    const activity = createMockActivity({
+      type: ActivityType.MdmEnrolled,
+      details: {
+        host_display_name: "MacBookPro18,1 (ABCD)",
+        host_serial: "ABCD",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((_, node) => {
+        return !!node?.innerHTML.endsWith(
+          "An end user turned on MDM features for <b>MacBookPro18,1 (ABCD) (manual)</b>."
         );
       })
     ).toBeInTheDocument();
@@ -1247,10 +1371,9 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText((content, node) => {
-        return (
-          node?.innerHTML ===
-          "<b>Test User </b>Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."
+      screen.getByText((_, node) => {
+        return !!node?.innerHTML.endsWith(
+          "Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."
         );
       })
     ).toBeInTheDocument();
