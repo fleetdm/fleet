@@ -100,29 +100,11 @@ safe_rm() {
     rmdir "$_path" 2>/dev/null
 }
 
-# Delete all btrfs subvolumes (including read-only snapshots) on local btrfs filesystems.
+# Delete all btrfs snapshots on local btrfs filesystems.
 # Must run before safe_rm: read-only snapshots resist rm -rf and need btrfs subvolume delete.
-wipe_btrfs_subvolumes() {
+wipe_btrfs_snapshots() {
     [ -f /proc/mounts ] || return
 
-    # Unmount non-critical btrfs subvolume mounts deepest-first before deletion.
-    # btrfs subvolume delete on a currently-mounted subvolume may fail or only mark
-    # it as an orphan, which can survive the hard sysrq power-off without being cleaned up.
-    awk '$3 == "btrfs" {print length($2), $2}' /proc/mounts \
-        | sort -nr \
-        | cut -d' ' -f2- \
-        | while read -r mnt_esc; do
-            mnt=$(printf '%b' "$mnt_esc")
-            case "$mnt" in
-                /|/proc|/sys|/dev|/run|/boot)
-                    continue
-                    ;;
-            esac
-            umount -f -l "$mnt" 2>/dev/null \
-                || echo "Warning: could not unmount btrfs mount: $mnt"
-        done 
-
-    # Iterate over unique btrfs block devices (same device may be mounted at multiple paths).
     awk '$3 == "btrfs" {print $1}' /proc/mounts | sort -u | while read -r dev; do
         _tmp=$(mktemp -d 2>/dev/null) || continue
 
@@ -135,21 +117,18 @@ wipe_btrfs_subvolumes() {
             continue
         fi
 
-        echo "Deleting btrfs subvolumes on $dev"
-
-        # Sort by slash-count descending so children are deleted before parents.
-        btrfs subvolume list "$_tmp" 2>/dev/null \
-            | sed 's/^ID [0-9]* gen [0-9]* top level [0-9]* path //' \
+        # -s lists only snapshots. Sort deepest first so children are deleted before parents.
+        btrfs subvolume list -s "$_tmp" 2>/dev/null \
+            | awk '{print $NF}' \
             | awk '{n=gsub("/","/"); print n, $0}' \
             | sort -rn \
             | cut -d' ' -f2- \
             | while read -r subvol; do
                 _sv_path="$_tmp/$subvol"
-                # Snapshots are frequently read-only; clear the flag before deleting.
                 btrfs property set -t subvol "$_sv_path" ro false 2>/dev/null
-                echo "Deleting btrfs subvolume: $subvol"
+                echo "Deleting btrfs snapshot: $subvol"
                 btrfs subvolume delete "$_sv_path" 2>/dev/null \
-                    || echo "Warning: could not delete btrfs subvolume: $subvol"
+                    || echo "Warning: could not delete btrfs snapshot: $subvol"
             done
 
         umount "$_tmp" 2>/dev/null
@@ -206,7 +185,7 @@ wipe_all_files() {
     sleep 10 # Give fleetd enough time to register the script as completed
     prepare_system_reset
     unmount_network_filesystems
-    wipe_btrfs_subvolumes
+    wipe_btrfs_snapshots
     wipe_non_essential_data
     wipe_system_files
     system_reset
