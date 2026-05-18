@@ -70,7 +70,8 @@ const PoliciesTable = ({
     (currentTeam?.id === null || currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID);
 
   let emptyHeader = "No policies yet";
-  if (isPremiumTier) {
+  // Primo mode uses a generic empty state header
+  if (isPremiumTier && !config?.partnerships?.enable_primo) {
     emptyHeader = isAllFleets
       ? "No policies apply to all fleets"
       : "No policies for this fleet";
@@ -157,7 +158,6 @@ const PoliciesTable = ({
         inputPlaceHolder="Search by name"
         searchable
         disableSearch={isTrulyEmpty}
-        disableActionButton={isTrulyEmpty}
         customControl={customControl}
       />
     </div>

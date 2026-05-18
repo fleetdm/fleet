@@ -101,6 +101,72 @@ describe("Policies table", () => {
     expect(screen.queryByText("Name")).toBeNull();
   });
 
+  it("Renders generic empty state header in Primo mode (all fleets)", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+          config: { partnerships: { enable_primo: true } },
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={0}
+      />
+    );
+
+    expect(screen.getByText("No policies yet")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No policies apply to all fleets")
+    ).not.toBeInTheDocument();
+  });
+
+  it("Renders generic empty state header in Primo mode (specific team)", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+          config: { partnerships: { enable_primo: true } },
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: 1, name: "Some team" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={0}
+      />
+    );
+
+    expect(screen.getByText("No policies yet")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No policies for this fleet")
+    ).not.toBeInTheDocument();
+  });
+
   it("Renders the empty search state when search query exists for server side search with no results", async () => {
     const render = createCustomRenderer({
       context: {

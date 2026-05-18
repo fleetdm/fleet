@@ -228,6 +228,74 @@ describe("QueriesTable", () => {
     });
   });
 
+  it("Renders generic empty state header in Primo mode (all fleets)", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+          config: { partnerships: { enable_primo: true } },
+        },
+      },
+    });
+
+    render(
+      <QueriesTable
+        queries={[]}
+        totalQueriesCount={0}
+        hasNextResults={false}
+        curTeamScopeQueriesPresent={true}
+        isLoading={false}
+        onDeleteQueryClick={jest.fn()}
+        isOnlyObserver={false}
+        isObserverPlus={false}
+        isAnyTeamObserverPlus={false}
+        currentTeamId={undefined}
+        isPremiumTier
+      />
+    );
+
+    expect(screen.getByText("No reports yet")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No reports apply to all fleets")
+    ).not.toBeInTheDocument();
+  });
+
+  it("Renders generic empty state header in Primo mode (specific team)", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+          config: { partnerships: { enable_primo: true } },
+        },
+      },
+    });
+
+    render(
+      <QueriesTable
+        queries={[]}
+        totalQueriesCount={0}
+        hasNextResults={false}
+        curTeamScopeQueriesPresent={true}
+        isLoading={false}
+        onDeleteQueryClick={jest.fn()}
+        isOnlyObserver={false}
+        isObserverPlus={false}
+        isAnyTeamObserverPlus={false}
+        currentTeamId={1}
+        isPremiumTier
+      />
+    );
+
+    expect(screen.getByText("No reports yet")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No reports for this fleet")
+    ).not.toBeInTheDocument();
+  });
+
   it("Renders inherited global queries and team queries when viewing a team", async () => {
     const testData: IQueriesTableProps[] = [
       {

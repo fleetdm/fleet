@@ -188,7 +188,8 @@ const QueriesTable = ({
       currentTeamId === APP_CONTEXT_ALL_TEAMS_ID);
 
   let emptyHeader = "No reports yet";
-  if (isPremiumTier) {
+  // Primo mode uses a generic empty state header
+  if (isPremiumTier && !config?.partnerships?.enable_primo) {
     emptyHeader = isAllFleets
       ? "No reports apply to all fleets"
       : "No reports for this fleet";
