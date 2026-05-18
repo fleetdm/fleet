@@ -339,12 +339,29 @@ const TAGGED_TEMPLATES = {
     );
   },
   fleetEnrolled: (activity: IActivity) => {
-    const hostDisplayName = activity.details?.host_display_name ? (
-      <b>{activity.details.host_display_name}</b>
-    ) : (
-      "A host"
+    const { host_display_name, host_serial } = activity.details || {};
+    if (!host_display_name) {
+      return host_serial ? (
+        <>
+          A host with serial number <b>{host_serial}</b> enrolled in Fleet.
+        </>
+      ) : (
+        <>A host enrolled in Fleet.</>
+      );
+    }
+    // Skip the serial suffix if the display name already ends with " (serial)"
+    // (the "Model (Serial)" fallback format from fleet.HostDisplayName).
+    const showSerial =
+      !!host_serial && !host_display_name.endsWith(`(${host_serial})`);
+    return (
+      <>
+        <b>
+          {host_display_name}
+          {showSerial ? ` (${host_serial})` : ""}
+        </b>{" "}
+        enrolled in Fleet.
+      </>
     );
-    return <>{hostDisplayName} enrolled in Fleet.</>;
   },
 
   mdmEnrolled: (activity: IActivity) => {
@@ -381,13 +398,21 @@ const TAGGED_TEMPLATES = {
     const hostDisplayPrefixText = host_display_name
       ? ""
       : "a host with serial number ";
+    // Skip the serial suffix if the display name already ends with " (serial)"
+    // (the "Model (Serial)" fallback format from fleet.HostDisplayName).
+    const showSerial =
+      !!host_display_name &&
+      !!host_serial &&
+      !host_display_name.endsWith(`(${host_serial})`);
+    const serialSuffix = showSerial ? ` (${host_serial})` : "";
 
     return (
       <>
         <b>{activity.actor_full_name} </b>An end user turned on MDM features for{" "}
         {hostDisplayPrefixText}
         <b>
-          {hostDisplayText} ({enrollmentTypeText})
+          {hostDisplayText}
+          {serialSuffix} ({enrollmentTypeText})
         </b>
         .
       </>
@@ -2542,6 +2567,7 @@ const GlobalActivityItem = ({
       // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the
       // template function
+      case ActivityType.FleetEnrolled:
       case ActivityType.MdmUnenrolled:
       case ActivityType.MdmEnrolled:
       case ActivityType.ResentConfigurationProfile:
