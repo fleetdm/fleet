@@ -17230,6 +17230,8 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 	createDeviceTokenForHost(t, s.ds, host.ID, freshToken)
 
 	retrievedActivity := fleet.ActivityTypeRetrievedHostMyDeviceURL{}.ActivityName()
+	expectedActivityDetails := fmt.Sprintf(
+		`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName())
 
 	// Case 1: host has a fresh token → it should be reused as-is.
 	var resp getHostDeviceURLResponse
@@ -17237,7 +17239,7 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 	require.Equal(t, host.ID, resp.HostID)
 	require.Equal(t, "https://fleet.example.com/device/"+freshToken, resp.DeviceURL)
 	// Each successful retrieval logs an audit activity tied to the host.
-	s.lastActivityOfTypeMatches(retrievedActivity, fmt.Sprintf(`"host_id": %d`, host.ID), 0)
+	s.lastActivityOfTypeMatches(retrievedActivity, expectedActivityDetails, 0)
 
 	// A second call also reuses the same token (still fresh).
 	var resp2 getHostDeviceURLResponse
