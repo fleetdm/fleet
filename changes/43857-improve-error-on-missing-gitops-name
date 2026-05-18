@@ -1,1 +1,0 @@
-- Improved error when `name` key is omitted from a GitOps YAML file.

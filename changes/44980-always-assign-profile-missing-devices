@@ -1,1 +1,0 @@
-- Fixed an issue where replica lag could lead to devices not being assigned a setup experience profile, on device sync from DEP.
