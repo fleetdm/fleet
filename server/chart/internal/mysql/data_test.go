@@ -301,6 +301,33 @@ func testScrubHonorsCtxCancellation(t *testing.T, tdb *testutils.TestDB, ds *Dat
 	assert.Equal(t, before, tdb.SCDBlob(t, id), "row must be untouched when ctx was canceled before the first read")
 }
 
+// TestGetSCDDataMixedEncoding proves the lazy-migration premise: a dense legacy
+// row and a roaring row for the same dataset are both decoded by the chart
+// query path and contribute to the bucket's union. Without this, the day-1
+// post-deploy story (mixed encodings coexisting until closed rows age out) is
+// only covered by unit tests of DecodeBitmap, not by the wired-up read path.
+func TestGetSCDDataMixedEncoding(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+
+	startDate := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
+	endDate := startDate.Add(24 * time.Hour)
+	// Rows must be open at bucketEnd (startDate + 2*bucketSize) for snapshot to
+	// pick them, so seed them as open with valid_from comfortably before the
+	// query window.
+	validFrom := startDate.Add(-time.Hour)
+
+	tdb.InsertSCDRowWithBlob(t, "cve", "CVE-A", testutils.DenseBlob([]uint{1, 2, 3}), validFrom, scdOpenSentinel)
+	tdb.InsertSCDRowWithHostIDs(t, "cve", "CVE-B", []uint{3, 4, 5}, validFrom, scdOpenSentinel)
+
+	pts, err := ds.GetSCDData(t.Context(), "cve",
+		startDate, endDate, 24*time.Hour,
+		api.SampleStrategySnapshot, nil, nil)
+	require.NoError(t, err)
+	require.Len(t, pts, 1)
+	assert.Equal(t, 5, pts[0].Value, "union of dense {1,2,3} and roaring {3,4,5} = {1,2,3,4,5}")
+}
+
 func testScrubOtherDatasetUnaffected(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
 	now := time.Now().UTC()
 

@@ -90,6 +90,26 @@ func (tdb *TestDB) InsertSCDRowWithHostIDs(t *testing.T, dataset, entityID strin
 	return tdb.InsertSCDRowWithBlob(t, dataset, entityID, chart.HostIDsToBlob(hostIDs), validFrom, validTo)
 }
 
+// DenseBlob builds a legacy dense-encoded chart.Blob for the given host IDs.
+// Used to seed pre-migration fixtures that exercise the dense decode path.
+// Production writes always go through chart.HostIDsToBlob (roaring).
+func DenseBlob(ids []uint) chart.Blob {
+	if len(ids) == 0 {
+		return chart.Blob{Encoding: chart.EncodingDense}
+	}
+	var maxID uint
+	for _, id := range ids {
+		if id > maxID {
+			maxID = id
+		}
+	}
+	bytes := make([]byte, maxID/8+1)
+	for _, id := range ids {
+		bytes[id/8] |= 1 << (id % 8)
+	}
+	return chart.Blob{Bytes: bytes, Encoding: chart.EncodingDense}
+}
+
 // SCDBlob returns the host_bitmap + encoding_type for the given row id.
 func (tdb *TestDB) SCDBlob(t *testing.T, id uint) chart.Blob {
 	t.Helper()
