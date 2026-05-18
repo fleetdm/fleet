@@ -183,8 +183,8 @@
     "**/wait-on/axios": "^0.28.0",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.2.0",
-    "**/serialize-javascript": "^7.0.3",
-    "**/yaml": "^1.10.3"
+    "**/serialize-javascript": "7.0.3",
+    "**/yaml": "1.10.3"
   },
   "browserslist": [
     "defaults"
