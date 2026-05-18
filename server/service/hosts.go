@@ -2600,17 +2600,21 @@ func (svc *Service) mintHostDeviceAuthToken(ctx context.Context, hostID uint) (s
 	// entropy, so a collision on the first try implies a second one is
 	// astronomically improbable.
 	const maxAttempts = 2
-	for attempt := 0; attempt < maxAttempts; attempt++ {
+	for range maxAttempts {
 		newToken, err := server.GenerateRandomURLSafeText(24)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "generate new device auth token")
 		}
 
-		// Pre-check: does this token already belong to a different host? The
-		// upsert below would otherwise update that host's row.
-		ownerID, lookupErr := svc.ds.LoadHostByDeviceAuthToken(ctx, newToken, hostDeviceAuthTokenTTL)
+		// Pre-check: does this token already belong to a different host?
+		// host_device_auth.token is UNIQUE, so an upsert that hits another
+		// host's row would silently mangle that row (ON DUPLICATE KEY
+		// UPDATE suppresses the duplicate-key error). Use the TTL-agnostic
+		// lookup here — an expired-but-present row still trips the unique
+		// constraint on insert.
+		ownerHostID, lookupErr := svc.ds.HostIDByDeviceAuthToken(ctx, newToken)
 		switch {
-		case lookupErr == nil && ownerID != nil && ownerID.ID != hostID:
+		case lookupErr == nil && ownerHostID != hostID:
 			// Collision with a different host — retry.
 			continue
 		case lookupErr != nil && !fleet.IsNotFound(lookupErr):

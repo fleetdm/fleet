@@ -17225,7 +17225,7 @@ func (s *integrationTestSuite) TestHostDeviceURL() {
 		require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
 	})
 
-	const freshToken = "my-device-link-fresh-token"
+	const freshToken = "my-device-link-fresh-token" //nolint:gosec // G101 false positive, test fixture value
 	host := createOrbitEnrolledHost(t, "linux", "device-url-host", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, freshToken)
 

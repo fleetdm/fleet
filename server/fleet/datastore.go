@@ -400,6 +400,13 @@ type Datastore interface {
 	// successfully via LoadHostByDeviceAuthToken). Returns a NotFoundError
 	// if the host has no token row or the existing token is expired.
 	GetDeviceAuthTokenIfFresh(ctx context.Context, hostID uint, tokenTTL time.Duration) (string, error)
+	// HostIDByDeviceAuthToken returns the host_id that owns the given device
+	// auth token, with no TTL filter. Used to defend against random-token
+	// collisions when minting a new token — unlike LoadHostByDeviceAuthToken
+	// this matches rows whose token is expired but still in the table, since
+	// expired rows still cause UNIQUE-key conflicts on the host_device_auth
+	// upsert. Returns a NotFoundError if no row owns the token.
+	HostIDByDeviceAuthToken(ctx context.Context, authToken string) (uint, error)
 
 	// FailingPoliciesCount returns the number of failling policies for 'host'
 	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
