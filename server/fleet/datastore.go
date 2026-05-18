@@ -453,7 +453,20 @@ type Datastore interface {
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificateRecord, *PaginationMetadata, error)
-	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord) error
+	// UpdateHostCertificates ingests certs reported by `origin`. Each call only
+	// soft-deletes existing rows whose origin matches, so osquery and MDM
+	// ingestion don't clobber each other's view.
+	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin) error
+
+	// ProfileHasACMEPayloadForCommand returns the host/profile gating data
+	// needed to decide whether an InstallProfile ack should trigger a
+	// CertificateList refetch: host platform, profile UUID, whether the
+	// delivered profile contains a com.apple.security.acme payload, and
+	// whether a refetch is already pending. All gates are computed
+	// server-side in a single indexed lookup so the per-ack hot path stays
+	// cheap. Substring-matched on the mobileconfig blob; bounded false-
+	// positive risk (one redundant CertificateList per false match).
+	ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (ProfileACMECommandResult, error)
 
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean
