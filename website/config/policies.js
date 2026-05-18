@@ -50,6 +50,7 @@ module.exports.policies = {
   'deliver-mdm-demo-email': true,
   'view-support': true,
   'view-integrations': true,
+  'view-how-fleet-fits-your-stack': true,
   'deliver-talk-to-us-form-submission': true,
   'get-human-interpretation-from-osquery-sql': true,
   'customers/view-new-license': true,

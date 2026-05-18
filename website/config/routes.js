@@ -458,6 +458,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /how-fleet-fits-your-stack': {
+    action: 'view-how-fleet-fits-your-stack',
+    locals: {
+      pageTitleForMeta: 'How Fleet fits into your IT stack | Integrations and infrastructure',
+      pageDescriptionForMeta: 'See how Fleet connects with the identity, SIEM, ticketing, SOAR, configuration management, cloud, asset management, and GitOps tools your team already uses.',
+      currentSection: 'platform',
+    }
+  },
+
   'GET /better': {
     action: 'view-transparency',
     locals: {

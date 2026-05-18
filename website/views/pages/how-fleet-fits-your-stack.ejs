@@ -1,0 +1,452 @@
+<div id="how-fleet-fits-your-stack" v-cloak>
+  <div purpose="landing-page-container">
+    <div purpose="landing-page-content">
+
+
+      <%// ─── HERO ─────────────────────────────────────────────── %>
+      <div purpose="landing-page-hero">
+        <div purpose="page-hero-content">
+          <div purpose="page-hero-headings">
+            <h4>Integrations and IT infrastructure</h4>
+            <h1>How Fleet fits into your IT stack</h1>
+          </div>
+          <div purpose="page-hero-text">
+            <p>Fleet plugs into the identity, security, compliance, and automation tools your team already uses, giving you one source of device truth across your entire infrastructure.</p>
+          </div>
+          <div purpose="button-row" class="d-flex justify-content-center align-items-center">
+            <a purpose="cta-button" href="/contact" no-underline>Get a demo</a>
+            <animated-arrow-button href="/integrations">Browse all integrations</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+
+      <%// ─── VALUE PILLARS ───────────────────────────────────── %>
+      <div purpose="landing-page-section" class="pt-0">
+        <div purpose="three-column-list">
+          <div purpose="feature">
+            <p purpose="feature-headline">Open APIs first</p>
+            <p purpose="feature-text">Every feature in the Fleet UI is available 1:1 in the REST API. Webhooks fire on every meaningful event, no polling required.</p>
+          </div>
+          <div purpose="feature">
+            <p purpose="feature-headline">GitOps native</p>
+            <p purpose="feature-text">Define policies, profiles, queries, and software as YAML in Git. Apply changes through your CI/CD pipeline using fleetctl.</p>
+          </div>
+          <div purpose="feature">
+            <p purpose="feature-headline">Deploy anywhere</p>
+            <p purpose="feature-text">Self-host on AWS, Azure, GCP, on-prem, or air-gapped infrastructure. Same features everywhere, no forced cloud dependencies.</p>
+          </div>
+        </div>
+      </div>
+
+
+      <%// ─── THE STACK HUB ───────────────────────────────────── %>
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h4>Fleet at the center</h4>
+          <h2>Connects the tools your team already uses</h2>
+          <p>Fleet sits at the middle of your IT and security stack, sharing real device truth with every layer of your infrastructure. Choose a category below to see how Fleet fits in.</p>
+        </div>
+        <div purpose="stack-hub">
+          <a href="#gitops" purpose="stack-card">
+            <div purpose="stack-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></svg>
+            </div>
+            <p purpose="stack-card-title">GitOps and CI/CD</p>
+            <p purpose="stack-card-text">Manage device config like code: versioned, peer-reviewed, and instantly rollback-able.</p>
+            <div purpose="stack-card-vendors">
+              <span>GitHub Actions</span><span>GitLab CI</span><span>fleetctl</span>
+            </div>
+          </a>
+
+          <a href="#siem" purpose="stack-card">
+            <div purpose="stack-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <p purpose="stack-card-title">SIEM and data lakes</p>
+            <p purpose="stack-card-text">Stream endpoint telemetry to your SIEM for threat detection, correlation, and investigation.</p>
+            <div purpose="stack-card-vendors">
+              <span>Splunk</span><span>Snowflake</span><span>Elastic</span><span>Chronicle</span>
+            </div>
+          </a>
+
+          <a href="#ticketing" purpose="stack-card">
+            <div purpose="stack-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
+            </div>
+            <p purpose="stack-card-title">Ticketing and ITSM</p>
+            <p purpose="stack-card-text">Auto-create tickets for CVEs and policy failures so remediation is tracked, not forgotten.</p>
+            <div purpose="stack-card-vendors">
+              <span>Jira</span><span>ServiceNow</span><span>Zendesk</span><span>Webhooks</span>
+            </div>
+          </a>
+
+          <a href="#soar" purpose="stack-card">
+            <div purpose="stack-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </div>
+            <p purpose="stack-card-title">SOAR and automation</p>
+            <p purpose="stack-card-text">Trigger no-code playbooks when devices drift, go offline, or new vulnerabilities appear.</p>
+            <div purpose="stack-card-vendors">
+              <span>Tines</span><span>Torq</span><span>Swimlane</span>
+            </div>
+          </a>
+
+          <div purpose="stack-card-fleet">
+            <img alt="Fleet" src="/images/fleet-logo-black-118x40@2x.png">
+            <p>at the center of your stack</p>
+          </div>
+
+          <a href="#config-management" purpose="stack-card">
+            <div purpose="stack-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
+            <p purpose="stack-card-title">Configuration management</p>
+            <p purpose="stack-card-text">Fleet detects drift, your CM tool remediates it. A closed loop from visibility to enforcement.</p>
+            <div purpose="stack-card-vendors">
+              <span>Ansible</span><span>Puppet</span><span>Chef</span><span>Salt</span><span>Munki</span>
+            </div>
+          </a>
+
+          <a href="#cloud" purpose="stack-card">
+            <div purpose="stack-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+            </div>
+            <p purpose="stack-card-title">Cloud and infrastructure</p>
+            <p purpose="stack-card-text">Run Fleet in your cloud, on-prem, or air-gapped. Same features everywhere, zero lock-in.</p>
+            <div purpose="stack-card-vendors">
+              <span>AWS</span><span>Azure</span><span>GCP</span><span>On-prem</span>
+            </div>
+          </a>
+
+          <a href="#asset-management" purpose="stack-card">
+            <div purpose="stack-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M12 12v.01"/></svg>
+            </div>
+            <p purpose="stack-card-title">Asset management and compliance</p>
+            <p purpose="stack-card-text">Sync live device data into ITAM and compliance tools. Automate audit evidence collection.</p>
+            <div purpose="stack-card-vendors">
+              <span>Vanta</span><span>Oomnitza</span><span>Adaptive Shield</span><span>runZero</span>
+            </div>
+          </a>
+
+          <a href="#identity" purpose="stack-card">
+            <div purpose="stack-card-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15c-3 0-6 1.5-6 3v1h12v-1c0-1.5-3-3-6-3z"/><circle cx="12" cy="9" r="3"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
+            </div>
+            <p purpose="stack-card-title">Identity and access</p>
+            <p purpose="stack-card-text">Sign in to Fleet with corporate SSO, and feed real-time device posture into your access decisions.</p>
+            <div purpose="stack-card-vendors">
+              <span>Okta</span><span>Active Directory</span><span>Entra ID</span><span>Any SAML IdP</span>
+            </div>
+          </a>
+        </div>
+      </div>
+
+
+      <%// ─── DETAIL: GITOPS ──────────────────────────────────── %>
+      <div purpose="detail-section" id="gitops">
+        <div purpose="detail-heading">
+          <h4>GitOps and CI/CD</h4>
+          <h3>Manage device configuration the way you manage code</h3>
+          <p>Store Fleet configuration in Git. Review every change as a pull request, deploy through CI/CD, and roll back instantly when something goes wrong.</p>
+        </div>
+        <div purpose="detail-vendors">
+          <span class="vendor-tag">GitHub Actions</span>
+          <span class="vendor-tag">GitLab CI</span>
+          <span class="vendor-tag">fleetctl CLI</span>
+        </div>
+        <div purpose="detail-grid">
+          <div purpose="use-cases">
+            <p purpose="detail-subheading">Top use cases</p>
+            <div purpose="use-case"><span purpose="use-case-num">1</span><p><strong>Peer-reviewed device changes.</strong> All config changes go through pull requests so teammates can review before changes reach devices.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">2</span><p><strong>Instant rollback.</strong> Revert a Git commit and re-run the pipeline. Fleet applies the previous known-good configuration.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">3</span><p><strong>Audit trail for compliance.</strong> Git history provides an immutable record of who changed what, when, and why.</p></div>
+          </div>
+          <div purpose="how-it-works">
+            <p purpose="detail-subheading">How it works</p>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Define policies, queries, MDM profiles, and software packages as YAML files in a Git repo.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>GitHub Actions or GitLab CI runs <code>fleetctl gitops</code> on merge to apply changes to Fleet.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet validates the configuration and rolls it out to targeted hosts, with full version history.</p></div>
+          </div>
+        </div>
+      </div>
+
+
+      <%// ─── DETAIL: SIEM ────────────────────────────────────── %>
+      <div purpose="detail-section" id="siem">
+        <div purpose="detail-heading">
+          <h4>SIEM and data lakes</h4>
+          <h3>Feed real-time endpoint data into your security stack</h3>
+          <p>Stream Fleet logs, osquery results, and vulnerability data into your SIEM or data lake so security teams can correlate endpoint telemetry with network, cloud, and identity events in one place.</p>
+        </div>
+        <div purpose="detail-vendors">
+          <span class="vendor-tag">Splunk</span>
+          <span class="vendor-tag">Snowflake</span>
+          <span class="vendor-tag">Elastic</span>
+          <span class="vendor-tag">Google Chronicle</span>
+          <span class="vendor-tag">Kinesis, Firehose, Kafka, PubSub</span>
+        </div>
+        <div purpose="detail-grid">
+          <div purpose="use-cases">
+            <p purpose="detail-subheading">Top use cases</p>
+            <div purpose="use-case"><span purpose="use-case-num">1</span><p><strong>Threat detection and correlation.</strong> Ingest osquery results to build detections that combine endpoint, network, and identity signals.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">2</span><p><strong>Vulnerability analytics at scale.</strong> Stream CVE data to Snowflake to build dashboards covering vulnerability trends, patch SLAs, and risk by business unit.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">3</span><p><strong>Incident investigation.</strong> Search historical endpoint data to reconstruct timelines during incident response.</p></div>
+          </div>
+          <div purpose="how-it-works">
+            <p purpose="detail-subheading">How it works</p>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Configure Fleet log destinations to ship osquery results, host status, and CVE data using Firehose, Kinesis, Kafka, or PubSub.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Land the data in Splunk, Snowflake, Elastic, Chronicle, or any data lake downstream.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Build dashboards, alerts, and detection rules alongside the rest of your security telemetry.</p></div>
+          </div>
+        </div>
+      </div>
+
+
+      <%// ─── DETAIL: TICKETING ───────────────────────────────── %>
+      <div purpose="detail-section" id="ticketing">
+        <div purpose="detail-heading">
+          <h4>Ticketing and ITSM</h4>
+          <h3>Turn vulnerability findings into tracked work</h3>
+          <p>Automatically create tickets when Fleet detects new CVEs or policy failures, so remediation lives in the same tool your team already uses, with no manual triage.</p>
+        </div>
+        <div purpose="detail-vendors">
+          <span class="vendor-tag">Jira</span>
+          <span class="vendor-tag">ServiceNow</span>
+          <span class="vendor-tag">Zendesk</span>
+          <span class="vendor-tag">Any system via webhooks</span>
+        </div>
+        <div purpose="detail-grid">
+          <div purpose="use-cases">
+            <p purpose="detail-subheading">Top use cases</p>
+            <div purpose="use-case"><span purpose="use-case-num">1</span><p><strong>Auto-create Jira tickets for CVEs.</strong> Fleet detects a new vulnerability and opens a Jira issue with affected hosts, severity, and remediation context.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">2</span><p><strong>Policy failure routing.</strong> Send webhook notifications when hosts fail compliance policies, routing them to your service desk.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">3</span><p><strong>SLA tracking for patches.</strong> Combine Fleet vulnerability data with ticket timestamps to measure and enforce patch SLAs.</p></div>
+          </div>
+          <div purpose="how-it-works">
+            <p purpose="detail-subheading">How it works</p>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Enable Fleet's built-in Jira integration or configure webhook URLs for any ticketing system.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet sends structured payloads with host details, CVE IDs, severity, and policy context, ready for ticket templates.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Outbound webhooks fire on CVE detection, policy failure, or host status changes. No polling needed.</p></div>
+          </div>
+        </div>
+      </div>
+
+
+      <%// ─── DETAIL: SOAR ────────────────────────────────────── %>
+      <div purpose="detail-section" id="soar">
+        <div purpose="detail-heading">
+          <h4>SOAR and workflow automation</h4>
+          <h3>Automate response without writing code</h3>
+          <p>Connect Fleet events to no-code platforms so when a host goes offline, a policy fails, or a new vulnerability appears, your runbooks execute automatically.</p>
+        </div>
+        <div purpose="detail-vendors">
+          <span class="vendor-tag">Tines</span>
+          <span class="vendor-tag">Torq</span>
+          <span class="vendor-tag">Swimlane</span>
+          <span class="vendor-tag">Custom webhooks</span>
+        </div>
+        <div purpose="detail-grid">
+          <div purpose="use-cases">
+            <p purpose="detail-subheading">Top use cases</p>
+            <div purpose="use-case"><span purpose="use-case-num">1</span><p><strong>Automated incident playbooks.</strong> Fleet detects a compromised host. Tines isolates the device, alerts the SOC, and opens an incident ticket.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">2</span><p><strong>Self-healing compliance.</strong> A SOAR playbook auto-remediates drift, re-enabling FileVault, pushing a missing profile, or notifying the user.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">3</span><p><strong>Enrichment workflows.</strong> Use Fleet's API to enrich alerts in other tools with real-time device context: OS version, software, policy status.</p></div>
+          </div>
+          <div purpose="how-it-works">
+            <p purpose="detail-subheading">How it works</p>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet sends webhook events (policy failure, CVE found, host offline) to your SOAR platform's trigger URL.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Your SOAR parses the payload and runs a workflow: Slack alerts, Jira tickets, API calls back to Fleet.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet's REST API supports bidirectional communication, so your SOAR can query Fleet and trigger actions programmatically.</p></div>
+          </div>
+        </div>
+      </div>
+
+
+      <%// ─── DETAIL: CONFIG MANAGEMENT ───────────────────────── %>
+      <div purpose="detail-section" id="config-management">
+        <div purpose="detail-heading">
+          <h4>Configuration management</h4>
+          <h3>Pair visibility with enforcement</h3>
+          <p>Fleet shows you the current state of every device. Configuration management tools enforce desired state. Together they create a closed loop: Fleet detects drift, your CM tool remediates it, Fleet verifies the fix.</p>
+        </div>
+        <div purpose="detail-vendors">
+          <span class="vendor-tag">Ansible</span>
+          <span class="vendor-tag">Puppet</span>
+          <span class="vendor-tag">Chef</span>
+          <span class="vendor-tag">Salt</span>
+          <span class="vendor-tag">Munki</span>
+        </div>
+        <div purpose="detail-grid">
+          <div purpose="use-cases">
+            <p purpose="detail-subheading">Top use cases</p>
+            <div purpose="use-case"><span purpose="use-case-num">1</span><p><strong>Detect drift, automate remediation.</strong> Fleet identifies drifted hosts. Ansible, Puppet, or Chef playbooks converge the device back to desired state.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">2</span><p><strong>Deploy Fleet agents at scale.</strong> Use your existing CM tool to push and manage the fleetd agent across thousands of servers and workstations.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">3</span><p><strong>Verify compliance after changes.</strong> After a Chef or Puppet run, use Fleet queries to confirm the change took effect.</p></div>
+          </div>
+          <div purpose="how-it-works">
+            <p purpose="detail-subheading">How it works</p>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet runs scheduled queries and policies to continuously monitor device state across your infrastructure.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Policy failures fire webhooks to your CM tool or SOAR, kicking off remediation playbooks.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>CM tools deploy <code>fleetd</code> through their package workflows (cookbooks, playbooks, manifests).</p></div>
+          </div>
+        </div>
+      </div>
+
+
+      <%// ─── DETAIL: CLOUD ───────────────────────────────────── %>
+      <div purpose="detail-section" id="cloud">
+        <div purpose="detail-heading">
+          <h4>Cloud and infrastructure</h4>
+          <h3>Deploy Fleet wherever your infrastructure lives</h3>
+          <p>Run Fleet on-prem, in your cloud account, or in air-gapped environments. Every deployment model gets the same full-featured experience, with no cloud-only features and no feature gatekeeping.</p>
+        </div>
+        <div purpose="detail-vendors">
+          <span class="vendor-tag">AWS (EC2, ECS)</span>
+          <span class="vendor-tag">Azure VMs</span>
+          <span class="vendor-tag">Google Cloud (GKE)</span>
+          <span class="vendor-tag">On-prem and air-gapped</span>
+        </div>
+        <div purpose="detail-grid">
+          <div purpose="use-cases">
+            <p purpose="detail-subheading">Top use cases</p>
+            <div purpose="use-case"><span purpose="use-case-num">1</span><p><strong>Self-managed cloud deployment.</strong> Run Fleet in your own AWS, Azure, or GCP account so endpoint data stays inside your network perimeter.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">2</span><p><strong>Hybrid fleet visibility.</strong> Manage laptops, cloud VMs, data center servers, and OT or ICS devices from one Fleet instance.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">3</span><p><strong>Data residency and compliance.</strong> Deploy Fleet in a specific region to satisfy GDPR, FedRAMP, or other data sovereignty requirements.</p></div>
+          </div>
+          <div purpose="how-it-works">
+            <p purpose="detail-subheading">How it works</p>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet ships as a single Go binary with MySQL and Redis. Deploy via Docker, Helm, Terraform, or manual install.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Choose self-managed or Fleet-hosted with 100% feature parity between them.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>IaC support through Terraform modules and Helm charts means Fleet follows the same GitOps workflow as the rest of your stack.</p></div>
+          </div>
+        </div>
+      </div>
+
+
+      <%// ─── DETAIL: ASSET MANAGEMENT ────────────────────────── %>
+      <div purpose="detail-section" id="asset-management">
+        <div purpose="detail-heading">
+          <h4>Asset management and compliance</h4>
+          <h3>Ground your inventory and audit evidence in real device data</h3>
+          <p>Sync Fleet's live host data into your ITAM and compliance platforms so inventory, audit evidence, and risk reporting always reflect ground truth.</p>
+        </div>
+        <div purpose="detail-vendors">
+          <span class="vendor-tag">Vanta</span>
+          <span class="vendor-tag">Oomnitza</span>
+          <span class="vendor-tag">Adaptive Shield</span>
+          <span class="vendor-tag">runZero</span>
+          <span class="vendor-tag">Workbrew, Homebrew</span>
+        </div>
+        <div purpose="detail-grid">
+          <div purpose="use-cases">
+            <p purpose="detail-subheading">Top use cases</p>
+            <div purpose="use-case"><span purpose="use-case-num">1</span><p><strong>Automated audit evidence.</strong> Vanta pulls device posture data from Fleet to collect SOC 2 and ISO 27001 evidence on a continuous basis.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">2</span><p><strong>Live asset inventory sync.</strong> Oomnitza ingests Fleet host data so your CMDB reflects what's actually deployed, not what's in a spreadsheet.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">3</span><p><strong>Discover unmanaged devices.</strong> runZero finds assets on the network and can deploy osquery agents, feeding newly found devices into Fleet.</p></div>
+          </div>
+          <div purpose="how-it-works">
+            <p purpose="detail-subheading">How it works</p>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet exposes detailed host data (hardware, software, users, policy results) through its REST API and scheduled exports.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>ITAM and compliance tools pull this data on a schedule or via webhook triggers to stay current automatically.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Connect Vanta to Fleet in a few clicks from the Fleet UI, no custom scripting required.</p></div>
+          </div>
+        </div>
+      </div>
+
+
+      <%// ─── DETAIL: IDENTITY ────────────────────────────────── %>
+      <div purpose="detail-section" id="identity">
+        <div purpose="detail-heading">
+          <h4>Identity and access</h4>
+          <h3>Sign in with corporate SSO, enforce device-aware access</h3>
+          <p>Authenticate your team into Fleet using existing corporate credentials over SAML. Then share Fleet's real-time device posture with your IdP so access decisions factor in both the user and the health of their device.</p>
+        </div>
+        <div purpose="detail-vendors">
+          <span class="vendor-tag">Okta</span>
+          <span class="vendor-tag">Active Directory</span>
+          <span class="vendor-tag">Microsoft Entra ID</span>
+          <span class="vendor-tag">Google Workspace</span>
+          <span class="vendor-tag">Any SAML IdP</span>
+        </div>
+        <div purpose="detail-grid">
+          <div purpose="use-cases">
+            <p purpose="detail-subheading">Top use cases</p>
+            <div purpose="use-case"><span purpose="use-case-num">1</span><p><strong>SSO for Fleet.</strong> Configure Fleet as a SAML application so your team uses existing corporate credentials. No separate password to manage.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">2</span><p><strong>Posture-based conditional access.</strong> Block users from SaaS apps via your IdP if their device fails Fleet security policies (encryption off, OS out of date).</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">3</span><p><strong>Zero Trust device trust.</strong> Pair Fleet's host policy results with IdP conditional access rules to verify every device at every login.</p></div>
+          </div>
+          <div purpose="how-it-works">
+            <p purpose="detail-subheading">How it works</p>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Fleet evaluates device policies in real time (encryption, OS version, firewall) and exposes results through the API.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>Your IdP reads Fleet's posture data and applies conditional access rules before granting app access.</p></div>
+            <div purpose="how-step"><span purpose="how-dot"></span><p>SAML-based SSO uses standard protocols. No custom connectors required.</p></div>
+          </div>
+        </div>
+      </div>
+
+
+      <%// ─── BUILD WITH FLEET PRIMITIVES ─────────────────────── %>
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h4>Open platform</h4>
+          <h2>Build anything with Fleet's primitives</h2>
+          <p>When an off-the-shelf integration isn't enough, three open primitives let you wire Fleet into any workflow your team can imagine.</p>
+        </div>
+        <div purpose="primitive-cards">
+          <div purpose="primitive-card">
+            <p purpose="primitive-title">REST API</p>
+            <p>Hosts, queries, policies, software, and configuration, all accessible programmatically. Build custom dashboards or automate Fleet end to end.</p>
+            <a purpose="primitive-link" href="/docs/rest-api/rest-api">View API docs</a>
+          </div>
+          <div purpose="primitive-card">
+            <p purpose="primitive-title">Webhooks</p>
+            <p>Outbound event notifications when hosts, policies, or CVE statuses change. Trigger any downstream system without polling.</p>
+            <a purpose="primitive-link" href="/docs/using-fleet/automations">View automations docs</a>
+          </div>
+          <div purpose="primitive-card">
+            <p purpose="primitive-title">fleetctl CLI</p>
+            <p>Manage Fleet from CI/CD pipelines, shell scripts, or your terminal. Apply GitOps configs, run queries, and manage hosts programmatically.</p>
+            <a purpose="primitive-link" href="/docs/using-fleet/fleetctl-cli">View CLI docs</a>
+          </div>
+        </div>
+      </div>
+
+
+      <%// ─── CROSS-LINK TO /INTEGRATIONS ─────────────────────── %>
+      <div purpose="landing-page-section">
+        <div purpose="cross-link">
+          <div purpose="cross-link-text">
+            <h3>Looking for a specific vendor?</h3>
+            <p>Browse the full directory of tools Fleet integrates with, including setup guides, docs, and configuration details for each.</p>
+          </div>
+          <a purpose="cta-button" href="/integrations" no-underline>View all integrations</a>
+        </div>
+      </div>
+
+
+    </div><%// landing-page-content %>
+  </div><%// landing-page-container %>
+
+
+  <%// ─── BOTTOM CTA ─────────────────────────────────────────── %>
+  <div purpose="bottom-gradient">
+    <div purpose="page-container">
+      <div purpose="bottom-cta" class="text-center">
+        <div>
+          <h4>Ready to connect Fleet?</h4>
+          <h1>See how Fleet fits into your stack</h1>
+        </div>
+        <p purpose="bottom-cta-text">Talk to our team about connecting Fleet to the tools you already use.</p>
+        <div purpose="button-row" class="d-flex justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" class="mr-0" href="/contact" no-underline>Get a demo</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <parallax-city></parallax-city>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
