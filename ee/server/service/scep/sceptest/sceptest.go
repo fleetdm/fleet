@@ -112,7 +112,7 @@ func NewTestNDESAdminServer(t *testing.T, responseTemplate string, _ int) *httpt
 
 	// We need to convert the HTML page to UTF-16 encoding, which is used by Windows servers
 	convertHTML := func(html []byte) []byte {
-		datUTF16, err := utf16FromString(string(html))
+		datUTF16, err := UTF16FromString(string(html))
 		require.NoError(t, err)
 		byteData := make([]byte, len(datUTF16)*2)
 		for i, v := range datUTF16 {
@@ -161,10 +161,10 @@ func NewTestDynamicChallengeServer(t *testing.T) *httptest.Server {
 	return dynamicChallengeServer
 }
 
-// utf16FromString returns the UTF-16 encoding of the UTF-8 string s, with a
+// UTF16FromString returns the UTF-16 encoding of the UTF-8 string s, with a
 // terminating NUL added. If s contains a NUL byte at any location, it
 // returns (nil, syscall.EINVAL).
-func utf16FromString(s string) ([]uint16, error) {
+func UTF16FromString(s string) ([]uint16, error) {
 	for i := 0; i < len(s); i++ {
 		if s[i] == 0 {
 			return nil, syscall.EINVAL

@@ -10,10 +10,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"syscall"
 	"testing"
 	"time"
-	"unicode/utf16"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep/sceptest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -22,18 +20,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// utf16FromString returns the UTF-16 encoding of the UTF-8 string s, with a
-// terminating NUL added. Mirrors sceptest.utf16FromString — kept here so
-// this test doesn't need to import sceptest just for one helper.
-func utf16FromString(s string) ([]uint16, error) {
-	for i := 0; i < len(s); i++ {
-		if s[i] == 0 {
-			return nil, syscall.EINVAL
-		}
-	}
-	return utf16.Encode([]rune(s + "\x00")), nil
-}
 
 func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	t.Parallel()
@@ -78,7 +64,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	returnPageFromFile := func(path string) []byte {
 		dat, err := os.ReadFile(path)
 		require.NoError(t, err)
-		datUTF16, err := utf16FromString(string(dat))
+		datUTF16, err := sceptest.UTF16FromString(string(dat))
 		require.NoError(t, err)
 		byteData := make([]byte, len(datUTF16)*2)
 		for i, v := range datUTF16 {
