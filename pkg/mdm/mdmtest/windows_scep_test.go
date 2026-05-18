@@ -183,7 +183,6 @@ func TestRunSCEPAgainstTestServer(t *testing.T) {
 		Challenge:   "any-challenge",
 		SubjectName: "CN=integration-test,OU=fleet",
 		KeyLength:   2048,
-		HashAlg:     "SHA-256",
 	}, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 	require.NotNil(t, cert)

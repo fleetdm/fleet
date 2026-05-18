@@ -1,28 +1,22 @@
 package mdmtest
 
 import (
+	"cmp"
 	"context"
-	cryptorand "crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/big"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
-	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
-	smallstepscep "github.com/smallstep/scep"
 )
 
 // SCEPCommand describes a single SCEP CertificateInstall CSP that the test client received.
@@ -38,7 +32,6 @@ type SCEPCommand struct {
 	Challenge   string
 	SubjectName string
 	KeyLength   int
-	HashAlg     string
 }
 
 // SCEPResult is emitted on the channel returned by AppendSCEPInstallResponses once the async
@@ -59,11 +52,15 @@ type SCEPResult struct {
 // malformed profile or parser bug instead of silently never running SCEP.
 func (c *TestWindowsMDMClient) ExtractSCEPCommands(cmds map[string]fleet.ProtoCmdOperation) (complete, incomplete []SCEPCommand) {
 	byID := map[string]*SCEPCommand{}
+	// currentAtomicID is set while walking the children of an Atomic op so that any new SCEP
+	// entry created during that walk gets the Atomic's CmdID stamped on it at creation time.
+	// Entries created outside an Atomic (standalone Add/Exec) get an empty AtomicCmdID.
+	var currentAtomicID string
 
 	get := func(uniqueID string) *SCEPCommand {
 		sc, ok := byID[uniqueID]
 		if !ok {
-			sc = &SCEPCommand{UniqueID: uniqueID, KeyLength: 2048, HashAlg: "SHA-256"}
+			sc = &SCEPCommand{UniqueID: uniqueID, KeyLength: 2048, AtomicCmdID: currentAtomicID}
 			byID[uniqueID] = sc
 		}
 		return sc
@@ -87,10 +84,6 @@ func (c *TestWindowsMDMClient) ExtractSCEPCommands(cmds map[string]fleet.ProtoCm
 		case "KeyLength":
 			if n, err := strconv.Atoi(val); err == nil && n > 0 {
 				sc.KeyLength = n
-			}
-		case "HashAlgorithm":
-			if val != "" {
-				sc.HashAlg = val
 			}
 		}
 	}
@@ -117,23 +110,14 @@ func (c *TestWindowsMDMClient) ExtractSCEPCommands(cmds map[string]fleet.ProtoCm
 	for _, op := range cmds {
 		switch op.Verb {
 		case fleet.CmdAtomic:
-			atomicID := op.Cmd.CmdID.Value
-			before := collectKeys(byID)
+			currentAtomicID = op.Cmd.CmdID.Value
 			for _, child := range op.Cmd.AddCommands {
 				walkChild(child, fleet.CmdAdd)
 			}
 			for _, child := range op.Cmd.ExecCommands {
 				walkChild(child, fleet.CmdExec)
 			}
-			// Stamp the Atomic CmdID onto every CSP first observed under this Atomic.
-			for k, sc := range byID {
-				if _, seen := before[k]; seen {
-					continue
-				}
-				if sc.AtomicCmdID == "" {
-					sc.AtomicCmdID = atomicID
-				}
-			}
+			currentAtomicID = ""
 		case fleet.CmdAdd:
 			walkChild(op.Cmd, fleet.CmdAdd)
 		case fleet.CmdExec:
@@ -148,6 +132,11 @@ func (c *TestWindowsMDMClient) ExtractSCEPCommands(cmds map[string]fleet.ProtoCm
 		}
 		complete = append(complete, *sc)
 	}
+	// Map iteration order is nondeterministic; sort both slices by UniqueID so tests asserting
+	// on multi-CSP profiles aren't flaky.
+	byUniqueID := func(a, b SCEPCommand) int { return cmp.Compare(a.UniqueID, b.UniqueID) }
+	slices.SortFunc(complete, byUniqueID)
+	slices.SortFunc(incomplete, byUniqueID)
 	return complete, incomplete
 }
 
@@ -165,14 +154,6 @@ func missingSCEPFields(sc SCEPCommand) string {
 		missing = append(missing, "/Install/Enroll Exec")
 	}
 	return strings.Join(missing, ", ")
-}
-
-func collectKeys(m map[string]*SCEPCommand) map[string]struct{} {
-	out := make(map[string]struct{}, len(m))
-	for k := range m {
-		out[k] = struct{}{}
-	}
-	return out
 }
 
 type scepCSPPath struct {
@@ -292,99 +273,17 @@ func (c *TestWindowsMDMClient) AppendSCEPInstallResponses(
 // AppendSCEPInstallResponses so callers (and tests) can drive the exchange synchronously when
 // they want.
 func (c *TestWindowsMDMClient) RunSCEP(ctx context.Context, sc SCEPCommand, logger *slog.Logger) (*x509.Certificate, error) {
-	if logger == nil {
-		logger = slog.New(slog.DiscardHandler)
-	}
-	if sc.ServerURL == "" {
-		return nil, errors.New("scep command missing ServerURL")
-	}
-
-	timeout := 30 * time.Second
-	client, err := scepclient.New(sc.ServerURL, logger,
-		scepclient.WithTimeout(&timeout),
-		scepclient.Insecure(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating scep client: %w", err)
-	}
-
-	caResp, _, err := client.GetCACert(ctx, "")
-	if err != nil {
-		return nil, fmt.Errorf("scep get ca cert: %w", err)
-	}
-	caCerts, err := x509.ParseCertificates(caResp)
-	if err != nil {
-		return nil, fmt.Errorf("scep parse ca certs: %w", err)
-	}
-	if len(caCerts) == 0 {
-		return nil, errors.New("scep get ca cert returned no certificates")
-	}
-
-	keyBits := sc.KeyLength
-	if keyBits <= 0 {
-		keyBits = 2048
-	}
-	privKey, err := rsa.GenerateKey(cryptorand.Reader, keyBits)
-	if err != nil {
-		return nil, fmt.Errorf("scep generate rsa key: %w", err)
-	}
 	subject, err := parseSCEPSubject(sc.SubjectName)
 	if err != nil {
 		return nil, fmt.Errorf("scep parse subject: %w", err)
 	}
-
-	csrTpl := x509util.CertificateRequest{
-		CertificateRequest: x509.CertificateRequest{
-			Subject:            subject,
-			SignatureAlgorithm: signatureAlgorithmForHash(sc.HashAlg),
-		},
-		ChallengePassword: sc.Challenge,
-	}
-	csrDER, err := x509util.CreateCertificateRequest(cryptorand.Reader, &csrTpl, privKey)
-	if err != nil {
-		return nil, fmt.Errorf("scep create csr: %w", err)
-	}
-	csr, err := x509.ParseCertificateRequest(csrDER)
-	if err != nil {
-		return nil, fmt.Errorf("scep parse csr: %w", err)
-	}
-
-	// SCEP requires the request to be signed by an existing cert. For first-time enrollment we
-	// use a short-lived self-signed cert wrapping the same key as the CSR.
-	signerCert, err := selfSignedSignerCert(privKey, subject)
-	if err != nil {
-		return nil, fmt.Errorf("scep create self-signed signer: %w", err)
-	}
-
-	pkiReq := &smallstepscep.PKIMessage{
-		MessageType: smallstepscep.PKCSReq,
-		Recipients:  caCerts,
-		SignerKey:   privKey,
-		SignerCert:  signerCert,
-	}
-	msg, err := smallstepscep.NewCSRRequest(csr, pkiReq)
-	if err != nil {
-		return nil, fmt.Errorf("scep new csr request: %w", err)
-	}
-
-	respBytes, err := client.PKIOperation(ctx, msg.Raw)
-	if err != nil {
-		return nil, fmt.Errorf("scep pki operation: %w", err)
-	}
-	pkiResp, err := smallstepscep.ParsePKIMessage(respBytes, smallstepscep.WithCACerts(msg.Recipients))
-	if err != nil {
-		return nil, fmt.Errorf("scep parse pki response: %w", err)
-	}
-	if pkiResp.PKIStatus != smallstepscep.SUCCESS {
-		return nil, fmt.Errorf("scep pki status %v (failInfo=%v)", pkiResp.PKIStatus, pkiResp.FailInfo)
-	}
-	if err := pkiResp.DecryptPKIEnvelope(signerCert, privKey); err != nil {
-		return nil, fmt.Errorf("scep decrypt pki envelope: %w", err)
-	}
-	if pkiResp.CertRepMessage == nil || pkiResp.CertRepMessage.Certificate == nil {
-		return nil, errors.New("scep response contained no certificate")
-	}
-	return pkiResp.CertRepMessage.Certificate, nil
+	cert, _, err := performSCEPExchange(ctx, scepExchangeRequest{
+		URL:       sc.ServerURL,
+		Subject:   subject,
+		Challenge: sc.Challenge,
+		KeyBits:   sc.KeyLength,
+	}, logger)
+	return cert, err
 }
 
 func newStatusCmd(msgID, cmdRef, cmd, status string) fleet.SyncMLCmd {
@@ -392,15 +291,15 @@ func newStatusCmd(msgID, cmdRef, cmd, status string) fleet.SyncMLCmd {
 		XMLName: xml.Name{Local: fleet.CmdStatus},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdRef,
-		Cmd:     ptr.String(cmd),
-		Data:    ptr.String(status),
+		Cmd:     &cmd,
+		Data:    &status,
 		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	}
 }
 
 // parseSCEPSubject parses a SubjectName CSP value of the form CN=foo,OU=bar into a pkix.Name.
-// Only the simple shapes Fleet sends are supported (CN, OU, O, C, L, ST). Escaped commas in
-// values are not supported because the CSP doesn't deliver escapes either.
+// Only CN and OU are recognized — those are the only RDNs Fleet's Windows SCEP profiles emit.
+// Escaped commas in values are not supported because the CSP doesn't deliver escapes either.
 func parseSCEPSubject(s string) (pkix.Name, error) {
 	n := pkix.Name{}
 	if strings.TrimSpace(s) == "" {
@@ -412,63 +311,18 @@ func parseSCEPSubject(s string) (pkix.Name, error) {
 		if !ok {
 			continue
 		}
-		key := strings.ToUpper(strings.TrimSpace(left))
 		val := strings.TrimSpace(right)
-		switch key {
+		switch strings.ToUpper(strings.TrimSpace(left)) {
 		case "CN":
 			n.CommonName = val
 			recognized = true
 		case "OU":
 			n.OrganizationalUnit = append(n.OrganizationalUnit, val)
 			recognized = true
-		case "O":
-			n.Organization = append(n.Organization, val)
-			recognized = true
-		case "C":
-			n.Country = append(n.Country, val)
-			recognized = true
-		case "L":
-			n.Locality = append(n.Locality, val)
-			recognized = true
-		case "ST":
-			n.Province = append(n.Province, val)
-			recognized = true
 		}
 	}
 	if !recognized {
-		return n, fmt.Errorf("subject %q has no recognized RDN", s)
+		return n, fmt.Errorf("subject %q has no recognized RDN (expected CN or OU)", s)
 	}
 	return n, nil
-}
-
-func signatureAlgorithmForHash(hashAlg string) x509.SignatureAlgorithm {
-	switch strings.ToUpper(strings.TrimSpace(hashAlg)) {
-	case "SHA-384", "SHA384":
-		return x509.SHA384WithRSA
-	case "SHA-512", "SHA512":
-		return x509.SHA512WithRSA
-	default:
-		// smallstep's x509util.addChallenge only knows SHA-256/384/512 with RSA, so SHA-1 is silently
-		// upgraded to SHA-256. Real Windows clients ignore the HashAlgorithm node when the requested
-		// hash is unavailable too. Empty/unrecognized values also land here.
-		return x509.SHA256WithRSA
-	}
-}
-
-func selfSignedSignerCert(key *rsa.PrivateKey, subject pkix.Name) (*x509.Certificate, error) {
-	now := time.Now()
-	tpl := x509.Certificate{
-		SerialNumber:          big.NewInt(1),
-		Subject:               subject,
-		NotBefore:             now.Add(-1 * time.Minute),
-		NotAfter:              now.Add(24 * time.Hour),
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-	}
-	der, err := x509.CreateCertificate(cryptorand.Reader, &tpl, &tpl, &key.PublicKey, key)
-	if err != nil {
-		return nil, err
-	}
-	return x509.ParseCertificate(der)
 }

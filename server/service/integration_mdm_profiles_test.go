@@ -8287,12 +8287,14 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 				// for SCEP CSPs - the helper always sends 200, matching real Windows behavior.
 				continue
 			}
+			cmdID := c.Cmd.CmdID.Value
+			verb := c.Verb
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
-				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-				Cmd:     ptr.String(c.Verb),
-				Data:    ptr.String(status),
+				CmdRef:  &cmdID,
+				Cmd:     &verb,
+				Data:    &status,
 				Items:   nil,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
