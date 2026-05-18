@@ -2,27 +2,35 @@ import React from "react";
 
 import { add, differenceInSeconds, formatDistance } from "date-fns";
 
+import PATHS from "router/paths";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import EmptyState from "components/EmptyState";
+import CustomLink from "components/CustomLink";
 
 interface INoResultsProps {
+  queryId: number;
   queryInterval?: number;
   queryUpdatedAt?: string;
   disabledCaching: boolean;
   disabledCachingGlobally: boolean;
   discardDataEnabled: boolean;
   loggingSnapshot: boolean;
+  canLiveQuery?: boolean;
+  canEditQuery?: boolean;
 }
 
 const baseClass = "no-results";
 
 const NoResults = ({
+  queryId,
   queryInterval,
   queryUpdatedAt,
   disabledCaching,
   disabledCachingGlobally,
   discardDataEnabled,
   loggingSnapshot,
+  canLiveQuery,
+  canEditQuery,
 }: INoResultsProps): JSX.Element => {
   // Returns how many seconds it takes to expect a cached update
   const secondsCheckbackTime = () => {
@@ -121,9 +129,28 @@ const NoResults = ({
       return [
         "Nothing to report",
         <>
-          This report does not collect data on a schedule. Add <br />
-          an <strong>interval</strong> or run this as a live report to see
-          results.
+          This report does not collect data on a schedule.
+          {(canEditQuery || canLiveQuery) && (
+            <>
+              <br />
+              {canEditQuery && (
+                <>
+                  Add an <strong>interval</strong>
+                </>
+              )}
+              {canEditQuery && canLiveQuery && " or "}
+              {canLiveQuery && (
+                <>
+                  {canEditQuery ? "run" : "Run"} a{" "}
+                  <CustomLink
+                    url={PATHS.LIVE_REPORT(queryId)}
+                    text="live report"
+                  />
+                </>
+              )}{" "}
+              to see results.
+            </>
+          )}
         </>,
       ];
     }
@@ -139,10 +166,18 @@ const NoResults = ({
     return [
       "Nothing to report yet",
       <>
-        This report has returned no data so far. If you&apos;re <br />
-        expecting to see results, try running a live report to
-        <br />
-        get diagnostics.
+        This report has returned no data so far.
+        {canLiveQuery && (
+          <>
+            <br />
+            Expecting to see results? Run a{" "}
+            <CustomLink
+              url={PATHS.LIVE_REPORT(queryId)}
+              text="live report"
+            />{" "}
+            to troubleshoot.
+          </>
+        )}
       </>,
     ];
   };
