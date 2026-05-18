@@ -1,4 +1,3 @@
-* Added opt-in auto-renewal for non-proxied SCEP and ACME certificates (Okta Conditional Access, Okta Verify, Hydrant ACME, and any external SCEP CA). To opt in, include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the cert Subject OU; Fleet renews about 30 days before expiration. Existing profiles without the variable continue to work and renew manually as before.
-* Added `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` as the preferred name for the renewal-ID variable; legacy `$FLEET_VAR_SCEP_RENEWAL_ID` continues to substitute identically.
-* Updated Fleet's generated Conditional Access SCEP profile to include the renewal marker by default. New deployments auto-renew without further customer action; existing deployments must re-download and re-deploy the User scope profile once to opt in.
-* Surfaced MDM-delivered certificates (ACME and SCEP) on the macOS host details page via on-demand `CertificateList` after profile install.
+* Added automatic renewal for SCEP and ACME certificates issued by external certificate authorities (Okta Conditional Access, Okta Verify, Hydrant ACME). Add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to the certificate's Subject OU to enable.
+* Renamed `$FLEET_VAR_SCEP_RENEWAL_ID` to `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`. The legacy name still works.
+* Enabled automatic renewal by default in Fleet's generated Conditional Access profile. Existing customers can opt in by redeploying the User scope profile.
