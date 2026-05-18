@@ -245,7 +245,7 @@ describe("QueriesTable", () => {
         queries={[]}
         totalQueriesCount={0}
         hasNextResults={false}
-        curTeamScopeQueriesPresent={true}
+        curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
         isOnlyObserver={false}
@@ -279,7 +279,7 @@ describe("QueriesTable", () => {
         queries={[]}
         totalQueriesCount={0}
         hasNextResults={false}
-        curTeamScopeQueriesPresent={true}
+        curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
         isOnlyObserver={false}
