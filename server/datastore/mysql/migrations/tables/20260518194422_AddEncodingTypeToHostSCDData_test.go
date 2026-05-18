@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260514220719(t *testing.T) {
+func TestUp_20260518194422(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Insert a pre-migration row representing a dense host_bitmap. After the

@@ -40,6 +40,8 @@
 package chart
 
 import (
+	"math"
+
 	"github.com/RoaringBitmap/roaring"
 )
 
@@ -66,10 +68,10 @@ type Blob struct {
 func NewBitmap(ids []uint) *roaring.Bitmap {
 	rb := roaring.New()
 	for _, id := range ids {
-		if id == 0 {
+		if id == 0 || id > math.MaxUint32 {
 			continue
 		}
-		rb.Add(uint32(id)) //nolint:gosec // G115: Fleet host IDs are MySQL AUTO_INCREMENT and fit in uint32
+		rb.Add(uint32(id))
 	}
 	rb.RunOptimize()
 	return rb

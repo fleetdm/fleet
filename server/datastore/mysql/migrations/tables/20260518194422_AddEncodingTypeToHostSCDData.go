@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260514220719, Down_20260514220719)
+	MigrationClient.AddMigration(Up_20260518194422, Down_20260518194422)
 }
 
 // Up_20260514220719 adds the encoding_type column that discriminates between
@@ -15,7 +15,7 @@ func init() {
 // change on MySQL 8.0+; existing rows are not rewritten and read back with
 // encoding_type = 0 via the column DEFAULT, correctly identifying them as
 // dense. New writes always set encoding_type = 1.
-func Up_20260514220719(tx *sql.Tx) error {
+func Up_20260518194422(tx *sql.Tx) error {
 	if columnExists(tx, "host_scd_data", "encoding_type") {
 		return nil
 	}
@@ -29,6 +29,6 @@ func Up_20260514220719(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260514220719(tx *sql.Tx) error {
+func Down_20260518194422(tx *sql.Tx) error {
 	return nil
 }
