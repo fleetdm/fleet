@@ -54,26 +54,26 @@ output "vpc_subnets" {
 
 output "rds_cluster_endpoint" {
   description = "RDS Aurora cluster writer endpoint"
-  value       = module.loadtest.byo-db.rds.cluster_endpoint
+  value       = module.loadtest.rds.cluster_endpoint
 }
 
 output "rds_cluster_reader_endpoint" {
   description = "RDS Aurora cluster reader endpoint"
-  value       = module.loadtest.byo-db.rds.cluster_reader_endpoint
+  value       = module.loadtest.rds.cluster_reader_endpoint
 }
 
 output "rds_cluster_master_username" {
   description = "RDS Aurora cluster master username"
-  value       = module.loadtest.byo-db.rds.cluster_master_username
+  value       = module.loadtest.rds.cluster_master_username
   sensitive   = true
 }
 
 output "rds_cluster_database_name" {
   description = "RDS Aurora cluster database name"
-  value       = module.loadtest.byo-db.rds.cluster_database_name
+  value       = module.loadtest.rds.cluster_database_name
 }
 
 output "rds_security_group_id" {
   description = "Security group ID for the RDS cluster"
-  value       = module.loadtest.byo-db.rds.security_group_id
+  value       = module.loadtest.rds.security_group_id
 }

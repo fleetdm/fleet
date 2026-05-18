@@ -48,7 +48,6 @@ data "terraform_remote_state" "shared" {
       role_arn = "arn:aws:iam::353365949058:role/terraform-loadtesting"
     }
   }
-  workspace = terraform.workspace
 }
 
 # Read infra state for ECS cluster, IAM roles, RDS info
@@ -188,11 +187,10 @@ resource "aws_ecs_task_definition" "pmm" {
         "  done",
         "  echo 'PMM server is ready'",
         "",
-        "  # Change default admin password",
-        "  curl -sSf -k -X PATCH https://localhost:443/v1/users \\",
+        "  # Change default admin password via Grafana API",
+        "  curl -sSf -k -X PUT https://admin:admin@localhost:443/graph/api/user/password \\",
         "    -H 'Content-Type: application/json' \\",
-        "    -u admin:admin \\",
-        "    -d \"{\\\"new_password\\\": \\\"$PMM_ADMIN_PASSWORD\\\"}\"",
+        "    -d \"{\\\"oldPassword\\\": \\\"admin\\\", \\\"newPassword\\\": \\\"$PMM_ADMIN_PASSWORD\\\"}\"",
         "  echo 'Admin password changed'",
         "",
         "  # Add RDS MySQL monitoring",
@@ -230,7 +228,7 @@ resource "aws_ecs_task_definition" "pmm" {
         },
         {
           name      = "PMM_MYSQL_PASSWORD"
-          valueFrom = "${data.aws_secretsmanager_secret.rds_password.arn}:password::"
+          valueFrom = data.aws_secretsmanager_secret.rds_password.arn
         },
       ]
 
