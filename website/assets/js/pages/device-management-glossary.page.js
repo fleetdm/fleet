@@ -15,16 +15,24 @@ parasails.registerPage('device-management-glossary-page', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    if (window.SAILS_LOCALS && _.isArray(window.SAILS_LOCALS.glossaryTerms)) {
-      let indexedTerms = window.SAILS_LOCALS.glossaryTerms.map((term) => {
+    let searchTermsData = window.SAILS_LOCALS && _.isArray(window.SAILS_LOCALS.glossaryTerms)
+      ? window.SAILS_LOCALS.glossaryTerms
+      : [];
+    if (_.isArray(searchTermsData)) {
+      this.termIndex = searchTermsData.map((term) => {
+        let nameLower = term.name.toLowerCase();
         return {
           slug: term.slug,
           name: term.name,
-          nameLower: term.name.toLowerCase(),
+          nameLower,
+          searchableTextLower: [
+            term.name,
+            term.definition || '',
+            term.searchKeywords || '',
+          ].join(' ').toLowerCase(),
         };
       });
-      this.termIndex = indexedTerms;
-      this.termBySlug = _.keyBy(indexedTerms, 'slug');
+      this.termBySlug = _.keyBy(this.termIndex, 'slug');
       this.visibleTermCount = this.termIndex.length;
     }
   },
@@ -51,15 +59,15 @@ parasails.registerPage('device-management-glossary-page', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    // A term card is visible when its header (name) contains the search query
-    // (case-insensitive substring). No category filter; that bar was removed.
+    // A term card is visible when any indexed text field contains the query
+    // (case-insensitive substring).
     termIsVisible: function(slug) {
       let term = this.termBySlug[slug];
       if (!term) {
         return true;
       }
       let q = (this.searchQuery || '').trim().toLowerCase();
-      if (q && term.nameLower.indexOf(q) === -1) {
+      if (q && term.searchableTextLower.indexOf(q) === -1) {
         return false;
       }
       return true;
@@ -72,13 +80,13 @@ parasails.registerPage('device-management-glossary-page', {
       this.searchQuery = '';
     },
     // Triggered when the user presses Enter in the search field.
-    // Scrolls to the first term whose header matches the current query.
+    // Scrolls to the first term whose indexed text matches the current query.
     jumpToFirstHeaderMatch: function() {
       let q = (this.searchQuery || '').trim().toLowerCase();
       if (!q) {
         return;
       }
-      let match = _.find(this.termIndex, (t) => t.nameLower.indexOf(q) !== -1);
+      let match = _.find(this.termIndex, (t) => t.searchableTextLower.indexOf(q) !== -1);
       if (!match) {
         return;
       }
@@ -86,7 +94,7 @@ parasails.registerPage('device-management-glossary-page', {
       if (!el) {
         return;
       }
-      // Update the URL hash so :target highlight applies and the link is shareable.
+      // Update the URL hash so the focused term link is shareable.
       // Use replaceState so repeated Enter presses don't stack history entries.
       if (window.history && window.history.replaceState) {
         window.history.replaceState(null, '', '#term-' + match.slug);

@@ -138,11 +138,5 @@
 </div>
 <script>
   window.SAILS_LOCALS = window.SAILS_LOCALS || {};
-  window.SAILS_LOCALS.glossaryTerms = <%- JSON.stringify(
-    glossaryTerms.map((term) => ({
-      slug: term.slug,
-      name: term.name,
-      searchKeywords: term.searchKeywords
-    }))
-  ) %>;
+  window.SAILS_LOCALS.glossaryTerms = <%- JSON.stringify(glossarySearchTerms) %>;
 </script>

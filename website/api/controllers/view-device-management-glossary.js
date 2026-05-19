@@ -41,6 +41,12 @@ module.exports = {
     // Respond with view.
     return {
       glossaryTerms,
+      glossarySearchTerms: glossaryTerms.map((term) => ({
+        slug: term.slug,
+        name: term.name,
+        definition: term.definition,
+        searchKeywords: term.searchKeywords || '',
+      })),
       termsByLetter,
       alphabet,
       totalTermCount: glossaryTerms.length,
