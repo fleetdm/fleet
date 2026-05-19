@@ -58,12 +58,10 @@ func parenthesizeWhereClause(existsQuery string) string {
 		return existsQuery
 	}
 	rest := strings.TrimPrefix(existsQuery, existsPrefix)
-	whereIdx := strings.Index(rest, " WHERE ")
-	if whereIdx < 0 {
+	table, conditions, found := strings.Cut(rest, " WHERE ")
+	if !found {
 		return existsQuery
 	}
-	table := rest[:whereIdx]
-	conditions := rest[whereIdx+len(" WHERE "):]
 	if !strings.Contains(conditions, " OR ") {
 		return existsQuery
 	}
@@ -98,11 +96,11 @@ func tableFromExistsQuery(existsQuery string) string {
 		return ""
 	}
 	rest := strings.TrimPrefix(trimmed, existsPrefix)
-	if whereIdx := strings.Index(rest, " WHERE "); whereIdx >= 0 {
-		return rest[:whereIdx]
+	if table, _, found := strings.Cut(rest, " WHERE "); found {
+		return table
 	}
-	if space := strings.IndexByte(rest, ' '); space >= 0 {
-		return rest[:space]
+	if table, _, found := strings.Cut(rest, " "); found {
+		return table
 	}
 	return strings.TrimSpace(rest)
 }
