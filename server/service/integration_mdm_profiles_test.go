@@ -8393,26 +8393,29 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	assert.Equal(t, scepserver.DefaultCACaps, string(body))
 }
 
-// TestWindowsHardcodedSCEPProfile covers test-plan scenarios 3 and 4 from #37503: a Windows MDM
-// SCEP profile that uses a hardcoded SCEP server URL and challenge instead of Fleet variables.
-// The test client should still drive the SCEP exchange against the literal URL; Fleet's SCEP
-// proxy is not involved on this path.
+// TestWindowsHardcodedSCEPProfile covers a Windows MDM SCEP profile that uses a hardcoded SCEP
+// server URL and challenge instead of Fleet's Custom SCEP proxy variables. The test client
+// should still drive the SCEP exchange against the literal URL; Fleet's SCEP proxy is not
+// involved on this path.
 func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 	scepServer := scep_server.StartTestSCEPServer(t)
 	scepServerURL := scepServer.URL + "/scep"
 
+	fixtures := map[string][]byte{
+		"./Device": windowsDeviceSCEPProfileBytes,
+		"./User":   windowsUserSCEPProfileBytes,
+	}
 	for _, locPrefix := range []string{"./Device", "./User"} {
 		t.Run(locPrefix, func(t *testing.T) {
 			host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 			profileName := "HardcodedSCEPProfile" + strings.ReplaceAll(locPrefix, "/", "_")
-			// Fleet requires $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID in the path so the profile UUID
-			// drives the cert identifier on the device. The server resolves it before the device sees
-			// it. Only ServerURL and Challenge are truly "hardcoded" in this scenario.
-			profile := buildHardcodedWindowsSCEPProfile(locPrefix, "$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID",
-				scepServerURL, "any-challenge")
+			profile := bytes.ReplaceAll(fixtures[locPrefix],
+				[]byte("$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_INTEGRATION"), []byte(scepServerURL))
+			profile = bytes.ReplaceAll(profile,
+				[]byte("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_INTEGRATION"), []byte("any-challenge"))
 
 			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 				batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -8437,12 +8440,15 @@ func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 				if _, ok := handled[c.Cmd.CmdID.Value]; ok {
 					continue
 				}
+				cmdID := c.Cmd.CmdID.Value
+				verb := c.Verb
+				status := syncml.CmdStatusOK
 				mdmDevice.AppendResponse(fleet.SyncMLCmd{
 					XMLName: xml.Name{Local: fleet.CmdStatus},
 					MsgRef:  &msgID,
-					CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-					Cmd:     ptr.String(c.Verb),
-					Data:    ptr.String(syncml.CmdStatusOK),
+					CmdRef:  &cmdID,
+					Cmd:     &verb,
+					Data:    &status,
 					CmdID:   fleet.CmdID{Value: uuid.NewString()},
 				})
 			}
@@ -8471,80 +8477,6 @@ func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 			require.True(t, found, "%s not found for host", profileName)
 		})
 	}
-}
-
-// buildHardcodedWindowsSCEPProfile returns a SyncML profile fragment containing the standard
-// SCEP CertificateInstall CSP nodes with a literal URL and challenge (no $FLEET_VAR_* tokens).
-// locPrefix should be either "./Device" or "./User".
-func buildHardcodedWindowsSCEPProfile(locPrefix, uniqueID, serverURL, challenge string) []byte {
-	base := locPrefix + "/Vendor/MSFT/ClientCertificateInstall/SCEP/" + uniqueID
-	return []byte(`<Add>
-    <Item>
-        <Target><LocURI>` + base + `</LocURI></Target>
-        <Meta><Format xmlns="syncml:metinf">node</Format></Meta>
-    </Item>
-</Add>
-<Add>
-    <Item>
-        <Target><LocURI>` + base + `/Install/KeyLength</LocURI></Target>
-        <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
-        <Data>2048</Data>
-    </Item>
-</Add>
-<Add>
-    <Item>
-        <Target><LocURI>` + base + `/Install/HashAlgorithm</LocURI></Target>
-        <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
-        <Data>SHA-256</Data>
-    </Item>
-</Add>
-<Add>
-    <Item>
-        <Target><LocURI>` + base + `/Install/KeyUsage</LocURI></Target>
-        <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
-        <Data>160</Data>
-    </Item>
-</Add>
-<Add>
-    <Item>
-        <Target><LocURI>` + base + `/Install/EKUMapping</LocURI></Target>
-        <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
-        <Data>1.3.6.1.5.5.7.3.2</Data>
-    </Item>
-</Add>
-<Add>
-    <Item>
-        <Target><LocURI>` + base + `/Install/SubjectName</LocURI></Target>
-        <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
-        <Data>CN=test-host,OU=fleet</Data>
-    </Item>
-</Add>
-<Add>
-    <Item>
-        <Target><LocURI>` + base + `/Install/ServerURL</LocURI></Target>
-        <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
-        <Data>` + serverURL + `</Data>
-    </Item>
-</Add>
-<Add>
-    <Item>
-        <Target><LocURI>` + base + `/Install/Challenge</LocURI></Target>
-        <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
-        <Data>` + challenge + `</Data>
-    </Item>
-</Add>
-<Add>
-    <Item>
-        <Target><LocURI>` + base + `/Install/CAThumbprint</LocURI></Target>
-        <Meta><Format xmlns="syncml:metinf">chr</Format></Meta>
-        <Data>2133EC6A3CFB8418837BB395188D1A62CA2B96A6</Data>
-    </Item>
-</Add>
-<Exec>
-    <Item>
-        <Target><LocURI>` + base + `/Install/Enroll</LocURI></Target>
-    </Item>
-</Exec>`)
 }
 
 // This test verifies that there is no longer a race condition in apple profile resending

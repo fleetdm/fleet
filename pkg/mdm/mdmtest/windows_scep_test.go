@@ -1,23 +1,17 @@
 package mdmtest
 
 import (
-	"context"
 	"encoding/xml"
-	"log/slog"
-	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestExtractSCEPCommandsAtomicLayout anchors the most-common parser shape — an Atomic-wrapped
-// SCEP CSP with all required fields. Regressions surface here before they confuse the slow
-// integration suite. The flat (non-Atomic) layout, /User locURI variant, and indented LocURI
-// fixture are exercised by the integration suite directly via the existing profile fixtures.
+// TestExtractSCEPCommandsAtomicLayout anchors the most-common parser shape: an Atomic-wrapped
+// SCEP CSP with all required fields.
 func TestExtractSCEPCommandsAtomicLayout(t *testing.T) {
 	atomic := buildAtomicSCEPCmd(t, "/Device", "uniq-1", "https://scep.example.com/scep", "challenge-abc",
 		"CN=device-1,OU=fleet-1")
@@ -61,26 +55,6 @@ func TestExtractSCEPCommandsSurfacesIncomplete(t *testing.T) {
 	assert.Contains(t, missing, "ServerURL")
 	assert.Contains(t, missing, "SubjectName")
 	assert.Contains(t, missing, "/Install/Enroll Exec")
-}
-
-// TestRunSCEPAgainstTestServer is the only fast end-to-end SCEP exchange test in the codebase.
-// If RunSCEP, performSCEPExchange, or the test SCEP server's in-memory signer breaks, this
-// fires in ~50ms instead of waiting for the MYSQL_TEST integration suite.
-func TestRunSCEPAgainstTestServer(t *testing.T) {
-	srv := scep_server.StartTestSCEPServer(t)
-
-	c := &TestWindowsMDMClient{}
-	cert, err := c.RunSCEP(context.Background(), SCEPCommand{
-		UniqueID:    "test",
-		ServerURL:   srv.URL + "/scep",
-		Challenge:   "any-challenge",
-		SubjectName: "CN=integration-test,OU=fleet",
-		KeyLength:   2048,
-	}, slog.New(slog.DiscardHandler))
-	require.NoError(t, err)
-	require.NotNil(t, cert)
-	assert.Equal(t, "integration-test", cert.Subject.CommonName)
-	assert.True(t, strings.HasPrefix(cert.Subject.OrganizationalUnit[0], "fleet"))
 }
 
 // buildAtomicSCEPCmd constructs an Atomic command containing the typical SCEP CSP nodes Fleet
