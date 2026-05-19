@@ -86,7 +86,7 @@ module.exports = {
       '/customers',
       '/gitops-workshop',
       '/download',
-
+      '/how-fleet-fits-your-stack',
       // Landing pages:
       '/lp/patch-faster',
       '/lp/replace-jamf',
