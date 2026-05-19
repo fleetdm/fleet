@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/go-kit/kit/transport"
@@ -164,24 +165,47 @@ func decodeSCEPRequestWithIdentifier(_ context.Context, r *http.Request) (interf
 	return request, nil
 }
 
+// rawQueryParam extracts a query parameter value from the raw query string
+// without decoding '+' as space. This is necessary because url.Values.Get()
+// performs HTML-form decoding ('+' → space), which is wrong for RFC 3986 query
+// strings where '+' is a literal character. See #45291.
+func rawQueryParam(rawQuery, key string) (value string, ok bool) {
+	for rawQuery != "" {
+		var part string
+		if i := strings.IndexByte(rawQuery, '&'); i >= 0 {
+			part, rawQuery = rawQuery[:i], rawQuery[i+1:]
+		} else {
+			part, rawQuery = rawQuery, ""
+		}
+		if k, v, found := strings.Cut(part, "="); found && k == key {
+			return v, true
+		} else if !found && k == key {
+			return "", true
+		}
+	}
+	return "", false
+}
+
 // extract message from request
 func message(r *http.Request) ([]byte, error) {
 	switch r.Method {
 	case "GET":
 		var msg string
 		q := r.URL.Query()
-		if _, ok := q["message"]; ok {
-			msg = q.Get("message")
-		}
 		op := q.Get("operation")
 		if op == "PKIOperation" {
-			if len(msg) == 0 {
+			// For PKIOperation, read the message from the raw query string
+			// to preserve literal '+' characters in the base64 payload.
+			// url.Values.Get() decodes '+' as space (correct for form-encoded
+			// POST bodies, wrong for query strings per RFC 3986). See #45291.
+			rawMsg, hasMsg := rawQueryParam(r.URL.RawQuery, "message")
+			if !hasMsg || len(rawMsg) == 0 {
 				return nil, &BadRequestError{Message: "missing PKIOperation message"}
 			}
 
-			msg2, err := url.PathUnescape(msg)
+			msg2, err := url.PathUnescape(rawMsg)
 			if err != nil {
-				return nil, &BadRequestError{Message: fmt.Sprintf("invalid PKIOperation message: %s", msg)}
+				return nil, &BadRequestError{Message: fmt.Sprintf("invalid PKIOperation message: %s", rawMsg)}
 			}
 
 			decoded, err := base64.StdEncoding.DecodeString(msg2)
@@ -190,6 +214,9 @@ func message(r *http.Request) ([]byte, error) {
 			}
 
 			return decoded, nil
+		}
+		if _, ok := q["message"]; ok {
+			msg = q.Get("message")
 		}
 		return []byte(msg), nil
 	case "POST":
