@@ -1113,3 +1113,125 @@ func TestUpdateTeamMDMAppleSetupManualAgent(t *testing.T) {
 
 	}
 }
+
+// TestApplyTeamSpecsCustomSettingsWithoutMDMConfigured verifies that GitOps
+// team edits can add Windows or Android configuration profiles without being
+// rejected by an MDM-configured check on the team-edit path. The previous
+// check fired when the AppConfig's *EnabledAndConfigured flag was false, which
+// surfaced as a customer bug when the cached AppConfig lagged behind a recent
+// platform-enable. createTeamFromSpec has never gated this, so we mirror it.
+func TestApplyTeamSpecsCustomSettingsWithoutMDMConfigured(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	adminUser := &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+	ctx := test.UserContext(context.Background(), adminUser)
+
+	const teamName = "Mobile"
+
+	newSvc := func(t *testing.T, mdmConfigured bool) (*Service, *mock.Store, **fleet.Team) {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			// mdmConfigured=false simulates the bug condition: the cached
+			// AppConfig still reports MDM as off even though it has actually
+			// been enabled. The fix must let the edit proceed regardless.
+			ac.MDM.AndroidEnabledAndConfigured = mdmConfigured
+			ac.MDM.WindowsEnabledAndConfigured = mdmConfigured
+			return ac, nil
+		}
+		ds.TeamByFilenameFunc = func(ctx context.Context, _ string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			// Existing team has no Android/Windows custom settings — the spec
+			// is adding the first profile.
+			return &fleet.Team{ID: 42, Name: name}, nil
+		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			return nil, nil
+		}
+		var saved *fleet.Team
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			saved = team
+			return team, nil
+		}
+
+		mockSvc := &svcmock.Service{}
+		mockSvc.NewActivityFunc = func(ctx context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			return nil
+		}
+
+		svc := &Service{
+			Service: mockSvc,
+			ds:      ds,
+			config: config.FleetConfig{
+				Server: config.ServerConfig{PrivateKey: "something"},
+			},
+			authz:  authorizer,
+			logger: slog.New(slog.DiscardHandler),
+		}
+		return svc, ds, &saved
+	}
+
+	t.Run("adds android profile when AppConfig reports Android MDM off", func(t *testing.T) {
+		svc, ds, saved := newSvc(t, false)
+		spec := &fleet.TeamSpec{
+			Name: teamName,
+			MDM: fleet.TeamSpecMDM{
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{
+						{Path: "profiles/android.json"},
+					}),
+				},
+			},
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.NotNil(t, *saved)
+		require.Len(t, (*saved).Config.MDM.AndroidSettings.CustomSettings.Value, 1)
+		require.Equal(t, "profiles/android.json", (*saved).Config.MDM.AndroidSettings.CustomSettings.Value[0].Path)
+	})
+
+	t.Run("adds windows profile when AppConfig reports Windows MDM off", func(t *testing.T) {
+		svc, ds, saved := newSvc(t, false)
+		spec := &fleet.TeamSpec{
+			Name: teamName,
+			MDM: fleet.TeamSpecMDM{
+				WindowsSettings: fleet.WindowsSettings{
+					CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{
+						{Path: "profiles/windows.xml"},
+					}),
+				},
+			},
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.NotNil(t, *saved)
+		require.Len(t, (*saved).Config.MDM.WindowsSettings.CustomSettings.Value, 1)
+		require.Equal(t, "profiles/windows.xml", (*saved).Config.MDM.WindowsSettings.CustomSettings.Value[0].Path)
+	})
+
+	t.Run("adds android profile when AppConfig reports Android MDM on (happy path)", func(t *testing.T) {
+		svc, ds, saved := newSvc(t, true)
+		spec := &fleet.TeamSpec{
+			Name: teamName,
+			MDM: fleet.TeamSpecMDM{
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{
+						{Path: "profiles/android.json"},
+					}),
+				},
+			},
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.NotNil(t, *saved)
+		require.Len(t, (*saved).Config.MDM.AndroidSettings.CustomSettings.Value, 1)
+	})
+}
