@@ -56,7 +56,9 @@ parasails.registerPage('device-management-glossary-page', {
     termIsVisible: function(slug) {
       let term = this.termBySlug[slug];
       if (!term) {
-        return true;
+        // Unknown slug: index and rendered cards have drifted. Hide so the
+        // visible-card set stays in sync with visibleTermCount.
+        return false;
       }
       let q = (this.searchQuery || '').trim().toLowerCase();
       if (q && term.nameLower.indexOf(q) === -1) {
