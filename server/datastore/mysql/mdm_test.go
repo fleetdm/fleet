@@ -65,7 +65,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestListNextPendingMDMWindowsHostUUIDsCursor", testListNextPendingMDMWindowsHostUUIDsCursor},
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
-		{"TestProfileHasACMEPayloadForCommand", testProfileHasACMEPayloadForCommand},
+		{"TestProfileCertPayloadsForCommand", testProfileCertPayloadsForCommand},
 		{"TestRenewMDMManagedCertificatesNullType", testRenewMDMManagedCertificatesNullType},
 	}
 
@@ -10604,7 +10604,7 @@ func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	})
 }
 
-func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
+func testProfileCertPayloadsForCommand(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	host, err := ds.NewHost(ctx, &fleet.Host{
@@ -10656,7 +10656,7 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		cmdUUID := uuid.NewString()
 		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
 
-		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		got, err := ds.ProfileCertPayloadsForCommand(ctx, host.UUID, cmdUUID)
 		require.NoError(t, err)
 		require.Equal(t, host.ID, got.HostID)
 		require.Equal(t, "darwin", got.Platform)
@@ -10669,14 +10669,14 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		cmdUUID := uuid.NewString()
 		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
 
-		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		got, err := ds.ProfileCertPayloadsForCommand(ctx, host.UUID, cmdUUID)
 		require.NoError(t, err)
 		require.Equal(t, "darwin", got.Platform)
 		require.False(t, got.HasACMEPayload)
 	})
 
 	t.Run("unknown command returns not found", func(t *testing.T) {
-		_, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, "no-such-command")
+		_, err := ds.ProfileCertPayloadsForCommand(ctx, host.UUID, "no-such-command")
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
 	})
@@ -10686,7 +10686,7 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		cmdUUID := uuid.NewString()
 		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
 
-		_, err := ds.ProfileHasACMEPayloadForCommand(ctx, "no-such-host", cmdUUID)
+		_, err := ds.ProfileCertPayloadsForCommand(ctx, "no-such-host", cmdUUID)
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
 	})

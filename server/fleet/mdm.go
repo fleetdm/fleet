@@ -319,16 +319,16 @@ type HostMDMProfileRetryCount struct {
 	Retries     uint   `db:"retries"`
 }
 
-// ProfileACMECommandResult bundles the gates needed to decide whether an
-// InstallProfile ack should trigger a CertificateList refetch on macOS:
-// host platform, profile UUID, and whether the delivered profile contains a
-// com.apple.security.acme payload. Computed in a single query keyed on
-// (host_uuid, command_uuid).
-type ProfileACMECommandResult struct {
+// ProfileCertPayloadProbe gates the InstallProfile / RemoveProfile
+// CertificateList triggers on macOS. Install acts on HasACMEPayload only
+// (hardware-bound certs are invisible to osquery); remove acts on either
+// to clear stale rows after the device drops the cert from its keychain.
+type ProfileCertPayloadProbe struct {
 	HostID         uint   `db:"host_id"`
 	Platform       string `db:"platform"`
 	ProfileUUID    string `db:"profile_uuid"`
 	HasACMEPayload bool   `db:"has_acme_payload"`
+	HasSCEPPayload bool   `db:"has_scep_payload"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,

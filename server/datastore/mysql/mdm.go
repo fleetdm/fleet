@@ -1682,13 +1682,14 @@ WHERE
 	return dest, nil
 }
 
-func (ds *Datastore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (fleet.ProfileACMECommandResult, error) {
+func (ds *Datastore) ProfileCertPayloadsForCommand(ctx context.Context, hostUUID, commandUUID string) (fleet.ProfileCertPayloadProbe, error) {
 	const stmt = `
 SELECT
 	h.id              AS host_id,
 	h.platform        AS platform,
 	hmap.profile_uuid AS profile_uuid,
-	LOCATE('com.apple.security.acme', mac.mobileconfig) > 0 AS has_acme_payload
+	LOCATE('com.apple.security.acme', mac.mobileconfig) > 0 AS has_acme_payload,
+	LOCATE('com.apple.security.scep', mac.mobileconfig) > 0 AS has_scep_payload
 FROM host_mdm_apple_profiles hmap
 	JOIN hosts h
 		ON h.uuid = hmap.host_uuid
@@ -1697,7 +1698,7 @@ FROM host_mdm_apple_profiles hmap
 WHERE hmap.command_uuid = ?
 	AND hmap.host_uuid    = ?`
 
-	var dest fleet.ProfileACMECommandResult
+	var dest fleet.ProfileCertPayloadProbe
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, commandUUID, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {

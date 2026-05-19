@@ -4152,6 +4152,14 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			status = &fleet.MDMDeliveryVerifying
 			detail = ""
 		}
+		// Refetch certs when an ACME or SCEP profile is removed so the
+		// stale row clears.
+		if status != nil && *status == fleet.MDMDeliveryVerifying {
+			if err := svc.maybeQueueCertificateListForRemovedCertProfile(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID); err != nil {
+				svc.logger.WarnContext(r.Context, "queue CertificateList after cert-profile removal",
+					"err", err, "host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
+			}
+		}
 		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   cmdResult.CommandUUID,
 			HostUUID:      cmdResult.Identifier(),
@@ -5128,7 +5136,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 // this hook because IOSiPadOSRefetch already runs CertificateList on a cron.
 //
 // Gating happens server-side in a single indexed query
-// (ProfileHasACMEPayloadForCommand): host platform and ACME payload presence.
+// (ProfileCertPayloadsForCommand): host platform and ACME payload presence.
 // The hot path early-returns for the common non-ACME / non-darwin cases
 // without parsing the profile or making additional roundtrips.
 //
@@ -5141,7 +5149,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 // collapse via ON DUPLICATE KEY UPDATE, and handleRefetchCertsResults is
 // safe to call on an already-removed row.
 func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEProfile(ctx context.Context, hostUUID, commandUUID string) error {
-	res, err := svc.ds.ProfileHasACMEPayloadForCommand(ctx, hostUUID, commandUUID)
+	res, err := svc.ds.ProfileCertPayloadsForCommand(ctx, hostUUID, commandUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil
@@ -5160,6 +5168,35 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 	// Track after the commander call so a CertificateList enqueue failure
 	// doesn't leave a stale tracking row that would suppress future
 	// triggers. Matches the iOS/iPadOS pattern in IOSiPadOSRefetch.
+	if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
+		HostID:      res.HostID,
+		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+	}}); err != nil {
+		return ctxerr.Wrap(ctx, err, "track refetch certs command")
+	}
+	return nil
+}
+
+// maybeQueueCertificateListForRemovedCertProfile fires CertificateList
+// after a RemoveProfile ack on a macOS host whose removed profile
+// contained an ACME or SCEP payload, so the stale cert row clears.
+// iOS/iPadOS self-correct via IOSiPadOSRefetch.
+func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForRemovedCertProfile(ctx context.Context, hostUUID, commandUUID string) error {
+	res, err := svc.ds.ProfileCertPayloadsForCommand(ctx, hostUUID, commandUUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "probe profile for cert payload")
+	}
+	if res.Platform != "darwin" || (!res.HasACMEPayload && !res.HasSCEPPayload) {
+		return nil
+	}
+
+	cmdUUID := uuid.NewString()
+	if err := svc.commander.CertificateList(ctx, []string{hostUUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueue CertificateList")
+	}
 	if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
 		HostID:      res.HostID,
 		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
