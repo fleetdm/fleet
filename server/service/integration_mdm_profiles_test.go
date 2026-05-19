@@ -8416,6 +8416,8 @@ func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 				[]byte("$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_INTEGRATION"), []byte(scepServerURL))
 			profile = bytes.ReplaceAll(profile,
 				[]byte("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_INTEGRATION"), []byte("any-challenge"))
+			profile = bytes.ReplaceAll(profile,
+				[]byte("$FLEET_VAR_SCEP_RENEWAL_ID"), []byte("hardcoded-renewal"))
 
 			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 				batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
