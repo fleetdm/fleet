@@ -1181,15 +1181,11 @@ module.exports = {
     // Group terms by first letter for sectioned rendering.
     let termsByLetter = _.groupBy(glossaryTerms, (t)=> t.name.charAt(0).toUpperCase());
 
-    // Categories shown as filter pills.
-    let categories = ['All', 'MDM', 'Security', 'osquery', 'GitOps', 'Apple', 'Windows', 'Linux'];
-
     // Respond with view.
     return {
       glossaryTerms,
       termsByLetter,
       alphabet,
-      categories,
       totalTermCount: glossaryTerms.length,
     };
 

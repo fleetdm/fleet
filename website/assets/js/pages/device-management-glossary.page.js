@@ -4,7 +4,6 @@ parasails.registerPage('device-management-glossary-page', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     searchQuery: '',
-    activeCategory: 'All',
     // Indexed copy of the server-rendered terms, populated in beforeMount from
     // window.SAILS_LOCALS so search/filter can run without re-reading the DOM.
     termIndex: [],
@@ -20,8 +19,7 @@ parasails.registerPage('device-management-glossary-page', {
         return {
           slug: term.slug,
           name: term.name,
-          categories: term.categories,
-          searchText: (term.name + ' ' + (term.searchKeywords || '') + ' ' + term.definition).toLowerCase(),
+          nameLower: term.name.toLowerCase(),
         };
       });
       this.visibleTermCount = this.termIndex.length;
@@ -29,15 +27,11 @@ parasails.registerPage('device-management-glossary-page', {
   },
 
   mounted: function() {
-    // Honor a "?q=" or "?category=" param on initial load for shareable filtered views.
+    // Honor a "?q=" param on initial load for shareable filtered views.
     let params = new URLSearchParams(window.location.search);
     let initialQuery = params.get('q');
-    let initialCategory = params.get('category');
     if (initialQuery) {
       this.searchQuery = initialQuery;
-    }
-    if (initialCategory) {
-      this.activeCategory = initialCategory;
     }
   },
 
@@ -48,42 +42,55 @@ parasails.registerPage('device-management-glossary-page', {
     searchQuery: function() {
       this.recomputeVisibleCount();
     },
-    activeCategory: function() {
-      this.recomputeVisibleCount();
-    },
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    // A term card is visible when its header (name) contains the search query
+    // (case-insensitive substring). No category filter; that bar was removed.
     termIsVisible: function(slug) {
       let term = _.find(this.termIndex, { slug: slug });
       if (!term) {
         return true;
       }
-      // Category filter
-      if (this.activeCategory !== 'All' && term.categories.indexOf(this.activeCategory) === -1) {
-        return false;
-      }
-      // Search filter
       let q = (this.searchQuery || '').trim().toLowerCase();
-      if (q && term.searchText.indexOf(q) === -1) {
+      if (q && term.nameLower.indexOf(q) === -1) {
         return false;
       }
       return true;
     },
     letterIsVisible: function(letter) {
-      // A letter group is visible if any of its terms are visible.
       let termsForLetter = _.filter(this.termIndex, (t) => t.name.charAt(0).toUpperCase() === letter);
       return _.some(termsForLetter, (t) => this.termIsVisible(t.slug));
     },
-    clickCategoryPill: function(category) {
-      this.activeCategory = category;
-    },
     resetFilters: function() {
       this.searchQuery = '';
-      this.activeCategory = 'All';
+    },
+    // Triggered when the user presses Enter in the search field.
+    // Scrolls to the first term whose header matches the current query.
+    jumpToFirstHeaderMatch: function() {
+      let q = (this.searchQuery || '').trim().toLowerCase();
+      if (!q) {
+        return;
+      }
+      let match = _.find(this.termIndex, (t) => t.nameLower.indexOf(q) !== -1);
+      if (!match) {
+        return;
+      }
+      let el = document.getElementById('term-' + match.slug);
+      if (!el) {
+        return;
+      }
+      // Update the URL hash so :target highlight applies and the link is shareable.
+      // Use replaceState so repeated Enter presses don't stack history entries.
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', '#term-' + match.slug);
+      } else {
+        window.location.hash = 'term-' + match.slug;
+      }
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
     recomputeVisibleCount: function() {
       this.visibleTermCount = _.filter(this.termIndex, (t) => this.termIsVisible(t.slug)).length;

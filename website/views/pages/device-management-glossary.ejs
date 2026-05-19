@@ -17,22 +17,13 @@
               <input
                 type="text"
                 purpose="search-input"
-                placeholder="Search terms..."
+                placeholder="Search terms, press Enter to jump..."
                 v-model="searchQuery"
+                @keyup.enter="jumpToFirstHeaderMatch()"
                 aria-label="Search glossary terms"
               >
             </div>
             <p purpose="term-count">{{ visibleTermCount }} of <%= totalTermCount %> terms</p>
-          </div>
-          <div purpose="category-pills">
-            <% categories.forEach((category) => { %>
-              <button
-                purpose="category-pill"
-                :class="{ active: activeCategory === '<%= category %>' }"
-                @click="clickCategoryPill('<%= category %>')"
-                type="button"
-              ><%= category %></button>
-            <% }); %>
           </div>
         </div>
       </div><%/* landing-page-hero */%>
@@ -88,7 +79,7 @@
         <% }); %>
 
         <div purpose="empty-state" v-if="visibleTermCount === 0">
-          <p>No terms match your search. Try a different keyword or <button @click="resetFilters()" purpose="text-button" type="button">clear filters</button>.</p>
+          <p>No terms match. Try a different search or <button @click="resetFilters()" purpose="text-button" type="button">clear filters</button>.</p>
         </div>
 
         <div purpose="contribute-note">
