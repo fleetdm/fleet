@@ -32,7 +32,17 @@
         <nav purpose="letter-nav" aria-label="Jump to letter">
           <% alphabet.forEach((entry) => { %>
             <% if (entry.hasTerms) { %>
-              <a href="#letter-<%= entry.letter %>" purpose="letter-link"><%= entry.letter %></a>
+              <a
+                v-if="!searchQuery || letterIsVisible('<%= entry.letter %>')"
+                href="#letter-<%= entry.letter %>"
+                purpose="letter-link"
+              ><%= entry.letter %></a>
+              <span
+                v-else
+                purpose="letter-link"
+                class="disabled"
+                aria-disabled="true"
+              ><%= entry.letter %></span>
             <% } else { %>
               <span purpose="letter-link" class="disabled" aria-disabled="true"><%= entry.letter %></span>
             <% } %>
@@ -126,4 +136,7 @@
   </script>
 
 </div>
-<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
+<script>
+  window.SAILS_LOCALS = window.SAILS_LOCALS || {};
+  window.SAILS_LOCALS.glossaryTerms = <%- JSON.stringify(glossarySearchTerms) %>;
+</script>
