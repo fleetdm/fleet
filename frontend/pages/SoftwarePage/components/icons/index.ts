@@ -9,7 +9,6 @@ import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
-import CodexCli from "./CodexCli";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import DruvaInSync from "./DruvaInSync";
@@ -321,7 +320,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
-  "codex cli": CodexCli,
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
