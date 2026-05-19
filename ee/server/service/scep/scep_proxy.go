@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/go-ntlmssp"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -23,7 +24,6 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -508,21 +508,13 @@ func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy 
 
 func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
-	// Get the challenge from NDES.
-	//
-	// NTLM is connection-bound on IIS: the Type-1 (Negotiate) and Type-3
-	// (Authenticate) messages must travel on the same TCP connection so
-	// the server can correlate partial auth state. Cap the transport at a
-	// single connection per host and keep keepalives on so Go's connection
-	// pool reliably hands the same connection back for the second round-trip
-	// and never opens a fresh one mid-handshake.
+	// Get the challenge from NDES. AllowBasicAuth: true opts into the
+	// upstream Negotiator's Basic-auth fallback, which is currently
+	// opt-in.
 	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
-	ntlmBaseTransport := fleethttp.NewTransport()
-	ntlmBaseTransport.MaxConnsPerHost = 1
-	ntlmBaseTransport.MaxIdleConnsPerHost = 1
-	ntlmBaseTransport.DisableKeepAlives = false
-	client.Transport = &proactiveNTLMTransport{
-		base: otelhttp.NewTransport(ntlmBaseTransport),
+	client.Transport = ntlmssp.Negotiator{
+		RoundTripper:   fleethttp.NewTransport(),
+		AllowBasicAuth: true,
 	}
 	req, err := http.NewRequest(http.MethodGet, adminURL, http.NoBody)
 	if err != nil {
@@ -572,6 +564,7 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 
 		s.logger.WarnContext(ctx, "failed to parse NDES challenge from admin URL response",
 			"ca_type", fleet.CATypeNDESSCEPProxy,
+			"status_code", http.StatusOK,
 			"raw_response_length", len(htmlString),
 			"request_duration", endRequestTime.Sub(startRequestTime).Seconds(),
 		)

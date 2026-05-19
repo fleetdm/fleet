@@ -113,52 +113,44 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGetNDESSCEPChallenge_AuthGatedFrontEnd(t *testing.T) {
+// TestGetNDESSCEPChallenge_BasicAuthFronted verifies that Fleet works
+// against an "NDES Admin URL" fronted by Okta or another gateway that
+// uses HTTP Basic auth instead of NTLM. v0.1.1 of go-ntlmssp made the
+// Basic-auth fallback opt-in via AllowBasicAuth; this test fails if that
+// field is unset because the upstream Negotiator returns the probe 401
+// to the caller without ever sending credentials.
+func TestGetNDESSCEPChallenge_BasicAuthFronted(t *testing.T) {
 	t.Parallel()
 
 	const challengeBody = `<HTML><BODY>The enrollment challenge password is: <B> ABC123XYZ </B></BODY></HTML>`
-	const anonymousBody = `<HTML><BODY>Welcome - please authenticate.</BODY></HTML>`
 
-	ndesAdminServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		auth := r.Header.Get("Authorization")
-		switch {
-		case auth == "":
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(anonymousBody))
-		case strings.HasPrefix(auth, "NTLM "), strings.HasPrefix(auth, "Negotiate "):
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			// Mimic Okta-fronted NDES: probe gets 401 with Basic challenge.
+			w.Header().Set("WWW-Authenticate", `Basic realm=https://integrator-5691053.okta.com`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if strings.HasPrefix(r.Header.Get("Authorization"), "Basic ") {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(challengeBody))
-		default:
-			http.Error(w, "wrong auth scheme: "+auth, http.StatusUnauthorized)
+			return
 		}
+		w.WriteHeader(http.StatusForbidden)
 	}))
-	t.Cleanup(ndesAdminServer.Close)
+	t.Cleanup(server.Close)
 
 	proxy := fleet.NDESSCEPProxyCA{
-		AdminURL: ndesAdminServer.URL,
+		AdminURL: server.URL,
 		Username: "admin",
 		Password: "password",
 	}
 
 	logger := slog.New(slog.DiscardHandler)
 	svc := NewSCEPConfigService(logger, nil)
-	err := svc.ValidateNDESSCEPAdminURL(t.Context(), proxy)
-	require.NoError(t, err, "Fleet must send NTLM credentials on the first request and reach the challenge page; the v0.1.1 anonymous-probe behavior breaks this")
-}
-
-func TestProactiveNTLMTransport_RejectsNonReplayableBody(t *testing.T) {
-	t.Parallel()
-
-	transport := &proactiveNTLMTransport{base: http.DefaultTransport}
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "http://example.invalid", strings.NewReader("payload"))
-	require.NoError(t, err)
-	// http.NewRequestWithContext sets GetBody for strings.Reader bodies; clear
-	// it to simulate a non-replayable body.
-	req.GetBody = nil
-	req.SetBasicAuth("user", "pass")
-
-	_, err = transport.RoundTrip(req)
-	require.ErrorContains(t, err, "not replayable")
+	challenge, err := svc.GetNDESSCEPChallenge(t.Context(), proxy)
+	require.NoError(t, err, "Fleet must fall back to Basic auth when the upstream advertises only Basic; v0.1.1 made this opt-in via AllowBasicAuth")
+	require.Equal(t, "ABC123XYZ", challenge)
 }
 
 func TestDecodeHTMLResponse(t *testing.T) {
