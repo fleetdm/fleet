@@ -136,4 +136,13 @@
   </script>
 
 </div>
-<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
+<script>
+  window.SAILS_LOCALS = window.SAILS_LOCALS || {};
+  window.SAILS_LOCALS.glossaryTerms = <%- JSON.stringify(
+    glossaryTerms.map((term) => ({
+      slug: term.slug,
+      name: term.name,
+      searchKeywords: term.searchKeywords
+    }))
+  ) %>;
+</script>
