@@ -4,7 +4,7 @@
       "version": "5.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.CleanMyMac5';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.CleanMyMac5' AND version_compare(bundle_short_version, '5.3.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.CleanMyMac5') AND version_compare(bundle_short_version, '5.3.1') < 0);"
       },
       "installer_url": "https://dl.devmate.com/com.macpaw.CleanMyMac5/50301.0.2601271414/1769524551/CleanMyMac5-50301.0.2601271414.zip",
       "install_script_ref": "fff893a1",

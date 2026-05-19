@@ -4,7 +4,7 @@
       "version": "1.19.13b",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.zen-browser.zen';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.zen-browser.zen' AND version_compare(bundle_short_version, '1.19.13b') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'app.zen-browser.zen') AND version_compare(bundle_short_version, '1.19.13b') < 0);"
       },
       "installer_url": "https://github.com/zen-browser/desktop/releases/download/1.19.13b/zen.macos-universal.dmg",
       "install_script_ref": "6dc5817a",

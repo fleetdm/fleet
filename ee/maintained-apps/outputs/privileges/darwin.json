@@ -4,7 +4,7 @@
       "version": "2.5.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'corp.sap.privileges';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'corp.sap.privileges' AND version_compare(bundle_short_version, '2.5.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'corp.sap.privileges') AND version_compare(bundle_short_version, '2.5.3') < 0);"
       },
       "installer_url": "https://github.com/SAP/macOS-enterprise-privileges/releases/download/2.5.3/Privileges_2.5.3.pkg",
       "install_script_ref": "5bb63e36",
