@@ -1,505 +1,1057 @@
 - name: No known compromised npm package versions installed
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM npm_packages WHERE
-        (name = '@antv/a8' AND version IN ('0.1.1','0.2.1'))
-        OR (name = '@antv/adjust' AND version IN ('0.3.5','0.4.5'))
-        OR (name = '@antv/algorithm' AND version IN ('0.2.26','0.3.26'))
-        OR (name = '@antv/async-hook' AND version IN ('2.3.9','2.4.9'))
-        OR (name = '@antv/attr' AND version IN ('0.4.5','0.5.5'))
-        OR (name = '@antv/ava' AND version IN ('3.5.1','3.6.1'))
-        OR (name = '@antv/ava-react' AND version IN ('3.4.2','3.5.2'))
-        OR (name = '@antv/awards' AND version IN ('0.1.9','0.2.9'))
-        OR (name = '@antv/calendar-heatmap' AND version IN ('1.2.2','1.3.2'))
-        OR (name = '@antv/chart-linter' AND version IN ('1.2.6','1.3.6'))
-        OR (name = '@antv/chart-node-g6' AND version IN ('0.1.4','0.2.4'))
-        OR (name = '@antv/chart-visualization-skills' AND version IN ('0.2.3','0.3.3'))
-        OR (name = '@antv/ckb' AND version IN ('2.1.4','2.2.4'))
-        OR (name = '@antv/color-schema' AND version IN ('0.3.3','0.4.3'))
-        OR (name = '@antv/color-util' AND version IN ('2.1.6','2.2.6'))
-        OR (name = '@antv/component' AND version IN ('2.2.11','2.3.11'))
-        OR (name = '@antv/coord' AND version IN ('0.5.7','0.6.7'))
-        OR (name = '@antv/d3-color' AND version IN ('1.1.0','1.2.0'))
-        OR (name = '@antv/d3-interpolate' AND version IN ('1.1.3','1.2.3'))
-        OR (name = '@antv/data-samples' AND version IN ('1.1.1','1.2.1'))
-        OR (name = '@antv/data-set' AND version IN ('0.12.8','0.13.8'))
-        OR (name = '@antv/data-wizard' AND version IN ('2.1.4','2.2.4'))
-        OR (name = '@antv/dipper-component' AND version IN ('0.1.4','0.2.4'))
-        OR (name = '@antv/dipper-hooks' AND version IN ('0.3.1','0.4.1'))
-        OR (name = '@antv/dipper-map' AND version IN ('1.1.10','1.2.10'))
-        OR (name = '@antv/dom-util' AND version IN ('2.1.4','2.2.4'))
-        OR (name = '@antv/dumi-theme-antv' AND version IN ('0.10.4','0.9.4'))
-        OR (name = '@antv/dw-analyzer' AND version IN ('1.2.5','1.3.5'))
-        OR (name = '@antv/dw-random' AND version IN ('1.2.7','1.3.7'))
-        OR (name = '@antv/dw-transform' AND version IN ('1.2.7','1.3.7'))
-        OR (name = '@antv/dw-util' AND version IN ('1.2.4','1.3.4'))
-        OR (name = '@antv/event-emitter' AND version IN ('0.2.3','0.3.3'))
-        OR (name = '@antv/expr' AND version IN ('1.1.2','1.2.2'))
-        OR (name = '@antv/f-charts' AND version IN ('0.1.0','0.2.0'))
-        OR (name = '@antv/f-engine' AND version IN ('1.11.0','1.12.0'))
-        OR (name = '@antv/f-lottie' AND version IN ('1.11.0','1.12.0'))
-        OR (name = '@antv/f-my' AND version IN ('1.11.0','1.12.0'))
-        OR (name = '@antv/f-react' AND version IN ('1.11.0','1.12.0'))
-        OR (name = '@antv/f-test-utils' AND version IN ('1.1.9','1.2.9'))
-        OR (name = '@antv/f-vue' AND version IN ('1.11.0','1.12.0'))
-        OR (name = '@antv/f-wx' AND version IN ('1.11.0','1.12.0'))
-        OR (name = '@antv/f2' AND version IN ('5.15.0','5.16.0'))
-        OR (name = '@antv/f2-algorithm' AND version IN ('5.8.0','5.9.0'))
-        OR (name = '@antv/f2-canvas' AND version IN ('1.1.5','1.2.5'))
-        OR (name = '@antv/f2-context' AND version IN ('0.1.1','0.2.1'))
-        OR (name = '@antv/f2-graphic' AND version IN ('0.1.16','0.2.16'))
-        OR (name = '@antv/f2-my' AND version IN ('4.1.52','4.2.52'))
-        OR (name = '@antv/f2-react' AND version IN ('5.15.0','5.16.0'))
-        OR (name = '@antv/f2-site' AND version IN ('4.1.42','4.2.42'))
-        OR (name = '@antv/f2-vue' AND version IN ('4.1.33','4.2.33'))
-        OR (name = '@antv/f2-wordcloud' AND version IN ('5.15.0','5.16.0'))
-        OR (name = '@antv/f2-wx' AND version IN ('4.1.51','4.2.51'))
-        OR (name = '@antv/f6' AND version IN ('0.1.19','0.2.19'))
-        OR (name = '@antv/f6-alipay' AND version IN ('0.1.7','0.2.7'))
-        OR (name = '@antv/f6-core' AND version IN ('0.1.2','0.2.2'))
-        OR (name = '@antv/f6-element' AND version IN ('0.1.1','0.2.1'))
-        OR (name = '@antv/f6-hammerjs' AND version IN ('0.1.2','0.2.2'))
-        OR (name = '@antv/f6-plugin' AND version IN ('1.1.6','1.2.6'))
-        OR (name = '@antv/f6-ui' AND version IN ('1.1.3','1.2.3'))
-        OR (name = '@antv/f6-wx' AND version IN ('0.1.7','0.2.7'))
-        OR (name = '@antv/g' AND version IN ('6.4.1','6.5.1'))
-        OR (name = '@antv/g-base' AND version IN ('0.6.16','0.7.16'))
-        OR (name = '@antv/g-camera-api' AND version IN ('2.1.45','2.2.45'))
-        OR (name = '@antv/g-canvas' AND version IN ('2.3.0','2.4.0'))
-        OR (name = '@antv/g-canvaskit' AND version IN ('1.2.1','1.3.1'))
-        OR (name = '@antv/g-compat' AND version IN ('1.1.11','1.2.11'))
-        OR (name = '@antv/g-components' AND version IN ('2.1.42','2.2.42'))
-        OR (name = '@antv/g-css-layout-api' AND version IN ('1.1.38','1.2.38'))
-        OR (name = '@antv/g-css-typed-om-api' AND version IN ('1.1.38','1.2.38'))
-        OR (name = '@antv/g-device-api' AND version IN ('1.7.13','1.8.13'))
-        OR (name = '@antv/g-dom-mutation-observer-api' AND version IN ('2.1.42','2.2.42'))
-        OR (name = '@antv/g-gesture' AND version IN ('3.1.42','3.2.42'))
-        OR (name = '@antv/g-image-exporter' AND version IN ('1.1.42','1.2.42'))
-        OR (name = '@antv/g-layout-blocklike' AND version IN ('1.8.49','1.9.49'))
-        OR (name = '@antv/g-lite' AND version IN ('2.8.0','2.9.0'))
-        OR (name = '@antv/g-lottie-player' AND version IN ('1.2.1','1.3.1'))
-        OR (name = '@antv/g-math' AND version IN ('3.2.0','3.3.0'))
-        OR (name = '@antv/g-mobile' AND version IN ('1.2.5','1.3.5'))
-        OR (name = '@antv/g-mobile-canvas' AND version IN ('1.2.1','1.3.1'))
-        OR (name = '@antv/g-mobile-canvas-element' AND version IN ('1.1.42','1.2.42'))
-        OR (name = '@antv/g-mobile-svg' AND version IN ('1.2.1','1.3.1'))
-        OR (name = '@antv/g-mobile-webgl' AND version IN ('1.2.1','1.3.1'))
-        OR (name = '@antv/g-pattern' AND version IN ('2.1.42','2.2.42'))
-        OR (name = '@antv/g-perf' AND version IN ('1.1.0','1.2.0'))
-        OR (name = '@antv/g-plugin-3d' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-plugin-a11y' AND version IN ('1.5.1','1.6.1'))
-        OR (name = '@antv/g-plugin-annotation' AND version IN ('1.3.0','1.4.0'))
-        OR (name = '@antv/g-plugin-box2d' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-plugin-canvas-path-generator' AND version IN ('2.2.26','2.3.26'))
-        OR (name = '@antv/g-plugin-canvas-picker' AND version IN ('2.4.1','2.5.1'))
-        OR (name = '@antv/g-plugin-canvas-renderer' AND version IN ('2.6.1','2.7.1'))
-        OR (name = '@antv/g-plugin-canvaskit-renderer' AND version IN ('2.4.1','2.5.1'))
-        OR (name = '@antv/g-plugin-control' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-plugin-css-select' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-plugin-device-renderer' AND version IN ('2.7.1','2.8.1'))
-        OR (name = '@antv/g-plugin-dom-interaction' AND version IN ('2.2.31','2.3.31'))
-        OR (name = '@antv/g-plugin-dragndrop' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-plugin-gesture' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-plugin-gpgpu' AND version IN ('1.10.20','1.11.20'))
-        OR (name = '@antv/g-plugin-html-renderer' AND version IN ('2.4.1','2.5.1'))
-        OR (name = '@antv/g-plugin-image-loader' AND version IN ('2.4.1','2.5.1'))
-        OR (name = '@antv/g-plugin-matterjs' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-plugin-mobile-interaction' AND version IN ('1.1.42','1.2.42'))
-        OR (name = '@antv/g-plugin-physx' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-plugin-rough-canvas-renderer' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-plugin-rough-svg-renderer' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-plugin-svg-picker' AND version IN ('2.1.46','2.2.46'))
-        OR (name = '@antv/g-plugin-svg-renderer' AND version IN ('2.5.1','2.6.1'))
-        OR (name = '@antv/g-plugin-webgl-device' AND version IN ('1.10.17','1.11.17'))
-        OR (name = '@antv/g-plugin-webgl-renderer' AND version IN ('1.1.26','1.2.26'))
-        OR (name = '@antv/g-plugin-webgpu-device' AND version IN ('1.10.17','1.11.17'))
-        OR (name = '@antv/g-plugin-yoga' AND version IN ('2.4.1','2.5.1'))
-        OR (name = '@antv/g-plugin-zdog-canvas-renderer' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-plugin-zdog-svg-renderer' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-shader-components' AND version IN ('2.1.0','2.2.0'))
-        OR (name = '@antv/g-svg' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-web-animations-api' AND version IN ('2.2.32','2.3.32'))
-        OR (name = '@antv/g-web-components' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-webgl' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-webgl-compute' AND version IN ('0.1.1','0.2.1'))
-        OR (name = '@antv/g-webgpu' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g-webgpu-compiler' AND version IN ('0.8.2','0.9.2'))
-        OR (name = '@antv/g-webgpu-core' AND version IN ('0.8.2','0.9.2'))
-        OR (name = '@antv/g-webgpu-engine' AND version IN ('0.8.2','0.9.2'))
-        OR (name = '@antv/g-webgpu-raytracer' AND version IN ('0.6.1','0.7.1'))
-        OR (name = '@antv/g-webgpu-unitchart' AND version IN ('0.6.1','0.7.1'))
-        OR (name = '@antv/g2' AND version IN ('5.5.8','5.6.8'))
-        OR (name = '@antv/g2-brush' AND version IN ('0.1.2','0.2.2'))
-        OR (name = '@antv/g2-extension-3d' AND version IN ('0.3.0','0.4.0'))
-        OR (name = '@antv/g2-extension-ava' AND version IN ('0.3.0','0.4.0'))
-        OR (name = '@antv/g2-extension-plot' AND version IN ('0.3.2','0.4.2'))
-        OR (name = '@antv/g2-plugin-slider' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/g2-ssr' AND version IN ('0.3.0','0.4.0'))
-        OR (name = '@antv/g2plot' AND version IN ('2.5.35','2.6.35'))
-        OR (name = '@antv/g2plot-schemas' AND version IN ('1.3.2','1.4.2'))
-        OR (name = '@antv/g6' AND version IN ('5.2.1','5.3.1'))
-        OR (name = '@antv/g6-alipay' AND version IN ('0.1.1','0.2.1'))
-        OR (name = '@antv/g6-cli' AND version IN ('0.1.4','0.2.4'))
-        OR (name = '@antv/g6-core' AND version IN ('0.10.24','0.9.24'))
-        OR (name = '@antv/g6-editor' AND version IN ('1.3.0','1.4.0'))
-        OR (name = '@antv/g6-element' AND version IN ('0.10.25','0.9.25'))
-        OR (name = '@antv/g6-extension-3d' AND version IN ('0.2.23','0.3.23'))
-        OR (name = '@antv/g6-extension-react' AND version IN ('0.3.7','0.4.7'))
-        OR (name = '@antv/g6-mobile' AND version IN ('0.2.2','0.3.2'))
-        OR (name = '@antv/g6-pc' AND version IN ('0.10.25','0.9.25'))
-        OR (name = '@antv/g6-plugin' AND version IN ('0.10.25','0.9.25'))
-        OR (name = '@antv/g6-plugin-map-view' AND version IN ('0.1.4','0.2.4'))
-        OR (name = '@antv/g6-plugins' AND version IN ('1.1.9','1.2.9'))
-        OR (name = '@antv/g6-react-node' AND version IN ('1.5.8','1.6.8'))
-        OR (name = '@antv/g6-ssr' AND version IN ('0.2.1','0.3.1'))
-        OR (name = '@antv/g6-wx' AND version IN ('0.1.1','0.2.1'))
-        OR (name = '@antv/gatsby-theme' AND version IN ('0.2.0','0.3.0'))
-        OR (name = '@antv/geo-coord' AND version IN ('1.1.8','1.2.8'))
-        OR (name = '@antv/gi-assets-advance' AND version IN ('2.6.22','2.7.22'))
-        OR (name = '@antv/gi-assets-algorithm' AND version IN ('2.4.19','2.5.19'))
-        OR (name = '@antv/gi-assets-basic' AND version IN ('2.5.40','2.6.40'))
-        OR (name = '@antv/gi-assets-galaxybase' AND version IN ('1.3.15','1.4.15'))
-        OR (name = '@antv/gi-assets-graphscope' AND version IN ('2.2.15','2.3.15'))
-        OR (name = '@antv/gi-assets-hugegraph' AND version IN ('1.2.15','1.3.15'))
-        OR (name = '@antv/gi-assets-janusgraph' AND version IN ('1.2.15','1.3.15'))
-        OR (name = '@antv/gi-assets-neo4j' AND version IN ('2.2.15','2.3.15'))
-        OR (name = '@antv/gi-assets-scene' AND version IN ('2.3.21','2.4.21'))
-        OR (name = '@antv/gi-assets-tugraph' AND version IN ('2.2.15','2.3.15'))
-        OR (name = '@antv/gi-assets-tugraph-analytics' AND version IN ('0.3.15','0.4.15'))
-        OR (name = '@antv/gi-assets-xlab' AND version IN ('0.2.30','0.3.30'))
-        OR (name = '@antv/gi-cli' AND version IN ('1.3.11','1.4.11'))
-        OR (name = '@antv/gi-common-components' AND version IN ('1.4.16','1.5.16'))
-        OR (name = '@antv/gi-mock-data' AND version IN ('1.1.5','1.2.5'))
-        OR (name = '@antv/gi-public-data' AND version IN ('1.1.1','1.2.1'))
-        OR (name = '@antv/gi-sdk' AND version IN ('3.1.0','3.2.0'))
-        OR (name = '@antv/gi-sdk-app' AND version IN ('1.3.10','1.4.10'))
-        OR (name = '@antv/gi-theme-antd' AND version IN ('0.7.11','0.8.11'))
-        OR (name = '@antv/github-config-cli' AND version IN ('0.2.0','0.3.0'))
-        OR (name = '@antv/gl-matrix' AND version IN ('2.8.1','2.9.1'))
-        OR (name = '@antv/gpt-vis' AND version IN ('1.1.0','1.2.0'))
-        OR (name = '@antv/gpt-vis-ssr' AND version IN ('0.4.7','0.5.7'))
-        OR (name = '@antv/graphin' AND version IN ('3.1.5','3.2.5'))
-        OR (name = '@antv/graphin-components' AND version IN ('2.5.1','2.6.1'))
-        OR (name = '@antv/graphin-graphscope' AND version IN ('1.1.5','1.2.5'))
-        OR (name = '@antv/graphin-icons' AND version IN ('1.1.0','1.2.0'))
-        OR (name = '@antv/graphlib' AND version IN ('2.1.4','2.2.4'))
-        OR (name = '@antv/hierarchy' AND version IN ('0.8.1','0.9.1'))
-        OR (name = '@antv/infographic' AND version IN ('0.3.19','0.4.19'))
-        OR (name = '@antv/insight-component' AND version IN ('1.1.0','1.2.0'))
-        OR (name = '@antv/interaction' AND version IN ('0.2.5','0.3.5'))
-        OR (name = '@antv/istanbul' AND version IN ('0.1.0','0.2.0'))
-        OR (name = '@antv/knowledge' AND version IN ('1.2.4','1.3.4'))
-        OR (name = '@antv/l7' AND version IN ('2.26.10','2.27.10'))
-        OR (name = '@antv/l7-component' AND version IN ('2.26.10','2.27.10'))
-        OR (name = '@antv/l7-composite-layers' AND version IN ('0.18.1','0.19.1'))
-        OR (name = '@antv/l7-core' AND version IN ('2.26.10','2.27.10'))
-        OR (name = '@antv/l7-district' AND version IN ('2.4.12','2.5.12'))
-        OR (name = '@antv/l7-draw' AND version IN ('3.2.5','3.3.5'))
-        OR (name = '@antv/l7-editor' AND version IN ('1.2.13','1.3.13'))
-        OR (name = '@antv/l7-extension-g-layer' AND version IN ('1.1.0','1.2.0'))
-        OR (name = '@antv/l7-layers' AND version IN ('2.26.10','2.27.10'))
-        OR (name = '@antv/l7-leaflet' AND version IN ('1.1.2','1.2.2'))
-        OR (name = '@antv/l7-map' AND version IN ('2.26.10','2.27.10'))
-        OR (name = '@antv/l7-mapkit' AND version IN ('0.6.0','0.7.0'))
-        OR (name = '@antv/l7-maps' AND version IN ('2.26.10','2.27.10'))
-        OR (name = '@antv/l7-mini' AND version IN ('2.21.8','2.22.8'))
-        OR (name = '@antv/l7-pass' AND version IN ('1.1.0','1.2.0'))
-        OR (name = '@antv/l7-react' AND version IN ('2.5.3','2.6.3'))
-        OR (name = '@antv/l7-renderer' AND version IN ('2.26.10','2.27.10'))
-        OR (name = '@antv/l7-scene' AND version IN ('2.26.10','2.27.10'))
-        OR (name = '@antv/l7-source' AND version IN ('2.26.10','2.27.10'))
-        OR (name = '@antv/l7-three' AND version IN ('2.26.10','2.27.10'))
-        OR (name = '@antv/l7-utils' AND version IN ('2.26.10','2.27.10'))
-        OR (name = '@antv/l7plot' AND version IN ('0.6.11','0.7.11'))
-        OR (name = '@antv/l7plot-component' AND version IN ('0.1.11','0.2.11'))
-        OR (name = '@antv/larkmap' AND version IN ('1.6.1','1.7.1'))
-        OR (name = '@antv/layout-gpu' AND version IN ('1.2.7','1.3.7'))
-        OR (name = '@antv/layout-wasm' AND version IN ('1.5.2','1.6.2'))
-        OR (name = '@antv/li-aiearth-assets' AND version IN ('0.5.7','0.6.7'))
-        OR (name = '@antv/li-analysis-assets' AND version IN ('1.10.1','1.11.1'))
-        OR (name = '@antv/li-core-assets' AND version IN ('1.4.7','1.5.7'))
-        OR (name = '@antv/li-editor' AND version IN ('1.7.1','1.8.1'))
-        OR (name = '@antv/li-p2' AND version IN ('1.10.2','1.9.2'))
-        OR (name = '@antv/li-sam-assets' AND version IN ('0.1.4','0.2.4','0.3.4'))
-        OR (name = '@antv/li-sdk' AND version IN ('1.6.1','1.7.1'))
-        OR (name = '@antv/lite-insight' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/matrix-util' AND version IN ('3.1.4','3.2.4'))
-        OR (name = '@antv/mcp-server-antv' AND version IN ('0.2.8','0.3.8'))
-        OR (name = '@antv/mcp-server-chart' AND version IN ('0.10.10','0.11.10'))
-        OR (name = '@antv/my-f2' AND version IN ('2.2.7','2.3.7'))
-        OR (name = '@antv/my-f2-pc' AND version IN ('0.2.1','0.3.1'))
-        OR (name = '@antv/narrative-text-editor' AND version IN ('0.3.20','0.4.20'))
-        OR (name = '@antv/narrative-text-schema' AND version IN ('0.4.7','0.5.7'))
-        OR (name = '@antv/narrative-text-vis' AND version IN ('0.4.16','0.5.16'))
-        OR (name = '@antv/path-util' AND version IN ('3.1.1','3.2.1'))
-        OR (name = '@antv/react-g' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/s2' AND version IN ('2.8.1','2.9.1'))
-        OR (name = '@antv/s2-react' AND version IN ('2.4.1','2.5.1'))
-        OR (name = '@antv/s2-react-components' AND version IN ('2.2.2','2.3.2'))
-        OR (name = '@antv/s2-ssr' AND version IN ('0.2.1','0.3.1'))
-        OR (name = '@antv/s2-vue' AND version IN ('2.3.0','2.4.0'))
-        OR (name = '@antv/sam' AND version IN ('0.3.0','0.4.0'))
-        OR (name = '@antv/scale' AND version IN ('0.6.2','0.7.2'))
-        OR (name = '@antv/semantic-release-pnpm' AND version IN ('1.1.4','1.2.4'))
-        OR (name = '@antv/smart-color' AND version IN ('0.3.1','0.4.1'))
-        OR (name = '@antv/stat' AND version IN ('0.1.2','0.2.2'))
-        OR (name = '@antv/t8' AND version IN ('0.4.0','0.5.0'))
-        OR (name = '@antv/thumbnails' AND version IN ('2.1.0','2.2.0'))
-        OR (name = '@antv/thumbnails-component' AND version IN ('2.1.0','2.2.0'))
-        OR (name = '@antv/torch' AND version IN ('1.1.6','1.2.6'))
-        OR (name = '@antv/translator' AND version IN ('1.1.1','1.2.1'))
-        OR (name = '@antv/util' AND version IN ('3.4.11','3.5.11'))
-        OR (name = '@antv/vendor' AND version IN ('1.1.11','1.2.11'))
-        OR (name = '@antv/vis-predict-engine' AND version IN ('0.2.1','0.3.1'))
-        OR (name = '@antv/webgpu-graph' AND version IN ('1.1.0','1.2.0'))
-        OR (name = '@antv/word-scale-chart' AND version IN ('0.4.4','0.5.4'))
-        OR (name = '@antv/wx-f2' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/x6' AND version IN ('3.2.7','3.3.7'))
-        OR (name = '@antv/x6-angular-shape' AND version IN ('3.1.1','3.2.1'))
-        OR (name = '@antv/x6-common' AND version IN ('2.1.17','2.2.17'))
-        OR (name = '@antv/x6-components' AND version IN ('0.11.7','0.12.7'))
-        OR (name = '@antv/x6-geometry' AND version IN ('2.1.5','2.2.5'))
-        OR (name = '@antv/x6-plugin-clipboard' AND version IN ('2.2.6','2.3.6'))
-        OR (name = '@antv/x6-plugin-dnd' AND version IN ('2.2.1','2.3.1'))
-        OR (name = '@antv/x6-plugin-export' AND version IN ('2.2.6','2.3.6'))
-        OR (name = '@antv/x6-plugin-history' AND version IN ('2.3.4','2.4.4'))
-        OR (name = '@antv/x6-plugin-keyboard' AND version IN ('2.3.3','2.4.3'))
-        OR (name = '@antv/x6-plugin-minimap' AND version IN ('2.1.7','2.2.7'))
-        OR (name = '@antv/x6-plugin-scroller' AND version IN ('2.1.10','2.2.10'))
-        OR (name = '@antv/x6-plugin-selection' AND version IN ('2.3.2','2.4.2'))
-        OR (name = '@antv/x6-plugin-snapline' AND version IN ('2.2.7','2.3.7'))
-        OR (name = '@antv/x6-plugin-stencil' AND version IN ('2.2.5','2.3.5'))
-        OR (name = '@antv/x6-plugin-transform' AND version IN ('2.2.8','2.3.8'))
-        OR (name = '@antv/x6-react' AND version IN ('0.2.26','0.3.26'))
-        OR (name = '@antv/x6-react-components' AND version IN ('2.1.9','2.2.9'))
-        OR (name = '@antv/x6-react-shape' AND version IN ('3.1.1','3.2.1'))
-        OR (name = '@antv/x6-vector' AND version IN ('1.5.2','1.6.2'))
-        OR (name = '@antv/x6-vue-shape' AND version IN ('3.1.2','3.2.2'))
-        OR (name = '@antv/x6-vue3-shape' AND version IN ('1.1.0','1.2.0'))
-        OR (name = '@antv/xflow' AND version IN ('2.2.13','2.3.13'))
-        OR (name = '@antv/xflow-core' AND version IN ('1.1.55','1.2.55'))
-        OR (name = '@antv/xflow-diff' AND version IN ('1.1.0','1.2.0'))
-        OR (name = '@antv/xflow-extension' AND version IN ('1.1.55','1.2.55'))
-        OR (name = '@antv/xflow-hook' AND version IN ('1.1.55','1.2.55'))
-        OR (name = '@beproduct/nestjs-auth' AND version IN ('0.1.10','0.1.11','0.1.12','0.1.13','0.1.14','0.1.15','0.1.16','0.1.17','0.1.18','0.1.19','0.1.2','0.1.3','0.1.4','0.1.5','0.1.6','0.1.7','0.1.8','0.1.9'))
-        OR (name = '@cap-js/db-service' AND version IN ('2.10.1'))
-        OR (name = '@cap-js/postgres' AND version IN ('2.2.2'))
-        OR (name = '@cap-js/sqlite' AND version IN ('2.2.2'))
-        OR (name = '@dirigible-ai/sdk' AND version IN ('0.6.2','0.6.3'))
-        OR (name = '@draftauth/client' AND version IN ('0.2.1','0.2.2'))
-        OR (name = '@draftauth/core' AND version IN ('0.13.1','0.13.2'))
-        OR (name = '@draftlab/auth' AND version IN ('0.24.1','0.24.2'))
-        OR (name = '@draftlab/auth-router' AND version IN ('0.5.1','0.5.2'))
-        OR (name = '@draftlab/db' AND version IN ('0.16.1','0.16.2'))
-        OR (name = '@lint-md/cli' AND version IN ('2.1.0','2.2.0'))
-        OR (name = '@lint-md/core' AND version IN ('2.1.0','2.2.0'))
-        OR (name = '@lint-md/parser' AND version IN ('0.1.14','0.2.14'))
-        OR (name = '@mesadev/rest' AND version IN ('0.28.3'))
-        OR (name = '@mesadev/saguaro' AND version IN ('0.4.22'))
-        OR (name = '@mesadev/sdk' AND version IN ('0.28.3'))
-        OR (name = '@mistralai/mistralai' AND version IN ('2.2.2','2.2.3','2.2.4'))
-        OR (name = '@mistralai/mistralai-azure' AND version IN ('1.7.1','1.7.2','1.7.3'))
-        OR (name = '@mistralai/mistralai-gcp' AND version IN ('1.7.1','1.7.2','1.7.3'))
-        OR (name = '@ml-toolkit-ts/preprocessing' AND version IN ('1.0.2','1.0.3'))
-        OR (name = '@ml-toolkit-ts/xgboost' AND version IN ('1.0.3','1.0.4'))
-        OR (name = '@openclaw-cn/cli' AND version IN ('1.4.1'))
-        OR (name = '@openclaw-cn/feishu' AND version IN ('0.2.11'))
-        OR (name = '@openclaw-cn/libsignal' AND version IN ('2.1.1'))
-        OR (name = '@openclaw-cn/toutiao-ops' AND version IN ('1.2.4'))
-        OR (name = '@opensearch-project/opensearch' AND version IN ('3.5.3','3.6.2','3.7.0','3.8.0'))
-        OR (name = '@squawk/airport-data' AND version IN ('0.7.4','0.7.5','0.7.6','0.7.7','0.7.8'))
-        OR (name = '@squawk/airports' AND version IN ('0.6.2','0.6.3','0.6.4','0.6.5','0.6.6'))
-        OR (name = '@squawk/airspace' AND version IN ('0.8.1','0.8.2','0.8.3','0.8.4','0.8.5'))
-        OR (name = '@squawk/airspace-data' AND version IN ('0.5.3','0.5.4','0.5.5','0.5.6','0.5.7'))
-        OR (name = '@squawk/airway-data' AND version IN ('0.5.4','0.5.5','0.5.6','0.5.7','0.5.8'))
-        OR (name = '@squawk/airways' AND version IN ('0.4.2','0.4.3','0.4.4','0.4.5','0.4.6'))
-        OR (name = '@squawk/fix-data' AND version IN ('0.6.4','0.6.5','0.6.6','0.6.7','0.6.8'))
-        OR (name = '@squawk/fixes' AND version IN ('0.3.2','0.3.3','0.3.4','0.3.5','0.3.6'))
-        OR (name = '@squawk/flight-math' AND version IN ('0.5.4','0.5.5','0.5.6','0.5.7','0.5.8'))
-        OR (name = '@squawk/flightplan' AND version IN ('0.5.2','0.5.3','0.5.4','0.5.5','0.5.6'))
-        OR (name = '@squawk/geo' AND version IN ('0.4.4','0.4.5','0.4.6','0.4.7','0.4.8'))
-        OR (name = '@squawk/icao-registry' AND version IN ('0.5.2','0.5.3','0.5.4','0.5.5','0.5.6'))
-        OR (name = '@squawk/icao-registry-data' AND version IN ('0.8.4','0.8.5','0.8.6','0.8.7','0.8.8'))
-        OR (name = '@squawk/mcp' AND version IN ('0.9.1','0.9.2','0.9.3','0.9.4','0.9.5'))
-        OR (name = '@squawk/navaid-data' AND version IN ('0.6.4','0.6.5','0.6.6','0.6.7','0.6.8'))
-        OR (name = '@squawk/navaids' AND version IN ('0.4.2','0.4.3','0.4.4','0.4.5','0.4.6'))
-        OR (name = '@squawk/notams' AND version IN ('0.3.10','0.3.6','0.3.7','0.3.8','0.3.9'))
-        OR (name = '@squawk/procedure-data' AND version IN ('0.7.3','0.7.4','0.7.5','0.7.6','0.7.7'))
-        OR (name = '@squawk/procedures' AND version IN ('0.5.2','0.5.3','0.5.4','0.5.5','0.5.6'))
-        OR (name = '@squawk/types' AND version IN ('0.8.1','0.8.2','0.8.3','0.8.4','0.8.5'))
-        OR (name = '@squawk/units' AND version IN ('0.4.3','0.4.4','0.4.5','0.4.6','0.4.7'))
-        OR (name = '@squawk/weather' AND version IN ('0.5.10','0.5.6','0.5.7','0.5.8','0.5.9'))
-        OR (name = '@starmind/collector-cli' AND version IN ('0.3.10'))
-        OR (name = '@supersurkhet/cli' AND version IN ('0.0.2','0.0.3','0.0.4','0.0.5','0.0.6','0.0.7'))
-        OR (name = '@supersurkhet/sdk' AND version IN ('0.0.2','0.0.3','0.0.4','0.0.5','0.0.6','0.0.7'))
-        OR (name = '@tallyui/components' AND version IN ('1.0.1','1.0.2','1.0.3'))
-        OR (name = '@tallyui/connector-medusa' AND version IN ('1.0.1','1.0.2','1.0.3'))
-        OR (name = '@tallyui/connector-shopify' AND version IN ('1.0.1','1.0.2','1.0.3'))
-        OR (name = '@tallyui/connector-vendure' AND version IN ('1.0.1','1.0.2','1.0.3'))
-        OR (name = '@tallyui/connector-woocommerce' AND version IN ('1.0.1','1.0.2','1.0.3'))
-        OR (name = '@tallyui/core' AND version IN ('0.2.1','0.2.2','0.2.3'))
-        OR (name = '@tallyui/database' AND version IN ('1.0.1','1.0.2','1.0.3'))
-        OR (name = '@tallyui/pos' AND version IN ('0.1.1','0.1.2','0.1.3'))
-        OR (name = '@tallyui/storage-sqlite' AND version IN ('0.2.1','0.2.2','0.2.3'))
-        OR (name = '@tallyui/theme' AND version IN ('0.2.1','0.2.2','0.2.3'))
-        OR (name = '@tanstack/arktype-adapter' AND version IN ('1.166.12','1.166.15'))
-        OR (name = '@tanstack/eslint-plugin-router' AND version IN ('1.161.12','1.161.9'))
-        OR (name = '@tanstack/eslint-plugin-start' AND version IN ('0.0.4','0.0.7'))
-        OR (name = '@tanstack/history' AND version IN ('1.161.12','1.161.9'))
-        OR (name = '@tanstack/nitro-v2-vite-plugin' AND version IN ('1.154.12','1.154.15'))
-        OR (name = '@tanstack/react-router' AND version IN ('1.169.5','1.169.8'))
-        OR (name = '@tanstack/react-router-devtools' AND version IN ('1.166.16','1.166.19'))
-        OR (name = '@tanstack/react-router-ssr-query' AND version IN ('1.166.15','1.166.18'))
-        OR (name = '@tanstack/react-start' AND version IN ('1.167.68','1.167.71'))
-        OR (name = '@tanstack/react-start-client' AND version IN ('1.166.51','1.166.54'))
-        OR (name = '@tanstack/react-start-rsc' AND version IN ('0.0.47','0.0.50'))
-        OR (name = '@tanstack/react-start-server' AND version IN ('1.166.55','1.166.58'))
-        OR (name = '@tanstack/router-cli' AND version IN ('1.166.46','1.166.49'))
-        OR (name = '@tanstack/router-core' AND version IN ('1.169.5','1.169.8'))
-        OR (name = '@tanstack/router-devtools' AND version IN ('1.166.16','1.166.19'))
-        OR (name = '@tanstack/router-devtools-core' AND version IN ('1.167.6','1.167.9'))
-        OR (name = '@tanstack/router-generator' AND version IN ('1.166.45','1.166.48'))
-        OR (name = '@tanstack/router-plugin' AND version IN ('1.167.38','1.167.41'))
-        OR (name = '@tanstack/router-ssr-query-core' AND version IN ('1.168.3','1.168.6'))
-        OR (name = '@tanstack/router-utils' AND version IN ('1.161.11','1.161.14'))
-        OR (name = '@tanstack/router-vite-plugin' AND version IN ('1.166.53','1.166.56'))
-        OR (name = '@tanstack/solid-router' AND version IN ('1.169.5','1.169.8'))
-        OR (name = '@tanstack/solid-router-devtools' AND version IN ('1.166.16','1.166.19'))
-        OR (name = '@tanstack/solid-router-ssr-query' AND version IN ('1.166.15','1.166.18'))
-        OR (name = '@tanstack/solid-start' AND version IN ('1.167.65','1.167.68'))
-        OR (name = '@tanstack/solid-start-client' AND version IN ('1.166.50','1.166.53'))
-        OR (name = '@tanstack/solid-start-server' AND version IN ('1.166.54','1.166.57'))
-        OR (name = '@tanstack/start-client-core' AND version IN ('1.168.5','1.168.8'))
-        OR (name = '@tanstack/start-fn-stubs' AND version IN ('1.161.12','1.161.9'))
-        OR (name = '@tanstack/start-plugin-core' AND version IN ('1.169.23','1.169.26'))
-        OR (name = '@tanstack/start-server-core' AND version IN ('1.167.33','1.167.36'))
-        OR (name = '@tanstack/start-static-server-functions' AND version IN ('1.166.44','1.166.47'))
-        OR (name = '@tanstack/start-storage-context' AND version IN ('1.166.38','1.166.41'))
-        OR (name = '@tanstack/valibot-adapter' AND version IN ('1.166.12','1.166.15'))
-        OR (name = '@tanstack/virtual-file-routes' AND version IN ('1.161.10','1.161.13'))
-        OR (name = '@tanstack/vue-router' AND version IN ('1.169.5','1.169.8'))
-        OR (name = '@tanstack/vue-router-devtools' AND version IN ('1.166.16','1.166.19'))
-        OR (name = '@tanstack/vue-router-ssr-query' AND version IN ('1.166.15','1.166.18'))
-        OR (name = '@tanstack/vue-start' AND version IN ('1.167.61','1.167.64'))
-        OR (name = '@tanstack/vue-start-client' AND version IN ('1.166.46','1.166.49'))
-        OR (name = '@tanstack/vue-start-server' AND version IN ('1.166.50','1.166.53'))
-        OR (name = '@tanstack/zod-adapter' AND version IN ('1.166.12','1.166.15'))
-        OR (name = '@taskflow-corp/cli' AND version IN ('0.1.24','0.1.25','0.1.26','0.1.27','0.1.28','0.1.29'))
-        OR (name = '@tolka/cli' AND version IN ('1.0.2','1.0.3','1.0.4','1.0.5','1.0.6'))
-        OR (name = '@uipath/access-policy-sdk' AND version IN ('0.3.1'))
-        OR (name = '@uipath/access-policy-tool' AND version IN ('0.3.1'))
-        OR (name = '@uipath/admin-tool' AND version IN ('0.1.1'))
-        OR (name = '@uipath/agent-sdk' AND version IN ('1.0.2'))
-        OR (name = '@uipath/agent-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/agent.sdk' AND version IN ('0.0.18'))
-        OR (name = '@uipath/aops-policy-tool' AND version IN ('0.3.1'))
-        OR (name = '@uipath/ap-chat' AND version IN ('1.5.7'))
-        OR (name = '@uipath/api-workflow-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/apollo-core' AND version IN ('5.9.2'))
-        OR (name = '@uipath/apollo-react' AND version IN ('4.24.5'))
-        OR (name = '@uipath/apollo-wind' AND version IN ('2.16.2'))
-        OR (name = '@uipath/auth' AND version IN ('1.0.1'))
-        OR (name = '@uipath/case-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/cli' AND version IN ('1.0.1'))
-        OR (name = '@uipath/codedagent-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/codedagents-tool' AND version IN ('0.1.12'))
-        OR (name = '@uipath/codedapp-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/common' AND version IN ('1.0.1'))
-        OR (name = '@uipath/context-grounding-tool' AND version IN ('0.1.1'))
-        OR (name = '@uipath/data-fabric-tool' AND version IN ('1.0.2'))
-        OR (name = '@uipath/docsai-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/filesystem' AND version IN ('1.0.1'))
-        OR (name = '@uipath/flow-tool' AND version IN ('1.0.2'))
-        OR (name = '@uipath/functions-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/gov-tool' AND version IN ('0.3.1'))
-        OR (name = '@uipath/identity-tool' AND version IN ('0.1.1'))
-        OR (name = '@uipath/insights-sdk' AND version IN ('1.0.1'))
-        OR (name = '@uipath/insights-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/integrationservice-sdk' AND version IN ('1.0.2'))
-        OR (name = '@uipath/integrationservice-tool' AND version IN ('1.0.2'))
-        OR (name = '@uipath/llmgw-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/maestro-sdk' AND version IN ('1.0.1'))
-        OR (name = '@uipath/maestro-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/orchestrator-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/packager-tool-apiworkflow' AND version IN ('0.0.19'))
-        OR (name = '@uipath/packager-tool-bpmn' AND version IN ('0.0.9'))
-        OR (name = '@uipath/packager-tool-case' AND version IN ('0.0.9'))
-        OR (name = '@uipath/packager-tool-connector' AND version IN ('0.0.19'))
-        OR (name = '@uipath/packager-tool-flow' AND version IN ('0.0.19'))
-        OR (name = '@uipath/packager-tool-functions' AND version IN ('0.1.1'))
-        OR (name = '@uipath/packager-tool-webapp' AND version IN ('1.0.6'))
-        OR (name = '@uipath/packager-tool-workflowcompiler' AND version IN ('0.0.16'))
-        OR (name = '@uipath/packager-tool-workflowcompiler-browser' AND version IN ('0.0.34'))
-        OR (name = '@uipath/platform-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/project-packager' AND version IN ('1.1.16'))
-        OR (name = '@uipath/resource-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/resourcecatalog-tool' AND version IN ('0.1.1'))
-        OR (name = '@uipath/resources-tool' AND version IN ('0.1.11'))
-        OR (name = '@uipath/robot' AND version IN ('1.3.4'))
-        OR (name = '@uipath/rpa-legacy-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/rpa-tool' AND version IN ('0.9.5'))
-        OR (name = '@uipath/solution-packager' AND version IN ('0.0.35'))
-        OR (name = '@uipath/solution-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/solutionpackager-sdk' AND version IN ('1.0.11'))
-        OR (name = '@uipath/solutionpackager-tool-core' AND version IN ('0.0.34'))
-        OR (name = '@uipath/tasks-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/telemetry' AND version IN ('0.0.7'))
-        OR (name = '@uipath/test-manager-tool' AND version IN ('1.0.2'))
-        OR (name = '@uipath/tool-workflowcompiler' AND version IN ('0.0.12'))
-        OR (name = '@uipath/traces-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/ui-widgets-multi-file-upload' AND version IN ('1.0.1'))
-        OR (name = '@uipath/uipath-python-bridge' AND version IN ('1.0.1'))
-        OR (name = '@uipath/vertical-solutions-tool' AND version IN ('1.0.1'))
-        OR (name = '@uipath/vss' AND version IN ('0.1.6'))
-        OR (name = '@uipath/widget.sdk' AND version IN ('1.2.3'))
-        OR (name = 'agentwork-cli' AND version IN ('0.1.4','0.1.5'))
-        OR (name = 'ai-figure' AND version IN ('0.5.0','0.6.0'))
-        OR (name = 'amapcn' AND version IN ('0.2.2','0.3.2'))
-        OR (name = 'ast-plugin' AND version IN ('0.1.7','0.2.7'))
-        OR (name = 'babel-plugin-version' AND version IN ('0.3.3','0.4.3'))
-        OR (name = 'boring-avatars-vanilla' AND version IN ('1.1.2','1.2.2'))
-        OR (name = 'byte-parser' AND version IN ('1.1.0','1.2.0'))
-        OR (name = 'canvas-nest.js' AND version IN ('2.1.4','2.2.4'))
-        OR (name = 'cmux-agent-mcp' AND version IN ('0.1.3','0.1.4','0.1.5','0.1.6','0.1.7','0.1.8'))
-        OR (name = 'cross-stitch' AND version IN ('1.1.3','1.1.4','1.1.5','1.1.6','1.1.7'))
-        OR (name = 'echarts-for-react' AND version IN ('3.1.7','3.2.7'))
-        OR (name = 'filesize.js' AND version IN ('2.1.0','2.2.0'))
-        OR (name = 'fixed-round' AND version IN ('1.1.2','1.2.2'))
-        OR (name = 'gantt-for-react' AND version IN ('0.3.0','0.4.0'))
-        OR (name = 'git-branch-selector' AND version IN ('1.3.3','1.3.4','1.3.5','1.3.6','1.3.7'))
-        OR (name = 'git-git-git' AND version IN ('1.0.10','1.0.11','1.0.12','1.0.8','1.0.9'))
-        OR (name = 'intercom-client' AND version IN ('7.0.4'))
-        OR (name = 'jest-canvas-mock' AND version IN ('2.6.3','2.7.3'))
-        OR (name = 'jest-date-mock' AND version IN ('1.1.11','1.2.11'))
-        OR (name = 'jest-electron' AND version IN ('0.2.12','0.3.12'))
-        OR (name = 'jest-expect' AND version IN ('0.1.1','0.2.1'))
-        OR (name = 'jest-less-loader' AND version IN ('0.3.0','0.4.0'))
-        OR (name = 'jest-random-mock' AND version IN ('1.1.0','1.2.0'))
-        OR (name = 'jest-url-loader' AND version IN ('0.2.0','0.3.0'))
-        OR (name = 'limit-size' AND version IN ('0.2.4','0.3.4'))
-        OR (name = 'lint-md' AND version IN ('0.3.0','0.4.0'))
-        OR (name = 'lint-md-cli' AND version IN ('0.2.2','0.3.2'))
-        OR (name = 'mbt' AND version IN ('1.2.48'))
-        OR (name = 'mcp-echarts' AND version IN ('0.8.1','0.9.1'))
-        OR (name = 'mcp-mermaid' AND version IN ('0.5.1','0.6.1'))
-        OR (name = 'miz' AND version IN ('1.1.1','1.2.1'))
-        OR (name = 'ml-toolkit-ts' AND version IN ('1.0.4','1.0.5'))
-        OR (name = 'nextmove-mcp' AND version IN ('0.1.3','0.1.4','0.1.5','0.1.6','0.1.7'))
-        OR (name = 'onfire.js' AND version IN ('2.1.1','2.2.1'))
-        OR (name = 'openclaw-cn' AND version IN ('0.3.0'))
-        OR (name = 'react-adsense' AND version IN ('0.2.0','0.3.0'))
-        OR (name = 'relationship.js' AND version IN ('1.3.9','1.4.9'))
-        OR (name = 'ribbon.js' AND version IN ('1.1.2'))
-        OR (name = 'safe-action' AND version IN ('0.8.3','0.8.4'))
-        OR (name = 'size-sensor' AND version IN ('1.1.4','1.2.4'))
-        OR (name = 'slice.js' AND version IN ('1.2.1','1.3.1'))
-        OR (name = 'timeago-react' AND version IN ('3.1.7','3.2.7'))
-        OR (name = 'timeago.js' AND version IN ('4.1.2','4.2.2'))
-        OR (name = 'ts-dna' AND version IN ('3.0.1','3.0.2','3.0.3','3.0.4','3.0.5'))
-        OR (name = 'uri-parse' AND version IN ('1.1.0','1.2.0'))
-        OR (name = 'word-width' AND version IN ('1.1.1','1.2.1'))
-        OR (name = 'wot-api' AND version IN ('0.8.1','0.8.2','0.8.3','0.8.4'))
-        OR (name = 'xmorse' AND version IN ('1.1.0','1.2.0'))
+      SELECT 1 FROM npm_packages WHERE name || '@' || version IN (
+        '@antv/a8@0.1.1',
+        '@antv/a8@0.2.1',
+        '@antv/adjust@0.3.5',
+        '@antv/adjust@0.4.5',
+        '@antv/algorithm@0.2.26',
+        '@antv/algorithm@0.3.26',
+        '@antv/async-hook@2.3.9',
+        '@antv/async-hook@2.4.9',
+        '@antv/attr@0.4.5',
+        '@antv/attr@0.5.5',
+        '@antv/ava@3.5.1',
+        '@antv/ava@3.6.1',
+        '@antv/ava-react@3.4.2',
+        '@antv/ava-react@3.5.2',
+        '@antv/awards@0.1.9',
+        '@antv/awards@0.2.9',
+        '@antv/calendar-heatmap@1.2.2',
+        '@antv/calendar-heatmap@1.3.2',
+        '@antv/chart-linter@1.2.6',
+        '@antv/chart-linter@1.3.6',
+        '@antv/chart-node-g6@0.1.4',
+        '@antv/chart-node-g6@0.2.4',
+        '@antv/chart-visualization-skills@0.2.3',
+        '@antv/chart-visualization-skills@0.3.3',
+        '@antv/ckb@2.1.4',
+        '@antv/ckb@2.2.4',
+        '@antv/color-schema@0.3.3',
+        '@antv/color-schema@0.4.3',
+        '@antv/color-util@2.1.6',
+        '@antv/color-util@2.2.6',
+        '@antv/component@2.2.11',
+        '@antv/component@2.3.11',
+        '@antv/coord@0.5.7',
+        '@antv/coord@0.6.7',
+        '@antv/d3-color@1.1.0',
+        '@antv/d3-color@1.2.0',
+        '@antv/d3-interpolate@1.1.3',
+        '@antv/d3-interpolate@1.2.3',
+        '@antv/data-samples@1.1.1',
+        '@antv/data-samples@1.2.1',
+        '@antv/data-set@0.12.8',
+        '@antv/data-set@0.13.8',
+        '@antv/data-wizard@2.1.4',
+        '@antv/data-wizard@2.2.4',
+        '@antv/dipper-component@0.1.4',
+        '@antv/dipper-component@0.2.4',
+        '@antv/dipper-hooks@0.3.1',
+        '@antv/dipper-hooks@0.4.1',
+        '@antv/dipper-map@1.1.10',
+        '@antv/dipper-map@1.2.10',
+        '@antv/dom-util@2.1.4',
+        '@antv/dom-util@2.2.4',
+        '@antv/dumi-theme-antv@0.10.4',
+        '@antv/dumi-theme-antv@0.9.4',
+        '@antv/dw-analyzer@1.2.5',
+        '@antv/dw-analyzer@1.3.5',
+        '@antv/dw-random@1.2.7',
+        '@antv/dw-random@1.3.7',
+        '@antv/dw-transform@1.2.7',
+        '@antv/dw-transform@1.3.7',
+        '@antv/dw-util@1.2.4',
+        '@antv/dw-util@1.3.4',
+        '@antv/event-emitter@0.2.3',
+        '@antv/event-emitter@0.3.3',
+        '@antv/expr@1.1.2',
+        '@antv/expr@1.2.2',
+        '@antv/f-charts@0.1.0',
+        '@antv/f-charts@0.2.0',
+        '@antv/f-engine@1.11.0',
+        '@antv/f-engine@1.12.0',
+        '@antv/f-lottie@1.11.0',
+        '@antv/f-lottie@1.12.0',
+        '@antv/f-my@1.11.0',
+        '@antv/f-my@1.12.0',
+        '@antv/f-react@1.11.0',
+        '@antv/f-react@1.12.0',
+        '@antv/f-test-utils@1.1.9',
+        '@antv/f-test-utils@1.2.9',
+        '@antv/f-vue@1.11.0',
+        '@antv/f-vue@1.12.0',
+        '@antv/f-wx@1.11.0',
+        '@antv/f-wx@1.12.0',
+        '@antv/f2@5.15.0',
+        '@antv/f2@5.16.0',
+        '@antv/f2-algorithm@5.8.0',
+        '@antv/f2-algorithm@5.9.0',
+        '@antv/f2-canvas@1.1.5',
+        '@antv/f2-canvas@1.2.5',
+        '@antv/f2-context@0.1.1',
+        '@antv/f2-context@0.2.1',
+        '@antv/f2-graphic@0.1.16',
+        '@antv/f2-graphic@0.2.16',
+        '@antv/f2-my@4.1.52',
+        '@antv/f2-my@4.2.52',
+        '@antv/f2-react@5.15.0',
+        '@antv/f2-react@5.16.0',
+        '@antv/f2-site@4.1.42',
+        '@antv/f2-site@4.2.42',
+        '@antv/f2-vue@4.1.33',
+        '@antv/f2-vue@4.2.33',
+        '@antv/f2-wordcloud@5.15.0',
+        '@antv/f2-wordcloud@5.16.0',
+        '@antv/f2-wx@4.1.51',
+        '@antv/f2-wx@4.2.51',
+        '@antv/f6@0.1.19',
+        '@antv/f6@0.2.19',
+        '@antv/f6-alipay@0.1.7',
+        '@antv/f6-alipay@0.2.7',
+        '@antv/f6-core@0.1.2',
+        '@antv/f6-core@0.2.2',
+        '@antv/f6-element@0.1.1',
+        '@antv/f6-element@0.2.1',
+        '@antv/f6-hammerjs@0.1.2',
+        '@antv/f6-hammerjs@0.2.2',
+        '@antv/f6-plugin@1.1.6',
+        '@antv/f6-plugin@1.2.6',
+        '@antv/f6-ui@1.1.3',
+        '@antv/f6-ui@1.2.3',
+        '@antv/f6-wx@0.1.7',
+        '@antv/f6-wx@0.2.7',
+        '@antv/g@6.4.1',
+        '@antv/g@6.5.1',
+        '@antv/g-base@0.6.16',
+        '@antv/g-base@0.7.16',
+        '@antv/g-camera-api@2.1.45',
+        '@antv/g-camera-api@2.2.45',
+        '@antv/g-canvas@2.3.0',
+        '@antv/g-canvas@2.4.0',
+        '@antv/g-canvaskit@1.2.1',
+        '@antv/g-canvaskit@1.3.1',
+        '@antv/g-compat@1.1.11',
+        '@antv/g-compat@1.2.11',
+        '@antv/g-components@2.1.42',
+        '@antv/g-components@2.2.42',
+        '@antv/g-css-layout-api@1.1.38',
+        '@antv/g-css-layout-api@1.2.38',
+        '@antv/g-css-typed-om-api@1.1.38',
+        '@antv/g-css-typed-om-api@1.2.38',
+        '@antv/g-device-api@1.7.13',
+        '@antv/g-device-api@1.8.13',
+        '@antv/g-dom-mutation-observer-api@2.1.42',
+        '@antv/g-dom-mutation-observer-api@2.2.42',
+        '@antv/g-gesture@3.1.42',
+        '@antv/g-gesture@3.2.42',
+        '@antv/g-image-exporter@1.1.42',
+        '@antv/g-image-exporter@1.2.42',
+        '@antv/g-layout-blocklike@1.8.49',
+        '@antv/g-layout-blocklike@1.9.49',
+        '@antv/g-lite@2.8.0',
+        '@antv/g-lite@2.9.0',
+        '@antv/g-lottie-player@1.2.1',
+        '@antv/g-lottie-player@1.3.1',
+        '@antv/g-math@3.2.0',
+        '@antv/g-math@3.3.0',
+        '@antv/g-mobile@1.2.5',
+        '@antv/g-mobile@1.3.5',
+        '@antv/g-mobile-canvas@1.2.1',
+        '@antv/g-mobile-canvas@1.3.1',
+        '@antv/g-mobile-canvas-element@1.1.42',
+        '@antv/g-mobile-canvas-element@1.2.42',
+        '@antv/g-mobile-svg@1.2.1',
+        '@antv/g-mobile-svg@1.3.1',
+        '@antv/g-mobile-webgl@1.2.1',
+        '@antv/g-mobile-webgl@1.3.1',
+        '@antv/g-pattern@2.1.42',
+        '@antv/g-pattern@2.2.42',
+        '@antv/g-perf@1.1.0',
+        '@antv/g-perf@1.2.0',
+        '@antv/g-plugin-3d@2.2.1',
+        '@antv/g-plugin-3d@2.3.1',
+        '@antv/g-plugin-a11y@1.5.1',
+        '@antv/g-plugin-a11y@1.6.1',
+        '@antv/g-plugin-annotation@1.3.0',
+        '@antv/g-plugin-annotation@1.4.0',
+        '@antv/g-plugin-box2d@2.2.1',
+        '@antv/g-plugin-box2d@2.3.1',
+        '@antv/g-plugin-canvas-path-generator@2.2.26',
+        '@antv/g-plugin-canvas-path-generator@2.3.26',
+        '@antv/g-plugin-canvas-picker@2.4.1',
+        '@antv/g-plugin-canvas-picker@2.5.1',
+        '@antv/g-plugin-canvas-renderer@2.6.1',
+        '@antv/g-plugin-canvas-renderer@2.7.1',
+        '@antv/g-plugin-canvaskit-renderer@2.4.1',
+        '@antv/g-plugin-canvaskit-renderer@2.5.1',
+        '@antv/g-plugin-control@2.2.1',
+        '@antv/g-plugin-control@2.3.1',
+        '@antv/g-plugin-css-select@2.2.1',
+        '@antv/g-plugin-css-select@2.3.1',
+        '@antv/g-plugin-device-renderer@2.7.1',
+        '@antv/g-plugin-device-renderer@2.8.1',
+        '@antv/g-plugin-dom-interaction@2.2.31',
+        '@antv/g-plugin-dom-interaction@2.3.31',
+        '@antv/g-plugin-dragndrop@2.2.1',
+        '@antv/g-plugin-dragndrop@2.3.1',
+        '@antv/g-plugin-gesture@2.2.1',
+        '@antv/g-plugin-gesture@2.3.1',
+        '@antv/g-plugin-gpgpu@1.10.20',
+        '@antv/g-plugin-gpgpu@1.11.20',
+        '@antv/g-plugin-html-renderer@2.4.1',
+        '@antv/g-plugin-html-renderer@2.5.1',
+        '@antv/g-plugin-image-loader@2.4.1',
+        '@antv/g-plugin-image-loader@2.5.1',
+        '@antv/g-plugin-matterjs@2.2.1',
+        '@antv/g-plugin-matterjs@2.3.1',
+        '@antv/g-plugin-mobile-interaction@1.1.42',
+        '@antv/g-plugin-mobile-interaction@1.2.42',
+        '@antv/g-plugin-physx@2.2.1',
+        '@antv/g-plugin-physx@2.3.1',
+        '@antv/g-plugin-rough-canvas-renderer@2.2.1',
+        '@antv/g-plugin-rough-canvas-renderer@2.3.1',
+        '@antv/g-plugin-rough-svg-renderer@2.2.1',
+        '@antv/g-plugin-rough-svg-renderer@2.3.1',
+        '@antv/g-plugin-svg-picker@2.1.46',
+        '@antv/g-plugin-svg-picker@2.2.46',
+        '@antv/g-plugin-svg-renderer@2.5.1',
+        '@antv/g-plugin-svg-renderer@2.6.1',
+        '@antv/g-plugin-webgl-device@1.10.17',
+        '@antv/g-plugin-webgl-device@1.11.17',
+        '@antv/g-plugin-webgl-renderer@1.1.26',
+        '@antv/g-plugin-webgl-renderer@1.2.26',
+        '@antv/g-plugin-webgpu-device@1.10.17',
+        '@antv/g-plugin-webgpu-device@1.11.17',
+        '@antv/g-plugin-yoga@2.4.1',
+        '@antv/g-plugin-yoga@2.5.1',
+        '@antv/g-plugin-zdog-canvas-renderer@2.2.1',
+        '@antv/g-plugin-zdog-canvas-renderer@2.3.1',
+        '@antv/g-plugin-zdog-svg-renderer@2.2.1',
+        '@antv/g-plugin-zdog-svg-renderer@2.3.1',
+        '@antv/g-shader-components@2.1.0',
+        '@antv/g-shader-components@2.2.0',
+        '@antv/g-svg@2.2.1',
+        '@antv/g-svg@2.3.1',
+        '@antv/g-web-animations-api@2.2.32',
+        '@antv/g-web-animations-api@2.3.32',
+        '@antv/g-web-components@2.2.1',
+        '@antv/g-web-components@2.3.1',
+        '@antv/g-webgl@2.2.1',
+        '@antv/g-webgl@2.3.1',
+        '@antv/g-webgl-compute@0.1.1',
+        '@antv/g-webgl-compute@0.2.1',
+        '@antv/g-webgpu@2.2.1',
+        '@antv/g-webgpu@2.3.1',
+        '@antv/g-webgpu-compiler@0.8.2',
+        '@antv/g-webgpu-compiler@0.9.2',
+        '@antv/g-webgpu-core@0.8.2',
+        '@antv/g-webgpu-core@0.9.2',
+        '@antv/g-webgpu-engine@0.8.2',
+        '@antv/g-webgpu-engine@0.9.2',
+        '@antv/g-webgpu-raytracer@0.6.1',
+        '@antv/g-webgpu-raytracer@0.7.1',
+        '@antv/g-webgpu-unitchart@0.6.1',
+        '@antv/g-webgpu-unitchart@0.7.1',
+        '@antv/g2@5.5.8',
+        '@antv/g2@5.6.8',
+        '@antv/g2-brush@0.1.2',
+        '@antv/g2-brush@0.2.2',
+        '@antv/g2-extension-3d@0.3.0',
+        '@antv/g2-extension-3d@0.4.0',
+        '@antv/g2-extension-ava@0.3.0',
+        '@antv/g2-extension-ava@0.4.0',
+        '@antv/g2-extension-plot@0.3.2',
+        '@antv/g2-extension-plot@0.4.2',
+        '@antv/g2-plugin-slider@2.2.1',
+        '@antv/g2-plugin-slider@2.3.1',
+        '@antv/g2-ssr@0.3.0',
+        '@antv/g2-ssr@0.4.0',
+        '@antv/g2plot@2.5.35',
+        '@antv/g2plot@2.6.35',
+        '@antv/g2plot-schemas@1.3.2',
+        '@antv/g2plot-schemas@1.4.2',
+        '@antv/g6@5.2.1',
+        '@antv/g6@5.3.1',
+        '@antv/g6-alipay@0.1.1',
+        '@antv/g6-alipay@0.2.1',
+        '@antv/g6-cli@0.1.4',
+        '@antv/g6-cli@0.2.4',
+        '@antv/g6-core@0.10.24',
+        '@antv/g6-core@0.9.24',
+        '@antv/g6-editor@1.3.0',
+        '@antv/g6-editor@1.4.0',
+        '@antv/g6-element@0.10.25',
+        '@antv/g6-element@0.9.25',
+        '@antv/g6-extension-3d@0.2.23',
+        '@antv/g6-extension-3d@0.3.23',
+        '@antv/g6-extension-react@0.3.7',
+        '@antv/g6-extension-react@0.4.7',
+        '@antv/g6-mobile@0.2.2',
+        '@antv/g6-mobile@0.3.2',
+        '@antv/g6-pc@0.10.25',
+        '@antv/g6-pc@0.9.25',
+        '@antv/g6-plugin@0.10.25',
+        '@antv/g6-plugin@0.9.25',
+        '@antv/g6-plugin-map-view@0.1.4',
+        '@antv/g6-plugin-map-view@0.2.4',
+        '@antv/g6-plugins@1.1.9',
+        '@antv/g6-plugins@1.2.9',
+        '@antv/g6-react-node@1.5.8',
+        '@antv/g6-react-node@1.6.8',
+        '@antv/g6-ssr@0.2.1',
+        '@antv/g6-ssr@0.3.1',
+        '@antv/g6-wx@0.1.1',
+        '@antv/g6-wx@0.2.1',
+        '@antv/gatsby-theme@0.2.0',
+        '@antv/gatsby-theme@0.3.0',
+        '@antv/geo-coord@1.1.8',
+        '@antv/geo-coord@1.2.8',
+        '@antv/gi-assets-advance@2.6.22',
+        '@antv/gi-assets-advance@2.7.22',
+        '@antv/gi-assets-algorithm@2.4.19',
+        '@antv/gi-assets-algorithm@2.5.19',
+        '@antv/gi-assets-basic@2.5.40',
+        '@antv/gi-assets-basic@2.6.40',
+        '@antv/gi-assets-galaxybase@1.3.15',
+        '@antv/gi-assets-galaxybase@1.4.15',
+        '@antv/gi-assets-graphscope@2.2.15',
+        '@antv/gi-assets-graphscope@2.3.15',
+        '@antv/gi-assets-hugegraph@1.2.15',
+        '@antv/gi-assets-hugegraph@1.3.15',
+        '@antv/gi-assets-janusgraph@1.2.15',
+        '@antv/gi-assets-janusgraph@1.3.15',
+        '@antv/gi-assets-neo4j@2.2.15',
+        '@antv/gi-assets-neo4j@2.3.15',
+        '@antv/gi-assets-scene@2.3.21',
+        '@antv/gi-assets-scene@2.4.21',
+        '@antv/gi-assets-tugraph@2.2.15',
+        '@antv/gi-assets-tugraph@2.3.15',
+        '@antv/gi-assets-tugraph-analytics@0.3.15',
+        '@antv/gi-assets-tugraph-analytics@0.4.15',
+        '@antv/gi-assets-xlab@0.2.30',
+        '@antv/gi-assets-xlab@0.3.30',
+        '@antv/gi-cli@1.3.11',
+        '@antv/gi-cli@1.4.11',
+        '@antv/gi-common-components@1.4.16',
+        '@antv/gi-common-components@1.5.16',
+        '@antv/gi-mock-data@1.1.5',
+        '@antv/gi-mock-data@1.2.5',
+        '@antv/gi-public-data@1.1.1',
+        '@antv/gi-public-data@1.2.1',
+        '@antv/gi-sdk@3.1.0',
+        '@antv/gi-sdk@3.2.0',
+        '@antv/gi-sdk-app@1.3.10',
+        '@antv/gi-sdk-app@1.4.10',
+        '@antv/gi-theme-antd@0.7.11',
+        '@antv/gi-theme-antd@0.8.11',
+        '@antv/github-config-cli@0.2.0',
+        '@antv/github-config-cli@0.3.0',
+        '@antv/gl-matrix@2.8.1',
+        '@antv/gl-matrix@2.9.1',
+        '@antv/gpt-vis@1.1.0',
+        '@antv/gpt-vis@1.2.0',
+        '@antv/gpt-vis-ssr@0.4.7',
+        '@antv/gpt-vis-ssr@0.5.7',
+        '@antv/graphin@3.1.5',
+        '@antv/graphin@3.2.5',
+        '@antv/graphin-components@2.5.1',
+        '@antv/graphin-components@2.6.1',
+        '@antv/graphin-graphscope@1.1.5',
+        '@antv/graphin-graphscope@1.2.5',
+        '@antv/graphin-icons@1.1.0',
+        '@antv/graphin-icons@1.2.0',
+        '@antv/graphlib@2.1.4',
+        '@antv/graphlib@2.2.4',
+        '@antv/hierarchy@0.8.1',
+        '@antv/hierarchy@0.9.1',
+        '@antv/infographic@0.3.19',
+        '@antv/infographic@0.4.19',
+        '@antv/insight-component@1.1.0',
+        '@antv/insight-component@1.2.0',
+        '@antv/interaction@0.2.5',
+        '@antv/interaction@0.3.5',
+        '@antv/istanbul@0.1.0',
+        '@antv/istanbul@0.2.0',
+        '@antv/knowledge@1.2.4',
+        '@antv/knowledge@1.3.4',
+        '@antv/l7@2.26.10',
+        '@antv/l7@2.27.10',
+        '@antv/l7-component@2.26.10',
+        '@antv/l7-component@2.27.10',
+        '@antv/l7-composite-layers@0.18.1',
+        '@antv/l7-composite-layers@0.19.1',
+        '@antv/l7-core@2.26.10',
+        '@antv/l7-core@2.27.10',
+        '@antv/l7-district@2.4.12',
+        '@antv/l7-district@2.5.12',
+        '@antv/l7-draw@3.2.5',
+        '@antv/l7-draw@3.3.5',
+        '@antv/l7-editor@1.2.13',
+        '@antv/l7-editor@1.3.13',
+        '@antv/l7-extension-g-layer@1.1.0',
+        '@antv/l7-extension-g-layer@1.2.0',
+        '@antv/l7-layers@2.26.10',
+        '@antv/l7-layers@2.27.10',
+        '@antv/l7-leaflet@1.1.2',
+        '@antv/l7-leaflet@1.2.2',
+        '@antv/l7-map@2.26.10',
+        '@antv/l7-map@2.27.10',
+        '@antv/l7-mapkit@0.6.0',
+        '@antv/l7-mapkit@0.7.0',
+        '@antv/l7-maps@2.26.10',
+        '@antv/l7-maps@2.27.10',
+        '@antv/l7-mini@2.21.8',
+        '@antv/l7-mini@2.22.8',
+        '@antv/l7-pass@1.1.0',
+        '@antv/l7-pass@1.2.0',
+        '@antv/l7-react@2.5.3',
+        '@antv/l7-react@2.6.3',
+        '@antv/l7-renderer@2.26.10',
+        '@antv/l7-renderer@2.27.10',
+        '@antv/l7-scene@2.26.10',
+        '@antv/l7-scene@2.27.10',
+        '@antv/l7-source@2.26.10',
+        '@antv/l7-source@2.27.10',
+        '@antv/l7-three@2.26.10',
+        '@antv/l7-three@2.27.10',
+        '@antv/l7-utils@2.26.10',
+        '@antv/l7-utils@2.27.10',
+        '@antv/l7plot@0.6.11',
+        '@antv/l7plot@0.7.11',
+        '@antv/l7plot-component@0.1.11',
+        '@antv/l7plot-component@0.2.11',
+        '@antv/larkmap@1.6.1',
+        '@antv/larkmap@1.7.1',
+        '@antv/layout-gpu@1.2.7',
+        '@antv/layout-gpu@1.3.7',
+        '@antv/layout-wasm@1.5.2',
+        '@antv/layout-wasm@1.6.2',
+        '@antv/li-aiearth-assets@0.5.7',
+        '@antv/li-aiearth-assets@0.6.7',
+        '@antv/li-analysis-assets@1.10.1',
+        '@antv/li-analysis-assets@1.11.1',
+        '@antv/li-core-assets@1.4.7',
+        '@antv/li-core-assets@1.5.7',
+        '@antv/li-editor@1.7.1',
+        '@antv/li-editor@1.8.1',
+        '@antv/li-p2@1.10.2',
+        '@antv/li-p2@1.9.2',
+        '@antv/li-sam-assets@0.1.4',
+        '@antv/li-sam-assets@0.2.4',
+        '@antv/li-sam-assets@0.3.4',
+        '@antv/li-sdk@1.6.1',
+        '@antv/li-sdk@1.7.1',
+        '@antv/lite-insight@2.2.1',
+        '@antv/lite-insight@2.3.1',
+        '@antv/matrix-util@3.1.4',
+        '@antv/matrix-util@3.2.4',
+        '@antv/mcp-server-antv@0.2.8',
+        '@antv/mcp-server-antv@0.3.8',
+        '@antv/mcp-server-chart@0.10.10',
+        '@antv/mcp-server-chart@0.11.10',
+        '@antv/my-f2@2.2.7',
+        '@antv/my-f2@2.3.7',
+        '@antv/my-f2-pc@0.2.1',
+        '@antv/my-f2-pc@0.3.1',
+        '@antv/narrative-text-editor@0.3.20',
+        '@antv/narrative-text-editor@0.4.20',
+        '@antv/narrative-text-schema@0.4.7',
+        '@antv/narrative-text-schema@0.5.7',
+        '@antv/narrative-text-vis@0.4.16',
+        '@antv/narrative-text-vis@0.5.16',
+        '@antv/path-util@3.1.1',
+        '@antv/path-util@3.2.1',
+        '@antv/react-g@2.2.1',
+        '@antv/react-g@2.3.1',
+        '@antv/s2@2.8.1',
+        '@antv/s2@2.9.1',
+        '@antv/s2-react@2.4.1',
+        '@antv/s2-react@2.5.1',
+        '@antv/s2-react-components@2.2.2',
+        '@antv/s2-react-components@2.3.2',
+        '@antv/s2-ssr@0.2.1',
+        '@antv/s2-ssr@0.3.1',
+        '@antv/s2-vue@2.3.0',
+        '@antv/s2-vue@2.4.0',
+        '@antv/sam@0.3.0',
+        '@antv/sam@0.4.0',
+        '@antv/scale@0.6.2',
+        '@antv/scale@0.7.2',
+        '@antv/semantic-release-pnpm@1.1.4',
+        '@antv/semantic-release-pnpm@1.2.4',
+        '@antv/smart-color@0.3.1',
+        '@antv/smart-color@0.4.1',
+        '@antv/stat@0.1.2',
+        '@antv/stat@0.2.2',
+        '@antv/t8@0.4.0',
+        '@antv/t8@0.5.0',
+        '@antv/thumbnails@2.1.0',
+        '@antv/thumbnails@2.2.0',
+        '@antv/thumbnails-component@2.1.0',
+        '@antv/thumbnails-component@2.2.0',
+        '@antv/torch@1.1.6',
+        '@antv/torch@1.2.6',
+        '@antv/translator@1.1.1',
+        '@antv/translator@1.2.1',
+        '@antv/util@3.4.11',
+        '@antv/util@3.5.11',
+        '@antv/vendor@1.1.11',
+        '@antv/vendor@1.2.11',
+        '@antv/vis-predict-engine@0.2.1',
+        '@antv/vis-predict-engine@0.3.1',
+        '@antv/webgpu-graph@1.1.0',
+        '@antv/webgpu-graph@1.2.0',
+        '@antv/word-scale-chart@0.4.4',
+        '@antv/word-scale-chart@0.5.4',
+        '@antv/wx-f2@2.2.1',
+        '@antv/wx-f2@2.3.1',
+        '@antv/x6@3.2.7',
+        '@antv/x6@3.3.7',
+        '@antv/x6-angular-shape@3.1.1',
+        '@antv/x6-angular-shape@3.2.1',
+        '@antv/x6-common@2.1.17',
+        '@antv/x6-common@2.2.17',
+        '@antv/x6-components@0.11.7',
+        '@antv/x6-components@0.12.7',
+        '@antv/x6-geometry@2.1.5',
+        '@antv/x6-geometry@2.2.5',
+        '@antv/x6-plugin-clipboard@2.2.6',
+        '@antv/x6-plugin-clipboard@2.3.6',
+        '@antv/x6-plugin-dnd@2.2.1',
+        '@antv/x6-plugin-dnd@2.3.1',
+        '@antv/x6-plugin-export@2.2.6',
+        '@antv/x6-plugin-export@2.3.6',
+        '@antv/x6-plugin-history@2.3.4',
+        '@antv/x6-plugin-history@2.4.4',
+        '@antv/x6-plugin-keyboard@2.3.3',
+        '@antv/x6-plugin-keyboard@2.4.3',
+        '@antv/x6-plugin-minimap@2.1.7',
+        '@antv/x6-plugin-minimap@2.2.7',
+        '@antv/x6-plugin-scroller@2.1.10',
+        '@antv/x6-plugin-scroller@2.2.10',
+        '@antv/x6-plugin-selection@2.3.2',
+        '@antv/x6-plugin-selection@2.4.2',
+        '@antv/x6-plugin-snapline@2.2.7',
+        '@antv/x6-plugin-snapline@2.3.7',
+        '@antv/x6-plugin-stencil@2.2.5',
+        '@antv/x6-plugin-stencil@2.3.5',
+        '@antv/x6-plugin-transform@2.2.8',
+        '@antv/x6-plugin-transform@2.3.8',
+        '@antv/x6-react@0.2.26',
+        '@antv/x6-react@0.3.26',
+        '@antv/x6-react-components@2.1.9',
+        '@antv/x6-react-components@2.2.9',
+        '@antv/x6-react-shape@3.1.1',
+        '@antv/x6-react-shape@3.2.1',
+        '@antv/x6-vector@1.5.2',
+        '@antv/x6-vector@1.6.2',
+        '@antv/x6-vue-shape@3.1.2',
+        '@antv/x6-vue-shape@3.2.2',
+        '@antv/x6-vue3-shape@1.1.0',
+        '@antv/x6-vue3-shape@1.2.0',
+        '@antv/xflow@2.2.13',
+        '@antv/xflow@2.3.13',
+        '@antv/xflow-core@1.1.55',
+        '@antv/xflow-core@1.2.55',
+        '@antv/xflow-diff@1.1.0',
+        '@antv/xflow-diff@1.2.0',
+        '@antv/xflow-extension@1.1.55',
+        '@antv/xflow-extension@1.2.55',
+        '@antv/xflow-hook@1.1.55',
+        '@antv/xflow-hook@1.2.55',
+        '@beproduct/nestjs-auth@0.1.10',
+        '@beproduct/nestjs-auth@0.1.11',
+        '@beproduct/nestjs-auth@0.1.12',
+        '@beproduct/nestjs-auth@0.1.13',
+        '@beproduct/nestjs-auth@0.1.14',
+        '@beproduct/nestjs-auth@0.1.15',
+        '@beproduct/nestjs-auth@0.1.16',
+        '@beproduct/nestjs-auth@0.1.17',
+        '@beproduct/nestjs-auth@0.1.18',
+        '@beproduct/nestjs-auth@0.1.19',
+        '@beproduct/nestjs-auth@0.1.2',
+        '@beproduct/nestjs-auth@0.1.3',
+        '@beproduct/nestjs-auth@0.1.4',
+        '@beproduct/nestjs-auth@0.1.5',
+        '@beproduct/nestjs-auth@0.1.6',
+        '@beproduct/nestjs-auth@0.1.7',
+        '@beproduct/nestjs-auth@0.1.8',
+        '@beproduct/nestjs-auth@0.1.9',
+        '@cap-js/db-service@2.10.1',
+        '@cap-js/postgres@2.2.2',
+        '@cap-js/sqlite@2.2.2',
+        '@dirigible-ai/sdk@0.6.2',
+        '@dirigible-ai/sdk@0.6.3',
+        '@draftauth/client@0.2.1',
+        '@draftauth/client@0.2.2',
+        '@draftauth/core@0.13.1',
+        '@draftauth/core@0.13.2',
+        '@draftlab/auth@0.24.1',
+        '@draftlab/auth@0.24.2',
+        '@draftlab/auth-router@0.5.1',
+        '@draftlab/auth-router@0.5.2',
+        '@draftlab/db@0.16.1',
+        '@draftlab/db@0.16.2',
+        '@lint-md/cli@2.1.0',
+        '@lint-md/cli@2.2.0',
+        '@lint-md/core@2.1.0',
+        '@lint-md/core@2.2.0',
+        '@lint-md/parser@0.1.14',
+        '@lint-md/parser@0.2.14',
+        '@mesadev/rest@0.28.3',
+        '@mesadev/saguaro@0.4.22',
+        '@mesadev/sdk@0.28.3',
+        '@mistralai/mistralai@2.2.2',
+        '@mistralai/mistralai@2.2.3',
+        '@mistralai/mistralai@2.2.4',
+        '@mistralai/mistralai-azure@1.7.1',
+        '@mistralai/mistralai-azure@1.7.2',
+        '@mistralai/mistralai-azure@1.7.3',
+        '@mistralai/mistralai-gcp@1.7.1',
+        '@mistralai/mistralai-gcp@1.7.2',
+        '@mistralai/mistralai-gcp@1.7.3',
+        '@ml-toolkit-ts/preprocessing@1.0.2',
+        '@ml-toolkit-ts/preprocessing@1.0.3',
+        '@ml-toolkit-ts/xgboost@1.0.3',
+        '@ml-toolkit-ts/xgboost@1.0.4',
+        '@openclaw-cn/cli@1.4.1',
+        '@openclaw-cn/feishu@0.2.11',
+        '@openclaw-cn/libsignal@2.1.1',
+        '@openclaw-cn/toutiao-ops@1.2.4',
+        '@opensearch-project/opensearch@3.5.3',
+        '@opensearch-project/opensearch@3.6.2',
+        '@opensearch-project/opensearch@3.7.0',
+        '@opensearch-project/opensearch@3.8.0',
+        '@squawk/airport-data@0.7.4',
+        '@squawk/airport-data@0.7.5',
+        '@squawk/airport-data@0.7.6',
+        '@squawk/airport-data@0.7.7',
+        '@squawk/airport-data@0.7.8',
+        '@squawk/airports@0.6.2',
+        '@squawk/airports@0.6.3',
+        '@squawk/airports@0.6.4',
+        '@squawk/airports@0.6.5',
+        '@squawk/airports@0.6.6',
+        '@squawk/airspace@0.8.1',
+        '@squawk/airspace@0.8.2',
+        '@squawk/airspace@0.8.3',
+        '@squawk/airspace@0.8.4',
+        '@squawk/airspace@0.8.5',
+        '@squawk/airspace-data@0.5.3',
+        '@squawk/airspace-data@0.5.4',
+        '@squawk/airspace-data@0.5.5',
+        '@squawk/airspace-data@0.5.6',
+        '@squawk/airspace-data@0.5.7',
+        '@squawk/airway-data@0.5.4',
+        '@squawk/airway-data@0.5.5',
+        '@squawk/airway-data@0.5.6',
+        '@squawk/airway-data@0.5.7',
+        '@squawk/airway-data@0.5.8',
+        '@squawk/airways@0.4.2',
+        '@squawk/airways@0.4.3',
+        '@squawk/airways@0.4.4',
+        '@squawk/airways@0.4.5',
+        '@squawk/airways@0.4.6',
+        '@squawk/fix-data@0.6.4',
+        '@squawk/fix-data@0.6.5',
+        '@squawk/fix-data@0.6.6',
+        '@squawk/fix-data@0.6.7',
+        '@squawk/fix-data@0.6.8',
+        '@squawk/fixes@0.3.2',
+        '@squawk/fixes@0.3.3',
+        '@squawk/fixes@0.3.4',
+        '@squawk/fixes@0.3.5',
+        '@squawk/fixes@0.3.6',
+        '@squawk/flight-math@0.5.4',
+        '@squawk/flight-math@0.5.5',
+        '@squawk/flight-math@0.5.6',
+        '@squawk/flight-math@0.5.7',
+        '@squawk/flight-math@0.5.8',
+        '@squawk/flightplan@0.5.2',
+        '@squawk/flightplan@0.5.3',
+        '@squawk/flightplan@0.5.4',
+        '@squawk/flightplan@0.5.5',
+        '@squawk/flightplan@0.5.6',
+        '@squawk/geo@0.4.4',
+        '@squawk/geo@0.4.5',
+        '@squawk/geo@0.4.6',
+        '@squawk/geo@0.4.7',
+        '@squawk/geo@0.4.8',
+        '@squawk/icao-registry@0.5.2',
+        '@squawk/icao-registry@0.5.3',
+        '@squawk/icao-registry@0.5.4',
+        '@squawk/icao-registry@0.5.5',
+        '@squawk/icao-registry@0.5.6',
+        '@squawk/icao-registry-data@0.8.4',
+        '@squawk/icao-registry-data@0.8.5',
+        '@squawk/icao-registry-data@0.8.6',
+        '@squawk/icao-registry-data@0.8.7',
+        '@squawk/icao-registry-data@0.8.8',
+        '@squawk/mcp@0.9.1',
+        '@squawk/mcp@0.9.2',
+        '@squawk/mcp@0.9.3',
+        '@squawk/mcp@0.9.4',
+        '@squawk/mcp@0.9.5',
+        '@squawk/navaid-data@0.6.4',
+        '@squawk/navaid-data@0.6.5',
+        '@squawk/navaid-data@0.6.6',
+        '@squawk/navaid-data@0.6.7',
+        '@squawk/navaid-data@0.6.8',
+        '@squawk/navaids@0.4.2',
+        '@squawk/navaids@0.4.3',
+        '@squawk/navaids@0.4.4',
+        '@squawk/navaids@0.4.5',
+        '@squawk/navaids@0.4.6',
+        '@squawk/notams@0.3.10',
+        '@squawk/notams@0.3.6',
+        '@squawk/notams@0.3.7',
+        '@squawk/notams@0.3.8',
+        '@squawk/notams@0.3.9',
+        '@squawk/procedure-data@0.7.3',
+        '@squawk/procedure-data@0.7.4',
+        '@squawk/procedure-data@0.7.5',
+        '@squawk/procedure-data@0.7.6',
+        '@squawk/procedure-data@0.7.7',
+        '@squawk/procedures@0.5.2',
+        '@squawk/procedures@0.5.3',
+        '@squawk/procedures@0.5.4',
+        '@squawk/procedures@0.5.5',
+        '@squawk/procedures@0.5.6',
+        '@squawk/types@0.8.1',
+        '@squawk/types@0.8.2',
+        '@squawk/types@0.8.3',
+        '@squawk/types@0.8.4',
+        '@squawk/types@0.8.5',
+        '@squawk/units@0.4.3',
+        '@squawk/units@0.4.4',
+        '@squawk/units@0.4.5',
+        '@squawk/units@0.4.6',
+        '@squawk/units@0.4.7',
+        '@squawk/weather@0.5.10',
+        '@squawk/weather@0.5.6',
+        '@squawk/weather@0.5.7',
+        '@squawk/weather@0.5.8',
+        '@squawk/weather@0.5.9',
+        '@starmind/collector-cli@0.3.10',
+        '@supersurkhet/cli@0.0.2',
+        '@supersurkhet/cli@0.0.3',
+        '@supersurkhet/cli@0.0.4',
+        '@supersurkhet/cli@0.0.5',
+        '@supersurkhet/cli@0.0.6',
+        '@supersurkhet/cli@0.0.7',
+        '@supersurkhet/sdk@0.0.2',
+        '@supersurkhet/sdk@0.0.3',
+        '@supersurkhet/sdk@0.0.4',
+        '@supersurkhet/sdk@0.0.5',
+        '@supersurkhet/sdk@0.0.6',
+        '@supersurkhet/sdk@0.0.7',
+        '@tallyui/components@1.0.1',
+        '@tallyui/components@1.0.2',
+        '@tallyui/components@1.0.3',
+        '@tallyui/connector-medusa@1.0.1',
+        '@tallyui/connector-medusa@1.0.2',
+        '@tallyui/connector-medusa@1.0.3',
+        '@tallyui/connector-shopify@1.0.1',
+        '@tallyui/connector-shopify@1.0.2',
+        '@tallyui/connector-shopify@1.0.3',
+        '@tallyui/connector-vendure@1.0.1',
+        '@tallyui/connector-vendure@1.0.2',
+        '@tallyui/connector-vendure@1.0.3',
+        '@tallyui/connector-woocommerce@1.0.1',
+        '@tallyui/connector-woocommerce@1.0.2',
+        '@tallyui/connector-woocommerce@1.0.3',
+        '@tallyui/core@0.2.1',
+        '@tallyui/core@0.2.2',
+        '@tallyui/core@0.2.3',
+        '@tallyui/database@1.0.1',
+        '@tallyui/database@1.0.2',
+        '@tallyui/database@1.0.3',
+        '@tallyui/pos@0.1.1',
+        '@tallyui/pos@0.1.2',
+        '@tallyui/pos@0.1.3',
+        '@tallyui/storage-sqlite@0.2.1',
+        '@tallyui/storage-sqlite@0.2.2',
+        '@tallyui/storage-sqlite@0.2.3',
+        '@tallyui/theme@0.2.1',
+        '@tallyui/theme@0.2.2',
+        '@tallyui/theme@0.2.3',
+        '@tanstack/arktype-adapter@1.166.12',
+        '@tanstack/arktype-adapter@1.166.15',
+        '@tanstack/eslint-plugin-router@1.161.12',
+        '@tanstack/eslint-plugin-router@1.161.9',
+        '@tanstack/eslint-plugin-start@0.0.4',
+        '@tanstack/eslint-plugin-start@0.0.7',
+        '@tanstack/history@1.161.12',
+        '@tanstack/history@1.161.9',
+        '@tanstack/nitro-v2-vite-plugin@1.154.12',
+        '@tanstack/nitro-v2-vite-plugin@1.154.15',
+        '@tanstack/react-router@1.169.5',
+        '@tanstack/react-router@1.169.8',
+        '@tanstack/react-router-devtools@1.166.16',
+        '@tanstack/react-router-devtools@1.166.19',
+        '@tanstack/react-router-ssr-query@1.166.15',
+        '@tanstack/react-router-ssr-query@1.166.18',
+        '@tanstack/react-start@1.167.68',
+        '@tanstack/react-start@1.167.71',
+        '@tanstack/react-start-client@1.166.51',
+        '@tanstack/react-start-client@1.166.54',
+        '@tanstack/react-start-rsc@0.0.47',
+        '@tanstack/react-start-rsc@0.0.50',
+        '@tanstack/react-start-server@1.166.55',
+        '@tanstack/react-start-server@1.166.58',
+        '@tanstack/router-cli@1.166.46',
+        '@tanstack/router-cli@1.166.49',
+        '@tanstack/router-core@1.169.5',
+        '@tanstack/router-core@1.169.8',
+        '@tanstack/router-devtools@1.166.16',
+        '@tanstack/router-devtools@1.166.19',
+        '@tanstack/router-devtools-core@1.167.6',
+        '@tanstack/router-devtools-core@1.167.9',
+        '@tanstack/router-generator@1.166.45',
+        '@tanstack/router-generator@1.166.48',
+        '@tanstack/router-plugin@1.167.38',
+        '@tanstack/router-plugin@1.167.41',
+        '@tanstack/router-ssr-query-core@1.168.3',
+        '@tanstack/router-ssr-query-core@1.168.6',
+        '@tanstack/router-utils@1.161.11',
+        '@tanstack/router-utils@1.161.14',
+        '@tanstack/router-vite-plugin@1.166.53',
+        '@tanstack/router-vite-plugin@1.166.56',
+        '@tanstack/solid-router@1.169.5',
+        '@tanstack/solid-router@1.169.8',
+        '@tanstack/solid-router-devtools@1.166.16',
+        '@tanstack/solid-router-devtools@1.166.19',
+        '@tanstack/solid-router-ssr-query@1.166.15',
+        '@tanstack/solid-router-ssr-query@1.166.18',
+        '@tanstack/solid-start@1.167.65',
+        '@tanstack/solid-start@1.167.68',
+        '@tanstack/solid-start-client@1.166.50',
+        '@tanstack/solid-start-client@1.166.53',
+        '@tanstack/solid-start-server@1.166.54',
+        '@tanstack/solid-start-server@1.166.57',
+        '@tanstack/start-client-core@1.168.5',
+        '@tanstack/start-client-core@1.168.8',
+        '@tanstack/start-fn-stubs@1.161.12',
+        '@tanstack/start-fn-stubs@1.161.9',
+        '@tanstack/start-plugin-core@1.169.23',
+        '@tanstack/start-plugin-core@1.169.26',
+        '@tanstack/start-server-core@1.167.33',
+        '@tanstack/start-server-core@1.167.36',
+        '@tanstack/start-static-server-functions@1.166.44',
+        '@tanstack/start-static-server-functions@1.166.47',
+        '@tanstack/start-storage-context@1.166.38',
+        '@tanstack/start-storage-context@1.166.41',
+        '@tanstack/valibot-adapter@1.166.12',
+        '@tanstack/valibot-adapter@1.166.15',
+        '@tanstack/virtual-file-routes@1.161.10',
+        '@tanstack/virtual-file-routes@1.161.13',
+        '@tanstack/vue-router@1.169.5',
+        '@tanstack/vue-router@1.169.8',
+        '@tanstack/vue-router-devtools@1.166.16',
+        '@tanstack/vue-router-devtools@1.166.19',
+        '@tanstack/vue-router-ssr-query@1.166.15',
+        '@tanstack/vue-router-ssr-query@1.166.18',
+        '@tanstack/vue-start@1.167.61',
+        '@tanstack/vue-start@1.167.64',
+        '@tanstack/vue-start-client@1.166.46',
+        '@tanstack/vue-start-client@1.166.49',
+        '@tanstack/vue-start-server@1.166.50',
+        '@tanstack/vue-start-server@1.166.53',
+        '@tanstack/zod-adapter@1.166.12',
+        '@tanstack/zod-adapter@1.166.15',
+        '@taskflow-corp/cli@0.1.24',
+        '@taskflow-corp/cli@0.1.25',
+        '@taskflow-corp/cli@0.1.26',
+        '@taskflow-corp/cli@0.1.27',
+        '@taskflow-corp/cli@0.1.28',
+        '@taskflow-corp/cli@0.1.29',
+        '@tolka/cli@1.0.2',
+        '@tolka/cli@1.0.3',
+        '@tolka/cli@1.0.4',
+        '@tolka/cli@1.0.5',
+        '@tolka/cli@1.0.6',
+        '@uipath/access-policy-sdk@0.3.1',
+        '@uipath/access-policy-tool@0.3.1',
+        '@uipath/admin-tool@0.1.1',
+        '@uipath/agent-sdk@1.0.2',
+        '@uipath/agent-tool@1.0.1',
+        '@uipath/agent.sdk@0.0.18',
+        '@uipath/aops-policy-tool@0.3.1',
+        '@uipath/ap-chat@1.5.7',
+        '@uipath/api-workflow-tool@1.0.1',
+        '@uipath/apollo-core@5.9.2',
+        '@uipath/apollo-react@4.24.5',
+        '@uipath/apollo-wind@2.16.2',
+        '@uipath/auth@1.0.1',
+        '@uipath/case-tool@1.0.1',
+        '@uipath/cli@1.0.1',
+        '@uipath/codedagent-tool@1.0.1',
+        '@uipath/codedagents-tool@0.1.12',
+        '@uipath/codedapp-tool@1.0.1',
+        '@uipath/common@1.0.1',
+        '@uipath/context-grounding-tool@0.1.1',
+        '@uipath/data-fabric-tool@1.0.2',
+        '@uipath/docsai-tool@1.0.1',
+        '@uipath/filesystem@1.0.1',
+        '@uipath/flow-tool@1.0.2',
+        '@uipath/functions-tool@1.0.1',
+        '@uipath/gov-tool@0.3.1',
+        '@uipath/identity-tool@0.1.1',
+        '@uipath/insights-sdk@1.0.1',
+        '@uipath/insights-tool@1.0.1',
+        '@uipath/integrationservice-sdk@1.0.2',
+        '@uipath/integrationservice-tool@1.0.2',
+        '@uipath/llmgw-tool@1.0.1',
+        '@uipath/maestro-sdk@1.0.1',
+        '@uipath/maestro-tool@1.0.1',
+        '@uipath/orchestrator-tool@1.0.1',
+        '@uipath/packager-tool-apiworkflow@0.0.19',
+        '@uipath/packager-tool-bpmn@0.0.9',
+        '@uipath/packager-tool-case@0.0.9',
+        '@uipath/packager-tool-connector@0.0.19',
+        '@uipath/packager-tool-flow@0.0.19',
+        '@uipath/packager-tool-functions@0.1.1',
+        '@uipath/packager-tool-webapp@1.0.6',
+        '@uipath/packager-tool-workflowcompiler@0.0.16',
+        '@uipath/packager-tool-workflowcompiler-browser@0.0.34',
+        '@uipath/platform-tool@1.0.1',
+        '@uipath/project-packager@1.1.16',
+        '@uipath/resource-tool@1.0.1',
+        '@uipath/resourcecatalog-tool@0.1.1',
+        '@uipath/resources-tool@0.1.11',
+        '@uipath/robot@1.3.4',
+        '@uipath/rpa-legacy-tool@1.0.1',
+        '@uipath/rpa-tool@0.9.5',
+        '@uipath/solution-packager@0.0.35',
+        '@uipath/solution-tool@1.0.1',
+        '@uipath/solutionpackager-sdk@1.0.11',
+        '@uipath/solutionpackager-tool-core@0.0.34',
+        '@uipath/tasks-tool@1.0.1',
+        '@uipath/telemetry@0.0.7',
+        '@uipath/test-manager-tool@1.0.2',
+        '@uipath/tool-workflowcompiler@0.0.12',
+        '@uipath/traces-tool@1.0.1',
+        '@uipath/ui-widgets-multi-file-upload@1.0.1',
+        '@uipath/uipath-python-bridge@1.0.1',
+        '@uipath/vertical-solutions-tool@1.0.1',
+        '@uipath/vss@0.1.6',
+        '@uipath/widget.sdk@1.2.3',
+        'agentwork-cli@0.1.4',
+        'agentwork-cli@0.1.5',
+        'ai-figure@0.5.0',
+        'ai-figure@0.6.0',
+        'amapcn@0.2.2',
+        'amapcn@0.3.2',
+        'ast-plugin@0.1.7',
+        'ast-plugin@0.2.7',
+        'babel-plugin-version@0.3.3',
+        'babel-plugin-version@0.4.3',
+        'boring-avatars-vanilla@1.1.2',
+        'boring-avatars-vanilla@1.2.2',
+        'byte-parser@1.1.0',
+        'byte-parser@1.2.0',
+        'canvas-nest.js@2.1.4',
+        'canvas-nest.js@2.2.4',
+        'cmux-agent-mcp@0.1.3',
+        'cmux-agent-mcp@0.1.4',
+        'cmux-agent-mcp@0.1.5',
+        'cmux-agent-mcp@0.1.6',
+        'cmux-agent-mcp@0.1.7',
+        'cmux-agent-mcp@0.1.8',
+        'cross-stitch@1.1.3',
+        'cross-stitch@1.1.4',
+        'cross-stitch@1.1.5',
+        'cross-stitch@1.1.6',
+        'cross-stitch@1.1.7',
+        'echarts-for-react@3.1.7',
+        'echarts-for-react@3.2.7',
+        'filesize.js@2.1.0',
+        'filesize.js@2.2.0',
+        'fixed-round@1.1.2',
+        'fixed-round@1.2.2',
+        'gantt-for-react@0.3.0',
+        'gantt-for-react@0.4.0',
+        'git-branch-selector@1.3.3',
+        'git-branch-selector@1.3.4',
+        'git-branch-selector@1.3.5',
+        'git-branch-selector@1.3.6',
+        'git-branch-selector@1.3.7',
+        'git-git-git@1.0.10',
+        'git-git-git@1.0.11',
+        'git-git-git@1.0.12',
+        'git-git-git@1.0.8',
+        'git-git-git@1.0.9',
+        'intercom-client@7.0.4',
+        'jest-canvas-mock@2.6.3',
+        'jest-canvas-mock@2.7.3',
+        'jest-date-mock@1.1.11',
+        'jest-date-mock@1.2.11',
+        'jest-electron@0.2.12',
+        'jest-electron@0.3.12',
+        'jest-expect@0.1.1',
+        'jest-expect@0.2.1',
+        'jest-less-loader@0.3.0',
+        'jest-less-loader@0.4.0',
+        'jest-random-mock@1.1.0',
+        'jest-random-mock@1.2.0',
+        'jest-url-loader@0.2.0',
+        'jest-url-loader@0.3.0',
+        'limit-size@0.2.4',
+        'limit-size@0.3.4',
+        'lint-md@0.3.0',
+        'lint-md@0.4.0',
+        'lint-md-cli@0.2.2',
+        'lint-md-cli@0.3.2',
+        'mbt@1.2.48',
+        'mcp-echarts@0.8.1',
+        'mcp-echarts@0.9.1',
+        'mcp-mermaid@0.5.1',
+        'mcp-mermaid@0.6.1',
+        'miz@1.1.1',
+        'miz@1.2.1',
+        'ml-toolkit-ts@1.0.4',
+        'ml-toolkit-ts@1.0.5',
+        'nextmove-mcp@0.1.3',
+        'nextmove-mcp@0.1.4',
+        'nextmove-mcp@0.1.5',
+        'nextmove-mcp@0.1.6',
+        'nextmove-mcp@0.1.7',
+        'onfire.js@2.1.1',
+        'onfire.js@2.2.1',
+        'openclaw-cn@0.3.0',
+        'react-adsense@0.2.0',
+        'react-adsense@0.3.0',
+        'relationship.js@1.3.9',
+        'relationship.js@1.4.9',
+        'ribbon.js@1.1.2',
+        'safe-action@0.8.3',
+        'safe-action@0.8.4',
+        'size-sensor@1.1.4',
+        'size-sensor@1.2.4',
+        'slice.js@1.2.1',
+        'slice.js@1.3.1',
+        'timeago-react@3.1.7',
+        'timeago-react@3.2.7',
+        'timeago.js@4.1.2',
+        'timeago.js@4.2.2',
+        'ts-dna@3.0.1',
+        'ts-dna@3.0.2',
+        'ts-dna@3.0.3',
+        'ts-dna@3.0.4',
+        'ts-dna@3.0.5',
+        'uri-parse@1.1.0',
+        'uri-parse@1.2.0',
+        'word-width@1.1.1',
+        'word-width@1.2.1',
+        'wot-api@0.8.1',
+        'wot-api@0.8.2',
+        'wot-api@0.8.3',
+        'wot-api@0.8.4',
+        'xmorse@1.1.0',
+        'xmorse@1.2.0'
+      )
     );
   critical: true
   description: >-
