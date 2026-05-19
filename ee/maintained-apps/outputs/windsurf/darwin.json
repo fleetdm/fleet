@@ -4,7 +4,7 @@
       "version": "2.3.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf';",
-        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf') AND version_compare(bundle_short_version, '2.3.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.exafunction.windsurf' AND version_compare(bundle_short_version, '2.3.9') < 0);"
       },
       "installer_url": "https://windsurf-stable.codeiumdata.com/darwin-arm64-dmg/stable/a5d3f1ff990cabc0e8001cce6642bdb7ad429e73/Windsurf-darwin-arm64-2.3.9.dmg",
       "install_script_ref": "c8128892",

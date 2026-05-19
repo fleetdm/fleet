@@ -1,3 +1,9 @@
+## Android agent 1.5.0 (May 14, 2026)
+
+* Fixed certificate serial number truncation by sending serials to Fleet as hexadecimal.
+* Made the agent retry DNS resolution failures during certificate enrollment when waking from Doze mode, and defer remaining certificates in the batch to the next cycle when DNS still fails.
+* Made the agent always send the `platform` field on enrollment so the device is registered as Android.
+
 ## Android agent 1.4.0 (Apr 07, 2026)
 
 * Made the certificate list scrollable

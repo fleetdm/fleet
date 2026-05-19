@@ -331,6 +331,58 @@ osquery:
 	}
 }
 
+func TestConfigSESSenderDomain(t *testing.T) {
+	cases := []struct {
+		desc    string
+		yaml    string
+		envVars []string
+		want    string
+	}{
+		{
+			desc: "default empty",
+			want: "",
+		},
+		{
+			desc: "yaml configured",
+			yaml: `
+ses:
+  sender_domain: notifications.example.com`,
+			want: "notifications.example.com",
+		},
+		{
+			desc: "env var overrides yaml",
+			yaml: `
+ses:
+  sender_domain: notifications.example.com`,
+			envVars: []string{"FLEET_SES_SENDER_DOMAIN=mailer.example.com"},
+			want:    "mailer.example.com",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			if c.yaml != "" {
+				man.viper.SetConfigType("yaml")
+				require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+			}
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.envVars {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			loadedCfg := man.LoadConfig()
+			require.Equal(t, c.want, loadedCfg.SES.SenderDomain)
+		})
+	}
+}
+
 func TestToTLSConfig(t *testing.T) {
 	dir := t.TempDir()
 	caFile, certFile, keyFile, garbageFile := filepath.Join(dir, "ca"),
