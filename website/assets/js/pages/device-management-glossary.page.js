@@ -8,6 +8,7 @@ parasails.registerPage('device-management-glossary-page', {
     // window.SAILS_LOCALS so search/filter can run without re-reading the DOM.
     termIndex: [],
     termBySlug: {},
+    slugsByLetter: {},
     visibleTermCount: 0,
   },
 
@@ -20,11 +21,9 @@ parasails.registerPage('device-management-glossary-page', {
       : [];
     if (_.isArray(searchTermsData)) {
       this.termIndex = searchTermsData.map((term) => {
-        let nameLower = term.name.toLowerCase();
         return {
           slug: term.slug,
           name: term.name,
-          nameLower,
           searchableTextLower: [
             term.name,
             term.definition || '',
@@ -33,6 +32,14 @@ parasails.registerPage('device-management-glossary-page', {
         };
       });
       this.termBySlug = _.keyBy(this.termIndex, 'slug');
+      this.slugsByLetter = _.reduce(this.termIndex, (memo, term) => {
+        let letter = term.name.charAt(0).toUpperCase();
+        if (!memo[letter]) {
+          memo[letter] = [];
+        }
+        memo[letter].push(term.slug);
+        return memo;
+      }, {});
       this.visibleTermCount = this.termIndex.length;
     }
   },
@@ -75,8 +82,8 @@ parasails.registerPage('device-management-glossary-page', {
       return true;
     },
     letterIsVisible: function(letter) {
-      let termsForLetter = _.filter(this.termIndex, (t) => t.name.charAt(0).toUpperCase() === letter);
-      return _.some(termsForLetter, (t) => this.termIsVisible(t.slug));
+      let slugsForLetter = this.slugsByLetter[letter] || [];
+      return _.some(slugsForLetter, (slug) => this.termIsVisible(slug));
     },
     resetFilters: function() {
       this.searchQuery = '';
