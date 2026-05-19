@@ -1,0 +1,1 @@
+- Fixed SCEP proxy corrupting GET PKIOperation messages containing literal `+` in the base64 query parameter.
