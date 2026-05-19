@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/jmoiron/sqlx"
 )
@@ -24,6 +25,18 @@ const scdUpsertBatch = 200
 // each batch's lock window is short and concurrent writers can interleave.
 // var (not const) so tests can shrink it to exercise multi-batch behavior.
 var scdCleanupBatch = 1000
+
+// scdScrubWriteByteBudget targets the maximum payload size of one CASE/WHEN
+// UPDATE statement emitted by ApplyScrubMaskToDataset. Bitmaps are sized in
+// bytes, so the per-statement row count derives from this budget divided by
+// the mask length. Sized well under MySQL's default max_allowed_packet
+// (16-64 MB) to keep replication binlog events small.
+const scdScrubWriteByteBudget = 2_000_000
+
+// scdScrubWriteBatchCap bounds the row count per CASE/WHEN UPDATE statement
+// regardless of mask size, capping parser/optimizer cost. var (not const) so
+// tests can shrink it to exercise multi-batch behavior.
+var scdScrubWriteBatchCap = 1000
 
 // scdRow is a single row of host_scd_data as fetched by GetSCDData.
 type scdRow struct {
@@ -399,5 +412,177 @@ func (ds *Datastore) CleanupSCDData(ctx context.Context, days int) error {
 		if n < int64(scdCleanupBatch) {
 			return nil
 		}
+	}
+}
+
+// DeleteAllForDataset removes every host_scd_data row for the given dataset in
+// batches. Used by the global scrub worker. Loops until a DELETE affects zero
+// rows; the loop is naturally idempotent on retry.
+func (ds *Datastore) DeleteAllForDataset(ctx context.Context, dataset string, batchSize int) error {
+	if batchSize <= 0 {
+		batchSize = 5000
+	}
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`DELETE FROM host_scd_data WHERE dataset = ? LIMIT ?`,
+			dataset, batchSize)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete SCD rows for dataset")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rows affected for dataset delete")
+		}
+		if n == 0 {
+			return nil
+		}
+	}
+}
+
+// HostIDsInFleets returns host IDs whose team_id is one of the given fleet IDs.
+// Used by the per-fleet scrub worker to build a bitmap of hosts to clear from
+// existing host_scd_data rows.
+//
+// Reads from the primary: the result drives an immediately-following UPDATE
+// (ApplyScrubMaskToDataset). Replica lag could yield a stale membership set
+// — scrubbing the wrong hosts, or missing hosts that just moved into the
+// fleet — within the same job invocation.
+func (ds *Datastore) HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([]uint, error) {
+	if len(fleetIDs) == 0 {
+		return nil, nil
+	}
+	query, args, err := sqlx.In(`SELECT id FROM hosts WHERE team_id IN (?)`, fleetIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expand host-IDs-in-fleets args")
+	}
+	query = ds.rebind(query)
+
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	var ids []uint
+	// reader(ctx) honors RequirePrimary set above and returns the writer connection.
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host IDs in fleets")
+	}
+	return ids, nil
+}
+
+// ApplyScrubMaskToDataset pages through host_scd_data rows for the given
+// dataset in id-order, applies BlobANDNOT(host_bitmap, mask) to each, and
+// writes the result back. Idempotent: re-running with the same mask is a
+// no-op for already-scrubbed rows.
+//
+// An empty mask is a no-op (ANDNOT with empty leaves the bitmap unchanged).
+// The walk happens once for the dataset regardless of how many fleets the
+// mask was built from.
+//
+// Two efficiency mechanics keep this cheap on large datasets:
+//   - Rows the mask doesn't touch (BlobANDNOT returns the same bytes) are
+//     skipped — for sparse fleet-scoped masks, most rows generate no UPDATE.
+//   - Surviving updates are flushed in chunked CASE/WHEN UPDATE statements
+//     so a read-page of N rows costs O(N / writeBatch) round trips instead
+//     of O(N).
+func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask []byte, batchSize int) error {
+	if batchSize <= 0 {
+		batchSize = 5000
+	}
+	if len(mask) == 0 {
+		// Nothing to clear; avoid the row walk entirely.
+		return nil
+	}
+
+	// Size each CASE/WHEN UPDATE so its payload (~writeBatch * len(mask) bytes
+	// of new bitmap data) stays under scdScrubWriteByteBudget. Bounded above
+	// by scdScrubWriteBatchCap to keep parser cost predictable.
+	writeBatch := min(max(scdScrubWriteByteBudget/len(mask), 1), scdScrubWriteBatchCap)
+
+	type row struct {
+		ID         uint   `db:"id"`
+		HostBitmap []byte `db:"host_bitmap"`
+	}
+	type pendingRow struct {
+		id       uint
+		scrubbed []byte
+	}
+
+	// Paging select reads from the primary: the loop terminates on
+	// `len(rows) == 0`, so replica lag could end the scrub early while
+	// rows still exist on the primary, leaving disabled-scope bits behind
+	// that the next disable won't re-enqueue.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
+	var (
+		lastID       uint
+		totalScanned int
+		totalUpdated int
+		batchNum     int
+	)
+	for {
+		if err := ctx.Err(); err != nil {
+			return ctxerr.Wrap(ctx, err, "scrub dataset")
+		}
+
+		var rows []row
+		// reader(ctx) honors RequirePrimary set above and returns the writer connection.
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows,
+			`SELECT id, host_bitmap FROM host_scd_data
+			 WHERE dataset = ? AND id > ?
+			 ORDER BY id LIMIT ?`,
+			dataset, lastID, batchSize); err != nil {
+			return ctxerr.Wrap(ctx, err, "read scrub batch")
+		}
+		if len(rows) == 0 {
+			ds.logger.DebugContext(ctx, "scrub dataset complete",
+				"dataset", dataset,
+				"batches", batchNum,
+				"rows_scanned", totalScanned,
+				"rows_updated", totalUpdated)
+			return nil
+		}
+		batchNum++
+
+		// Compute scrubbed bitmaps in Go; rows the mask doesn't touch
+		// produce no UPDATE.
+		pending := make([]pendingRow, 0, len(rows))
+		for _, r := range rows {
+			scrubbed := chart.BlobANDNOT(r.HostBitmap, mask)
+			if !bytes.Equal(scrubbed, r.HostBitmap) {
+				pending = append(pending, pendingRow{id: r.ID, scrubbed: scrubbed})
+			}
+			lastID = r.ID
+		}
+
+		for i := 0; i < len(pending); i += writeBatch {
+			end := min(i+writeBatch, len(pending))
+			chunk := pending[i:end]
+
+			caseClauses := make([]string, 0, len(chunk))
+			inPlaceholders := make([]string, 0, len(chunk))
+			args := make([]any, 0, len(chunk)*3)
+			for _, p := range chunk {
+				caseClauses = append(caseClauses, "WHEN ? THEN ?")
+				args = append(args, p.id, p.scrubbed)
+			}
+			for _, p := range chunk {
+				inPlaceholders = append(inPlaceholders, "?")
+				args = append(args, p.id)
+			}
+			// Concatenating hardcoded "WHEN ? THEN ?" / "?" placeholders, not user input.
+			stmt := `UPDATE host_scd_data SET host_bitmap = CASE id ` + //nolint:gosec // G202
+				strings.Join(caseClauses, " ") +
+				` END WHERE id IN (` +
+				strings.Join(inPlaceholders, ", ") + `)`
+			if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "scrub batch")
+			}
+		}
+
+		totalScanned += len(rows)
+		totalUpdated += len(pending)
+		ds.logger.DebugContext(ctx, "scrub dataset progress",
+			"dataset", dataset,
+			"batch", batchNum,
+			"last_id", lastID,
+			"scanned", totalScanned,
+			"updated", totalUpdated)
 	}
 }

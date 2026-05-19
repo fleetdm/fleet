@@ -1,0 +1,1 @@
+Fixed MDM SSO callback returning "missing profile" error for Android enrollment when Apple MDM is not configured.

@@ -148,6 +148,8 @@ export interface ISoftwarePackage {
   fleet_maintained_app_id?: number | null;
   fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
   hash_sha256?: string | null;
+  /** XML plist string for iOS/iPadOS in-house .ipa managed app configuration. */
+  configuration?: string;
 }
 
 export interface IAppStoreApp {
@@ -176,6 +178,8 @@ export interface IAppStoreApp {
   labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
+  /** Typed as string but Android configs arrive as a parsed object at runtime
+   * (backend sends json.RawMessage which Axios auto-parses). */
   configuration?: string;
 }
 

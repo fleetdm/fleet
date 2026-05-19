@@ -423,7 +423,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 				args = append(args, "--fleet", fmt.Sprintf("%d", *c.teamID))
 			}
 
-			b, err := RunAppNoChecks(args)
+			b, err := runAppNoChecks(args)
 			if c.expectErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), c.expectErrMsg)

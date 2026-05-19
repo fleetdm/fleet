@@ -49,7 +49,7 @@ See `fleetctl generate-gitops --help` for all options.
 
 - GitOps cannot currently sync Fleet-maintained app installers. If your current configuration includes FMA-based installers, the migration tool will output a placeholder for them which will cause GitOps to fail (ensuring that your current configuration is not overwritten).
 - The migration tool does not output YARA rules at this time. If you have previously used GitOps to apply YARA rules, you will need to manually add them to any output from the tool to ensure that your existing rules are maintained.
-- The migration tool does not output the `macos_settings` key configuration at this time. If you have customized configuration for Mac hosts such as a bootstrap package or script, the tool will output a placeholder for you to replace with the correct details. See [the GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#macos-setup) for more information on `macos_settings`.
+- The migration tool does not output the `setup_experience` key configuration at this time. If you have customized configuration for hosts during enrollment such as installing a bootstrap package or software, or running a script, the tool will output a placeholder for you to replace with the correct details. See [the GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#setup-experience) for more information on `setup_experience`.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="sgress454">

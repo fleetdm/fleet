@@ -292,6 +292,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-08 12:06:46
 
+### [CVE-2026-33845](https://nvd.nist.gov/vuln/detail/CVE-2026-33845)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetdm/fleetctl functionality does not make use of gnutls.
+- **Products:** `fleetctl`,`pkg:deb/debian/libgnutls30t64`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-05-07 12:01:42
+
 ### [CVE-2026-33810](https://nvd.nist.gov/vuln/detail/CVE-2026-33810)
 - **Author:** @lucasmrod
 - **Status:** `affected`

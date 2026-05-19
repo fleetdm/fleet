@@ -258,6 +258,7 @@ const TeamsDropdown = ({
       textOverflow: "ellipsis",
       whiteSpace: "nowrap",
       margin: 0,
+      color: COLORS["core-fleet-black"],
     }),
     option: (baseStyles, state) => ({
       ...baseStyles,

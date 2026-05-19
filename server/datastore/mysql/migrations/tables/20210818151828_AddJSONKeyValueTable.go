@@ -48,13 +48,13 @@ type testAppConfig struct {
 	} `json:"host_expiry_settings"`
 	ServerSettings struct {
 		ServerURL         string `json:"server_url"`
-		LiveQueryDisabled bool   `json:"live_query_disabled"`
+		LiveQueryDisabled bool   `json:"live_query_disabled"` //nolint:apiparamcheck // frozen migration; preserves historical shape
 		EnableAnalytics   bool   `json:"enable_analytics"`
 	} `json:"server_settings"`
 	HostSettings struct {
 		EnableHostUsers         bool             `json:"enable_host_users"`
 		EnableSoftwareInventory bool             `json:"enable_software_inventory"`
-		AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
+		AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"` //nolint:apiparamcheck // frozen migration; preserves historical shape
 	} `json:"host_settings"`
 	VulnerabilitySettings struct {
 		DatabasesPath string `json:"databases_path"`

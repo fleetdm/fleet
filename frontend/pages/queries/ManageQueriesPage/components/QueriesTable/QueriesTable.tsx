@@ -302,6 +302,7 @@ const QueriesTable = ({
           inputPlaceHolder="Search by name"
           onQueryChange={onQueryChange}
           searchable={searchable}
+          disableTableHeader={!searchable}
           customControl={searchable ? renderPlatformDropdown : undefined}
           disableMultiRowSelect={!curTeamScopeQueriesPresent}
           onClickRow={handleRowSelect}

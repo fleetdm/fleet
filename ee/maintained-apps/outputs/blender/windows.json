@@ -4,7 +4,7 @@
       "version": "5.1.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Blender' AND publisher = 'Blender Foundation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Blender' AND publisher = 'Blender Foundation' AND version_compare(version, '5.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Blender' AND publisher = 'Blender Foundation') AND version_compare(version, '5.1.1') < 0);"
       },
       "installer_url": "https://download.blender.org/release/Blender5.1/blender-5.1.1-windows-x64.msi",
       "install_script_ref": "8959087b",

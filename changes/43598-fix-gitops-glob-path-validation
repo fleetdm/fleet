@@ -1,0 +1,1 @@
+- Fixed an issue where `fleetctl gitops` rejected `path:` values whose actual filenames contained glob metacharacters even when the file existed at that literal path.

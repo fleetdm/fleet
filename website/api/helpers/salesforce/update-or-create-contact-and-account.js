@@ -200,6 +200,18 @@ module.exports = {
 
     let accountValuesToSet = {};
 
+    let formBasedContactSources = [
+      'Website - Contact forms',
+      'Website - Contact forms - Demo - ICP',
+      'Website - Contact forms - Demo',
+      'Website - GitOps',
+      'Webinar',
+      'Website - Gated document',
+    ];
+    if(contactSource && formBasedContactSources.includes(contactSource)) {
+      contactValuesToSet.Most_recent_campaign_member_status__c = 'Registered';// eslint-disable-line camelcase
+    }
+
     if(numberOfHostsDetails){
       accountValuesToSet.Total_macOS_hosts__c = numberOfHostsDetails.macosHosts;// eslint-disable-line camelcase
       accountValuesToSet.Total_Windows_hosts__c = numberOfHostsDetails.windowsHosts;// eslint-disable-line camelcase

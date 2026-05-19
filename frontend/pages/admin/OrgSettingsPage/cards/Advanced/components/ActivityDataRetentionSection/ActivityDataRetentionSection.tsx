@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -6,6 +6,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import Dropdown from "components/forms/fields/Dropdown";
 import { getCustomDropdownOptions } from "utilities/helpers";
 import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
+import { AppContext } from "context/app";
 
 import { IAdvancedSectionProps } from "../../Advanced";
 
@@ -13,11 +14,15 @@ const ActivityDataRetentionSection = ({
   onInputChange,
   formData,
 }: IAdvancedSectionProps) => {
+  const { isPremiumTier } = useContext(AppContext);
+
   const {
     disableQueryReports,
     deleteActivities,
     activityExpiryWindow,
     preserveHostActivitiesOnReenrollment,
+    disableHostsActive,
+    disableVulnerabilities,
   } = formData;
 
   const activityExpiryWindowOptions = useMemo(
@@ -153,6 +158,60 @@ const ActivityDataRetentionSection = ({
           </Checkbox>
         )}
       />
+      <GitOpsModeTooltipWrapper
+        position="left"
+        renderChildren={(disableChildren) => (
+          <Checkbox
+            disabled={disableChildren}
+            onChange={onInputChange}
+            name="disableHostsActive"
+            value={disableHostsActive}
+            parseTarget
+            labelTooltipContent={
+              !disableChildren && (
+                <>
+                  When enabled, Fleet stops collecting hourly hosts online
+                  <br />
+                  data used by the dashboard chart.{" "}
+                  <em>
+                    (Default: <strong>Off</strong>)
+                  </em>
+                </>
+              )
+            }
+          >
+            Disable hosts online
+          </Checkbox>
+        )}
+      />
+      {isPremiumTier && (
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
+              onChange={onInputChange}
+              name="disableVulnerabilities"
+              value={disableVulnerabilities}
+              parseTarget
+              labelTooltipContent={
+                !disableChildren && (
+                  <>
+                    When enabled, Fleet stops collecting historical
+                    <br />
+                    vulnerability-exposure data used by the dashboard chart.{" "}
+                    <em>
+                      (Default: <strong>Off</strong>)
+                    </em>
+                  </>
+                )
+              }
+            >
+              Disable vulnerabilities
+            </Checkbox>
+          )}
+        />
+      )}
     </SettingsSection>
   );
 };

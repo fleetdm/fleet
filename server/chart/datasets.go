@@ -7,10 +7,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 )
 
-// uptimeRecentlySeenWindow must match the cron schedule cadence so each sample
-// reflects activity since the last run.
-const uptimeRecentlySeenWindow = 10 * time.Minute
-
 // UptimeDataset implements api.Dataset for host uptime tracking.
 type UptimeDataset struct{}
 
@@ -19,8 +15,8 @@ func (u *UptimeDataset) DefaultResolutionHours() int        { return 3 }
 func (u *UptimeDataset) SampleStrategy() api.SampleStrategy { return api.SampleStrategyAccumulate }
 func (u *UptimeDataset) DefaultVisualization() string       { return "checkerboard" }
 
-func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time) error {
-	hostIDs, err := store.FindRecentlySeenHostIDs(ctx, now.Add(-uptimeRecentlySeenWindow))
+func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time, disabledFleetIDs []uint) error {
+	hostIDs, err := store.FindOnlineHostIDs(ctx, now, disabledFleetIDs)
 	if err != nil {
 		return err
 	}
@@ -42,8 +38,15 @@ func (c *CVEDataset) DefaultResolutionHours() int        { return 3 }
 func (c *CVEDataset) SampleStrategy() api.SampleStrategy { return api.SampleStrategySnapshot }
 func (c *CVEDataset) DefaultVisualization() string       { return "line" }
 
-func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time) error {
-	hostIDsByCVE, err := store.AffectedHostIDsByCVE(ctx)
+func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time, disabledFleetIDs []uint) error {
+	// Only track the CVEs that the chart API currently returns.
+	// TODO: implement bitmap compression so we can track all CVEs.
+	tracked, err := store.TrackedCriticalCVEs(ctx)
+	if err != nil {
+		return err
+	}
+
+	hostIDsByCVE, err := store.AffectedHostIDsByCVE(ctx, disabledFleetIDs, tracked)
 	if err != nil {
 		return err
 	}
@@ -52,5 +55,8 @@ func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now ti
 		bitmaps[cve] = HostIDsToBlob(hostIDs)
 	}
 	bucketStart := now.UTC().Truncate(time.Hour)
+	// Always call RecordBucketData, even when bitmaps is empty: snapshot
+	// semantics use an empty input to close any open rows for entities no
+	// longer in the tracked set (recordSnapshot's "absent entities" branch).
 	return store.RecordBucketData(ctx, c.Name(), bucketStart, time.Hour, c.SampleStrategy(), bitmaps)
 }

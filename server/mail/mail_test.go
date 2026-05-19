@@ -1,13 +1,16 @@
 package mail
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,9 +22,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testMailpitSMTPPort = getTestMailpitSMTPPort()
-var testMailpitWebURL = getTestMailpitWebURL()
-var testSMTP4DevSMTPPort = getTestSMTP4DevSMTPPort()
+var (
+	testMailpitSMTPPort  = getTestMailpitSMTPPort()
+	testMailpitWebURL    = getTestMailpitWebURL()
+	testSMTP4DevSMTPPort = getTestSMTP4DevSMTPPort()
+)
 
 func getTestMailpitSMTPPort() uint {
 	if port := os.Getenv("FLEET_MAILPIT_SMTP_PORT"); port != "" {
@@ -309,6 +314,109 @@ func TestTemplateProcessor(t *testing.T) {
 	out, err := mailer.Message()
 	require.Nil(t, err)
 	assert.NotNil(t, out)
+}
+
+func startFakeSMTPServerFailingSTARTTLS(t *testing.T) (host string, port uint) {
+	t.Helper()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				_ = c.SetDeadline(time.Now().Add(5 * time.Second))
+				r := bufio.NewReader(c)
+				_, _ = io.WriteString(c, "220 fake.smtp.test ESMTP\r\n")
+				for {
+					line, err := r.ReadString('\n')
+					if err != nil {
+						return
+					}
+					cmd := strings.ToUpper(strings.TrimSpace(line))
+					switch {
+					case strings.HasPrefix(cmd, "EHLO"), strings.HasPrefix(cmd, "HELO"):
+						_, _ = io.WriteString(c, "250-fake.smtp.test\r\n250 STARTTLS\r\n")
+					case cmd == "STARTTLS":
+						_, _ = io.WriteString(c, "220 Ready to start TLS\r\n")
+						// Close immediately so the client's TLS handshake fails.
+						return
+					case cmd == "QUIT":
+						_, _ = io.WriteString(c, "221 Bye\r\n")
+						return
+					default:
+						_, _ = io.WriteString(c, "500 unrecognized\r\n")
+					}
+				}
+			}(conn)
+		}
+	}()
+	t.Cleanup(func() {
+		_ = ln.Close()
+		<-done
+	})
+
+	addr := ln.Addr().(*net.TCPAddr)
+	return "127.0.0.1", uint(addr.Port) //nolint:gosec // dismiss G115 — TCPAddr.Port is in [0, 65535]
+}
+
+// fakeMailer satisfies fleet.Mailer without depending on bindata templates.
+type fakeMailer struct{}
+
+func (fakeMailer) Message() ([]byte, error) { return []byte("Subject: test\r\n\r\nbody\r\n"), nil }
+
+func TestSendMailSTARTTLSFailureWithoutSSLTLS(t *testing.T) {
+	host, port := startFakeSMTPServerFailingSTARTTLS(t)
+
+	err := Test(mailService{}, fleet.Email{
+		Subject: "test",
+		To:      []string{"to@example.com"},
+		SMTPSettings: fleet.SMTPSettings{
+			SMTPConfigured:           true,
+			SMTPAuthenticationType:   fleet.AuthTypeNameNone,
+			SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
+			SMTPVerifySSLCerts:       true,
+			SMTPEnableTLS:            false,
+			SMTPEnableStartTLS:       true,
+			SMTPPort:                 port,
+			SMTPServer:               host,
+			SMTPSenderAddress:        "test@example.com",
+		},
+		Mailer: fakeMailer{},
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrSTARTTLSWithoutSSLTLS)
+}
+
+func TestSendMailSTARTTLSFailureWithVerifyOff(t *testing.T) {
+	host, port := startFakeSMTPServerFailingSTARTTLS(t)
+
+	err := Test(mailService{}, fleet.Email{
+		Subject: "test",
+		To:      []string{"to@example.com"},
+		SMTPSettings: fleet.SMTPSettings{
+			SMTPConfigured:           true,
+			SMTPAuthenticationType:   fleet.AuthTypeNameNone,
+			SMTPAuthenticationMethod: fleet.AuthMethodNamePlain,
+			SMTPVerifySSLCerts:       false, // user opted into skip-verify
+			SMTPEnableTLS:            false,
+			SMTPEnableStartTLS:       true,
+			SMTPPort:                 port,
+			SMTPServer:               host,
+			SMTPSenderAddress:        "test@example.com",
+		},
+		Mailer: fakeMailer{},
+	})
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrSTARTTLSWithoutSSLTLS)
+	require.Contains(t, err.Error(), "startTLS error")
 }
 
 func Test_getFrom(t *testing.T) {

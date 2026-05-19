@@ -85,14 +85,8 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, ctxerr.Wrap(ctx, err, "creating policy")
 	}
 
-	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
-	}
-	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
-	}
-	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
+	if err := svc.populateAutomationsForTeamPolicy(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate automations")
 	}
 
 	if teamID == 0 {
@@ -140,6 +134,22 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, ctxerr.Wrap(ctx, err, "create activity for team policy creation")
 	}
 	return policy, nil
+}
+
+func (svc *Service) populateAutomationsForTeamPolicy(ctx context.Context, policy *fleet.Policy) error {
+	if policy.TeamID == nil {
+		return nil
+	}
+	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
+		return ctxerr.Wrap(ctx, err, "populate install_software")
+	}
+	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
+		return ctxerr.Wrap(ctx, err, "populate run_script")
+	}
+	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
+		return ctxerr.Wrap(ctx, err, "populate patch_software")
+	}
+	return nil
 }
 
 func (svc *Service) populatePolicyInstallSoftware(ctx context.Context, p *fleet.Policy) error {
@@ -264,11 +274,8 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	if mergeInherited {
 		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter)
 		for i := range policies {
-			if err := svc.populatePolicyInstallSoftware(ctx, policies[i]); err != nil {
-				return nil, nil, ctxerr.Wrapf(ctx, err, "populate install_software for policy_id: %d", policies[i].ID)
-			}
-			if err := svc.populatePolicyRunScript(ctx, policies[i]); err != nil {
-				return nil, nil, ctxerr.Wrapf(ctx, err, "populate run_script for policy_id: %d", policies[i].ID)
+			if err := svc.populateAutomationsForTeamPolicy(ctx, policies[i]); err != nil {
+				return nil, nil, ctxerr.Wrapf(ctx, err, "populate automations for policy_id: %d", policies[i].ID)
 			}
 		}
 		return policies, nil, err
@@ -280,14 +287,8 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	for i := range teamPolicies {
-		if err := svc.populatePolicyInstallSoftware(ctx, teamPolicies[i]); err != nil {
-			return nil, nil, ctxerr.Wrapf(ctx, err, "populate install_software for policy_id: %d", teamPolicies[i].ID)
-		}
-		if err := svc.populatePolicyRunScript(ctx, teamPolicies[i]); err != nil {
-			return nil, nil, ctxerr.Wrapf(ctx, err, "populate run_script for policy_id: %d", teamPolicies[i].ID)
-		}
-		if err := svc.populatePolicyPatchSoftware(ctx, teamPolicies[i]); err != nil {
-			return nil, nil, ctxerr.Wrapf(ctx, err, "populate patch_software for policy_id: %d", teamPolicies[i].ID)
+		if err := svc.populateAutomationsForTeamPolicy(ctx, teamPolicies[i]); err != nil {
+			return nil, nil, ctxerr.Wrapf(ctx, err, "populate automations for policy_id: %d", teamPolicies[i].ID)
 		}
 	}
 
@@ -347,14 +348,14 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 
 func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.GetTeamPolicyByIDRequest)
-	teamPolicy, err := svc.GetTeamPolicyByIDQueries(ctx, req.TeamID, req.PolicyID)
+	teamPolicy, err := svc.GetTeamPolicyByID(ctx, req.TeamID, req.PolicyID)
 	if err != nil {
 		return fleet.GetTeamPolicyByIDResponse{Err: err}, nil
 	}
 	return fleet.GetTeamPolicyByIDResponse{Policy: teamPolicy}, nil
 }
 
-func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
+func (svc Service) GetTeamPolicyByID(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
@@ -368,14 +369,8 @@ func (svc Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, po
 		return nil, err
 	}
 
-	if err := svc.populatePolicyInstallSoftware(ctx, teamPolicy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
-	}
-	if err := svc.populatePolicyRunScript(ctx, teamPolicy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
-	}
-	if err := svc.populatePolicyPatchSoftware(ctx, teamPolicy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
+	if err := svc.populateAutomationsForTeamPolicy(ctx, teamPolicy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate automations")
 	}
 
 	return teamPolicy, nil
@@ -639,14 +634,8 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		return nil, ctxerr.Wrap(ctx, err, "saving policy")
 	}
 
-	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
-	}
-	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
-	}
-	if err := svc.populatePolicyPatchSoftware(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate patch_software")
+	if err := svc.populateAutomationsForTeamPolicy(ctx, policy); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate automations")
 	}
 
 	if teamID == nil {

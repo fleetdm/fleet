@@ -417,10 +417,6 @@ func checkCVEs(
 
 	// Group dictionary by vendor using a map.
 	// This is done to speed up the matching process (PR https://github.com/fleetdm/fleet/pull/17298).
-	// A map uses a hash table to store the key-value pairs. By putting multiple vulnerabilities with the same vendor into a map,
-	// we reduce the number of comparisons needed to find the vulnerabilities that match the CPEs. Specifically, we no longer need to
-	// compare each CPE with each vulnerability, but only with the vulnerabilities that have the same vendor.
-	// Further optimization can be done by also using a map for product name comparison.
 	dictGrouped := make(map[string]cvefeed.Dictionary, len(dict))
 	for key, vuln := range dict {
 		attrsArray := vuln.Config()
@@ -436,7 +432,12 @@ func checkCVEs(
 
 	cacheGrouped := make(map[string]*cvefeed.Cache, len(dictGrouped))
 	for vendor, subDict := range dictGrouped {
+		// Build a product index per vendor so that cache.Get() narrows the
+		// dictionary to only CVEs matching the queried product name before
+		// running version-range matching.
+		idx := cvefeed.NewIndex(subDict)
 		cache := cvefeed.NewCache(subDict).SetRequireVersion(true).SetMaxSize(-1)
+		cache.Idx = idx
 		cacheGrouped[vendor] = cache
 	}
 

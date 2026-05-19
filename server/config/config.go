@@ -16,7 +16,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"golang.org/x/net/http2"
@@ -224,12 +223,27 @@ type OsqueryConfig struct {
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
 
-	// MaxLogWriteBodySize overrides the default body size limit for the
-	// osquery/log endpoint. A value of 0 means use the built-in default.
+	// MaxLogWriteBodySize overrides the default request body size limit
+	// for the /api/osquery/log endpoint. A value of 0 means use the
+	// built-in default (DefaultMaxOsqueryLogWriteSize). This setting
+	// only takes effect when allow_body_auth_fallback is true (legacy
+	// body-auth mode). When allow_body_auth_fallback is false (header-
+	// auth mode) the route is not subject to any body size limit.
 	MaxLogWriteBodySize int64 `yaml:"max_log_write_body_size"`
-	// MaxDistributedWriteBodySize overrides the default body size limit for the
-	// osquery/distributed/write endpoint. A value of 0 means use the built-in default.
+	// MaxDistributedWriteBodySize is the equivalent of MaxLogWriteBodySize
+	// for /api/osquery/distributed/write.
 	MaxDistributedWriteBodySize int64 `yaml:"max_distributed_write_body_size"`
+
+	// AllowBodyAuthFallback selects which authentication scheme is in
+	// effect for host-authenticated osquery requests.
+	//
+	//   - true (default): the Authorization: NodeKey header is ignored
+	//     entirely. The node_key extracted from the JSON body
+	//     is the sole authenticator.
+	//   - false: the Authorization: NodeKey header is required and the
+	//     body's node_key field is ignored. Pre-auth rejects
+	//     absent/invalid headers BEFORE the body is read.
+	AllowBodyAuthFallback bool `yaml:"allow_body_auth_fallback"`
 }
 
 // AsyncTaskName is the type of names that identify tasks supporting
@@ -1329,9 +1343,11 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
-		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Values below the server minimum request body size are raised to that minimum.")
+		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
-		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Values below the server minimum request body size are raised to that minimum.")
+		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
+	man.addConfigBool("osquery.allow_body_auth_fallback", true,
+		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,
@@ -1785,6 +1801,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
+			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
@@ -2331,15 +2348,16 @@ func TestConfig() FleetConfig {
 			Duration: 24 * 5 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:          24,
-			HostIdentifier:       "instance",
-			EnrollCooldown:       42 * time.Minute,
-			StatusLogPlugin:      "filesystem",
-			ResultLogPlugin:      "filesystem",
-			LabelUpdateInterval:  1 * time.Hour,
-			PolicyUpdateInterval: 1 * time.Hour,
-			DetailUpdateInterval: 1 * time.Hour,
-			MaxJitterPercent:     0,
+			NodeKeySize:           24,
+			HostIdentifier:        "instance",
+			EnrollCooldown:        42 * time.Minute,
+			StatusLogPlugin:       "filesystem",
+			ResultLogPlugin:       "filesystem",
+			LabelUpdateInterval:   1 * time.Hour,
+			PolicyUpdateInterval:  1 * time.Hour,
+			DetailUpdateInterval:  1 * time.Hour,
+			MaxJitterPercent:      0,
+			AllowBodyAuthFallback: true,
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,
@@ -2366,12 +2384,20 @@ func TestConfig() FleetConfig {
 	}
 }
 
+// TestingT is the subset of *testing.T that SetTestMDMConfig needs.
+// *testing.T (and testing.TB) satisfy it without an explicit conversion, so
+// callers continue to pass `t` as-is. Defining this interface locally keeps
+// the "testing" package out of this package's production import graph.
+type TestingT interface {
+	Fatal(args ...any)
+}
+
 // SetTestMDMConfig modifies the provided cfg so that MDM is enabled and
 // configured properly. The provided certificate and private key are used for
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
+func SetTestMDMConfig(t TestingT, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 
 	if wstepCertAndKeyDir == "" {

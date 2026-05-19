@@ -456,6 +456,7 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
             <string>DeviceCapacity</string>
             <string>AvailableDeviceCapacity</string>
             <string>OSVersion</string>
+            <string>SupplementalOSVersionExtra</string>
             <string>WiFiMAC</string>
             <string>ProductName</string>
 			<string>IsMDMLostModeEnabled</string>
@@ -692,6 +693,42 @@ func (svc *MDMAppleCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs [
 		return ctxerr.Wrap(ctx, err, "enqueuing ClearRecoveryLock command")
 	}
 
+	return nil
+}
+
+// SetAutoAdminPassword sends the SetAutoAdminPassword command to rotate the password
+// of a managed local administrator account previously provisioned by an
+// AutoSetupAdminAccounts entry in an AccountConfiguration command.
+//
+// guid is the account UUID captured from osquery on this host (NOT the host UUID).
+// passwordHashPlist is the SALTED-SHA512-PBKDF2 plist returned by
+// GenerateSaltedSHA512PBKDF2Hash; we base64-encode it into the <data> field of the
+// outer command plist, matching how AccountConfiguration carries its passwordHash.
+//
+// See https://developer.apple.com/documentation/devicemanagement/setautoadminpasswordcommand
+func (svc *MDMAppleCommander) SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error {
+	passwordHashEncoded := base64.StdEncoding.EncodeToString(passwordHashPlist)
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Command</key>
+    <dict>
+      <key>RequestType</key>
+      <string>SetAutoAdminPassword</string>
+      <key>GUID</key>
+      <string>%s</string>
+      <key>passwordHash</key>
+      <data>%s</data>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+  </dict>
+</plist>`, guid, passwordHashEncoded, cmdUUID)
+
+	if err := svc.EnqueueCommand(ctx, []string{hostUUID}, raw); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing SetAutoAdminPassword command")
+	}
 	return nil
 }
 

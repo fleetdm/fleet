@@ -345,6 +345,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "Cavalry",
+      "slug": "cavalry/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.scenegroup.cavalry",
+      "description": "Cavalry is a motion design and animation app."
+    },
+    {
       "name": "Charles",
       "slug": "charles/darwin",
       "platform": "darwin",
@@ -455,6 +462,13 @@
       "platform": "windows",
       "unique_identifier": "Cloudflare WARP",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "Codex CLI",
+      "slug": "codex-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "Codex CLI",
+      "description": "Codex CLI is OpenAI’s coding agent that you can run locally from your terminal."
     },
     {
       "name": "Connect Fonts",
@@ -1318,6 +1332,13 @@
       "description": "OneDrive is Microsoft's cloud storage client."
     },
     {
+      "name": "OpenVPN Connect",
+      "slug": "openvpn-connect/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.openvpn.client.app",
+      "description": "OpenVPN Connect is a VPN client that provides secure remote access to networks and services."
+    },
+    {
       "name": "Opera",
       "slug": "opera/darwin",
       "platform": "darwin",
@@ -1946,6 +1967,13 @@
       "platform": "darwin",
       "unique_identifier": "com.wrike.Wrike",
       "description": "Wrike is a project management app."
+    },
+    {
+      "name": "XCreds",
+      "slug": "xcreds/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.twocanoes.xcreds",
+      "description": "XCreds is an app that syncs a user's cloud identity provider password with their macOS login password."
     },
     {
       "name": "Yubico Authenticator",

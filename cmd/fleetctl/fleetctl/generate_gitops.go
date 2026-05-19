@@ -900,7 +900,7 @@ func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSett
 
 type GlobalOrTeamIntegrations struct {
 	GlobalIntegrations *fleet.Integrations     `json:"global_integrations,omitempty"`
-	TeamIntegrations   *fleet.TeamIntegrations `json:"team_integrations,omitempty"`
+	TeamIntegrations   *fleet.TeamIntegrations `json:"team_integrations,omitempty"` //nolint:apiparamcheck // internal routing key, not emitted to user
 }
 
 func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrations *GlobalOrTeamIntegrations) (map[string]interface{}, error) {
@@ -1356,11 +1356,17 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		certType := reflect.TypeFor[fleet.CertificateTemplateResponse]()
 		fullCerts := make([]map[string]any, 0, len(certSummaries))
 		for _, certSummary := range certSummaries {
-			fullCerts = append(fullCerts, map[string]interface{}{
+			cert := map[string]any{
 				jsonFieldName(certType, "Name"):                     certSummary.Name,
 				jsonFieldName(certType, "CertificateAuthorityName"): certSummary.CertificateAuthorityName,
 				jsonFieldName(certType, "SubjectName"):              certSummary.SubjectName,
-			})
+			}
+			// Emit subject_alternative_name only when set, so existing GitOps files for templates
+			// without SAN do not pick up a spurious empty key.
+			if certSummary.SubjectAlternativeName != "" {
+				cert[jsonFieldName(certType, "SubjectAlternativeName")] = certSummary.SubjectAlternativeName
+			}
+			fullCerts = append(fullCerts, cert)
 		}
 		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]interface{})
 		if !ok {
@@ -1432,7 +1438,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: teamName,
-					Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
+					Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#setup-experience",
 				})
 			}
 		}
@@ -1650,18 +1656,13 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		}
 		// Parse any labels.
 		if policy.LabelsIncludeAny != nil {
-			labels := make([]string, len(policy.LabelsIncludeAny))
-			for i, label := range policy.LabelsIncludeAny {
-				labels[i] = label.LabelName
-			}
-			policySpec["labels_include_any"] = labels
+			policySpec["labels_include_any"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAny)
+		}
+		if policy.LabelsIncludeAll != nil && cmd.AppConfig.License.IsPremium() {
+			policySpec["labels_include_all"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAll)
 		}
 		if policy.LabelsExcludeAny != nil {
-			labels := make([]string, len(policy.LabelsExcludeAny))
-			for i, label := range policy.LabelsExcludeAny {
-				labels[i] = label.LabelName
-			}
-			policySpec["labels_exclude_any"] = labels
+			policySpec["labels_exclude_any"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAny)
 		}
 		result[i] = policySpec
 	}
@@ -1723,11 +1724,10 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 
 		// Parse any labels.
 		if query.LabelsIncludeAny != nil {
-			labels := make([]string, len(query.LabelsIncludeAny))
-			for i, label := range query.LabelsIncludeAny {
-				labels[i] = label.LabelName
-			}
-			querySpec["labels_include_any"] = labels
+			querySpec["labels_include_any"] = fleet.LabelIdentsToNames(query.LabelsIncludeAny)
+		}
+		if query.LabelsIncludeAll != nil && cmd.AppConfig.License.IsPremium() {
+			querySpec["labels_include_all"] = fleet.LabelIdentsToNames(query.LabelsIncludeAll)
 		}
 
 		result[i] = querySpec
@@ -2090,6 +2090,24 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				// TODO write files immediately rather than queueing them up
 				cmd.FilesToWrite[fileName] = icon
 			}
+
+			// Emit managed app configuration for iOS / iPadOS in-house apps. The
+			// API returns it as a JSON-encoded string of XML; unwrap and write
+			// the raw XML alongside the package's other artifacts.
+			if len(softwareTitle.SoftwarePackage.Configuration) > 0 {
+				var xmlStr string
+				if err := json.Unmarshal(softwareTitle.SoftwarePackage.Configuration, &xmlStr); err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding in-house app configuration %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+				if xmlStr != "" {
+					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.xml")
+					softwareSpec["configuration"] = map[string]any{
+						"path": fmt.Sprintf("../%s", fileName),
+					}
+					cmd.FilesToWrite[fileName] = []byte(xmlStr)
+				}
+			}
 		}
 
 		if softwareTitle.AppStoreApp != nil {
@@ -2126,21 +2144,39 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			config := softwareTitle.AppStoreApp.Configuration
 			if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
 				// all per-team software-related artifacts are generated in lib/{team}/software
-				fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.json")
-				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["configuration"] = map[string]any{
-					"path": path,
-				}
+				platform := softwareTitle.AppStoreApp.Platform
+				switch platform {
+				case fleet.IOSPlatform, fleet.IPadOSPlatform:
+					// iOS/iPadOS configuration is returned as a JSON-encoded
+					// string of XML; unwrap and write the raw XML.
+					var xmlStr string
+					if err := json.Unmarshal(config, &xmlStr); err != nil {
+						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding apple app configuration %s: %s\n", sw.Name, err)
+						return nil, err
+					}
+					if xmlStr == "" {
+						break
+					}
+					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.xml")
+					softwareSpec["configuration"] = map[string]any{
+						"path": fmt.Sprintf("../%s", fileName),
+					}
+					cmd.FilesToWrite[fileName] = []byte(xmlStr)
+				default:
+					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.json")
+					softwareSpec["configuration"] = map[string]any{
+						"path": fmt.Sprintf("../%s", fileName),
+					}
 
-				// format config because it is received with incorrect indentation
-				var buf bytes.Buffer
-				err := json.Indent(&buf, softwareTitle.AppStoreApp.Configuration, "", "  ")
-				if err != nil {
-					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
-					return nil, err
-				}
+					// format config because it is received with incorrect indentation
+					var buf bytes.Buffer
+					if err := json.Indent(&buf, config, "", "  "); err != nil {
+						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
+						return nil, err
+					}
 
-				cmd.FilesToWrite[fileName] = buf.Bytes()
+					cmd.FilesToWrite[fileName] = buf.Bytes()
+				}
 			}
 
 			// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
@@ -2257,7 +2293,7 @@ func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string
 			jsonFieldName(t, "Description"):         label.Description,
 			jsonFieldName(t, "LabelMembershipType"): label.LabelMembershipType,
 		}
-		if label.Platform != "" {
+		if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic && label.Platform != "" {
 			labelSpec[jsonFieldName(t, "Platform")] = label.Platform
 		}
 		switch label.LabelMembershipType {

@@ -323,7 +323,7 @@ const InstallSoftwareForm = ({
                   <TooltipWrapper
                     tipContent={
                       isWindowsMdmEnabled
-                        ? "If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
+                        ? "For hosts that automatically enroll, if any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
                         : "Turn on Windows MDM to use this option."
                     }
                     disableTooltip={disableChildren}

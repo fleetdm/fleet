@@ -1,0 +1,1 @@
+- Fixed an issue where GitOps dry-run would not validate Apple config profile payload scope conflicts, and use of unknown Fleet variables in all types of profiles.

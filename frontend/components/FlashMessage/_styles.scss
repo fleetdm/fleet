@@ -17,25 +17,23 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  // Use static (un-themed) white: the flash toast is always a colored
-  // surface, so foreground should stay light regardless of dark mode.
-  color: $static-white;
+  color: $core-fleet-black;
   padding: $pad-small $pad-medium;
   z-index: 999;
-  background-color: $core-vibrant-blue;
-  border: 1px solid $ui-fleet-black-10;
+  border: 1px solid;
   box-sizing: border-box;
-  box-shadow: 0px 7px 3px -5px rgba(25, 33, 71, 0.1);
   border-radius: 8px;
   max-width: calc(100% - 64px); // Same horizontal margin as .main-content
   pointer-events: auto;
 
   &--success {
-    background-color: $ui-success;
+    background-color: $ui-success-flash-bg;
+    border-color: $ui-success;
   }
 
   &--error {
-    background-color: $ui-error;
+    background-color: $ui-error-flash-bg;
+    border-color: $ui-error;
   }
 
   &--warning-filled {
@@ -86,7 +84,7 @@
   }
 
   &__undo {
-    color: $static-white;
+    color: $core-fleet-black;
     cursor: pointer;
     font-size: $small;
     text-decoration: underline;
@@ -100,11 +98,11 @@
 
     .fleeticon {
       transition: color 150ms ease-in-out;
-      color: $static-white;
+      color: $core-fleet-black;
       font-size: $small;
 
       &:hover {
-        color: $static-white;
+        color: $core-fleet-black;
       }
     }
   }

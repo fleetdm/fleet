@@ -22,6 +22,7 @@ controls:
     certificates:
     - certificate_authority_name: DIGIDOO
       name: my_certypoo
+      subject_alternative_name: DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME
       subject_name: CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL
   apple_settings:
     configuration_profiles:
@@ -159,6 +160,8 @@ software:
     platform: darwin
     self_service: true
   - app_store_id: "55566677778"
+    configuration:
+      path: "../lib/team-a-👍/software/my-setup-experience-app-android-config.json"
     icon:
       path: "../lib/team-a-👍/icons/my-setup-experience-app-android-icon.png"
     labels_include_all:
@@ -171,6 +174,8 @@ software:
     auto_update_enabled: true
     auto_update_window_end: "03:00"
     auto_update_window_start: "01:00"
+    configuration:
+      path: "../lib/team-a-👍/software/my-ios-auto-update-app-ios-config.xml"
     icon:
       path: "../lib/team-a-👍/icons/my-ios-auto-update-app-ios-icon.png"
     labels_include_all:

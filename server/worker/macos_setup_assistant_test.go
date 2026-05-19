@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -24,16 +24,16 @@ import (
 
 func TestMacosSetupAssistant(t *testing.T) {
 	ctx := context.Background()
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	// call TruncateTables immediately as some DB migrations may create jobs
-	mysql.TruncateTables(t, ds)
+	mysqltest.TruncateTables(t, ds)
 
 	org1Name := "org1"
 	org2Name := "org2"
 
-	mysql.SetTestABMAssets(t, ds, "fleet")
-	tok := mysql.CreateAndSetABMToken(t, ds, org1Name)
-	tok2 := mysql.CreateAndSetABMToken(t, ds, org2Name)
+	mysqltest.SetTestABMAssets(t, ds, "fleet")
+	tok := mysqltest.CreateAndSetABMToken(t, ds, org1Name)
+	tok2 := mysqltest.CreateAndSetABMToken(t, ds, org2Name)
 
 	// create a couple hosts for no team, team 1 and team 2 (none for team 3)
 	hosts := make([]*fleet.Host, 6)

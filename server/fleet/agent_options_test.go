@@ -196,8 +196,16 @@ func TestValidateAgentOptions(t *testing.T) {
 			},
 			"command_line_flags": {
 				"logger_tls_backoff_max": 200
-			} 
+			}
 		}`, true, ``},
+
+		{"orbit debug_logging_on_enroll_duration valid", `{"orbit": {"debug_logging_on_enroll_duration": 3600}}`, true, ``},
+		{"orbit debug_logging_on_enroll_duration zero", `{"orbit": {"debug_logging_on_enroll_duration": 0}}`, true, ``},
+		{"orbit debug_logging_on_enroll_duration max", `{"orbit": {"debug_logging_on_enroll_duration": 86400}}`, true, ``},
+		{"orbit debug_logging_on_enroll_duration over max", `{"orbit": {"debug_logging_on_enroll_duration": 86401}}`, true, `must not exceed 86400 seconds`},
+		{"orbit debug_logging_on_enroll_duration negative", `{"orbit": {"debug_logging_on_enroll_duration": -1}}`, true, `must not be negative`},
+		{"orbit debug_logging_on_enroll_duration string rejected", `{"orbit": {"debug_logging_on_enroll_duration": "1h"}}`, true, `cannot unmarshal string`},
+		{"orbit unknown subkey rejected", `{"orbit": {"foo": true}}`, true, `unknown field "foo"`},
 	}
 
 	for _, c := range cases {
