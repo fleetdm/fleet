@@ -1,3 +1,32 @@
+// Term data and derived indexes are static. Compute them once at module load
+// instead of rebuilding on every request.
+let _ = require('@sailshq/lodash');
+let glossaryTerms = require('../datafiles/glossary-terms');
+
+let lettersWithTerms = _.uniq(glossaryTerms.map((t)=> t.name.charAt(0).toUpperCase())).sort();
+
+let alphabet = [];
+for (let i = 65; i <= 90; i++) {
+  let letter = String.fromCharCode(i);
+  alphabet.push({
+    letter,
+    hasTerms: lettersWithTerms.indexOf(letter) !== -1,
+  });
+}
+
+let termsByLetter = _.groupBy(glossaryTerms, (t)=> t.name.charAt(0).toUpperCase());
+
+// Slimmer payload for the client: only the fields the search/index uses.
+let glossarySearchTerms = glossaryTerms.map((term) => ({
+  slug: term.slug,
+  name: term.name,
+  definition: term.definition,
+  searchKeywords: term.searchKeywords || '',
+}));
+
+let totalTermCount = glossaryTerms.length;
+
+
 module.exports = {
 
 
@@ -18,38 +47,12 @@ module.exports = {
 
   fn: async function () {
 
-    // Term data lives in its own module so this controller stays small and
-    // content edits don't churn this file. See api/datafiles/glossary-terms.js.
-    let glossaryTerms = require('../datafiles/glossary-terms');
-
-    // Build a sorted list of letters that actually have terms.
-    let lettersWithTerms = _.uniq(glossaryTerms.map((t)=> t.name.charAt(0).toUpperCase())).sort();
-
-    // Build the full A-Z list with active/disabled state for the letter nav.
-    let alphabet = [];
-    for (let i = 65; i <= 90; i++) {
-      let letter = String.fromCharCode(i);
-      alphabet.push({
-        letter,
-        hasTerms: lettersWithTerms.indexOf(letter) !== -1,
-      });
-    }
-
-    // Group terms by first letter for sectioned rendering.
-    let termsByLetter = _.groupBy(glossaryTerms, (t)=> t.name.charAt(0).toUpperCase());
-
-    // Respond with view.
     return {
       glossaryTerms,
-      glossarySearchTerms: glossaryTerms.map((term) => ({
-        slug: term.slug,
-        name: term.name,
-        definition: term.definition,
-        searchKeywords: term.searchKeywords || '',
-      })),
+      glossarySearchTerms,
       termsByLetter,
       alphabet,
-      totalTermCount: glossaryTerms.length,
+      totalTermCount,
     };
 
   }
