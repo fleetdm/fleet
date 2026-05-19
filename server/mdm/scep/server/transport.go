@@ -172,8 +172,8 @@ func decodeSCEPRequestWithIdentifier(_ context.Context, r *http.Request) (interf
 func rawQueryParam(rawQuery, key string) (value string, ok bool) {
 	for rawQuery != "" {
 		var part string
-		if i := strings.IndexByte(rawQuery, '&'); i >= 0 {
-			part, rawQuery = rawQuery[:i], rawQuery[i+1:]
+		if before, after, found := strings.Cut(rawQuery, "&"); found {
+			part, rawQuery = before, after
 		} else {
 			part, rawQuery = rawQuery, ""
 		}
