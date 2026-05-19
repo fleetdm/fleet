@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops` rejecting Android or Windows configuration profiles when editing an existing team, even when the corresponding MDM platform was configured.
