@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 )
 
@@ -27,7 +28,7 @@ func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now
 	return store.RecordBucketData(ctx, u.Name(), bucketStart, time.Hour, u.SampleStrategy(),
 		// The empty string key means "all entities" since uptime isn't tracked per host.
 		// The value is a bitmap of host IDs that were active in this bucket.
-		map[string][]byte{"": HostIDsToBlob(hostIDs)})
+		map[string]*roaring.Bitmap{"": NewBitmap(hostIDs)})
 }
 
 // CVEDataset implements api.Dataset for host CVE tracking.
@@ -50,9 +51,9 @@ func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now ti
 	if err != nil {
 		return err
 	}
-	bitmaps := make(map[string][]byte, len(hostIDsByCVE))
+	bitmaps := make(map[string]*roaring.Bitmap, len(hostIDsByCVE))
 	for cve, hostIDs := range hostIDsByCVE {
-		bitmaps[cve] = HostIDsToBlob(hostIDs)
+		bitmaps[cve] = NewBitmap(hostIDs)
 	}
 	bucketStart := now.UTC().Truncate(time.Hour)
 	// Always call RecordBucketData, even when bitmaps is empty: snapshot
