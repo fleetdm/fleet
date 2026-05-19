@@ -486,6 +486,26 @@ spec:
     name: macOS
 `),
 		},
+		{
+			"kind: fleet with team: key",
+			[]byte(`
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: macOS
+`),
+		},
+		{
+			"kind: team with fleet: key",
+			[]byte(`
+apiVersion: v1
+kind: team
+spec:
+  fleet:
+    name: macOS
+`),
+		},
 	}
 
 	for _, tt := range tests {
