@@ -24,7 +24,6 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
-import EditScriptModal from "../../components/EditScriptModal";
 import ScriptUploadModal from "../../components/ScriptUploadModal";
 import ScriptListHeading from "../../components/ScriptListHeading";
 import ScriptListItem from "../../components/ScriptListItem";
@@ -50,7 +49,6 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
   const isTechnician = isGlobalTechnician || isTeamTechnician;
 
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
-  const [showEditScriptModal, setShowEditScriptModal] = useState(false);
   const [showAddScriptModal, setShowAddScriptModal] = useState(false);
 
   const selectedScript = useRef<IScript | null>(null);
@@ -95,19 +93,16 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
   const { config } = useContext(AppContext);
   if (!config) return null;
 
+  const goToScriptDetails = (script: IScript) => {
+    router.push(PATHS.CONTROLS_SCRIPTS_LIBRARY_DETAILS(script.id));
+  };
+
   const onClickScript = (script: IScript) => {
-    selectedScript.current = script;
-    setShowEditScriptModal(true);
+    goToScriptDetails(script);
   };
 
   const onEditScript = (script: IScript) => {
-    selectedScript.current = script;
-    setShowEditScriptModal(true);
-  };
-
-  const onExitEditScript = () => {
-    selectedScript.current = null;
-    setShowEditScriptModal(false);
+    goToScriptDetails(script);
   };
 
   const onClickDelete = (script: IScript) => {
@@ -219,13 +214,6 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
           scriptId={selectedScript.current?.id}
           onCancel={onCancelDelete}
           afterDelete={onDeleteScript}
-        />
-      )}
-      {showEditScriptModal && selectedScript.current && (
-        <EditScriptModal
-          scriptId={selectedScript.current.id}
-          scriptName={selectedScript.current.name}
-          onExit={onExitEditScript}
         />
       )}
       {showAddScriptModal && (

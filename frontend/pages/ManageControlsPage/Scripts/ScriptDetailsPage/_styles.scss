@@ -1,0 +1,73 @@
+.script-details-page {
+  @include vertical-page-layout;
+
+  &__header-links {
+    display: flex;
+  }
+
+  &__summary-card {
+    @include vertical-card-layout;
+  }
+
+  &__summary {
+    display: flex;
+    gap: $pad-medium;
+  }
+
+  &__graphic {
+    flex-shrink: 0;
+    width: 96px;
+    height: 96px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__info {
+    flex-grow: 1;
+    align-self: center;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__title-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-medium;
+  }
+
+  &__title {
+    font-size: $pad-large;
+    font-weight: $bold;
+    margin: 0;
+    overflow: hidden;
+
+    .truncated-tooltip {
+      font-weight: $regular;
+    }
+  }
+
+  &__actions-dropdown {
+    width: 110px;
+    flex-shrink: 0;
+  }
+
+  &__description-list {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: $pad-large $pad-xxlarge;
+    margin: 0;
+  }
+
+  &__editor {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+}

@@ -239,7 +239,7 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getScript(id: number) {
+  getScript(id: number): Promise<IScriptResponse> {
     const { SCRIPT } = endpoints;
     return sendRequest("GET", SCRIPT(id));
   },

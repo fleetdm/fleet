@@ -24,6 +24,8 @@ export default {
   CONTROLS_RUN_SCRIPT: `${URL_PREFIX}/controls/setup-experience/run-script`,
   CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
   CONTROLS_SCRIPTS_LIBRARY: `${URL_PREFIX}/controls/scripts/library`,
+  CONTROLS_SCRIPTS_LIBRARY_DETAILS: (scriptId: number) =>
+    `${URL_PREFIX}/controls/scripts/library/${scriptId}`,
   CONTROLS_SCRIPTS_BATCH_PROGRESS: `${URL_PREFIX}/controls/scripts/progress`,
   CONTROLS_SCRIPTS_BATCH_DETAILS: (batchExecutionId: string) =>
     `${URL_PREFIX}/controls/scripts/progress/${batchExecutionId}`,
