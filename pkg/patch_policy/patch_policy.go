@@ -25,11 +25,15 @@ const (
 )
 
 var (
-	ErrWrongPlatform = errors.New("platform should be darwin or windows")
-	ErrNoExistsQuery = errors.New("exists query was not provided")
+	ErrWrongPlatform   = errors.New("platform should be darwin or windows")
+	ErrNoExistsQuery   = errors.New("exists query was not provided")
+	ErrNoWhereInExists = errors.New("exists query is missing a WHERE clause")
 )
 
-// GenerateQueryForManifest wraps the "exists" query to create a patch policy query
+// GenerateQueryForManifest wraps the "exists" query to create a patch policy query.
+// The WHERE body of the exists query is wrapped in parentheses so that any OR in
+// the body binds before the appended AND version_compare(...) clause (SQL operator
+// precedence: AND > OR).
 func GenerateQueryForManifest(p PolicyData) (string, error) {
 	if p.ExistsQuery == "" {
 		return "", ErrNoExistsQuery
@@ -39,11 +43,18 @@ func GenerateQueryForManifest(p PolicyData) (string, error) {
 	// so fmt.Sprintf doesn't interpret them as format verbs.
 	before = strings.ReplaceAll(before, "%", "%%")
 
+	const whereKeyword = " WHERE "
+	idx := strings.Index(before, whereKeyword)
+	if idx < 0 {
+		return "", ErrNoWhereInExists
+	}
+	wrapped := before[:idx+len(whereKeyword)] + "(" + before[idx+len(whereKeyword):] + ")"
+
 	switch p.Platform {
 	case "darwin":
-		return fmt.Sprintf(templateStart+before+templateEndDarwin, p.Version), nil
+		return fmt.Sprintf(templateStart+wrapped+templateEndDarwin, p.Version), nil
 	case "windows":
-		return fmt.Sprintf(templateStart+before+templateEndWindows, p.Version), nil
+		return fmt.Sprintf(templateStart+wrapped+templateEndWindows, p.Version), nil
 	}
 	return "", ErrWrongPlatform
 }
