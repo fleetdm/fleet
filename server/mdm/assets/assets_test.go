@@ -72,7 +72,8 @@ func TestCAKeyPair(t *testing.T) {
 	}
 
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		require.ElementsMatch(t, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, assetNames)
 		return assets, nil
 	}
@@ -95,11 +96,12 @@ func TestAPNSKeyPair(t *testing.T) {
 		fleet.MDMAssetAPNSKey:  {Value: keyPEM},
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		require.ElementsMatch(t, []fleet.MDMAssetName{fleet.MDMAssetAPNSCert, fleet.MDMAssetAPNSKey}, assetNames)
 		return assets, nil
 	}
-	cert, err := APNSKeyPair(ctx, ds)
+	cert, _, err := APNSKeyPair(ctx, ds)
 	require.NoError(t, err)
 	require.NotNil(t, cert)
 	require.True(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked)
@@ -116,7 +118,8 @@ func TestX509Cert(t *testing.T) {
 		fleet.MDMAssetAPNSCert: {Value: certPEM},
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		require.ElementsMatch(t, []fleet.MDMAssetName{fleet.MDMAssetAPNSCert}, assetNames)
 		return assets, nil
 	}
@@ -138,7 +141,8 @@ func TestAPNSTopic(t *testing.T) {
 		fleet.MDMAssetAPNSCert: {Value: certPEM},
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		require.ElementsMatch(t, []fleet.MDMAssetName{fleet.MDMAssetAPNSCert}, assetNames)
 		return assets, nil
 	}
@@ -195,7 +199,8 @@ func TestABMToken(t *testing.T) {
 		fleet.MDMAssetABMKey:  {Value: keyPEM},
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		require.ElementsMatch(t, []fleet.MDMAssetName{
 			fleet.MDMAssetABMCert,
 			fleet.MDMAssetABMKey,

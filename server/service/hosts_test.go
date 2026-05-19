@@ -25,7 +25,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -1465,7 +1465,7 @@ func TestGetHostSummary(t *testing.T) {
 }
 
 func TestDeleteHost(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	defer ds.Close()
 
 	opts := &TestServerOpts{}
@@ -1531,9 +1531,9 @@ func TestDeleteHost(t *testing.T) {
 }
 
 func TestDeleteHostCreatesActivity(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	defer ds.Close()
-	activitySvc := mysql.NewTestActivityService(t, ds)
+	activitySvc := mysqltest.NewTestActivityService(t, ds)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 	svc.SetActivityService(activitySvc)
@@ -1557,14 +1557,14 @@ func TestDeleteHostCreatesActivity(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get activities before deletion
-	prevActivities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
+	prevActivities := mysqltest.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 
 	// Delete the host
 	err = svc.DeleteHost(test.UserContext(ctx, user), host.ID)
 	require.NoError(t, err)
 
 	// Verify the activity was created
-	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
+	activities := mysqltest.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
 		OrderKey:       "id",
 		OrderDirection: activity_api.OrderDescending,
 		PerPage:        1,
@@ -1587,9 +1587,9 @@ func TestDeleteHostCreatesActivity(t *testing.T) {
 }
 
 func TestDeleteHostsCreatesActivities(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	defer ds.Close()
-	activitySvc := mysql.NewTestActivityService(t, ds)
+	activitySvc := mysqltest.NewTestActivityService(t, ds)
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 	svc.SetActivityService(activitySvc)
@@ -1621,14 +1621,14 @@ func TestDeleteHostsCreatesActivities(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get activities before deletion
-	prevActivities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
+	prevActivities := mysqltest.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 
 	// Delete the hosts
 	err = svc.DeleteHosts(test.UserContext(ctx, user), []uint{host1.ID, host2.ID}, nil)
 	require.NoError(t, err)
 
 	// Verify activities were created
-	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
+	activities := mysqltest.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
 		OrderKey:       "id",
 		OrderDirection: activity_api.OrderDescending,
 		PerPage:        10,
@@ -1656,9 +1656,9 @@ func TestDeleteHostsCreatesActivities(t *testing.T) {
 }
 
 func TestCleanupExpiredHostsActivities(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	defer ds.Close()
-	activitySvc := mysql.NewTestActivityService(t, ds)
+	activitySvc := mysqltest.NewTestActivityService(t, ds)
 
 	opts := &TestServerOpts{}
 	svc, ctx := newTestService(t, ds, nil, nil, opts)
@@ -1753,7 +1753,7 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get activities before cleanup
-	prevActivities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
+	prevActivities := mysqltest.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
 
 	// Run the cleanup service method
 	deletedHosts, err := svc.CleanupExpiredHosts(ctx)
@@ -1761,7 +1761,7 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 	require.Len(t, deletedHosts, 5, "Should have deleted 5 hosts")
 
 	// Verify activities were created
-	activities := mysql.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
+	activities := mysqltest.ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{
 		OrderKey:       "id",
 		OrderDirection: activity_api.OrderDescending,
 		PerPage:        20,

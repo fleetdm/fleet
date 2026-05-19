@@ -224,6 +224,7 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			CategoryIDs:     payload.CategoryIDs,
 			Version:         payload.Version,
 			SelfService:     payload.SelfService,
+			Configuration:   payload.Configuration,
 		})
 		if err != nil {
 			return 0, 0, ctxerr.Wrap(ctx, err, "insert in house app")
@@ -2114,9 +2115,11 @@ WHERE
   team_id = ?
 `
 
-	const deleteAllPatchPolicies = `
-DELETE FROM
+	const unsetAllPatchPolicies = `
+UPDATE
 	policies
+SET
+	patch_software_title_id = NULL
 WHERE
 	team_id = ? AND
 	type = 'patch'
@@ -2266,9 +2269,11 @@ WHERE
   )
 `
 
-	const deletePatchPoliciesWithInstallersNotInList = `
-DELETE FROM
+	const unsetPatchPoliciesWithInstallersNotInList = `
+UPDATE
 	policies
+SET
+	patch_software_title_id = NULL
 WHERE
 	team_id = ? AND
 	patch_software_title_id NOT IN (?)
@@ -2511,8 +2516,8 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
 
-			if _, err := tx.ExecContext(ctx, deleteAllPatchPolicies, globalOrTeamID); err != nil {
-				return ctxerr.Wrap(ctx, err, "delete all obsolete patch policies")
+			if _, err := tx.ExecContext(ctx, unsetAllPatchPolicies, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "unset all obsolete patch policies")
 			}
 
 			if _, err := tx.ExecContext(ctx, deleteAllPendingUninstallScriptExecutions, globalOrTeamID); err != nil {
@@ -2615,12 +2620,12 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
 		}
 
-		stmt, args, err = sqlx.In(deletePatchPoliciesWithInstallersNotInList, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(unsetPatchPoliciesWithInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete patch policies")
+			return ctxerr.Wrap(ctx, err, "build statement to unset obsolete patch policies")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete patch policies")
+			return ctxerr.Wrap(ctx, err, "unset obsolete patch policies")
 		}
 
 		// check if any in the list are install_during_setup, fail if there is one

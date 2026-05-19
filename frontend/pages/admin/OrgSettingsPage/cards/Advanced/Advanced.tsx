@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
+import { HistoricalDataConfigKey } from "interfaces/charts";
 
 import validUrl from "components/forms/validators/valid_url";
 import Button from "components/buttons/Button";
+import ConfirmDataCollectionDisableModal from "components/ConfirmDataCollectionDisableModal";
 import { IConfig } from "interfaces/config";
 import { isPremiumTier } from "utilities/permissions/permissions";
 
@@ -29,6 +31,8 @@ interface IAdvancedConfigFormData {
   disableQueryReports: boolean;
   requireHardwareAttestation: boolean;
   preserveHostActivitiesOnReenrollment: boolean;
+  disableHostsActive: boolean;
+  disableVulnerabilities: boolean;
 }
 
 interface IAdvancedConfigFormErrors {
@@ -126,9 +130,14 @@ const Advanced = ({
     preserveHostActivitiesOnReenrollment:
       appConfig.activity_expiry_settings
         .preserve_host_activities_on_reenrollment || false,
+    disableHostsActive: !(appConfig.features?.historical_data?.uptime ?? true),
+    disableVulnerabilities: !(
+      appConfig.features?.historical_data?.vulnerabilities ?? true
+    ),
   });
 
   const [formErrors, setFormErrors] = useState<IAdvancedConfigFormErrors>({});
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
 
   const onInputChange: AdvancedInputChangeFn = ({
     name,
@@ -152,17 +161,23 @@ const Advanced = ({
     setFormErrors(validateFormData(formData));
   };
 
-  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-
-    const errs = validateFormData(formData);
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
+  const datasetsBeingDisabled = useMemo<HistoricalDataConfigKey[]>(() => {
+    const list: HistoricalDataConfigKey[] = [];
+    const original = appConfig.features?.historical_data;
+    if ((original?.uptime ?? true) && formData.disableHostsActive) {
+      list.push("uptime");
     }
+    if (
+      (original?.vulnerabilities ?? true) &&
+      formData.disableVulnerabilities
+    ) {
+      list.push("vulnerabilities");
+    }
+    return list;
+  }, [appConfig, formData.disableHostsActive, formData.disableVulnerabilities]);
 
-    // Formatting of API not UI
-    const formDataToSubmit = {
+  const performSave = async () => {
+    const payload = {
       server_settings: {
         live_reporting_disabled: formData.disableLiveQuery,
         discard_reports_data: formData.disableQueryReports,
@@ -193,42 +208,83 @@ const Advanced = ({
       sso_settings: {
         sso_server_url: formData.ssoUserURL,
       },
+      features: {
+        historical_data: {
+          uptime: !formData.disableHostsActive,
+          vulnerabilities: !formData.disableVulnerabilities,
+        },
+      },
     };
+    try {
+      const ok = await handleSubmit(payload);
+      if (ok) {
+        setConfirmModalOpen(false);
+      }
+    } catch {
+      // Parent surfaces errors via flash; swallow here so the modal stays
+      // open for retry without an unhandled promise rejection.
+    }
+  };
 
-    handleSubmit(formDataToSubmit);
+  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+
+    const errs = validateFormData(formData);
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      return;
+    }
+
+    if (datasetsBeingDisabled.length > 0) {
+      setConfirmModalOpen(true);
+      return;
+    }
+
+    performSave();
   };
 
   const isPremiumLicense = isPremiumTier(appConfig);
 
   return (
-    <form onSubmit={onFormSubmit} autoComplete="off">
-      <HostLifecycleSection
-        onInputChange={onInputChange}
-        formData={formData}
-        formErrors={formErrors}
-        isPremiumTier={isPremiumLicense}
-      />
-      <ActivityDataRetentionSection
-        formData={formData}
-        onInputChange={onInputChange}
-      />
-      <FeaturesSection formData={formData} onInputChange={onInputChange} />
-      <ServerAuthenticationSection
-        formData={formData}
-        onInputChange={onInputChange}
-        onInputBlur={onInputBlur}
-        formErrors={formErrors}
-        appConfig={appConfig}
-      />
-      <Button
-        type="submit"
-        disabled={Object.keys(formErrors).length > 0}
-        className="save-loading button-wrap"
-        isLoading={isUpdatingSettings}
-      >
-        Save
-      </Button>
-    </form>
+    <div>
+      <form onSubmit={onFormSubmit} autoComplete="off">
+        <HostLifecycleSection
+          onInputChange={onInputChange}
+          formData={formData}
+          formErrors={formErrors}
+          isPremiumTier={isPremiumLicense}
+        />
+        <ActivityDataRetentionSection
+          formData={formData}
+          onInputChange={onInputChange}
+        />
+        <FeaturesSection formData={formData} onInputChange={onInputChange} />
+        <ServerAuthenticationSection
+          formData={formData}
+          onInputChange={onInputChange}
+          onInputBlur={onInputBlur}
+          formErrors={formErrors}
+          appConfig={appConfig}
+        />
+        <Button
+          type="submit"
+          disabled={Object.keys(formErrors).length > 0}
+          className="save-loading button-wrap"
+          isLoading={isUpdatingSettings}
+        >
+          Save
+        </Button>
+      </form>
+      {confirmModalOpen && (
+        <ConfirmDataCollectionDisableModal
+          scope="global"
+          datasets={datasetsBeingDisabled}
+          isUpdating={isUpdatingSettings}
+          onConfirm={performSave}
+          onCancel={() => setConfirmModalOpen(false)}
+        />
+      )}
+    </div>
   );
 };
 

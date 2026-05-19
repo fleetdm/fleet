@@ -8,10 +8,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +40,7 @@ func (s *BaseSuite) GetTestAdminToken(t *testing.T) string {
 }
 
 func (s *BaseSuite) GetTestToken(t *testing.T, email string, password string) string {
-	return service.GetToken(t, email, password, s.Server.URL)
+	return svctest.GetToken(t, email, password, s.Server.URL)
 }
 
 func SetUpServerURL(t *testing.T, ds *mysql.Datastore, server *httptest.Server) {
@@ -54,7 +56,7 @@ func SetUpMySQLAndService(t *testing.T, uniqueTestName string, opts ...*service.
 	config.FleetConfig,
 	fleet.Service, context.Context,
 ) {
-	ds := mysql.CreateMySQLDSWithOptions(t, &testing_utils.DatastoreTestOptions{
+	ds := mysqltest.CreateMySQLDSWithOptions(t, &testing_utils.DatastoreTestOptions{
 		UniqueTestName: uniqueTestName,
 	})
 	test.AddAllHostsLabel(t, ds)
@@ -68,7 +70,7 @@ func SetUpMySQLAndService(t *testing.T, uniqueTestName string, opts ...*service.
 	require.NoError(t, err)
 
 	fleetCfg := config.TestConfig()
-	fleetSvc, ctx := service.NewTestService(t, ds, fleetCfg, opts...)
+	fleetSvc, ctx := svctest.NewTestService(t, ds, fleetCfg, opts...)
 	return ds, fleetCfg, fleetSvc, ctx
 }
 

@@ -30,6 +30,8 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
+import SettingsSection from "pages/admin/components/SettingsSection";
+
 import SectionCard from "../MdmSettings/components/SectionCard";
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
@@ -296,7 +298,11 @@ const ConditionalAccess = () => {
   }, [entraTenantId, entraConfigured, entraPhase]);
 
   if (!isPremiumTier) {
-    return <PremiumFeatureMessage />;
+    return (
+      <SettingsSection title="Conditional access">
+        <PremiumFeatureMessage />
+      </SettingsSection>
+    );
   }
 
   // HANDLERS

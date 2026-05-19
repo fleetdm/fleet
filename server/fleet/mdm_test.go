@@ -558,6 +558,29 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 	}
 }
 
+// TestMDMProfileSpecsMatchPanicsOnDuplicatePaths pins the precondition
+// documented on MDMProfileSpecsMatch: duplicate Paths within a slice are a
+// programming-bug indicator (upstream validation in client.go and mdm.go
+// rejects them before they reach storage), so the function panics rather
+// than silently miscomparing. See issue #45485.
+func TestMDMProfileSpecsMatchPanicsOnDuplicatePaths(t *testing.T) {
+	dup := []fleet.MDMProfileSpec{{Path: "/a"}, {Path: "/a"}}
+	clean := []fleet.MDMProfileSpec{{Path: "/a"}, {Path: "/b"}}
+
+	t.Run("duplicates in a", func(t *testing.T) {
+		require.PanicsWithValue(t,
+			`MDMProfileSpecsMatch: a contains duplicate Path "/a"; upstream validation should have rejected this`,
+			func() { fleet.MDMProfileSpecsMatch(dup, clean) },
+		)
+	})
+	t.Run("duplicates in b", func(t *testing.T) {
+		require.PanicsWithValue(t,
+			`MDMProfileSpecsMatch: b contains duplicate Path "/a"; upstream validation should have rejected this`,
+			func() { fleet.MDMProfileSpecsMatch(clean, dup) },
+		)
+	})
+}
+
 func TestHasCAVariables(t *testing.T) {
 	tests := []struct {
 		name     string

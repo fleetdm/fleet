@@ -345,15 +345,17 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type mdmAgent struct {
-	agentIndex            int
-	MDMCheckInInterval    time.Duration
-	model                 string
-	serverAddress         string
-	softwareCount         softwareEntityCount
-	stats                 *osquery_perf.Stats
-	strings               map[string]string
-	softwareVersionMap    map[rune]int // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
-	mdmProfileFailureProb float64
+	agentIndex                 int
+	MDMCheckInInterval         time.Duration
+	model                      string
+	serverAddress              string
+	softwareCount              softwareEntityCount
+	stats                      *osquery_perf.Stats
+	strings                    map[string]string
+	softwareVersionMap         map[rune]int // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
+	mdmProfileFailureProb      float64
+	osVersion                  string
+	supplementalOSVersionExtra string
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -2681,6 +2683,21 @@ func (a *agent) diskEncryption() []map[string]string {
 	return []map[string]string{}
 }
 
+func (a *agent) diskEncryptionWindows() []map[string]string {
+	// 50% of results have encryption enabled
+	a.DiskEncryptionEnabled = rand.Intn(2) == 1
+	if a.DiskEncryptionEnabled {
+		return []map[string]string{{
+			"protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOn),
+			"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted),
+		}}
+	}
+	return []map[string]string{{
+		"protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff),
+		"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyDecrypted),
+	}}
+}
+
 func (a *agent) diskEncryptionLinux() []map[string]string {
 	// 50% of results have encryption enabled
 	a.DiskEncryptionEnabled = rand.Intn(2) == 1
@@ -3334,11 +3351,16 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			results = a.diskEncryptionLinux()
 		}
 		return true, results, &ss, nil, nil
-	case name == hostDetailQueryPrefix+"disk_encryption_darwin" ||
-		name == hostDetailQueryPrefix+"disk_encryption_windows":
+	case name == hostDetailQueryPrefix+"disk_encryption_darwin":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryption()
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"disk_encryption_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.diskEncryptionWindows()
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"kubequery_info" && a.os != "kubequery":
@@ -3576,8 +3598,8 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			a.stats.IncrementMDMCommandsReceived()
 			switch mdmCommandPayload.Command.RequestType {
 			case "DeviceInformation":
-				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformation(udid, mdmCommandPayload.CommandUUID, deviceName,
-					productName, "America/Los_Angeles")
+				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithExtra(udid, mdmCommandPayload.CommandUUID, deviceName,
+					productName, "America/Los_Angeles", a.osVersion, a.supplementalOSVersionExtra)
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
 				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
@@ -3659,6 +3681,7 @@ func main() {
 		"rhel_10.tmpl":              true,
 		"iphone_14.6.tmpl":          true,
 		"ipad_13.18.tmpl":           true,
+		"iphone_17.tmpl":            true,
 	}
 	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
 	for k := range validTemplateNames {
@@ -3882,16 +3905,26 @@ func main() {
 			tmpl = tmplss[i%len(tmplss)]
 		}
 
-		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" {
+		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" || tmpl.Name() == "iphone_17.tmpl" {
 			model := "iPhone 14,6"
-			if tmpl.Name() == "ipad_13.18.tmpl" {
+			var osVersion, supplementalOSVersionExtra string
+			// iphone_17 simulates a device with a Rapid Security Response (RSR) installed,
+			// which adds a SupplementalOSVersionExtra suffix to the OS version (e.g. "26.3.1 (a)").
+			switch tmpl.Name() {
+			case "ipad_13.18.tmpl":
 				model = "iPad 13,18"
+			case "iphone_17.tmpl":
+				model = "iPhone 17"
+				osVersion = "26.3.1"
+				supplementalOSVersionExtra = "(a)"
 			}
 			mobileDevice := mdmAgent{
-				agentIndex:         i + 1,
-				MDMCheckInInterval: *mdmCheckInInterval,
-				model:              model,
-				serverAddress:      *serverURL,
+				agentIndex:                 i + 1,
+				MDMCheckInInterval:         *mdmCheckInInterval,
+				model:                      model,
+				serverAddress:              *serverURL,
+				osVersion:                  osVersion,
+				supplementalOSVersionExtra: supplementalOSVersionExtra,
 				softwareCount: softwareEntityCount{
 					entityCount: entityCount{
 						common: *commonSoftwareCount,

@@ -1,0 +1,1 @@
+- Fixed issue where GitOps would incorrectly reject keys in Google Calendar API key JSON

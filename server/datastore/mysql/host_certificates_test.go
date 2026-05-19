@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1" // nolint:gosec // test-only unique sha1 generator
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -29,6 +30,7 @@ func TestHostCertificates(t *testing.T) {
 	}{
 		{"UpdateAndList", testUpdateAndListHostCertificates},
 		{"Update with host_mdm_managed_certificates to update", testUpdatingHostMDMManagedCertificates},
+		{"Matcher recovers stuck hmmc rows", testMatcherRecoversStuckHMMCRows},
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
 		{"Truncate long certificate fields", testTruncateLongCertificateFields},
@@ -372,6 +374,278 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	require.NotNil(t, profile.NotValidAfter)
 	assert.Equal(t, expected1.NotAfter, *profile.NotValidAfter)
 	assert.Equal(t, "custom-ca", profile.CAName)
+}
+
+// checksumForTest returns a 16-byte value suitable for the BINARY(16) checksum
+// column on host_mdm_*_profiles tables. Truncates a sha1 hash of the input.
+func checksumForTest(s string) []byte {
+	sum := sha1.Sum([]byte(s)) // nolint:gosec // test-only checksum, not security-sensitive
+	return sum[:16]
+}
+
+func testMatcherRecoversStuckHMMCRows(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("matcher-osquery-id"),
+		NodeKey:         ptr.String("matcher-node-key"),
+		UUID:            "matcher-host-uuid",
+		Hostname:        "matcher-host",
+	})
+	require.NoError(t, err)
+
+	renewalCertTemplate := func(profileUUID, suffix string, notBefore, notAfter time.Time, serial int64) *x509.Certificate {
+		return &x509.Certificate{
+			Subject: pkix.Name{
+				CommonName:   "ABC123 WIFI fleet-" + profileUUID + suffix,
+				Organization: []string{"Org"},
+			},
+			Issuer: pkix.Name{
+				CommonName:   "issuer.test.example.com",
+				Organization: []string{"Issuer"},
+			},
+			SerialNumber:          big.NewInt(serial),
+			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             notBefore,
+			NotAfter:              notAfter,
+			BasicConstraintsValid: true,
+		}
+	}
+	unrelatedCertTemplate := func(name string, notAfter time.Duration, serial int64) *x509.Certificate {
+		return &x509.Certificate{
+			Subject:               pkix.Name{CommonName: name, Organization: []string{"Org"}},
+			Issuer:                pkix.Name{CommonName: "issuer.test.example.com", Organization: []string{"Issuer"}},
+			SerialNumber:          big.NewInt(serial),
+			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(notAfter).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+	}
+
+	backdateHMMC := func(t *testing.T, profileUUID string, ago time.Duration) {
+		t.Helper()
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_mdm_managed_certificates
+			SET updated_at = DATE_SUB(NOW(), INTERVAL ? SECOND)
+			WHERE host_uuid = ? AND profile_uuid = ?
+		`, int(ago.Seconds()), host.UUID, profileUUID)
+		require.NoError(t, err)
+	}
+
+	getApple := func(t *testing.T, profileUUID, caName string) *fleet.HostMDMCertificateProfile {
+		t.Helper()
+		profile, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, profileUUID, caName)
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+		return profile
+	}
+
+	type seedOpts struct {
+		profileUUID string
+		certType    fleet.CAConfigAssetType
+		caName      string
+		// Zero means hmmc is created with NULL validity columns.
+		populatedNotBefore time.Time
+		populatedNotAfter  time.Time
+		populatedSerial    string
+	}
+
+	seedAppleProfile := func(t *testing.T, opts seedOpts, status fleet.MDMDeliveryStatus) {
+		t.Helper()
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:   opts.profileUUID,
+			HostUUID:      host.UUID,
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+			CommandUUID:   "cmd-" + opts.profileUUID,
+			Checksum:      checksumForTest(opts.profileUUID),
+			Scope:         fleet.PayloadScopeSystem,
+		}}))
+		hmmc := &fleet.MDMManagedCertificate{
+			HostUUID:    host.UUID,
+			ProfileUUID: opts.profileUUID,
+			Type:        opts.certType,
+			CAName:      opts.caName,
+		}
+		if !opts.populatedNotAfter.IsZero() {
+			hmmc.NotValidBefore = &opts.populatedNotBefore
+			hmmc.NotValidAfter = &opts.populatedNotAfter
+			hmmc.Serial = ptr.String(opts.populatedSerial)
+		}
+		require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{hmmc}))
+	}
+
+	// Returns the generated records so callers re-pass them through triggerMatcher.
+	// generateTestHostCertificateRecord produces a fresh SHA1 each call, so a
+	// re-generation from the same template would land in toInsert.
+	seedHostCertificates := func(t *testing.T, certs []*x509.Certificate) []*fleet.HostCertificateRecord {
+		t.Helper()
+		payload := make([]*fleet.HostCertificateRecord, 0, len(certs))
+		for _, c := range certs {
+			payload = append(payload, generateTestHostCertificateRecord(t, host.ID, c))
+		}
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload))
+		return payload
+	}
+
+	// Adds an unrelated cert to populate toInsert (the matcher's gate).
+	triggerMatcher := func(t *testing.T, existingRecs []*fleet.HostCertificateRecord, unrelatedSerial int64) {
+		t.Helper()
+		payload := make([]*fleet.HostCertificateRecord, 0, len(existingRecs)+1)
+		payload = append(payload, existingRecs...)
+		unrelated := unrelatedCertTemplate(fmt.Sprintf("unrelated-%d", unrelatedSerial), 24*time.Hour, unrelatedSerial)
+		payload = append(payload, generateTestHostCertificateRecord(t, host.ID, unrelated))
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload))
+	}
+
+	t.Run("MissedIngestRecovered", func(t *testing.T) {
+		profileUUID := "missed-ingest"
+		freshCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4001)
+		recs := seedHostCertificates(t, []*x509.Certificate{freshCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-missed"}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		triggerMatcher(t, recs, 4002)
+
+		got := getApple(t, profileUUID, "ca-missed")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, freshCert.NotAfter.Equal(*got.NotValidAfter), "stuck hmmc should have been backfilled with the renewal cert's not_valid_after")
+		require.NotNil(t, got.Serial)
+		assert.Equal(t, fmt.Sprintf("%040s", freshCert.SerialNumber.Text(16)), *got.Serial)
+	})
+
+	t.Run("GraceBoundary", func(t *testing.T) {
+		profileUUID := "grace-boundary"
+		freshCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4101)
+		recs := seedHostCertificates(t, []*x509.Certificate{freshCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-grace"}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, profileUUID, 3*time.Hour) // within grace
+
+		triggerMatcher(t, recs, 4102)
+
+		got := getApple(t, profileUUID, "ca-grace")
+		assert.Nil(t, got.NotValidAfter, "row updated within grace must NOT be touched")
+	})
+
+	t.Run("DigiCertNotClobbered", func(t *testing.T) {
+		profileUUID := "digicert-row"
+		seededNotBefore := time.Now().Add(-2 * time.Hour).Truncate(time.Second).UTC()
+		seededNotAfter := time.Now().Add(48 * time.Hour).Truncate(time.Second).UTC()
+		seededSerial := fmt.Sprintf("%040s", "deadbeef")
+		conflicting := renewalCertTemplate(profileUUID, "", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4201)
+		recs := seedHostCertificates(t, []*x509.Certificate{conflicting})
+		seedAppleProfile(t, seedOpts{
+			profileUUID:        profileUUID,
+			certType:           fleet.CAConfigDigiCert,
+			caName:             "ca-digicert",
+			populatedNotBefore: seededNotBefore,
+			populatedNotAfter:  seededNotAfter,
+			populatedSerial:    seededSerial,
+		}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		triggerMatcher(t, recs, 4202)
+
+		got := getApple(t, profileUUID, "ca-digicert")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, seededNotAfter.Equal(*got.NotValidAfter), "DigiCert row must NOT be touched by matcher")
+		require.NotNil(t, got.Serial)
+		assert.Equal(t, seededSerial, *got.Serial)
+	})
+
+	t.Run("PendingProfileSkipped", func(t *testing.T) {
+		profileUUID := "pending-profile"
+		freshCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4301)
+		recs := seedHostCertificates(t, []*x509.Certificate{freshCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-pending"}, fleet.MDMDeliveryPending)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		triggerMatcher(t, recs, 4302)
+
+		got := getApple(t, profileUUID, "ca-pending")
+		assert.Nil(t, got.NotValidAfter, "in-flight (pending) profile must NOT be backfilled, even when stuck")
+	})
+
+	t.Run("FailedProfileSkipped", func(t *testing.T) {
+		// SCEP delivery failure is terminal across the platform (admin must
+		// resend). Recovering here from the OLD cert in inventory would
+		// re-arm the renewal cron into a push loop. See design §8.
+		profileUUID := "failed-profile"
+		oldCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-30*24*time.Hour).Truncate(time.Second).UTC(), time.Now().Add(60*24*time.Hour).Truncate(time.Second).UTC(), 4351)
+		recs := seedHostCertificates(t, []*x509.Certificate{oldCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-failed"}, fleet.MDMDeliveryFailed)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		triggerMatcher(t, recs, 4352)
+
+		got := getApple(t, profileUUID, "ca-failed")
+		assert.Nil(t, got.NotValidAfter, "failed (terminal) profile must NOT be backfilled, even when stuck")
+	})
+
+	t.Run("TieBreaker", func(t *testing.T) {
+		profileUUID := "tie-breaker"
+		olderCert := renewalCertTemplate(profileUUID, "-old", time.Now().Add(-48*time.Hour).Truncate(time.Second).UTC(), time.Now().Add(180*24*time.Hour).Truncate(time.Second).UTC(), 4401)
+		newerCert := renewalCertTemplate(profileUUID, "-new", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4402)
+		// older first so result isn't iteration-order-dependent
+		recs := seedHostCertificates(t, []*x509.Certificate{olderCert, newerCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-tb"}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		triggerMatcher(t, recs, 4403)
+
+		got := getApple(t, profileUUID, "ca-tb")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, newerCert.NotAfter.Equal(*got.NotValidAfter), "matcher should pick the cert with latest not_valid_before")
+	})
+
+	t.Run("StableCertListRecovers", func(t *testing.T) {
+		// Reviewer requirement: recovery must fire even when the host's cert
+		// inventory hasn't changed this call (toInsert empty).
+		profileUUID := "stable-list"
+		freshCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4601)
+		recs := seedHostCertificates(t, []*x509.Certificate{freshCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-stable"}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		// Re-pass the same records — toInsert will be empty, but recovery still runs.
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, recs))
+
+		got := getApple(t, profileUUID, "ca-stable")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, freshCert.NotAfter.Equal(*got.NotValidAfter), "stuck row must recover even when toInsert is empty")
+	})
+
+	t.Run("MonotonicForward", func(t *testing.T) {
+		profileUUID := "monotonic-forward"
+		freshNotBefore := time.Now().Add(-time.Hour).Truncate(time.Second).UTC()
+		freshNotAfter := time.Now().Add(400 * 24 * time.Hour).Truncate(time.Second).UTC()
+		seedAppleProfile(t, seedOpts{
+			profileUUID:        profileUUID,
+			certType:           fleet.CAConfigCustomSCEPProxy,
+			caName:             "ca-mono",
+			populatedNotBefore: freshNotBefore,
+			populatedNotAfter:  freshNotAfter,
+			populatedSerial:    fmt.Sprintf("%040s", "fresh"),
+		}, fleet.MDMDeliveryVerified)
+		// older cert lands in toInsert; monotonic-forward must reject it.
+		olderCert := renewalCertTemplate(profileUUID, "-old", time.Now().Add(-48*time.Hour).Truncate(time.Second).UTC(), time.Now().Add(48*time.Hour).Truncate(time.Second).UTC(), 4501)
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{
+			generateTestHostCertificateRecord(t, host.ID, olderCert),
+		}))
+
+		got := getApple(t, profileUUID, "ca-mono")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, freshNotAfter.Equal(*got.NotValidAfter), "monotonic-forward must prevent regression")
+	})
 }
 
 func generateTestHostCertificateRecord(t *testing.T, hostID uint, template *x509.Certificate) *fleet.HostCertificateRecord {

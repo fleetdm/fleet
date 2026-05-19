@@ -676,6 +676,11 @@ export default {
     return sendRequest("GET", HOST_MANAGED_ACCOUNT_PASSWORD(id));
   },
 
+  rotateManagedLocalAccountPassword: (id: number): Promise<void> => {
+    const { HOST_MANAGED_LOCAL_ACCOUNT_ROTATE } = endpoints;
+    return sendRequest("POST", HOST_MANAGED_LOCAL_ACCOUNT_ROTATE(id));
+  },
+
   lockHost: (id: number) => {
     const { HOST_LOCK } = endpoints;
     return sendRequest("POST", HOST_LOCK(id));

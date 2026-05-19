@@ -1,0 +1,36 @@
+// Similar to AddPolicyModal
+.select-report-modal {
+  max-height: 90%;
+  overflow: hidden;
+
+  .modal__content-wrapper {
+    max-height: 95%;
+  }
+
+  .modal__content {
+    @include vertical-modal-layout;
+
+    height: 100%;
+  }
+
+  &__report-selection {
+    overflow-y: auto;
+    .children-wrapper {
+      width: 680px;
+    }
+  }
+
+  .info {
+    &__header,
+    &__data {
+      display: block;
+      color: $core-fleet-black;
+      font-size: $x-small;
+      text-align: center;
+    }
+
+    &__header {
+      font-weight: $bold;
+    }
+  }
+}

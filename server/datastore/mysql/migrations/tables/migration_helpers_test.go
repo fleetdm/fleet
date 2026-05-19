@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"io"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var progressLineRE = regexp.MustCompile(`^    (\d+% complete|Almost done\.\.\.)$`)
 
 func TestBasicMigrationStep(t *testing.T) {
 	db, mock, err := sqlmock.New()
@@ -176,8 +179,15 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		err = step(tx)
 		require.NoError(t, err)
 
-		// Verify progress output was written (includes 100% complete at the end)
-		assert.Len(t, strings.Split(strings.Trim(buf.String(), "\n"), "\n"), 6)
+		// The exact number of ticker fires is timing-dependent, so assert structure:
+		// the final line is "100% complete" and every preceding line is a valid
+		// progress line.
+		lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+		require.NotEmpty(t, lines)
+		assert.Equal(t, "    100% complete", lines[len(lines)-1])
+		for _, line := range lines[:len(lines)-1] {
+			assert.Regexp(t, progressLineRE, line)
+		}
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -217,7 +227,20 @@ func TestIncrementalMigrationStep(t *testing.T) {
 		err = step(tx)
 		require.NoError(t, err)
 		assert.Equal(t, 50, incrementCount)
-		require.Equal(t, "    Almost done...\n    100% complete\n", buf.String())
+
+		// The 50 increments execute in microseconds (no sleeps in the loop) while
+		// the ticker waits at least 20ms before its first fire, so any tick
+		// observed by the goroutine sees atomicCurrent == total and emits
+		// "Almost done...". Multiple ticks are possible during the 30ms sleep
+		// depending on scheduling; the exact count is timing-dependent. Assert
+		// structure: final line is "100% complete" and any preceding lines are
+		// "Almost done...".
+		lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+		require.NotEmpty(t, lines)
+		assert.Equal(t, "    100% complete", lines[len(lines)-1])
+		for _, line := range lines[:len(lines)-1] {
+			assert.Equal(t, "    Almost done...", line)
+		}
 
 		require.NoError(t, mock.ExpectationsWereMet())
 	})

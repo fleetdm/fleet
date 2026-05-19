@@ -1,0 +1,1 @@
+* Fixed a bug where `enable_host_users` defaulted to `false` on a fresh Fleet install instead of the documented default `true`, causing the host details page to show "User collection has been disabled."

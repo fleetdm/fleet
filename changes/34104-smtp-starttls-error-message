@@ -1,0 +1,1 @@
+- Replaced the cryptic "startTLS error: ..." flash with a prescriptive message when saving SMTP settings fails because SSL/TLS is disabled but STARTTLS is still enabled, and added a tooltip on the SSL/TLS checkbox pointing to the STARTTLS toggle in Advanced options.

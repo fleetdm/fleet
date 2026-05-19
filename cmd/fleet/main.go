@@ -71,7 +71,10 @@ func main() {
 }
 
 // initFatal prints an error message and exits with a non-zero status.
-func initFatal(err error, message string) {
+//
+// It is declared as a var so tests can override the behavior without
+// terminating the test binary via os.Exit.
+var initFatal = func(err error, message string) {
 	fmt.Printf("Failed to start: %s: %v\n", message, err)
 	os.Exit(1)
 }

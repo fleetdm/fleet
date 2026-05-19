@@ -6,8 +6,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// SeedFleet populates Fleet with a baseline set of standard saved queries.
-// Run this once against a fresh Fleet instance to bootstrap common queries.
+// SeedFleet populates Fleet with a baseline set of standard saved reports (formerly "queries").
+// Run this once against a fresh Fleet instance to bootstrap common reports.
 // Invoke via the -seed flag on the fleet-mcp binary; the caller supplies the
 // already-loaded Config and FleetClient so this function does not duplicate
 // environment loading or client construction.

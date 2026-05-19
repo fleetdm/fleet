@@ -26,7 +26,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
@@ -1189,20 +1189,35 @@ func (c *TestAppleMDMClient) NotNow(cmdUUID string) (*mdm.Command, error) {
 }
 
 func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceName, productName, timeZone string) (*mdm.Command, error) {
+	return c.AcknowledgeDeviceInformationWithExtra(udid, cmdUUID, deviceName, productName, timeZone, "", "")
+}
+
+// AcknowledgeDeviceInformationWithExtra sends a DeviceInformation acknowledgment
+// with configurable OS version fields. If osVersion is empty it defaults to "17.5.1".
+// If supplementalOSVersionExtra is non-empty it is included as SupplementalOSVersionExtra
+// in the response, representing a Rapid Security Response suffix such as "(a)".
+func (c *TestAppleMDMClient) AcknowledgeDeviceInformationWithExtra(udid, cmdUUID, deviceName, productName, timeZone, osVersion, supplementalOSVersionExtra string) (*mdm.Command, error) {
+	if osVersion == "" {
+		osVersion = "17.5.1"
+	}
+	queryResponses := map[string]any{
+		"AvailableDeviceCapacity": float64(51.53312768),
+		"DeviceCapacity":          float64(64),
+		"DeviceName":              deviceName,
+		"OSVersion":               osVersion,
+		"ProductName":             productName,
+		"WiFiMAC":                 "ff:ff:ff:ff:ff:ff",
+		"IsMDMLostModeEnabled":    false,
+		"TimeZone":                timeZone,
+	}
+	if supplementalOSVersionExtra != "" {
+		queryResponses["SupplementalOSVersionExtra"] = supplementalOSVersionExtra
+	}
 	payload := map[string]any{
-		"Status":      "Acknowledged",
-		"UDID":        udid,
-		"CommandUUID": cmdUUID,
-		"QueryResponses": map[string]interface{}{
-			"AvailableDeviceCapacity": float64(51.53312768),
-			"DeviceCapacity":          float64(64),
-			"DeviceName":              deviceName,
-			"OSVersion":               "17.5.1",
-			"ProductName":             productName,
-			"WiFiMAC":                 "ff:ff:ff:ff:ff:ff",
-			"IsMDMLostModeEnabled":    false,
-			"TimeZone":                timeZone,
-		},
+		"Status":         "Acknowledged",
+		"UDID":           udid,
+		"CommandUUID":    cmdUUID,
+		"QueryResponses": queryResponses,
 	}
 	return c.sendAndDecodeCommandResponse(payload)
 }
@@ -1243,7 +1258,7 @@ func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID s
 func (c *TestAppleMDMClient) AcknowledgeCertificateList(udid, cmdUUID string, certTemplates []*x509.Certificate) (*mdm.Command, error) {
 	var certList []fleet.MDMAppleCertificateListItem
 	for _, cert := range certTemplates {
-		b, _, err := mysql.GenerateTestCertBytes(cert)
+		b, _, err := mysqltest.GenerateTestCertBytes(cert)
 		if err != nil {
 			return nil, err
 		}

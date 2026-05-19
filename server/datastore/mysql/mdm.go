@@ -1710,12 +1710,15 @@ func batchSetProfileLabelAssociationsDB(
 		return false, fmt.Errorf("unsupported platform %s", platform)
 	}
 
-	// delete any profile+label tuple that is NOT in the list of provided tuples
+	// Delete any profile+label tuple that is NOT in the list of provided tuples
 	// but are associated with the provided profiles (so we don't delete
-	// unrelated profile+label tuples)
+	// unrelated profile+label tuples).
+	// Also clear "broken" rows where label_id IS NULL. those wouldn't be matched by
+	// `(profile_uuid, label_id) NOT IN (...)` because three-valued logic makes the comparison NULL,
+	// leaving the row in place and blocking host removal in generateEntitiesToRemoveQuery.
 	deleteStmt := `
 	  DELETE FROM mdm_configuration_profile_labels
-	  WHERE (%s_profile_uuid, label_id) NOT IN (%s) AND
+	  WHERE ((%s_profile_uuid, label_id) NOT IN (%s) OR label_id IS NULL) AND
 	  %s_profile_uuid IN (?)
 	`
 
@@ -1738,7 +1741,7 @@ func batchSetProfileLabelAssociationsDB(
 	`
 
 	selectStmt := `
-		SELECT %s_profile_uuid as profile_uuid, label_id, label_name, exclude, require_all FROM mdm_configuration_profile_labels
+		SELECT %s_profile_uuid as profile_uuid, COALESCE(label_id, 0) as label_id, label_name, exclude, require_all FROM mdm_configuration_profile_labels
 		WHERE (%s_profile_uuid, label_name) IN (%s)
 	`
 
@@ -3033,7 +3036,7 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error) {
 	hostCertsToRenew := []*fleet.MDMManagedCertificate{}
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
-	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial
+	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial, updated_at
 	FROM host_mdm_managed_certificates
 	WHERE host_uuid = ?
 	`, hostUUID)

@@ -1,0 +1,1 @@
+* `fleetctl get mdm-commands` now requires the `--host` flag. Using `GET /api/v1/fleet/commands` without a host_identifier has been deprecated.

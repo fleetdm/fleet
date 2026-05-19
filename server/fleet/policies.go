@@ -498,6 +498,7 @@ type PolicySpec struct {
 	// When editing a policy, if this is nil or 0 then the script ID is unset from the policy.
 	ScriptID         *uint    `json:"script_id"`
 	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
+	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
@@ -544,7 +545,7 @@ func (p PolicySpec) Verify() error {
 	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {
 		return err
 	}
-	return verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, nil, p.LabelsExcludeAny)
+	return verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny)
 }
 
 // FirstDuplicatePolicySpecName returns first duplicate name of policies (in a team) or empty string if no duplicates found
