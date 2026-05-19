@@ -524,6 +524,7 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "sending request")
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		s.logger.WarnContext(ctx, "NDES admin URL returned non-200",
 			"ca_type", fleet.CATypeNDESSCEPProxy,
@@ -534,7 +535,6 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 			"unexpected status code: %d; could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again",
 			resp.StatusCode)})
 	}
-	defer resp.Body.Close()
 
 	// Read raw bytes first to detect encoding
 	rawBody, err := io.ReadAll(resp.Body)
