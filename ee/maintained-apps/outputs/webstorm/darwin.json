@@ -4,7 +4,7 @@
       "version": "2026.1.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.WebStorm';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.WebStorm' AND version_compare(bundle_short_version, '2026.1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.WebStorm') AND version_compare(bundle_short_version, '2026.1.2') < 0);"
       },
       "installer_url": "https://download.jetbrains.com/webstorm/WebStorm-2026.1.2-aarch64.dmg",
       "install_script_ref": "a0f305dd",

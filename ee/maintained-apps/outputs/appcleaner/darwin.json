@@ -4,7 +4,7 @@
       "version": "3.6.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.freemacsoft.AppCleaner';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.freemacsoft.AppCleaner' AND version_compare(bundle_short_version, '3.6.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'net.freemacsoft.AppCleaner') AND version_compare(bundle_short_version, '3.6.8') < 0);"
       },
       "installer_url": "https://www.freemacsoft.net/downloads/AppCleaner_3.6.8.zip",
       "install_script_ref": "1593491b",

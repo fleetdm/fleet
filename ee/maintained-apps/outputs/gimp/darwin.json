@@ -4,7 +4,7 @@
       "version": "3.2.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.gimp.gimp-3.0';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.gimp.gimp-3.0' AND version_compare(bundle_short_version, '3.2.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'org.gimp.gimp-3.0') AND version_compare(bundle_short_version, '3.2.4') < 0);"
       },
       "installer_url": "https://download.gimp.org/gimp/v3.2/macos/gimp-3.2.4-arm64.dmg",
       "install_script_ref": "5b1978b6",

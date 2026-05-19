@@ -4,7 +4,7 @@
       "version": "8.4.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.smileonmymac.textexpander';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.smileonmymac.textexpander' AND version_compare(bundle_short_version, '8.4.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.smileonmymac.textexpander') AND version_compare(bundle_short_version, '8.4.3') < 0);"
       },
       "installer_url": "https://cdn.textexpander.com/mac/843.7/TextExpander_8.4.3.dmg",
       "install_script_ref": "f5683078",
