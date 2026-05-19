@@ -49,9 +49,6 @@
                 purpose="term-card"
                 id="term-<%= term.slug %>"
                 :class="{ 'is-hidden': !termIsVisible('<%= term.slug %>') }"
-                data-term-slug="<%= term.slug %>"
-                data-term-search="<%= (term.name + ' ' + term.searchKeywords + ' ' + term.definition).toLowerCase() %>"
-                data-term-categories="<%= term.categories.join('|') %>"
               >
                 <div purpose="term-header">
                   <h3 purpose="term-name"><%= term.name %></h3>
