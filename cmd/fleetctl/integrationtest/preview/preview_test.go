@@ -8,12 +8,13 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/fleetctltest"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPreviewFailsOnInvalidLicenseKey(t *testing.T) {
-	_, err := fleetctl.RunAppNoChecks([]string{"preview", "--license-key", "0xDEADBEEF"})
+	_, err := fleetctltest.RunAppNoChecks([]string{"preview", "--license-key", "0xDEADBEEF"})
 	require.ErrorContains(t, err, "--license-key")
 }
 
@@ -26,7 +27,7 @@ func TestIntegrationsPreview(t *testing.T) {
 	t.Log("config path: ", configPath)
 
 	t.Cleanup(func() {
-		require.Equal(t, "", fleetctl.RunAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
+		require.Empty(t, fleetctltest.RunAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
 	})
 
 	fleetTag := os.Getenv("FLEET_PREVIEW_TAG")
@@ -35,7 +36,7 @@ func TestIntegrationsPreview(t *testing.T) {
 	}
 
 	require.NoError(t, nettest.RunWithNetRetry(t, func() error {
-		_, err := fleetctl.RunAppNoChecks([]string{
+		_, err := fleetctltest.RunAppNoChecks([]string{
 			"preview",
 			"--config", configPath,
 			"--preview-config-path", filepath.Join(gitRootPath(t), "tools", "osquery", "in-a-box"),
@@ -48,7 +49,7 @@ func TestIntegrationsPreview(t *testing.T) {
 	// run some sanity checks on the preview environment
 
 	// app configuration must disable analytics
-	appConf := fleetctl.RunAppForTest(t, []string{"get", "config", "--include-server-config", "--config", configPath, "--yaml"})
+	appConf := fleetctltest.RunAppForTest(t, []string{"get", "config", "--include-server-config", "--config", configPath, "--yaml"})
 	ok := strings.Contains(appConf, `enable_analytics: false`)
 	require.True(t, ok, appConf)
 

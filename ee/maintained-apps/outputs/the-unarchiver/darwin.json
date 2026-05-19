@@ -4,7 +4,7 @@
       "version": "4.3.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'cx.c3.theunarchiver';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cx.c3.theunarchiver' AND version_compare(bundle_short_version, '4.3.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'cx.c3.theunarchiver') AND version_compare(bundle_short_version, '4.3.9') < 0);"
       },
       "installer_url": "https://dl.devmate.com/com.macpaw.site.theunarchiver/147/1742287964/TheUnarchiver-147.zip",
       "install_script_ref": "9b767367",

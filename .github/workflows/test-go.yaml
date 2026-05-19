@@ -72,7 +72,7 @@ jobs:
     strategy:
       matrix:
         suite: ["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]
-        mysql: ["mysql:8.0.44", "mysql:9.5.0"]
+        mysql: ["mysql:8.0.44"]
     uses: ./.github/workflows/test-go-suite.yaml
     with:
       suite: ${{ matrix.suite }}
@@ -82,14 +82,14 @@ jobs:
 
   # ──────────────────────────────────────────────────────────────────────────
   # Extended MySQL coverage: only on the nightly cron schedule.
-  # Tests the same DB-dependent suites against older/intermediate versions.
+  # Tests the same DB-dependent suites against the other supported versions.
   # ──────────────────────────────────────────────────────────────────────────
   test-go-extended-mysql:
     if: github.event_name == 'schedule'
     strategy:
       matrix:
         suite: ["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]
-        mysql: ["mysql:8.0.42", "mysql:8.4.8"]
+        mysql: ["mysql:8.0.42", "mysql:8.4.8", "mysql:9.5.0"]
     uses: ./.github/workflows/test-go-suite.yaml
     with:
       suite: ${{ matrix.suite }}

@@ -1,6 +1,6 @@
 import React from "react";
 import { screen } from "@testing-library/react";
-import { renderWithSetup, createMockRouter } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import createMockConfig from "__mocks__/configMock";
 
@@ -15,6 +15,7 @@ const renderAdvanced = (
   const baseConfig = createMockConfig();
   const config = {
     ...baseConfig,
+    license: { ...baseConfig.license, tier: "premium" },
     features: {
       ...baseConfig.features,
       historical_data:
@@ -23,7 +24,10 @@ const renderAdvanced = (
   };
   const handleSubmit =
     overrides.handleSubmit ?? jest.fn().mockResolvedValue(true);
-  const utils = renderWithSetup(
+  const render = createCustomRenderer({
+    context: { app: { isPremiumTier: true } },
+  });
+  const utils = render(
     <Advanced
       appConfig={config}
       handleSubmit={handleSubmit}

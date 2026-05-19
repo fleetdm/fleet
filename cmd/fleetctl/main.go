@@ -23,7 +23,7 @@ func main() {
 	app := fleetctl.CreateApp(os.Stdin, os.Stdout, os.Stderr, exitErrHandler)
 	fleetctl.StashRawArgs(app, os.Args)
 	if err := app.Run(os.Args); err != nil {
-		fmt.Fprintf(os.Stdout, "Error: %+v\n", err)
+		fmt.Fprintf(os.Stdout, "Error: %+v\n", fleetctl.CleanStatusCodeErr(err))
 		os.Exit(1)
 	}
 }
@@ -34,7 +34,7 @@ func exitErrHandler(c *cli.Context, err error) {
 		return
 	}
 
-	fmt.Fprintf(c.App.ErrWriter, "Error: %+v\n", err)
+	fmt.Fprintf(c.App.ErrWriter, "Error: %+v\n", fleetctl.CleanStatusCodeErr(err))
 
 	if errors.Is(err, fs.ErrPermission) {
 		switch runtime.GOOS {

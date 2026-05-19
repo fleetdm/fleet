@@ -867,8 +867,15 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 
 func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
 	summary, err := svc.ds.BatchExecuteSummary(ctx, batchExecutionID)
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
+		svc.authz.SkipAuthorization(ctx)
 		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
+	} else if err != nil && fleet.IsNotFound(err) {
+		if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+
+		return nil, err // return the not found from the db.
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); err != nil {
@@ -891,19 +898,14 @@ func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID stri
 	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &batchExecutionID,
 	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get batch script summary")
-	}
-
-	// If the list is empty, it means the batch execution does not exist.
-	if len(summaryList) == 0 {
-		// If the user can see a no-team script, we can return a 404 because they have global access.
-		// Otherwise, we return a 403 to avoid leaking info about which IDs exist.
-		if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
-			return err
-		}
+	if err != nil && !fleet.IsNotFound(err) {
 		svc.authz.SkipAuthorization(ctx)
-		return ctxerr.Wrap(ctx, err, "get batch script status")
+		return ctxerr.Wrap(ctx, err, "get batch script summary")
+	} else if err != nil && fleet.IsNotFound(err) {
+		if authErr := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); authErr != nil {
+			return authErr
+		}
+		return err // return the not found from the db.
 	}
 
 	if len(summaryList) > 1 {
@@ -953,19 +955,14 @@ func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecuti
 	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
 		ExecutionID: &batchExecutionID,
 	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
-	}
-
-	// If the list is empty, it means the batch execution does not exist.
-	if len(summaryList) == 0 {
-		// If the user can see a no-team script, we can return a 404 because they have global access.
-		// Otherwise, we return a 403 to avoid leaking info about which IDs exist.
-		if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
-			return nil, err
-		}
+	if err != nil && !fleet.IsNotFound(err) {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, ctxerr.Wrap(ctx, err, "get batch script status")
+		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
+	} else if err != nil && fleet.IsNotFound(err) {
+		if authErr := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); authErr != nil {
+			return nil, authErr
+		}
+		return nil, err // return the not found from the db.
 	}
 
 	if len(summaryList) > 1 {
@@ -974,8 +971,8 @@ func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecuti
 
 	summary := (summaryList)[0]
 
-	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); err != nil {
-		return nil, err
+	if authErr := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); authErr != nil {
+		return nil, authErr
 	}
 
 	return &summary, nil

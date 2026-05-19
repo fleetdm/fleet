@@ -23,7 +23,7 @@
   // Note: recharts portals tick labels out of .recharts-cartesian-axis into a
   // .recharts-zIndex-layer_* group, so we target via .recharts-wrapper.
   .recharts-wrapper text {
-    fill: $ui-fleet-black-75;
+    fill: $ui-fleet-black-50;
   }
 
   // Pointer cursor only on rows with hosts. The component adds these classes

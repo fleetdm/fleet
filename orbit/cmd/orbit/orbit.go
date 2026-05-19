@@ -1146,7 +1146,7 @@ func orbitAction(c *cli.Context) error {
 	// Set the function that will be called to open the SSO window if an enroll
 	// request returns an "end user authentication required" error.
 	orbitClient.SetOpenSSOWindowFunc(func() error {
-		err = openBrowserWindow(fleetURL + "/mdm/sso?initiator=setup_experience&host_uuid=" + orbitHostInfo.HardwareUUID)
+		err = openBrowserWindow(fleetURL + "/mdm/sso?initiator=" + fleet.SSOInitiatorOrbitSetupExperience + "&host_uuid=" + orbitHostInfo.HardwareUUID)
 		if err != nil {
 			return fmt.Errorf("opening browser: %w", err)
 		}
@@ -1251,10 +1251,15 @@ func orbitAction(c *cli.Context) error {
 		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 	}
 
+	// Floor for server-driven debug toggling: --debug at startup pins debug on.
+	startedInDebug := c.Bool("debug")
+
 	flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
-		RootDir: c.String("root-dir"),
+		RootDir:        c.String("root-dir"),
+		StartedInDebug: startedInDebug,
 	})
 	orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
+	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
 
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(

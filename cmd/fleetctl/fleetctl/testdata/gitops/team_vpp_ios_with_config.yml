@@ -1,0 +1,14 @@
+name: "${TEST_TEAM_NAME}"
+team_settings:
+  secrets:
+    - secret: "ABC"
+agent_options:
+controls:
+policies:
+queries:
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: ios
+      configuration:
+        path: ./team_vpp_ios_config.xml

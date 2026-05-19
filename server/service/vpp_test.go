@@ -45,7 +45,7 @@ func TestVPPAuth(t *testing.T) {
 	androidSvc, err := android_service.NewServiceWithClient(logger, ds, androidMockClient, "test-private-key", ds, noopNewActivity, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, androidModule: androidSvc})
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, AndroidModule: androidSvc})
 
 	// use a custom implementation of checkAuthErr as the service call will fail
 	// with a different error for in case of authorization success and the
@@ -126,7 +126,7 @@ func TestVPPAuth(t *testing.T) {
 				checkAuthErr(t, tt.shouldFailRead, err)
 			}
 
-			_, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
+			_, _, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {

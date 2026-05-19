@@ -4,7 +4,7 @@
       "version": "3.4.30",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Sourcetree Enterprise' AND publisher = 'Atlassian';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Sourcetree Enterprise' AND publisher = 'Atlassian' AND version_compare(version, '3.4.30') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Sourcetree Enterprise' AND publisher = 'Atlassian') AND version_compare(version, '3.4.30') < 0);"
       },
       "installer_url": "https://product-downloads.atlassian.com/software/sourcetree/windows/ga/SourcetreeEnterpriseSetup_3.4.30.msi",
       "install_script_ref": "17f62246",

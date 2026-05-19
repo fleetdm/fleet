@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.50.191",
+      "version": "2.51.234",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.' AND version_compare(version, '2.50.191') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.') AND version_compare(version, '2.51.234') < 0);"
       },
-      "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.50.191.msi",
+      "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.51.234.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "464f6989",
-      "sha256": "ba0883eebb8d88c2019a6a032cfda870f2447fb75aca63762d9b7af7cb063069",
+      "sha256": "b45ed2dc6cd1ecfa901a93fbc9cb8b14d0ae77e486a3d40ef13d744bb2f2b840",
       "default_categories": [
         "Productivity"
       ],

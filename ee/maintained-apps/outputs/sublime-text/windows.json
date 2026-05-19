@@ -4,7 +4,7 @@
       "version": "4.0.0.420000",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Sublime Text' AND publisher = 'Sublime HQ Pty Ltd';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Sublime Text' AND publisher = 'Sublime HQ Pty Ltd' AND version_compare(version, '4.0.0.420000') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Sublime Text' AND publisher = 'Sublime HQ Pty Ltd') AND version_compare(version, '4.0.0.420000') < 0);"
       },
       "installer_url": "https://download.sublimetext.com/sublime_text_build_4200_x64_setup.exe",
       "install_script_ref": "ab680647",

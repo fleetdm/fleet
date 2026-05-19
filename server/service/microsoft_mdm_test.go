@@ -703,6 +703,13 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		return profileContentsMap, nil
 	}
 
+	ds.MDMWindowsBulkInsertCommandsFunc = func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error {
+		return nil
+	}
+	ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+
 	// Default: every requested profile still exists. Tests that want to
 	// exercise the deletion-race guard can override this with their own Func.
 	ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
@@ -1332,7 +1339,9 @@ func TestGetESPCommands(t *testing.T) {
 		ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
 			return nil, nil
 		}
-		return ds, &Service{ds: ds, logger: testutils.TestLogger(t)}
+		svc := &Service{ds: ds, logger: testutils.TestLogger(t)}
+		svc.SetActivityService(&mock.MockActivityService{})
+		return ds, svc
 	}
 
 	// newActiveDevice returns the most common device fixture used by these tests: AwaitingConfiguration=Active
@@ -1384,9 +1393,15 @@ func TestGetESPCommands(t *testing.T) {
 			return true, nil
 		}
 
+		// At orbit-link transition, handleESPHoldOrTransition flips awaiting_configuration to Active and
+		// returns a single DevicePreparation/InstallationState=3 command to advance the ESP from the
+		// Device-setup phase to the Account-setup phase. ESP release itself is signaled later via
+		// ServerHasFinishedProvisioning from buildESPReleaseCommands.
 		cmds, err := svc.getESPCommands(t.Context(), device)
 		require.NoError(t, err)
-		require.NotEmpty(t, cmds, "should return DevicePreparation completed command")
+		require.Len(t, cmds, 1)
+		assert.Contains(t, cmds[0].GetTargetURI(), "DevicePreparation/PolicyProviders/")
+		assert.Contains(t, cmds[0].GetTargetURI(), "/InstallationState")
 		assert.True(t, transitioned)
 	})
 

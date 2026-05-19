@@ -4,7 +4,7 @@
       "version": "26.01",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov' AND version_compare(version, '26.01') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name LIKE '7-Zip %' AND publisher = 'Igor Pavlov') AND version_compare(version, '26.01') < 0);"
       },
       "installer_url": "https://7-zip.org/a/7z2601-x64.msi",
       "install_script_ref": "8959087b",

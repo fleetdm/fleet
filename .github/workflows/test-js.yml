@@ -32,7 +32,7 @@ jobs:
   test-js:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-4core]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -77,7 +77,7 @@ jobs:
   lint-js:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-4core]
     runs-on: ${{ matrix.os }}
 
     steps:

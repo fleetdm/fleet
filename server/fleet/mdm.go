@@ -29,9 +29,6 @@ const (
 	// third-party MDM solution to Fleet.
 	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 
-	StickyMDMEnrollmentKeyPrefix = "sticky_mdm_enrollment_" // + host UUID
-	StickyMDMEnrollmentTTL       = 30 * time.Minute
-
 	// MDMProfileProcessingKeyPrefix is used to indicate that a host is currently being processed for MDM profile installation.
 	// We wrap the key in braces to make Redis hash the keys to the same slot, avoiding CrossSlot errors.
 	MDMProfileProcessingKeyPrefix = "{mdm_profile_processing}" // + :hostUUID
@@ -78,7 +75,8 @@ const (
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
 	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
-	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID"
+	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID" // deprecated in favor of FleetVarCertificateRenewalID, but remains for back-compat
+	FleetVarCertificateRenewalID         FleetVarName = "CERTIFICATE_RENEWAL_ID"
 	FleetVarDigiCertDataPrefix           FleetVarName = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix       FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 	FleetVarCustomSCEPChallengePrefix    FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
@@ -97,7 +95,7 @@ const (
 func HasCAVariables(fleetVars []string) bool {
 	for _, v := range fleetVars {
 		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
-			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
+			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarCertificateRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
 			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarSmallstepSCEPProxyURLPrefix)) {
@@ -117,10 +115,17 @@ var (
 	FleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
 	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
-	FleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPRenewalID))
-	FleetVarHostUUIDRegexp                        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
-	FleetVarHostPlatformRegexp                    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
-	FleetVarSCEPWindowsCertificateIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+	FleetVarCertificateRenewalIDRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarCertificateRenewalID))
+	// FleetVarRenewalIDRegexp matches either the preferred CERTIFICATE_RENEWAL_ID
+	// or the legacy SCEP_RENEWAL_ID name. Use this for validation checks where
+	// either form satisfies the requirement.
+	FleetVarRenewalIDRegexp = regexp.MustCompile(fmt.Sprintf(
+		`(\$FLEET_VAR_%[1]s)|(\${FLEET_VAR_%[1]s})|(\$FLEET_VAR_%[2]s)|(\${FLEET_VAR_%[2]s})`,
+		FleetVarCertificateRenewalID, FleetVarSCEPRenewalID,
+	))
+	FleetVarHostUUIDRegexp                 = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
+	FleetVarHostPlatformRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
+	FleetVarSCEPWindowsCertificateIDRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
 
 	// Fleet variable replacement failed errors
 	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
@@ -312,6 +317,18 @@ type HostMDMProfileRetryCount struct {
 	// ProfileName is the unique name used by Windows profiles
 	ProfileName string `db:"profile_name"`
 	Retries     uint   `db:"retries"`
+}
+
+// ProfileACMECommandResult bundles the gates needed to decide whether an
+// InstallProfile ack should trigger a CertificateList refetch on macOS:
+// host platform, profile UUID, and whether the delivered profile contains a
+// com.apple.security.acme payload. Computed in a single query keyed on
+// (host_uuid, command_uuid).
+type ProfileACMECommandResult struct {
+	HostID         uint   `db:"host_id"`
+	Platform       string `db:"platform"`
+	ProfileUUID    string `db:"profile_uuid"`
+	HasACMEPayload bool   `db:"has_acme_payload"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,
@@ -847,9 +864,13 @@ func labelCountMap(labels []string) map[string]int {
 	return counts
 }
 
-// MDMProfileSpecsMatch match checks if two slices contain the same spec
-// elements, regardless of order.
+// MDMProfileSpecsMatch checks if two slices contain the same spec elements,
+// regardless of order.
+//
+// Precondition: each slice must contain at most one entry per Path.
 func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
+	mustNotHaveDuplicatePaths("a", a)
+	mustNotHaveDuplicatePaths("b", b)
 	if len(a) != len(b) {
 		return false
 	}
@@ -931,6 +952,19 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	}
 
 	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
+}
+
+func mustNotHaveDuplicatePaths(name string, specs []MDMProfileSpec) {
+	if len(specs) < 2 {
+		return
+	}
+	seen := make(map[string]struct{}, len(specs))
+	for _, s := range specs {
+		if _, dup := seen[s.Path]; dup {
+			panic(fmt.Sprintf("MDMProfileSpecsMatch: %s contains duplicate Path %q; upstream validation should have rejected this", name, s.Path))
+		}
+		seen[s.Path] = struct{}{}
+	}
 }
 
 type MDMLabelsMode string
@@ -1120,7 +1154,8 @@ type VPPTokenRaw struct {
 type VPPTokenData struct {
 	// Location comes from an Apple API:
 	// https://developer.apple.com/documentation/devicemanagement/client_config. It is the name of
-	// the "library" of apps in ABM that is associated with this VPP token.
+	// the organization unit (formerly "location") in Apple Business that is associated with this
+	// VPP token.
 	Location string `json:"location"`
 
 	// Token is the token that is downloaded from ABM. It is a base64 encoded JSON object with the
@@ -1324,3 +1359,20 @@ type NanoMDMEnrollmentDetails struct {
 	HardwareAttested      bool       `db:"hardware_attested"`
 	UnlockToken           *string    `db:"unlock_token"`
 }
+
+// MDM SSO initiator constants identify which enrollment flow initiated the SSO
+// authentication. These values are stored in the SSO session and used in the
+// callback to determine the correct behavior.
+const (
+	// SSOInitiatorOTAEnroll is used for OTA/BYOD enrollment flows (Android,
+	// iPhone, iPad) initiated from the /enroll page.
+	SSOInitiatorOTAEnroll = "ota_enroll"
+	// SSOInitiatorOrbitSetupExperience is used when the Orbit agent opens the SSO
+	// browser window during the macOS Setup Assistant, Windows enrollment or Linux enrollment.
+	SSOInitiatorOrbitSetupExperience = "setup_experience"
+	// SSOInitiatorAccountDrivenEnroll is used for Apple's native account-driven
+	// MDM enrollment flow.
+	SSOInitiatorAccountDrivenEnroll = "account_driven_enroll"
+	// SSOInitiatorAppleMDMSSO is used for automatic MDM Apple enrollment SSO flow.
+	SSOInitiatorAppleMDMSSO = "mdm_sso"
+)

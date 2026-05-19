@@ -1,0 +1,1 @@
+- Added managed app configuration for iOS and iPadOS apps (VPP and in-house), configurable via UI, REST API, and GitOps, with `$FLEET_VAR_*` substitution.

@@ -98,9 +98,10 @@ export const HeaderList: Story = {
 export const HeaderListWithButton: Story = {
   args: {
     variant: "header-list",
-    header: "Add your certificate authority (CA)",
-    info: "Help your end users connect to Wi-Fi or VPNs.",
-    primaryButton: <Button>Add CA</Button>,
+    header: "No certificate authorities",
+    info:
+      "Add a certificate authority (CA) to help end users connect to Wi-Fi or VPNs.",
+    primaryButton: <Button>Add certificate authority</Button>,
   },
 };
 

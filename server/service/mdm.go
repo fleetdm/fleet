@@ -2172,10 +2172,6 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating cross-platform profile names")
 	}
 
-	if dryRun {
-		return nil
-	}
-
 	// Get license for validation
 	lic, err := svc.License(ctx)
 	if err != nil {
@@ -2185,18 +2181,6 @@ func (svc *Service) BatchSetMDMProfiles(
 	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, svc.ds, appCfg, lic, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
-	}
-
-	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
-	for identifier, variables := range profilesVariablesByIdentifierMap {
-		varNames := make([]fleet.FleetVarName, 0, len(variables))
-		for _, varName := range variables {
-			varNames = append(varNames, fleet.FleetVarName(varName))
-		}
-		profilesVariablesByIdentifier = append(profilesVariablesByIdentifier, fleet.MDMProfileIdentifierFleetVariables{
-			Identifier:     identifier,
-			FleetVariables: varNames,
-		})
 	}
 
 	// Now that validation is done, we remove the exposed secret variables from the profiles
@@ -2219,6 +2203,28 @@ func (svc *Service) BatchSetMDMProfiles(
 	for i, p := range androidProfiles {
 		p.RawJSON = profiles[i].Contents
 		androidProfilesSlice = append(androidProfilesSlice, p)
+	}
+
+	// Verify Apple Config profiles PayloadScope conflicts
+	err = svc.ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, appleProfilesSlice)
+	if err != nil {
+		return err
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
+	for identifier, variables := range profilesVariablesByIdentifierMap {
+		varNames := make([]fleet.FleetVarName, 0, len(variables))
+		for _, varName := range variables {
+			varNames = append(varNames, fleet.FleetVarName(varName))
+		}
+		profilesVariablesByIdentifier = append(profilesVariablesByIdentifier, fleet.MDMProfileIdentifierFleetVariables{
+			Identifier:     identifier,
+			FleetVariables: varNames,
+		})
 	}
 
 	var profUpdates fleet.MDMProfilesUpdates
