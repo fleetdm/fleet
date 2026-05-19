@@ -4,7 +4,7 @@
       "version": "1.2026.119.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.atlas';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.atlas' AND version_compare(bundle_short_version, '1.2026.119.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.atlas') AND version_compare(bundle_short_version, '1.2026.119.1') < 0);"
       },
       "installer_url": "https://persistent.oaistatic.com/atlas/public/ChatGPT_Atlas_Desktop_public_1.2026.119.1_20260504231115000.dmg",
       "install_script_ref": "a5fd4e54",

@@ -4,7 +4,7 @@
       "version": "5.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.xk72.Charles';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xk72.Charles' AND version_compare(bundle_short_version, '5.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.xk72.Charles') AND version_compare(bundle_short_version, '5.1') < 0);"
       },
       "installer_url": "https://www.charlesproxy.com/assets/release/5.1/charles-proxy-5.1.dmg",
       "install_script_ref": "51e3611c",

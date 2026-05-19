@@ -3840,9 +3840,12 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		} else {
 			enqueueSetupExperienceItems = true
 		}
-	} else if info.Platform != "darwin" && r.Type == mdm.Device && !info.InstalledFromDEP {
-		// For manual iOS/iPadOS device enrollments, check the `TokenUpdateTally` so that
-		// we only run the setup experience enqueueing once per device.
+	} else if info.Platform != "darwin" && (r.Type == mdm.Device || r.Type == mdm.UserEnrollmentDevice) && !info.InstalledFromDEP {
+		// For manual and Account-Driven User Enrolled (BYOD) iOS/iPadOS device
+		// enrollments, check the `TokenUpdateTally` so that we only run the
+		// setup experience enqueueing once per device. The downstream install
+		// flow (via InstallVPPAppPostValidation) handles user-scoped licensing
+		// for User Enrollments.
 		nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")
@@ -3874,13 +3877,14 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		}
 	}
 
-	var acctUUID string
+	var acctUUID, managedAppleID string
 	idp, err := svc.ds.GetMDMIdPAccountByHostUUID(r.Context, r.ID)
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "getting idp account")
 	}
 	if idp != nil {
 		acctUUID = idp.UUID
+		managedAppleID = idp.Email
 	}
 
 	// User (Device) enrollments, also known as Account Driven enrollments or BYOD enrollments,
@@ -3898,9 +3902,31 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 				"host_uuid", r.ID, "account_uuid", accountUUID)
 		} else {
 			acctUUID = idpAccount.UUID
+			managedAppleID = idpAccount.Email
 			err = svc.ds.AssociateHostMDMIdPAccount(r.Context, r.ID, acctUUID)
 			if err != nil {
 				return ctxerr.Wrap(r.Context, err, "associating host with idp account")
+			}
+		}
+	}
+
+	// For Account-Driven User Enrollment (BYOD iOS/iPadOS), keep host_mdm's
+	// managed_apple_id in sync with the current IdP-resolved email — including
+	// clearing it when resolution failed, so a stale value from a prior
+	// enrollment can't be reused for user-scoped VPP actions. The canonical
+	// source is the IDP account email resolved from the OAuth Bearer token at
+	// enrollment; Apple does not reliably populate UserLongName for User
+	// Enrollment so we don't fall back to it. NotFound is logged rather than
+	// returned because the lifecycle reset above should have inserted the
+	// host_mdm row already, and we don't want a transient race to break
+	// enrollment.
+	if r.Type == mdm.UserEnrollmentDevice {
+		if err := svc.ds.SetHostManagedAppleID(r.Context, info.HostID, managedAppleID); err != nil {
+			if fleet.IsNotFound(err) {
+				svc.logger.WarnContext(r.Context, "setting managed apple id: host_mdm row not found",
+					"host_id", info.HostID, "host_uuid", r.ID)
+			} else {
+				return ctxerr.Wrap(r.Context, err, "setting managed apple id")
 			}
 		}
 	}
@@ -4182,6 +4208,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.Identifier(), status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
+		// "Already installed" is not a real failure: the end user grabbed the
+		// app from the App Store before Fleet's command landed. Treat it as a
+		// successful install and let the verification flow confirm presence —
+		// no retry, no failure activity. Applies to all enrollment types since
+		// Apple's behavior here is the same regardless of enrollment style.
+		if (cmdResult.Status == fleet.MDMAppleStatusError || cmdResult.Status == fleet.MDMAppleStatusCommandFormatError) &&
+			apple_mdm.IsAppAlreadyInstalledError(cmdResult.ErrorChain) {
+			svc.logger.InfoContext(r.Context, "InstallApplication reported app already installed; treating as success",
+				"host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
+			cmdResult.Status = fleet.MDMAppleStatusAcknowledged
+		}
+
 		// create an activity for installing only if we're in a terminal error state
 		if cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
@@ -4633,17 +4671,15 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		return ctxerr.Wrap(ctx, err, "get VPP token if can install VPP apps")
 	}
 
-	// Check if the device is managed or BYOD.
+	// Confirm the host has a nano enrollment record. User-enrolled (BYOD)
+	// hosts are no longer skipped — InstallVPPAppPostValidation routes them
+	// through the user-scoped VPP path (clientUserIds) downstream.
 	enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting nano mdm enrollment")
 	}
 	if enrollment == nil {
 		logger.DebugContext(ctx, "skipping updates, missing nano enrollment type")
-		return nil
-	}
-	if enrollment.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String() {
-		logger.DebugContext(ctx, "skipping updates, software install isn't supported on personal (BYOD) iOS and iPadOS hosts")
 		return nil
 	}
 

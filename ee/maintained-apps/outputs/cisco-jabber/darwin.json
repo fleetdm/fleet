@@ -4,7 +4,7 @@
       "version": "15.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cisco.jabber';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cisco.jabber' AND version_compare(bundle_short_version, '15.2.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.cisco.jabber') AND version_compare(bundle_short_version, '15.2.1') < 0);"
       },
       "installer_url": "https://binaries.webex.com/jabberclientmac/20260122074039/Install_Cisco-Jabber-Mac.pkg",
       "install_script_ref": "2756548e",

@@ -4,7 +4,7 @@
       "version": "1.0.9237",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Discord' AND publisher = 'Discord Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Discord' AND publisher = 'Discord Inc.' AND version_compare(version, '1.0.9237') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Discord' AND publisher = 'Discord Inc.') AND version_compare(version, '1.0.9237') < 0);"
       },
       "installer_url": "https://stable.dl2.discordapp.net/distro/app/stable/win/x64/1.0.9237/DiscordSetup.exe",
       "install_script_ref": "fd04e860",
