@@ -1070,6 +1070,24 @@ const HostDetailsPage = ({
     }
   };
 
+  const onClickMyDevice = async () => {
+    if (!host) return;
+    try {
+      const { device_url } = await hostAPI.getDeviceURL(host.id);
+      // window.open returns null when the browser blocks the popup, so an
+      // explicit check is needed — the promise will not reject.
+      const opened = window.open(device_url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        renderFlash(
+          "error",
+          "Couldn't open My device page. Please allow pop-ups and try again."
+        );
+      }
+    } catch (e) {
+      renderFlash("error", "Couldn't open My device page. Please try again.");
+    }
+  };
+
   const onUpdateEndUser = async (username: string) => {
     setIsUpdating(true);
     try {
@@ -1235,6 +1253,13 @@ const HostDetailsPage = ({
       isHostTeamAdmin ||
       isHostTeamMaintainer ||
       isHostTeamTechnician);
+
+  // "My device" link points to that host's end-user My device page. The URL
+  // embeds the device auth token so it acts as a credential, hence global
+  // admin only. The endpoint guarantees a valid link on every fetch — it
+  // refreshes an expired token or generates one for a host that has never
+  // had one — so we don't gate visibility on orbit/MDM state.
+  const canViewMyDeviceLink = isGlobalAdmin;
 
   const showSoftwareLibraryTab = isPremiumTier;
   const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
@@ -1498,6 +1523,7 @@ const HostDetailsPage = ({
                     isGlobalAdmin ||
                     isGlobalMaintainer
                   }
+                  canViewMyDeviceLink={canViewMyDeviceLink}
                   onClickUpdateUser={(
                     e:
                       | React.MouseEvent<HTMLButtonElement>
@@ -1505,6 +1531,14 @@ const HostDetailsPage = ({
                   ) => {
                     e.preventDefault();
                     setShowUpdateEndUserModal(true);
+                  }}
+                  onClickMyDevice={(
+                    e:
+                      | React.MouseEvent<HTMLButtonElement>
+                      | React.KeyboardEvent<HTMLButtonElement>
+                  ) => {
+                    e.preventDefault();
+                    onClickMyDevice();
                   }}
                 />
                 <LabelsCard

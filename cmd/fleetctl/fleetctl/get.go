@@ -160,7 +160,7 @@ func printHost(c *cli.Context, host *fleet.HostResponse) error {
 	return printSpec(c, spec)
 }
 
-func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
+func printHostDetail(c *cli.Context, host *fleet.HostDetailResponse) error {
 	spec := specGeneric{
 		Kind:    fleet.HostKind,
 		Version: fleet.ApiVersion,

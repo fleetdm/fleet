@@ -40,17 +40,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// HostDetailResponse is the response struct that contains the full host information
-// with the HostDetail details.
-type HostDetailResponse struct {
-	fleet.HostDetail
-	Status      fleet.HostStatus   `json:"status"`
-	DisplayText string             `json:"display_text"`
-	DisplayName string             `json:"display_name"`
-	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
-}
-
-func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*HostDetailResponse, error) {
+func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.HostDetail) (*fleet.HostDetailResponse, error) {
 	var isADEEnrolledIDevice bool
 	if host.Platform == "ipados" || host.Platform == "ios" {
 		ac, err := svc.AppConfigObfuscated(ctx)
@@ -82,7 +72,7 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 		geoLoc = svc.LookupGeoIP(ctx, host.PublicIP)
 	}
 
-	return &HostDetailResponse{
+	return &fleet.HostDetailResponse{
 		HostDetail:  *host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
@@ -833,8 +823,8 @@ type getHostRequest struct {
 }
 
 type getHostResponse struct {
-	Host *HostDetailResponse `json:"host"`
-	Err  error               `json:"error,omitempty"`
+	Host *fleet.HostDetailResponse `json:"host"`
+	Err  error                     `json:"error,omitempty"`
 }
 
 func (r getHostResponse) Error() error { return r.Err }
@@ -2469,6 +2459,164 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 	}
 
 	return depAssignment, depDevice, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Get host device URL (end-user "My device" page link)
+////////////////////////////////////////////////////////////////////////////////
+
+type getHostDeviceURLRequest struct {
+	ID uint `url:"id"`
+}
+
+type getHostDeviceURLResponse struct {
+	HostID    uint   `json:"host_id"`
+	DeviceURL string `json:"device_url"`
+	Err       error  `json:"error,omitempty"`
+}
+
+func (r getHostDeviceURLResponse) Error() error { return r.Err }
+
+func getHostDeviceURLEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getHostDeviceURLRequest)
+	url, err := svc.HostDeviceURL(ctx, req.ID)
+	if err != nil {
+		return getHostDeviceURLResponse{Err: err}, nil
+	}
+	return getHostDeviceURLResponse{HostID: req.ID, DeviceURL: url}, nil
+}
+
+// hostDeviceAuthTokenTTL mirrors the TTL applied by LoadHostByDeviceAuthToken
+// (server/service/devices.go) — any change there should match here so the
+// generated link's lifetime stays consistent with the validator's window.
+const hostDeviceAuthTokenTTL = time.Hour
+
+// HostDeviceURL returns the "My device" page URL for the given host. The
+// returned URL is guaranteed to be valid for the full TTL window:
+//   - If the host already has a fresh token (within TTL), it's reused as-is
+//     so any link the end user is already holding keeps working.
+//   - If the host's token is expired or no row exists yet, Fleet generates
+//     a fresh token and upserts it via SetOrUpdateDeviceAuthToken. That
+//     helper's expiry-aware previous_token logic immediately invalidates
+//     stale links while still tolerating a concurrent orbit check-in
+//     during the brief transition window.
+//
+// Rejects iOS and iPadOS hosts up front because device-token authentication
+// is unsupported on those platforms (AuthenticateDevice errors with
+// "must use certificate authentication"), so an admin-issued URL could
+// never load anyway.
+//
+// Every successful call also emits an ActivityTypeRetrievedHostMyDeviceURL
+// admin activity so the audit trail records who minted the credential.
+//
+// The URL is effectively a credential to act as the device's end user, so
+// access is restricted to global admins regardless of team-scoped
+// permissions.
+func (svc *Service) HostDeviceURL(ctx context.Context, hostID uint) (string, error) {
+	// First-pass authz so the middleware is satisfied; we apply a stricter
+	// global-admin check below.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return "", err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return "", fleet.ErrNoContext
+	}
+	if vc.User == nil || vc.User.GlobalRole == nil || *vc.User.GlobalRole != fleet.RoleAdmin {
+		return "", fleet.NewPermissionError("only global admins can retrieve a host's device URL")
+	}
+
+	// Confirm the host exists; 404 cleanly if not.
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get host for device url")
+	}
+
+	if host.Platform == "ios" || host.Platform == "ipados" {
+		return "", &fleet.BadRequestError{
+			Message: "My device URL is not available for iOS or iPadOS hosts; those platforms use certificate authentication instead.",
+		}
+	}
+
+	// Reuse the existing token if it's still within the TTL — saves us from
+	// invalidating a link a user may already be holding.
+	token, err := svc.ds.GetDeviceAuthTokenIfFresh(ctx, host.ID, hostDeviceAuthTokenTTL)
+	switch {
+	case err == nil:
+		// fresh token in hand
+	case fleet.IsNotFound(err):
+		// No token row, or existing token is expired. Generate a new one
+		// and upsert via the same helper orbit uses on its check-in. The
+		// host_device_auth.token column is UNIQUE — defend against the
+		// (vanishingly rare) random collision by checking for an existing
+		// row with the same token on a different host before upserting.
+		token, err = svc.mintHostDeviceAuthToken(ctx, host.ID)
+		if err != nil {
+			return "", err
+		}
+	default:
+		return "", ctxerr.Wrap(ctx, err, "check fresh device auth token")
+	}
+
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get app config for server url")
+	}
+
+	if err := svc.NewActivity(
+		ctx,
+		vc.User,
+		fleet.ActivityTypeRetrievedHostMyDeviceURL{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "create activity for retrieved host my device url")
+	}
+
+	base := strings.TrimRight(ac.ServerSettings.ServerURL, "/")
+	return fmt.Sprintf("%s/device/%s", base, token), nil
+}
+
+// mintHostDeviceAuthToken generates a fresh URL-safe random token, defends
+// against a token-uniqueness collision with another host (astronomically
+// unlikely given the entropy but cheap to check), and upserts via
+// SetOrUpdateDeviceAuthToken — the same helper orbit calls — so the
+// previous_token transition-window semantics behave consistently with the
+// agent path.
+func (svc *Service) mintHostDeviceAuthToken(ctx context.Context, hostID uint) (string, error) {
+	// Two attempts is enough headroom: 24 random bytes is 192 bits of
+	// entropy, so a collision on the first try implies a second one is
+	// astronomically improbable.
+	const maxAttempts = 2
+	for range maxAttempts {
+		newToken, err := server.GenerateRandomURLSafeText(24)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "generate new device auth token")
+		}
+
+		// Pre-check: does this token already belong to a different host?
+		// host_device_auth.token is UNIQUE, so an upsert that hits another
+		// host's row would silently mangle that row (ON DUPLICATE KEY
+		// UPDATE suppresses the duplicate-key error). Use the TTL-agnostic
+		// lookup here — an expired-but-present row still trips the unique
+		// constraint on insert.
+		ownerHostID, lookupErr := svc.ds.HostIDByDeviceAuthToken(ctx, newToken)
+		switch {
+		case lookupErr == nil && ownerHostID != hostID:
+			// Collision with a different host — retry.
+			continue
+		case lookupErr != nil && !fleet.IsNotFound(lookupErr):
+			return "", ctxerr.Wrap(ctx, lookupErr, "check device auth token collision")
+		}
+
+		if err := svc.ds.SetOrUpdateDeviceAuthToken(ctx, hostID, newToken); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "set device auth token")
+		}
+		return newToken, nil
+	}
+	return "", ctxerr.New(ctx, "exhausted device auth token generation retries")
 }
 
 ////////////////////////////////////////////////////////////////////////////////

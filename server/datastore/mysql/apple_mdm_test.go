@@ -1124,6 +1124,7 @@ func TestMDMEnrollment(t *testing.T) {
 		{"TestMultipleIngest", testIngestMDMAppleCheckinMultipleIngest},
 		{"TestCheckOut", testUpdateHostTablesOnMDMUnenroll},
 		{"TestNonDarwinHostAlreadyExistsInFleet", testIngestMDMNonDarwinHostAlreadyExistsInFleet},
+		{"TestPreserveDisplayNameAfterFleetdEnroll", testPreserveDisplayNameAfterFleetdEnroll},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1215,6 +1216,69 @@ func testIngestMDMNonDarwinHostAlreadyExistsInFleet(t *testing.T, ds *Datastore)
 	require.NotEqual(t, id0, id1)
 	require.NotEqual(t, platform0, platform1)
 	require.ElementsMatch(t, []string{"darwin", "linux"}, []string{platform0, platform1})
+}
+
+// testPreserveDisplayNameAfterFleetdEnroll verifies that when a host has
+// already enrolled via fleetd (and host_display_names was populated with the
+// accurate computer/host name), a subsequent MDM enrollment does NOT overwrite
+// the existing display name. This ensures the mdm_enrolled and fleet_enrolled
+// activities show the same name for the same host.
+func testPreserveDisplayNameAfterFleetdEnroll(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	testSerial := "test-serial"
+	testUUID := "test-uuid"
+	fleetdDisplayName := "Foobar's MacBook Pro"
+
+	// Simulate fleetd enrollment: host exists with an accurate computer_name
+	// and host_display_names has the corresponding good display name.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "foobar.local",
+		ComputerName:    fleetdDisplayName,
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("osquery-id"),
+		NodeKey:         ptr.String("node-key"),
+		UUID:            testUUID,
+		HardwareSerial:  testSerial,
+		HardwareModel:   "MacBookPro18,1",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	var displayName string
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &displayName,
+		`SELECT display_name FROM host_display_names WHERE host_id = ?`, host.ID))
+	require.Equal(t, fleetdDisplayName, displayName)
+
+	// Now the host enrolls via MDM (e.g., manual MDM enrollment via downloaded
+	// profile). MDMAppleUpsertHost is called via the Apple Authenticate flow.
+	// The mdmHost struct from the MDM checkin does not carry computer_name, so
+	// without preservation the display name would be overwritten with
+	// "model (serial)" or similar.
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           testUUID,
+		HardwareSerial: testSerial,
+		HardwareModel:  "MacBookPro18,1",
+		Platform:       "darwin",
+	}, false)
+	require.NoError(t, err)
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &displayName,
+		`SELECT display_name FROM host_display_names WHERE host_id = ?`, host.ID))
+	require.Equal(t, fleetdDisplayName, displayName,
+		"MDM enrollment must not overwrite a display name previously set by fleetd")
+
+	// Repeat for the OTA enrollment path which goes through createHostFromMDMDB.
+	err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "",
+		fleet.MDMAppleMachineInfo{Serial: testSerial, UDID: testUUID, Product: "MacBookPro18,1"})
+	require.NoError(t, err)
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &displayName,
+		`SELECT display_name FROM host_display_names WHERE host_id = ?`, host.ID))
+	require.Equal(t, fleetdDisplayName, displayName,
+		"OTA MDM enrollment must not overwrite a display name previously set by fleetd")
 }
 
 func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {
