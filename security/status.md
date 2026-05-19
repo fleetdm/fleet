@@ -579,6 +579,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-20 11:41:33
 
+### [CVE-2026-4878](https://nvd.nist.gov/vuln/detail/CVE-2026-4878)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not call cap_set_file() when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/libcap2`,`pkg:deb/debian/libcap2-bin`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:16:53
+
 ### [CVE-2026-4775](https://nvd.nist.gov/vuln/detail/CVE-2026-4775)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -586,6 +594,38 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libtiff6`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-20 11:42:37
+
+### [CVE-2026-41254](https://nvd.nist.gov/vuln/detail/CVE-2026-41254)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not perform color management via Little CMS when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/liblcms2-2`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:16:53
+
+### [CVE-2026-40962](https://nvd.nist.gov/vuln/detail/CVE-2026-40962)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process media files when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/libavcodec61`,`pkg:deb/debian/libavformat61`,`pkg:deb/debian/libavutil59`,`pkg:deb/debian/libswresample5`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:16:53
+
+### [CVE-2026-40386](https://nvd.nist.gov/vuln/detail/CVE-2026-40386)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process EXIF metadata when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/libexif12`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:16:53
+
+### [CVE-2026-40385](https://nvd.nist.gov/vuln/detail/CVE-2026-40385)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process EXIF metadata when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/libexif12`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:16:53
 
 ### [CVE-2026-33636](https://nvd.nist.gov/vuln/detail/CVE-2026-33636)
 - **Author:** @lucasmrod
@@ -603,6 +643,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-08 11:01:10
 
+### [CVE-2026-32775](https://nvd.nist.gov/vuln/detail/CVE-2026-32775)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process EXIF metadata when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/libexif12`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:16:53
+
 ### [CVE-2026-31789](https://nvd.nist.gov/vuln/detail/CVE-2026-31789)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -618,6 +666,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libgstreamer-plugins-base1.0-0`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-03-24 12:23:52
+
+### [CVE-2026-29111](https://nvd.nist.gov/vuln/detail/CVE-2026-29111)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use systemd IPC APIs when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/libsystemd0`,`pkg:deb/debian/libudev1`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:16:53
 
 ### [CVE-2026-28390](https://nvd.nist.gov/vuln/detail/CVE-2026-28390)
 - **Author:** @lucasmrod
@@ -650,6 +706,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-27 14:23:45
+
+### [CVE-2026-27135](https://nvd.nist.gov/vuln/detail/CVE-2026-27135)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not serve or handle HTTP/2 traffic via libnghttp2 when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/libnghttp2-14`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:16:53
+
+### [CVE-2026-1837](https://nvd.nist.gov/vuln/detail/CVE-2026-1837)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process JPEG XL images when using fleetdm/wix.
+- **Products:** `wix`,`pkg:deb/debian/libjxl0.11`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:16:53
 
 ### [CVE-2026-0861](https://nvd.nist.gov/vuln/detail/CVE-2026-0861)
 - **Author:** @lucasmrod
