@@ -508,10 +508,21 @@ func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy 
 
 func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
-	// Get the challenge from NDES
+	// Get the challenge from NDES.
+	//
+	// NTLM is connection-bound on IIS: the Type-1 (Negotiate) and Type-3
+	// (Authenticate) messages must travel on the same TCP connection so
+	// the server can correlate partial auth state. Cap the transport at a
+	// single connection per host and keep keepalives on so Go's connection
+	// pool reliably hands the same connection back for the second round-trip
+	// and never opens a fresh one mid-handshake.
 	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
+	ntlmBaseTransport := fleethttp.NewTransport()
+	ntlmBaseTransport.MaxConnsPerHost = 1
+	ntlmBaseTransport.MaxIdleConnsPerHost = 1
+	ntlmBaseTransport.DisableKeepAlives = false
 	client.Transport = &proactiveNTLMTransport{
-		base: otelhttp.NewTransport(fleethttp.NewTransport()),
+		base: otelhttp.NewTransport(ntlmBaseTransport),
 	}
 	req, err := http.NewRequest(http.MethodGet, adminURL, http.NoBody)
 	if err != nil {

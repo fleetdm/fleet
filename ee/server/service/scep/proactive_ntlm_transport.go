@@ -51,12 +51,18 @@ func (t *proactiveNTLMTransport) RoundTrip(req *http.Request) (*http.Response, e
 
 	var challengeB64 string
 	for _, h := range resp1.Header.Values("WWW-Authenticate") {
-		lower := strings.ToLower(h)
-		switch {
-		case strings.HasPrefix(lower, "ntlm "):
-			challengeB64 = h[len("NTLM "):]
-		case strings.HasPrefix(lower, "negotiate "):
-			challengeB64 = h[len("Negotiate "):]
+		for chal := range strings.SplitSeq(h, ",") {
+			chal = strings.TrimSpace(chal)
+			lower := strings.ToLower(chal)
+			switch {
+			case strings.HasPrefix(lower, "ntlm "):
+				challengeB64 = strings.TrimSpace(chal[len("NTLM "):])
+			case strings.HasPrefix(lower, "negotiate "):
+				challengeB64 = strings.TrimSpace(chal[len("Negotiate "):])
+			}
+			if challengeB64 != "" {
+				break
+			}
 		}
 		if challengeB64 != "" {
 			break
