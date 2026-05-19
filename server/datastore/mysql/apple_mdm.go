@@ -64,11 +64,13 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 	return true, nil
 }
 
-// Checks scopes against existing profiles across the entire DB to ensure there are no conflicts
-// where an existing profile with the same identifier has a different scope than the incoming
-// profile. If we don't do this we must implement some sort of "move" semantics to allow for scope
-// changes when a host switches teams or when a profile is updated.
-func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, tx sqlx.ExtContext, cps []*fleet.MDMAppleConfigProfile) error {
+func (ds *Datastore) VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+	return ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
+		return ds.verifyAppleConfigProfileScopesDoNotConflictDB(ctx, tx, cps)
+	})
+}
+
+func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflictDB(ctx context.Context, tx sqlx.QueryerContext, cps []*fleet.MDMAppleConfigProfile) error {
 	if len(cps) == 0 {
 		return nil
 	}
@@ -208,7 +210,7 @@ INSERT INTO
 
 	var profileID int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		err := ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, []*fleet.MDMAppleConfigProfile{&cp})
+		err := ds.verifyAppleConfigProfileScopesDoNotConflictDB(ctx, tx, []*fleet.MDMAppleConfigProfile{&cp})
 		if err != nil {
 			return err
 		}
@@ -1332,7 +1334,13 @@ func mdmHostEnrollFields(mdmHost *fleet.Host) (refetchRequested bool, lastEnroll
 		// Given the device does not have osquery, we set the last_enrolled_at as the MDM enroll time.
 		lastEnrolledAt = time.Now()
 	}
-	return supportsOsquery, lastEnrolledAt
+	// iOS/iPadOS have no osquery, so their inventory only comes from MDM
+	// refetch commands. Flag freshly-enrolled iPhones/iPads so the
+	// iphone_ipad_refetcher cron picks them up on its next tick instead of
+	// waiting for the 1-hour staleness window — without this the host page
+	// shows no installable software until the user manually clicks Refetch.
+	refetchRequested = supportsOsquery || mdmHost.Platform == "ios" || mdmHost.Platform == "ipados"
+	return refetchRequested, lastEnrolledAt
 }
 
 func updateMDMAppleHostDB(
@@ -1446,8 +1454,11 @@ func insertMDMAppleHostDB(
 
 	mdmHost.ID = uint(id)
 
-	if err := upsertHostDisplayNames(ctx, tx, *mdmHost); err != nil {
-		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
+	// Preserve any pre-existing display name (e.g. set by a prior fleetd
+	// enrollment) so that the mdm_enrolled activity uses the most accurate
+	// name and matches the fleet_enrolled activity for the same host.
+	if err := insertHostDisplayNamesIfAbsent(ctx, tx, *mdmHost); err != nil {
+		return ctxerr.Wrap(ctx, err, "ingest mdm apple host insert display names")
 	}
 
 	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, *mdmHost); err != nil {
@@ -1597,8 +1608,11 @@ func createHostFromMDMDB(
 		}
 	}
 
-	if err := upsertHostDisplayNames(ctx, tx, hosts...); err != nil {
-		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
+	// Preserve any pre-existing display name (e.g. set by a prior fleetd
+	// enrollment) so that the mdm_enrolled activity uses the most accurate
+	// name and matches the fleet_enrolled activity for the same host.
+	if err := insertHostDisplayNamesIfAbsent(ctx, tx, hosts...); err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host insert display names")
 	}
 
 	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, hosts...); err != nil {
@@ -1653,6 +1667,29 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 			err = associateHostMDMIdPAccountDB(ctx, tx, host.UUID, idpUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "associating host with idp account")
+			}
+
+			// Associate the host with the matching SCIM user so IdP attributes populate.
+			// Skip if a mapping already exists.
+			var existingScimUserID uint
+			existsErr := sqlx.GetContext(ctx, tx, &existingScimUserID,
+				`SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+			switch {
+			case existsErr == nil:
+				// already mapped — nothing to do
+			case !errors.Is(existsErr, sql.ErrNoRows):
+				ds.logger.ErrorContext(ctx, "failed to check existing host_scim_user mapping",
+					"host_uuid", host.UUID, "host_id", host.ID, "error", existsErr)
+			default:
+				var idpAccount fleet.MDMIdPAccount
+				if getErr := sqlx.GetContext(ctx, tx, &idpAccount,
+					`SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`, idpUUID); getErr != nil {
+					ds.logger.ErrorContext(ctx, "failed to load mdm idp account for scim association",
+						"host_uuid", host.UUID, "idp_uuid", idpUUID, "error", getErr)
+				} else if scimErr := maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, host.ID, &idpAccount); scimErr != nil {
+					ds.logger.ErrorContext(ctx, "failed to associate scim user with migrated host",
+						"host_uuid", host.UUID, "host_id", host.ID, "idp_uuid", idpUUID, "error", scimErr)
+				}
 			}
 		} else if idpUUID == "" && len(hosts) > 0 {
 			ds.logger.InfoContext(ctx, "clearing previous mdm idp account association", "host_uuid", hosts[0].UUID)
@@ -1804,6 +1841,36 @@ func upsertHostDisplayNames(ctx context.Context, tx sqlx.ExtContext, hosts ...fl
 		args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "upsert host display names")
+	}
+
+	return nil
+}
+
+// insertHostDisplayNamesIfAbsent inserts host_display_names rows for the given
+// hosts but does NOT overwrite an existing row. This is used by MDM enrollment
+// paths so that a display name previously set by a fleetd enrollment (which is
+// considered the most accurate source) is preserved when the host later
+// enrolls into MDM.
+func insertHostDisplayNamesIfAbsent(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
+	if len(hosts) == 0 {
+		return nil
+	}
+	// Insert a row even when DisplayName() is empty so that downstream
+	// callers (e.g. GetHostMDMCheckinInfo) can scan display_name as a
+	// non-nullable string from a LEFT JOIN on host_display_names.
+	var args []any
+	var parts []string
+	for _, h := range hosts {
+		args = append(args, h.ID, h.DisplayName())
+		parts = append(parts, "(?, ?)")
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(
+		`INSERT IGNORE INTO host_display_names (host_id, display_name) VALUES %s`,
+		strings.Join(parts, ",")),
+		args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert host display names if absent")
 	}
 
 	return nil
@@ -2421,10 +2488,7 @@ ON DUPLICATE KEY UPDATE
 		profTeamID = *tmID
 	}
 
-	err = ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, profiles)
-	if err != nil {
-		return false, err
-	}
+	// We don't verify profile scopes conflict, as we have already done it at the service level
 
 	// build a list of identifiers for the incoming profiles, will keep the
 	// existing ones if there's a match and no change
@@ -6597,10 +6661,19 @@ func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.
 }
 
 // ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched
-// (their details haven't been updated in the given `interval`).
+// (their details haven't been updated in the given `interval`, or they were
+// just enrolled and have refetch_requested=1 still waiting to be cleared by
+// the DeviceInformation ack).
 func (ds *Datastore) ListIOSAndIPadOSToRefetch(ctx context.Context, interval time.Duration) (devices []fleet.AppleDevicesToRefetch,
 	err error,
 ) {
+	// The detail_updated_at staleness check alone skips freshly-enrolled hosts
+	// (their timestamp is set to the enroll time), which would otherwise wait
+	// up to `interval` before getting their first inventory. The
+	// refetch_requested branch lets the next cron tick pick up brand-new
+	// BYOD/manual iOS hosts (set during MDMAppleUpsertHost) and gets cleared
+	// by the DeviceInformation ack handler, so we don't end up resending on
+	// every tick after the first refetch.
 	hostsStmt := `
 SELECT
 	h.id as host_id,
@@ -6614,7 +6687,10 @@ FROM hosts h
 WHERE
 	(h.platform = 'ios' OR h.platform = 'ipados')
 	AND TRIM(h.uuid) != ''
-	AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
+	AND (
+		TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?
+		OR h.refetch_requested = 1
+	)
 	AND ne.enabled = 1
 GROUP BY h.id`
 	args := []any{fleet.ListAppleRefetchCommandPrefixes(), interval.Seconds()}
@@ -7970,9 +8046,13 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]stri
 	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove)
 
 	// Update all claimed hosts to remove/pending
+	// auto_rotate_at is also nulled: it's meaningful only for install-state
+	// rows (see GetHostsForAutoRotation), so leaving a stale view-deadline on
+	// a row pending removal would cause the read API to report a rotation
+	// time that auto-rotation will never honor.
 	updateStmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
-		SET operation_type = '%s', status = '%s'
+		SET operation_type = '%s', status = '%s', auto_rotate_at = NULL
 		WHERE host_uuid IN (?)
 	`, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
 
@@ -8292,9 +8372,19 @@ func (ds *Datastore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUI
 	return hasPending, nil
 }
 
+// MarkRecoveryLockPasswordViewed schedules auto-rotation by setting
+// auto_rotate_at to 1 hour from now on the host's install-state recovery lock
+// row, overwriting any prior deadline. Returns the scheduled rotation time.
+//
+// If the row is missing or not in install state (e.g.,
+// ClaimHostsForRecoveryLockClear has flipped it to operation_type='remove'
+// because the host's current team has the feature disabled), returns a zero
+// time and no error: the password is still readable until the device confirms
+// ClearRecoveryLock, but auto-rotation does not apply and would be undone by
+// the clear anyway. Callers should treat zero as "no rotation scheduled" and
+// omit auto_rotate_at from the response rather than reporting a deadline the
+// auto-rotation cron (filtered on operation_type='install') will never honor.
 func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
-	// Set auto_rotate_at to 1 hour from now when password is viewed.
-	// This always updates (even if pending rotation exists) so the API always returns a valid rotation time.
 	rotateAt := time.Now().Add(1 * time.Hour)
 
 	stmt := fmt.Sprintf(`
@@ -8312,8 +8402,7 @@ func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUI
 
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return time.Time{}, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
-			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		return time.Time{}, nil
 	}
 
 	return rotateAt, nil

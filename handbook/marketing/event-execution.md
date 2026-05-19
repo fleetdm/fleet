@@ -136,13 +136,13 @@ We utilize two general event plans, which act as templates depending on the scal
 
 
 
-### Partner Involvement at GitOps Workshops
+### **Partner Involvement at GitOps Workshops**
 
 It is a best practice and a goal for Fleet to have channel partner involvement in every   
 GitOps workshop we host. Partner involvement strengthens the workshop's reach, reinforces   
 Fleet's channel relationships, and increases qualified attendance.
 
-#### There are three defined partner engagement types for GitOps workshops:
+#### **There are three defined partner engagement types for GitOps workshops:**
 1. **Dedicated Partner Workshop:** Fleet hosts the workshop exclusively for a single partner, typically at the partner's office. The audience is the partner's internal staff only — no customers, prospects, or other partners are included. This format is used for partner enablement and training.  
 2. **Partner Co-Sponsored Workshop** *(most common):* A single channel partner co-sponsors the workshop alongside Fleet. Only one partner sponsor is permitted per event, and no other partners may attend. Fleet and the co-sponsoring partner each invite from their combined customer and prospect base to drive attendance.  
 3. **Fleet-Led Open Workshop:** Fleet runs and owns the workshop independently, with no dedicated local partner. This format is used when there is no established partner presence in the workshop's metro area. Any partner is welcome to attend. To drive registration, the channel manager and account executives run a targeted LinkedIn campaign inviting prospects and customers within the workshop's metro area.
@@ -166,6 +166,48 @@ Once an event is approved, a Marketing directly responsible individual (DRI) is 
 * Ensure leads and attendance are actively captured during the event.  
 * Pack up the event kit and ship it back.  
 * Coordinate with the Marketing DRI to get leads uploaded and processed.
+
+### **Lead capture at events**
+
+Fleet uses one of three methods to capture leads at events, in priority order.
+
+#### **Scenario 1: Official event scanner (preferred)**
+If the conference provides a lead scanner or rental device, always use it.
+1.  **Pre-event:** Create a dedicated SFDC campaign for the booth (separate from any workshop campaign) before the event starts.
+2. **At the event:** Scan badges, flag lead temperature, and export the lead list at the end of each day.
+3. **Post-event:** Upload leads to SFDC and share in the event Slack channel. Hot leads should receive outreach within 24 hours.
+
+#### **Scenario 2: Popl (no official scanner)**
+When no official scanner is available, use the **Popl** app to scan badges and business cards. Popl is connected to SFDC and leads/scans will be added to the SFDC campaign automatically.
+
+##### **Pre-event setup (marketing DRI)**
+1. Create a dedicated Popl campaign matching the SFDC campaign name, with dates covering the full event.  
+2. Add all booth staff to the campaign. Send Popl invites to anyone who doesn't have an account yet — they'll see the campaign automatically once set up.  
+3. Confirm everyone can see the campaign at least 48 hours before the event.
+
+##### **At the event**
+* Confirm the correct campaign is selected before scanning.  
+* Add notes to each scan immediately after the conversation.  
+* If connectivity is poor or unreliable, revert to [Scenario 3: Google Doc fallback](#scenario-3-google-doc-fallback-no-wi-fi-or-popl-not-working).
+
+**Note:** Popl's badge scan and OCR features require an internet connection to process.
+
+#### **Scenario 3: Google Doc fallback (no Wi-Fi or Popl not working)**
+If there is poor service and/or Wi-Fi and Popl is not a viable option, one person from the on-site team should open a new Google Doc and share it with the other team members. Create one tab per staff member inside the doc.
+
+**Guide:** For a step-by-step visual walkthrough of this process, refer to [How to Guide-Capturing leads using Google doc offline](#https://docs.google.com/document/d/1equ2pwOY4Op3m2zTX-316p0vp9b7Du6Zmjjqdgmueoc/edit?usp=sharing).
+
+##### **At the event — instructions for each team member**
+1. Open a new tab (one per lead).  
+2. Tap **\+** → **Image** → **From camera** to photograph their badge.  
+3. After they leave, tap the mic and dictate your note. Always start with time, customer name, lead rating, and your notes:  
+     
+   `[TIME]: [FULL NAME]: [lead rating — hot / warm / cold]: [your notes]`  
+    
+4. Once done, open a new tab and repeat for each lead.
+
+##### **Post-event**
+When back online, the doc syncs automatically. The event DRI reviews all tabs, transcribes leads into SFDC, and assigns lead temperature based on the notes.
 
 ### **Definition of done**
 

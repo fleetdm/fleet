@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.26.2-trixie@sha256:b53c282df83967299380adbd6a2dc67e750a58217f39285d6240f6f80b19eaad
+FROM --platform=linux/amd64 golang:1.26.3-trixie@sha256:6b3de2e6b4ccfc5fae404042cb1a025b1de13c73458e50455e3143bf12e98eae
 LABEL maintainer="Fleet Developers"
 
 RUN apt-get update && apt-get install -y musl-tools && rm -rf /var/lib/apt/lists/*

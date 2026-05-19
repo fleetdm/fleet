@@ -34,30 +34,32 @@
 #     - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus.
 #     - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
-- jobTitle: 🐋 Channel Account Manager
-  department: Sales
-  hiringManagerName: Chaz MacLaughlin
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/chazmaclaughlin/
-  hiringManagerGithubUsername: chazmac6
-  onTargetEarnings: "$200,000 - $280,000"
+- jobTitle: 💸 Controller
+  department: Finance 
+  hiringManagerName: Tina Ong
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/ongtina/ 
+  hiringManagerGithubUsername: rfoo2015 
+  onTargetEarnings: "$150,000 - $190,000"
   responsibilities: |
-    - 🤝 Develop and nurture strong, productive relationships with channel partners, executives, and sales teams, acting as the primary liaison for Fleet.
-    - 📈 Execute Fleet's channel strategy, supporting partner acquisition and achieving revenue targets through partner organizations.
-    - ✈️ Spend ~50% of time traveling to deepen partner relationships, accelerate deals, and expand Fleet’s presence in key markets.
-    - 🎯 Facilitate and manage joint selling initiatives between channel partners and Fleet's direct sales team, ensuring seamless coordination and minimizing conflict.
-    - 🚀 Support the development and launch of new partner offerings and go-to-market strategies, identifying opportunities for incremental joint revenue and ensuring partner compliance with programs and agreements.
-    - 🌐 Collaborate extensively with internal teams such as Marketing, Product Design, Customer Success, and Engineering, as well as external stakeholders, to enhance product offerings, provide partner feedback, and capture market opportunities.
-    - 🧠 Understand the market dynamics, industry-specific trends, and landscapes to bring new insights and solutions that foster sustainable business growth through the channel.
-    - 🦢 Work with the Product Design, Customer Success, and Engineering teams to facilitate feature development based on channel and prospect asks.
-    - 🤝 Collaborate with Marketing to help execute and track campaigns, to achieve quarterly pipeline and revenue targets.
+    - 📊 Own the full accounting cycle, including month-end and year-end close, ensuring accurate and timely financial reporting across Fleet.
+    - 🤝 Partner closely with leadership, operations, and department heads to provide financial insights that drive strategic decision-making.
+    - 📈 Build and maintain scalable accounting processes, internal controls, and policies that support Fleet's growth as a fast-moving, remote-first company.
+    - 🎯 Oversee accounts payable, accounts receivable, payroll, and general ledger functions, ensuring accuracy and compliance at every step.
+    - 🚀 Manage relationships with external tax advisors for accurate, timely filings and compliance across sales and payroll tax obligations.
+    - 🔍 Own audit-readiness and manage financial statement audits end-to-end, in collaboration with external auditors.
+    - 🌐 Collaborate extensively with internal teams such as People, Sales, and Marketing to support budgeting, forecasting, and vendor management.
+    - 🧠 Identify opportunities to improve financial systems and tooling, implementing best practices that reduce manual work and increase visibility.
+    - 💡 Provide ad hoc financial analysis and modeling to help the business evaluate new opportunities, partnerships, and investments.
   experience: |
-    - 🦉 Proven experience in channel sales or partner management, ideally within B2B SaaS or enterprise technology, with a track record of driving revenue through partnerships.
-    - 🗣️ Exceptional communication, negotiation, and relationship-building skills, with the ability to influence key decision-makers and stakeholders at all levels.
-    - ⚙️ System-oriented thinker with a hands-on approach, capable of supporting process improvements and operational efficiency within a channel ecosystem.
-    - ⚡ Agile and adaptable, thriving in a fast-paced, results-driven, remote-first environment while managing multiple priorities and complex projects.
-    - 🧑‍💻 Love technology and can explain how things work in detail, with experience marketing to or working with IT engineers, security engineers, or DevOps teams.
-    - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
-    - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
+    - 🦉 5+ years of progressive accounting experience, ideally in a high-growth B2B SaaS or technology company, with at least 2 years in a controller role.
+    - 📜 Active CPA license, and managed audit process from start to finish. 
+    - 🗣️ Strong communicator who can translate complex financial data into clear, actionable insights for both technical and non-technical stakeholders.
+    - ⚙️ Systems-oriented and detail-driven, with a track record of building and improving accounting processes, controls, and workflows from the ground up.
+    - ⚡ Agile and adaptable, comfortable operating in a fast-paced, remote-first environment where priorities shift and ownership is encouraged.
+    - 🧑‍💻 Comfortable working with modern tooling and excited to leverage technology to automate and streamline financial operations.
+    - 🧪 Experience with tools like QuickBooks, Salesforce, Bill.com, Brex, Google Suite, and Slack in an all-remote setting.
+    - ➕ Bonus: Experience with AI-native tools (e.g. Rillet, Campfire, Tabs, Aleph) and building AI-assisted workflows for financial reporting and reconciliation; familiarity with open-source or device management concepts.
+
 
 #- jobTitle: 🐋 Enterprise Customer Success Manager
 # department: Customers

@@ -61,6 +61,10 @@
   --ui-success-toast-bg: #3db67b;
   --ui-error-toast-bg: #d66c7b;
 
+  // Flash message background surfaces (light mode)
+  --ui-success-flash-bg: #e2f4eb;
+  --ui-error-flash-bg: #f9e9eb;
+
   // TS COLORS aliases (match keys used in colors.ts for JS inline styles)
   --core-fleet-red: #ff5c83;
   --ui-blue-hover: #5d5ae7;
@@ -143,10 +147,10 @@ body.dark-mode {
   --ui-gray: #32363e;
   --ui-light-grey: #1e2128;
   --ui-off-white: #1e2128;
-  --ui-shadow: #32363e;
+  --ui-shadow: #000000;
   --ui-vibrant-blue-50: rgba(123, 121, 255, 0.3);
   --ui-vibrant-blue-25: #282736;
-  --ui-vibrant-blue-10: #2c2f37;
+  --ui-vibrant-blue-10: #2d2e4d;
   --tooltip-bg: #353940;
 
   // Notifications & status — slightly brighter
@@ -162,6 +166,10 @@ body.dark-mode {
   // the eyes against the darkened UI.
   --ui-success-toast-bg: #2d8f5f;
   --ui-error-toast-bg: #a8525f;
+
+  // Flash message background surfaces (dark mode)
+  --ui-success-flash-bg: #1f332e;
+  --ui-error-flash-bg: #36282e;
 
   // TS COLORS aliases
   --core-fleet-red: #ff7a9a;
@@ -258,6 +266,8 @@ $ui-yellow-banner: var(--ui-yellow-banner);
 $ui-yellow-banner-outline: var(--ui-yellow-banner-outline);
 $ui-success-toast-bg: var(--ui-success-toast-bg);
 $ui-error-toast-bg: var(--ui-error-toast-bg);
+$ui-success-flash-bg: var(--ui-success-flash-bg);
+$ui-error-flash-bg: var(--ui-error-flash-bg);
 
 // Rainbow
 $rainbow-orange: var(--rainbow-orange);
@@ -299,6 +309,8 @@ $static-black: #192147;
 $dark-mode-table-header: #282c33;
 $dark-mode-table-row: #1f2229;
 $dark-mode-nav-hover: #1f2228;
+$logo-preview-light: #ffffff;
+$logo-preview-dark: #1a1c21;
 
 // Opaque colors for table shadows — compile-time SCSS math, not themed.
 // These are subtle edge effects; dark-mode polish can refine them later.

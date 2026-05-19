@@ -465,6 +465,7 @@ const PackageForm = ({
         versionOptions={versionOptions}
         onSelectVersion={onSelectVersion}
         className={`${baseClass}__version-selector`}
+        isGitOpsMode={gitOpsModeEnabled}
       />
     );
   };

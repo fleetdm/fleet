@@ -47,7 +47,7 @@ const EnableVppMessage = ({
     header="Volume Purchasing Program (VPP) isn't enabled"
     info={
       isGlobalAdmin
-        ? "To add App Store apps, first enable VPP."
+        ? "Enable VPP to add App Store apps (MDM required)."
         : "To add App Store apps, ask your admin to enable VPP."
     }
     primaryButton={

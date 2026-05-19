@@ -219,6 +219,12 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		return nil, err
 	}
 
+	if p.Name == nil || p.Query == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "name and query fields are required",
+		})
+	}
+
 	if p.Logging == nil || (p.Logging != nil && *p.Logging == "") {
 		p.Logging = ptr.String(fleet.LoggingSnapshot)
 	}

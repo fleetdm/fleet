@@ -273,7 +273,7 @@ export interface IActivityDetails {
   installed_from_dep?: boolean;
   labels_exclude_any?: ILabelSoftwareTitle[];
   labels_include_any?: ILabelSoftwareTitle[];
-  location?: string; // name of location associated with VPP token
+  location?: string; // name of organization unit associated with VPP token
   mdm_platform?: "microsoft" | "apple" | "android" | "ios" | "ipados";
   minimum_version?: string;
   mode?: IOrgLogoMode;

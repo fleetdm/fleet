@@ -773,6 +773,23 @@ This activity contains the following fields:
 }
 ```
 
+## retrieved_host_my_device_url
+
+Generated when a global admin retrieves a host's "My device" page URL (a credential-bearing link that opens the end user's device page). Fleet logs this for every retrieval, including reuse of an existing token.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 ## created_macos_profile
 
 Generated when a user adds a new macOS profile to a team (or no team).
@@ -943,6 +960,44 @@ This activity contains the following fields:
 ```json
 {
   "exception": "software"
+}
+```
+
+## enabled_historical_dataset
+
+Generated when collection of a chart historical dataset is enabled, either globally or for a specific fleet.
+
+This activity contains the following fields:
+- "dataset": The public config sub-key of the dataset. One of `"uptime"`, `"vulnerabilities"`. 
+- "fleet_id": The ID of the fleet the toggle applies to, `null` if applied globally.
+- "fleet_name": The name of the fleet the toggle applies to, `null` if applied globally.
+
+#### Example
+
+```json
+{
+  "dataset": "uptime",
+  "fleet_id": 2,
+  "fleet_name": "EMEA"
+}
+```
+
+## disabled_historical_dataset
+
+Generated when collection of a chart historical dataset is disabled, either globally or for a specific fleet.
+
+This activity contains the following fields:
+- "dataset": The public config sub-key of the dataset. One of `"uptime"`, `"vulnerabilities"`.
+- "fleet_id": The ID of the fleet the toggle applies to, `null` if applied globally.
+- "fleet_name": The name of the fleet the toggle applies to, `null` if applied globally.
+
+#### Example
+
+```json
+{
+  "dataset": "vulnerabilities",
+  "fleet_id": 2,
+  "fleet_name": "EMEA"
 }
 ```
 
@@ -1635,7 +1690,7 @@ This activity contains the following fields:
 Generated when VPP features are enabled in Fleet.
 
 This activity contains the following fields:
-- "location": Location associated with the VPP content token for the enabled VPP features.
+- "location": Organization unit associated with the VPP content token for the enabled VPP features. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
 
 #### Example
 
@@ -1650,7 +1705,7 @@ This activity contains the following fields:
 Generated when VPP features are disabled in Fleet.
 
 This activity contains the following fields:
-- "location": Location associated with the VPP content token for the disabled VPP features.
+- "location": Organization unit associated with the VPP content token for the disabled VPP features. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
 
 #### Example
 
@@ -2524,6 +2579,55 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_managed_local_account
+
+Generated when a user turns on create managed local account for a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## disabled_managed_local_account
+
+Generated when a user turns off create managed local account for a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## read_managed_local_account
+
+Generated when a user reads the information for the local managed account for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 ## resent_certificate
 
 Generated when a user resends a certificate to a host.
@@ -2534,7 +2638,6 @@ This activity contains the following fields:
 - "certificate_template_id": The ID of the certificate template
 - "certificate_name": The name of the certificate
 
-
 #### Example
 
 ```json
@@ -2543,6 +2646,21 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "certificate_template_id": 123,
   "certificate_name": "Zero trust certificate"
+}
+```
+
+## cleared_passcode
+
+Generated when a user clears the passcode on a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 
@@ -2564,6 +2682,23 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
   "software_title_id": 1234
+}
+```
+
+## created_managed_local_account
+
+Generated when a local managed account and password is created for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 

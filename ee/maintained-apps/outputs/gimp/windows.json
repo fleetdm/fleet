@@ -4,7 +4,7 @@
       "version": "3.2.4.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'GIMP %' AND publisher = 'The GIMP Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'GIMP %' AND publisher = 'The GIMP Team' AND version_compare(version, '3.2.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name LIKE 'GIMP %' AND publisher = 'The GIMP Team') AND version_compare(version, '3.2.4.0') < 0);"
       },
       "installer_url": "https://download.gimp.org/gimp/v3.2/windows/gimp-3.2.4-setup.exe",
       "install_script_ref": "7e5269bc",

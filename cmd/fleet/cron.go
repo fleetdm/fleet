@@ -1562,7 +1562,7 @@ func newChartDataCollectionSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronChartDataCollection)
-		defaultInterval = 10 * time.Minute
+		defaultInterval = 1 * time.Hour
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,

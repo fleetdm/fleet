@@ -26,7 +26,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
@@ -1258,7 +1258,7 @@ func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID s
 func (c *TestAppleMDMClient) AcknowledgeCertificateList(udid, cmdUUID string, certTemplates []*x509.Certificate) (*mdm.Command, error) {
 	var certList []fleet.MDMAppleCertificateListItem
 	for _, cert := range certTemplates {
-		b, _, err := mysql.GenerateTestCertBytes(cert)
+		b, _, err := mysqltest.GenerateTestCertBytes(cert)
 		if err != nil {
 			return nil, err
 		}

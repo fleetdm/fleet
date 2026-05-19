@@ -417,3 +417,35 @@ func TestHasJSONProfileAssigned(t *testing.T) {
 		})
 	}
 }
+
+func TestMDMNameFromServerURL(t *testing.T) {
+	testCases := []struct {
+		name      string
+		serverURL string
+		expected  string
+	}{
+		{"empty", "", UnknownMDMName},
+		{"unknown", "https://example.com/mdm", UnknownMDMName},
+		{"kandji", "https://example.kandji.io", WellKnownMDMIru},
+		{"iru", "https://mdm.iru.com", WellKnownMDMIru},
+		{"jamf", "https://example.jamfcloud.com", WellKnownMDMJamf},
+		{"jumpcloud", "https://example.jumpcloud.com", WellKnownMDMJumpCloud},
+		{"airwatch", "https://example.airwatch.com", WellKnownMDMVMWare},
+		{"awmdm", "https://example.awmdm.com", WellKnownMDMVMWare},
+		{"microsoft intune", "https://manage.microsoft.com", WellKnownMDMIntune},
+		{"simplemdm", "https://example.simplemdm.com", WellKnownMDMSimpleMDM},
+		{"fleetdm", "https://example.fleetdm.com", WellKnownMDMFleet},
+		{"mosyle", "https://example.mosyle.com", WellKnownMDMMosyle},
+		{"mixed case is normalized", "https://Example.JumpCloud.com", WellKnownMDMJumpCloud},
+		// Ambiguous URLs must resolve deterministically. JumpCloud's MDM is hosted on
+		// AirWatch/awmdm.com infrastructure, so jumpcloud.awmdm.com must resolve to
+		// JumpCloud rather than VMware Workspace ONE.
+		{"jumpcloud on awmdm infrastructure", "https://jumpcloud.awmdm.com", WellKnownMDMJumpCloud},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, MDMNameFromServerURL(tc.serverURL))
+		})
+	}
+}

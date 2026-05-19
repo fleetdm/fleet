@@ -114,6 +114,11 @@
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Device management (MDM)
             </label>
+            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'it-misc' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="it-misc">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Auto-patching
+            </label>
             <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'it-gap-filler-mdm' ? 'selected' : '']">
               <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="it-gap-filler-mdm">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>

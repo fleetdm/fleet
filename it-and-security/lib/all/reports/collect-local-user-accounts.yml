@@ -1,8 +1,6 @@
 - name: Collect local user accounts and admin membership
   description: |-
     Inventory of local user accounts with admin-equivalent membership for access reviews.
-
-    Maps to Vanta **AST-66** / ISO **A.5.9** (asset inventory), **IAC-200** / **A.5.18** (access rights), and **IAC-201** / **A.8.2** (privileged access).
   query: |-
     SELECT
       u.uid,
