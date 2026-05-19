@@ -209,8 +209,6 @@ func scepInstallPath(loc string) (scepCSPPath, bool) {
 //     exchanges complete. Callers that don't need synchronization can ignore it.
 //   - hasWork: true if any SCEP CSPs (complete or incomplete) were found. When false, done is
 //     a closed empty channel and there's no reason for the caller to spawn a drain goroutine.
-//     This is the signal callers should gate context-cancellation on; gating on len(handled)
-//     misses the incomplete-only case (incomplete CSPs do not populate handled).
 func (c *TestWindowsMDMClient) AppendSCEPInstallResponses(
 	ctx context.Context,
 	cmds map[string]fleet.ProtoCmdOperation,
@@ -302,8 +300,7 @@ func newStatusCmd(msgID, cmdRef, cmd, status string) fleet.SyncMLCmd {
 }
 
 // parseSCEPSubject parses a SubjectName CSP value of the form CN=foo,OU=bar into a pkix.Name.
-// Only CN and OU are recognized — those are the only RDNs Fleet's Windows SCEP profiles emit.
-// Escaped commas in values are not supported because the CSP doesn't deliver escapes either.
+// Only CN and OU are recognized. Escaped commas in values are not supported.
 func parseSCEPSubject(s string) (pkix.Name, error) {
 	n := pkix.Name{}
 	if strings.TrimSpace(s) == "" {
