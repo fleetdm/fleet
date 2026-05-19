@@ -158,10 +158,13 @@ const QueryResults = ({
   const renderNoResults = () => {
     return (
       <EmptyState
-        header="Your live report returned no results"
-        info={`Expecting to see results? Check to see if the host${
-          targetsTotalCount > 1 ? "s" : ""
-        } you targeted reported "Online" or check out the "Errors" table.`}
+        header="No results returned"
+        info={
+          <>
+            Check whether the host{targetsTotalCount > 1 ? "s" : ""} are online
+            or review the <strong>Errors</strong> tab for details.
+          </>
+        }
       />
     );
   };
