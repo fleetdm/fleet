@@ -343,6 +343,7 @@ CREATE TABLE `certificate_authorities` (
   `certificate_user_principal_names` json DEFAULT NULL,
   `certificate_seat_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `admin_url` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `allow_basic_auth` tinyint(1) NOT NULL DEFAULT '0',
   `username` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `password_encrypted` blob,
   `challenge_url` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
