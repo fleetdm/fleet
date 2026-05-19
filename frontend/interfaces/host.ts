@@ -132,6 +132,8 @@ export interface IOSSettings {
   managed_local_account?: {
     status: string | null;
     password_available: boolean;
+    auto_rotate_at?: string;
+    pending_rotation?: boolean;
   };
   certificates: IHostAndroidCert[];
 }
@@ -268,6 +270,8 @@ export interface IHostManagedAccountPasswordResponse {
     username: string;
     password: string;
     updated_at: string;
+    auto_rotate_at?: string;
+    pending_rotation?: boolean;
   };
 }
 

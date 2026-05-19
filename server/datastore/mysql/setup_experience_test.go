@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -329,6 +330,107 @@ func testEnqueueSetupExperienceItemsWindows(t *testing.T, ds *Datastore) {
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host2UUID, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
+
+	// Re-Autopilot of an existing host: last_enrolled_at is >24h old (the
+	// pre-existing record predates this Autopilot cycle), but the host has
+	// just MDM-enrolled and is in awaiting_configuration=Pending.
+	host3UUID := "33333333-3333-3333-3333-333333333333"
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "windows-test-3-reautopilot",
+		OsqueryHostID:  ptr.String("osquery-windows-3"),
+		NodeKey:        ptr.String("node-key-windows-3"),
+		UUID:           host3UUID,
+		Platform:       "windows",
+		HardwareSerial: "654321c-3",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-25*time.Hour), host3UUID)
+		return err
+	})
+	// Insert a Windows MDM enrollment with awaiting_configuration=Pending,
+	// matching what a fresh Autopilot enrollment on the same host would create
+	// before last_enrolled_at gets refreshed.
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "device-host3",
+		MDMHardwareID:          "hw-host3",
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-H3",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               host3UUID,
+		AwaitingConfiguration:  fleet.WindowsMDMAwaitingConfigurationPending,
+	}))
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host3UUID, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued,
+		"re-Autopilot of an existing host (>24h old) with awaiting_configuration!=None must bypass the age guard")
+
+	// Re-BYOD of an existing host: last_enrolled_at is >24h old AND the host's BYOD enrollment never
+	// enters awaiting_configuration (not_in_oobe=1). The freshly-created mdm_windows_enrollments row
+	// is the signal that this IS a real re-enrollment we want setup-experience for.
+	host4UUID := "44444444-4444-4444-4444-444444444444"
+	test.NewHost(t, ds, "windows-test-4-rebyod", "", "node-key-windows-4", host4UUID, time.Now(), test.WithPlatform("windows"))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-25*time.Hour), host4UUID)
+		return err
+	})
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "device-host4",
+		MDMHardwareID:          "hw-host4",
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-H4",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           true,
+		HostUUID:               host4UUID,
+		AwaitingConfiguration:  fleet.WindowsMDMAwaitingConfigurationNone,
+	}))
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host4UUID, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued,
+		"re-BYOD of an existing host (>24h old) with a fresh mdm_windows_enrollments row must bypass the age guard")
+
+	// Original #35717 protection: a fleetd MSI upgrade on a long-running host does NOT create a new
+	// mdm_windows_enrollments row, so the existing one is also old. Both fallback signals must miss,
+	// and the age guard must still skip enqueueing.
+	host5UUID := "55555555-5555-5555-5555-555555555555"
+	test.NewHost(t, ds, "windows-test-5-fleetd-upgrade", "", "node-key-windows-5", host5UUID, time.Now(), test.WithPlatform("windows"))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-25*time.Hour), host5UUID)
+		return err
+	})
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "device-host5",
+		MDMHardwareID:          "hw-host5",
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-H5",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           true,
+		HostUUID:               host5UUID,
+		AwaitingConfiguration:  fleet.WindowsMDMAwaitingConfigurationNone,
+	}))
+	// Backdate the MDM enrollment row beyond the freshEnrollmentWindow (5m) to simulate a long-running
+	// host whose orbit just started supporting setup-experience.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE mdm_windows_enrollments SET created_at = ? WHERE host_uuid = ?", time.Now().Add(-72*time.Hour), host5UUID)
+		return err
+	})
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host5UUID, team1.ID)
+	require.NoError(t, err)
+	require.False(t, anythingEnqueued,
+		"long-running host with a stale mdm_windows_enrollments row (e.g. fleetd MSI upgrade per #35717) must still skip enqueueing")
 }
 
 func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {

@@ -48,10 +48,6 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return nil, nil, fleet.ErrNoContext
 	}
 
-	if _, ok := fleet.ValidLabelPlatformVariants[p.Platform]; !ok {
-		return nil, nil, fleet.NewInvalidArgumentError("platform", fmt.Sprintf("invalid platform: %s", p.Platform))
-	}
-
 	if len(p.Hosts) > 0 && len(p.HostIDs) > 0 {
 		return nil, nil, fleet.NewInvalidArgumentError("hosts", `Only one of either "hosts" or "host_ids" can be included in the request.`)
 	}
@@ -96,6 +92,17 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 
 	label.Platform = p.Platform
 	label.Description = p.Description
+
+	// Validate field combinations for the inferred membership type
+	if err := fleet.ValidateLabelMembershipFields(&fleet.LabelSpec{
+		Name:                label.Name,
+		Query:               label.Query,
+		Platform:            label.Platform,
+		LabelMembershipType: label.LabelMembershipType,
+		HostVitalsCriteria:  label.HostVitalsCriteria,
+	}); err != nil {
+		return nil, nil, err
+	}
 
 	for name := range fleet.ReservedLabelNames() {
 		if label.Name == name {
@@ -615,22 +622,9 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	var specLabelNamesNeedingMoving []string // should match namesToMove once specs have been checked
 
 	for _, spec := range specs {
-		if _, ok := fleet.ValidLabelPlatformVariants[spec.Platform]; !ok {
-			return fleet.NewUserMessageError(
-				ctxerr.Errorf(ctx, "invalid platform: %s", spec.Platform), http.StatusUnprocessableEntity,
-			)
-		}
-
-		if spec.LabelMembershipType == fleet.LabelMembershipTypeDynamic && len(spec.Hosts) > 0 {
-			return fleet.NewUserMessageError(
-				ctxerr.Errorf(ctx, "label %s is declared as dynamic but contains `hosts` key", spec.Name), http.StatusUnprocessableEntity,
-			)
-		}
-		if spec.LabelMembershipType == fleet.LabelMembershipTypeHostVitals && spec.HostVitalsCriteria == nil {
-			// Criteria is required for host vitals labels.
-			return fleet.NewUserMessageError(
-				ctxerr.Errorf(ctx, "label %s is declared as host vitals but contains no `criteria` key", spec.Name), http.StatusUnprocessableEntity,
-			)
+		// Validate mutually exclusive field combinations per label membership type
+		if err := fleet.ValidateLabelMembershipFields(spec); err != nil {
+			return err.WithStatus(http.StatusUnprocessableEntity)
 		}
 		if spec.LabelType == fleet.LabelTypeBuiltIn {
 			// We allow specs to contain built-in labels as long as they are not being modified.

@@ -38,9 +38,10 @@ const getStatusText = (command: ICommand): string => {
 };
 
 const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
-  const { request_type, updated_at, name } = command;
+  const { request_type, updated_at, name, status } = command;
 
   const statusText = getStatusText(command);
+  const willRetryText = status === "NotNow" ? " Fleet will try again." : "";
 
   const onShowCommandDetails = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -50,10 +51,11 @@ const CommandItem = ({ command, onShowDetails }: ICommandItemProps) => {
   const activityText = name ? (
     <>
       The <b>{request_type}</b> command for <b>{name}</b> {statusText}.
+      {willRetryText}
     </>
   ) : (
     <>
-      The <b>{request_type}</b> command {statusText}.
+      The <b>{request_type}</b> command {statusText}.{willRetryText}
     </>
   );
 

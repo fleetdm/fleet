@@ -1,6 +1,6 @@
 cask "fleet-desktop" do
   version "1.2.0"
-  sha256 "4e7352b5faac94f8176a8291d170663f220fd4268ee33dd67b2723f7fe721a09"
+  sha256 "d58a07e71d350b6c7fc39319080c28ad56d298f41ef45c67e0114940dce41420"
 
   url "https://github.com/allenhouchins/fleet-desktop/releases/download/v#{version}/fleet_desktop-v#{version}.pkg"
   name "Fleet Desktop"

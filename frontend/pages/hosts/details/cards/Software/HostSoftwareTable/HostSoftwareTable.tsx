@@ -24,6 +24,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
+import EmptyState from "components/EmptyState";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
 import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
@@ -157,21 +158,21 @@ const HostSoftwareTable = ({
   const count = data?.count || data?.software?.length || 0;
   const isSoftwareNotDetected = count === 0 && searchQuery === "";
 
-  const memoizedSoftwareCount = useCallback(() => {
-    if (isSoftwareNotDetected) {
-      return null;
-    }
-
-    return <TableCount name="items" count={count} />;
-  }, [count, isSoftwareNotDetected]);
-
   // Determines if a user should be able to filter or search in the table
   const hasData = data && data.software.length > 0;
   const hasQuery = searchQuery !== "";
   const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
   const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
-  const showFilterHeaders = hasData || hasQuery || hasVulnFilters;
+  // Truly empty: no software at all, no active search/filters
+  const isTrulyEmpty = isSoftwareNotDetected && !hasVulnFilters;
+
+  const showFilterHeaders =
+    isTrulyEmpty || hasData || hasQuery || hasVulnFilters;
+
+  const memoizedSoftwareCount = useCallback(() => {
+    return <TableCount name="items" count={count} />;
+  }, [count]);
 
   const onClickMyDeviceRow = useCallback(
     (row: IHostSoftwareRowProps) => {
@@ -191,7 +192,11 @@ const HostSoftwareTable = ({
         tipContent={vulnFilterDetails.tooltipText}
         disableTooltip={!hasVulnFilters}
       >
-        <Button variant="inverse" onClick={onAddFiltersClick}>
+        <Button
+          variant="inverse"
+          onClick={onAddFiltersClick}
+          disabled={isTrulyEmpty}
+        >
           <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
@@ -214,13 +219,20 @@ const HostSoftwareTable = ({
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
-        emptyComponent={() => (
-          <EmptyComponent
-            hasVulnFilters={hasVulnFilters}
-            platform={platform}
-            searchQuery={searchQuery}
-          />
-        )}
+        emptyComponent={() =>
+          isTrulyEmpty ? (
+            <EmptyState
+              header="No software found"
+              info="Expecting to see software? Check back later."
+            />
+          ) : (
+            <EmptyComponent
+              hasVulnFilters={hasVulnFilters}
+              platform={platform}
+              searchQuery={searchQuery}
+            />
+          )
+        }
         customControl={
           showFilterHeaders ? renderCustomFiltersButton : undefined
         }
@@ -228,6 +240,7 @@ const HostSoftwareTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable={showFilterHeaders}
+        disableSearch={isTrulyEmpty}
         manualSortBy
         keyboardSelectableRows={isMyDevicePage}
         // my device page row clickability

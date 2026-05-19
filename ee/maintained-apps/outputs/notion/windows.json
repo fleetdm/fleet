@@ -4,7 +4,7 @@
       "version": "7.14.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Notion %' AND publisher = 'Notion Labs, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Notion %' AND publisher = 'Notion Labs, Inc' AND version_compare(version, '7.14.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name LIKE 'Notion %' AND publisher = 'Notion Labs, Inc') AND version_compare(version, '7.14.0') < 0);"
       },
       "installer_url": "https://desktop-release.notion-static.com/Notion%20Setup%207.14.0.exe",
       "install_script_ref": "0803ad8c",

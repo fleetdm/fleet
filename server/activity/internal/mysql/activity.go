@@ -92,12 +92,12 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) 
 		args = append(args, opt.StartCreatedAt)
 	}
 
+	// Always cap the upper bound on created_at so that results are consistent
+	// regardless of whether StartCreatedAt is provided. Defaults to now.
+	activitiesQ += " AND a.created_at <= ?"
 	if opt.EndCreatedAt != "" {
-		activitiesQ += " AND a.created_at <= ?"
 		args = append(args, opt.EndCreatedAt)
-	} else if opt.StartCreatedAt != "" {
-		// When filtering by start date, cap at now to ensure consistent results
-		activitiesQ += " AND a.created_at <= ?"
+	} else {
 		args = append(args, time.Now().UTC())
 	}
 

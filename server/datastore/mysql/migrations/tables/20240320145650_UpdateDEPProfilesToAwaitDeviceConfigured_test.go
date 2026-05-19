@@ -13,7 +13,7 @@ func TestUp_20240320145650(t *testing.T) {
 
 	type macosSetupAssistantArgs struct {
 		Task              string   `json:"task"`
-		TeamID            *uint    `json:"team_id,omitempty"`
+		TeamID            *uint    `json:"team_id,omitempty"` //nolint:apiparamcheck // matches frozen migration payload shape
 		HostSerialNumbers []string `json:"host_serial_numbers,omitempty"`
 	}
 

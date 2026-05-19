@@ -4,7 +4,7 @@
       "version": "7.5.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Druva inSync %' AND publisher = 'Druva Technologies Pte. Ltd.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Druva inSync %' AND publisher = 'Druva Technologies Pte. Ltd.' AND version_compare(version, '7.5.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name LIKE 'Druva inSync %' AND publisher = 'Druva Technologies Pte. Ltd.') AND version_compare(version, '7.5.7') < 0);"
       },
       "installer_url": "https://downloads.druva.com/downloads/inSync/Windows/7.5.7/inSync7.5.7r110923.msi",
       "install_script_ref": "8959087b",

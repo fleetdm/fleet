@@ -37,10 +37,7 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import {
-  isBYODAccountDrivenUserEnrollment,
-  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
-} from "interfaces/mdm";
+import { FLEET_FILEVAULT_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
@@ -125,7 +122,7 @@ import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
-import SelectQueryModal from "./modals/SelectQueryModal";
+import SelectReportModal from "./modals/SelectReportModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
 import LockModal from "./modals/LockModal";
 import UnlockModal from "./modals/UnlockModal";
@@ -152,8 +149,6 @@ const fullWidthCardClass = `${baseClass}__card--full-width`;
 const tripleHeightCardClass = `${baseClass}__card--triple-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
-const BYOD_SW_INSTALL_LEARN_MORE_LINK =
-  "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
 
@@ -221,7 +216,7 @@ const HostDetailsPage = ({
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
-  const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
+  const [showSelectReportModal, setShowSelectReportModal] = useState(false);
   const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
@@ -717,9 +712,9 @@ const HostDetailsPage = ({
   }, [showClearPasscodeModal, setShowClearPasscodeModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
-    setPolicyDetailsModal(!showPolicyDetailsModal);
+    setPolicyDetailsModal(false);
     setSelectedPolicy(null);
-  }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
+  }, [setPolicyDetailsModal, setSelectedPolicy]);
 
   const toggleUnenrollMdmModal = useCallback(() => {
     setShowUnenrollMdmModal(!showUnenrollMdmModal);
@@ -975,7 +970,7 @@ const HostDetailsPage = ({
         setShowTransferHostModal(true);
         break;
       case "query":
-        setShowSelectQueryModal(true);
+        setShowSelectReportModal(true);
         break;
       case "diskEncryption":
         setShowDiskEncryptionModal(true);
@@ -1053,6 +1048,10 @@ const HostDetailsPage = ({
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
         }
+        managedAccountPasswordAvailable={
+          host.mdm.os_settings?.managed_local_account?.password_available ??
+          false
+        }
       />
     );
   };
@@ -1111,6 +1110,7 @@ const HostDetailsPage = ({
 
   const showReportsTab =
     !isIosOrIpadosHost && !isAndroidHost && !isChromeOsHost;
+  const showPoliciesTab = !isIosOrIpadosHost && !isAndroidHost;
 
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
     {
@@ -1133,12 +1133,16 @@ const HostDetailsPage = ({
           },
         ]
       : []),
-    {
-      name: "Policies",
-      title: "policies",
-      pathname: PATHS.HOST_POLICIES(hostIdFromURL),
-      count: failingPoliciesCount,
-    },
+    ...(showPoliciesTab
+      ? [
+          {
+            name: "Policies",
+            title: "policies",
+            pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+            count: failingPoliciesCount,
+          },
+        ]
+      : []),
   ];
 
   const hostSoftwareSubNav: IHostDetailsSubNavItem[] = [
@@ -1196,6 +1200,26 @@ const HostDetailsPage = ({
     currentUser,
     host?.team_id
   );
+
+  const isHostTeamObserverPlus =
+    !!currentUser &&
+    permissions.isObserverPlus(currentUser, host?.team_id ?? null);
+
+  // CTA permissions are checked against the host's specific team, not the
+  // currently selected team in the nav. Must align with the /reports/new
+  // route guard (AuthAnyMaintainerAdminObserverPlusRoutes).
+  const canScheduleReport =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer ||
+    isHostTeamObserverPlus;
+
+  const canManagePolicies =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer;
 
   const bootstrapPackageData = {
     status: host?.mdm.setup_experience?.bootstrap_package_status,
@@ -1259,22 +1283,16 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
-               currently supporting software installs. This check should be removed
-               when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
-              {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
-              isAndroidHost ? (
+              {/* Android hosts don't support software installs yet. iOS/iPadOS
+               user-enrolled (BYOD account-driven) hosts now do. */}
+              {isAndroidHost ? (
                 <EmptyState
                   info={
                     <>
                       Software install is coming soon.{" "}
                       <CustomLink
                         text="Learn more"
-                        url={
-                          isAndroidHost
-                            ? ANDROID_SW_INSTALL_LEARN_MORE_LINK
-                            : BYOD_SW_INSTALL_LEARN_MORE_LINK
-                        }
+                        url={ANDROID_SW_INSTALL_LEARN_MORE_LINK}
                         newTab
                       />
                     </>
@@ -1552,18 +1570,38 @@ const HostDetailsPage = ({
                       config?.server_settings?.query_reports_disabled
                     }
                     showReportsEmptyState={showReportsEmptyState}
+                    canScheduleReport={canScheduleReport}
+                    onScheduleReport={() =>
+                      router.push(
+                        getPathWithQueryParams(PATHS.NEW_REPORT, {
+                          host_id: host.id,
+                          fleet_id: host.team_id,
+                        })
+                      )
+                    }
                   />
                 </TabPanel>
               )}
-              <TabPanel>
-                <PoliciesCard
-                  policies={host?.policies || []}
-                  isLoading={isLoadingHost}
-                  togglePolicyDetailsModal={togglePolicyDetailsModal}
-                  hostPlatform={host.platform}
-                  currentTeamId={currentTeam?.id}
-                />
-              </TabPanel>
+              {showPoliciesTab && (
+                <TabPanel>
+                  <PoliciesCard
+                    policies={host?.policies || []}
+                    isLoading={isLoadingHost}
+                    togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    closePolicyDetailsModal={onCancelPolicyDetailsModal}
+                    hostPlatform={host.platform}
+                    currentTeamId={currentTeam?.id}
+                    canManagePolicies={canManagePolicies}
+                    onManagePolicies={() =>
+                      router.push(
+                        getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
+                          fleet_id: host.team_id,
+                        })
+                      )
+                    }
+                  />
+                </TabPanel>
+              )}
             </Tabs>
           </TabNav>
           {showDeleteHostModal && (
@@ -1574,9 +1612,9 @@ const HostDetailsPage = ({
               isUpdating={isUpdating}
             />
           )}
-          {showSelectQueryModal && host && (
-            <SelectQueryModal
-              onCancel={() => setShowSelectQueryModal(false)}
+          {showSelectReportModal && host && (
+            <SelectReportModal
+              onCancel={() => setShowSelectReportModal(false)}
               isOnlyObserver={isOnlyObserver}
               hostId={hostIdFromURL}
               hostTeamId={host?.team_id}
@@ -1657,10 +1695,25 @@ const HostDetailsPage = ({
           {showManagedAccountModal && host && (
             <ManagedAccountModal
               hostId={host.id}
+              canRotatePassword={
+                isGlobalAdmin ||
+                isGlobalMaintainer ||
+                isHostTeamAdmin ||
+                isHostTeamMaintainer
+              }
               onCancel={() => {
                 setShowManagedAccountModal(false);
                 // Opening the modal triggers a "viewed managed account"
-                // activity server-side, so refetch to show it in the feed.
+                // activity server-side and may set auto_rotate_at; refetch
+                // host details + activities so they reflect the new state.
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
+              onRotate={() => {
+                // The rotation activity and cleared auto_rotate_at land on
+                // host details / activities — refresh both so the banner and
+                // feed are in sync with the newly-rotated state.
+                refetchHostDetails();
                 refetchPastActivities();
               }}
             />

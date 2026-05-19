@@ -155,6 +155,7 @@ const PoliciesTable = ({
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
         searchable={searchable}
+        disableTableHeader={!searchable}
         customControl={customControl}
       />
     </div>

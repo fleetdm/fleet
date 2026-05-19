@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
@@ -13,7 +13,7 @@ import (
 )
 
 func TestIntegrationsAnalyzer(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	vulnPath := t.TempDir()
 	releaseNotes := macoffice.ReleaseNotes{
 		{
@@ -93,7 +93,7 @@ func TestIntegrationsAnalyzer(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("no apps", func(t *testing.T) {
-		defer mysql.TruncateTables(t, ds)
+		defer mysqltest.TruncateTables(t, ds)
 		host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 		software := []fleet.Software{
 			{
@@ -111,7 +111,7 @@ func TestIntegrationsAnalyzer(t *testing.T) {
 	})
 
 	t.Run("no office apps", func(t *testing.T) {
-		defer mysql.TruncateTables(t, ds)
+		defer mysqltest.TruncateTables(t, ds)
 		host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 		software := []fleet.Software{
 			{
@@ -130,7 +130,7 @@ func TestIntegrationsAnalyzer(t *testing.T) {
 	})
 
 	t.Run("latest version", func(t *testing.T) {
-		defer mysql.TruncateTables(t, ds)
+		defer mysqltest.TruncateTables(t, ds)
 		host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 		software := []fleet.Software{
 			{
@@ -156,7 +156,7 @@ func TestIntegrationsAnalyzer(t *testing.T) {
 	})
 
 	t.Run("vulnerable versions", func(t *testing.T) {
-		defer mysql.TruncateTables(t, ds)
+		defer mysqltest.TruncateTables(t, ds)
 		host := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 		software := []fleet.Software{
 			{

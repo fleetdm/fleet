@@ -182,7 +182,7 @@ Every Monday, the Executive Assistant will use the following steps to confirm CE
 
 > If the CEO shadow period is not in the best possible spot for those who will shadow Mike (e.g. during travel or long in-person meetings), move it. If no one is in the onboarding@ Google Group (or all members have already completed their CEO shadow period), delete the calendar event for that week.
 
-2. Verify all private meetings (e.g. 1:1's, E-Group, T-group, and quarterly board meetings, etc.) durring the 3-day CEO shadow period  have "[no shadows]" in the event title.
+2. Verify all private meetings (e.g. 1:1's, E-Group, T-group, and quarterly board meetings, etc.) during the 3-day CEO shadow period  have "[no shadows]" in the event title.
 
 
 ### Program the CEO to do something
