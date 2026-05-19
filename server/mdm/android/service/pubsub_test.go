@@ -257,6 +257,58 @@ func TestPubSubEnrollment(t *testing.T) {
 			require.Equal(t, expectedHostID, capturedScimHostID)
 		})
 
+		t.Run("populates operating_systems with Android name and version on enrollment", func(t *testing.T) {
+			// Regression test for https://github.com/fleetdm/fleet/issues/45711.
+			// Without this, filtering hosts with `os_name=Android&os_version=<v>`
+			// returns nothing because the operating_systems table is empty for
+			// Android hosts.
+			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+				}, nil
+			}
+
+			expectedHostID := uint(99)
+			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+				return &fleet.AndroidHost{Host: &fleet.Host{ID: expectedHostID}}, nil
+			}
+			var capturedHostID uint
+			var capturedOS fleet.OperatingSystem
+			mockDS.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+				capturedHostID = hostID
+				capturedOS = hostOS
+				return nil
+			}
+
+			enrollmentToken := enrollmentTokenRequest{EnrollSecret: "global"}
+			enrollTokenData, err := json.Marshal(enrollmentToken)
+			require.NoError(t, err)
+			deviceInfo := androidmanagement.Device{
+				Name:                createAndroidDeviceId("test-android-os"),
+				EnrollmentTokenData: string(enrollTokenData),
+			}
+			enrollmentMessage := createEnrollmentMessage(t, deviceInfo)
+			// createEnrollmentMessage sets AndroidVersion="1"; override to a more
+			// realistic version so we verify it's passed through unchanged.
+			data, err := base64.StdEncoding.DecodeString(enrollmentMessage.Data)
+			require.NoError(t, err)
+			var decoded androidmanagement.Device
+			require.NoError(t, json.Unmarshal(data, &decoded))
+			decoded.SoftwareInfo.AndroidVersion = "16"
+			reEncoded, err := json.Marshal(decoded)
+			require.NoError(t, err)
+			enrollmentMessage.Data = base64.StdEncoding.EncodeToString(reEncoded)
+
+			err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+			require.NoError(t, err)
+
+			require.True(t, mockDS.UpdateHostOperatingSystemFuncInvoked)
+			require.Equal(t, expectedHostID, capturedHostID)
+			require.Equal(t, "Android", capturedOS.Name)
+			require.Equal(t, "16", capturedOS.Version)
+			require.Equal(t, "android", capturedOS.Platform)
+		})
+
 		t.Run("creates device as company-owned if specified in enrollment message", func(t *testing.T) {
 			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{
@@ -670,6 +722,77 @@ func TestUpdateHostEmptyUUIDGetsPopulated(t *testing.T) {
 
 	require.Equal(t, enterpriseSpecificID, capturedHost.Host.UUID,
 		"Host UUID is properly populated from device.EnterpriseSpecificId")
+}
+
+// TestStatusReportPopulatesOperatingSystem is a regression test for
+// https://github.com/fleetdm/fleet/issues/45711. Status reports for existing
+// Android hosts must populate the operating_systems table so the hosts can be
+// filtered via GET /api/v1/fleet/hosts?os_name=Android&os_version=<v>.
+func TestStatusReportPopulatesOperatingSystem(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+	const enterpriseSpecificID = "ESI-OS-TEST"
+
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+		}, nil
+	}
+	expectedHostID := uint(321)
+	mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+		return &fleet.AndroidHost{
+			Host: &fleet.Host{
+				ID:   expectedHostID,
+				UUID: enterpriseSpecificID,
+			},
+			Device: &android.Device{
+				HostID:               expectedHostID,
+				DeviceID:             "device",
+				EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+			},
+		}, nil
+	}
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+		return nil
+	}
+
+	var capturedHostID uint
+	var capturedOS fleet.OperatingSystem
+	mockDS.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+		capturedHostID = hostID
+		capturedOS = hostOS
+		return nil
+	}
+
+	device := androidmanagement.Device{
+		Name: createAndroidDeviceId("test-android-status-os"),
+		HardwareInfo: &androidmanagement.HardwareInfo{
+			EnterpriseSpecificId: enterpriseSpecificID,
+			Brand:                "Google",
+			Model:                "Pixel 8a",
+		},
+		SoftwareInfo: &androidmanagement.SoftwareInfo{
+			AndroidVersion: "16",
+		},
+		MemoryInfo: &androidmanagement.MemoryInfo{
+			TotalRam: int64(8 * 1024 * 1024 * 1024),
+		},
+		LastStatusReportTime: "2024-01-01T12:00:00Z",
+	}
+	deviceBytes, err := json.Marshal(device)
+	require.NoError(t, err)
+	message := &android.PubSubMessage{
+		Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
+		Data:       base64.StdEncoding.EncodeToString(deviceBytes),
+	}
+
+	err = svc.ProcessPubSubPush(t.Context(), "value", message)
+	require.NoError(t, err)
+
+	require.True(t, mockDS.UpdateHostOperatingSystemFuncInvoked)
+	require.Equal(t, expectedHostID, capturedHostID)
+	require.Equal(t, "Android", capturedOS.Name)
+	require.Equal(t, "16", capturedOS.Version)
+	require.Equal(t, "android", capturedOS.Platform)
 }
 
 func TestHostPayloadUUIDForFrontend(t *testing.T) {

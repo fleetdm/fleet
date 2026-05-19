@@ -72,6 +72,7 @@ import ChatGpt from "./ChatGpt";
 import ChatGptAtlas from "./ChatGptAtlas";
 import ChromeApp from "./ChromeApp";
 import ChromeOS from "./ChromeOS";
+import AndroidOS from "./AndroidOS";
 import CiscoJabber from "./CiscoJabber";
 import CitrixWorkspace from "./CitrixWorkspace";
 import Claude from "./Claude";
@@ -541,6 +542,7 @@ export const PLATFORM_NAME_TO_ICON_MAP = {
   chrome: ChromeOS,
   ios: iOS,
   ipados: iPadOS,
+  android: AndroidOS,
 } as const;
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined
