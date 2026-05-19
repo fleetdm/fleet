@@ -693,6 +693,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/bomutils` docker image
 
+### [CVE-2026-4878](https://nvd.nist.gov/vuln/detail/CVE-2026-4878)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** mkbom and xar from fleetdm/bomutils do not call cap_set_file().
+- **Products:** `bomutils`,`pkg:deb/debian/libcap2`,`pkg:deb/debian/libcap2-bin`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:25:00
+
 ### [CVE-2026-31789](https://nvd.nist.gov/vuln/detail/CVE-2026-31789)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -700,6 +708,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `bomutils`,`pkg:deb/debian/libssl3t64`,`pkg:deb/debian/openssl`,`pkg:deb/debian/openssl-provider-legacy`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-27 14:28:25
+
+### [CVE-2026-29111](https://nvd.nist.gov/vuln/detail/CVE-2026-29111)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** mkbom and xar from fleetdm/bomutils do not use systemd IPC APIs.
+- **Products:** `bomutils`,`pkg:deb/debian/libsystemd0`,`pkg:deb/debian/libudev1`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:25:00
 
 ### [CVE-2026-28390](https://nvd.nist.gov/vuln/detail/CVE-2026-28390)
 - **Author:** @lucasmrod
