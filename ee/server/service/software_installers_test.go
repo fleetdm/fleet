@@ -954,6 +954,63 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
 }
 
+// TestInstallZipInstallerUsesStoredPlatform tests that .zip installers use the
+// stored platform (windows or darwin) rather than inferring darwin from the extension.
+func TestInstallZipInstallerUsesStoredPlatform(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: ptr.String("orbit_key"),
+			Platform:     "windows",
+			TeamID:       ptr.Uint(1),
+		}, nil
+	}
+
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID: 10,
+			Name:        "codex-x86_64-pc-windows-msvc.exe.zip",
+			Extension:   "zip",
+			Platform:    "windows",
+			TeamID:      ptr.Uint(1),
+			TitleID:     ptr.Uint(100),
+			SelfService: false,
+		}, nil
+	}
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
+	}
+
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		return "install-uuid", nil
+	}
+
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+	})
+
+	err := svc.InstallSoftwareTitle(ctx, 1, 100)
+	require.NoError(t, err, ".zip windows installer on windows host should succeed")
+	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
+}
+
 // TestInstallShScriptOnWindowsFails tests that .sh scripts can't be installed on Windows hosts.
 func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	t.Parallel()

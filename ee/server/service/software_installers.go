@@ -1589,8 +1589,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 }
 
 func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host *fleet.Host, installer *fleet.SoftwareInstaller) error {
-	ext := filepath.Ext(installer.Name)
-	requiredPlatform := packageExtensionToPlatform(ext)
+	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
 		// this should never happen
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
@@ -1699,8 +1698,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	}
 
 	// Validate platform
-	ext := filepath.Ext(installer.Name)
-	requiredPlatform := packageExtensionToPlatform(ext)
+	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
 		// this should never happen
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
@@ -3223,8 +3221,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			}
 		}
 
-		ext := filepath.Ext(installer.Name)
-		requiredPlatform := packageExtensionToPlatform(ext)
+		ext, requiredPlatform := installerRequiredPlatform(installer)
 		if requiredPlatform == "" {
 			// this should never happen
 			return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
@@ -3335,6 +3332,17 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 
 	err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{SelfService: true})
 	return ctxerr.Wrap(ctx, err, "insert in house app install")
+}
+
+// installerRequiredPlatform returns the file extension and the platform required
+// to install the package. The installer's stored Platform is authoritative when
+// set (e.g. .zip is used on both darwin and windows).
+func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, requiredPlatform string) {
+	ext = filepath.Ext(installer.Name)
+	if installer.Platform != "" {
+		return ext, installer.Platform
+	}
+	return ext, packageExtensionToPlatform(ext)
 }
 
 // packageExtensionToPlatform returns the platform name based on the
