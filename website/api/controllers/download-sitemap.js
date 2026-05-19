@@ -73,6 +73,7 @@ module.exports = {
       // > Note: /handbook overview page is already included amongst the markdown pages
       // > Note: Same for /docs
       '/transparency',// « default transparency link, pointed at by Fleet Desktop
+      '/device-management-glossary',// « SEO/LLM reference page
       '/reports',// « overview page (all subpages are dynamic)
       '/policies',// « overview page (all subpages are dynamic)
       '/tables',// « overview page (all subpages are dynamic)
