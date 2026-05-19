@@ -108,7 +108,7 @@ jobs:
           go-version-file: 'go.mod'
       - uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
         with:
-          terraform_version: 1.10.2
+          terraform_version: 1.12.0
           terraform_wrapper: false
       - name: Terraform Init
         id: init
@@ -116,7 +116,7 @@ jobs:
       - name: Terraform workspace
         id: workspace
         run: |
-          if terraform workspace list | grep -q ${{ inputs.terraform_workspace }};
+          if terraform workspace list | sed 's/^[* ]*//' | grep -Fxq "${{ inputs.terraform_workspace }}";
           then
             echo "MATCH - TF_WORKSPACE: ${{ inputs.terraform_workspace }}\n"
             
@@ -171,14 +171,29 @@ jobs:
           if [[ `terraform workspace show` = "${{ inputs.terraform_workspace }}" ]];
           then
             echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"
+            terraform apply -target='module.loadtest.module.byo-db.module.ecs.aws_iam_role.execution' -target='module.loadtest.module.byo-db.module.ecs.aws_iam_role.main[0]' -auto-approve
             terraform apply -auto-approve
           else
             echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ inputs.terraform_workspace }}"
           fi
-      - name: Terraform Destroy
+      - name: Check osquery-perf workspace
         if: inputs.terraform_action == 'destroy'
+        id: check-osquery-perf
+        working-directory: infrastructure/loadtesting/terraform/osquery_perf
+        run: |
+          echo "osquery_perf_block=true" >> $GITHUB_OUTPUT
+          terraform init
+          if terraform workspace list | sed 's/^[* ]*//' | grep -Fxq "${{ inputs.terraform_workspace }}"; then
+            echo -e "\n\nBLOCK: matching osquery-perf workspace '${{ inputs.terraform_workspace }}' exists."
+            echo "Destroy the osquery-perf workspace first."
+          else
+            echo -e "\n\nOK: no matching osquery-perf workspace '${{ inputs.terraform_workspace }}' found."
+            echo "osquery_perf_block=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Terraform Destroy
+        if: inputs.terraform_action == 'destroy' && steps.check-osquery-perf.outputs.osquery_perf_block == 'false'
         id: destroy
-        run: | 
+        run: |
           if [[ `terraform workspace show` = "${{ inputs.terraform_workspace }}" ]];
           then
             echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"

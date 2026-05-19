@@ -1,0 +1,1 @@
+- Fleet now includes the Rapid Security Response suffix (e.g. `(a)`) in the OS version for iOS and iPadOS devices that report a `SupplementalOSVersionExtra` field via MDM.

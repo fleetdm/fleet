@@ -398,6 +398,9 @@ func gitopsCommand() *cli.Command {
 						if len(query.LabelsIncludeAny) > 0 {
 							return fmt.Errorf("report %q uses 'labels_include_any', which is only available in Fleet Premium", query.Name)
 						}
+						if len(query.LabelsIncludeAll) > 0 {
+							return fmt.Errorf("report %q uses 'labels_include_all', which is only available in Fleet Premium", query.Name)
+						}
 					}
 				}
 
@@ -848,7 +851,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
 				var labels []string
-				err := fmt.Errorf("MDM profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", setting.Path)
+				err := fmt.Errorf("configuration profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", filepath.Base(setting.Path))
 
 				if len(setting.LabelsIncludeAny) > 0 {
 					labels = setting.LabelsIncludeAny
@@ -866,7 +869,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 					labels = setting.LabelsExcludeAny
 				}
 
-				updateLabelUsage(labels, setting.Path, "MDM Profile", result)
+				updateLabelUsage(labels, filepath.Base(setting.Path), "configuration profile", result)
 			}
 		}
 	}
@@ -933,23 +936,31 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		updateLabelUsage(labels, maintainedApp.Slug, "Fleet Maintained App", result)
 	}
 
-	// Get query label usage
+	// Get query label usage.
 	for _, query := range config.Queries {
-		updateLabelUsage(query.LabelsIncludeAny, query.Name, "Query", result)
+		if len(query.LabelsIncludeAny) > 0 && len(query.LabelsIncludeAll) > 0 {
+			return nil, fmt.Errorf("Query '%s' has multiple label keys; please choose one of `labels_include_any` or `labels_include_all`.", query.Name)
+		}
+		labels := slices.Concat(query.LabelsIncludeAny, query.LabelsIncludeAll)
+		updateLabelUsage(labels, query.Name, "Query", result)
 	}
 
-	// Get policy label usage
+	// Get policy label usage.
 	for _, policy := range config.Policies {
-		var labels []string
+		nonEmptyScopes := 0
 		if len(policy.LabelsIncludeAny) > 0 {
-			labels = policy.LabelsIncludeAny
+			nonEmptyScopes++
+		}
+		if len(policy.LabelsIncludeAll) > 0 {
+			nonEmptyScopes++
 		}
 		if len(policy.LabelsExcludeAny) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", policy.Name)
-			}
-			labels = policy.LabelsExcludeAny
+			nonEmptyScopes++
 		}
+		if nonEmptyScopes > 1 {
+			return nil, fmt.Errorf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any`.", policy.Name)
+		}
+		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny)
 		updateLabelUsage(labels, policy.Name, "Policy", result)
 	}
 

@@ -9,6 +9,7 @@ This directory contains documentation specific to Fleet's Security & Compliance 
 ## Contents
 
 - [Android Certificates](android-certificates.md)
+- [EJBCA SCEP Testing](ejbca-scep-testing.md)
 
 ## Related Resources
 

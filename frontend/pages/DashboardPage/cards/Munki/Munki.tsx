@@ -11,7 +11,7 @@ import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 
 import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
@@ -81,7 +81,7 @@ const Munki = ({
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   resultsTitle="Munki"
                   emptyComponent={() => (
-                    <EmptyTable
+                    <EmptyState
                       header="No Munki issues detected"
                       info="This report is updated every hour to protect the performance of your
       devices."
@@ -108,7 +108,7 @@ const Munki = ({
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   resultsTitle="Munki"
                   emptyComponent={() => (
-                    <EmptyTable
+                    <EmptyState
                       header="Unable to detect Munki versions"
                       info={
                         <>

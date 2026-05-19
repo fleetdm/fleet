@@ -1,0 +1,9 @@
+{
+  "name": "Zoom Rooms",
+  "unique_identifier": "us.zoom.ZoomPresence",
+  "token": "zoom-rooms",
+  "installer_format": "pkg",
+  "slug": "zoom-rooms/darwin",
+  "default_categories": ["Communication"],
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/zoom-rooms.json"
+}

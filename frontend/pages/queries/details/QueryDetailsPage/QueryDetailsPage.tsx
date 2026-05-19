@@ -251,14 +251,13 @@ const QueryDetailsPage = ({
       isGlobalTechnician ||
       isTeamTechnician;
 
-    // Function instead of constant eliminates race condition with filteredQueriesPath
     const backPath = () => {
-      if (filteredQueriesPath) return filteredQueriesPath;
-
       if (hostId)
         return getPathWithQueryParams(
           PATHS.HOST_DETAILS(hostId, currentTeamId)
         );
+
+      if (filteredQueriesPath) return filteredQueriesPath;
 
       return getPathWithQueryParams(PATHS.MANAGE_REPORTS, {
         fleet_id: currentTeamId,

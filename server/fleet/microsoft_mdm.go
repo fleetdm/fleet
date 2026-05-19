@@ -876,6 +876,9 @@ type MDMWindowsSaveResponseResult struct {
 	// WipeFailed is non-nil when a wipe command was processed and the status
 	// code indicates failure (not 2xx).
 	WipeFailed *MDMWindowsWipeResult
+	// WipeSucceeded is non-nil when a wipe command was processed and the
+	// status code indicates success (2xx).
+	WipeSucceeded *MDMWindowsWipeResult
 }
 
 type MDMWindowsWipeResult struct {

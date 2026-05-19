@@ -14,9 +14,9 @@
     "sails-hook-sockets": "^3.0.0",
     "sails-hook-uploads": "^0.4.3",
     "@sailshq/connect-redis": "^6.1.3",
-    "@sailshq/socket.io-redis": "^6.1.2",
     "@sailshq/lodash": "^3.10.6",
-    "skipper-s3": "^0.6.0"
+    "skipper-s3": "^0.6.0",
+    "sails-postgresql": "^5.0.1"
   },
   "devDependencies": {
     "eslint": "5.16.0",

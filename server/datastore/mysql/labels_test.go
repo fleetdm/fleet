@@ -107,6 +107,8 @@ func TestLabels(t *testing.T) {
 		{"ApplyLabelSpecsWithManualTeamLabels", testApplyLabelSpecsWithManualTeamLabels},
 		{"ApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam", testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam},
 		{"ApplyLabelSpecsManualNilHosts", testApplyLabelSpecsManualNilHosts},
+		{"ListLabelsOrderKeys", testListLabelsOrderKeys},
+		{"LabelMembershipHostIDs", testLabelMembershipHostIDs},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -3605,4 +3607,107 @@ func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, h1.ID, hosts[0].ID)
+}
+
+func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	for _, name := range []string{"alpha", "beta", "gamma"} {
+		err := ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: name, Query: "select 1"}})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	for _, key := range []string{
+		"id",
+		"created_at",
+		"updated_at",
+		"name",
+		"description",
+		"query",
+		"platform",
+		"label_type",
+		"label_membership_type",
+		"author_id",
+		"criteria",
+		"team_id",
+		"host_count",
+	} {
+		t.Run("order_"+key, func(t *testing.T) {
+			labels, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key, PerPage: 100}, true)
+			require.NoError(t, err)
+			require.GreaterOrEqual(t, len(labels), 3)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "l.id; SELECT 1"}, false)
+		require.Error(t, err)
+	})
+
+	t.Run("page_pagination_with_allowed_key", func(t *testing.T) {
+		page0, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 0}, false)
+		require.NoError(t, err)
+		require.NotEmpty(t, page0)
+		page1, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 1}, false)
+		require.NoError(t, err)
+		require.NotEmpty(t, page1)
+		require.NotEqual(t, page0[0].Name, page1[0].Name)
+	})
+}
+
+func testLabelMembershipHostIDs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Make a team and a global label, then place a host on the team into the
+	// global label's membership. A team-scoped reader of the label may not
+	// "see" the host via team-filtered counts, but LabelMembershipHostIDs must
+	// always return the unfiltered membership for activity tracking.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "membership-team"})
+	require.NoError(t, err)
+	teamHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("memb-team-host"), //nolint:modernize
+		NodeKey:        ptr.String("memb-team-host"), //nolint:modernize
+		UUID:           "memb-team-host",
+		Hostname:       "memb-team-host.local",
+		HardwareSerial: "memb-serial-team",
+		Platform:       "darwin",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+	globalHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("memb-global-host"), //nolint:modernize
+		NodeKey:        ptr.String("memb-global-host"), //nolint:modernize
+		UUID:           "memb-global-host",
+		Hostname:       "memb-global-host.local",
+		HardwareSerial: "memb-serial-global",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "memb-label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{"memb-team-host.local", "memb-global-host.local"},
+		},
+	}))
+
+	lbl, err := ds.LabelByName(ctx, "memb-label", fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+
+	// LabelMembershipHostIDs must return both hosts, regardless of team.
+	gotIDs, err := ds.LabelMembershipHostIDs(ctx, lbl.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{teamHost.ID, globalHost.ID}, gotIDs)
+
+	// Empty membership returns no IDs and no error.
+	emptyLbl, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "memb-label-empty",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+	gotIDs, err = ds.LabelMembershipHostIDs(ctx, emptyLbl.ID)
+	require.NoError(t, err)
+	require.Empty(t, gotIDs)
 }

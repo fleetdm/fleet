@@ -89,7 +89,7 @@ export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
   platform?: CommaSeparatedPlatformString;
-  scope: "software-titles";
+  scope: "software-titles" | "software-library";
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
@@ -337,7 +337,8 @@ const handleConfigurationAppStoreAppForm = (
   formData: ISoftwareConfigurationFormData,
   body: IEditAppStoreAppPostBody
 ) => {
-  body.configuration = formData.configuration || "{}";
+  // Use ?? to preserve empty strings (iOS/iPadOS clears config with "")
+  body.configuration = formData.configuration ?? "{}";
 };
 
 const handleAutoUpdateConfigAppStoreAppForm = (
@@ -596,7 +597,10 @@ export default {
     onUploadProgress,
     signal,
   }: {
-    data: IEditPackageFormData | ISoftwareDisplayNameFormData;
+    data:
+      | IEditPackageFormData
+      | ISoftwareDisplayNameFormData
+      | ISoftwareConfigurationFormData;
     orignalPackage?: ISoftwarePackage;
     softwareId: number;
     teamId: number;
@@ -608,7 +612,10 @@ export default {
     const formData = new FormData();
     formData.append("fleet_id", teamId.toString());
 
-    if ("displayName" in data) {
+    if ("configuration" in data) {
+      // Handles Edit configuration form (iOS/iPadOS in-house apps)
+      formData.append("configuration", data.configuration);
+    } else if ("displayName" in data) {
       // Handles Edit display name form only
       handleDisplayNameForm(data, formData);
     } else {

@@ -190,9 +190,9 @@ spec:
       setup_experience:
         macos_bootstrap_package: ""
         enable_end_user_authentication: true
-        enable_release_device_manually: false
+        apple_enable_release_device_manually: false
         apple_setup_assistant: ""
-        manual_agent_install: false
+        macos_manual_agent_install: false
         require_all_software_macos: false
         script: ""
         software: []

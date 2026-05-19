@@ -8,11 +8,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -22,8 +25,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	redismock "github.com/fleetdm/fleet/v4/server/mock/redis"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -350,13 +353,21 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
 }
 
-func TestInstallSoftwareTitle(t *testing.T) {
+func TestInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
 
+	// Personally-enrolled iOS/iPadOS hosts must reach the install lookup; the
+	// BYOD gate that previously short-circuited them is removed in #43998.
+	// Returning NotFound from the in-house and VPP app lookups makes the code
+	// surface the standard "title not available" error — proving we got past
+	// the old gate without entangling this test in the install flow.
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 		return nil, nil
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
+		return nil, &notFoundError{}
 	}
 
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -366,19 +377,21 @@ func TestInstallSoftwareTitle(t *testing.T) {
 		OrbitNodeKey: ptr.String("orbit_key"),
 		Platform:     "ios",
 		TeamID:       ptr.Uint(1),
+		MDM: fleet.MDMHostData{
+			EnrollmentStatus: ptr.String(string(fleet.MDMEnrollStatusPersonal)),
+		},
 	}
 
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return host, nil
 	}
 
-	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
-		return &fleet.NanoEnrollment{
-			Type: mdm.EnrollType(mdm.UserEnrollmentDevice).String(),
-		}, nil
-	}
-
-	require.ErrorContains(t, svc.InstallSoftwareTitle(ctx, 1, 10), fleet.InstallSoftwarePersonalAppleDeviceErrMsg)
+	err := svc.InstallSoftwareTitle(ctx, 1, 10)
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), fleet.InstallSoftwarePersonalAppleDeviceErrMsg,
+		"BYOD gate must no longer block install for personally-enrolled iOS/iPadOS hosts")
+	require.ErrorContains(t, err, "Software title is not available for install",
+		"control flow must reach the standard not-found path")
 }
 
 func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
@@ -1000,10 +1013,25 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	require.Contains(t, bre.Message, "can be installed only on linux hosts")
 }
 
-func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *testing.T) {
+func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
+
+	// Personally-enrolled iOS/iPadOS hosts must reach the install lookup; the
+	// BYOD gate that previously short-circuited them is removed in #44007.
+	// Returning NotFound from both software-installer and VPP-app lookups makes
+	// the code surface the standard "title not available" error — proving we
+	// got past the old gate without entangling this test in the install flow.
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint, _ bool) (*fleet.SoftwareInstaller, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.VPPApp, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(_ context.Context, _ *uint, _ uint) (*fleet.SoftwareInstaller, error) {
+		return nil, &notFoundError{}
+	}
 
 	for _, platform := range []string{"ios", "ipados"} {
 		fakeHost := &fleet.Host{
@@ -1014,8 +1042,11 @@ func TestSelfServiceInstallSoftwareTitleFailsOnPersonallyEnrolledDevices(t *test
 		}
 
 		err := svc.SelfServiceInstallSoftwareTitle(t.Context(), fakeHost, 1)
-		require.Error(t, err, "expected error when installing on personally enrolled device for platform %s", platform)
-		require.ErrorContains(t, err, "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts.", "error message should indicate personally enrolled devices aren't supported for platform %s", platform)
+		require.Error(t, err, "platform %s", platform)
+		require.NotContains(t, err.Error(), fleet.InstallSoftwarePersonalAppleDeviceErrMsg,
+			"BYOD gate must no longer block self-service for platform %s", platform)
+		require.ErrorContains(t, err, "Software title is not available for install",
+			"control flow must reach the standard not-found path for platform %s", platform)
 	}
 }
 
@@ -1239,6 +1270,67 @@ func TestGetInstallScript(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getInstallScript(tt.extension, tt.packageIDs, tt.current)
 			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
+	t.Parallel()
+
+	// keyValueStore mock that fails the test if any redis call happens
+	// The short-circuit must return before touching redis or spawning the goroutine.
+	kvs := &redismock.KeyValueStore{
+		SetFunc: func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+			t.Errorf("unexpected keyValueStore.Set call: key=%s", key)
+			return nil
+		},
+		GetFunc: func(ctx context.Context, key string) (*string, error) {
+			t.Errorf("unexpected keyValueStore.Get call: key=%s", key)
+			return nil, nil
+		},
+	}
+
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1, Name: name}, nil
+	}
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+	})
+
+	// Cover both the team-scoped (tmName != "") and no-team (tmName == "") paths.
+	// The customer's reported failure mode in #42607 was on the global / no-team
+	// endpoint, which skips the TeamByName lookup entirely and flows straight
+	// to the short-circuit.
+	cases := []struct {
+		name             string
+		tmName           string
+		payloads         []*fleet.SoftwareInstallerPayload
+		expectTeamLookup bool
+	}{
+		{"team scoped, nil payloads", "TestEmpty", nil, true},
+		{"team scoped, empty payloads", "TestEmpty", []*fleet.SoftwareInstallerPayload{}, true},
+		{"no team, nil payloads", "", nil, false},
+		{"no team, empty payloads", "", []*fleet.SoftwareInstallerPayload{}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			kvs.SetFuncInvoked = false
+			kvs.GetFuncInvoked = false
+			ds.TeamByNameFuncInvoked = false
+
+			requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, c.tmName, c.payloads, true)
+			require.NoError(t, err)
+			require.Empty(t, requestUUID, "dry-run + empty payload should return empty request_uuid")
+			require.False(t, kvs.SetFuncInvoked, "keyValueStore.Set must not be called")
+			require.False(t, kvs.GetFuncInvoked, "keyValueStore.Get must not be called")
+			require.Equal(t, c.expectTeamLookup, ds.TeamByNameFuncInvoked,
+				"TeamByName should only be called when tmName != \"\"")
 		})
 	}
 }

@@ -17,7 +17,7 @@ import {
   findOptionBySeverityRange,
   ISoftwareVulnFiltersParams,
   SEVERITY_DROPDOWN_OPTIONS,
-} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 
 const baseClass = "software-filters-modal";
 

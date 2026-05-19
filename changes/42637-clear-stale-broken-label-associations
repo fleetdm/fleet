@@ -1,0 +1,1 @@
+* Fixed `fleetctl gitops apply` not clearing stale broken `mdm_configuration_profile_labels` rows after a referenced label was deleted, which caused profiles to remain enforced on hosts regardless of updated label targeting.

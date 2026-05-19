@@ -2,7 +2,6 @@ import React, { useState, useContext } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import FileSaver from "file-saver";
-import { get } from "lodash";
 import { PolicyContext } from "context/policy";
 
 import {
@@ -14,6 +13,7 @@ import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
+import EmptyState from "components/EmptyState";
 import Icon from "components/Icon/Icon";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
@@ -166,14 +166,12 @@ const PolicyResults = ({
 
     if (finishedWithNoResults) {
       return (
-        <p className="no-results-message">
-          Your live report returned no results.
-          <span>
-            Expecting to see results? Check to see if the host
-            {`${targetsTotalCount > 1 ? "s" : ""}`} you targeted reported
-            &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo; table.
-          </span>
-        </p>
+        <EmptyState
+          header="Your live report returned no results"
+          info={`Expecting to see results? Check to see if the host${
+            targetsTotalCount > 1 ? "s" : ""
+          } you targeted reported "Online" or check out the "Errors" table.`}
+        />
       );
     }
 

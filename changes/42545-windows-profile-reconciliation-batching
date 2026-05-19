@@ -1,0 +1,1 @@
+* Improved Windows MDM performance when transferring large numbers of hosts between teams or applying bulk profile changes. These operations now return quickly and roll out profile updates to Windows hosts in the background, so host check-ins and other MDM activity are no longer slowed down while a large change is in progress.

@@ -643,6 +643,8 @@ func TestAuthorizeSoftwareInventory(t *testing.T) {
 	t.Parallel()
 
 	softwareInventory := &fleet.AuthzSoftwareInventory{}
+	team1SoftwareInventory := &fleet.AuthzSoftwareInventory{TeamID: ptr.Uint(1)}
+	team2SoftwareInventory := &fleet.AuthzSoftwareInventory{TeamID: ptr.Uint(2)}
 	runTestCases(t, []authTestCase{
 		{user: nil, object: softwareInventory, action: read, allow: false},
 		{user: test.UserNoRoles, object: softwareInventory, action: read, allow: false},
@@ -651,8 +653,11 @@ func TestAuthorizeSoftwareInventory(t *testing.T) {
 		{user: test.UserObserver, object: softwareInventory, action: read, allow: true},
 		{user: test.UserObserverPlus, object: softwareInventory, action: read, allow: true},
 		{user: test.UserTechnician, object: softwareInventory, action: read, allow: true},
-		{user: test.UserGitOps, object: softwareInventory, action: read, allow: false},
+		{user: test.UserGitOps, object: softwareInventory, action: read, allow: true},
+		{user: test.UserGitOps, object: team1SoftwareInventory, action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: softwareInventory, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1SoftwareInventory, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: team2SoftwareInventory, action: read, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: softwareInventory, action: read, allow: false},
 	})
 }
@@ -713,18 +718,16 @@ func TestAuthorizeSoftwareInstaller(t *testing.T) {
 		{user: test.UserTechnician, object: team2Installer, action: read, allow: true},
 		{user: test.UserTechnician, object: team2Installer, action: write, allow: false},
 
-		// TODO: confirm gitops permissions
-		{user: test.UserGitOps, object: noTeamInstaller, action: read, allow: false},
+		{user: test.UserGitOps, object: noTeamInstaller, action: read, allow: true},
 		{user: test.UserGitOps, object: noTeamInstaller, action: write, allow: true},
-		{user: test.UserGitOps, object: team1Installer, action: read, allow: false},
+		{user: test.UserGitOps, object: team1Installer, action: read, allow: true},
 		{user: test.UserGitOps, object: team1Installer, action: write, allow: true},
-		{user: test.UserGitOps, object: team2Installer, action: read, allow: false},
+		{user: test.UserGitOps, object: team2Installer, action: read, allow: true},
 		{user: test.UserGitOps, object: team2Installer, action: write, allow: true},
 
-		// TODO: confirm gitops permissions
 		{user: test.UserTeamGitOpsTeam1, object: noTeamInstaller, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: noTeamInstaller, action: write, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Installer, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Installer, action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: team1Installer, action: write, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: team2Installer, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: team2Installer, action: write, allow: false},
@@ -763,6 +766,30 @@ func TestAuthorizeSoftwareInstaller(t *testing.T) {
 		{user: test.UserTeamTechnicianTeam1, object: team1Installer, action: write, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: team2Installer, action: read, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: team2Installer, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeMaintainedApp(t *testing.T) {
+	t.Parallel()
+
+	maintainedApp := &fleet.MaintainedApp{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: maintainedApp, action: read, allow: false},
+		{user: test.UserNoRoles, object: maintainedApp, action: read, allow: false},
+
+		{user: test.UserAdmin, object: maintainedApp, action: read, allow: true},
+		{user: test.UserMaintainer, object: maintainedApp, action: read, allow: true},
+		{user: test.UserObserver, object: maintainedApp, action: read, allow: false},
+		{user: test.UserObserverPlus, object: maintainedApp, action: read, allow: false},
+		{user: test.UserTechnician, object: maintainedApp, action: read, allow: false},
+		{user: test.UserGitOps, object: maintainedApp, action: read, allow: true},
+
+		{user: test.UserTeamAdminTeam1, object: maintainedApp, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: maintainedApp, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: maintainedApp, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: maintainedApp, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: maintainedApp, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: maintainedApp, action: read, allow: true},
 	})
 }
 

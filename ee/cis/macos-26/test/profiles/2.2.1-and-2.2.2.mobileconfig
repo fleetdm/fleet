@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 2.2.1 and 2.2.2</string>
+      <key>PayloadType</key>
+      <string>com.apple.security.firewall</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-2.2.1-and-2.2.2.check</string>
+      <key>PayloadUUID</key>
+      <string>6B15844C-8DAD-489C-B19E-55BD39C362A7</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>EnableFirewall</key>
+      <true/>
+      <key>EnableStealthMode</key>
+      <true/>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 2.2.1 and 2.2.2 - Firewall Enabled + Stealth Mode (must be in same profile per CIS)</string>
+  <key>PayloadDisplayName</key>
+  <string>Firewall + Stealth Mode Enabled</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-2.2.1-and-2.2.2</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>253991AD-8224-4674-A896-9E2444398A1F</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

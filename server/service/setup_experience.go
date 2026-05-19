@@ -113,9 +113,9 @@ func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, 
 	}
 
 	if downloadRequested {
-		return downloadFileResponse{
-			content:  content,
-			filename: fmt.Sprintf("%s %s", time.Now().Format(time.DateOnly), script.Name),
+		return fleet.DownloadFileResponse{
+			Content:  content,
+			Filename: fmt.Sprintf("%s %s", time.Now().Format(time.DateOnly), script.Name),
 		}, nil
 	}
 
@@ -238,22 +238,31 @@ func (svc *Service) IsAllSetupExperienceSoftwareRequired(ctx context.Context, ho
 }
 
 func isAllSetupExperienceSoftwareRequired(ctx context.Context, ds fleet.Datastore, host *fleet.Host) (bool, error) {
+	// Only macOS and Windows support canceling setup if software fails.
+	if host.Platform != "darwin" && host.Platform != "windows" {
+		return false, nil
+	}
+
 	teamID := host.TeamID
-	requireAllSoftware := false
 	if teamID == nil || *teamID == 0 {
 		ac, err := ds.AppConfig(ctx)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "getting app config")
 		}
-		requireAllSoftware = ac.MDM.MacOSSetup.RequireAllSoftware
-	} else {
-		team, err := ds.TeamLite(ctx, *teamID)
-		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "load team")
+		if host.Platform == "windows" {
+			return ac.MDM.MacOSSetup.RequireAllSoftwareWindows, nil
 		}
-		requireAllSoftware = team.Config.MDM.MacOSSetup.RequireAllSoftware
+		return ac.MDM.MacOSSetup.RequireAllSoftware, nil
 	}
-	return requireAllSoftware, nil
+
+	team, err := ds.TeamLite(ctx, *teamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load team")
+	}
+	if host.Platform == "windows" {
+		return team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows, nil
+	}
+	return team.Config.MDM.MacOSSetup.RequireAllSoftware, nil
 }
 
 func (svc *Service) MaybeCancelPendingSetupExperienceSteps(ctx context.Context, host *fleet.Host) error {
@@ -261,8 +270,8 @@ func (svc *Service) MaybeCancelPendingSetupExperienceSteps(ctx context.Context, 
 }
 
 func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datastore, host *fleet.Host, newActivityFn fleet.NewActivityFunc) error {
-	// If the host is not MacOS, we do nothing.
-	if host.Platform != "darwin" {
+	// Only macOS and Windows support canceling setup experience steps.
+	if host.Platform != "darwin" && host.Platform != "windows" {
 		return nil
 	}
 
@@ -272,6 +281,29 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	}
 	if !requireAllSoftware {
 		return nil
+	}
+
+	// Windows BYOD enrollments do not participate in the setup-experience cancel flow.
+	// The primary lookup matches on mdm_windows_enrollments.host_uuid (populated by osquery's
+	// directIngestMDMDeviceIDWindows). Fast-failing installs can race that ingest, so when the primary
+	// lookup misses we fall back to the most-recent enrollment with an empty host_uuid whose device_name
+	// matches host.ComputerName. Without the fallback a BYOD host that fails an install in the seconds
+	// before osquery links the enrollment would still trigger cancellation, contradicting the gate.
+	// Follow-up bug: https://github.com/fleetdm/fleet/issues/45380
+	if host.Platform == "windows" {
+		device, err := ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "load windows enrollment for byod check")
+		}
+		if device == nil && host.ComputerName != "" {
+			device, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, host.ComputerName)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "load windows enrollment by device name for byod check")
+			}
+		}
+		if device != nil && device.MDMNotInOOBE {
+			return nil
+		}
 	}
 	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
 	if err != nil {

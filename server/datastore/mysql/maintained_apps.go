@@ -8,8 +8,16 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+var maintainedAppsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":       "fma.id",
+	"name":     "fma.name",
+	"platform": "fma.platform",
+	"slug":     "fma.slug",
+}
 
 func (ds *Datastore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	const upsertStmt = `
@@ -198,7 +206,10 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		}
 	}
 
-	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opt)
+	stmtPaged, args, err := appendListOptionsWithCursorToSQLSecure(stmt, args, &opt, maintainedAppsAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list fleet maintained apps")
+	}
 
 	var avail []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {

@@ -25,7 +25,7 @@ services:
       - fleet-preview
 
   redis01:
-    image: redis:6
+    image: redis:6.2
     networks:
       - fleet-preview
 

@@ -43,7 +43,7 @@ jobs:
     # Don't cancel other jobs if one test suite fails. Since our product teams are tightly coupled, we never want to see our tests fail due
     # to an unrelated issue in another product area.
     continue-on-error: true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8core
 
     env:
       RACE_ENABLED: false
@@ -238,7 +238,22 @@ jobs:
       if: ${{ env.GENERATE_TEST_SCHEMA }}
       run: make test-schema
 
+    - name: Build Fleet server Docker image (for fleetctl preview test)
+      if: ${{ inputs.suite == 'fleetctl' }}
+      run: |
+        make fleet-static
+        cp ./build/fleet fleet
+        docker build -t fleetdm/fleet:dev -f tools/fleet-docker/Dockerfile .
+        rm fleet
+
+        # Update in-a-box docker-compose to add pull_policy: never for locally built image
+        # This prevents Docker from trying to pull the image from Docker Hub
+        sed -i '/^  fleet01:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' tools/osquery/in-a-box/docker-compose.yml
+        sed -i '/^  fleet02:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' tools/osquery/in-a-box/docker-compose.yml
+
     - name: Run Go Tests
+      env:
+        FLEET_PREVIEW_TAG: ${{ inputs.suite == 'fleetctl' && 'dev' || 'main' }}
       run: |
         USE_GOTESTSUM=1 \
           GOTESTSUM_FORMAT=testdox \
@@ -257,6 +272,7 @@ jobs:
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
           COVER_PKG="${{ inputs.cover_pkg || 'github.com/fleetdm/fleet/v4/...' }}" \
+          FLEET_PREVIEW_TAG="${{ env.FLEET_PREVIEW_TAG }}" \
           make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Save coverage

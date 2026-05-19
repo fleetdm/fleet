@@ -3,7 +3,7 @@ import React from "react";
 import { add, differenceInSeconds, formatDistance } from "date-fns";
 
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
-import EmptyTable from "components/EmptyTable/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 interface INoResultsProps {
   queryInterval?: number;
@@ -53,8 +53,7 @@ const NoResults = ({
     );
 
     return (
-      <EmptyTable
-        graphicName="collecting-results"
+      <EmptyState
         header="Collecting results..."
         info={collectingResultsInfo()}
       />
@@ -150,9 +149,8 @@ const NoResults = ({
 
   const [emptyHeader, emptyDetails] = getNoResultsInfo();
   return (
-    <EmptyTable
+    <EmptyState
       className={baseClass}
-      graphicName="empty-software"
       header={emptyHeader}
       info={emptyDetails}
     />

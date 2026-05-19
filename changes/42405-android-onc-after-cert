@@ -1,3 +1,0 @@
-- Android Wi-Fi configuration profiles (`openNetworkConfiguration` with `ClientCertKeyPairAlias`) are now withheld until the referenced certificate is installed or terminally failed on the device.
-- The host OS settings detail column now shows the reason when an Android profile is pending due to a certificate dependency.
-- `fleetctl gitops` now processes Android certificates before Android profiles

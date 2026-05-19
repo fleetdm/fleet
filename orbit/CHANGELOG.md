@@ -1,4 +1,20 @@
-## Orbit 1.54.0 (Apr 07, 2026)
+## 1.55.0 (May 05, 2026)
+
+* Updated go to 1.26.2.
+
+* Changed orbit to rotate the BitLocker recovery key (adding a new Fleet-managed protector and removing old ones) instead of decrypting and re-encrypting the entire disk when a Windows disk was already encrypted and Fleet needed the recovery key. This avoided the `FVE_E_AUTOUNLOCK_ENABLED` error loop on machines with secondary drives using auto-unlock.
+
+* Bumped https://github.com/macadmins/osquery-extension to v1.4.1.
+
+* Added `network_quality` table from https://github.com/macadmins/osquery-extension to macOS.
+
+* Removed debugging symbols from orbit and Fleet Desktop executables (to reduce binary size).
+
+* Updated orbit to pass EUA token during enrollment request.
+
+* Fixed Windows Autopilot SSO prompt not recoverable if closed by periodically re-opening the SSO browser window every 5 minutes until authentication is completed.
+
+## 1.54.0 (Apr 07, 2026)
 
 * Fixed orbit crash loop when `updates-metadata.json` has incorrect file permissions by self-healing via `chmod` instead of fatally erroring.
 
@@ -24,11 +40,11 @@
 
 * Added `go_binaries` table to detect Go binaries installed via `go install` in user directories.
 
-## Orbit 1.53.1 (Mar 18, 2026)
+## 1.53.1 (Mar 18, 2026)
 
 * Updated github.com/shirou/gopsutil from v3 to v4 to fix a crash in Apple M5 hardware.
 
-## Orbit 1.53.0 (Mar 03, 2026)
+## 1.53.0 (Mar 03, 2026)
 
 * Improved GUI user detection in orbit to use the correct active GUI session when starting Fleet Desktop.
 
@@ -44,11 +60,11 @@
 
 * Added a system tray title to Fleet Desktop to make sure that the system tray ID is static, not dynamic.
 
-## Orbit 1.52.1 (Feb 20, 2026)
+## 1.52.1 (Feb 20, 2026)
 
 * Fixed panic in `orbit` when auto-updates are disabled.
 
-## Orbit 1.52.0 (Feb 16, 2026)
+## 1.52.0 (Feb 16, 2026)
 
 * Updated `macadmins/osquery-extensions` to v1.3.2.
 
@@ -68,7 +84,7 @@
 
 * Set `--tls_accept_gzip=true` when connecting osquery to Fleet. This should have no effect until gzip is also enabled on the Fleet server (a new Fleet server configuration `FLEET_SERVER_GZIP_RESPONSES=true` is coming in v4.81.0).
 
-## Orbit 1.51.1 (Jan 28, 2026)
+## 1.51.1 (Jan 28, 2026)
 
 * Improved "Fleet Desktop" description in Windows' system tray.
 
@@ -86,11 +102,11 @@
 
 * Implemented the `executable_hashes` `fleetd` table, providing easy access to the SHA-256 hash and absolute path of the main executable for macOS app bundles matching the `path` in the query’s WHERE clause. Supports exact matches or multiple bundles via LIKE.
 
-## Orbit 1.50.2 (Dec 12, 2025)
+## 1.50.2 (Dec 12, 2025)
 
 * Fixed an issue where macOS devices would fail to enroll when end-user authentication was configured.
 
-## Orbit 1.50.1 (Nov 27, 2025)
+## 1.50.1 (Nov 27, 2025)
 
 * Upgraded macadmins osquery-extension to v1.2.7.
 
@@ -104,7 +120,7 @@
 
 * Fixed handling of various parsing bugs that caused the falconctl_options table to fail to load in some circumsatances.
 
-## Orbit 1.49.1 (Oct 27, 2025)
+## 1.49.1 (Oct 27, 2025)
 
 * Added `mcp_listening_servers` table to find MCP servers listening over HTTP.
 
@@ -118,7 +134,7 @@
 
 * Improved orbit debug logs when HTTP response contains a large HTML page.
 
-## Orbit 1.48.1 (Sep 24, 2025)
+## 1.48.1 (Sep 24, 2025)
 
 * During setup experience, try software installs up to 3 times by default in case of intermittent failures.
 
@@ -142,15 +158,15 @@
 
 * Updated httpsig-go library to 1.2.0 (for host identity certificates and HTTP message signatures).
 
-## Orbit 1.47.4 (Sep 11, 2025)
+## 1.47.4 (Sep 11, 2025)
 
 * Updated Swift Dialog in Fleet's TUF repo to 2.5.6 and modified Migration dialog layout to display properly with 2.5.6.
 
-## Orbit 1.47.3 (Sep 10, 2025)
+## 1.47.3 (Sep 10, 2025)
 
 * Fixed a crash loop on Fleet Free when Fleet Desktop is enabled.
 
-## Orbit 1.47.2 (Sep 04, 2025)
+## 1.47.2 (Sep 04, 2025)
 
 * Fixed bug where "Self-service" was still shown in Fleet Desktop menu when the host was offline.
 
@@ -160,7 +176,7 @@
 
 * Fixed issues with attestations: https://github.com/fleetdm/fleet/attestations
 
-## Orbit 1.46.0 (Aug 15, 2025)
+## 1.46.0 (Aug 15, 2025)
 
 * Added support for fleetd TUF extensions on Linux arm64 and Windows arm64 devices.
 
@@ -186,7 +202,7 @@
 
 * Fixed bug with `mdm_bridge` Orbit table that caused panics due to invalid COM initialization.
 
-## Orbit 1.45.1 (Jul 14th, 2025)
+## 1.45.1 (Jul 14th, 2025)
 
 * Added feature for showing an informational message on Fleet Desktop if the host cannot connect to Fleet.
 
@@ -198,13 +214,13 @@
 
 * Fixed an issue where Orbit would attempt to launch Fleet Desktop on Linux systems without a logged-in GUI user.
 
-## Orbit 1.44.0 (Jun 26, 2025)
+## 1.44.0 (Jun 26, 2025)
 
 * Added `app_sso_platform` table to get Platform SSO extensions state information.
 
 * Updated go to 1.24.4
 
-## Orbit 1.43.0 (Jun 10, 2025)
+## 1.43.0 (Jun 10, 2025)
 
 * Fixed an issue where the setup experience window would never finish and close if a software installer was deleted while it was running.
 
@@ -218,7 +234,7 @@
 
 * Added new column `cdhash_sha256` to `codesign` table.
 
-## Orbit 1.42.0 (May 15, 2025)
+## 1.42.0 (May 15, 2025)
 
 * Made the macOS Setup Experience dialog more reliable by preventing system sleep while it is shown, changing the key combo to cmd+shift+x to exit, keeping it on top of all other windows and making sure it closes once it completes.
 
@@ -243,7 +259,7 @@
 
 * Updated orbit linux CI builders to build (musl) static executable. (The main reason for this move was the deprecation of Ubuntu 20.04 runners by Github.)
 
-## Orbit 1.41.0 (Apr 14, 2025)
+## 1.41.0 (Apr 14, 2025)
 
 * Fixed osquery flag parsing when the argument contained `=`.
 
@@ -261,7 +277,7 @@
 
 * Added a timeout so the desktop app retries if not displayed after 1 minute.
 
-## Orbit 1.40.1 (Mar 14, 2025)
+## 1.40.1 (Mar 14, 2025)
 
 * Fixed LUKS key escrow in non-English system locales.
 
@@ -269,11 +285,11 @@
 
 * Fixed an issue where restarting the desktop manager on Ubuntu would cause the Fleet Desktop tray icon to disappear and not return.
 
-## Orbit 1.39.1 (Feb 12, 2025)
+## 1.39.1 (Feb 12, 2025)
 
 * Fixed a bug where fleetd could not install software from an old fleet server.
 
-## Orbit 1.39.0 (Feb 07, 2025)
+## 1.39.0 (Feb 07, 2025)
 
 * Fixed a bug where the `SystemDrive` environment variable was not being passed to osqueryd.
 
@@ -291,11 +307,11 @@
 
 * Added more client-side logging for software installs, scripts, and MDM setup experience.
 
-## Orbit 1.38.0 (Jan 24, 2025), 1.38.1 (Jan 27, 2025)
+## 1.38.0 (Jan 24, 2025), 1.38.1 (Jan 27, 2025)
 
 * Added changes to migrate to new TUF repository from https://tuf.fleetctl.com to https://updates.fleetdm.com.
 
-## Orbit 1.37.0 (Dec 13, 2024)
+## 1.37.0 (Dec 13, 2024)
 
 * Added support for key escrow on Ubuntu 20.04.
 
@@ -309,7 +325,7 @@
 
 * Updated Go version to 1.23.4.
 
-## Orbit 1.36.0 (Nov 25, 2024)
+## 1.36.0 (Nov 25, 2024)
 
 * Upgraded macadmins osquery-extension to v1.2.3.
 
@@ -327,7 +343,7 @@
 
 * Fixed cases where self-service menu item temporarily disappeared from Fleet Desktop menu when it should have stayed visible.
 
-## Orbit 1.35.0 (Nov 01, 2024)
+## 1.35.0 (Nov 01, 2024)
 
 * Fixed orbit startup to not exit when "root.json", "snapshot.json", or "targets.json" TUF signatures have expired.
 
@@ -337,17 +353,17 @@
 
 * Added capability for fleetd to report vital errors to Fleet server, such as when Fleet Desktop is unable to start.
 
-## Orbit 1.34.0 (Oct 02, 2024)
+## 1.34.0 (Oct 02, 2024)
 
 * Added a timeout to all script executions during software installs to prevent having install requests stuck in pending state forever.
 
-## Orbit 1.33.0 (Sep 20, 2024)
+## 1.33.0 (Sep 20, 2024)
 
 * Added support to run the configured uninstall script when installer's post-install script fails.
 
 * Updated Go to go1.23.1
 
-## Orbit 1.32.0 (Aug 29, 2024)
+## 1.32.0 (Aug 29, 2024)
 
 * Bumped macadmins extension to use SOFA feed sofafeed.macadmins.io
 
@@ -359,20 +375,20 @@
 
 * Fixed a formatting error when an unrecognized error happens during BitLocker encryption.
 
-## Orbit 1.31.0 (Aug 19, 2024)
+## 1.31.0 (Aug 19, 2024)
 
 * Fixed an issue that would display a disk encryption modal with MDM configured and FileVault enabled if the user hadn't escrowed the key in the past.
 
-## Orbit 1.30.0 (Aug 05, 2024)
+## 1.30.0 (Aug 05, 2024)
 
 * Use Escrow Buddy to rotate FileVault keys on macOS
 
-## Orbit 1.29.0 (Jul 24, 2024)
+## 1.29.0 (Jul 24, 2024)
 
 * Fixed a startup bug by performing an early restart of orbit if an agent options setting has changed.
 * Implemented a small refactor of orbit subsystems.
 
-## Orbit 1.28.0 (Jul 18, 2024)
+## 1.28.0 (Jul 18, 2024)
 
 * Hid "Self-service" in Fleet Desktop and My device page if there is no self-service software available.
 
@@ -388,7 +404,7 @@
 
 * Fixed bug where UTC timezone could cause error in `fleetd_logs` table time parsing.
 
-## Orbit 1.27.0 (Jun 21, 2024)
+## 1.27.0 (Jun 21, 2024)
 
 * Disabled `mdm_bridge` table on Windows Server.
 
@@ -401,7 +417,7 @@
 * Fixed bug where MDM migration fails when attempting to renew enrollment profiles on macOS Sonoma devices.
 
 
-## Orbit 1.26.0 (Jun 11, 2024)
+## 1.26.0 (Jun 11, 2024)
 
 * Added `tcc_access` table to `fleetd` for macOS.
 
@@ -417,7 +433,7 @@
 
 * Updated Go version to go1.22.3
 
-## Orbit 1.25.0 (May 22, 2024)
+## 1.25.0 (May 22, 2024)
 
 * Added code to detect value of `DISPLAY` variable of user instead of defaulting to `:0` (to support Ubuntu 24.04 with Xorg).
 
@@ -429,19 +445,19 @@
 
 * Added ability to install software when requested by the Fleet server. Note that this is disabled unless the package was built with the `--enable-scripts` flag.
 
-## Orbit 1.24.0 (Apr 17, 2024)
+## 1.24.0 (Apr 17, 2024)
 
 * Fixed script execution exit codes on windows by casting to signed integers to match windows interpreter.
 
 * In `orbit_info` table, added `desktop_version` and `scripts_enabled` fields.
 
-## Orbit 1.23.0 (Apr 08, 2024)
+## 1.23.0 (Apr 08, 2024)
 
 * Add `parse_json`, `parse_jsonl`, `parse_xml`, and `parse_ini` tables.
 
 * Add exponential backoff to orbit enroll retries.
 
-## Orbit 1.22.0 (Feb 26, 2024)
+## 1.22.0 (Feb 26, 2024)
 
 * Reduce error logs when orbit cannot connect to Fleet.
 
@@ -449,7 +465,7 @@
 
 * Upgrade go version to 1.21.7.
 
-## Orbit 1.21.0 (Jan 30, 2024)
+## 1.21.0 (Jan 30, 2024)
 
 * For macOS hosts, fleetd now stores and retrieves enroll secret from macOS keychain. This feature is enabled for non-MDM flow. The MDM profile flow will be supported in a future release.
 
@@ -468,7 +484,7 @@
 * Updated script running logic to stop running scripts if the script content can't be fetched from
 Fleet, which will preserve the order in which the scripts are queued.
 
-## Orbit 1.20.1 (Jan 23, 2024)
+## 1.20.1 (Jan 23, 2024)
 
 * Attempt to automatically decrypt the disk before performing a BitLocker encryption if it was previously encrypted and Fleet doesn't have the key.
 
@@ -483,7 +499,7 @@ Fleet, which will preserve the order in which the scripts are queued.
 
 * Fixed a log timestamp to print the right duration value when a fleet update has exceeded the maximum number of retries.
 
-## Orbit 1.20.0 (Jan 10, 2024)
+## 1.20.0 (Jan 10, 2024)
 
 * Allow configuring TUF channels of `orbit`, `osqueryd` and `desktop` from Fleet agent settings.
 
@@ -493,7 +509,7 @@ Fleet, which will preserve the order in which the scripts are queued.
 
 * Added functionality to fleetd for macOS hosts to check for custom end user email field in Fleet MDM enrollment profile.
 
-## Orbit 1.19.0 (Dec 22, 2023)
+## 1.19.0 (Dec 22, 2023)
 
 * Add `--host-identifier` option to fleetd to allow enrolling with a random identifier instead of the default behavior that uses the hardware UUID. This allows supporting running fleetd on VMs that have the same UUID and/or serial number.
 
@@ -514,7 +530,7 @@ Fleet, which will preserve the order in which the scripts are queued.
 
 * Updated Go to v1.21.5
 
-## Orbit 1.18.3 (Nov 16, 2023)
+## 1.18.3 (Nov 16, 2023)
 
 * Removed glibc dependencies for Fleet Desktop on linux
 
@@ -528,7 +544,7 @@ Fleet, which will preserve the order in which the scripts are queued.
 
 * Updated Go version to 1.21.3
 
-## Orbit 1.17.0 (Sep 28, 2023)
+## 1.17.0 (Sep 28, 2023)
 
 * Updated the image and the overall layout of the migration dialog
 
@@ -536,7 +552,7 @@ Fleet, which will preserve the order in which the scripts are queued.
 
 * Upgraded Go version to 1.21.1
 
-## Orbit 1.16.0 (Sep 6, 2023)
+## 1.16.0 (Sep 6, 2023)
 
 * Updated the default TUF update roots with the newest metadata in the server. (#13381)
 
@@ -557,7 +573,7 @@ Fleet, which will preserve the order in which the scripts are queued.
 
 * Fixed theme detection and icon coloring issues for Fleet Desktop on Windows. (#13457)
 
-## Orbit 1.2.0 - Orbit 1.15.0 (Oct 4, 2022 - Aug 17, 2023)
+## 1.2.0 - 1.15.0 (Oct 4, 2022 - Aug 17, 2023)
 
 * Fixed an issue preventing Nudge from reading the configuration file delivered by Fleet on some installations. This only affects you if Nudge was enabled and configured on a host using Orbit v1.8.0.
 
@@ -678,11 +694,11 @@ Hosts not running Orbit will fail to execute such query because the table doesn'
 
 * Ensured Orbit re-enrolls when encountering a 401/unauthenticated error when communicating with Fleet server endpoints.
 
-## Orbit 1.1.0 (Aug 19, 2022)
+## 1.1.0 (Aug 19, 2022)
 
 * Rename `unified_log` table to `macadmins_unified_log` to avoid collision with osquery core. This allows Orbit to support osquery 5.5.0.
 
-## Orbit 1.0.0 (July 14, 2022)
+## 1.0.0 (July 14, 2022)
 
 - Update the dropdown in Fleet Desktop to show the number of failing policies along with the status.
 
@@ -692,7 +708,7 @@ Hosts not running Orbit will fail to execute such query because the table doesn'
 
 - Added cleanup of osquery extension socket to Orbit at startup.
 
-## Orbit 0.0.13 (Jun 16, 2022)
+## 0.0.13 (Jun 16, 2022)
 
 - Orbit is now a Universal Binary supporting Intel and M1 on macOS machines without Rosetta.
 
@@ -705,7 +721,7 @@ Hosts not running Orbit will fail to execute such query because the table doesn'
   - Linux: `$XDG_STATE_HOME`, fallback to `$HOME/.local/state`
   - Windows: `%LocalAppData%`
 
-## Orbit 0.0.12 (May 26, 2022)
+## 0.0.12 (May 26, 2022)
 
 ### This is a security release.
 
@@ -713,24 +729,24 @@ Hosts not running Orbit will fail to execute such query because the table doesn'
 
 - Fleet desktop will now notify Premium tier users if policies are failing/passing.
 
-## Orbit 0.0.11 (May 10, 2022)
+## 0.0.11 (May 10, 2022)
 
 - Change install path to /opt/orbit. Fixes a permissions issue on platforms with SELinux enabled.
   See [fleetdm/fleet#4176](https://github.com/fleetdm/fleet/issues/4176) for more details.
 
 - Remove support for Orbit to use the legacy osqueryd target on macOS. This has been deprecated since introduction of the app bundle support in Orbit 0.0.8.
 
-## Orbit 0.0.10 (Apr 26, 2022)
+## 0.0.10 (Apr 26, 2022)
 
 - Revert Orbit osquery remote paths to use `v1`.
 
-## Orbit 0.0.9 (Apr 20, 2022)
+## 0.0.9 (Apr 20, 2022)
 
 - Add Fleet Desktop Beta support for Windows.
 
 - Make update interval configurable and increase default from 10s to 15m.
 
-## Orbit 0.0.8 (Mar 25, 2022)
+## 0.0.8 (Mar 25, 2022)
 
 - Fix `orbit shell` command to successfully run when Orbit is already running as daemon.
 
@@ -740,7 +756,7 @@ Hosts not running Orbit will fail to execute such query because the table doesn'
 
 - Upgrade [osquery-go](https://github.com/osquery/osquery-go) and [osquery-extension](https://github.com/macadmins/osquery-extension) dependencies.
 
-## Orbit 0.0.7 (Mar 8, 2022)
+## 0.0.7 (Mar 8, 2022)
 
 - Improve reliability of osquery extension connection at startup.
 
@@ -748,17 +764,17 @@ Hosts not running Orbit will fail to execute such query because the table doesn'
 
 - Create and set log paths for "result" and "status" logs when launching osquery.
 
-## Orbit 0.0.6 (Jan 13, 2022)
+## 0.0.6 (Jan 13, 2022)
 
 - Add logging when running as a Windows Service (because Windows discards stdout/stderr).
 
 - Improve flaky startups by adding wait for osquery extension socket.
 
-## Orbit 0.0.5 (Dec 22, 2021)
+## 0.0.5 (Dec 22, 2021)
 
 - Fix handling of enroll secrets to address 0.0.4 enrollment issue.
 
-## Orbit 0.0.4 (Dec 19, 2021)
+## 0.0.4 (Dec 19, 2021)
 
 - Use `certs.pem` if available in root directory to improve TLS compatibility.
 

@@ -94,7 +94,6 @@ module.exports = {
       'tux234',
       'ksykulev',
       'mason-buettner',
-      'iansltx',
       'sgress454',
       'BCTBB',
       'kc9wwh',

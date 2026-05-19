@@ -358,7 +358,7 @@ object ApiClient : CertificateApiClient {
                 detail = detail,
                 notAfter = notAfter?.toISO8601String(),
                 notBefore = notBefore?.toISO8601String(),
-                serialNumber = serialNumber?.toString(),
+                serialNumber = serialNumber?.toString(16), // hex
             ),
             bodySerializer = UpdateCertificateStatusRequest.serializer(),
             responseSerializer = UpdateCertificateStatusResponse.serializer(),
@@ -605,6 +605,9 @@ data class GetCertificateTemplateResponse(
     // CertificateTemplateResponseFull
     @SerialName("subject_name")
     val subjectName: String,
+
+    @SerialName("subject_alternative_name")
+    val subjectAlternativeName: String? = null,
 
     @SerialName("certificate_authority_type")
     val certificateAuthorityType: String,

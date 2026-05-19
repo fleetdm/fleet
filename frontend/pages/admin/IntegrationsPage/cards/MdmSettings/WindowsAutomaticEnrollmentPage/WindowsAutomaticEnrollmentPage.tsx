@@ -8,8 +8,7 @@ import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink/CustomLink";
 import PageDescription from "components/PageDescription";
-import EmptyTable from "components/EmptyTable";
-import Card from "components/Card";
+import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import UploadList from "components/UploadList";
@@ -48,25 +47,23 @@ const WindowsAutomaticEnrollmentPage = () => {
 
     if (!tenants || tenants.length === 0) {
       return (
-        <Card paddingSize="xxlarge">
-          <EmptyTable
-            className={`${baseClass}__empty-tenant-message`}
-            header="No tenants added"
-            info="Add your Entra tenant ID to be able to enroll Windows hosts."
-            primaryButton={
-              <GitOpsModeTooltipWrapper
-                renderChildren={(disable) => (
-                  <Button
-                    onClick={() => setShowAddTenantModal(true)}
-                    disabled={disable}
-                  >
-                    Add
-                  </Button>
-                )}
-              />
-            }
-          />
-        </Card>
+        <EmptyState
+          variant="header-list"
+          header="No tenants added"
+          info="Add your Entra tenant ID to be able to enroll Windows hosts."
+          primaryButton={
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disable) => (
+                <Button
+                  onClick={() => setShowAddTenantModal(true)}
+                  disabled={disable}
+                >
+                  Add
+                </Button>
+              )}
+            />
+          }
+        />
       );
     }
 

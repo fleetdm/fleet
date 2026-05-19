@@ -16,10 +16,10 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@sgress454/node-sql-parser": "5.4.0-fork.1",
+    "@sgress454/node-sql-parser": "5.4.0-fork.2",
     "@types/dompurify": "3.0.2",
     "ace-builds": "1.4.14",
-    "axios": "1.15.0",
+    "axios": "1.15.2",
     "content-disposition": "0.5.4",
     "core-js": "3.25.1",
     "date-fns": "3.6.0",
@@ -150,7 +150,7 @@
     "eslint-plugin-react-hooks": "4.3.0",
     "eslint-plugin-storybook": "0.9.0",
     "expect": "1.20.2",
-    "fork-ts-checker-webpack-plugin": "6.5.0",
+    "fork-ts-checker-webpack-plugin": "9.1.0",
     "html-webpack-plugin": "5.5.0",
     "identity-obj-proxy": "3.0.0",
     "ignore-styles": "5.0.1",

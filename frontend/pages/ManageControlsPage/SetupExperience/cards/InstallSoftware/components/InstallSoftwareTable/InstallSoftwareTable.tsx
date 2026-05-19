@@ -4,7 +4,7 @@ import { ISoftwareTitle } from "interfaces/software";
 import { SetupExperiencePlatform } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import generateTableConfig from "./InstallSoftwareTableConfig";
 
@@ -60,7 +60,7 @@ const InstallSoftwareTable = ({
       columnConfigs={tableConfig}
       isLoading={false}
       emptyComponent={() => (
-        <EmptyTable
+        <EmptyState
           header="No software available"
           info=" There are no results to your query."
           className={baseClass}

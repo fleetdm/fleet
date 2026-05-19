@@ -1,3 +1,7 @@
+activity_expiry_settings:
+  activity_expiry_enabled: false
+  activity_expiry_window: 30
+  preserve_host_activities_on_reenrollment: true
 certificate_authorities:
   custom_est_proxy:
   - name: some-est-name
@@ -43,6 +47,9 @@ features:
   detail_query_overrides:
     users:
     mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
+  historical_data:
+    uptime: true
+    vulnerabilities: true
 fleet_desktop:
   alternative_browser_host: musica.alternativa
   transparency_url: https://fleetdm.com/transparency
@@ -92,8 +99,8 @@ mdm:
         - "\U0001F4F1\U0001F510 Personal mobile devices"
 org_info:
   contact_url: https://fleetdm.com/company/contact
-  org_logo_url: http://some-org-logo-url.com
-  org_logo_url_light_background: http://some-org-logo-url-light-background.com
+  org_logo_url_dark_mode: http://some-org-logo-url.com
+  org_logo_url_light_mode: http://some-org-logo-url-light-background.com
   org_name: Fleet
 secrets:
   - secret: some-secret-number-one

@@ -1,0 +1,1 @@
+* Fixed an issue where the "Back to host details" button on a report's details page navigated to the reports list instead of the host's details page after creating a report from a host.

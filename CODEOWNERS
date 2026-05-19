@@ -65,16 +65,18 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                                   @rachaelshaw @lukeheath
-/docs/solutions                                         @ddribeiro @lukeheath
-/docs/Configuration                                     @rachaelshaw @lukeheath
+/docs                                                   @rachaelshaw
+/docs/solutions                                         @ddribeiro
+/docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
 /docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
-/docs/REST\ API/rest-api.md                             @rachaelshaw @lukeheath # « REST API reference documentation
-/docs/Contributing/reference                            @rachaelshaw @lukeheath
+/docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
+/docs/Contributing/reference                            @rachaelshaw
+/docs/Get\ started/why-fleet.md                         @mike-j-thomas
 /render.yaml                                            @edwardsb
 /it-and-security                                        @allenhouchins
 /articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn @BCTBB # « Infra: active notification of changes to IP Allowlists
+/openspec                                               @lukeheath
 
 ################################################################################################
 #  ╔═╗┬ ┬┌┐┌┌─┐┌┬┐  ┌┐ ┬ ┬  ┌─┐┬─┐┌─┐┌┬┐┬ ┬┌─┐┌┬┐  ┌─┐┬─┐┌─┐┬ ┬┌─┐┌─┐
@@ -98,9 +100,9 @@ go.mod @fleetdm/go
 /docs/Contributing/research/software                    @georgekarrv @cdcme
 
 # Security & Compliance
-/docs/Contributing/architecture/security-compliance     @sharon-fdm @getvictor
-/docs/Contributing/product-groups/security-compliance   @sharon-fdm @getvictor
-/docs/Contributing/research/security-compliance         @sharon-fdm @getvictor
+/docs/Contributing/architecture/security-compliance     @sharon-fdm @getvictor @mostlikelee
+/docs/Contributing/product-groups/security-compliance   @sharon-fdm @getvictor @mostlikelee
+/docs/Contributing/research/security-compliance         @sharon-fdm @getvictor @mostlikelee
 /docs/Contributing/reference/patterns-backend.md        @fleetdm/go
 
 ##############################################################################################

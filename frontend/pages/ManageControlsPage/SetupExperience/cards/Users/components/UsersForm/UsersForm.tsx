@@ -58,8 +58,11 @@ const UsersForm = ({
 
   const onToggleEndUserAuth = (newCheckVal: boolean) => {
     setEndUserAuthEnabled(newCheckVal);
-    // Sync lock end user info with EUA: enabling EUA enables it, disabling EUA disables it.
-    setLockEndUserInfo(newCheckVal);
+    // Sync lock end user info with EUA only when Apple MDM is configured. Without
+    // Apple MDM the field is read-only, so we leave whatever value came from the backend untouched.
+    if (isMacMdmEnabledAndConfigured) {
+      setLockEndUserInfo(newCheckVal);
+    }
   };
 
   const onChangeLockEndUserInfo = (newCheckVal: boolean) => {
@@ -79,8 +82,11 @@ const UsersForm = ({
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
         enable_end_user_authentication: isEndUserAuthEnabled,
-        lock_end_user_info: canLockEndUserInfo,
-        enable_managed_local_account: enableManagedLocalAccount,
+        // Apple-only fields are omitted when Apple MDM isn't configured.
+        ...(isMacMdmEnabledAndConfigured && {
+          lock_end_user_info: canLockEndUserInfo,
+          enable_managed_local_account: enableManagedLocalAccount,
+        }),
       });
       renderFlash("success", "Successfully updated.");
     } catch {
@@ -88,7 +94,9 @@ const UsersForm = ({
     }
 
     setIsUpdating(false);
-    setLockEndUserInfo(canLockEndUserInfo);
+    if (isMacMdmEnabledAndConfigured) {
+      setLockEndUserInfo(canLockEndUserInfo);
+    }
   };
 
   return (
@@ -135,27 +143,51 @@ const UsersForm = ({
         </TooltipWrapper>
         {isEndUserAuthEnabled && (
           <div className={`${baseClass}__advanced-options`}>
-            <Checkbox
-              disabled={gitOpsModeEnabled || !isIdPConfigured}
-              onChange={onChangeLockEndUserInfo}
-              value={lockEndUserInfo}
-            >
-              <TooltipWrapper
-                tipContent={
+            <TooltipWrapper
+              tipContent={
+                !isMacMdmEnabledAndConfigured ? (
                   <span>
-                    End user can&apos;t edit the local account&apos;s{" "}
-                    <b>Account Name</b> and
-                    <br />
-                    <b>Full Name</b> in macOS Setup Assistant. These fields will
-                    be
-                    <br />
-                    locked to values from your IdP.
+                    To enable, first turn on{" "}
+                    <CustomLink
+                      url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
+                      text="Apple MDM"
+                      variant="tooltip-link"
+                    />
+                    .
                   </span>
+                ) : undefined
+              }
+              disableTooltip={!!isMacMdmEnabledAndConfigured}
+              underline={false}
+              position="left"
+              showArrow
+            >
+              <Checkbox
+                disabled={
+                  gitOpsModeEnabled ||
+                  !isIdPConfigured ||
+                  !isMacMdmEnabledAndConfigured
                 }
+                onChange={onChangeLockEndUserInfo}
+                value={lockEndUserInfo}
               >
-                Lock end user info
-              </TooltipWrapper>
-            </Checkbox>
+                <TooltipWrapper
+                  tipContent={
+                    <span>
+                      End user can&apos;t edit the local account&apos;s{" "}
+                      <b>Account Name</b> and
+                      <br />
+                      <b>Full Name</b> in macOS Setup Assistant. These fields
+                      will be
+                      <br />
+                      locked to values from your IdP.
+                    </span>
+                  }
+                >
+                  Lock end user info
+                </TooltipWrapper>
+              </Checkbox>
+            </TooltipWrapper>
           </div>
         )}
         <TooltipWrapper

@@ -56,7 +56,7 @@
             <p purpose="subtopics-heading" class="font-weight-bold" v-if="!_.isEmpty(subtopics)">On this page:</p>
             <div purpose="subtopics" v-if="!_.isEmpty(subtopics)">
               <a purpose="subtopic-link" v-for="(subtopic, index) in subtopics" :href="subtopic.url">{{subtopic.title}}</a>
-              <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm && !['REST API', 'Fleet server configuration'].includes(thisPage.title)">
+              <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm && !['REST API', 'Fleet server configuration', 'Why Fleet'].includes(thisPage.title)">
                 <a class="d-flex align-items-center justify-content-center" @click="clickSwagRequestCTA()">
                   <div class="d-flex flex-column align-items-center">
                   <img style="height: auto; width: 47px; margin-bottom: 8px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">

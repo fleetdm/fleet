@@ -1,0 +1,14 @@
+schema: spec-driven
+
+context: |
+  Fleet: Go backend + React/TypeScript frontend for device management and security.
+  Authoritative project guidance lives in `.claude/CLAUDE.md` — read it before drafting.
+
+# Per-artifact rules. openspec injects these into each artifact's <rules> block
+# when generating it. Empty lists are skipped silently. Add bullet strings to
+# enforce structural conventions, e.g.:
+#   proposal:
+#     - Include a "Non-goals" section.
+rules:
+  proposal: []
+  tasks: []

@@ -1,0 +1,1 @@
+* Fixed file descriptor leak in vulnerability processing where deleted goval_dictionary sqlite files were kept open until Fleet server restart.

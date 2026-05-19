@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -90,6 +90,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		&fleet.NoOpGeoIP{},
 		nil,
 		depStorage,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -254,9 +255,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		) (updates fleet.MDMProfilesUpdates, err error) {
 			return fleet.MDMProfilesUpdates{}, nil
 		}
-		apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+		apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 		require.NoError(t, err)
-		certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
+		certPEM, keyPEM, tokenBytes, err := mysqltest.GenerateTestABMAssets(t)
 		require.NoError(t, err)
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 			_ sqlx.QueryerContext,

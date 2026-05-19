@@ -27,9 +27,9 @@ resource "aws_lb" "internal" {
   idle_timeout               = 905
   drop_invalid_header_fields = true
   access_logs {
-      bucket  = module.logging_alb.log_s3_bucket_id
-      prefix  = local.customer
-      enabled = true
+    bucket  = module.logging_alb.log_s3_bucket_id
+    prefix  = local.customer
+    enabled = true
   }
 }
 

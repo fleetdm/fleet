@@ -1,0 +1,1 @@
+- Fixed a class of silent SCEP managed-certificate renewal failures by recovering host_mdm_managed_certificates rows that previously got stuck after the cert ingest matcher missed linking a renewed certificate.

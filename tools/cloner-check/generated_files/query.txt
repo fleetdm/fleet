@@ -62,3 +62,4 @@ github.com/fleetdm/fleet/v4/server/fleet/Query	DiscardData	bool
 github.com/fleetdm/fleet/v4/server/fleet/Query	LabelsIncludeAny	[]fleet.LabelIdent
 github.com/fleetdm/fleet/v4/server/fleet/LabelIdent	LabelID	uint
 github.com/fleetdm/fleet/v4/server/fleet/LabelIdent	LabelName	string
+github.com/fleetdm/fleet/v4/server/fleet/Query	LabelsIncludeAll	[]fleet.LabelIdent

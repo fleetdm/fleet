@@ -7,8 +7,8 @@
 // CVE: fetches per-host vulnerability data, builds per-CVE host bitmaps, and
 // reconciles them into host_scd_data (dataset='cve') as snapshot rows.
 // Unchanged CVEs keep their existing open row; changed bitmaps close the prior
-// row at today's midnight (UTC) and open a new one; intra-day changes
-// overwrite today's row via ODKU.
+// row at the current hour boundary (UTC) and open a new one; same-hour
+// re-runs overwrite the open row via ODKU.
 //
 // Usage:
 //
@@ -245,7 +245,7 @@ func collectCVE(api *apiClient, db *sql.DB) error {
 	}
 	log.Printf("  %d unique CVEs found in %.1fs", len(cveHosts), time.Since(fetchStart).Seconds())
 
-	// Build the desired entity->bitmap map for today's 24h bucket.
+	// Build the desired entity->bitmap map for the current hourly bucket.
 	entityBitmaps := make(map[string][]byte, len(cveHosts))
 	for cve, hosts := range cveHosts {
 		entityBitmaps[cve] = chart.HostIDsToBlob(hosts)
