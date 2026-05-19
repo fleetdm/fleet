@@ -117,26 +117,23 @@
     .replace(/</g, '\\u003c')
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029'); %>
+  <% let jsonLdGlossary = {
+    '@context': 'https://schema.org',
+    '@type': 'DefinedTermSet',
+    name: 'Fleet device management glossary',
+    description: 'Plain-language definitions of MDM, osquery, GitOps, and IT security terms used in modern device management.',
+    url: 'https://fleetdm.com/device-management-glossary',
+    hasDefinedTerm: glossaryTerms.map((term) => ({
+      '@type': 'DefinedTerm',
+      name: term.name,
+      description: term.definition,
+      url: `https://fleetdm.com/device-management-glossary#term-${term.slug}`,
+      inDefinedTermSet: 'https://fleetdm.com/device-management-glossary',
+    })),
+  }; %>
   <%/* Structured data for SEO and LLM discoverability */%>
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "DefinedTermSet",
-    "name": "Fleet device management glossary",
-    "description": "Plain-language definitions of MDM, osquery, GitOps, and IT security terms used in modern device management.",
-    "url": "https://fleetdm.com/device-management-glossary",
-    "hasDefinedTerm": [
-      <% glossaryTerms.forEach((term, idx) => { %>
-        {
-          "@type": "DefinedTerm",
-          "name": <%- jsonForInlineScript(term.name) %>,
-          "description": <%- jsonForInlineScript(term.definition) %>,
-          "url": <%- jsonForInlineScript('https://fleetdm.com/device-management-glossary#term-' + term.slug) %>,
-          "inDefinedTermSet": "https://fleetdm.com/device-management-glossary"
-        }<%= idx < glossaryTerms.length - 1 ? ',' : '' %>
-      <% }); %>
-    ]
-  }
+  <%- jsonForInlineScript(jsonLdGlossary) %>
   </script>
 
 </div>
