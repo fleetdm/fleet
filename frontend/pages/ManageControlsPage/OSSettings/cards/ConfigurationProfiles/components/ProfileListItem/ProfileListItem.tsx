@@ -11,6 +11,7 @@ import mdmAPI, { isDDMProfile } from "services/entities/mdm";
 import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import strUtils from "utilities/strings";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -146,7 +147,14 @@ const ProfileListItem = ({
       <div className={`${subClass}__main-content`}>
         <Graphic name="file-configuration-profile" />
         <div className={`${subClass}__info`}>
-          <span className={`${subClass}__title`}>{name}</span>
+          <TooltipWrapper
+            tipContent={`UUID: ${profile.profile_uuid}`}
+            underline={false}
+            position="top"
+            showArrow
+          >
+            <span className={`${subClass}__title`}>{name}</span>
+          </TooltipWrapper>
           <div className={`${subClass}__details`}>
             <ProfileDetails
               platform={platform}
