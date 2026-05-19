@@ -62,7 +62,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.9.1
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
-	github.com/go-git/go-git/v5 v5.19.0
+	github.com/go-git/go-git/v5 v5.19.1
 	github.com/go-ini/ini v1.67.0
 	github.com/go-json-experiment/json v0.0.0-20260214004413-d219187c3433
 	github.com/go-kit/kit v0.12.0
