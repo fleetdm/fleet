@@ -10499,6 +10499,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [List software versions](#list-software-versions)
 - [List operating systems](#list-operating-systems)
 - [Get software](#get-software)
+- [List software title packages](#list-software-title-packages)
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
@@ -10958,6 +10959,7 @@ Returns information about the specified software. By default, `versions` are sor
         "failed_uninstall": 1
       }
     },
+    "packages_count": 2,
     "app_store_app": null,
     "counts_updated_at": "2024-11-03T22:39:36Z",
     "source": "apps",
@@ -10985,6 +10987,8 @@ Returns information about the specified software. By default, `versions` are sor
   }
 }
 ```
+
+> When multiple packages exist for a software title, the `software_package` field returns the most recently added package. Use the `packages_count` field to determine if additional packages are available, and use the [List software title packages](#list-software-title-packages) endpoint to retrieve all packages.
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
@@ -11156,6 +11160,83 @@ Returns information about the specified software. By default, `versions` are sor
   }
 }
 ```
+### List software title packages
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Returns the list of packages (installers) associated with the specified software title. When multiple packages target the same host, Fleet will install the one added most recently.
+
+`GET /api/v1/fleet/software/titles/:id/packages`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The software title's ID. |
+| fleet_id | integer | query | **Required**. The fleet ID. Lists packages added to the specified fleet. |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/12/packages?fleet_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "packages": [
+    {
+      "installer_id": 23,
+      "name": "GlobalProtect-v71.5.pkg",
+      "version": "71.5",
+      "platform": "darwin",
+      "uploaded_at": "2024-12-01T10:30:00Z",
+      "self_service": false,
+      "labels_include_any": [
+        {
+          "name": "Engineering",
+          "id": 294
+        }
+      ],
+      "labels_include_all": null,
+      "labels_exclude_any": null,
+      "status": {
+        "installed": 123,
+        "pending_install": 5,
+        "failed_install": 19,
+        "pending_uninstall": 0,
+        "failed_uninstall": 0
+      }
+    },
+    {
+      "installer_id": 45,
+      "name": "GlobalProtect-v6.3.2.pkg",
+      "version": "6.3.2",
+      "platform": "darwin",
+      "uploaded_at": "2024-11-21T08:15:00Z",
+      "self_service": false,
+      "labels_include_any": null,
+      "labels_include_all": null,
+      "labels_exclude_any": null,
+      "status": {
+        "installed": 78,
+        "pending_install": 0,
+        "failed_install": 31,
+        "pending_uninstall": 0,
+        "failed_uninstall": 0
+      }
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
 ### Get software version
 
 Returns information about the specified software version.
@@ -11434,6 +11515,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
+| installer_id | integer | body | The installer ID of the specific package to update. Required when the software title has multiple packages. If not specified and only one package exists, that package is updated. |
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
@@ -12018,6 +12100,7 @@ _Available in Fleet Premium._
 | id   | integer | path | **Required**. The ID of the software title to download software package.|
 | fleet_id | integer | query | **Required**. The fleet ID. Downloads a software package added to the specified fleet. |
 | alt             | string | query | **Required**. If specified and set to `"media"`, downloads the specified software package. |
+| installer_id | integer | query | The installer ID of the specific package to download. Required when the software title has multiple packages. If not specified and multiple packages exist, downloads the most recently added package. |
 
 #### Example
 
@@ -12140,10 +12223,11 @@ _Available in Fleet Premium._
 | software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
 | fleet_id | integer | query | **Required**. The fleet ID. Downloads a software package added to the specified fleet. |
 | alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
+| installer_id | integer | query | The installer ID of the specific package to download. Required when the software title has multiple packages. If not specified and multiple packages exist, downloads the most recently added package. |
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
+`GET /api/v1/fleet/software/titles/123/package?alt=media&team_id=2`
 
 ##### Default response
 
@@ -12163,7 +12247,7 @@ Body: <blob>
 
 _Available in Fleet Premium._
 
-Deletes software that's available for install. This won't uninstall the software from hosts.
+Deletes software that's available for install. This won't uninstall the software from hosts. If the software title has multiple packages and `installer_id` is specified, only that package is deleted. If `installer_id` is not specified, all packages for the software title are deleted.
 
 `DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 
@@ -12173,10 +12257,19 @@ Deletes software that's available for install. This won't uninstall the software
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
 | fleet_id | integer | query | **Required**. The fleet ID. Deletes a software package added to the specified fleet. |
+| installer_id | integer | query | The installer ID of the specific package to delete. Use this to delete a single package when the software title has multiple packages. Use the [List software title packages](#list-software-title-packages) endpoint to find installer IDs. |
 
 #### Example
 
 `DELETE /api/v1/fleet/software/titles/24/available_for_install?team_id=2`
+
+##### Default response
+
+`Status: 204`
+
+#### Example (delete specific package)
+
+`DELETE /api/v1/fleet/software/titles/24/available_for_install?team_id=2&installer_id=45`
 
 ##### Default response
 
