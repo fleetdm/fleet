@@ -1544,10 +1544,11 @@ func (a *agent) runWindowsMDMLoop() {
 		}
 
 		// Detect SCEP CertificateInstall CSPs and ACK them now while kicking off the SCEP exchange in the background.
-		// Results are drained from the channel to drive the per-CSP success/error counters.
+		// hasWork is the right gate (not len(handled)>0) because incomplete CSPs are surfaced as errors on
+		// scepResults without populating handled — if we gated on handled, those errors would be dropped.
 		scepCtx, cancelSCEP := context.WithTimeout(context.Background(), 2*a.MDMCheckInInterval)
-		handled, scepResults := a.winMDMClient.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
-		if len(handled) > 0 {
+		handled, scepResults, hasWork := a.winMDMClient.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
+		if hasWork {
 			go func() {
 				defer cancelSCEP()
 				// One SCEPResult is emitted per CSP; increment per-result so the request counter

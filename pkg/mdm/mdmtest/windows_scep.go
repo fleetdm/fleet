@@ -207,18 +207,22 @@ func scepInstallPath(loc string) (scepCSPPath, bool) {
 //     should skip these so they don't double-ACK.
 //   - done: receives one SCEPResult per complete-or-incomplete CSP and is closed when all
 //     exchanges complete. Callers that don't need synchronization can ignore it.
+//   - hasWork: true if any SCEP CSPs (complete or incomplete) were found. When false, done is
+//     a closed empty channel and there's no reason for the caller to spawn a drain goroutine.
+//     This is the signal callers should gate context-cancellation on; gating on len(handled)
+//     misses the incomplete-only case (incomplete CSPs do not populate handled).
 func (c *TestWindowsMDMClient) AppendSCEPInstallResponses(
 	ctx context.Context,
 	cmds map[string]fleet.ProtoCmdOperation,
 	msgID string,
 	logger *slog.Logger,
-) (handled map[string]struct{}, done <-chan SCEPResult) {
+) (handled map[string]struct{}, done <-chan SCEPResult, hasWork bool) {
 	handled = map[string]struct{}{}
 	sceps, incomplete := c.ExtractSCEPCommands(cmds)
 	if len(sceps) == 0 && len(incomplete) == 0 {
 		ch := make(chan SCEPResult)
 		close(ch)
-		return handled, ch
+		return handled, ch, false
 	}
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
@@ -265,7 +269,7 @@ func (c *TestWindowsMDMClient) AppendSCEPInstallResponses(
 		wg.Wait()
 		close(out)
 	}()
-	return handled, out
+	return handled, out, true
 }
 
 // RunSCEP performs a single SCEP exchange against sc.ServerURL using the challenge and subject

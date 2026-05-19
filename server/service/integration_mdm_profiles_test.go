@@ -8275,7 +8275,7 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 
 		scepCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
-		handled, scepResults := mdmDevice.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
+		handled, scepResults, _ := mdmDevice.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
 
 		atomicCmds := 0
 		for _, c := range cmds {
@@ -8429,7 +8429,7 @@ func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 
 			scepCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
-			handled, scepResults := mdmDevice.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
+			handled, scepResults, _ := mdmDevice.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
 			for _, c := range cmds {
 				if c.Verb == fleet.CmdStatus {
 					continue
