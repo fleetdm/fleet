@@ -316,7 +316,7 @@ Fleet's enrollment process can be performed manually or through your existing wo
 
 Fleet makes the enrollment and installation process easy so that you can focus on what really matters: managing your hosts. In the following articles, we'll take a look at the management capabilities that Fleet brings to Linux desktops.
 
-To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/contact?utm_source=Fleet&utm_medium=OS&utm_campaign=2026_05-OS-Linux_desktop).
+To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/contact).
 
 
 <meta name="articleTitle" value="How to enroll Linux devices for Fleet management">

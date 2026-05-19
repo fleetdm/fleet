@@ -255,8 +255,9 @@ func (svc *Service) EmailConfig(ctx context.Context) (*fleet.EmailConfig, error)
 		email = &fleet.EmailConfig{
 			Backend: conf.Email.EmailBackend,
 			Config: fleet.SESConfig{
-				Region:    conf.SES.Region,
-				SourceARN: conf.SES.SourceArn,
+				Region:       conf.SES.Region,
+				SourceARN:    conf.SES.SourceArn,
+				SenderDomain: conf.SES.SenderDomain,
 			},
 		}
 	default:
