@@ -165,13 +165,19 @@ const PolicyResults = ({
     }
 
     if (finishedWithNoResults) {
+      const hostVerb = targetsTotalCount === 1 ? "host is" : "hosts are";
+      const errorsMessage = errors?.length ? (
+        <>
+          {" "}
+          or review the <strong>Errors</strong> tab for details
+        </>
+      ) : null;
       return (
         <EmptyState
           header="No results returned"
           info={
             <>
-              Check whether the host{targetsTotalCount > 1 ? "s" : ""} are
-              online or review the <strong>Errors</strong> tab for details.
+              Check whether the {hostVerb} online{errorsMessage}.
             </>
           }
         />
