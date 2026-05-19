@@ -4,7 +4,7 @@
       "version": "148.1.90.122",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Brave' AND publisher = 'Brave Software Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Brave' AND publisher = 'Brave Software Inc' AND version_compare(version, '148.1.90.122') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Brave' AND publisher = 'Brave Software Inc') AND version_compare(version, '148.1.90.122') < 0);"
       },
       "installer_url": "https://github.com/brave/brave-browser/releases/download/v1.90.122/BraveBrowserStandaloneSilentSetup.exe",
       "install_script_ref": "9a0c2b15",

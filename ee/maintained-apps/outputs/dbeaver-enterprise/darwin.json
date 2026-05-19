@@ -4,7 +4,7 @@
       "version": "26.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.dbeaver.product.enterprise';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.dbeaver.product.enterprise' AND version_compare(bundle_short_version, '26.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.dbeaver.product.enterprise') AND version_compare(bundle_short_version, '26.0.0') < 0);"
       },
       "installer_url": "https://downloads.dbeaver.net/enterprise/26.0.0/dbeaver-ee-26.0.0-macos-aarch64.dmg",
       "install_script_ref": "a96abe07",

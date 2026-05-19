@@ -4,7 +4,7 @@
       "version": "2.7.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.asana';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.asana' AND version_compare(bundle_short_version, '2.7.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.asana') AND version_compare(bundle_short_version, '2.7.1') < 0);"
       },
       "installer_url": "https://desktop-downloads.asana.com/darwin_arm64/prod/v2.7.1/Asana-darwin-arm64-2.7.1.zip",
       "install_script_ref": "d3c589b5",

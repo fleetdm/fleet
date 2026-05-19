@@ -4,7 +4,7 @@
       "version": "3.5.208",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.clickup.desktop-app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.clickup.desktop-app' AND version_compare(bundle_short_version, '3.5.208') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.clickup.desktop-app') AND version_compare(bundle_short_version, '3.5.208') < 0);"
       },
       "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp%203.5.208%20-%20Build%20260505zrf6t7imk-arm64.dmg",
       "install_script_ref": "4b21205a",
