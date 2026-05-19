@@ -7,6 +7,7 @@ parasails.registerPage('device-management-glossary-page', {
     // Indexed copy of the server-rendered terms, populated in beforeMount from
     // window.SAILS_LOCALS so search/filter can run without re-reading the DOM.
     termIndex: [],
+    termBySlug: {},
     visibleTermCount: 0,
   },
 
@@ -15,13 +16,15 @@ parasails.registerPage('device-management-glossary-page', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     if (window.SAILS_LOCALS && _.isArray(window.SAILS_LOCALS.glossaryTerms)) {
-      this.termIndex = window.SAILS_LOCALS.glossaryTerms.map((term) => {
+      let indexedTerms = window.SAILS_LOCALS.glossaryTerms.map((term) => {
         return {
           slug: term.slug,
           name: term.name,
           nameLower: term.name.toLowerCase(),
         };
       });
+      this.termIndex = indexedTerms;
+      this.termBySlug = _.keyBy(indexedTerms, 'slug');
       this.visibleTermCount = this.termIndex.length;
     }
   },
@@ -51,7 +54,7 @@ parasails.registerPage('device-management-glossary-page', {
     // A term card is visible when its header (name) contains the search query
     // (case-insensitive substring). No category filter; that bar was removed.
     termIsVisible: function(slug) {
-      let term = _.find(this.termIndex, { slug: slug });
+      let term = this.termBySlug[slug];
       if (!term) {
         return true;
       }
