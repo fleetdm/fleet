@@ -113,6 +113,10 @@
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
 
+  <% let jsonForInlineScript = (value) => JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029'); %>
   <%/* Structured data for SEO and LLM discoverability */%>
   <script type="application/ld+json">
   {
@@ -125,9 +129,9 @@
       <% glossaryTerms.forEach((term, idx) => { %>
         {
           "@type": "DefinedTerm",
-          "name": <%- JSON.stringify(term.name) %>,
-          "description": <%- JSON.stringify(term.definition) %>,
-          "url": <%- JSON.stringify('https://fleetdm.com/device-management-glossary#term-' + term.slug) %>,
+          "name": <%- jsonForInlineScript(term.name) %>,
+          "description": <%- jsonForInlineScript(term.definition) %>,
+          "url": <%- jsonForInlineScript('https://fleetdm.com/device-management-glossary#term-' + term.slug) %>,
           "inDefinedTermSet": "https://fleetdm.com/device-management-glossary"
         }<%= idx < glossaryTerms.length - 1 ? ',' : '' %>
       <% }); %>
@@ -138,5 +142,5 @@
 </div>
 <script>
   window.SAILS_LOCALS = window.SAILS_LOCALS || {};
-  window.SAILS_LOCALS.glossaryTerms = <%- JSON.stringify(glossarySearchTerms) %>;
+  window.SAILS_LOCALS.glossaryTerms = <%- jsonForInlineScript(glossarySearchTerms) %>;
 </script>
