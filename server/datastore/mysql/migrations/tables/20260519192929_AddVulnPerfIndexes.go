@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260515000600, Down_20260515000600)
+	MigrationClient.AddMigration(Up_20260519192929, Down_20260519192929)
 }
 
 // Up_20260515000600 adds three indexes to speed up the /api/v1/fleet/vulnerabilities
@@ -34,7 +34,7 @@ func init() {
 //     host_count > 0). Leading with the scope columns and including cve last
 //     makes this index covering for the inner query in the refactored
 //     ListVulnerabilities path.
-func Up_20260515000600(tx *sql.Tx) error {
+func Up_20260519192929(tx *sql.Tx) error {
 	stmts := []struct {
 		name string
 		sql  string
@@ -61,6 +61,6 @@ func Up_20260515000600(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260515000600(tx *sql.Tx) error {
+func Down_20260519192929(tx *sql.Tx) error {
 	return nil
 }
