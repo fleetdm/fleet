@@ -75,6 +75,7 @@ module.exports.policies = {
   'view-gitops-workshop': true,
   'view-deployment': true,
   'view-linux-management': true,
+  'view-device-management-glossary': true,
   'view-infrastructure-as-code': true,
   'deliver-whitepaper-download-request': true,
   'deliver-partner-registration-submission': true,

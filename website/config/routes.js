@@ -593,6 +593,19 @@ module.exports.routes = {
     }
   },
 
+  'GET /device-management-glossary': {
+    action: 'view-device-management-glossary',
+    locals: {
+      pageTitleForMeta: 'Device management glossary: MDM, osquery, GitOps, and security terms',
+      pageDescriptionForMeta: 'A plain-language glossary of device management, MDM, osquery, GitOps, and IT security terms. Learn what each term means and how Fleet handles it across macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS.',
+    }
+  },
+
+  'GET /glossary': (req, res) => {
+    let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : '';
+    return res.redirect(301, sails.config.custom.baseUrl + '/device-management-glossary' + originalQueryString);
+  },
+
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
   },

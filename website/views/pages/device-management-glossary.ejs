@@ -1,0 +1,141 @@
+<div id="device-management-glossary-page" v-cloak>
+  <div purpose="landing-page-container">
+    <div purpose="landing-page-content">
+
+      <div purpose="landing-page-hero">
+        <div purpose="page-hero-content">
+          <div purpose="page-hero-headings">
+            <h4>Glossary</h4>
+            <h1>Device management glossary</h1>
+          </div>
+          <div purpose="page-hero-text">
+            <p>A plain-language guide to MDM, osquery, GitOps, and IT security terms, with context on how Fleet handles each one.</p>
+          </div>
+          <div purpose="glossary-search">
+            <div purpose="search-input-wrap">
+              <img alt="Search" src="/images/icon-search-16x16@2x.png" purpose="search-icon">
+              <input
+                type="text"
+                purpose="search-input"
+                placeholder="Search terms..."
+                v-model="searchQuery"
+                aria-label="Search glossary terms"
+              >
+            </div>
+            <p purpose="term-count">{{ visibleTermCount }} of <%= totalTermCount %> terms</p>
+          </div>
+          <div purpose="category-pills">
+            <% categories.forEach((category) => { %>
+              <button
+                purpose="category-pill"
+                :class="{ active: activeCategory === '<%= category %>' }"
+                @click="clickCategoryPill('<%= category %>')"
+                type="button"
+              ><%= category %></button>
+            <% }); %>
+          </div>
+        </div>
+      </div><%/* landing-page-hero */%>
+
+      <div purpose="letter-nav-wrap">
+        <nav purpose="letter-nav" aria-label="Jump to letter">
+          <% alphabet.forEach((entry) => { %>
+            <% if (entry.hasTerms) { %>
+              <a href="#letter-<%= entry.letter %>" purpose="letter-link"><%= entry.letter %></a>
+            <% } else { %>
+              <span purpose="letter-link" class="disabled" aria-disabled="true"><%= entry.letter %></span>
+            <% } %>
+          <% }); %>
+        </nav>
+      </div>
+
+      <div purpose="glossary-section">
+        <% Object.keys(termsByLetter).sort().forEach((letter) => { %>
+          <div purpose="letter-group" id="letter-<%= letter %>" :class="{ 'is-hidden': !letterIsVisible('<%= letter %>') }">
+            <h2 purpose="letter-heading"><%= letter %></h2>
+            <% termsByLetter[letter].forEach((term) => { %>
+              <article
+                purpose="term-card"
+                id="<%= term.slug %>"
+                :class="{ 'is-hidden': !termIsVisible('<%= term.slug %>') }"
+                data-term-slug="<%= term.slug %>"
+                data-term-search="<%= (term.name + ' ' + term.searchKeywords + ' ' + term.definition).toLowerCase() %>"
+                data-term-categories="<%= term.categories.join('|') %>"
+              >
+                <div purpose="term-header">
+                  <h3 purpose="term-name"><%= term.name %></h3>
+                  <div purpose="term-tags">
+                    <% term.categories.forEach((category) => { %>
+                      <span purpose="term-tag" class="cat-<%= category.toLowerCase() %>"><%= category %></span>
+                    <% }); %>
+                  </div>
+                </div>
+                <p purpose="term-definition"><%= term.definition %></p>
+                <div purpose="term-fleet">
+                  <span purpose="term-fleet-marker">Fleet</span>
+                  <p><%= term.fleetNote %></p>
+                </div>
+                <% if (term.links && term.links.length) { %>
+                  <div purpose="term-links">
+                    <% term.links.forEach((link) => { %>
+                      <a href="<%= link.url %>" purpose="term-link"><%= link.label %> &rarr;</a>
+                    <% }); %>
+                  </div>
+                <% } %>
+              </article>
+            <% }); %>
+          </div>
+        <% }); %>
+
+        <div purpose="empty-state" v-if="visibleTermCount === 0">
+          <p>No terms match your search. Try a different keyword or <button @click="resetFilters()" purpose="text-button" type="button">clear filters</button>.</p>
+        </div>
+
+        <div purpose="contribute-note">
+          <p>More terms are added regularly. <a href="https://github.com/fleetdm/fleet" target="_blank" rel="noopener">Suggest a term on GitHub</a>.</p>
+        </div>
+      </div>
+
+    </div><%/* landing-page-content */%>
+  </div><%/* landing-page-container */%>
+
+  <div purpose="bottom-gradient">
+    <div purpose="page-container" class="container">
+      <div purpose="bottom-cta" class="text-center">
+        <h4>Ready to see Fleet</h4>
+        <h1>See how Fleet manages every device</h1>
+        <p purpose="bottom-cta-text">Now that you know the terminology, see how Fleet brings MDM, osquery, GitOps, and security together for IT and security teams.</p>
+        <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" class="btn btn-primary" href="/contact">Get a demo</a>
+          <animated-arrow-button href="/device-management">Explore device management</animated-arrow-button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <%/* Cloud city banner */%>
+  <parallax-city></parallax-city>
+
+  <%/* Structured data for SEO and LLM discoverability */%>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "DefinedTermSet",
+    "name": "Fleet device management glossary",
+    "description": "Plain-language definitions of MDM, osquery, GitOps, and IT security terms used in modern device management.",
+    "url": "https://fleetdm.com/device-management-glossary",
+    "hasDefinedTerm": [
+      <% glossaryTerms.forEach((term, idx) => { %>
+        {
+          "@type": "DefinedTerm",
+          "name": <%- JSON.stringify(term.name) %>,
+          "description": <%- JSON.stringify(term.definition) %>,
+          "url": <%- JSON.stringify('https://fleetdm.com/device-management-glossary#' + term.slug) %>,
+          "inDefinedTermSet": "https://fleetdm.com/device-management-glossary"
+        }<%= idx < glossaryTerms.length - 1 ? ',' : '' %>
+      <% }); %>
+    ]
+  }
+  </script>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
