@@ -4,7 +4,7 @@
       "version": "0.83.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'PuTTY release %' AND publisher = 'Simon Tatham';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PuTTY release %' AND publisher = 'Simon Tatham' AND version_compare(version, '0.83.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name LIKE 'PuTTY release %' AND publisher = 'Simon Tatham') AND version_compare(version, '0.83.0.0') < 0);"
       },
       "installer_url": "https://the.earth.li/~sgtatham/putty/0.83/w64/putty-64bit-0.83-installer.msi",
       "install_script_ref": "8959087b",

@@ -26,9 +26,6 @@ const PLATFORM_OPTIONS = [
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
   { label: "ChromeOS", value: "chrome" },
-  { label: "iOS", value: "ios" },
-  { label: "iPadOS", value: "ipados" },
-  { label: "Android", value: "android" },
 ];
 
 type HostFilterMode = "none" | "include" | "exclude";

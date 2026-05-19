@@ -184,6 +184,41 @@ describe("ManageHostsPage", () => {
     ).not.toBeDisabled();
   });
 
+  it("renders filtered empty state for query param filters with enabled controls", async () => {
+    setupHandlers(0);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const props = createMockProps({
+      location: {
+        pathname: "/hosts/manage",
+        search: "?low_disk_space=32",
+        hash: "",
+        query: { low_disk_space: "32" },
+      },
+    });
+
+    render(<ManageHostsPage {...(props as any)} />);
+
+    // Filtered empty state copy (not the truly empty state)
+    expect(
+      await screen.findByText("No hosts match your filters")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Recently enrolled hosts will appear here after their first check-in/
+      )
+    ).toBeInTheDocument();
+
+    // Controls are NOT disabled
+    expect(screen.getByPlaceholderText(/search name/i)).not.toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /edit columns/i })
+    ).not.toBeDisabled();
+  });
+
   it("renders populated state with enabled controls", async () => {
     const mockHost = {
       id: 1,

@@ -584,13 +584,20 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 						LabelName: "Label D",
 					},
 				},
-				SelfService: true,
+				SelfService:   true,
+				Configuration: json.RawMessage(`{"managedConfiguration": "WORK_PROFILE_ALLOWED"}`),
 			},
 			IconUrl: ptr.String("/api/icon3.png"),
 		}, nil
 	case 7:
 		if *teamID != 1 {
 			return nil, errors.New("team ID mismatch")
+		}
+		// The API wraps iOS/iPadOS configuration as a JSON-encoded string of
+		// XML; mirror that here so generate-gitops can unwrap it.
+		iosConfig, err := json.Marshal(`<dict><key>foo</key><string>bar</string></dict>`)
+		if err != nil {
+			return nil, err
 		}
 		return &fleet.SoftwareTitle{
 			ID: 7,
@@ -604,6 +611,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 						LabelName: "Label D",
 					},
 				},
+				Configuration: iosConfig,
 			},
 			IconUrl: ptr.String("/api/icon4.png"),
 			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
@@ -1695,6 +1703,18 @@ func TestGenerateSoftware(t *testing.T) {
 		}}, fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-setup-experience-app-android-config.json"]; ok {
+		require.JSONEq(t, `{"managedConfiguration": "WORK_PROFILE_ALLOWED"}`, string(fileContents.([]byte)))
+	} else {
+		t.Fatalf("Expected android configuration file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some-team/software/my-ios-auto-update-app-ios-config.xml"]; ok {
+		require.Equal(t, []byte(`<dict><key>foo</key><string>bar</string></dict>`), fileContents)
+	} else {
+		t.Fatalf("Expected iOS configuration file not found")
 	}
 }
 

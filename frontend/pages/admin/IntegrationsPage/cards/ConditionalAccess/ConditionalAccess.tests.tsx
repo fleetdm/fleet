@@ -471,5 +471,25 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         screen.getByText(/This feature is included in Fleet Premium/i)
       ).toBeInTheDocument();
     });
+
+    it("Renders the 'Conditional access' section header on Fleet Free", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: false,
+          },
+        },
+      });
+
+      render(<ConditionalAccess />);
+
+      expect(
+        screen.getByRole("heading", {
+          level: 2,
+          name: /Conditional access/i,
+        })
+      ).toBeInTheDocument();
+    });
   });
 });

@@ -49,7 +49,7 @@ jobs:
     needs: parse_config
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-8core]
         mysql: ${{fromJson(needs.parse_config.outputs.json).mysql_matrix}}
     runs-on: ${{ matrix.os }}
 

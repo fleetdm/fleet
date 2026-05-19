@@ -515,6 +515,17 @@ type Service interface {
 	// Requires admin or maintainer role and MDM to be enabled.
 	GetHostRecoveryLockPassword(ctx context.Context, hostID uint) (*HostRecoveryLockPassword, error)
 
+	// HostDeviceURL returns the full "My device" end-user URL for the
+	// specified host, embedding its device auth token. Global admin only —
+	// the URL is effectively a credential to that host's device-user page.
+	// If the host has no token, or its existing token is expired, a new
+	// token is generated on demand so the returned URL is always valid for
+	// the full TTL window. Each call also logs a
+	// ActivityTypeRetrievedHostMyDeviceURL admin activity for the audit
+	// trail. iOS and iPadOS hosts return a BadRequestError because device
+	// token authentication is not supported on those platforms.
+	HostDeviceURL(ctx context.Context, hostID uint) (string, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
 
@@ -733,7 +744,7 @@ type Service interface {
 	ListGlobalPolicies(ctx context.Context, opts ListOptions) ([]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
-	GetPolicyByIDQueries(ctx context.Context, policyID uint) (*Policy, error)
+	GetPolicyByID(ctx context.Context, policyID uint) (*Policy, error)
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 	CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error)
 	AutofillPolicySql(ctx context.Context, sql string) (description string, resolution string, err error)
@@ -794,8 +805,8 @@ type Service interface {
 
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
-	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID
-	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, error)
+	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID and app name
+	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, string, error)
 	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload AppStoreAppUpdatePayload) (*VPPAppStoreApp, *ActivityEditedAppStoreApp, error)
 
 	// GetInHouseAppManifest returns a manifest XML file that points at the download URL for the given in-house app.
@@ -851,7 +862,7 @@ type Service interface {
 	ListTeamPolicies(ctx context.Context, teamID uint, opts ListOptions, iopts ListOptions, mergeInherited bool, automationType string) (teamPolicies, inheritedPolicies []*Policy, err error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
-	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
+	GetTeamPolicyByID(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 	CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////

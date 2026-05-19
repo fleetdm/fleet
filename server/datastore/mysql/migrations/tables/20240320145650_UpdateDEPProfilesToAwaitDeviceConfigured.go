@@ -31,7 +31,7 @@ func Up_20240320145650(tx *sql.Tx) error {
 
 	type macosSetupAssistantArgs struct {
 		Task              string   `json:"task"`
-		TeamID            *uint    `json:"team_id,omitempty"`
+		TeamID            *uint    `json:"team_id,omitempty"` //nolint:apiparamcheck // frozen migration; preserves historical shape
 		HostSerialNumbers []string `json:"host_serial_numbers,omitempty"`
 	}
 	argsJSON, err := json.Marshal(macosSetupAssistantArgs{Task: taskName})

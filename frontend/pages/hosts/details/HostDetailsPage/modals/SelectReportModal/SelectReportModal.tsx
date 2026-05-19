@@ -37,7 +37,7 @@ export interface ISelectReportModalProps {
   currentTeamId: number | undefined;
 }
 
-const baseClass = "select-query-modal";
+const baseClass = "select-report-modal";
 
 const SelectReportModal = ({
   onCancel,

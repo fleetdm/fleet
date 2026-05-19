@@ -1,0 +1,489 @@
+<div id="on-premise-page" v-cloak>
+  <div purpose="landing-page-container">
+    <div purpose="landing-page-content">
+
+
+      <div purpose="landing-page-hero">
+        <div purpose="page-hero-content">
+          <div purpose="page-hero-headings">
+            <h4>On-premise deployment</h4>
+            <h1>Your device data belongs in your environment.</h1>
+          </div>
+          <div purpose="page-hero-text">
+            <p>Fleet runs entirely on your infrastructure. Every feature intact. Your data never leaves your network.</p>
+          </div>
+          <div purpose="button-row" class="d-flex justify-content-center align-items-center">
+            <a purpose="cta-button" href="/contact" no-underline>Get a demo</a>
+          </div>
+        </div>
+      </div>
+
+
+      <div purpose="landing-page-section" class="pt-0">
+        <div purpose="four-column-feature-row">
+          <div purpose="feature-item">
+            <h5>100% self-hosted</h5>
+            <p>Your infrastructure, your rules. Fleet never has visibility into your deployment or your device data.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Full feature parity</h5>
+            <p>No cloud-only capabilities. Every feature available in Fleet Cloud ships to self-hosted on the same day.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Air-gap ready</h5>
+            <p>Zero outbound internet dependency. Operates in classified networks and offline environments from day one.</p>
+          </div>
+        </div>
+      </div>
+
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>Who needs on-premise MDM</h3>
+          <p>For a growing number of organizations in regulated industries, government agencies, high-security enterprises, and globally distributed teams sending device telemetry to a vendor's cloud creates a compliance, sovereignty, or architecture problem that cloud-only MDMs simply cannot solve.</p>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <h5>Global enterprises</h5>
+            <p>Multinational companies operating in jurisdictions with strict data localization laws need device management that keeps data within specific geographic boundaries.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Financial services</h5>
+            <p>Banks and payment processors operate under regulations that restrict where employee device data can reside. DORA, SOX, and PCI-DSS often prohibit third-party cloud storage of endpoint telemetry.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Healthcare &amp; life sciences</h5>
+            <p>HIPAA-covered entities managing devices that access PHI need endpoint management with full data residency control. Sending device inventory to a vendor cloud creates BAA complexity and audit risk.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Critical infrastructure</h5>
+            <p>Energy, utilities, and industrial control environments require device management in isolated network segments. Cloud connectivity is either prohibited or architecturally impossible.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Government &amp; defense</h5>
+            <p>Federal agencies and defense contractors require device management within a classified or controlled network boundary. Device telemetry cannot traverse the public internet.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Research &amp; universities</h5>
+            <p>Research institutions with government grants or export control requirements (ITAR/EAR) cannot allow device management data to reside on commercial cloud infrastructure.</p>
+          </div>
+        </div>
+      </div>
+
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>The problem with cloud-only MDM</h3>
+          <p>Most modern MDMs are cloud-first. Device inventory, policy results, and user data flow through vendor infrastructure. For strict data governance requirements, that's a structural blocker.</p>
+        </div>
+        <div purpose="section-quote">
+          <p purpose="quote-text">"Every other MDM vendor told us our data had to live in their cloud. Fleet was the only one that said run it on your own infrastructure. Same features, no exceptions."</p>
+          <div purpose="quote-author-info">
+            <p purpose="author-name">IT Security Architecture</p>
+            <p purpose="author-title">Financial services, Fortune 100</p>
+          </div>
+        </div>
+      </div>
+
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>How Fleet on-premise works</h3>
+          <p>Fleet runs on infrastructure you control: AWS, GCP, Azure, bare metal, or air-gapped. Simple to deploy, fully auditable, and designed to operate without calling home.</p>
+        </div>
+
+        <div purpose="three-column-list">
+          <div purpose="feature">
+            <p purpose="feature-headline">On-premise data center</p>
+            <p purpose="feature-text">Bare metal or VMware, Docker or Kubernetes. No internet egress required.</p>
+          </div>
+          <div purpose="feature">
+            <p purpose="feature-headline">Classified / air-gapped networks</p>
+            <p purpose="feature-text">Zero outbound internet dependency. Package all assets for offline deployment and distribute via internal artifact repositories.</p>
+          </div>
+          <div purpose="feature">
+            <p purpose="feature-headline">AWS / GCP / Azure</p>
+            <p purpose="feature-text">Terraform into your own cloud account. VPC-isolated, no cross-account data access, no vendor visibility.</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="feature-with-image" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-start">
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h3>Deploy on your infrastructure. Own every byte of your data.</h3>
+            <p>Spin up Fleet using the official Terraform module, Helm chart, or Docker Compose. Fleet's architecture is a single binary + database no microservices sprawl, no vendor agents phoning home, no surprise egress.</p>
+            <div purpose="checklist" class="flex-column d-flex">
+              <p>Device enrollment points to your own Fleet instance, not a vendor cloud</p>
+              <p>Every MDM command and query result stays inside your network</p>
+              <p>Auditors can verify zero outbound traffic to vendor infrastructure</p>
+              <p>Upgrade on your schedule: no forced updates, no deprecation emails</p>
+            </div>
+          </div>
+          <div purpose="terminal-block">
+            <div purpose="terminal-bar">
+              <span purpose="terminal-dot" class="dot-red"></span>
+              <span purpose="terminal-dot" class="dot-yellow"></span>
+              <span purpose="terminal-dot" class="dot-green"></span>
+              <span purpose="terminal-filename">main.tf your AWS account</span>
+            </div>
+            <pre purpose="terminal-body"><span purpose="tc"># Deploy Fleet in your own AWS account</span>
+<span purpose="tk">module</span> <span purpose="ts">"fleet"</span> {
+  <span purpose="tk">source</span>  = <span purpose="ts">"github.com/fleetdm/fleet-terraform"</span>
+  <span purpose="tk">version</span> = <span purpose="ts">"~> 8.0"</span>
+
+  <span purpose="tk">vpc_id</span>     = <span purpose="ts">var.vpc_id</span>
+  <span purpose="tk">subnet_ids</span> = <span purpose="ts">var.private_subnet_ids</span>
+  <span purpose="tk">license_key</span> = <span purpose="ts">var.license_key</span>
+}
+
+<span purpose="tc"># Data residency: your VPC only.</span>
+<span purpose="tc"># Audit logs: your CloudTrail. Your SIEM.</span></pre>
+          </div>
+        </div>
+      </div>
+
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>What you get with Fleet on-premise</h3>
+          <p>Fleet's self-hosted deployment gives your security and compliance teams everything they need without any of the data residency trade-offs of cloud-only MDMs.</p>
+        </div>
+        <div purpose="feature-cards">
+          <div purpose="feature-card">
+            <div purpose="card-body">
+              <p purpose="card-title">Complete data sovereignty</p>
+              <p>Every enrollment record, MDM command, and policy result stays in your database, on your infrastructure, accessible only to your team.</p>
+            </div>
+            <div purpose="card-footer">
+              <p>Fleet never has visibility into your deployment</p>
+            </div>
+          </div>
+          <div purpose="feature-card">
+            <div purpose="card-body">
+              <p purpose="card-title">Air-gap and offline operation</p>
+              <p>Zero outbound internet dependency. Package agents and updates for internal distribution. Designed for classified networks from day one.</p>
+            </div>
+            <div purpose="card-footer">
+              <p>0 external calls required</p>
+            </div>
+          </div>
+          <div purpose="feature-card">
+            <div purpose="card-body">
+              <p purpose="card-title">100% feature parity</p>
+              <p>Not a stripped-down tier. GitOps, AI workflows, Declarative MDM, live osquery, and vulnerability management all ship to self-hosted on the same day as cloud.</p>
+            </div>
+            <div purpose="card-footer">
+              <p>One codebase, same features everywhere</p>
+            </div>
+          </div>
+          <div purpose="feature-card">
+            <div purpose="card-body">
+              <p purpose="card-title">Bring your own encryption keys</p>
+              <p>Use AWS KMS, HashiCorp Vault, or hardware HSMs. FileVault and BitLocker recovery keys stay in your database. No vendor escrow.</p>
+            </div>
+            <div purpose="card-footer">
+              <p>AWS KMS, Vault, or HSM support</p>
+            </div>
+          </div>
+          <div purpose="feature-card">
+            <div purpose="card-body">
+              <p purpose="card-title">Your upgrade schedule</p>
+              <p>Test in staging, validate, deploy on your timeline. No forced upgrades or surprise API changes, critical for environments where change control is mandatory.</p>
+            </div>
+            <div purpose="card-footer">
+              <p>No forced upgrades or deprecations</p>
+            </div>
+          </div>
+          <div purpose="feature-card">
+            <div purpose="card-body">
+              <p purpose="card-title">Fully auditable open-source codebase</p>
+              <p>Public on GitHub. Every line of code touching your device data can be inspected, built from source, and verified by your team.</p>
+            </div>
+            <div purpose="card-footer">
+              <p>No black-box binaries</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <div purpose="landing-page-section">
+        <div purpose="feature-with-image" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-start">
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h3>Self-hosted Fleet gets everything Fleet Cloud gets.</h3>
+            <p>With Fleet, you get one codebase and one feature set. If it ships, it ships everywhere.</p>
+          </div>
+          <div purpose="feature-text" class="d-flex flex-column">
+            <div purpose="checklist" class="flex-column d-flex">
+              <p>AI-assisted IT workflows</p>
+              <p>GitOps based change management</p>
+              <p>Real-time device reports</p>
+              <p>Software management and app lifecycle</p>
+              <p>Vulnerability management and CVE tracking</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <div purpose="heading-group">
+            <h4>Head to head</h4>
+            <h2>The only MDM built for self-hosted from day one</h2>
+          </div>
+        </div>
+        <div purpose="comparison-table-section">
+          <div purpose="table-legend">
+            <div>
+              <img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              Full support
+            </div>
+            <div>
+              <span purpose="tilde">~</span>
+              Limited
+            </div>
+            <div>
+              <img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
+              No support
+            </div>
+          </div>
+          <div purpose="comparison-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Capability</th>
+                  <th>Fleet (self-hosted)</th>
+                  <th>Jamf Pro on-prem</th>
+                  <th>Microsoft Intune</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Self-hosted option</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Full deployment, zero vendor dependency</div></td>
+                  <td><div purpose="table-cell"><span purpose="tilde">~</span> Exists but actively losing features vs. Jamf Cloud</div></td>
+                  <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">No self-hosted option. Azure cloud only.</div></td>
+                </tr>
+                <tr>
+                  <td>Feature parity (on-prem vs. cloud)</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">100% one codebase, same features everywhere</div></td>
+                  <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Cloud-only features keep growing; on-prem keeps falling behind.</div></td>
+                  <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">N/A, cloud only.</div></td>
+                </tr>
+                <tr>
+                  <td>Air-gap / offline operation</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Zero internet dependency in air-gap mode</div></td>
+                  <td><div purpose="table-cell"><span purpose="tilde">~</span> Possible but not officially supported</div></td>
+                  <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Requires internet connectivity to Microsoft Azure</div></td>
+                </tr>
+                <tr>
+                  <td>Open-source / auditable code</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Every line public on GitHub</div></td>
+                  <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Proprietary binary only</div></td>
+                  <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Proprietary, no source access.</div></td>
+                </tr>
+                <tr>
+                  <td>Customer-controlled encryption keys</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Bring your own KMS: AWS, Vault, or HSM.</div></td>
+                  <td><div purpose="table-cell"><span purpose="tilde">~</span> Limited, depends on database configuration.</div></td>
+                  <td><div purpose="table-cell"><span purpose="tilde">~</span> Customer-managed keys in E5 tier only</div></td>
+                </tr>
+                <tr>
+                  <td>Data residency guarantees</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Absolute, data never leaves your infrastructure.</div></td>
+                  <td><div purpose="table-cell"><span purpose="tilde">~</span> On-prem only if self-hosted; licensing telemetry goes to Jamf</div></td>
+                  <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Microsoft Azure region selectable, not truly sovereign</div></td>
+                </tr>
+                <tr>
+                  <td>GitOps / version-controlled config</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">YAML in Git: PR review, rollback, full audit trail.</div></td>
+                  <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">GUI-only on-prem, no GitOps workflow.</div></td>
+                  <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">No native GitOps. Requires third-party tooling.</div></td>
+                </tr>
+                <tr>
+                  <td>Upgrade control</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Your schedule, no forced upgrades.</div></td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Self-managed upgrade control retained</div></td>
+                  <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Microsoft-controlled automatic updates</div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div purpose="mobile-comparison-table">
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Self-hosted option</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Full deployment, zero vendor dependency</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><span purpose="tilde">~</span> Exists but actively losing features vs. Jamf Cloud</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">No self-hosted option. Azure cloud only.</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Feature parity (on-prem vs. cloud)</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">100% one codebase, same features everywhere</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Cloud-only features keep growing; on-prem keeps falling behind.</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">N/A, cloud only.</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Air-gap / offline operation</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Zero internet dependency in air-gap mode</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><span purpose="tilde">~</span> Possible but not officially supported</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Requires internet connectivity to Microsoft Azure</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Open-source / auditable code</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Every line public on GitHub</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Proprietary binary only</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Proprietary, no source access.</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Customer-controlled encryption keys</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Bring your own KMS: AWS, Vault, or HSM.</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><span purpose="tilde">~</span> Limited, depends on database configuration.</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><span purpose="tilde">~</span> Customer-managed keys in E5 tier only</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Data residency guarantees</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Absolute, data never leaves your infrastructure.</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><span purpose="tilde">~</span> On-prem only if self-hosted; licensing telemetry goes to Jamf</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Microsoft Azure region selectable, not truly sovereign</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">GitOps / version-controlled config</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">YAML in Git: PR review, rollback, full audit trail.</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">GUI-only on-prem, no GitOps workflow.</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">No native GitOps. Requires third-party tooling.</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Upgrade control</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Your schedule, no forced upgrades.</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Self-managed upgrade control retained</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Microsoft-controlled automatic updates</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>From teams that could not compromise on data residency</h3>
+        </div>
+        <div purpose="proof-cards">
+          <div purpose="proof-card">
+            <p purpose="proof-quote">"Our data governance policy prohibits device telemetry from leaving our AWS GovCloud environment. Fleet deployed in GovCloud in half a day. Our auditors could verify zero outbound traffic to vendor infrastructure."</p>
+            <div purpose="proof-attribution">
+              <p purpose="proof-name">CISO Office</p>
+              <p purpose="proof-role">Compliance &amp; Risk, Financial Services</p>
+            </div>
+          </div>
+          <div purpose="proof-card">
+            <p purpose="proof-quote">"We run Fleet in an air-gapped environment managing 4,000 endpoints with zero internet connectivity. The open-source model means we can inspect every network call the Fleet binary makes. For a classified environment, that auditability is non-negotiable."</p>
+            <div purpose="proof-attribution">
+              <p purpose="proof-name">Platform Security</p>
+              <p purpose="proof-role">Systems Engineering, Defense Contractor</p>
+            </div>
+          </div>
+          <div purpose="proof-card">
+            <p purpose="proof-quote">"We evaluated Jamf, Intune, and Workspace ONE. All three required our device data to live in their cloud. Fleet was the only MDM where self-hosted with full features wasn't a sales negotiation it was just how the product works."</p>
+            <div purpose="proof-attribution">
+              <p purpose="proof-name">IT Security Architecture</p>
+              <p purpose="proof-role">Endpoint Security, Gov Agency</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <div purpose="bottom-gradient">
+    <div purpose="page-container">
+      <div purpose="bottom-cta" class="text-center">
+        <div>
+          <h4>On-premise deployment</h4>
+          <h1>Your infrastructure. Your data. Your terms.</h1>
+        </div>
+        <div purpose="button-row" class="d-flex justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" class="mr-0" href="/contact" no-underline>Get a demo</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <parallax-city></parallax-city>
+
+</div>

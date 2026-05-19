@@ -1,0 +1,1 @@
+- Fixed IdP host vitals (full name, department, groups) not populating on the host details page for macOS devices migrated from another MDM via the Tahoe (macOS 26+) end-user-authentication flow.

@@ -80,8 +80,8 @@ describe("Software library table", () => {
       screen.getByRole("button", { name: "Add software" })
     ).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
-    expect(screen.queryByText("Search")).toBeNull();
-    expect(screen.queryByText("Self-service only")).toBeNull();
+    expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
+    expect(screen.getByText("Self-service only")).toBeInTheDocument();
   });
 
   it("Renders the empty search state and self-service toggle when self-service filter is applied", () => {

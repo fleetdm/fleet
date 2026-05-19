@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 
 import { Row } from "react-table";
 
@@ -26,8 +26,8 @@ interface IPoliciesProps {
   isLoading: boolean;
   deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
+  closePolicyDetailsModal: () => void;
   hostPlatform: string;
-
   currentTeamId?: number;
   conditionalAccessEnabled?: boolean;
   conditionalAccessBypassed?: boolean;
@@ -44,8 +44,8 @@ const Policies = ({
   isLoading,
   deviceUser,
   togglePolicyDetailsModal,
+  closePolicyDetailsModal,
   hostPlatform,
-
   currentTeamId,
   conditionalAccessEnabled,
   conditionalAccessBypassed,
@@ -59,6 +59,12 @@ const Policies = ({
   }
   const failingResponses: IHostPolicy[] =
     policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
+
+  useEffect(() => {
+    return () => {
+      closePolicyDetailsModal();
+    };
+  }, [closePolicyDetailsModal]);
 
   const onClickRow = useCallback(
     (row: IHostPoliciesRowProps) => {
@@ -129,29 +135,8 @@ const Policies = ({
       );
     }
 
-    if (policies.length === 0) {
-      const target = deviceUser ? "your device" : "this host";
-      const manageClause = canManagePolicies
-        ? ", or manage its policies."
-        : ".";
-
-      return (
-        <>
-          <TableCount name="policies" count={0} />
-          <EmptyState
-            header="No policies checked"
-            info={`Select Refetch to load the latest data from ${target}${manageClause}`}
-            primaryButton={
-              canManagePolicies ? (
-                <Button onClick={onManagePolicies} type="button">
-                  Manage policies
-                </Button>
-              ) : undefined
-            }
-          />
-        </>
-      );
-    }
+    const target = deviceUser ? "your device" : "this host";
+    const manageClause = canManagePolicies ? ", or manage its policies." : ".";
 
     return (
       <>
@@ -162,7 +147,19 @@ const Policies = ({
           isLoading={isLoading}
           defaultSortHeader="status"
           resultsTitle="policies"
-          emptyComponent={() => <></>}
+          emptyComponent={() => (
+            <EmptyState
+              header="No policies checked"
+              info={`Select Refetch to load the latest data from ${target}${manageClause}`}
+              primaryButton={
+                canManagePolicies ? (
+                  <Button onClick={onManagePolicies} type="button">
+                    Manage policies
+                  </Button>
+                ) : undefined
+              }
+            />
+          )}
           showMarkAllPages={false}
           isAllPagesSelected={false}
           renderCount={() => (

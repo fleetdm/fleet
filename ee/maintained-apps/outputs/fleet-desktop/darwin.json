@@ -4,7 +4,7 @@
       "version": "1.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.fleetdm.fleet-desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.fleetdm.fleet-desktop' AND version_compare(bundle_short_version, '1.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.fleetdm.fleet-desktop') AND version_compare(bundle_short_version, '1.2.0') < 0);"
       },
       "installer_url": "https://github.com/allenhouchins/fleet-desktop/releases/download/v1.2.0/fleet_desktop-v1.2.0.pkg",
       "install_script_ref": "b6404dfa",

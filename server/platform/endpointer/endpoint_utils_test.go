@@ -37,7 +37,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 		afterSecondIndex = 0
 	)
 	beforeAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			i++
 			beforeIndex = i
 			return next(ctx, req)
@@ -45,7 +45,7 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	}
 
 	authMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			i++
 			authIndex = i
 			if authctx, ok := authz_ctx.FromContext(ctx); ok {
@@ -56,14 +56,14 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	}
 
 	afterAuthMiddlewareFirst := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			i++
 			afterFirstIndex = i
 			return next(ctx, req)
 		}
 	}
 	afterAuthMiddlewareSecond := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			i++
 			afterSecondIndex = i
 			return next(ctx, req)
@@ -132,6 +132,110 @@ func (n nopEP) CallHandlerFunc(f testHandlerFunc, ctx context.Context, request a
 
 func (n nopEP) Service() any {
 	return nil
+}
+
+// TestHTTPPreAuthMiddlewareRunsBeforeDecode asserts that HTTPPreAuthMiddleware
+// short-circuits the request before the body decoder is invoked.
+func TestHTTPPreAuthMiddlewareRunsBeforeDecode(t *testing.T) {
+	var decodeCalled bool
+	var authCalled bool
+
+	authMw := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req any) (any, error) {
+			authCalled = true
+			return next(ctx, req)
+		}
+	}
+
+	r := mux.NewRouter()
+	ce := (&CommonEndpointer[testHandlerFunc]{
+		EP: nopEP{},
+		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+			return func(ctx context.Context, r *http.Request) (any, error) {
+				decodeCalled = true
+				return nopRequest{}, nil
+			}
+		},
+		EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
+			w.WriteHeader(http.StatusOK)
+			return nil
+		},
+		AuthMiddleware: authMw,
+		Router:         r,
+	}).WithHTTPPreAuth(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Reject without calling next — decoder and auth must not run.
+			w.WriteHeader(http.StatusUnauthorized)
+		})
+	})
+
+	ce.handleEndpoint("/", func(ctx context.Context, request any) (platform_http.Errorer, error) {
+		return nopResponse{}, nil
+	}, nil, "POST")
+
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Post(srv.URL+"/", "application/json", strings.NewReader(`{"x":1}`))
+	require.NoError(t, err)
+	t.Cleanup(func() { resp.Body.Close() })
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.False(t, decodeCalled, "decoder must not run when pre-auth rejects")
+	assert.False(t, authCalled, "auth middleware must not run when pre-auth rejects")
+}
+
+// TestHTTPPreAuthMiddlewarePassThrough asserts that when the pre-auth
+// middleware calls next, the decoder and auth chain run as normal.
+func TestHTTPPreAuthMiddlewarePassThrough(t *testing.T) {
+	var decodeCalled bool
+	var authCalled bool
+
+	authMw := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req any) (any, error) {
+			authCalled = true
+			if authctx, ok := authz_ctx.FromContext(ctx); ok {
+				authctx.SetChecked()
+			}
+			return next(ctx, req)
+		}
+	}
+
+	r := mux.NewRouter()
+	ce := (&CommonEndpointer[testHandlerFunc]{
+		EP: nopEP{},
+		MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+			return func(ctx context.Context, r *http.Request) (any, error) {
+				decodeCalled = true
+				return nopRequest{}, nil
+			}
+		},
+		EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
+			w.WriteHeader(http.StatusOK)
+			return nil
+		},
+		AuthMiddleware: authMw,
+		Router:         r,
+	}).WithHTTPPreAuth(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	ce.handleEndpoint("/", func(ctx context.Context, request any) (platform_http.Errorer, error) {
+		return nopResponse{}, nil
+	}, nil, "POST")
+
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Post(srv.URL+"/", "application/json", strings.NewReader(`{"x":1}`))
+	require.NoError(t, err)
+	t.Cleanup(func() { resp.Body.Close() })
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.True(t, decodeCalled, "decoder must run when pre-auth passes through")
+	assert.True(t, authCalled, "auth middleware must run when pre-auth passes through")
 }
 
 func TestRegisterDeprecatedPathAliases(t *testing.T) {

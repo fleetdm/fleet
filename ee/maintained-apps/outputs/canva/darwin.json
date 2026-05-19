@@ -4,7 +4,7 @@
       "version": "1.122.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop' AND version_compare(bundle_short_version, '1.122.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop') AND version_compare(bundle_short_version, '1.122.0') < 0);"
       },
       "installer_url": "https://desktop-release.canva.com/Canva-1.122.0-universal.dmg",
       "install_script_ref": "a8898c91",

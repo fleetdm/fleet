@@ -183,9 +183,10 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/install hasn't been verified/i)
+      screen.getByText(
+        /the install took longer than 20 minutes, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
-    expect(screen.getByText(/within 20 minutes/i)).toBeInTheDocument();
     expect(
       screen.queryByText(/but the app failed to install/i)
     ).not.toBeInTheDocument();
@@ -210,7 +211,9 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/install hasn't been verified/i)
+      screen.getByText(
+        /the install took longer than .*, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/but the app failed to install/i)
@@ -233,7 +236,9 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/install hasn't been verified/i)
+      screen.getByText(
+        /the install took longer than .*, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/but the app failed to install/i)
@@ -255,7 +260,11 @@ describe("getStatusMessage helper function", () => {
       })
     );
 
-    expect(screen.getByText(/within 20 minutes/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /the install took longer than 20 minutes, so Fleet marked it as failed/i
+      )
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Marko's MacBook Pro/i)).not.toBeInTheDocument();
   });
 
@@ -551,13 +560,13 @@ describe("VPP Install Details Modal", () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          /Fleet marks as failed if the install isn't verified within 20 minutes/i
+          /the install took longer than 20 minutes, so Fleet marked it as failed/i
         )
       ).toBeInTheDocument();
     });
     expect(
       screen.getByText(
-        /If the app is installed later, Fleet will update the status when the host is refetched/i
+        /If the install finishes later, Fleet will update the status when the host is refetched/i
       )
     ).toBeInTheDocument();
   });

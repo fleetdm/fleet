@@ -43,7 +43,7 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 
-import getWhen from "../helpers";
+import { getWhen } from "../helpers";
 import CancelScriptBatchModal from "../components/CancelScriptBatchModal";
 import ScriptBatchHostsTable from "./components/ScriptBatchHostsTable";
 

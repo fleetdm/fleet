@@ -395,6 +395,18 @@ type Datastore interface {
 	SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error
 	// GetDeviceAuthToken returns the current auth token for a given host
 	GetDeviceAuthToken(ctx context.Context, hostID uint) (string, error)
+	// GetDeviceAuthTokenIfFresh returns the host's current device auth token
+	// only if it is still within the TTL window (i.e., it would resolve
+	// successfully via LoadHostByDeviceAuthToken). Returns a NotFoundError
+	// if the host has no token row or the existing token is expired.
+	GetDeviceAuthTokenIfFresh(ctx context.Context, hostID uint, tokenTTL time.Duration) (string, error)
+	// HostIDByDeviceAuthToken returns the host_id that owns the given device
+	// auth token, with no TTL filter. Used to defend against random-token
+	// collisions when minting a new token — unlike LoadHostByDeviceAuthToken
+	// this matches rows whose token is expired but still in the table, since
+	// expired rows still cause UNIQUE-key conflicts on the host_device_auth
+	// upsert. Returns a NotFoundError if no row owns the token.
+	HostIDByDeviceAuthToken(ctx context.Context, authToken string) (uint, error)
 
 	// FailingPoliciesCount returns the number of failling policies for 'host'
 	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
@@ -406,6 +418,14 @@ type Datastore interface {
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
+	// GetHostManagedAppleID returns the Managed Apple ID stored on host_mdm
+	// for the given host. Returns an empty string when a host_mdm row exists
+	// with a NULL managed_apple_id, and a NotFound error (see fleet.IsNotFound)
+	// when there is no host_mdm row at all.
+	GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error)
+	// SetHostManagedAppleID sets the Managed Apple ID on host_mdm for the
+	// given host. Returns a NotFound error if the host has no host_mdm row.
+	SetHostManagedAppleID(ctx context.Context, hostID uint, managedAppleID string) error
 	// GetHostMDMIdentifiers searches for hosts with identifiers matching the provided identifier.
 	// It is intended as an optimization over existing host-by-identifier methods (e.g.,
 	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.
@@ -445,7 +465,20 @@ type Datastore interface {
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificateRecord, *PaginationMetadata, error)
-	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord) error
+	// UpdateHostCertificates ingests certs reported by `origin`. Each call only
+	// soft-deletes existing rows whose origin matches, so osquery and MDM
+	// ingestion don't clobber each other's view.
+	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin) error
+
+	// ProfileHasACMEPayloadForCommand returns the host/profile gating data
+	// needed to decide whether an InstallProfile ack should trigger a
+	// CertificateList refetch: host platform, profile UUID, whether the
+	// delivered profile contains a com.apple.security.acme payload, and
+	// whether a refetch is already pending. All gates are computed
+	// server-side in a single indexed lookup so the per-ack hot path stays
+	// cheap. Substring-matched on the mobileconfig blob; bounded false-
+	// positive risk (one redundant CertificateList per false match).
+	ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (ProfileACMECommandResult, error)
 
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean
@@ -1101,6 +1134,10 @@ type Datastore interface {
 	// UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
 	UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, hostID uint, until *time.Time) error
 
+	// ExtendHostOrbitDebugUntil writes `until` only when it is later than the
+	// current value (or NULL): idempotent, never shortens an existing override.
+	ExtendHostOrbitDebugUntil(ctx context.Context, hostID uint, until time.Time) error
+
 	// FlippingPoliciesForHost fetches the policies with incoming results and returns:
 	//	- a list of "new" failing policies; "new" here means those that fail on their first
 	//	run, and those that were passing on the previous run and are failing on the incoming execution.
@@ -1652,8 +1689,11 @@ type Datastore interface {
 	// This is used when a clear command fails with a transient error (not password mismatch).
 	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
 
-	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now.
-	// Called when the password is viewed and returns the scheduled rotation time.
+	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now on
+	// the host's install-state recovery lock row and returns the scheduled
+	// rotation time. If the row is missing or in a state where rotation does
+	// not apply (e.g., operation_type='remove'), returns a zero time and no
+	// error so callers that have already retrieved the password do not 404.
 	MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error)
 
 	// GetHostsForAutoRotation returns hosts where auto_rotate_at <= now
@@ -1953,6 +1993,19 @@ type Datastore interface {
 	GetVPPTokenOwningAppInCountry(ctx context.Context, adamID string, platform InstallableDevicePlatform, country string) (*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
+	// GetVPPClientUser returns the vpp_client_users row for the given
+	// (vpp_token_id, managed_apple_id) pair, or a NotFound error if absent.
+	GetVPPClientUser(ctx context.Context, tokenID uint, managedAppleID string) (*VPPClientUser, error)
+	// InsertVPPClientUser upserts a vpp_client_users row keyed by
+	// (vpp_token_id, managed_apple_id). On a key conflict it updates the
+	// client_user_id, apple_user_id, and status from the input row, so callers
+	// can re-call after a partial-failure response from Apple without having
+	// to read first.
+	InsertVPPClientUser(ctx context.Context, row *VPPClientUser) error
+	// ListVPPClientUsersForToken returns all rows for the given vpp_token_id,
+	// ordered by id. Useful for diagnostics.
+	ListVPPClientUsersForToken(ctx context.Context, tokenID uint) ([]*VPPClientUser, error)
+
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
 	// terms_expired flag of the ABM token identified by the organization name.
 	// It returns whether that flag was previously set for this token.
@@ -2042,6 +2095,12 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName returns the most recent MDMWindowsEnrolledDevice whose host_uuid
+	// has not yet been populated (i.e. osquery's directIngestMDMDeviceIDWindows has not run since enrollment) and whose
+	// device_name matches the given computer name. Used as a fallback when MDMWindowsGetEnrolledDeviceWithHostUUID can't
+	// find a row because the host->enrollment link has not been resolved yet.
+	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx context.Context, deviceName string) (*MDMWindowsEnrolledDevice, error)
+
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
 
@@ -2055,7 +2114,14 @@ type Datastore interface {
 	// the ESP finalize path so a partial-insert + fresh-UUID retry can't leave orphan rows in the queue.
 	MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*MDMWindowsCommand) error
 
+	MDMWindowsBulkInsertCommands(ctx context.Context, cmds []*MDMWindowsCommand) error
+
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
+
+	// MDMWindowsEnqueueCommandAndUpsertHostProfiles enqueues a pre-inserted
+	// command for hosts and upserts their profile tracking rows. The command
+	// must already exist in windows_mdm_commands.
+	MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
 
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
 	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)
@@ -2854,20 +2920,32 @@ type Datastore interface {
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
-	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error)
-	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error)
-	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error)
+	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error)
+	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error)
+	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error)
 
 	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
 
 	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
 	// all provided apps and returns them indexed by the app id.
-	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error)
+	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error)
 
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
 	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error
 
 	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
+
+	// VPP App Configuration (iOS/iPadOS)
+	GetVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error)
+	HasVPPAppConfigurationChanged(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error)
+	BulkGetVPPAppConfigurations(ctx context.Context, platform InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error)
+	DeleteVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) error
+
+	// In-House App Configuration (iOS/iPadOS).
+	GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error)
+	HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error)
+	BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error)
+	DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -3125,6 +3203,12 @@ type Datastore interface {
 	// resetting label membership, other host data, and optionally host activities (activities and mdm command queue).
 	// Host activities will not be cleared if preserveHostActivities is true
 	MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error
+
+	// VerifyAppleConfigProfileScopesDoNotConflict checks scopes against existing profiles across the entire DB
+	// to ensure there are no conflicts where an existing profile with the same identifier
+	// has a different scope than the incoming profile. If we don't do this we must implement some sort of "move" semantics
+	// to allow for scope changes when a host switches teams or when a profile is updated.
+	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
 }
 
 type AndroidDatastore interface {

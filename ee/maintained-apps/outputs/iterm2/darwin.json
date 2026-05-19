@@ -4,7 +4,7 @@
       "version": "3.6.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2' AND version_compare(bundle_short_version, '3.6.10') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2') AND version_compare(bundle_short_version, '3.6.10') < 0);"
       },
       "installer_url": "https://iterm2.com/downloads/stable/iTerm2-3_6_10.zip",
       "install_script_ref": "49f7590e",

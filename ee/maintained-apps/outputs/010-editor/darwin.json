@@ -4,7 +4,7 @@
       "version": "16.0.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.SweetScape.010Editor';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.SweetScape.010Editor' AND version_compare(bundle_short_version, '16.0.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.SweetScape.010Editor') AND version_compare(bundle_short_version, '16.0.4') < 0);"
       },
       "installer_url": "https://download.sweetscape.com/010EditorMacARM64Installer16.0.4.dmg",
       "install_script_ref": "2fdd9af7",

@@ -9,8 +9,7 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
-import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import hostAPI from "services/entities/hosts";
 import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
@@ -93,10 +92,7 @@ const LivePolicyPage = ({
     IPolicy
   >(
     ["policy", policyId, teamIdForApi],
-    () =>
-      teamIdForApi && teamIdForApi > 0
-        ? teamPoliciesAPI.load(teamIdForApi, policyId as number)
-        : globalPoliciesAPI.load(policyId as number),
+    () => policiesAPI.load(policyId as number),
     {
       enabled: !!policyId,
       refetchOnWindowFocus: false,

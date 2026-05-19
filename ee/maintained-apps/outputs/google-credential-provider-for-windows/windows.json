@@ -4,7 +4,7 @@
       "version": "138.0.7204.26",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Credential Provider for Windows' AND publisher = 'Google LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Credential Provider for Windows' AND publisher = 'Google LLC' AND version_compare(version, '138.0.7204.26') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Google Credential Provider for Windows' AND publisher = 'Google LLC') AND version_compare(version, '138.0.7204.26') < 0);"
       },
       "installer_url": "https://dl.google.com/credentialprovider/gcpwstandaloneenterprise64.msi",
       "install_script_ref": "8959087b",

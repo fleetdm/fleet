@@ -1,6 +1,6 @@
 module fleet-mcp
 
-go 1.26.2
+go 1.26.3
 
 require (
 	github.com/joho/godotenv v1.5.1

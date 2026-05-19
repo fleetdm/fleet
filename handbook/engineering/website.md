@@ -134,6 +134,11 @@ Every week, the website maintainer looks for any new [code scanning alerts](http
    - If the alert is for a dependency that runs in production, the maintainer will upgrade it to a version that is not affected by the vulnerability. 
    - If the alert is for a devDependency or a dependency of a devDependency, the maintainer will dismiss the alert as a false-positive, because it does not affect the production environment.
 
+## Incubate website dependency changes
+
+Pull requests that modify `website/package.json` or `website/package-lock.json` must wait 72 hours after the most recent commit to either file before they can merge to `main`. This incubation period gives the maintainer time to spot regressions or supply-chain concerns introduced by a dependency bump before it reaches the website's production environment.
+
+The `Incubate website dependency changes` GitHub Actions workflow enforces this as a required status check. The check runs on every PR that touches those files and re-evaluates open PRs nightly, once 72 hours have elapsed the check turns green automatically. Pushing a new commit to either file resets the clock.
 
 
 <meta name="maintainedBy" value="lukeheath">

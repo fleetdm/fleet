@@ -872,9 +872,9 @@
     "@babel/helper-plugin-utils" "^7.28.6"
 
 "@babel/plugin-transform-modules-systemjs@^7.20.11":
-  version "7.29.0"
-  resolved "https://registry.npmjs.org/@babel/plugin-transform-modules-systemjs/-/plugin-transform-modules-systemjs-7.29.0.tgz"
-  integrity sha512-PrujnVFbOdUpw4UHiVwKvKRLMMic8+eC0CuNlxjsyZUiBjhFdPsewdXCkveh2KqBA9/waD0W1b4hXSOBQJezpQ==
+  version "7.29.4"
+  resolved "https://registry.yarnpkg.com/@babel/plugin-transform-modules-systemjs/-/plugin-transform-modules-systemjs-7.29.4.tgz#f621105da99919c15cf4bde6fcc7346ef95e7b20"
+  integrity sha512-N7QmZ0xRZfjHOfZeQLJjwgX2zS9pdGHSVl/cjSGlo4dXMqvurfxXDMKY4RqEKzPozV78VMcd0lxyG13mlbKc4w==
   dependencies:
     "@babel/helper-module-transforms" "^7.28.6"
     "@babel/helper-plugin-utils" "^7.28.6"
@@ -2241,10 +2241,10 @@
     redux-thunk "^3.1.0"
     reselect "^5.1.0"
 
-"@sgress454/node-sql-parser@5.4.0-fork.1":
-  version "5.4.0-fork.1"
-  resolved "https://registry.npmjs.org/@sgress454/node-sql-parser/-/node-sql-parser-5.4.0-fork.1.tgz"
-  integrity sha512-c8lAK4EYKYpEWkYeFbEpZP2LC0j4QmC8LX86tCV+ogPo8dsbYWW56VNQRZp7d0XvVbvtfo21rooy+wCI/YoGmg==
+"@sgress454/node-sql-parser@5.4.0-fork.2":
+  version "5.4.0-fork.2"
+  resolved "https://registry.yarnpkg.com/@sgress454/node-sql-parser/-/node-sql-parser-5.4.0-fork.2.tgz#d7977e03d48db2abe0a09b39f58a71cd5fd4c15f"
+  integrity sha512-Z1NIQ1wG8WOVaNfGOhoGEalnNvshooPP5cqB93y2MsDxK/Hpp1mRm1I2mcIUme+FhiRtkurlFQxfN3tZ7U3h3g==
   dependencies:
     "@types/pegjs" "^0.10.0"
     big-integer "^1.6.48"
@@ -6090,9 +6090,9 @@ fast-levenshtein@^2.0.6:
   integrity sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==
 
 fast-uri@^3.0.1:
-  version "3.1.0"
-  resolved "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.0.tgz"
-  integrity sha512-iPeeDKJSWf4IEOasVVrknXpaBV0IApz/gp7S2bb7Z4Lljbl2MGJRqInZiUrQwV16cpzw/D3S5j5Julj/gT52AA==
+  version "3.1.2"
+  resolved "https://registry.yarnpkg.com/fast-uri/-/fast-uri-3.1.2.tgz#8af3d4fc9d3e71b11572cc2673b514a7d1a8c8ec"
+  integrity sha512-rVjf7ArG3LTk+FS6Yw81V1DLuZl1bRbNrev6Tmd/9RaroeeRRJhAt7jg/6YFxbvAQXUCavSoZhPPj6oOx+5KjQ==
 
 fastest-levenshtein@^1.0.12:
   version "1.0.16"
