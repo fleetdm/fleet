@@ -3022,6 +3022,45 @@ func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint
 	return nil
 }
 
+// HostIDByDeviceAuthToken returns the host_id of the row owning the given
+// token, ignoring the TTL. Used by HostDeviceURL's collision pre-check —
+// the LoadHostByDeviceAuthToken path drops expired rows but the upsert in
+// SetOrUpdateDeviceAuthToken still trips the UNIQUE constraint on them.
+// Reads from the primary for read-after-write consistency with concurrent
+// orbit token writes.
+func (ds *Datastore) HostIDByDeviceAuthToken(ctx context.Context, authToken string) (uint, error) {
+	const stmt = `SELECT host_id FROM host_device_auth WHERE token = ?` //nolint:gosec // G101 false positive, this is a SQL query
+
+	var hostID uint
+	switch err := sqlx.GetContext(ctx, ds.writer(ctx), &hostID, stmt, authToken); {
+	case err == nil:
+		return hostID, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return 0, ctxerr.Wrap(ctx, notFound("Host"))
+	default:
+		return 0, ctxerr.Wrap(ctx, err, "look up host id by device auth token")
+	}
+}
+
+// GetDeviceAuthTokenIfFresh returns the host's current device auth token
+// only if its updated_at is within the given TTL. Returns a NotFoundError
+// when the row is missing or the token would be rejected by
+// LoadHostByDeviceAuthToken. Reads from the primary so admin-issued links
+// see SetOrUpdate/orbit writes immediately (no replica-lag rotations).
+func (ds *Datastore) GetDeviceAuthTokenIfFresh(ctx context.Context, hostID uint, tokenTTL time.Duration) (string, error) {
+	const stmt = `SELECT token FROM host_device_auth WHERE host_id = ? AND updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)` //nolint:gosec // G101 false positive, this is a SQL query
+
+	var token string
+	switch err := sqlx.GetContext(ctx, ds.writer(ctx), &token, stmt, hostID, tokenTTL.Seconds()); {
+	case err == nil:
+		return token, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return "", ctxerr.Wrap(ctx, notFound("Host"))
+	default:
+		return "", ctxerr.Wrap(ctx, err, "get fresh device auth token")
+	}
+}
+
 // GetDeviceAuthToken returns the current auth token for a given host.
 // Returns a NotFoundError if the host has no device auth token.
 func (ds *Datastore) GetDeviceAuthToken(ctx context.Context, hostID uint) (string, error) {

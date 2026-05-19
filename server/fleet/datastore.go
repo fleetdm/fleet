@@ -395,6 +395,18 @@ type Datastore interface {
 	SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error
 	// GetDeviceAuthToken returns the current auth token for a given host
 	GetDeviceAuthToken(ctx context.Context, hostID uint) (string, error)
+	// GetDeviceAuthTokenIfFresh returns the host's current device auth token
+	// only if it is still within the TTL window (i.e., it would resolve
+	// successfully via LoadHostByDeviceAuthToken). Returns a NotFoundError
+	// if the host has no token row or the existing token is expired.
+	GetDeviceAuthTokenIfFresh(ctx context.Context, hostID uint, tokenTTL time.Duration) (string, error)
+	// HostIDByDeviceAuthToken returns the host_id that owns the given device
+	// auth token, with no TTL filter. Used to defend against random-token
+	// collisions when minting a new token — unlike LoadHostByDeviceAuthToken
+	// this matches rows whose token is expired but still in the table, since
+	// expired rows still cause UNIQUE-key conflicts on the host_device_auth
+	// upsert. Returns a NotFoundError if no row owns the token.
+	HostIDByDeviceAuthToken(ctx context.Context, authToken string) (uint, error)
 
 	// FailingPoliciesCount returns the number of failling policies for 'host'
 	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
@@ -453,7 +465,20 @@ type Datastore interface {
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificateRecord, *PaginationMetadata, error)
-	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord) error
+	// UpdateHostCertificates ingests certs reported by `origin`. Each call only
+	// soft-deletes existing rows whose origin matches, so osquery and MDM
+	// ingestion don't clobber each other's view.
+	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin) error
+
+	// ProfileHasACMEPayloadForCommand returns the host/profile gating data
+	// needed to decide whether an InstallProfile ack should trigger a
+	// CertificateList refetch: host platform, profile UUID, whether the
+	// delivered profile contains a com.apple.security.acme payload, and
+	// whether a refetch is already pending. All gates are computed
+	// server-side in a single indexed lookup so the per-ack hot path stays
+	// cheap. Substring-matched on the mobileconfig blob; bounded false-
+	// positive risk (one redundant CertificateList per false match).
+	ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (ProfileACMECommandResult, error)
 
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean

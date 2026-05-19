@@ -303,6 +303,10 @@ type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authT
 
 type GetDeviceAuthTokenFunc func(ctx context.Context, hostID uint) (string, error)
 
+type GetDeviceAuthTokenIfFreshFunc func(ctx context.Context, hostID uint, tokenTTL time.Duration) (string, error)
+
+type HostIDByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (uint, error)
+
 type FailingPoliciesCountFunc func(ctx context.Context, host *fleet.Host) (uint, error)
 
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
@@ -345,7 +349,9 @@ type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (
 
 type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error)
 
-type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error
+type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error
+
+type ProfileHasACMEPayloadForCommandFunc func(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error)
 
 type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
 
@@ -2404,6 +2410,12 @@ type DataStore struct {
 	GetDeviceAuthTokenFunc        GetDeviceAuthTokenFunc
 	GetDeviceAuthTokenFuncInvoked bool
 
+	GetDeviceAuthTokenIfFreshFunc        GetDeviceAuthTokenIfFreshFunc
+	GetDeviceAuthTokenIfFreshFuncInvoked bool
+
+	HostIDByDeviceAuthTokenFunc        HostIDByDeviceAuthTokenFunc
+	HostIDByDeviceAuthTokenFuncInvoked bool
+
 	FailingPoliciesCountFunc        FailingPoliciesCountFunc
 	FailingPoliciesCountFuncInvoked bool
 
@@ -2469,6 +2481,9 @@ type DataStore struct {
 
 	UpdateHostCertificatesFunc        UpdateHostCertificatesFunc
 	UpdateHostCertificatesFuncInvoked bool
+
+	ProfileHasACMEPayloadForCommandFunc        ProfileHasACMEPayloadForCommandFunc
+	ProfileHasACMEPayloadForCommandFuncInvoked bool
 
 	AreHostsConnectedToFleetMDMFunc        AreHostsConnectedToFleetMDMFunc
 	AreHostsConnectedToFleetMDMFuncInvoked bool
@@ -5907,6 +5922,20 @@ func (s *DataStore) GetDeviceAuthToken(ctx context.Context, hostID uint) (string
 	return s.GetDeviceAuthTokenFunc(ctx, hostID)
 }
 
+func (s *DataStore) GetDeviceAuthTokenIfFresh(ctx context.Context, hostID uint, tokenTTL time.Duration) (string, error) {
+	s.mu.Lock()
+	s.GetDeviceAuthTokenIfFreshFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDeviceAuthTokenIfFreshFunc(ctx, hostID, tokenTTL)
+}
+
+func (s *DataStore) HostIDByDeviceAuthToken(ctx context.Context, authToken string) (uint, error) {
+	s.mu.Lock()
+	s.HostIDByDeviceAuthTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostIDByDeviceAuthTokenFunc(ctx, authToken)
+}
+
 func (s *DataStore) FailingPoliciesCount(ctx context.Context, host *fleet.Host) (uint, error) {
 	s.mu.Lock()
 	s.FailingPoliciesCountFuncInvoked = true
@@ -6054,11 +6083,18 @@ func (s *DataStore) ListHostCertificates(ctx context.Context, hostID uint, opts 
 	return s.ListHostCertificatesFunc(ctx, hostID, opts)
 }
 
-func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
 	s.mu.Lock()
 	s.UpdateHostCertificatesFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostCertificatesFunc(ctx, hostID, hostUUID, certs)
+	return s.UpdateHostCertificatesFunc(ctx, hostID, hostUUID, certs, origin)
+}
+
+func (s *DataStore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error) {
+	s.mu.Lock()
+	s.ProfileHasACMEPayloadForCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.ProfileHasACMEPayloadForCommandFunc(ctx, hostUUID, commandUUID)
 }
 
 func (s *DataStore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {

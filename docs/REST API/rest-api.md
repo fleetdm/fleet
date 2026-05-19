@@ -4444,6 +4444,8 @@ _Available in Fleet Premium_
 
 ### Update hosts' fleet by filter
 
+> If you're using Windows MDM features with 10,000+ hosts and 10+ configuration profiles, the best practice is to transfer hosts in 1,000 hosts batches instead of 10,000+ at once because Fleet saw performance issues. Performance improvements are coming soon.
+
 _Available in Fleet Premium_
 
 `POST /api/v1/fleet/hosts/transfer/filter`
@@ -5244,6 +5246,8 @@ Available for macOS, iOS, iPadOS, and Windows hosts only. Requires Fleet's MDM t
 
 Retrieves the certificates installed on a host.
 
+For macOS hosts, certificates from MDM-delivered profiles containing an ACME payload are retrieved via the MDM `CertificateList` command on each profile install and re-install (not on a recurring cadence). Hardware-bound ACME certificates that aren't visible to osquery first appear in the response after the host installs or re-installs the delivering profile.
+
 `GET /api/v1/fleet/hosts/:id/certificates`
 
 #### Parameters
@@ -5790,7 +5794,7 @@ The live query will stop if the targeted host is offline, or if the query times 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
 
 
-## Bypass host's conditional access
+### Bypass host's conditional access
 
 Grant a blocked host access for a single login. Requires Okta conditional access configured with bypass enabled.
 
@@ -5811,7 +5815,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `Status: 200` 
 
-## Clear iOS/iPadOS host passcode
+### Clear host passcode
 
 _Available in Fleet Premium._
 
@@ -5842,9 +5846,9 @@ Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sen
 }
 ```
 
-## Get host's managed account password
+### Get host's managed account password
 
-Retrieves the managed account password for a host.
+Retrieves the managed account password for a macOS host.
 
 The host will only return a password if its managed account password status is "Verified".
 

@@ -285,7 +285,7 @@ fleetctl get host %s`, hostIdent)
 // Does some common setup for the host mdm actions such as validating the host,
 // creating the client, getting the desired host, checking permissions, and
 // ensuring MDM is turned on for the host.
-func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (client *service.Client, host *service.HostDetailResponse, err error) {
+func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (client *service.Client, host *fleet.HostDetailResponse, err error) {
 	if len(hostIdent) == 0 {
 		return nil, nil, errors.New("No host targeted. Please provide --host.")
 	}

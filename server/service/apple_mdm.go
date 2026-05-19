@@ -71,7 +71,8 @@ const (
 var fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 	fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarHostEndUserEmailIDP,
 	fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-	fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarHostEndUserIDPFullname, fleet.FleetVarSCEPRenewalID,
+	fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarHostEndUserIDPFullname,
+	fleet.FleetVarSCEPRenewalID, fleet.FleetVarCertificateRenewalID,
 	fleet.FleetVarHostUUID, fleet.FleetVarHostPlatform,
 }
 
@@ -649,8 +650,8 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *CustomSCEPV
 		}
 		foundCAs = append(foundCAs, ca)
 	}
-	if !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
 	}
 	if len(foundCAs) < len(customSCEPVars.CAs()) {
 		for _, ca := range customSCEPVars.CAs() {
@@ -702,8 +703,8 @@ func additionalSmallstepValidation(contents string, smallstepVars *SmallstepVars
 		}
 		foundCAs = append(foundCAs, ca)
 	}
-	if !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
 	}
 	if len(foundCAs) < len(smallstepVars.CAs()) {
 		for _, ca := range smallstepVars.CAs() {
@@ -824,8 +825,8 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 		return err
 	}
 
-	if !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
 	}
 
 	// Check for the exact match on challenge and URL
@@ -4118,15 +4119,29 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 	switch requestType {
 	case "InstallProfile":
-		return nil, apple_mdm.HandleHostMDMProfileInstallResult(
+		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
+		if err := apple_mdm.HandleHostMDMProfileInstallResult(
 			r.Context,
 			svc.ds,
 			cmdResult.Identifier(),
 			cmdResult.CommandUUID,
-			mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
+			status,
 			apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			svc.newActivityFn,
-		)
+		); err != nil {
+			return nil, err
+		}
+		// Best-effort: when an ACME profile is acknowledged on macOS, queue
+		// CertificateList so hardware-bound certs (invisible to osquery) get
+		// ingested into host_certificates. Failures here are logged but don't
+		// affect the ack.
+		if status != nil && *status == fleet.MDMDeliveryVerifying {
+			if err := svc.maybeQueueCertificateListForACMEProfile(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID); err != nil {
+				svc.logger.WarnContext(r.Context, "queue CertificateList after ACME profile install",
+					"err", err, "host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
+			}
+		}
+		return nil, nil
 	case "RemoveProfile":
 		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
 		detail := apple_mdm.FmtErrorChain(cmdResult.ErrorChain)
@@ -5094,7 +5109,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 		payload = append(payload, parsed)
 	}
 
-	if err := svc.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload); err != nil {
+	if err := svc.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload, fleet.HostCertificateOriginMDM); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "refetch certs: update host certificates")
 	}
 
@@ -5104,6 +5119,54 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 	}
 
 	return nil, nil
+}
+
+// maybeQueueCertificateListForACMEProfile fires a CertificateList MDM command
+// after a successful InstallProfile ack on a macOS host whose profile contains
+// a com.apple.security.acme payload. This populates host_certificates with
+// hardware-bound ACME certs that osquery cannot see. iOS/iPadOS do not need
+// this hook because IOSiPadOSRefetch already runs CertificateList on a cron.
+//
+// Gating happens server-side in a single indexed query
+// (ProfileHasACMEPayloadForCommand): host platform and ACME payload presence.
+// The hot path early-returns for the common non-ACME / non-darwin cases
+// without parsing the profile or making additional roundtrips.
+//
+// We deliberately do NOT dedupe against an in-flight CertificateList: if a
+// previous refetch is still pending when this trigger fires, that earlier
+// refetch can capture state that predates the new ACME exchange completing
+// on-device. Letting the new install queue its own refetch ensures the new
+// cert is captured even if the earlier refetch was already in flight.
+// host_mdm_commands has a (host_id, command_type) PK so duplicate INSERTs
+// collapse via ON DUPLICATE KEY UPDATE, and handleRefetchCertsResults is
+// safe to call on an already-removed row.
+func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEProfile(ctx context.Context, hostUUID, commandUUID string) error {
+	res, err := svc.ds.ProfileHasACMEPayloadForCommand(ctx, hostUUID, commandUUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "probe profile for ACME payload")
+	}
+	if res.Platform != "darwin" || !res.HasACMEPayload {
+		return nil
+	}
+
+	cmdUUID := uuid.NewString()
+	if err := svc.commander.CertificateList(ctx, []string{hostUUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueue CertificateList")
+	}
+
+	// Track after the commander call so a CertificateList enqueue failure
+	// doesn't leave a stale tracking row that would suppress future
+	// triggers. Matches the iOS/iPadOS pattern in IOSiPadOSRefetch.
+	if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
+		HostID:      res.HostID,
+		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+	}}); err != nil {
+		return ctxerr.Wrap(ctx, err, "track refetch certs command")
+	}
+	return nil
 }
 
 func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {

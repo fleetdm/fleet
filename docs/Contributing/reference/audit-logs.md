@@ -773,6 +773,23 @@ This activity contains the following fields:
 }
 ```
 
+## retrieved_host_my_device_url
+
+Generated when a global admin retrieves a host's "My device" page URL (a credential-bearing link that opens the end user's device page). Fleet logs this for every retrieval, including reuse of an existing token.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 ## created_macos_profile
 
 Generated when a user adds a new macOS profile to a team (or no team).
