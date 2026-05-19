@@ -205,10 +205,10 @@ var selfServiceStatuses = []string{
 // selfServiceActivityNames is the set of activity types triggered by the
 // My device API. -self-service-only restricts seeding to these and emits
 // one row per status above.
-var selfServiceActivityNames = map[string]bool{
-	"installed_software":      true,
-	"uninstalled_software":    true,
-	"installed_app_store_app": true,
+var selfServiceActivityNames = map[string]struct{}{
+	"installed_software":      {},
+	"uninstalled_software":    {},
+	"installed_app_store_app": {},
 }
 
 // insertActivity writes one row to activity_past (plus activity_host_past
@@ -280,6 +280,12 @@ func fillSelfServiceVariant(template fleet.ActivityDetails, status string) fleet
 }
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	dsn := flag.String("dsn",
 		"root:toor@tcp(127.0.0.1:3306)/fleet?parseTime=true&loc=UTC",
 		"MySQL DSN")
@@ -301,26 +307,26 @@ func main() {
 
 	db, err := sql.Open("mysql", *dsn)
 	if err != nil {
-		log.Fatalf("open db: %v", err)
+		return fmt.Errorf("open db: %w", err)
 	}
 	defer db.Close()
 
 	ctx := context.Background()
 	if err := db.PingContext(ctx); err != nil {
-		log.Fatalf("ping db: %v", err)
+		return fmt.Errorf("ping db: %w", err)
 	}
 
 	if *selfServiceOnly {
 		count := 0
 		for _, a := range seedActivities {
-			if !selfServiceActivityNames[a.ActivityName()] {
+			if _, ok := selfServiceActivityNames[a.ActivityName()]; !ok {
 				continue
 			}
 			for _, status := range selfServiceStatuses {
 				filled := fillSelfServiceVariant(a, status)
 				actID, err := insertActivity(ctx, db, 0, "", "", true, filled)
 				if err != nil {
-					log.Fatal(err)
+					return err
 				}
 				count++
 				fmt.Printf("[%3d] %-25s status=%-18s id=%d\n",
@@ -329,7 +335,7 @@ func main() {
 		}
 		fmt.Printf("\nSeeded %d self-service activities (NULL user_id, empty user_email) on host %d.\n",
 			count, seedHostID)
-		return
+		return nil
 	}
 
 	for i, a := range seedActivities {
@@ -348,7 +354,7 @@ func main() {
 		actID, err := insertActivity(ctx, db,
 			*actorID, *actorName, *actorEmail, endUserOnly, filled)
 		if err != nil {
-			log.Fatalf("[%d] %v", i+1, err)
+			return fmt.Errorf("[%d] %w", i+1, err)
 		}
 
 		fmt.Printf("[%3d/%d] %-50s id=%d\n",
@@ -357,4 +363,5 @@ func main() {
 
 	fmt.Printf("\nSeeded %d activities. Refresh the dashboard activity feed or host %d's activity card.\n",
 		len(seedActivities), seedHostID)
+	return nil
 }
