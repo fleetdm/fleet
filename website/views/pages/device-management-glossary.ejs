@@ -56,7 +56,7 @@
             <% termsByLetter[letter].forEach((term) => { %>
               <article
                 purpose="term-card"
-                id="<%= term.slug %>"
+                id="term-<%= term.slug %>"
                 :class="{ 'is-hidden': !termIsVisible('<%= term.slug %>') }"
                 data-term-slug="<%= term.slug %>"
                 data-term-search="<%= (term.name + ' ' + term.searchKeywords + ' ' + term.definition).toLowerCase() %>"
@@ -129,7 +129,7 @@
           "@type": "DefinedTerm",
           "name": <%- JSON.stringify(term.name) %>,
           "description": <%- JSON.stringify(term.definition) %>,
-          "url": <%- JSON.stringify('https://fleetdm.com/device-management-glossary#' + term.slug) %>,
+          "url": <%- JSON.stringify('https://fleetdm.com/device-management-glossary#term-' + term.slug) %>,
           "inDefinedTermSet": "https://fleetdm.com/device-management-glossary"
         }<%= idx < glossaryTerms.length - 1 ? ',' : '' %>
       <% }); %>

@@ -133,6 +133,15 @@ module.exports = {
         links: [],
       },
       {
+        name: 'AppLocker',
+        slug: 'applocker',
+        categories: ['Windows', 'Security'],
+        searchKeywords: 'applocker windows defender application control wdac allowlist whitelisting executable powershell',
+        definition: 'A Windows feature that lets admins allow or deny execution of specific apps, scripts, and installers by publisher, path, or hash. AppLocker is often paired with Defender Application Control (WDAC) for stronger app allow-listing.',
+        fleetNote: 'Fleet reports AppLocker and Windows Defender Application Control policy state across Windows hosts, helping security teams confirm that allow-list policies are deployed and enforcing as expected.',
+        links: [],
+      },
+      {
         name: 'APT (Advanced Package Tool)',
         slug: 'apt',
         categories: ['Linux'],
@@ -785,6 +794,15 @@ module.exports = {
         fleetNote: 'Fleet policies run as SQL on managed devices, return yes/no results, and trigger automations such as scripts or software installs to remediate failures.',
         links: [],
       },
+      {
+        name: 'PowerShell',
+        slug: 'powershell',
+        categories: ['Windows'],
+        searchKeywords: 'powershell windows scripting cmdlet automation pwsh microsoft remote',
+        definition: 'Microsoft\'s task automation and scripting framework for Windows (and now cross-platform as PowerShell Core). PowerShell is the primary scripting language for Windows admins and underpins Intune remediation scripts, Configuration Manager scripts, and ad-hoc fleet management workflows.',
+        fleetNote: 'Fleet runs PowerShell scripts on managed Windows hosts on demand or as policy-driven remediation, with full execution logs and per-host status. Scripts live in Git through GitOps for review and version control.',
+        links: [],
+      },
       // R
       {
         name: 'Remote wipe',
@@ -837,6 +855,15 @@ module.exports = {
       },
       // S
       {
+        name: 'SCCM (System Center Configuration Manager)',
+        slug: 'sccm',
+        categories: ['Windows', 'MDM'],
+        searchKeywords: 'sccm system center configuration manager memcm endpoint manager mecm windows software updates patching imaging',
+        definition: 'Microsoft\'s long-standing on-premises Windows device management product, also known as Configuration Manager or MEMCM. SCCM handles software deployment, OS imaging, patching, and inventory for domain-joined Windows devices and is often used alongside Intune in a co-management setup.',
+        fleetNote: 'Fleet offers a modern alternative to SCCM that ships software install, patching, inventory, and policy enforcement for Windows, plus first-class macOS and Linux support, all driven from a single GitOps-friendly platform.',
+        links: [],
+      },
+      {
         name: 'SCEP (Simple Certificate Enrollment Protocol)',
         slug: 'scep',
         categories: ['Security'],
@@ -852,6 +879,15 @@ module.exports = {
         searchKeywords: 'scim identity provisioning idp directory',
         definition: 'An open standard for automating the exchange of user identity information between identity providers and service providers. SCIM lets IT teams provision, update, and deprovision users and groups in connected applications when changes happen in the directory.',
         fleetNote: 'Fleet supports SCIM-based user and group provisioning, so identity-driven workflows like device assignment and access scoping stay in sync with your IdP.',
+        links: [],
+      },
+      {
+        name: 'Secure Boot',
+        slug: 'secure-boot',
+        categories: ['Windows', 'Security'],
+        searchKeywords: 'secure boot uefi tpm windows 11 boot integrity firmware signed bootloader',
+        definition: 'A UEFI firmware feature that verifies bootloader and kernel signatures before allowing the OS to load, blocking unsigned or tampered code from running at boot. Secure Boot is a baseline requirement for Windows 11 and a recommended setting in CIS Benchmarks for Windows.',
+        fleetNote: 'Fleet reports Secure Boot status across Windows hosts and surfaces hosts where it is disabled through policies, helping security teams enforce a hardened boot baseline.',
         links: [],
       },
       {
@@ -953,6 +989,15 @@ module.exports = {
         ],
       },
       {
+        name: 'Supervised mode',
+        slug: 'supervised-mode',
+        categories: ['Apple', 'MDM'],
+        searchKeywords: 'supervised mode supervision apple mdm ade restricted commands additional controls',
+        definition: 'An enhanced state for Apple devices, set during ADE enrollment or through Apple Configurator, that gives MDM additional commands and restrictions not available on personal devices. Supervision is used for company-owned Macs, iPhones, and iPads.',
+        fleetNote: 'Fleet uses supervised mode where appropriate to perform stronger management actions on company-owned Apple devices, such as restricting App Store access or clearing Activation Lock.',
+        links: [],
+      },
+      {
         name: 'systemd',
         slug: 'systemd',
         categories: ['Linux'],
@@ -965,6 +1010,15 @@ module.exports = {
       },
       // T
       {
+        name: 'TCC (Transparency, Consent, and Control)',
+        slug: 'tcc',
+        categories: ['Apple', 'Security'],
+        searchKeywords: 'tcc transparency consent control macos privacy pppc privacy preferences policy control',
+        definition: 'macOS\'s privacy framework, which gates access to user data such as Documents, Desktop, Photos, Camera, microphone, screen recording, and accessibility APIs. Admins can pre-approve specific apps through MDM-delivered Privacy Preferences Policy Control (PPPC) profiles so legitimate tools work without per-user prompts.',
+        fleetNote: 'Fleet deploys PPPC/TCC profiles through MDM and reports per-host TCC status, so admins can confirm that security and IT tools have the access they need on every managed Mac.',
+        links: [],
+      },
+      {
         name: 'TPM (Trusted Platform Module)',
         slug: 'tpm',
         categories: ['Windows', 'Security'],
@@ -974,6 +1028,15 @@ module.exports = {
         links: [],
       },
       // U
+      {
+        name: 'UAC (User Account Control)',
+        slug: 'uac',
+        categories: ['Windows', 'Security'],
+        searchKeywords: 'uac user account control windows privilege elevation admin prompt secure desktop',
+        definition: 'A Windows security feature that prompts users to approve actions requiring administrator privileges, even when signed in as an admin. UAC is configured through the registry and Group Policy / CSP, and is a baseline control for limiting silent privilege use on Windows hosts.',
+        fleetNote: 'Fleet reports UAC settings across Windows hosts and surfaces drift through policies, so security teams can keep elevation controls consistent across the fleet.',
+        links: [],
+      },
       {
         name: 'Ubuntu',
         slug: 'ubuntu',
@@ -1044,12 +1107,30 @@ module.exports = {
         links: [],
       },
       {
+        name: 'Windows Hello',
+        slug: 'windows-hello',
+        categories: ['Windows', 'Security'],
+        searchKeywords: 'windows hello for business biometric face fingerprint pin passwordless tpm fido',
+        definition: 'Microsoft\'s biometric and PIN-based sign-in technology for Windows, used as a passwordless alternative to passwords. Windows Hello for Business adds asymmetric-key authentication backed by TPM and integrates with Microsoft Entra ID for enterprise sign-in.',
+        fleetNote: 'Fleet reports Windows Hello configuration across managed Windows hosts and surfaces hosts where passwordless or biometric sign-in is missing, helping security teams roll out modern authentication consistently.',
+        links: [],
+      },
+      {
         name: 'Workspace ONE',
         slug: 'workspace-one',
         categories: ['MDM'],
         searchKeywords: 'workspace one vmware airwatch uem intelligent hub omnissa',
         definition: 'A unified endpoint management platform originally from VMware (now Omnissa), with roots in AirWatch. Workspace ONE manages macOS, Windows, iOS, iPadOS, Android, and Chrome OS devices, with an end-user app called Intelligent Hub for self-service and identity.',
         fleetNote: 'Fleet offers an open, GitOps-native alternative to Workspace ONE with first-class Linux support, real-time osquery-powered reports, and self-hosted or cloud deployment with 100% feature parity.',
+        links: [],
+      },
+      {
+        name: 'WSUS (Windows Server Update Services)',
+        slug: 'wsus',
+        categories: ['Windows'],
+        searchKeywords: 'wsus windows server update services updates patching on premise approval cab',
+        definition: 'Microsoft\'s on-premises Windows Update server, which lets admins approve, schedule, and distribute Microsoft updates to managed Windows hosts. WSUS is being phased out in favor of cloud-based Windows Update for Business (WUfB) and Intune update rings.',
+        fleetNote: 'Fleet works alongside or in place of WSUS by reporting Windows update state, deploying updates through MDM, and enforcing update rings through Windows Update for Business.',
         links: [],
       },
       // X
