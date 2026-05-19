@@ -346,6 +346,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-13 12:33:34
 
+### [CVE-2026-26062](https://nvd.nist.gov/vuln/detail/CVE-2026-26062)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** This is a vulnerability in Fleet, not fleetctl.
+- **Products:** `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:30:00
+
 ### [CVE-2026-26061](https://nvd.nist.gov/vuln/detail/CVE-2026-26061)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -362,6 +370,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-03-23 19:12:15
 
+### [CVE-2026-24899](https://nvd.nist.gov/vuln/detail/CVE-2026-24899)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** This is a vulnerability in Fleet, not fleetctl.
+- **Products:** `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:30:00
+
 ### [CVE-2026-24515](https://nvd.nist.gov/vuln/detail/CVE-2026-24515)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -369,6 +385,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:deb/debian/libexpat1`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-01-03 15:15:53
+
+### [CVE-2026-23998](https://nvd.nist.gov/vuln/detail/CVE-2026-23998)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** This is a vulnerability in Fleet, not fleetctl.
+- **Products:** `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:30:00
 
 ### [CVE-2026-23517](https://nvd.nist.gov/vuln/detail/CVE-2026-23517)
 - **Author:** @lucasmrod
