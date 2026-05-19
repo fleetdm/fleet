@@ -1,0 +1,64 @@
+name: Test stale Fleetie-issue scripts
+
+# Runs the unit tests for the stale-Fleetie-issue scripts on PRs that change either script (or its
+# tests), the closer workflow, or this workflow. Handbook edits are deliberately excluded: the
+# scripts are resilient to any handle-shaped content the handbook can realistically contain
+# (denylist, length cap, trailing-hyphen filter, format regex), and the handbook changes often
+# enough that triggering on it would mostly burn CI minutes with no signal.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/build-fleetie-handles.js'
+      - '.github/scripts/build-fleetie-handles.test.js'
+      - '.github/scripts/stale-fleetie-issues.js'
+      - '.github/scripts/stale-fleetie-issues.test.js'
+      - '.github/workflows/close-stale-fleetie-initiated-issues.yml'
+      - '.github/workflows/test-stale-fleetie-issue-scripts.yml'
+  pull_request:
+    paths:
+      - '.github/scripts/build-fleetie-handles.js'
+      - '.github/scripts/build-fleetie-handles.test.js'
+      - '.github/scripts/stale-fleetie-issues.js'
+      - '.github/scripts/stale-fleetie-issues.test.js'
+      - '.github/workflows/close-stale-fleetie-initiated-issues.yml'
+      - '.github/workflows/test-stale-fleetie-issue-scripts.yml'
+  workflow_dispatch: # Manual
+
+# For PRs, github.head_ref groups by source branch. For pushes (e.g. main), head_ref is empty so
+# we fall back to github.ref so successive pushes to the same branch share a group and
+# cancellation actually applies.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repo
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # 4.4.0
+        with:
+          node-version: '24'
+
+      - name: Run tests
+        run: node --test .github/scripts/build-fleetie-handles.test.js .github/scripts/stale-fleetie-issues.test.js

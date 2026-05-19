@@ -634,6 +634,7 @@ CREATE TABLE `host_certificates` (
   `sha1_sum` binary(20) NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `deleted_at` datetime(6) DEFAULT NULL,
+  `origin` enum('osquery','mdm') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'osquery',
   PRIMARY KEY (`id`),
   KEY `idx_host_certs_hid_cn` (`host_id`,`common_name`),
   KEY `idx_host_certs_not_valid_after` (`host_id`,`not_valid_after`)
@@ -1009,7 +1010,7 @@ CREATE TABLE `host_mdm_idp_accounts` (
 CREATE TABLE `host_mdm_managed_certificates` (
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `type` enum('digicert','custom_scep_proxy','ndes','smallstep') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ndes',
+  `type` enum('digicert','custom_scep_proxy','ndes','smallstep') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `ca_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'NDES',
   `challenge_retrieved_at` timestamp(6) NULL DEFAULT NULL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -1115,11 +1116,12 @@ CREATE TABLE `host_scd_data` (
   `valid_to` datetime NOT NULL DEFAULT '9999-12-31 00:00:00',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `encoding_type` tinyint NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_entity_bucket` (`dataset`,`entity_id`,`valid_from`),
   KEY `idx_dataset_range` (`dataset`,`valid_from`,`valid_to`),
   KEY `idx_valid_to_dataset` (`valid_to`,`dataset`,`entity_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

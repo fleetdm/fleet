@@ -1762,3 +1762,43 @@ func TestPubSubStatusReportHostDeletedFromFleet(t *testing.T) {
 	require.True(t, mockDS.NewAndroidHostFuncInvoked, "re-enrollment should create the host")
 	require.True(t, mockDS.UpdateAndroidHostFuncInvoked, "status report update should run against the re-enrolled host")
 }
+
+func TestPubSubStatusReport_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+
+	deviceJSON := `{"name":"enterprises/E1/devices/abc123","appliedState":"ACTIVE"}`
+	msg := &android.PubSubMessage{
+		Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
+		Data:       base64.StdEncoding.EncodeToString([]byte(deviceJSON)),
+	}
+
+	require.NotPanics(t, func() {
+		err := svc.ProcessPubSubPush(t.Context(), "value", msg)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing hardware info")
+	})
+}
+
+func TestPubSubEnrollment_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+
+	deviceJSON := `{"name":"enterprises/E1/devices/abc123","appliedState":"DELETED"}`
+	msg := &android.PubSubMessage{
+		Attributes: map[string]string{"notificationType": string(android.PubSubEnrollment)},
+		Data:       base64.StdEncoding.EncodeToString([]byte(deviceJSON)),
+	}
+
+	require.NotPanics(t, func() {
+		err := svc.ProcessPubSubPush(t.Context(), "value", msg)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing hardware info")
+	})
+}

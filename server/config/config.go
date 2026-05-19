@@ -16,7 +16,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"golang.org/x/net/http2"
@@ -358,6 +357,7 @@ type SESConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StsExternalID    string `yaml:"sts_external_id"`
 	SourceArn        string `yaml:"source_arn"`
+	SenderDomain     string `yaml:"sender_domain"`
 }
 
 type EmailConfig struct {
@@ -1387,6 +1387,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("ses.sts_assume_role_arn", "", "ARN of role to assume for AWS")
 	man.addConfigString("ses.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigString("ses.source_arn", "", "ARN of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter")
+	man.addConfigString("ses.sender_domain", "", "Optional domain to use in the From address for SES emails. If empty, Fleet uses the hostname from the Fleet Web Address (server_settings.server_url)")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -1863,6 +1864,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("ses.sts_assume_role_arn"),
 			StsExternalID:    man.getConfigString("ses.sts_external_id"),
 			SourceArn:        man.getConfigString("ses.source_arn"),
+			SenderDomain:     man.getConfigString("ses.sender_domain"),
 		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),
@@ -2385,12 +2387,20 @@ func TestConfig() FleetConfig {
 	}
 }
 
+// TestingT is the subset of *testing.T that SetTestMDMConfig needs.
+// *testing.T (and testing.TB) satisfy it without an explicit conversion, so
+// callers continue to pass `t` as-is. Defining this interface locally keeps
+// the "testing" package out of this package's production import graph.
+type TestingT interface {
+	Fatal(args ...any)
+}
+
 // SetTestMDMConfig modifies the provided cfg so that MDM is enabled and
 // configured properly. The provided certificate and private key are used for
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
+func SetTestMDMConfig(t TestingT, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 
 	if wstepCertAndKeyDir == "" {

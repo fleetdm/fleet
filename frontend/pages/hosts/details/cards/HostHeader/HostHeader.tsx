@@ -73,6 +73,9 @@ interface IHostSummaryProps {
   ) => void;
   renderActionsDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
+  /** Optional override for the title shown when `deviceUser` is true.
+   * Falls back to "My device" if not provided. */
+  deviceUserHeader?: string;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
   hostMdmEnrollmentStatus?: MdmEnrollmentStatus;
 }
@@ -83,6 +86,7 @@ const HostHeader = ({
   onRefetchHost,
   renderActionsDropdown,
   deviceUser,
+  deviceUserHeader,
   hostMdmDeviceStatus,
   hostMdmEnrollmentStatus,
 }: IHostSummaryProps) => {
@@ -186,7 +190,7 @@ const HostHeader = ({
             disableTooltip={!isTruncated}
             tipContent={
               deviceUser
-                ? "My device"
+                ? deviceUserHeader || "My device"
                 : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE
             }
             underline={false}
@@ -195,7 +199,7 @@ const HostHeader = ({
           >
             <h1 className="display-name" ref={hostDisplayName}>
               {deviceUser
-                ? "My device"
+                ? deviceUserHeader || "My device"
                 : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
           </TooltipWrapper>
