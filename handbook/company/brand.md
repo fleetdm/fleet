@@ -22,7 +22,7 @@ Use the primary logo whenever possible.
 
 ### Fleet dots
 
-![Fleet dots](https://raw.githubusercontent.com/fleetdm/fleet/handbook-brand-guidelines/website/assets/images/brand-fleet-dots-720x445%402x.png)
+![Fleet dots](https://fleetdm.com/images/brand-fleet-dots-720x445@2x.png)
 
 Use Fleet dots as a standalone mark where the full logo doesn't fit, such as profile avatars on social media and similar platforms. Avoid repeating the full logo and dots together.
 
@@ -36,9 +36,9 @@ Leave a minimum clear space around logo marks equal to the height of the Fleet d
 
 > Less clear space may be used in certain placements, like the navigation bar on fleetdm.com and the Fleet product.
 
-![Logo clear space](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-logo-clear-space-720x445%402x.png)
+![Logo clear space](https://fleetdm.com/images/brand-logo-clear-space-720x445@2x.png)
 
-![Logo dots clear space](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-logo-dots-clear-space-720x445%402x.png)
+![Logo dots clear space](https://fleetdm.com/images/brand-logo-dots-clear-space-720x445@2x.png)
 
 ### Logo placement
 
@@ -46,9 +46,9 @@ Anchor the logo to the top-left or bottom-left of the canvas.
 
 > You can make exceptions when needed. For example, center or right-align the logo on slides, videos, or swag. Default to left alignment whenever possible.
 
-![Top-left logo placement](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-logo-placement-top-left-720x445%402x.png)
+![Top-left logo placement](https://fleetdm.com/images/brand-logo-placement-top-left-720x445@2x.png)
 
-![Bottom-left logo placement](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-logo-placement-bottom-left-720x445%402x.png)
+![Bottom-left logo placement](https://fleetdm.com/images/brand-logo-placement-bottom-left-720x445@2x.png)
 
 #### Placing over imagery
 
@@ -184,7 +184,7 @@ Use these core colors across all product UI and communications.
 
 Use imagery to support messaging and communicate value. Images range from hero illustrations to graphical representations of the product. Imagery should support content, not distract from it. Keep compositions simple, consistent, and purposeful.
 
-![Cloud City](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-cloud-city-720x445%402x.png)
+![Cloud City](https://fleetdm.com/images/brand-cloud-city-720x445@2x.png)
 
 ### Cloud City
 
