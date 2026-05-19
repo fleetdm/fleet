@@ -31,8 +31,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/google/uuid"
 	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
@@ -1443,59 +1441,6 @@ func randStr(n int) string {
 // RandUDID returns a fake random iOS/iPadOS 17+ UDID.
 func RandUDID() string {
 	return fmt.Sprintf("%s-%s", randStr(8), randStr(16))
-}
-
-type scepClient interface {
-	scepserver.Service
-	Supports(capacity string) bool
-}
-
-func newSCEPClient(
-	serverURL string,
-	logger *slog.Logger,
-) (scepClient, error) {
-	endpoints, err := makeClientSCEPEndpoints(serverURL)
-	if err != nil {
-		return nil, err
-	}
-	endpoints.GetEndpoint = scepserver.EndpointLoggingMiddleware(logger)(endpoints.GetEndpoint)
-	endpoints.PostEndpoint = scepserver.EndpointLoggingMiddleware(logger)(endpoints.PostEndpoint)
-	return endpoints, nil
-}
-
-// makeClientSCEPClientEndpoints returns an Endpoints struct where each endpoint invokes
-// the corresponding method on the remote instance, via a transport/http.Client.
-func makeClientSCEPEndpoints(instance string) (*scepserver.Endpoints, error) {
-	if !strings.HasPrefix(instance, "http") {
-		instance = "http://" + instance
-	}
-	tgt, err := url.Parse(instance)
-	if err != nil {
-		return nil, err
-	}
-
-	// #nosec (this client is used for testing only)
-	c := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
-		InsecureSkipVerify: true,
-	}))
-	options := []httptransport.ClientOption{
-		httptransport.SetClient(c),
-	}
-
-	return &scepserver.Endpoints{
-		GetEndpoint: httptransport.NewClient(
-			"GET",
-			tgt,
-			scepserver.EncodeSCEPRequest,
-			scepserver.DecodeSCEPResponse,
-			options...).Endpoint(),
-		PostEndpoint: httptransport.NewClient(
-			"POST",
-			tgt,
-			scepserver.EncodeSCEPRequest,
-			scepserver.DecodeSCEPResponse,
-			options...).Endpoint(),
-	}, nil
 }
 
 // EncodeDeviceInfo is a helper function to provide mock device info for the x-aspen-deviceinfo
