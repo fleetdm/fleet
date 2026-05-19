@@ -4,7 +4,7 @@
       "version": "1.6.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.aone.keka';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.aone.keka' AND version_compare(bundle_short_version, '1.6.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.aone.keka') AND version_compare(bundle_short_version, '1.6.4') < 0);"
       },
       "installer_url": "https://github.com/aonez/Keka/releases/download/v1.6.4/Keka-1.6.4.dmg",
       "install_script_ref": "c516b96f",

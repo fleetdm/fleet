@@ -4,7 +4,7 @@
       "version": "12.5.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.insomnia.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.insomnia.app' AND version_compare(bundle_short_version, '12.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.insomnia.app') AND version_compare(bundle_short_version, '12.5.0') < 0);"
       },
       "installer_url": "https://github.com/Kong/insomnia/releases/download/core%4012.5.0/Insomnia.Core-12.5.0.dmg",
       "install_script_ref": "5fd2f033",

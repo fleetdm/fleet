@@ -4,7 +4,7 @@
       "version": "1.4.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.colliderli.iina';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.colliderli.iina' AND version_compare(bundle_short_version, '1.4.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.colliderli.iina') AND version_compare(bundle_short_version, '1.4.2') < 0);"
       },
       "installer_url": "https://dl-portal.iina.io/IINA.v1.4.2-build164.dmg",
       "install_script_ref": "ac168c5b",

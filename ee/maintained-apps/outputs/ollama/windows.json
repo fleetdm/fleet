@@ -4,7 +4,7 @@
       "version": "0.24.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Ollama' AND publisher = 'Ollama';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Ollama' AND publisher = 'Ollama' AND version_compare(version, '0.24.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Ollama' AND publisher = 'Ollama') AND version_compare(version, '0.24.0') < 0);"
       },
       "installer_url": "https://github.com/ollama/ollama/releases/download/v0.24.0/OllamaSetup.exe",
       "install_script_ref": "e14c71ee",

@@ -4,7 +4,7 @@
       "version": "0.24.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.ollama';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.ollama' AND version_compare(bundle_short_version, '0.24.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.ollama') AND version_compare(bundle_short_version, '0.24.0') < 0);"
       },
       "installer_url": "https://github.com/ollama/ollama/releases/download/v0.24.0/Ollama-darwin.zip",
       "install_script_ref": "9f174559",

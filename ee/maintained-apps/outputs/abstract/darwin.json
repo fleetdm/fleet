@@ -4,7 +4,7 @@
       "version": "98.6.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.elasticprojects.abstract-desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.elasticprojects.abstract-desktop' AND version_compare(bundle_short_version, '98.6.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.elasticprojects.abstract-desktop') AND version_compare(bundle_short_version, '98.6.3') < 0);"
       },
       "installer_url": "https://downloads.goabstract.com/mac/Abstract-98.6.3.zip",
       "install_script_ref": "ca022a22",

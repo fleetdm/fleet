@@ -4,7 +4,7 @@
       "version": "7.15.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.realvnc.vncviewer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.realvnc.vncviewer' AND version_compare(bundle_short_version, '7.15.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.realvnc.vncviewer') AND version_compare(bundle_short_version, '7.15.1') < 0);"
       },
       "installer_url": "https://downloads.realvnc.com/download/file/viewer.files/VNC-Viewer-7.15.1-MacOSX-universal.dmg",
       "install_script_ref": "6478a2e4",

@@ -4,7 +4,7 @@
       "version": "4.27.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.surfshark.vpnclient.macos.direct';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.surfshark.vpnclient.macos.direct' AND version_compare(bundle_short_version, '4.27.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.surfshark.vpnclient.macos.direct') AND version_compare(bundle_short_version, '4.27.0') < 0);"
       },
       "installer_url": "https://downloads.surfshark.com/macOS/stable/4.27.0/4324/Surfshark.dmg",
       "install_script_ref": "f1af60b5",

@@ -4,7 +4,7 @@
       "version": "7.25.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniGraffle7';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniGraffle7' AND version_compare(bundle_short_version, '7.25.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniGraffle7') AND version_compare(bundle_short_version, '7.25.2') < 0);"
       },
       "installer_url": "https://downloads.omnigroup.com/software/macOS/12/OmniGraffle-7.25.2.dmg",
       "install_script_ref": "d2d63787",
