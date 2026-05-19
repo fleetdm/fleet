@@ -1,0 +1,1 @@
+- Fixed dynamic SCEP certificate issuance failing with an "Invalid NDES admin credentials" error after NTLM lib bump by sending NTLM authentication proactively on the first request to NDES instead of after an unauthenticated probe.

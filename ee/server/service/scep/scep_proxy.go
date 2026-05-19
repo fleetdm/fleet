@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/go-ntlmssp"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -24,6 +23,7 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -510,8 +510,8 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
 	// Get the challenge from NDES
 	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
-	client.Transport = ntlmssp.Negotiator{
-		RoundTripper: fleethttp.NewTransport(),
+	client.Transport = &proactiveNTLMTransport{
+		base: otelhttp.NewTransport(fleethttp.NewTransport()),
 	}
 	req, err := http.NewRequest(http.MethodGet, adminURL, http.NoBody)
 	if err != nil {
@@ -525,6 +525,11 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 		return "", ctxerr.Wrap(ctx, err, "sending request")
 	}
 	if resp.StatusCode != http.StatusOK {
+		s.logger.WarnContext(ctx, "NDES admin URL returned non-200",
+			"ca_type", fleet.CATypeNDESSCEPProxy,
+			"status_code", resp.StatusCode,
+			"request_duration", endRequestTime.Sub(startRequestTime).Seconds(),
+		)
 		return "", ctxerr.Wrap(ctx, NDESInvalidError{msg: fmt.Sprintf(
 			"unexpected status code: %d; could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again",
 			resp.StatusCode)})
@@ -554,8 +559,11 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 				NewNDESInsufficientPermissionsError("this account does not have sufficient permissions to enroll with SCEP. Please use a different account with NDES SCEP enroll permissions."))
 		}
 
-		// If we can't find a specific error, we log more context in terms of the request to further diagnose
-		s.logger.DebugContext(ctx, "failed to parse NDES challenge from admin URL response", "ca_type", fleet.CATypeNDESSCEPProxy, "raw_response", htmlString, "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
+		s.logger.WarnContext(ctx, "failed to parse NDES challenge from admin URL response",
+			"ca_type", fleet.CATypeNDESSCEPProxy,
+			"raw_response_length", len(htmlString),
+			"request_duration", endRequestTime.Sub(startRequestTime).Seconds(),
+		)
 		return "", ctxerr.Wrap(ctx,
 			NewNDESInvalidError("could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again"))
 	}
