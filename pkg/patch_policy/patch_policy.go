@@ -18,37 +18,54 @@ type PolicyData struct {
 	Version     string
 }
 
-const (
-	// templateStart and templateEnd* wrap the caller-supplied exists query in an
-	// inner set of parentheses so that any OR in the WHERE body binds before the
-	// appended AND version_compare(...) clause.
-	templateStart      = "SELECT 1 WHERE NOT EXISTS (("
-	templateEndDarwin  = ") AND version_compare(bundle_short_version, '%s') < 0);"
-	templateEndWindows = ") AND version_compare(version, '%s') < 0);"
-)
+const existsQueryPrefix = "SELECT 1 FROM "
 
 var (
 	ErrWrongPlatform = errors.New("platform should be darwin or windows")
 	ErrNoExistsQuery = errors.New("exists query was not provided")
 )
 
-// GenerateQueryForManifest wraps the "exists" query to create a patch policy query
+// GenerateQueryForManifest wraps the "exists" query to create a patch policy query.
+// The exists query must be of the form: SELECT 1 FROM <table> WHERE <conditions>;
+// The patched query moves version_compare into the NOT EXISTS subquery WHERE clause.
 func GenerateQueryForManifest(p PolicyData) (string, error) {
 	if p.ExistsQuery == "" {
 		return "", ErrNoExistsQuery
 	}
-	before, _ := strings.CutSuffix(p.ExistsQuery, ";")
-	// Escape any literal '%' in the exists query (e.g. SQL LIKE patterns)
-	// so fmt.Sprintf doesn't interpret them as format verbs.
-	before = strings.ReplaceAll(before, "%", "%%")
 
+	var versionCompare string
 	switch p.Platform {
 	case "darwin":
-		return fmt.Sprintf(templateStart+before+templateEndDarwin, p.Version), nil
+		versionCompare = fmt.Sprintf("version_compare(bundle_short_version, '%s') < 0", p.Version)
 	case "windows":
-		return fmt.Sprintf(templateStart+before+templateEndWindows, p.Version), nil
+		versionCompare = fmt.Sprintf("version_compare(version, '%s') < 0", p.Version)
+	default:
+		return "", ErrWrongPlatform
 	}
-	return "", ErrWrongPlatform
+
+	before, _ := strings.CutSuffix(p.ExistsQuery, ";")
+	before = strings.TrimSpace(before)
+	if !strings.HasPrefix(before, existsQueryPrefix) {
+		return "", fmt.Errorf("exists query must start with %q", existsQueryPrefix)
+	}
+
+	rest := strings.TrimPrefix(before, existsQueryPrefix)
+	whereIdx := strings.Index(rest, " WHERE ")
+	if whereIdx < 0 {
+		return "", errors.New("exists query must contain a WHERE clause")
+	}
+
+	table := rest[:whereIdx]
+	conditions := rest[whereIdx+len(" WHERE "):]
+	// Parenthesize OR conditions so AND binds to version_compare before OR.
+	if strings.Contains(conditions, " OR ") {
+		conditions = "(" + conditions + ")"
+	}
+
+	return fmt.Sprintf(
+		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM %s WHERE %s AND %s);",
+		table, conditions, versionCompare,
+	), nil
 }
 
 // GenerateFromInstaller creates a patch policy with all fields from an installer
