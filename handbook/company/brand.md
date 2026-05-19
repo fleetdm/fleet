@@ -10,7 +10,7 @@ If you have questions or feedback, contact [Head of Design](https://fleetdm.com/
 
 ### Primary logo
 
-![Fleet primary logo](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-primary-logo-720x445%402x.png)
+![Fleet primary logo](https://fleetdm.com/images/brand-primary-logo-720x445@2x.png)
 
 Use the primary logo whenever possible.
 
