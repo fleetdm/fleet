@@ -136,7 +136,7 @@ It's common for security products to be falsely flagged as malicious because the
 
 Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. If you notice a new flag against the orbit binary, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
 
-If your vendor supports excluding by "Publisher", add `Fleet Device Management Inc` as an exclusion rule that will prevent Fleet software from being mistakenly flagged.
+If your vendor supports excluding by "Publisher", add `Fleet Device Management Inc` as an exclusion rule that will prevent Fleet software from being mistakenly flagged. Additionally, us a recursive path exclusion with `/opt/obit/` for macOS/Linux and `C:\Program Files\Orbit\` for Windows.
 
 ### SLSA provenance attestation 🌶️
 
