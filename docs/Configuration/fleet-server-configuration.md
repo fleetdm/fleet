@@ -2548,7 +2548,7 @@ If set, Fleet uses AWS Identity and Access Management (IAM) authentication inste
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
-Optionally set the domain used in the `From` address for SES emails. When configured, Fleet sends mail as `do-not-reply@<domain>`. If omitted, Fleet keeps the current behavior and uses the hostname from `server.server_url`.
+Optionally set the domain used in the `From` address for SES emails. When configured, Fleet sends mail as `do-not-reply@<domain>`. If omitted, Fleet keeps the current behavior and uses the hostname from `server_settings.server_url`.
 
 - Default value: none
 - Environment variable: `FLEET_SES_SENDER_DOMAIN`
