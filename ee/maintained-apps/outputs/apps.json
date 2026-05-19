@@ -1528,6 +1528,13 @@
       "description": "Santa is a binary authorization system for macOS."
     },
     {
+      "name": "Secretive",
+      "slug": "secretive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.maxgoedjen.Secretive.Host",
+      "description": "Store SSH keys in the Secure Enclave"
+    },
+    {
       "name": "Sequel Ace",
       "slug": "sequel-ace/darwin",
       "platform": "darwin",
