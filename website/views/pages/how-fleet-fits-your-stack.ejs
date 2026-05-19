@@ -8,10 +8,10 @@
         <div purpose="page-hero-content">
           <div purpose="page-hero-headings">
             <h4>Integrations and IT infrastructure</h4>
-            <h1>How Fleet fits into your IT stack</h1>
+            <h1>How Fleet fits your IT stack</h1>
           </div>
           <div purpose="page-hero-text">
-            <p>Fleet plugs into the identity, security, compliance, and automation tools your team already uses, giving you one source of device truth across your entire infrastructure.</p>
+            <p>Fleet plugs into the identity, security, compliance, and automation tools your team uses, giving you one source of device truth.</p>
           </div>
           <div purpose="button-row" class="d-flex justify-content-center align-items-center">
             <a purpose="cta-button" href="/contact" no-underline>Get a demo</a>
@@ -163,7 +163,7 @@
       <%// ─── DIVE DEEPER DIVIDER ─────────────────────────────── %>
       <div purpose="dive-deeper-divider">
         <span purpose="divider-label">Optional deep dive</span>
-        <p>The map above is the big picture. The sections below walk through top use cases and how it works, one category at a time. Skip ahead by clicking a tile, or read straight through.</p>
+        <p>The map is the big picture. Each section below digs into one category. Click a tile to jump in, or read through.</p>
       </div>
 
 
@@ -408,7 +408,7 @@
         <div purpose="detail-heading">
           <h4>Identity and access</h4>
           <h3>Sign in with corporate SSO, enforce device-aware access</h3>
-          <p>Authenticate your team into Fleet using existing corporate credentials over SAML. Then share Fleet's real-time device posture with your IdP so access decisions factor in both the user and the health of their device.</p>
+          <p>Sign in to Fleet over SAML with existing corporate credentials. Share Fleet's real-time device posture with your IdP so access decisions factor in both user and device.</p>
         </div>
         <div purpose="detail-vendors">
           <span class="vendor-tag">Okta</span>
@@ -420,8 +420,8 @@
         <div purpose="detail-grid">
           <div purpose="use-cases">
             <p purpose="detail-subheading">Top use cases</p>
-            <div purpose="use-case"><span purpose="use-case-num">1</span><p><strong>SSO for Fleet.</strong> Configure Fleet as a SAML application so your team uses existing corporate credentials. No separate password to manage.</p></div>
-            <div purpose="use-case"><span purpose="use-case-num">2</span><p><strong>Posture-based conditional access.</strong> Block third-party app sign-ins on hosts failing Fleet policies through Microsoft Entra conditional access (Fleet Premium). With any other SAML IdP, share Fleet's real-time posture via the API for your own conditional access rules.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">1</span><p><strong>SSO for Fleet.</strong> Configure Fleet as a SAML application so your team uses existing corporate credentials, no separate password to manage.</p></div>
+            <div purpose="use-case"><span purpose="use-case-num">2</span><p><strong>Posture-based conditional access.</strong> Block third-party app sign-ins on policy-failing hosts via Microsoft Entra (Fleet Premium). Other SAML IdPs can read Fleet's posture via API.</p></div>
             <div purpose="use-case"><span purpose="use-case-num">3</span><p><strong>Zero Trust device trust.</strong> Pair Fleet's host policy results with IdP conditional access rules to verify every device at every login.</p></div>
           </div>
           <div purpose="how-it-works">
@@ -447,17 +447,17 @@
         <div purpose="primitive-cards">
           <div purpose="primitive-card">
             <p purpose="primitive-title">REST API</p>
-            <p>Hosts, queries, policies, software, and configuration, all accessible programmatically. Build custom dashboards or automate Fleet end to end.</p>
+            <p>Every Fleet feature is API-accessible: hosts, queries, policies, software, configuration. Build custom dashboards. Automate Fleet end to end.</p>
             <a purpose="primitive-link" href="/docs/rest-api/rest-api">View API docs</a>
           </div>
           <div purpose="primitive-card">
             <p purpose="primitive-title">Webhooks</p>
-            <p>Outbound event notifications when hosts, policies, or CVE statuses change. Trigger any downstream system without polling.</p>
+            <p>Every meaningful Fleet event fires a webhook: host status, policy failures, new CVEs. Trigger any downstream system. Skip polling entirely.</p>
             <a purpose="primitive-link" href="/docs/using-fleet/automations">View automations docs</a>
           </div>
           <div purpose="primitive-card">
             <p purpose="primitive-title">fleetctl CLI</p>
-            <p>Manage Fleet from CI/CD pipelines, shell scripts, or your terminal. Apply GitOps configs, run queries, and manage hosts programmatically.</p>
+            <p>Every Fleet action runs from the CLI: CI/CD pipelines, shell scripts, your terminal. Apply GitOps configs. Run queries and manage hosts.</p>
             <a purpose="primitive-link" href="/docs/using-fleet/fleetctl-cli">View CLI docs</a>
           </div>
         </div>
@@ -469,7 +469,7 @@
         <div purpose="cross-link">
           <div purpose="cross-link-text">
             <h3>Looking for a specific vendor?</h3>
-            <p>Browse the full directory of tools Fleet integrates with, including setup guides, docs, and configuration details for each.</p>
+            <p>Browse every tool Fleet integrates with, plus setup guides and docs.</p>
           </div>
           <a purpose="cta-button" href="/integrations" no-underline>View all integrations</a>
         </div>
