@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
@@ -56,16 +57,16 @@ func globalViewer() *mockViewerProvider { return &mockViewerProvider{isGlobal: t
 
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
-	getSCDDataFunc          func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
+	getSCDDataFunc          func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error)
 	getHostIDsForFilterFunc func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
 	findOnlineHostIDsFn     func(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
 	affectedHostIDsByCVEFn  func(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
 	trackedCriticalCVEsFn   func(ctx context.Context) ([]string, error)
-	recordBucketDataFn      func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
+	recordBucketDataFn      func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error
 	recordBucketDataInvoked bool
 	deleteAllForDatasetFn   func(ctx context.Context, dataset string, batchSize int) error
 	hostIDsInFleetsFn       func(ctx context.Context, fleetIDs []uint) ([]uint, error)
-	applyScrubMaskFn        func(ctx context.Context, dataset string, mask []byte, batchSize int) error
+	applyScrubMaskFn        func(ctx context.Context, dataset string, mask *roaring.Bitmap, batchSize int) error
 }
 
 func (m *mockDatastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error) {
@@ -89,7 +90,7 @@ func (m *mockDatastore) TrackedCriticalCVEs(ctx context.Context) ([]string, erro
 	return nil, nil
 }
 
-func (m *mockDatastore) RecordBucketData(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error {
+func (m *mockDatastore) RecordBucketData(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
 	m.recordBucketDataInvoked = true
 	if m.recordBucketDataFn != nil {
 		return m.recordBucketDataFn(ctx, dataset, bucketStart, bucketSize, strategy, entityBitmaps)
@@ -97,7 +98,7 @@ func (m *mockDatastore) RecordBucketData(ctx context.Context, dataset string, bu
 	return nil
 }
 
-func (m *mockDatastore) GetSCDData(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error) {
+func (m *mockDatastore) GetSCDData(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
 	if m.getSCDDataFunc != nil {
 		return m.getSCDDataFunc(ctx, dataset, startDate, endDate, bucketSize, strategy, filterMask, entityIDs)
 	}
@@ -129,7 +130,7 @@ func (m *mockDatastore) HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([
 	return nil, nil
 }
 
-func (m *mockDatastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask []byte, batchSize int) error {
+func (m *mockDatastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask *roaring.Bitmap, batchSize int) error {
 	if m.applyScrubMaskFn != nil {
 		return m.applyScrubMaskFn(ctx, dataset, mask, batchSize)
 	}
@@ -202,8 +203,8 @@ func TestGetChartDataUptimeDefault(t *testing.T) {
 	var gotBucketSize time.Duration
 	var gotStart, gotEnd time.Time
 	var gotStrategy api.SampleStrategy
-	var gotMask []byte
-	ds.getSCDDataFunc = func(_ context.Context, dataset string, start, end time.Time, bucketSize time.Duration, strategy api.SampleStrategy, mask []byte, _ []string) ([]api.DataPoint, error) {
+	var gotMask *roaring.Bitmap
+	ds.getSCDDataFunc = func(_ context.Context, dataset string, start, end time.Time, bucketSize time.Duration, strategy api.SampleStrategy, mask *roaring.Bitmap, _ []string) ([]api.DataPoint, error) {
 		assert.Equal(t, "uptime", dataset)
 		gotBucketSize = bucketSize
 		gotStart = start
@@ -222,7 +223,7 @@ func TestGetChartDataUptimeDefault(t *testing.T) {
 	assert.Equal(t, 7, resp.Days)
 	assert.Equal(t, 3*time.Hour, gotBucketSize)
 	assert.Equal(t, api.SampleStrategyAccumulate, gotStrategy)
-	assert.Equal(t, 200, chart.BlobPopcount(gotMask), "filter mask should encode all 200 host IDs")
+	assert.Equal(t, uint64(200), chart.BlobPopcount(gotMask), "filter mask should encode all 200 host IDs")
 	// Span must be exactly 7 days.
 	assert.Equal(t, 7*24*time.Hour, gotEnd.Sub(gotStart))
 }
@@ -245,7 +246,7 @@ func TestGetChartDataUptimeResolution(t *testing.T) {
 			svc.RegisterDataset(&chart.UptimeDataset{})
 
 			var gotBucketSize time.Duration
-			ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, _ api.SampleStrategy, _ []byte, _ []string) ([]api.DataPoint, error) {
+			ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, _ []string) ([]api.DataPoint, error) {
 				gotBucketSize = bucketSize
 				return nil, nil
 			}
@@ -278,7 +279,7 @@ func TestGetChartDataCVEResolution(t *testing.T) {
 
 			var gotBucketSize time.Duration
 			var gotStrategy api.SampleStrategy
-			ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, strategy api.SampleStrategy, _ []byte, _ []string) ([]api.DataPoint, error) {
+			ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, bucketSize time.Duration, strategy api.SampleStrategy, _ *roaring.Bitmap, _ []string) ([]api.DataPoint, error) {
 				gotBucketSize = bucketSize
 				gotStrategy = strategy
 				return nil, nil
@@ -302,7 +303,7 @@ func TestGetChartDataCVEUsesCuratedFilter(t *testing.T) {
 		return []string{"CVE-A", "CVE-B"}, nil
 	}
 	var gotEntityIDs []string
-	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ []byte, entityIDs []string) ([]api.DataPoint, error) {
+	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
 		gotEntityIDs = entityIDs
 		return nil, nil
 	}
@@ -325,7 +326,7 @@ func TestGetChartDataCVEEmptySetReturnsZeros(t *testing.T) {
 	}
 	var gotEntityIDs []string
 	gotEntityIDsIsNil := true
-	ds.getSCDDataFunc = func(_ context.Context, _ string, startDate, endDate time.Time, bucketSize time.Duration, _ api.SampleStrategy, _ []byte, entityIDs []string) ([]api.DataPoint, error) {
+	ds.getSCDDataFunc = func(_ context.Context, _ string, startDate, endDate time.Time, bucketSize time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
 		gotEntityIDs = entityIDs
 		gotEntityIDsIsNil = entityIDs == nil
 		numBuckets := int(endDate.Sub(startDate) / bucketSize)
@@ -357,7 +358,7 @@ func TestGetChartDataUptimePassesNilEntityIDs(t *testing.T) {
 		return nil, nil
 	}
 	gotEntityIDsIsNil := false
-	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ []byte, entityIDs []string) ([]api.DataPoint, error) {
+	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
 		gotEntityIDsIsNil = entityIDs == nil
 		return nil, nil
 	}
@@ -377,8 +378,8 @@ func TestGetChartDataWithHostFilters(t *testing.T) {
 		gotFilter = hostFilter
 		return []uint{10, 20}, nil
 	}
-	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, mask []byte, _ []string) ([]api.DataPoint, error) {
-		assert.Equal(t, 2, chart.BlobPopcount(mask), "mask should encode the 2 host IDs returned")
+	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, mask *roaring.Bitmap, _ []string) ([]api.DataPoint, error) {
+		assert.Equal(t, uint64(2), chart.BlobPopcount(mask), "mask should encode the 2 host IDs returned")
 		return []api.DataPoint{{Value: 2}}, nil
 	}
 
@@ -577,7 +578,7 @@ func TestCollectDatasetsUptime(t *testing.T) {
 		assert.Equal(t, now, gotNow)
 		return []uint{1, 2, 3}, nil
 	}
-	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error {
+	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
 		assert.Equal(t, "uptime", dataset)
 		assert.Equal(t, wantBucketStart, bucketStart)
 		assert.Equal(t, time.Hour, bucketSize)
@@ -612,7 +613,7 @@ func TestCollectDatasetsCVE(t *testing.T) {
 			"CVE-2024-0002": {2, 4},
 		}, nil
 	}
-	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error {
+	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
 		assert.Equal(t, "cve", dataset)
 		assert.Equal(t, wantBucketStart, bucketStart)
 		assert.Equal(t, time.Hour, bucketSize)
@@ -646,8 +647,8 @@ func TestCollectDatasetsCVEEmptyTracked(t *testing.T) {
 		assert.Empty(t, cves, "empty tracked set must propagate as empty cves filter")
 		return map[string][]uint{}, nil
 	}
-	var gotBitmaps map[string][]byte
-	ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, entityBitmaps map[string][]byte) error {
+	var gotBitmaps map[string]*roaring.Bitmap
+	ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
 		gotBitmaps = entityBitmaps
 		return nil
 	}
@@ -691,7 +692,7 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 			gotDisabled = disabled
 			return []uint{1}, nil
 		}
-		ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ map[string][]byte) error {
+		ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ map[string]*roaring.Bitmap) error {
 			return nil
 		}
 		err := svc.CollectDatasets(t.Context(), now, func(_ string) (bool, []uint) {
@@ -714,7 +715,7 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 			gotDisabled = disabled
 			return map[string][]uint{"CVE-1": {1}}, nil
 		}
-		ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ map[string][]byte) error {
+		ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ map[string]*roaring.Bitmap) error {
 			return nil
 		}
 		err := svc.CollectDatasets(t.Context(), now, func(_ string) (bool, []uint) {
@@ -734,7 +735,7 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 			gotDisabled = disabled
 			return []uint{1}, nil
 		}
-		ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ map[string][]byte) error {
+		ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ map[string]*roaring.Bitmap) error {
 			return nil
 		}
 		err := svc.CollectDatasets(t.Context(), now, nil)
@@ -772,9 +773,9 @@ func TestScrubDatasetFleet(t *testing.T) {
 		}
 
 		var gotDataset string
-		var gotMask []byte
+		var gotMask *roaring.Bitmap
 		var gotBatchSize int
-		ds.applyScrubMaskFn = func(_ context.Context, dataset string, mask []byte, batchSize int) error {
+		ds.applyScrubMaskFn = func(_ context.Context, dataset string, mask *roaring.Bitmap, batchSize int) error {
 			gotDataset = dataset
 			gotMask = mask
 			gotBatchSize = batchSize
@@ -786,7 +787,7 @@ func TestScrubDatasetFleet(t *testing.T) {
 		assert.Equal(t, "cve", gotDataset)
 		assert.Equal(t, scrubBatchSize, gotBatchSize)
 		// Mask must have bits set at positions 3, 7, 12.
-		assert.Equal(t, 3, chart.BlobPopcount(gotMask))
+		assert.Equal(t, uint64(3), chart.BlobPopcount(gotMask))
 	})
 
 	t.Run("empty fleet IDs is no-op", func(t *testing.T) {
@@ -796,7 +797,7 @@ func TestScrubDatasetFleet(t *testing.T) {
 			t.Fatal("HostIDsInFleets should not have been called for empty input")
 			return nil, nil
 		}
-		ds.applyScrubMaskFn = func(_ context.Context, _ string, _ []byte, _ int) error {
+		ds.applyScrubMaskFn = func(_ context.Context, _ string, _ *roaring.Bitmap, _ int) error {
 			t.Fatal("ApplyScrubMaskToDataset should not have been called for empty input")
 			return nil
 		}
@@ -810,7 +811,7 @@ func TestScrubDatasetFleet(t *testing.T) {
 		ds.hostIDsInFleetsFn = func(_ context.Context, _ []uint) ([]uint, error) {
 			return nil, nil
 		}
-		ds.applyScrubMaskFn = func(_ context.Context, _ string, _ []byte, _ int) error {
+		ds.applyScrubMaskFn = func(_ context.Context, _ string, _ *roaring.Bitmap, _ int) error {
 			t.Fatal("ApplyScrubMaskToDataset should not be called when no hosts resolved")
 			return nil
 		}
