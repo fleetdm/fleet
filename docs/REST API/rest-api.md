@@ -12105,6 +12105,101 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 }
 ```
 
+### Pin Fleet-maintained app version
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Pin a Fleet-maintained app to a specific version, a major version, or unpin it so Fleet always installs the latest version. If two versions target the same host, Fleet will install the latest unless pinned to the older version. Only applicable to software titles that have a Fleet-maintained app added.
+
+`POST /api/v1/fleet/software/titles/:id/versions/pin`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The software title's ID. |
+| fleet_id | integer | body | **Required**. The fleet ID. Pins the Fleet-maintained app version in the specified fleet. |
+| version | string | body | The exact version to pin to (e.g., `"145.0.7632.160"`). Mutually exclusive with `major_version`. If neither `version` nor `major_version` is specified, the app is unpinned (set to "Latest"). |
+| major_version | string | body | The major version to pin to (e.g., `"145"`). Fleet will auto-update within this major version but won't update to the next major version. Mutually exclusive with `version`. |
+
+> Only one of `version` or `major_version` can be specified. If neither is specified, the app is unpinned and Fleet will always install the latest available version.
+
+#### Example (pin to specific version)
+
+`POST /api/v1/fleet/software/titles/234/versions/pin`
+
+##### Request body
+
+```json
+{
+  "fleet_id": 2,
+  "version": "145.0.7632.160"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_id": 234,
+  "pinned_version": "145.0.7632.160",
+  "major_version": null
+}
+```
+
+#### Example (pin to major version)
+
+`POST /api/v1/fleet/software/titles/234/versions/pin`
+
+##### Request body
+
+```json
+{
+  "fleet_id": 2,
+  "major_version": "145"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_id": 234,
+  "pinned_version": null,
+  "major_version": "145"
+}
+```
+
+#### Example (unpin — set to latest)
+
+`POST /api/v1/fleet/software/titles/234/versions/pin`
+
+##### Request body
+
+```json
+{
+  "fleet_id": 2
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_id": 234,
+  "pinned_version": null,
+  "major_version": null
+}
+```
+
 ### Create Android web app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
