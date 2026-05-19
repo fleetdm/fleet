@@ -928,6 +928,18 @@ type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecre
 
 type UnenrollMDMFunc func(ctx context.Context, hostID uint) error
 
+type PSSONonceFunc func(ctx context.Context) (string, error)
+
+type PSSORegisterBeginFunc func(ctx context.Context) (string, error)
+
+type PSSORegisterCompleteFunc func(ctx context.Context, req fleet.PSSORegisterRequest) error
+
+type PSSOTokenFunc func(ctx context.Context, jwtBytes []byte) ([]byte, error)
+
+type PSSOJWKSFunc func(ctx context.Context) ([]byte, error)
+
+type PSSOAASAFunc func(ctx context.Context) ([]byte, error)
+
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
 	EnrollOsqueryFuncInvoked bool
@@ -2290,6 +2302,24 @@ type Service struct {
 
 	UnenrollMDMFunc        UnenrollMDMFunc
 	UnenrollMDMFuncInvoked bool
+
+	PSSONonceFunc        PSSONonceFunc
+	PSSONonceFuncInvoked bool
+
+	PSSORegisterBeginFunc        PSSORegisterBeginFunc
+	PSSORegisterBeginFuncInvoked bool
+
+	PSSORegisterCompleteFunc        PSSORegisterCompleteFunc
+	PSSORegisterCompleteFuncInvoked bool
+
+	PSSOTokenFunc        PSSOTokenFunc
+	PSSOTokenFuncInvoked bool
+
+	PSSOJWKSFunc        PSSOJWKSFunc
+	PSSOJWKSFuncInvoked bool
+
+	PSSOAASAFunc        PSSOAASAFunc
+	PSSOAASAFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5470,4 +5500,46 @@ func (s *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 	s.UnenrollMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.UnenrollMDMFunc(ctx, hostID)
+}
+
+func (s *Service) PSSONonce(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	s.PSSONonceFuncInvoked = true
+	s.mu.Unlock()
+	return s.PSSONonceFunc(ctx)
+}
+
+func (s *Service) PSSORegisterBegin(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	s.PSSORegisterBeginFuncInvoked = true
+	s.mu.Unlock()
+	return s.PSSORegisterBeginFunc(ctx)
+}
+
+func (s *Service) PSSORegisterComplete(ctx context.Context, req fleet.PSSORegisterRequest) error {
+	s.mu.Lock()
+	s.PSSORegisterCompleteFuncInvoked = true
+	s.mu.Unlock()
+	return s.PSSORegisterCompleteFunc(ctx, req)
+}
+
+func (s *Service) PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, error) {
+	s.mu.Lock()
+	s.PSSOTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.PSSOTokenFunc(ctx, jwtBytes)
+}
+
+func (s *Service) PSSOJWKS(ctx context.Context) ([]byte, error) {
+	s.mu.Lock()
+	s.PSSOJWKSFuncInvoked = true
+	s.mu.Unlock()
+	return s.PSSOJWKSFunc(ctx)
+}
+
+func (s *Service) PSSOAASA(ctx context.Context) ([]byte, error) {
+	s.mu.Lock()
+	s.PSSOAASAFuncInvoked = true
+	s.mu.Unlock()
+	return s.PSSOAASAFunc(ctx)
 }

@@ -1,0 +1,354 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1000001000000000000A001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B001 /* AppDelegate.swift */; };
+		A1000001000000000000A002 /* AuthenticationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B002 /* AuthenticationViewController.swift */; };
+		A1000001000000000000A003 /* AuthenticationViewController+PSSO.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B003 /* AuthenticationViewController+PSSO.swift */; };
+		A1000001000000000000A004 /* AuthenticationViewController+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B004 /* AuthenticationViewController+Shared.swift */; };
+		A1000001000000000000A006 /* AuthenticationViewController+WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */; };
+		A1000001000000000000A005 /* FleetPSSOExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C1000001000000000000C002 /* FleetPSSOExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D1000001000000000000D001 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A1000001000000000000A005 /* FleetPSSOExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		B1000001000000000000B001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B1000001000000000000B002 /* AuthenticationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationViewController.swift; sourceTree = "<group>"; };
+		B1000001000000000000B003 /* AuthenticationViewController+PSSO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthenticationViewController+PSSO.swift"; sourceTree = "<group>"; };
+		B1000001000000000000B004 /* AuthenticationViewController+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthenticationViewController+Shared.swift"; sourceTree = "<group>"; };
+		B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthenticationViewController+WebView.swift"; sourceTree = "<group>"; };
+		B1000001000000000000B005 /* FleetPSSO-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B1000001000000000000B006 /* FleetPSSO.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FleetPSSO.entitlements; sourceTree = "<group>"; };
+		B1000001000000000000B007 /* FleetPSSOExtension-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B1000001000000000000B008 /* FleetPSSOExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FleetPSSOExtension.entitlements; sourceTree = "<group>"; };
+		C1000001000000000000C001 /* FleetPSSO.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FleetPSSO.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C1000001000000000000C002 /* FleetPSSOExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FleetPSSOExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E1000001000000000000E001 /* Frameworks (App) */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E1000001000000000000E002 /* Frameworks (Ext) */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		F1000001000000000000F001 /* Workspace */ = {
+			isa = PBXGroup;
+			children = (
+				F1000001000000000000F002 /* FleetPSSO */,
+				F1000001000000000000F003 /* FleetPSSOExtension */,
+				F1000001000000000000F004 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F1000001000000000000F002 /* FleetPSSO */ = {
+			isa = PBXGroup;
+			children = (
+				B1000001000000000000B001 /* AppDelegate.swift */,
+				B1000001000000000000B005 /* FleetPSSO-Info.plist */,
+				B1000001000000000000B006 /* FleetPSSO.entitlements */,
+			);
+			path = FleetPSSO;
+			sourceTree = "<group>";
+		};
+		F1000001000000000000F003 /* FleetPSSOExtension */ = {
+			isa = PBXGroup;
+			children = (
+				B1000001000000000000B002 /* AuthenticationViewController.swift */,
+				B1000001000000000000B003 /* AuthenticationViewController+PSSO.swift */,
+				B1000001000000000000B004 /* AuthenticationViewController+Shared.swift */,
+				B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */,
+				B1000001000000000000B007 /* FleetPSSOExtension-Info.plist */,
+				B1000001000000000000B008 /* FleetPSSOExtension.entitlements */,
+			);
+			path = FleetPSSOExtension;
+			sourceTree = "<group>";
+		};
+		F1000001000000000000F004 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C1000001000000000000C001 /* FleetPSSO.app */,
+				C1000001000000000000C002 /* FleetPSSOExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		11000001000000000000A001 /* FleetPSSO */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 21000001000000000000A001 /* Build configuration list for PBXNativeTarget "FleetPSSO" */;
+			buildPhases = (
+				31000001000000000000A001 /* Sources */,
+				E1000001000000000000E001 /* Frameworks (App) */,
+				D1000001000000000000D001 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				41000001000000000000A001 /* PBXTargetDependency */,
+			);
+			name = FleetPSSO;
+			productName = FleetPSSO;
+			productReference = C1000001000000000000C001 /* FleetPSSO.app */;
+			productType = "com.apple.product-type.application";
+		};
+		11000001000000000000A002 /* FleetPSSOExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 21000001000000000000A002 /* Build configuration list for PBXNativeTarget "FleetPSSOExtension" */;
+			buildPhases = (
+				31000001000000000000A002 /* Sources */,
+				E1000001000000000000E002 /* Frameworks (Ext) */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FleetPSSOExtension;
+			productName = FleetPSSOExtension;
+			productReference = C1000001000000000000C002 /* FleetPSSOExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		51000001000000000000A001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					11000001000000000000A001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					11000001000000000000A002 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 21000001000000000000A000 /* Build configuration list for PBXProject "Fleet PSSO" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = F1000001000000000000F001;
+			productRefGroup = F1000001000000000000F004 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				11000001000000000000A001 /* FleetPSSO */,
+				11000001000000000000A002 /* FleetPSSOExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		31000001000000000000A001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000001000000000000A001 /* AppDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		31000001000000000000A002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000001000000000000A002 /* AuthenticationViewController.swift in Sources */,
+				A1000001000000000000A003 /* AuthenticationViewController+PSSO.swift in Sources */,
+				A1000001000000000000A004 /* AuthenticationViewController+Shared.swift in Sources */,
+				A1000001000000000000A006 /* AuthenticationViewController+WebView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		41000001000000000000A001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 11000001000000000000A002 /* FleetPSSOExtension */;
+			targetProxy = 61000001000000000000A001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXContainerItemProxy section */
+		61000001000000000000A001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 51000001000000000000A001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 11000001000000000000A002;
+			remoteInfo = FleetPSSOExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin XCBuildConfiguration section */
+		71000001000000000000A001 /* Debug Project */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+				ENABLE_HARDENED_RUNTIME = YES;
+			};
+			name = Debug;
+		};
+		71000001000000000000A002 /* Release Project */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+				ENABLE_HARDENED_RUNTIME = YES;
+			};
+			name = Release;
+		};
+		71000001000000000000A003 /* Debug App */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = FleetPSSO/FleetPSSO.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = FleetPSSO/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.fleetdm.psso";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		71000001000000000000A004 /* Release App */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = FleetPSSO/FleetPSSO.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = FleetPSSO/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.fleetdm.psso";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		71000001000000000000A005 /* Debug Ext */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FleetPSSOExtension/FleetPSSOExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = FleetPSSOExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.fleetdm.psso.extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		71000001000000000000A006 /* Release Ext */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FleetPSSOExtension/FleetPSSOExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = FleetPSSOExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.fleetdm.psso.extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		21000001000000000000A000 /* Build configuration list for PBXProject "Fleet PSSO" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				71000001000000000000A001 /* Debug Project */,
+				71000001000000000000A002 /* Release Project */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		21000001000000000000A001 /* Build configuration list for PBXNativeTarget "FleetPSSO" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				71000001000000000000A003 /* Debug App */,
+				71000001000000000000A004 /* Release App */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		21000001000000000000A002 /* Build configuration list for PBXNativeTarget "FleetPSSOExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				71000001000000000000A005 /* Debug Ext */,
+				71000001000000000000A006 /* Release Ext */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 51000001000000000000A001 /* Project object */;
+}

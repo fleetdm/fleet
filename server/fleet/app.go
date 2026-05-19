@@ -704,6 +704,12 @@ type AppConfig struct {
 	// This field is a pointer to avoid returning this information to non-global-admins.
 	SSOSettings *SSOSettings `json:"sso_settings,omitempty"`
 
+	// PSSOSettings holds the global Apple Platform SSO configuration.
+	//
+	// This field is a pointer to keep it omitted from API responses when unset
+	// and to avoid returning Entra credentials to non-global-admins.
+	PSSOSettings *PSSOSettings `json:"psso_settings,omitempty"`
+
 	// FleetDesktop holds settings for Fleet Desktop that can be changed via the API.
 	FleetDesktop FleetDesktopSettings `json:"fleet_desktop"`
 
@@ -811,6 +817,10 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.AgentOptions = &ao
 	}
 
+	if c.PSSOSettings != nil {
+		pssoSettings := *c.PSSOSettings
+		clone.PSSOSettings = &pssoSettings
+	}
 	if c.SSOSettings != nil {
 		ssoSettings := *c.SSOSettings
 		clone.SSOSettings = &ssoSettings

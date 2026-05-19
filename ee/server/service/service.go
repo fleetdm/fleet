@@ -18,6 +18,19 @@ import (
 type Service struct {
 	fleet.Service
 
+	// pssoState is the lazily-initialized cache of the PSSO signing key.
+	// Constructed on first use of a PSSO method.
+	pssoState pssoServiceState
+
+	// pssoNonceStore is wired post-construction via SetPSSONonceStore so the
+	// existing eeservice.NewService signature doesn't need to change for the
+	// PSSO POC. Required for PSSO nonce/register/token flows.
+	pssoNonceStore fleet.PSSONonceStore
+
+	// pssoIdPClient validates passwords for the PSSO password_request flow.
+	// Wired via SetPSSOIdPClient.
+	pssoIdPClient fleet.PSSOIdPClient
+
 	ds                     fleet.Datastore
 	logger                 *slog.Logger
 	config                 config.FleetConfig

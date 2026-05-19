@@ -1072,6 +1072,16 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// This is for OAUTH2 token based auth
 	// ne.POST(apple_mdm.EnrollPath+"/token", mdmAppleAccountEnrollTokenEndpoint, mdmAppleAccountEnrollTokenRequest{})
 
+	// Apple Platform SSO (PSSO) endpoints. Paths follow the SCEP convention
+	// (no /api/ prefix, no version). The Mac extension talks to these directly;
+	// auth is via signed JWTs verified inside the token handler.
+	ne.GET(pssoNoncePath, pssoNonceEndpoint, pssoNonceRequest{})
+	ne.GET(pssoRegisterPath, pssoRegisterBeginEndpoint, pssoRegisterBeginRequest{})
+	ne.POST(pssoRegisterPath, pssoRegisterCompleteEndpoint, pssoRegisterCompleteRequest{})
+	ne.POST(pssoTokenPath, pssoTokenEndpoint, pssoTokenRequest{})
+	ne.GET(pssoJWKSPath, pssoJWKSEndpoint, pssoJWKSRequest{})
+	ne.GET(pssoAASAPath, pssoAASAEndpoint, pssoAASARequest{})
+
 	// These endpoint are used by Microsoft devices during MDM device enrollment phase
 	neWindowsMDM := ne.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 
