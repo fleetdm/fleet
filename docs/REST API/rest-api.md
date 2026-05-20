@@ -4444,8 +4444,6 @@ _Available in Fleet Premium_
 
 ### Update hosts' fleet by filter
 
-> If you're using Windows MDM features with 10,000+ hosts and 10+ configuration profiles, the best practice is to transfer hosts in 1,000 hosts batches instead of 10,000+ at once because Fleet saw performance issues. Performance improvements are coming soon.
-
 _Available in Fleet Premium_
 
 `POST /api/v1/fleet/hosts/transfer/filter`
