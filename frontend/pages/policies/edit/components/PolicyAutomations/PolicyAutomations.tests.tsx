@@ -351,9 +351,11 @@ describe("PolicyAutomations", () => {
       );
 
       expect(
-        screen.getByText(
-          "Software and script automations run every time Fleet receives a failing response. All other automations run on a host's first failure, or when a host's response changes from pass to fail."
-        )
+        screen.getByText(/Software and script automations run/)
+      ).toBeInTheDocument();
+      expect(screen.getByText("every time")).toBeInTheDocument();
+      expect(
+        screen.getByText(/All other automations run on a host's first failure/)
       ).toBeInTheDocument();
     });
 
