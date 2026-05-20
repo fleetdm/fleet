@@ -5024,6 +5024,66 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	checkHostMDMProfileStatuses()
 }
 
+// TestMDMAppleFileVaultSummary_NullDecryptableKey is a regression test for the
+// SQL aggregate gap surfaced while investigating
+// https://github.com/fleetdm/fleet/issues/45369. When a host has a key row in
+// host_disk_encryption_keys with decryptable=NULL (the host reported its key but
+// the decryption-verifier hasn't run yet) and the FileVault profile is verifying
+// or verified, PopulateOSSettingsAndMacOSSettings (server/fleet/hosts.go) classifies
+// the host as Verifying. The previous subqueryFileVaultVerifying only matched the
+// Verified-status case, so dashboard aggregates miscounted a Verifying-status host
+// in this state.
+func TestMDMAppleFileVaultSummary_NullDecryptableKey(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	fvProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, 0), nil)
+	require.NoError(t, err)
+
+	// Two hosts: one with profile in Verifying status, one in Verified. Both have
+	// a key row with NULL decryptable. Both should be classified as Verifying.
+	verifyingHost := test.NewHost(t, ds, "fv-verifying.local", "1.1.1.1", "fv-verifying-key", "fv-verifying-uuid", time.Now())
+	verifiedHost := test.NewHost(t, ds, "fv-verified.local", "1.1.1.2", "fv-verified-key", "fv-verified-uuid", time.Now())
+	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, verifyingHost)
+	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, verifiedHost)
+
+	upsertHostCPs([]*fleet.Host{verifyingHost}, []*fleet.MDMAppleConfigProfile{fvProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{verifiedHost}, []*fleet.MDMAppleConfigProfile{fvProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
+	// Key rows exist, decryptability has not been confirmed (nil → NULL).
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, verifyingHost, "key-a", "", nil)
+	require.NoError(t, err)
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, verifiedHost, "key-b", "", nil)
+	require.NoError(t, err)
+
+	summary, err := ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, summary)
+	assert.Equal(t, uint(2), summary.Verifying, "both hosts must count as verifying")
+	assert.Equal(t, uint(0), summary.ActionRequired)
+	assert.Equal(t, uint(0), summary.Verified)
+	assert.Equal(t, uint(0), summary.Enforcing)
+	assert.Equal(t, uint(0), summary.Failed)
+
+	gotVerifying, err := ds.ListHosts(ctx,
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+		fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying},
+	)
+	require.NoError(t, err)
+	assert.Len(t, gotVerifying, 2)
+
+	// Host-details classification agrees for both hosts.
+	for _, h := range []*fleet.Host{verifyingHost, verifiedHost} {
+		profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		mdmData := fleet.MDMHostData{}
+		mdmData.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+		require.NotNil(t, mdmData.MacOSSettings)
+		require.NotNil(t, mdmData.MacOSSettings.DiskEncryption)
+		assert.Equal(t, fleet.DiskEncryptionVerifying, *mdmData.MacOSSettings.DiskEncryption,
+			"host %s details must report verifying", h.Hostname)
+	}
+}
+
 func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
