@@ -74,6 +74,10 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - Legacy pattern: some files export both PropTypes (default export) and TypeScript interfaces (named export)
 - New code should use TypeScript interfaces only
 
+## Forms
+- Follow the validation and submission patterns in `frontend/docs/patterns.md` (validate on blur/submit, clear errors on change, `isValid` flag pattern)
+- GitOps mode: `GitOpsModeTooltipWrapper` disables its children and shows a tooltip. If the entire form is GitOps-managed, disable all fields with `disabled={gitOpsModeEnabled}` and wrap the save button with `GitOpsModeTooltipWrapper`. If only some fields are GitOps-managed, wrap those individual fields with `GitOpsModeTooltipWrapper` and leave the save button unwrapped.
+
 ## Hooks & Context
 - Custom hooks in `frontend/hooks/` — e.g., `useTeamIdParam`, `useCheckboxListStateManagement`
 - Context providers in `frontend/context/` — `AppContext` for global state, `NotificationContext` for flash messages

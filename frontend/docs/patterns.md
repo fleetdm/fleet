@@ -12,6 +12,7 @@ should be discussed within the team and documented before merged.
 - [Utilities](#utilities)
 - [Components](#components)
 - [Forms](#forms)
+- [GitOps mode](#gitops-mode)
 - [React hooks](#react-hooks)
 - [React Context](#react-context)
 - [Fleet API calls](#fleet-api-calls)
@@ -358,6 +359,60 @@ The Save button should be driven purely from the validation state:
 >
   Save
 </Button>
+```
+
+## GitOps mode
+
+When GitOps mode is enabled, parts of the UI that are managed via GitOps should be non-editable.
+Use the `useGitOpsMode` hook to check status and the `GitOpsModeTooltipWrapper` component to
+disable elements with a tooltip explaining why.
+
+### Fully GitOps-managed forms
+
+When the entire form is managed by GitOps, disable all fields directly and wrap the save button:
+
+```tsx
+const { gitOpsModeEnabled } = useGitOpsMode();
+
+<InputField disabled={gitOpsModeEnabled} ... />
+<Checkbox disabled={gitOpsModeEnabled} ... />
+
+<GitOpsModeTooltipWrapper
+  renderChildren={(disableChildren) => (
+    <Button type="submit" disabled={disableChildren}>Save</Button>
+  )}
+/>
+```
+
+### Partially GitOps-managed forms
+
+When only some fields are managed by GitOps, wrap those individual fields instead. Leave the
+save button unwrapped so the user can still save changes to the non-GitOps fields:
+
+```tsx
+<GitOpsModeTooltipWrapper
+  position="left"
+  renderChildren={(disableChildren) => (
+    <Checkbox disabled={disableChildren} name="disableLiveQuery" ... />
+  )}
+/>
+
+// Non-GitOps fields are left unwrapped
+<InputField name="hostExpiryWindow" ... />
+
+// Save button is NOT wrapped
+<Button type="submit">Save</Button>
+```
+
+### Entity exceptions
+
+Some entities can be excepted from GitOps mode. Pass `entityType` to both `useGitOpsMode` and
+`GitOpsModeTooltipWrapper` so the element stays enabled when the entity is excepted:
+
+```tsx
+const { gitOpsModeEnabled } = useGitOpsMode("software");
+
+<GitOpsModeTooltipWrapper entityType="software" renderChildren={...} />
 ```
 
 ## React hooks
