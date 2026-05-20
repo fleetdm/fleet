@@ -113,19 +113,6 @@ Upload a custom Windows XML profile targeting the [Update CSP](https://learn.mic
 
 See Microsoft's [Update CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) for all available settings.
 
-### Mutual exclusion rules
-
-Fleet enforces the following rules to prevent conflicts between Fleet-managed settings and custom profiles:
-
-| Action | Blocked when | Error |
-| ------ | ------------ | ----- |
-| Upload custom Apple OS update declaration | Fleet OS update settings are configured for that platform | "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first." |
-| Upload custom Windows Update CSP profile | Fleet OS update settings are configured for Windows | "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first." |
-| Set Fleet OS update settings (Apple) | A custom OS update declaration already exists for that platform | "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first." |
-| Set Fleet OS update settings (Windows) | A custom Windows Update CSP profile already exists | "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first." |
-
-To switch between approaches, remove the existing configuration first, then apply the new one.
-
 ## Apple (macOS, iOS, and iPadOS) end user experience
 
 On macOS hosts, when a minimum version is enforced, end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.
