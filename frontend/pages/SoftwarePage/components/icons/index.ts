@@ -28,6 +28,7 @@ import OpenvpnConnect from "./OpenvpnConnect";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
+import Secretive from "./Secretive";
 import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
@@ -463,6 +464,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
+  secretive: Secretive,
   "sequel ace": SequelAce,
   shottr: Shottr,
   signal: Signal,
