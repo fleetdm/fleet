@@ -341,7 +341,7 @@ const Info = ({
           | undefined;
         const merged = { ...oldConfig, ...logoConfig };
         queryClient.setQueryData(["config"], merged);
-        setConfig(merged as unknown as Parameters<typeof setConfig>[0]);
+        setConfig((merged as unknown) as Parameters<typeof setConfig>[0]);
       }
 
       const reset = (prev: ILogoModeState) => {

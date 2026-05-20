@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 
 import { createCustomRenderer } from "test/test-utils";
 
@@ -35,7 +35,7 @@ describe("AppleOSTargetForm", () => {
   });
 
   it("renders the correct form for MacOS", () => {
-    render(
+    renderWithBackend(
       <AppleOSTargetForm
         currentTeamId={1}
         applePlatform="darwin"
@@ -101,7 +101,7 @@ describe("AppleOSTargetForm", () => {
   });
 
   it("renders the correct form for iOS", () => {
-    render(
+    renderWithBackend(
       <AppleOSTargetForm
         currentTeamId={1}
         applePlatform="ios"
@@ -151,7 +151,7 @@ describe("AppleOSTargetForm", () => {
   });
 
   it("renders the correct form for iPadOS", () => {
-    render(
+    renderWithBackend(
       <AppleOSTargetForm
         currentTeamId={1}
         applePlatform="ipados"
