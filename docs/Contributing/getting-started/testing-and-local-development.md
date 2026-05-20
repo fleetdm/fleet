@@ -433,7 +433,7 @@ After login, SimpleSAML should redirect the user to Fleet.
 
 <meta name="pageOrderInSection" value="200">
 
-## Testing IdP Authentication (Setup Experience)
+## Testing IdP authentication (setup experience)
 
 The SimpleSAML identity provider can also be used to test IdP authentication during the device setup experience.
 
