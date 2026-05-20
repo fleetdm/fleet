@@ -19,6 +19,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/test/automationtest"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -93,6 +95,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	automationtest.StubNoopRecording(ds)
+
 	mockClock := time.Now()
 	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
@@ -100,7 +104,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, slog.New(slog.DiscardHandler))
+			context.Background(), ds, pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 	timestamp, err := mockClock.MarshalJSON()
@@ -159,7 +163,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, slog.New(slog.DiscardHandler))
+			context.Background(), ds, pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, mockClock, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 	assert.Empty(t, requestBody)
@@ -283,6 +287,8 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	automationtest.StubNoopRecording(ds)
+
 	now := time.Now()
 	err = policies.TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		serverURL, err := url.Parse(ac.ServerSettings.ServerURL)
@@ -290,7 +296,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, slog.New(slog.DiscardHandler))
+			context.Background(), ds, pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 
@@ -346,10 +352,167 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 			return err
 		}
 		return SendFailingPoliciesBatchedPOSTs(
-			context.Background(), pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, slog.New(slog.DiscardHandler))
+			context.Background(), ds, pol, failingPolicySet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, now, slog.New(slog.DiscardHandler))
 	})
 	require.NoError(t, err)
 	assert.Empty(t, webhookBody)
+}
+
+func TestSendFailingPoliciesRecordsAutomationStatus(t *testing.T) {
+	t.Run("successful POST records success per host", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		// The webhook now looks up run IDs via GetFailingPolicyRunIDs and calls
+		// CreatePolicyAutomationExecutionsFunc with execution rows pointing at them. We
+		// stub both at that boundary; the per-method behavior (transition
+		// upsert, execution-row build) is covered by the MySQL integration
+		// tests.
+		ds.GetFailingPolicyRunsFunc = func(ctx context.Context, policyIDs, hostIDs []uint) ([]fleet.PolicyRunRef, error) {
+			out := make([]fleet.PolicyRunRef, 0, len(policyIDs)*len(hostIDs))
+			idx := uint(100)
+			for _, pid := range policyIDs {
+				for _, hid := range hostIDs {
+					out = append(out, fleet.PolicyRunRef{PolicyID: pid, HostID: hid, RunID: idx})
+					idx++
+				}
+			}
+			return out, nil
+		}
+		var recordedExecutions []fleet.PolicyRunRef
+		var createdBatch uuid.UUID
+		ds.CreatePolicyAutomationExecutionsFunc = func(ctx context.Context, typ fleet.PolicyAutomationType, executions []fleet.PolicyRunRef) (uuid.UUID, error) {
+			require.Equal(t, fleet.PolicyAutomationWebhook, typ)
+			recordedExecutions = append(recordedExecutions, executions...)
+			createdBatch = uuid.New()
+			return createdBatch, nil
+		}
+		var finalErr error
+		var finalBatch uuid.UUID
+		ds.UpdatePolicyAutomationExecutionsFunc = func(ctx context.Context, batchID uuid.UUID, outcomeErr error) error {
+			finalBatch = batchID
+			finalErr = outcomeErr
+			return nil
+		}
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		t.Cleanup(ts.Close)
+		webhookURL, err := url.Parse(ts.URL)
+		require.NoError(t, err)
+		serverURL, err := url.Parse("https://fleet.example.com")
+		require.NoError(t, err)
+
+		set := service.NewMemFailingPolicySet()
+		policyID := uint(42)
+		require.NoError(t, set.AddHost(policyID, fleet.PolicySetHost{ID: 1, Hostname: "h1"}))
+		require.NoError(t, set.AddHost(policyID, fleet.PolicySetHost{ID: 2, Hostname: "h2"}))
+
+		policy := &fleet.Policy{PolicyData: fleet.PolicyData{ID: policyID, Name: "p"}}
+		err = SendFailingPoliciesBatchedPOSTs(
+			context.Background(), ds, policy, set, 0, serverURL, webhookURL, time.Now(), slog.New(slog.DiscardHandler),
+		)
+		require.NoError(t, err)
+
+		require.Len(t, recordedExecutions, 2)
+		require.Equal(t, policyID, recordedExecutions[0].PolicyID)
+		require.Equal(t, policyID, recordedExecutions[1].PolicyID)
+		require.NotEqual(t, uuid.Nil, createdBatch, "a non-nil batch UUID must be assigned for newly-inserted runs")
+		require.NoError(t, finalErr)
+		require.Equal(t, createdBatch, finalBatch, "the finalize call must target the same batch UUID created at INSERT time")
+	})
+
+	t.Run("POST failure records failure with error message", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetFailingPolicyRunsFunc = func(ctx context.Context, policyIDs, hostIDs []uint) ([]fleet.PolicyRunRef, error) {
+			out := make([]fleet.PolicyRunRef, 0, len(hostIDs))
+			for i, hid := range hostIDs {
+				out = append(out, fleet.PolicyRunRef{PolicyID: policyIDs[0], HostID: hid, RunID: uint(i + 200)})
+			}
+			return out, nil
+		}
+		ds.CreatePolicyAutomationExecutionsFunc = func(ctx context.Context, typ fleet.PolicyAutomationType, executions []fleet.PolicyRunRef) (uuid.UUID, error) {
+			return uuid.New(), nil
+		}
+		var finalErr error
+		ds.UpdatePolicyAutomationExecutionsFunc = func(ctx context.Context, batchID uuid.UUID, outcomeErr error) error {
+			finalErr = outcomeErr
+			return nil
+		}
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		t.Cleanup(ts.Close)
+		webhookURL, err := url.Parse(ts.URL)
+		require.NoError(t, err)
+		serverURL, err := url.Parse("https://fleet.example.com")
+		require.NoError(t, err)
+
+		set := service.NewMemFailingPolicySet()
+		policyID := uint(7)
+		require.NoError(t, set.AddHost(policyID, fleet.PolicySetHost{ID: 9, Hostname: "h9"}))
+		policy := &fleet.Policy{PolicyData: fleet.PolicyData{ID: policyID, Name: "p"}}
+
+		err = SendFailingPoliciesBatchedPOSTs(
+			context.Background(), ds, policy, set, 0, serverURL, webhookURL, time.Now(), slog.New(slog.DiscardHandler),
+		)
+		require.Error(t, err, "POST 500 should propagate as an error")
+		require.Error(t, finalErr, "non-nil outcomeErr (Failure) must be passed to Finalize on POST failure")
+	})
+
+	t.Run("hot path didn't record any runs → orchestrator gets empty input, no execution rows but POST still fires", func(t *testing.T) {
+		ds := new(mock.Store)
+		// Simulate the case where the centralized osquery hot-path write
+		// failed (e.g. transient DB error). GetFailingPolicyRunIDs returns
+		// empty, the dispatcher builds zero executions, RecordPolicyAutomationBatch
+		// returns uuid.Nil. Webhook still POSTs.
+		ds.GetFailingPolicyRunsFunc = func(ctx context.Context, policyIDs, hostIDs []uint) ([]fleet.PolicyRunRef, error) {
+			return nil, nil
+		}
+		batchCalled := false
+		ds.CreatePolicyAutomationExecutionsFunc = func(ctx context.Context, typ fleet.PolicyAutomationType, executions []fleet.PolicyRunRef) (uuid.UUID, error) {
+			batchCalled = true
+			require.Empty(t, executions, "no run_ids found → no executions to record")
+			return uuid.Nil, nil
+		}
+		updateCalled := false
+		ds.UpdatePolicyAutomationExecutionsFunc = func(ctx context.Context, batchID uuid.UUID, outcomeErr error) error {
+			updateCalled = true
+			return nil
+		}
+
+		var requestCount int
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			requestCount++
+			w.WriteHeader(http.StatusOK)
+		}))
+		t.Cleanup(ts.Close)
+		webhookURL, err := url.Parse(ts.URL)
+		require.NoError(t, err)
+		serverURL, err := url.Parse("https://fleet.example.com")
+		require.NoError(t, err)
+
+		set := service.NewMemFailingPolicySet()
+		policyID := uint(123)
+		require.NoError(t, set.AddHost(policyID, fleet.PolicySetHost{ID: 11, Hostname: "h11"}))
+		policy := &fleet.Policy{PolicyData: fleet.PolicyData{ID: policyID, Name: "p"}}
+
+		err = SendFailingPoliciesBatchedPOSTs(
+			context.Background(), ds, policy, set, 0, serverURL, webhookURL, time.Now(), slog.New(slog.DiscardHandler),
+		)
+		require.NoError(t, err)
+		require.True(t, batchCalled, "the orchestrator must still be called even on a re-flip — it's the orchestrator's job to detect the no-op")
+		// updateCalled may be true with batchID=uuid.Nil — the inlined
+		// finalize at each webhook site calls the datastore unconditionally
+		// and the datastore method short-circuits internally on uuid.Nil.
+		// The contract that matters is "no UI signal for re-flips," which is
+		// enforced by the orchestrator returning uuid.Nil and the datastore's
+		// Update being a no-op against that batchID (verified at the MySQL
+		// integration test layer).
+		_ = updateCalled
+		require.Equal(t, 1, requestCount, "webhook POST must still fire on re-flip even though no execution row is recorded")
+	})
 }
 
 func TestSendBatchedPOSTs(t *testing.T) {
@@ -465,8 +628,12 @@ func TestSendBatchedPOSTs(t *testing.T) {
 			webhookURL, err := url.Parse(ts.URL)
 			require.NoError(t, err)
 
+			ds := new(mock.Store)
+			automationtest.StubNoopRecording(ds)
+
 			err = SendFailingPoliciesBatchedPOSTs(
 				context.Background(),
+				ds,
 				p,
 				failingPolicySet,
 				tc.batchSize,

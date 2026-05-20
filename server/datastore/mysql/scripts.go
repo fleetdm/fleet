@@ -101,9 +101,9 @@ VALUES
 
 		insSUAStmt = `
 INSERT INTO script_upcoming_activities
-	(upcoming_activity_id, script_id, script_content_id, policy_id, setup_experience_script_id)
+	(upcoming_activity_id, script_id, script_content_id, policy_id, setup_experience_script_id, policy_run_id)
 VALUES
-	(?, ?, ?, ?, ?)
+	(?, ?, ?, ?, ?, ?)
 `
 	)
 
@@ -129,6 +129,7 @@ VALUES
 		request.ScriptContentID,
 		request.PolicyID,
 		request.SetupExperienceScriptID,
+		request.PolicyRunID,
 	)
 	if err != nil {
 		return "", 0, ctxerr.Wrap(ctx, err, "new join script upcoming activity")

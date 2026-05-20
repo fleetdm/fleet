@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -45,6 +46,9 @@ type failingPolicyArgs struct {
 	PolicyCritical bool                  `json:"policy_critical"`
 	Hosts          []fleet.PolicySetHost `json:"hosts"`
 	TeamID         *uint                 `json:"team_id,omitempty"` //nolint:apiparamcheck // these are written to the db, changing likely requires migration
+	// PolicyAutomationBatchID is the UUID stamped at queue time on every
+	// policy_automation_executions row created for this job.
+	PolicyAutomationBatchID uuid.UUID `json:"policy_automation_batch_id"`
 }
 
 // vulnArgs are the args common to all integrations that can process

@@ -1315,9 +1315,9 @@ VALUES
 
 		insertSIUAStmt = `
 INSERT INTO software_install_upcoming_activities
-	(upcoming_activity_id, software_installer_id, policy_id, software_title_id)
+	(upcoming_activity_id, software_installer_id, policy_id, software_title_id, policy_run_id)
 VALUES
-	(?, ?, ?, ?)`
+	(?, ?, ?, ?, ?)`
 
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
 	)
@@ -1381,6 +1381,7 @@ VALUES
 			softwareInstallerID,
 			opts.PolicyID,
 			installerDetails.TitleID,
+			opts.PolicyRunID,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert software install request join table")

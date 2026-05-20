@@ -3706,6 +3706,13 @@ func TestPolicyWebhooks(t *testing.T) {
 		flippingIncomingResults = incomingResults
 		return []uint{3}, nil, nil
 	}
+	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (map[uint]uint, error) {
+		out := make(map[uint]uint, len(newFailing))
+		for i, pid := range newFailing {
+			out[pid] = uint(i + 1)
+		}
+		return out, nil
+	}
 
 	// Track that pre-computed newlyPassingPolicyIDs is forwarded to RecordPolicyQueryExecutions.
 	var recordedNewlyPassing []uint
@@ -3827,6 +3834,13 @@ func TestPolicyWebhooks(t *testing.T) {
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
+	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (map[uint]uint, error) {
+		out := make(map[uint]uint, len(newFailing))
+		for i, pid := range newFailing {
+			out[pid] = uint(i + 1)
+		}
+		return out, nil
+	}
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
 		err error,
 	) {
@@ -3889,6 +3903,9 @@ func TestPolicyWebhooks(t *testing.T) {
 		err error,
 	) {
 		return []uint{}, []uint{2}, nil
+	}
+	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (map[uint]uint, error) {
+		return map[uint]uint{}, nil
 	}
 
 	// Record another query execution.

@@ -242,26 +242,57 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	if err := json.Unmarshal(argsJSON, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
 	}
+	switch intgType := args.integrationType(); intgType {
+	case intgTypeVuln:
+		return z.runVulnJob(ctx, args)
+	case intgTypeFailingPolicy:
+		return z.runFailingPolicyJob(ctx, args)
+	default:
+		return ctxerr.Errorf(ctx, "unknown integration type: %v", intgType)
+	}
+}
+
+func (z *Zendesk) runVulnJob(ctx context.Context, args zendeskArgs) error {
+	cli, err := z.getClient(ctx, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get Zendesk client")
+	}
+	if cli == nil {
+		// Integration was disabled between queue and run — mark the job as
+		// processed without retrying.
+		return nil
+	}
+	return z.runVuln(ctx, cli, args)
+}
+
+func (z *Zendesk) runFailingPolicyJob(ctx context.Context, args zendeskArgs) (retErr error) {
+	batchID := args.FailingPolicy.PolicyAutomationBatchID
+
+	// integrationDisabled is a sentinel for the one case where we return nil
+	// to the worker (don't retry) but the automation didn't actually succeed:
+	// the Zendesk integration was disabled between queue time and run time.
+	// The deferred finalize below treats it as a failure.
+	integrationDisabled := false
+	defer func() {
+		outcomeErr := retErr
+		if integrationDisabled {
+			outcomeErr = errors.New("zendesk integration disabled before job ran")
+		}
+		if updErr := z.Datastore.UpdatePolicyAutomationExecutions(ctx, batchID, outcomeErr); updErr != nil {
+			z.Log.ErrorContext(ctx, "failed to update policy automation executions status", "batch_id", batchID.String(), "err", updErr)
+		}
+	}()
 
 	cli, err := z.getClient(ctx, args)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get Zendesk client")
 	}
 	if cli == nil {
-		// this message was queued when an integration was enabled, but since
-		// then it has been disabled, so return success to mark the message
-		// as processed.
+		integrationDisabled = true
 		return nil
 	}
 
-	switch intgType := args.integrationType(); intgType {
-	case intgTypeVuln:
-		return z.runVuln(ctx, cli, args)
-	case intgTypeFailingPolicy:
-		return z.runFailingPolicy(ctx, cli, args)
-	default:
-		return ctxerr.Errorf(ctx, "unknown integration type: %v", intgType)
-	}
+	return z.runFailingPolicy(ctx, cli, args)
 }
 
 func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
@@ -417,15 +448,33 @@ func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logge
 
 	logger.InfoContext(ctx, "queueing Zendesk failing policy job", attrs...)
 
+	hostIDs := make([]uint, len(hosts))
+	for i, h := range hosts {
+		hostIDs[i] = h.ID
+	}
+	pRuns, lookupErr := ds.GetFailingPolicyRuns(ctx, []uint{policy.ID}, hostIDs)
+	if lookupErr != nil {
+		logger.ErrorContext(ctx, "failed to look up zendesk policy_run IDs", "policy_id", policy.ID, "err", lookupErr)
+	}
+
+	batchID, err := ds.CreatePolicyAutomationExecutions(ctx, fleet.PolicyAutomationZendesk, pRuns)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to record zendesk policy automation execution rows", "policy_id", policy.ID, "err", err)
+	}
+
 	args := &failingPolicyArgs{
-		PolicyID:       policy.ID,
-		PolicyName:     policy.Name,
-		PolicyCritical: policy.Critical,
-		TeamID:         policy.TeamID,
-		Hosts:          hosts,
+		PolicyID:                policy.ID,
+		PolicyName:              policy.Name,
+		PolicyCritical:          policy.Critical,
+		TeamID:                  policy.TeamID,
+		Hosts:                   hosts,
+		PolicyAutomationBatchID: batchID,
 	}
 	job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{FailingPolicy: args})
 	if err != nil {
+		if updErr := ds.UpdatePolicyAutomationExecutions(ctx, batchID, err); updErr != nil {
+			logger.ErrorContext(ctx, "failed to update policy automation executions status", "batch_id", batchID.String(), "err", updErr)
+		}
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 	logger.DebugContext(ctx, "queued zendesk failing policy job", "job_id", job.ID)

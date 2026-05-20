@@ -38,3 +38,24 @@ func TestSaveDataItems(t *testing.T) {
 	require.NoError(t, json.Unmarshal(event.Data, &result))
 	assert.Equal(t, testMap, result)
 }
+
+func TestHostPolicyMembershipData_FailingPolicyIDList(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		in   string
+		want []uint
+	}{
+		{"", nil},
+		{"1", []uint{1}},
+		{"1,2,3", []uint{1, 2, 3}},
+		{"1, 2, 3", []uint{1, 2, 3}}, // tolerate whitespace
+		{"1,,3", []uint{1, 3}},       // skip empty entries
+		{"1,abc,3", []uint{1, 3}},    // skip malformed
+		{",", nil},
+	}
+	for _, tc := range cases {
+		got := HostPolicyMembershipData{FailingPolicyIDs: tc.in}.FailingPolicyIDList()
+		require.Equal(t, tc.want, got, "input: %q", tc.in)
+	}
+}

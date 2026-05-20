@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -94,17 +93,12 @@ func getCalendarEventDescriptionAndResolution(ctx context.Context, ds fleet.Data
 		return fmt.Sprintf(`%s %s`, orgName, fleet.CalendarDefaultDescription)
 	}
 
-	policyIDs := strings.Split(host.FailingPolicyIDs, ",")
-	if len(policyIDs) == 1 && policyIDs[0] != "" {
+	policyIDs := host.FailingPolicyIDList()
+	if len(policyIDs) == 1 {
 		var policy *PolicyLiteWithMeta
 		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
 		if !ok {
-			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
-			if err != nil {
-				logger.ErrorContext(ctx, "parse policy id", "err", err)
-				return getDefaultDescription(), fleet.CalendarDefaultResolution, DefaultEventBodyTag
-			}
-			policyLite, err := ds.PolicyLite(ctx, uint(id))
+			policyLite, err := ds.PolicyLite(ctx, policyIDs[0])
 			if err != nil {
 				logger.ErrorContext(ctx, "get policy", "err", err)
 				return getDefaultDescription(), fleet.CalendarDefaultResolution, DefaultEventBodyTag

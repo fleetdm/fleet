@@ -15,12 +15,18 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
+	"github.com/fleetdm/fleet/v4/server/test/automationtest"
 	zendesk "github.com/nukosuke/go-zendesk/zendesk"
 	"github.com/stretchr/testify/require"
 )
 
 func TestZendeskRun(t *testing.T) {
 	ds := new(mock.Store)
+	// The failing-policy cases run through runFailingPolicyJob, which calls
+	// UpdatePolicyAutomationExecutionsStatusByBatch directly (no wrapper to
+	// short-circuit on uuid.Nil). Stub it so the mock returns nil instead of
+	// nil-derefing.
+	automationtest.StubNoopRecording(ds)
 	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
 		return []fleet.HostVulnerabilitySummary{
 			{
@@ -262,6 +268,7 @@ func TestZendeskQueueVulnJobs(t *testing.T) {
 
 func TestZendeskQueueFailingPolicyJob(t *testing.T) {
 	ds := new(mock.Store)
+	automationtest.StubNoopRecording(ds)
 	ctx := context.Background()
 	logger := slog.New(slog.DiscardHandler)
 
@@ -330,6 +337,9 @@ func (c *mockZendeskClient) ZendeskConfigMatches(opts *externalsvc.ZendeskOption
 func TestZendeskRunClientUpdate(t *testing.T) {
 	// test creation of client when config changes between 2 uses, and when integration is disabled.
 	ds := new(mock.Store)
+	// runFailingPolicyJob now calls UpdatePolicyAutomationExecutionsStatusByBatch
+	// directly; stub the recording surface so it returns nil instead of nil-derefing.
+	automationtest.StubNoopRecording(ds)
 
 	var globalCount int
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

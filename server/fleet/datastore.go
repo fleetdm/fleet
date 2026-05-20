@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1537,6 +1538,58 @@ type Datastore interface {
 
 	// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
 	OutdatedAutomationBatch(ctx context.Context) ([]PolicyFailure, error)
+
+	// RecordPolicyTransitions is the single writer of policy_runs rows. Called
+	// by the osquery hot path once per check-in, immediately after
+	// FlippingPoliciesForHost reports the transitions.
+	//
+	// Current behavior:
+	//   - New policy, fails first time: insert (old_status=NULL, new_status=false, consecutive_failures=1).
+	//   - New policy, passes first time: insert (old_status=NULL, new_status=true, consecutive_failures=0).
+	//   - Was passing, now failing: update (old_status=true, new_status=false, consecutive_failures=1)
+	//   - Was failing, now passing: update (old_status=false, new_status=true, consecutive_failures=0)
+	//   - Was passing, still passing: no-op.
+	//   - Was failing, still failing: bump consecutive_failures by 1.
+	//
+	// Returns a map keyed by policy_id for newFailing entries with the
+	// assigned policy_runs.id, so the synchronous downstream consumers
+	// (script/software/CA hot paths) can stamp their result rows. The
+	// passed=true row IDs are not returned — no caller needs them.
+	RecordPolicyTransitions(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (failingRunIDs map[uint]uint, err error)
+
+	// GetFailingPolicyRuns returns the latest failed policy_runs of the pair
+	// found in the cross-product of policyIDs × hostIDs.
+	// Pairs without a matching row are simply absent from the returned slice.
+	GetFailingPolicyRuns(ctx context.Context, policyIDs, hostIDs []uint) ([]PolicyRunRef, error)
+
+	// CreatePolicyAutomationExecutions checks whether the policy_runs associated with the
+	// provided policy_ids were already processed
+	CreatePolicyAutomationExecutions(ctx context.Context, typ PolicyAutomationType, runs []PolicyRunRef) (uuid.UUID, error)
+
+	// UpdatePolicyAutomationExecutions transitions the policy_automation_executions
+	// row identified by batchID to a terminal status derived from outcomeErr:
+	// nil → Success with NULL error_message, non-nil → Failure with
+	// outcomeErr.Error() as the message.
+	//
+	// A uuid.Nil batchID is a no-op (callers that skipped recording may pass
+	// it unconditionally). Calling with a batchID that does not exist is also
+	// a silent no-op (UPDATE matches zero rows).
+	//
+	// Worker retry loops can call this method multiple times per batch. The
+	// implementation encodes a monotonic state machine in the WHERE clause:
+	//
+	//   pending  → success | failure   (first attempt's outcome wins)
+	//   failure  → success             (a later retry succeeded — upgrade)
+	//   failure  → failure             SKIPPED — the first error message is
+	//                                  preserved; subsequent failure causes
+	//                                  do NOT overwrite error_message
+	//   success  → anything            SKIPPED — success is terminal
+	//
+	// The "first failure message wins" rule is intentional: it gives operators
+	// a stable root cause for the first thing that went wrong even when the
+	// retry loop produces a cascade of follow-on errors. A success after a
+	// failure correctly upgrades the row and clears error_message.
+	UpdatePolicyAutomationExecutions(ctx context.Context, batchID uuid.UUID, outcomeErr error) error
 
 	// ListMDMAppleProfilesToInstall returns all the profiles that should
 	// be installed based on diffing the ideal state vs the state we have

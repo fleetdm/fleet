@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -90,4 +92,23 @@ type HostPolicyMembershipData struct {
 	HostDisplayName    string `db:"host_display_name"`
 	HostHardwareSerial string `db:"host_hardware_serial"`
 	FailingPolicyIDs   string `db:"failing_policy_ids"`
+}
+
+func (d HostPolicyMembershipData) FailingPolicyIDList() []uint {
+	if d.FailingPolicyIDs == "" {
+		return nil
+	}
+	var ids []uint
+	for p := range strings.SplitSeq(d.FailingPolicyIDs, ",") {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		n, err := strconv.ParseUint(p, 10, 0)
+		if err != nil {
+			continue
+		}
+		ids = append(ids, uint(n))
+	}
+	return ids
 }

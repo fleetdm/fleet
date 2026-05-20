@@ -980,7 +980,7 @@ func triggerFailingPoliciesAutomation(
 		switch cfg.AutomationType {
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
-				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger)
+				ctx, ds, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger)
 
 		case policies.FailingPolicyJira:
 			hosts, err := failingPoliciesSet.ListHosts(policy.ID)

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -59,7 +58,8 @@ func NewCalendarSchedule(
 }
 
 func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, distributedLock fleet.Lock, serverConfig config.CalendarConfig,
-	logger *slog.Logger) error {
+	logger *slog.Logger,
+) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("load app config: %w", err)
@@ -316,8 +316,7 @@ func processFailingHostExistingCalendarEvent(
 	policyIDtoPolicy *sync.Map,
 	calendarConfig *calendar.Config,
 	logger *slog.Logger,
-) error {
-
+) (retErr error) {
 	// Try to acquire the lock. Lock is needed to ensure calendar callback is not processed for this event at the same time.
 	eventUUID := calendarEvent.UUID
 	lockValue := uuid.New().String()
@@ -398,6 +397,57 @@ func processFailingHostExistingCalendarEvent(
 		return body, true, nil
 	}
 
+	// Lazy-record + deferred-finalize pattern for calendar dispatch:
+	//
+	//   * The vast majority of cron ticks find that nothing needs updating
+	//     for a given host (event body unchanged, no reload triggered) — in
+	//     that case we never call ensureRecorded() and never write a
+	//     policy_automation_executions row. This avoids polluting the audit
+	//     log with no-op ticks.
+	//
+	//   * The first calendar-affecting write (body update OR event reload)
+	//     calls ensureRecorded() right before issuing the calendar API call,
+	//     which inserts the join rows and the pending status row.
+	//
+	//   * The deferred closure below finalizes the batch with retErr — so
+	//     every code path that returns from this function (success or any
+	//     error) flips the row to success/failure exactly once.
+	//
+	// INVARIANT: any new code path that performs a calendar-affecting write
+	// MUST call ensureRecorded() before the write, otherwise the outcome
+	// will not be persisted to policy_automation_executions and the deferred
+	// finalize will be a no-op (batchID == uuid.Nil).
+	var batchID uuid.UUID
+	var batchRecorded bool
+	ensureRecorded := func() {
+		if batchRecorded {
+			return
+		}
+		batchRecorded = true
+
+		pRuns, err := ds.GetFailingPolicyRuns(ctx, host.FailingPolicyIDList(), []uint{host.HostID})
+		if err != nil {
+			logger.ErrorContext(ctx, "failed to look up failed policy runs for calendar", "host_id", host.HostID, "err", err)
+			return
+		}
+
+		recordedBatch, recErr := ds.CreatePolicyAutomationExecutions(ctx, fleet.PolicyAutomationCalendar, pRuns)
+		if recErr != nil {
+			logger.ErrorContext(ctx, "failed to record calendar policy automation", "host_id", host.HostID, "err", recErr)
+			return
+		}
+		batchID = recordedBatch
+	}
+	// Make sure we 'finalize' each batch.
+	defer func() {
+		if batchID == uuid.Nil {
+			return
+		}
+		if updErr := ds.UpdatePolicyAutomationExecutions(ctx, batchID, retErr); updErr != nil {
+			logger.ErrorContext(ctx, "failed to update policy automation executions status", "batch_id", batchID.String(), "err", updErr)
+		}
+	}()
+
 	// Check if event body needs to be updated.
 	currentBodyTag := calendarEvent.GetBodyTag()
 	// But don't update events created before we introduced body tags.
@@ -405,6 +455,7 @@ func processFailingHostExistingCalendarEvent(
 		updatedBodyTag := getBodyTag(ctx, ds, host, policyIDtoPolicy, logger)
 
 		if currentBodyTag != updatedBodyTag && updatedBodyTag != "" {
+			ensureRecorded()
 			newETag, err = userCalendar.UpdateEventBody(calendarEvent, genBodyFn)
 			if err != nil {
 				return fmt.Errorf("update event body: %w", err)
@@ -419,13 +470,17 @@ func processFailingHostExistingCalendarEvent(
 		calendarEvent, err = ds.GetCalendarEvent(ctx, calendarEvent.Email)
 		if err != nil {
 			if fleet.IsNotFound(err) {
-				// Event was deleted while we were processing it. It will be recreated if needed on the next cron run
+				// Event was deleted while we were processing it. It will be recreated if needed on the next cron run.
+				// The deferred finalize above treats this as success because retErr is nil — the calendar event
+				// row from the prior UpdateEventBody (if any) was already written successfully; the not-found here
+				// means the row is gone now via an independent path, not that our write failed.
 				return nil
 			}
 			return fmt.Errorf("get calendar event from db: %w", err)
 		}
 		// We could check the updated_at timestamp and avoid updating the event if it was updated recently.
 
+		ensureRecorded()
 		updatedEvent, _, err = userCalendar.GetAndUpdateEvent(calendarEvent, genBodyFn,
 			fleet.CalendarGetAndUpdateEventOpts{UpdateTimezone: true})
 		if err != nil {
@@ -442,6 +497,7 @@ func processFailingHostExistingCalendarEvent(
 				return fmt.Errorf("save calendar event body tag: %w", err)
 			}
 		}
+
 		if err := ds.UpdateCalendarEvent(
 			ctx,
 			calendarEvent.ID,
@@ -507,20 +563,15 @@ func processFailingHostExistingCalendarEvent(
 }
 
 func getBodyTag(ctx context.Context, ds fleet.Datastore, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map,
-	logger *slog.Logger) string {
+	logger *slog.Logger,
+) string {
 	var updatedBodyTag string
-	policyIDs := strings.Split(host.FailingPolicyIDs, ",")
-	if len(policyIDs) == 1 && policyIDs[0] != "" {
+	policyIDs := host.FailingPolicyIDList()
+	if len(policyIDs) == 1 {
 		var policy *calendar.PolicyLiteWithMeta
 		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
 		if !ok {
-			id, err := strconv.ParseUint(policyIDs[0], 10, strconv.IntSize)
-			if err != nil {
-				logger.ErrorContext(ctx, "parse policy id", "err", err)
-				// Do nothing
-				return ""
-			}
-			policyLite, err := ds.PolicyLite(ctx, uint(id))
+			policyLite, err := ds.PolicyLite(ctx, policyIDs[0])
 			if err != nil {
 				logger.ErrorContext(ctx, "get policy", "err", err)
 				// Do nothing
@@ -583,15 +634,40 @@ func processFailingHostCreateCalendarEvent(
 	policyIDtoPolicy *sync.Map,
 	logger *slog.Logger,
 ) error {
+	// Look up the policy_runs rows for each failing policy this calendar event
+	// is reacting to and create pending policy_automation_executions rows.
+	var batchID uuid.UUID
+
+	refs, err := ds.GetFailingPolicyRuns(ctx, host.FailingPolicyIDList(), []uint{host.HostID})
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to look up calendar policy_run IDs", "host_id", host.HostID, "err", err)
+		return nil
+	}
+
+	var recErr error
+	batchID, recErr = ds.CreatePolicyAutomationExecutions(ctx, fleet.PolicyAutomationCalendar, refs)
+	if recErr != nil {
+		logger.ErrorContext(ctx, "failed to record calendar policy automation", "host_id", host.HostID, "err", recErr)
+	}
+
 	calendarEvent, err := attemptCreatingEventOnUserCalendar(ctx, ds, orgName, host, userCalendar, policyIDtoPolicy, logger)
 	if err != nil {
+		if updErr := ds.UpdatePolicyAutomationExecutions(ctx, batchID, err); updErr != nil {
+			logger.ErrorContext(ctx, "failed to update policy automation executions status", "batch_id", batchID.String(), "err", updErr)
+		}
 		return fmt.Errorf("create event on user calendar: %w", err)
 	}
 	if _, err := ds.CreateOrUpdateCalendarEvent(
 		ctx, calendarEvent.UUID, host.Email, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Data, calendarEvent.TimeZone,
 		host.HostID, fleet.CalendarWebhookStatusNone,
 	); err != nil {
+		if updErr := ds.UpdatePolicyAutomationExecutions(ctx, batchID, err); updErr != nil {
+			logger.ErrorContext(ctx, "failed to update policy automation executions status", "batch_id", batchID.String(), "err", updErr)
+		}
 		return fmt.Errorf("create calendar event on db: %w", err)
+	}
+	if updErr := ds.UpdatePolicyAutomationExecutions(ctx, batchID, nil); updErr != nil {
+		logger.ErrorContext(ctx, "failed to update policy automation executions status", "batch_id", batchID.String(), "err", updErr)
 	}
 	return nil
 }

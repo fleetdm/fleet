@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
+	"github.com/fleetdm/fleet/v4/server/test/automationtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -128,6 +129,7 @@ func TestGetPreferredCalendarEventDate(t *testing.T) {
 func TestEventForDifferentHost(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
+	automationtest.StubNoopRecording(ds)
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -207,6 +209,7 @@ func TestEventForDifferentHost(t *testing.T) {
 
 func TestCalendarEventsMultipleHosts(t *testing.T) {
 	ds := new(mock.Store)
+	automationtest.StubNoopRecording(ds)
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	t.Cleanup(func() {
@@ -402,6 +405,7 @@ func (n notFoundErr) Error() string {
 
 func TestCalendarEvents1KHosts(t *testing.T) {
 	ds := new(mock.Store)
+	automationtest.StubNoopRecording(ds)
 	ctx := context.Background()
 	var logger *slog.Logger
 	if os.Getenv("CALENDAR_TEST_LOGGING") != "" {
@@ -725,6 +729,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 // TestEventBody tests generation of the event body.
 func TestEventBody(t *testing.T) {
 	ds := new(mock.Store)
+	automationtest.StubNoopRecording(ds)
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	t.Cleanup(

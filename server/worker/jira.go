@@ -240,26 +240,58 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	if err := json.Unmarshal(argsJSON, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
 	}
+	switch intgType := args.integrationType(); intgType {
+	case intgTypeVuln:
+		return j.runVulnJob(ctx, args)
+	case intgTypeFailingPolicy:
+		return j.runFailingPolicyJob(ctx, args)
+	default:
+		return ctxerr.Errorf(ctx, "unknown integration type: %v", intgType)
+	}
+}
+
+func (j *Jira) runVulnJob(ctx context.Context, args jiraArgs) error {
+	cli, err := j.getClient(ctx, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get Jira client")
+	}
+	if cli == nil {
+		// Integration was disabled between queue and run — mark the job as
+		// processed without retrying.
+		return nil
+	}
+	return j.runVuln(ctx, cli, args)
+}
+
+func (j *Jira) runFailingPolicyJob(ctx context.Context, args jiraArgs) (retErr error) {
+	batchID := args.FailingPolicy.PolicyAutomationBatchID
+
+	// integrationDisabled is a sentinel for the one case where we return nil
+	// to the worker (don't retry) but the automation didn't actually succeed:
+	// the Jira integration was disabled between queue time and run time. The
+	// deferred finalize below treats it as a failure for the UI by passing a
+	// non-nil error to UpdatePolicyAutomationExecutionsStatusByBatch.
+	integrationDisabled := false
+	defer func() {
+		outcomeErr := retErr
+		if integrationDisabled {
+			outcomeErr = errors.New("jira integration disabled before job ran")
+		}
+		if updErr := j.Datastore.UpdatePolicyAutomationExecutions(ctx, batchID, outcomeErr); updErr != nil {
+			j.Log.ErrorContext(ctx, "failed to update policy automation executions status", "batch_id", batchID.String(), "err", updErr)
+		}
+	}()
 
 	cli, err := j.getClient(ctx, args)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get Jira client")
 	}
 	if cli == nil {
-		// this message was queued when an integration was enabled, but since
-		// then it has been disabled, so return success to mark the message
-		// as processed.
+		integrationDisabled = true
 		return nil
 	}
 
-	switch intgType := args.integrationType(); intgType {
-	case intgTypeVuln:
-		return j.runVuln(ctx, cli, args)
-	case intgTypeFailingPolicy:
-		return j.runFailingPolicy(ctx, cli, args)
-	default:
-		return ctxerr.Errorf(ctx, "unknown integration type: %v", intgType)
-	}
+	return j.runFailingPolicy(ctx, cli, args)
 }
 
 func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error {
@@ -307,6 +339,9 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 	return nil
 }
 
+// runFailingPolicy creates the Jira issue for a failing-policy job. Status
+// recording is the caller's responsibility (handled by runFailingPolicyJob's
+// deferred finalize).
 func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraArgs) error {
 	tplArgs := newFailingPoliciesTplArgs(j.FleetURL, args.FailingPolicy)
 
@@ -420,15 +455,32 @@ func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger *
 
 	logger.InfoContext(ctx, "queueing Jira failing policy job", attrs...)
 
+	hostIDs := make([]uint, len(hosts))
+	for i, h := range hosts {
+		hostIDs[i] = h.ID
+	}
+	pRuns, lookupErr := ds.GetFailingPolicyRuns(ctx, []uint{policy.ID}, hostIDs)
+	if lookupErr != nil {
+		logger.ErrorContext(ctx, "failed to look up jira policy_run IDs", "policy_id", policy.ID, "err", lookupErr)
+	}
+	batchID, err := ds.CreatePolicyAutomationExecutions(ctx, fleet.PolicyAutomationJira, pRuns)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to record jira policy automation execution rows", "policy_id", policy.ID, "err", err)
+	}
+
 	args := &failingPolicyArgs{
-		PolicyID:       policy.ID,
-		PolicyName:     policy.Name,
-		PolicyCritical: policy.Critical,
-		Hosts:          hosts,
-		TeamID:         policy.TeamID,
+		PolicyID:                policy.ID,
+		PolicyName:              policy.Name,
+		PolicyCritical:          policy.Critical,
+		Hosts:                   hosts,
+		TeamID:                  policy.TeamID,
+		PolicyAutomationBatchID: batchID,
 	}
 	job, err := QueueJob(ctx, ds, jiraName, jiraArgs{FailingPolicy: args})
 	if err != nil {
+		if updErr := ds.UpdatePolicyAutomationExecutions(ctx, batchID, err); updErr != nil {
+			logger.ErrorContext(ctx, "failed to update policy automation executions status", "batch_id", batchID.String(), "err", updErr)
+		}
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 	logger.DebugContext(ctx, "queued jira failing policy job", "job_id", job.ID)

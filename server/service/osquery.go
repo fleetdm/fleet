@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/google/uuid"
 	"github.com/spf13/cast"
 	"golang.org/x/exp/slices"
 )
@@ -1211,16 +1212,25 @@ func (svc *Service) SubmitDistributedQueryResults(
 			newFailingSet[id] = struct{}{}
 		}
 
+		// Handle policy_runs
+		failingPolicyRunIDs := map[uint]uint{}
+		recorded, err := svc.ds.RecordPolicyTransitions(ctx, host.ID, policyResults, newFailing)
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "failed to record policy transitions", "host_id", host.ID, "err", err)
+		} else {
+			failingPolicyRunIDs = recorded
+		}
+
 		if err := processCalendarPolicies(ctx, svc.ds, ac, host, policyResults, svc.logger); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
-		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults, newFailingSet); err != nil {
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults, newFailingSet, failingPolicyRunIDs); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
 		if host.Platform == "darwin" || host.Platform == "windows" {
-			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, host.Platform, policyResults); err != nil {
+			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, host.Platform, policyResults, failingPolicyRunIDs); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -1235,7 +1245,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
 		// host details.
-		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults, newFailingSet); err != nil {
+		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults, newFailingSet, failingPolicyRunIDs); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
@@ -1987,6 +1997,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	hostOrbitNodeKey *string,
 	incomingPolicyResults map[uint]*bool,
 	newFailingSet map[uint]struct{},
+	failingPolicyRunIDs map[uint]uint,
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
 		// We do not want to queue software installations on vanilla osquery hosts.
@@ -2075,6 +2086,16 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			)
 			continue
 		}
+		// Stamp the policy_run_id from the centralized write done at the top
+		// of SubmitDistributedQueryResults. If the hot-path write failed for
+		// this host or this policy isn't in the map, policyRunID stays nil
+		// and the install is left unlinked — same outcome as a recording error
+		// in the older per-call write pattern.
+		var policyRunID *uint
+		if id, ok := failingPolicyRunIDs[policyID]; ok {
+			policyRunID = &id
+		}
+
 		// NOTE(lucas): The user_id set in this software install will be NULL
 		// so this means that when generating the activity for this action
 		// (in SaveHostSoftwareInstallResult) the author will be set to Fleet.
@@ -2084,6 +2105,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			fleet.HostSoftwareInstallOptions{
 				SelfService: false,
 				PolicyID:    &policyID,
+				PolicyRunID: policyRunID,
 			},
 		)
 		if err != nil {
@@ -2223,6 +2245,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 	hostScriptsEnabled *bool,
 	incomingPolicyResults map[uint]*bool,
 	newFailingSet map[uint]struct{},
+	failingPolicyRunIDs map[uint]uint,
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
 		return nil // vanilla osquery hosts can't run scripts
@@ -2336,6 +2359,16 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get script contents")
 		}
+
+		// Stamp the policy_run_id from the centralized write done at the top
+		// of SubmitDistributedQueryResults. If the hot-path write failed for
+		// this host or this policy isn't in the map, policyRunID stays nil
+		// and the script is left unlinked.
+		var policyRunID *uint
+		if id, ok := failingPolicyRunIDs[policyID]; ok {
+			policyRunID = &id
+		}
+
 		runScriptRequest := fleet.HostScriptRequestPayload{
 			HostID:          hostID,
 			ScriptContents:  string(contents),
@@ -2343,6 +2376,7 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 			ScriptID:        &scriptMetadata.ID,
 			TeamID:          policyTeamID,
 			PolicyID:        &policyID,
+			PolicyRunID:     policyRunID,
 			// no user ID as scripts are executed by Fleet
 		}
 
@@ -2412,6 +2446,7 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	hostOrbitNodeKey *string,
 	hostPlatform string,
 	incomingPolicyResults map[uint]*bool,
+	failingPolicyRunIDs map[uint]uint,
 ) error {
 	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
 		// Vanilla osquery hosts cannot do conditional access.
@@ -2464,21 +2499,25 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		return ctxerr.Wrap(ctx, err, "failed to get policies with conditional access")
 	}
 
-	hostIsCompliantInFleet := true
+	// Collect every CA-enabled policy that is currently failing for this host
+	// in one pass. The list is used both to derive hostIsCompliantInFleet
+	// (non-empty → at least one CA-enabled policy is failing) and as the
+	// recording input when we're about to fire the Entra automation.
 	conditionalAccessPolicyIDsSet := make(map[uint]struct{}, len(conditionalAccessPolicyIDs))
 	for _, policyID := range conditionalAccessPolicyIDs {
 		conditionalAccessPolicyIDsSet[policyID] = struct{}{}
 	}
+	var failingCAPolicyIDs []uint
 	for incomingPolicyID, incomingPolicyResult := range incomingPolicyResults {
 		if _, ok := conditionalAccessPolicyIDsSet[incomingPolicyID]; !ok {
 			// Ignore results for policies that are not for conditional access.
 			continue
 		}
 		if incomingPolicyResult != nil && !*incomingPolicyResult {
-			hostIsCompliantInFleet = false
-			break
+			failingCAPolicyIDs = append(failingCAPolicyIDs, incomingPolicyID)
 		}
 	}
+	hostIsCompliantInFleet := len(failingCAPolicyIDs) == 0
 
 	if hostConditionalAccessStatus.Managed != nil && mdmEnrolled == *hostConditionalAccessStatus.Managed &&
 		hostConditionalAccessStatus.Compliant != nil && hostIsCompliantInFleet == *hostConditionalAccessStatus.Compliant {
@@ -2486,7 +2525,24 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		return nil
 	}
 
-	svc.setHostConditionalAccessAsync(hostID, hostPlatform, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
+	// Build the executions list only when we're transitioning *to* a
+	// non-compliant state (consistent with the failure-only recording the
+	// other surfaces follow). The policy_run rows already exist (written by
+	// the centralized RecordPolicyTransitions at the top of
+	// SubmitDistributedQueryResults); we just look up their IDs and create
+	// execution rows linked to them.
+	wasCompliant := hostConditionalAccessStatus.Compliant == nil || *hostConditionalAccessStatus.Compliant
+	var executionsToRecord []fleet.PolicyRunRef
+	if wasCompliant && !hostIsCompliantInFleet && len(failingCAPolicyIDs) > 0 {
+		executionsToRecord = make([]fleet.PolicyRunRef, 0, len(failingCAPolicyIDs))
+		for _, pid := range failingCAPolicyIDs {
+			if id, ok := failingPolicyRunIDs[pid]; ok {
+				executionsToRecord = append(executionsToRecord, fleet.PolicyRunRef{PolicyID: pid, RunID: id})
+			}
+		}
+	}
+
+	svc.setHostConditionalAccessAsync(hostID, hostPlatform, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet, executionsToRecord)
 
 	return nil
 }
@@ -2497,19 +2553,40 @@ func (svc *Service) setHostConditionalAccessAsync(
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
 	managed bool,
 	compliant bool,
+	executionsToRecord []fleet.PolicyRunRef,
 ) {
 	go func() {
+		// Detached from the request ctx — the goroutine outlives the request.
+		ctx := context.Background()
 		logger := svc.logger.With(
 			"host_id", hostID,
 			"platform", hostPlatform,
 			"managed", managed,
 			"compliant", compliant,
 		)
-		start := time.Now()
-		if err := svc.setHostConditionalAccess(hostID, hostPlatform, hostConditionalAccessStatus, managed, compliant); err != nil {
-			logger.ErrorContext(context.TODO(), "set host conditional access", "took", time.Since(start), "err", err)
+
+		// Record the policy_automation_executions rows BEFORE the Entra POST
+		// so the batchID is in hand for the finalize call regardless of how
+		// the POST returns.
+		var batchID uuid.UUID
+		if len(executionsToRecord) > 0 {
+			b, recErr := svc.ds.CreatePolicyAutomationExecutions(ctx, fleet.PolicyAutomationConditionalAccess, executionsToRecord)
+			if recErr != nil {
+				logger.ErrorContext(ctx, "failed to record conditional access policy automation", "err", recErr)
+			}
+			batchID = b
 		}
-		logger.DebugContext(context.TODO(), "set host conditional access", "took", time.Since(start))
+
+		start := time.Now()
+		err := svc.setHostConditionalAccess(hostID, hostPlatform, hostConditionalAccessStatus, managed, compliant)
+		if err != nil {
+			logger.ErrorContext(ctx, "set host conditional access", "took", time.Since(start), "err", err)
+		}
+		logger.DebugContext(ctx, "set host conditional access", "took", time.Since(start))
+
+		if updErr := svc.ds.UpdatePolicyAutomationExecutions(ctx, batchID, err); updErr != nil {
+			logger.ErrorContext(ctx, "failed to update conditional access policy automation status", "batch_id", batchID.String(), "err", updErr)
+		}
 	}()
 }
 

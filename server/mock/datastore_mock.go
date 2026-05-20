@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1038,6 +1039,14 @@ type GetNanoMDMEnrollmentDetailsFunc func(ctx context.Context, hostUUID string) 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
 type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
+
+type RecordPolicyTransitionsFunc func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (failingRunIDs map[uint]uint, err error)
+
+type GetFailingPolicyRunsFunc func(ctx context.Context, policyIDs []uint, hostIDs []uint) ([]fleet.PolicyRunRef, error)
+
+type CreatePolicyAutomationExecutionsFunc func(ctx context.Context, typ fleet.PolicyAutomationType, runs []fleet.PolicyRunRef) (uuid.UUID, error)
+
+type UpdatePolicyAutomationExecutionsFunc func(ctx context.Context, batchID uuid.UUID, outcomeErr error) error
 
 type ListMDMAppleProfilesToInstallFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error)
 
@@ -3513,6 +3522,18 @@ type DataStore struct {
 
 	OutdatedAutomationBatchFunc        OutdatedAutomationBatchFunc
 	OutdatedAutomationBatchFuncInvoked bool
+
+	RecordPolicyTransitionsFunc        RecordPolicyTransitionsFunc
+	RecordPolicyTransitionsFuncInvoked bool
+
+	GetFailingPolicyRunsFunc        GetFailingPolicyRunsFunc
+	GetFailingPolicyRunsFuncInvoked bool
+
+	CreatePolicyAutomationExecutionsFunc        CreatePolicyAutomationExecutionsFunc
+	CreatePolicyAutomationExecutionsFuncInvoked bool
+
+	UpdatePolicyAutomationExecutionsFunc        UpdatePolicyAutomationExecutionsFunc
+	UpdatePolicyAutomationExecutionsFuncInvoked bool
 
 	ListMDMAppleProfilesToInstallFunc        ListMDMAppleProfilesToInstallFunc
 	ListMDMAppleProfilesToInstallFuncInvoked bool
@@ -8496,6 +8517,34 @@ func (s *DataStore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.Policy
 	s.OutdatedAutomationBatchFuncInvoked = true
 	s.mu.Unlock()
 	return s.OutdatedAutomationBatchFunc(ctx)
+}
+
+func (s *DataStore) RecordPolicyTransitions(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (failingRunIDs map[uint]uint, err error) {
+	s.mu.Lock()
+	s.RecordPolicyTransitionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordPolicyTransitionsFunc(ctx, hostID, policyResults, newFailing)
+}
+
+func (s *DataStore) GetFailingPolicyRuns(ctx context.Context, policyIDs []uint, hostIDs []uint) ([]fleet.PolicyRunRef, error) {
+	s.mu.Lock()
+	s.GetFailingPolicyRunsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetFailingPolicyRunsFunc(ctx, policyIDs, hostIDs)
+}
+
+func (s *DataStore) CreatePolicyAutomationExecutions(ctx context.Context, typ fleet.PolicyAutomationType, runs []fleet.PolicyRunRef) (uuid.UUID, error) {
+	s.mu.Lock()
+	s.CreatePolicyAutomationExecutionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreatePolicyAutomationExecutionsFunc(ctx, typ, runs)
+}
+
+func (s *DataStore) UpdatePolicyAutomationExecutions(ctx context.Context, batchID uuid.UUID, outcomeErr error) error {
+	s.mu.Lock()
+	s.UpdatePolicyAutomationExecutionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdatePolicyAutomationExecutionsFunc(ctx, batchID, outcomeErr)
 }
 
 func (s *DataStore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {

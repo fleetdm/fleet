@@ -17,11 +17,17 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
+	"github.com/fleetdm/fleet/v4/server/test/automationtest"
 	"github.com/stretchr/testify/require"
 )
 
 func TestJiraRun(t *testing.T) {
 	ds := new(mock.Store)
+	// The failing-policy cases below run through runFailingPolicyJob, which
+	// now calls UpdatePolicyAutomationExecutionsStatusByBatch directly (no
+	// wrapper to short-circuit on uuid.Nil). Stub it so the mock returns nil
+	// instead of nil-derefing.
+	automationtest.StubNoopRecording(ds)
 	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
 		return []fleet.HostVulnerabilitySummary{
 			{
@@ -283,6 +289,10 @@ func TestJiraQueueVulnJobs(t *testing.T) {
 
 func TestJiraQueueFailingPolicyJob(t *testing.T) {
 	ds := new(mock.Store)
+	// Stub the policy-automation recording side effects so we don't assert
+	// on them in every subtest below — the recording shape itself is covered
+	// in server/policy_automation.
+	automationtest.StubNoopRecording(ds)
 	ctx := context.Background()
 	logger := slog.New(slog.DiscardHandler)
 
@@ -351,6 +361,9 @@ func (c *mockJiraClient) JiraConfigMatches(opts *externalsvc.JiraOptions) bool {
 func TestJiraRunClientUpdate(t *testing.T) {
 	// test creation of client when config changes between 2 uses, and when integration is disabled.
 	ds := new(mock.Store)
+	// runFailingPolicyJob now calls UpdatePolicyAutomationExecutionsStatusByBatch
+	// directly; stub the recording surface so it returns nil instead of nil-derefing.
+	automationtest.StubNoopRecording(ds)
 
 	var globalCount int
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

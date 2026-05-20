@@ -1116,7 +1116,7 @@ func (ds *Datastore) activateNextScriptActivity(ctx context.Context, tx sqlx.Ext
 INSERT INTO
 	host_script_results
 (host_id, execution_id, script_content_id, output, script_id, policy_id,
-	user_id, sync_request, setup_experience_script_id, is_internal)
+	user_id, sync_request, setup_experience_script_id, is_internal, policy_run_id)
 SELECT
 	ua.host_id,
 	ua.execution_id,
@@ -1127,7 +1127,8 @@ SELECT
 	ua.user_id,
 	COALESCE(ua.payload->'$.sync_request', 0),
 	sua.setup_experience_script_id,
-	COALESCE(ua.payload->'$.is_internal', 0)
+	COALESCE(ua.payload->'$.is_internal', 0),
+	sua.policy_run_id
 FROM
 	upcoming_activities ua
 	INNER JOIN script_upcoming_activities sua
@@ -1157,7 +1158,7 @@ func (ds *Datastore) activateNextSoftwareInstallActivity(ctx context.Context, tx
 	const insStmt = `
 INSERT INTO host_software_installs
 	(execution_id, host_id, software_installer_id, user_id, self_service,
-		policy_id, installer_filename, version, software_title_id, software_title_name, attempt_number)
+		policy_id, installer_filename, version, software_title_id, software_title_name, attempt_number, policy_run_id)
 SELECT
 	ua.execution_id,
 	ua.host_id,
@@ -1185,7 +1186,8 @@ SELECT
 			AND (hsi2.attempt_number > 0 OR hsi2.attempt_number IS NULL)
 		)
 		ELSE NULL
-	END
+	END,
+	siua.policy_run_id
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua

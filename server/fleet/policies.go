@@ -598,3 +598,39 @@ const (
 	PolicyTypeDynamic = "dynamic"
 	PolicyTypePatch   = "patch"
 )
+
+// PolicyAutomationType identifies which failing-policy automation produced a
+// recorded execution row. Mirrors policies.FailingPolicyAutomationType but
+// lives here so it can travel through the Datastore interface without a
+// circular import.
+type PolicyAutomationType string
+
+const (
+	PolicyAutomationWebhook           PolicyAutomationType = "webhook"
+	PolicyAutomationJira              PolicyAutomationType = "jira"
+	PolicyAutomationZendesk           PolicyAutomationType = "zendesk"
+	PolicyAutomationCalendar          PolicyAutomationType = "calendar"
+	PolicyAutomationConditionalAccess PolicyAutomationType = "conditional_access"
+)
+
+// PolicyAutomationExecutionStatus tracks the lifecycle of a recorded automation.
+// Rows start in pending; the executor transitions them to success or failure
+// when the underlying call (webhook POST / Jira or Zendesk ticket create)
+// finishes.
+type PolicyAutomationExecutionStatus string
+
+const (
+	PolicyAutomationStatusPending PolicyAutomationExecutionStatus = "pending"
+	PolicyAutomationStatusSuccess PolicyAutomationExecutionStatus = "success"
+	PolicyAutomationStatusFailure PolicyAutomationExecutionStatus = "failure"
+)
+
+// PolicyRunRef is a lightweight (policy_id, host_id, run_id) triple used to
+// thread newly-inserted policy_runs row IDs from RecordPolicyTransitions into
+// the synchronous downstream consumers (script/software/calendar/CA dispatch)
+// without re-querying the table.
+type PolicyRunRef struct {
+	PolicyID uint `db:"policy_id"`
+	HostID   uint `db:"host_id"`
+	RunID    uint `db:"id"`
+}
