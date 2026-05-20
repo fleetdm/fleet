@@ -512,6 +512,22 @@ const PageOrComponent = ({
 
 Below are a few need-to-knows about what's available in Fleet's CSS:
 
+### Spacing
+
+Prefer `gap` over `margin` for spacing between sibling elements. We have layout mixins in
+`frontend/styles/var/mixins.scss` for common flex column patterns:
+
+| Mixin | Use for |
+|---|---|
+| `vertical-page-layout` | Top-level page content |
+| `vertical-card-layout` | Settings cards, OS settings panels |
+| `vertical-form-layout` | Form field groups |
+| `vertical-modal-layout` | Modal body content |
+| `vertical-page-tab-panel-layout` | Tab panel content |
+
+All use `flex-direction: column` with a 24px gap (`$gap-page-component`). For tighter spacing,
+use `flex-column-16px-gap`. For wider spacing, use `flex-column-32px-gap`.
+
 ### Modals
 
 1) When creating a modal with a form inside, the action buttons (cancel, save, delete, etc.) should
