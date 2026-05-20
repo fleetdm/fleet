@@ -11490,10 +11490,6 @@ Returns the list of packages associated with a software title. A software title 
 | --------------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | id              | integer | path  | **Required.** The software title's ID.                                                                                                               |
 | fleet_id        | integer | query | **Required**. The fleet ID. Lists packages for the specified fleet.                                                                                  |
-| page            | integer | query | Page number of the results to fetch.                                                                                                                 |
-| per_page        | integer | query | Results per page.                                                                                                                                    |
-| order_key       | string  | query | What to order results by. Allowed fields are `name`, `version`, and `uploaded_at`. Default is `uploaded_at` (descending).                            |
-| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"desc"`.                 |
 
 #### Example
 
