@@ -196,32 +196,31 @@ The Roles table covers day-to-day responsibilities. Use this section to determin
 - Whether a story is ready to discuss at standup or weekly planning.
 - Staffing and swap-ins when an engineer is on-call, out, or stuck.
 - When to escalate a blocker outside the group, and to whom.
-- Whether to spin up a [working group](#working-groups) or wind one down.
 
 **Product Designer**
 - Whether a new issue takes the **full draft** or **fast draft** lane.
 - Whether a story has enough definition to move to **Ready**.
 - Product scope of a story: what is in, what is out, and what is deferred.
-- When to escalate to the [Head of Product Design](https://fleetdm.com/handbook/product-design) or CTO on product or design ambiguity.
+- When to escalate to the [Head of Product Design](https://fleetdm.com/handbook/product-design) on product or design ambiguity.
 - Whether a customer promise or activation blocker needs [t-shirt sizing](#t-shirt-sizing-capacity-planning) even when fast-drafted (shared with EM).
 
 **Tech Lead**
 - Architectural direction and technical scope of a story.
 - Technical feasibility of a proposed change and whether it should be split, deferred, or reshaped.
 - Review priority across open pull requests in the group.
-- When to escalate to the CTO on technical risk or cross-group impact.
+- When to escalate to the EM on technical risk or cross-group impact.
 - Whether a [sub-task](#sub-tasks) should be created versus folded into the parent story.
 
 **Software Engineer**
 - Implementation approach within a story, including libraries, patterns, and test coverage.
 - When a pull request is ready for review and who to request it from.
 - When to move an issue to **Blocked** and what to try async before raising it at standup.
-- When to pull in the TL or PD for clarification rather than guess.
+- When to pull in the TL or PD for clarification.
 
 **Quality Assurance**
 - Acceptance criteria and test plan for a story, including edge cases and platforms covered.
 - Whether a change can move from **Awaiting QA** to **Ready for release**.
-- When to push back on a story for testability before it leaves drafting.
+- Whether a story meets minimum criteria for testability before it leaves drafting.
 - Whether a regression warrants a [release-blocker](#all-bugs) call, in coordination with the EM.
 
 #### Item types
@@ -249,7 +248,7 @@ There are no formal WIP limits today, but the group should watch for buildup in 
 
 #### Drafting tracks: full draft vs. fast draft
 
-The PD decides which stories go through full drafting and is responsible for drafting them. Default to **fast draft**; reserve **full draft** for the highest-risk work. Keeping the full-draft queue small protects PD bandwidth and is a chance for Product Designers to grow their decision-making.
+The PD decides which stories go through full drafting and is responsible for drafting them. Default to **fast draft**; reserve **full draft** for the highest-risk work. Keeping the full-draft queue small protects PD bandwidth and is a chance for Product Designers to grow their decision-making skills.
 
 **Full draft** is typically reserved for customer promises and activation blockers, where design ambiguity or customer-facing risk is highest. The PD assigns themselves, adds the `:product` label, and tracks the issue on the [drafting board](https://github.com/orgs/fleetdm/projects/67) through the full [drafting process](#drafting) (product checklist, user story review, engineering checklist), including a [t-shirt size](#t-shirt-sizing-capacity-planning). When drafting is complete, the PD removes the `:product` label, takes the issue off the drafting board, and brings it to the next standup or planning meeting where it moves to **Ready**.
 
