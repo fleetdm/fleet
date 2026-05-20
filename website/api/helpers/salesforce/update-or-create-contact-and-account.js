@@ -320,11 +320,15 @@ module.exports = {
             'https://www.quora.com/',
           ];
 
-          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.some((domain) => marketingAttributionCookie.referrer.startsWith(domain))) {
+          let referrer = typeof marketingAttributionCookie.referrer === 'string'
+            ? marketingAttributionCookie.referrer
+            : '';
+
+          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.some((domain) => referrer.startsWith(domain))) {
             // If search engine » Organic search
             attributionDetails.sourceChannelDetails = 'Organic search (OS)';
             attributionDetails.campaign = 'Default-OS-Organic';
-          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.some((domain) => marketingAttributionCookie.referrer.startsWith(domain))) {
+          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.some((domain) => referrer.startsWith(domain))) {
             // If social media » Organic social
             attributionDetails.sourceChannelDetails = 'Organic social (SOC)';
             attributionDetails.campaign = 'Default-SOC-Social';
