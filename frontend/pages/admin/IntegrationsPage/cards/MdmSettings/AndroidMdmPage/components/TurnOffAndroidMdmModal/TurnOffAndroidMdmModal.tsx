@@ -33,21 +33,28 @@ const TurnOffAndroidMdmModal = ({
     setIsDeleting(true);
     try {
       await mdmAndroidAPI.turnOffAndroidMdm();
-      // Mirror the turn-on flow: pull fresh config, update AppContext so the parent MDM page's
-      // card flips immediately on redirect, and invalidate the React Query cache for downstream consumers.
-      const freshConfig = await refetchConfigUntil(
-        (cfg) => !cfg.mdm.android_enabled_and_configured
-      );
-      setConfig(freshConfig);
-      await queryClient.invalidateQueries(["config"]);
-      renderFlash("success", "Android MDM turned off successfully.", {
-        persistOnPageChange: true,
-      });
-      router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     } catch (e) {
       onExit();
       renderFlash("error", "Couldn't turn off Android MDM. Please try again.");
+      return;
     }
+    // DELETE success means the backend has already cleared
+    // android_enabled_and_configured. The follow-up refresh is best-effort:
+    // a failure here must not flash a turn-off error since the toggle itself succeeded.
+    try {
+      const freshConfig = await refetchConfigUntil(
+        (cfg) => !cfg.mdm.android_enabled_and_configured
+      );
+      // setConfig flips AppContext for the parent card on redirect.
+      setConfig(freshConfig);
+      queryClient.setQueryData(["config"], freshConfig);
+    } catch (e) {
+      console.error("Post-success config refresh failed", e);
+    }
+    renderFlash("success", "Android MDM turned off successfully.", {
+      persistOnPageChange: true,
+    });
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
   }, [onExit, queryClient, renderFlash, router, setConfig]);
 
   return (

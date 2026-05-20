@@ -51,26 +51,32 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
     async (abortController: AbortController) => {
       try {
         await mdmAndroidAPI.startSSE(abortController.signal);
-        abortController.abort();
-        // The SSE only signals success once the backend has written
-        // android_enabled_and_configured=true. Refetch app config, push
-        // it into AppContext so isAndroidMdmEnabledAndConfigured flips
-        // before we navigate, and invalidate the shared React Query cache
-        // so IntegrationsPage's useQuery(["config"]) resyncs on mount.
-        const freshConfig = await refetchConfigUntil(
-          (cfg) => !!cfg.mdm.android_enabled_and_configured
-        );
-        setConfig(freshConfig);
-        await queryClient.invalidateQueries(["config"]);
-        renderFlash("success", "Android MDM turned on successfully.", {
-          persistOnPageChange: true,
-        });
-        setSetupSse(false);
-        router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
       } catch {
         renderFlash("error", "Couldn't turn on Android MDM. Please try again.");
         setSetupSse(false);
+        return;
       }
+      abortController.abort();
+      // SSE success means the backend has already set
+      // android_enabled_and_configured=true. The follow-up refresh below is
+      // best-effort: if it fails (network blip, etc.) the toggle itself
+      // still succeeded, so we must not flash a turn-on error.
+      try {
+        const freshConfig = await refetchConfigUntil(
+          (cfg) => !!cfg.mdm.android_enabled_and_configured
+        );
+        // setConfig flips AppContext.isAndroidMdmEnabledAndConfigured so the
+        // card on /admin/integrations/mdm renders correctly on first paint.
+        setConfig(freshConfig);
+        queryClient.setQueryData(["config"], freshConfig);
+      } catch (e) {
+        console.error("Post-success config refresh failed", e);
+      }
+      renderFlash("success", "Android MDM turned on successfully.", {
+        persistOnPageChange: true,
+      });
+      setSetupSse(false);
+      router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     },
     [queryClient, renderFlash, router, setConfig]
   );
