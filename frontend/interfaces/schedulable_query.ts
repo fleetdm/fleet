@@ -123,7 +123,7 @@ export interface ICreateQueryRequestBody {
 
 // Modify a query by id
 /** PATCH /api/v1/fleet/queries/{id} */
-export interface IModifyQueryRequestBody
+export interface IModifyQueryFormData
   extends Omit<ICreateQueryRequestBody, "name" | "query" | "fleet_id"> {
   id?: number;
   name?: string;
@@ -141,7 +141,7 @@ export interface IModifyQueryRequestBody
 
 // Delete a query by name
 /** DELETE /api/v1/fleet/queries/{name} */
-export interface IDeleteQueryRequestBody {
+export interface IDeleteQueryFormData {
   fleet_id?: number; // searches for a global query if omitted
 }
 
@@ -151,7 +151,7 @@ export interface IDeleteQueryRequestBody {
 
 // Delete queries by id
 /** POST /api/v1/fleet/queries/delete */
-export interface IDeleteQueriesRequestBody {
+export interface IDeleteQueriesFormData {
   ids: number[];
 }
 

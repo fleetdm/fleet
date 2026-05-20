@@ -98,18 +98,28 @@ const functionWithTableName = (tableName: string)=> {
 // with the API
 
 // should be defined in service/entities/hosts.ts
-interface IHostDetailsReponse {
+interface IHostDetailsResponse {
   ...
 }
 interface IGetHostsQueryParams {
   ...
 }
 
-// should be defined in service/entities/fleets.ts
-interface ICreateFleetPostBody {
+// should be defined in service/entities/users.ts
+interface IUpdateUserFormData {
   ...
 }
 
+// should be defined in service/entities/software.ts
+interface IGetSoftwareApiParams {
+  ...
+}
+interface ISoftwareCountResponse {
+  ...
+}
+
+// Use *FormData for form-driven bodies, *ApiParams/*QueryParams for request
+// params, *Response for responses, *QueryKey when typing a React Query key.
 ```
 
 ## Utilities

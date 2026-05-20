@@ -5,7 +5,7 @@ import { getErrorReason } from "interfaces/errors";
 import { ISelectedTargetsForApi } from "interfaces/target";
 import {
   ICreateQueryRequestBody,
-  IModifyQueryRequestBody,
+  IModifyQueryFormData,
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
@@ -135,7 +135,7 @@ export default {
       );
     }
   },
-  update: (id: number, updateParams: IModifyQueryRequestBody) => {
+  update: (id: number, updateParams: IModifyQueryFormData) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
     if (updateParams.name) {
