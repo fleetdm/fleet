@@ -8455,7 +8455,9 @@ _Available in Fleet Premium_
       "conditional_access_enabled": false,
       "install_software": {
         "name": "Adobe Acrobat",
-        "software_title_id": 1234
+        "software_title_id": 1234,
+        "installer_id": 23,
+        "package_name": "AdobeAcrobat-v24.1.pkg"
       }
     }
   ],
@@ -8712,7 +8714,9 @@ _Available in Fleet Premium_
     },
     "install_software": {
       "name": "Adobe Acrobat.app",
-      "software_title_id": 1234
+      "software_title_id": 1234,
+      "installer_id": 23,
+      "package_name": "AdobeAcrobat-v24.1.pkg"
     },
     "run_script": {
       "name": "Enable gatekeeper",
@@ -8817,6 +8821,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `patch_software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
 | patch_software_title_id | integer | body | _Available in Fleet Premium_. ID of the software title (Fleet-maintained only) to create a patch policy for. Required if `type` is `patch`. |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
+| installer_id      | integer | body | _Available in Fleet Premium_. ID of the specific package (installer) to install if the policy fails. Only applicable when `software_title_id` is specified and the software title has more than one package. If not specified, defaults to the most recently added package (`uploaded_at`). |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
@@ -8873,150 +8878,14 @@ Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` 
     "labels_include_any": ["Macs on Sonoma"],
     "install_software": {
       "name": "Adobe Acrobat.app",
-      "software_title_id": 1234
+      "software_title_id": 1234,
+      "installer_id": 23,
+      "package_name": "AdobeAcrobat-v24.1.pkg"
     },
     "run_script": {
       "name": "Enable gatekeeper",
       "id": 1337
     }
-  }
-}
-```
-
----
-
-### Delete policies
-
-`POST /api/v1/fleet/global/policies/delete`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                       |
-| -------- | ------- | ---- | ------------------------------------------------- |
-| ids      | array   | body | **Required.** The IDs of the policies to delete.  |
-
-#### Example
-
-`POST /api/v1/fleet/global/policies/delete`
-
-#### Request body
-
-```json
-{
-  "ids": [ 1 ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "deleted": 1
-}
-```
-
----
-
-### Delete fleet-level policies
-
-_Available in Fleet Premium_
-
-`POST /api/v1/fleet/fleets/:fleet_id/policies/delete`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                       |
-| -------- | ------- | ---- | ------------------------------------------------- |
-| fleet_id  | integer | path  | **Required.** Defines what fleet ID to operate on                |
-| ids      | array   | body | **Required.** The IDs of the policies to delete.  |
-
-#### Example
-
-`POST /api/v1/fleet/fleets/1/policies/delete`
-
-##### Request body
-
-```json
-{
-  "ids": [ 1 ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "deleted": 1
-}
-```
-
----
-
-### Update policy
-
-`PATCH /api/v1/fleet/global/policies/:id`
-
-#### Parameters
-
-| Name        | Type    | In   | Description                          |
-| ----------  | ------- | ---- | ------------------------------------ |
-| id          | integer | path | The policy's ID.                     |
-| name        | string  | body | The query's name.                    |
-| query       | string  | body | The query in SQL.                    |
-| description | string  | body | The query's description.             |
-| resolution  | string  | body | The resolution steps for the policy. |
-| platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
-| critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
-| labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
-
-Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
-
-#### Example
-
-`PATCH /api/v1/fleet/global/policies/42`
-
-##### Request body
-
-```json
-{
-  "name": "Gatekeeper enabled",
-  "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-  "description": "Checks if gatekeeper is enabled on macOS devices",
-  "critical": true,
-  "resolution": "Resolution steps",
-  "platform": "darwin"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "policy": {
-    "id": 42,
-    "name": "Gatekeeper enabled",
-    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-    "description": "Checks if gatekeeper is enabled on macOS devices",
-    "critical": true,
-    "author_id": 43,
-    "author_name": "John",
-    "author_email": "john@example.com",
-    "team_id": null,
-    "resolution": "Resolution steps",
-    "platform": "darwin",
-    "created_at": "2022-03-17T20:15:55Z",
-    "updated_at": "2022-03-17T20:15:55Z",
-    "passing_host_count": 0,
-    "failing_host_count": 0,
-    "host_count_updated_at": null
   }
 }
 ```
@@ -9046,6 +8915,7 @@ _Available in Fleet Premium_
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
+| installer_id            | integer | body | _Available in Fleet Premium_. ID of the specific package (installer) to install if the policy fails. Only applicable when `software_title_id` is specified and the software title has more than one package. If not specified, defaults to the most recently added package (`uploaded_at`). Set to `null` to revert to the default (most recent package). |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
@@ -9101,7 +8971,9 @@ Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` 
     "fleet_maintained": false,
     "install_software": {
       "name": "Adobe Acrobat.app",
-      "software_title_id": 1234
+      "software_title_id": 1234,
+      "installer_id": 23,
+      "package_name": "AdobeAcrobat-v24.1.pkg"
     },
     "run_script": {
       "name": "Enable gatekeeper",
