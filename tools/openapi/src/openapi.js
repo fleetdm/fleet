@@ -36,6 +36,14 @@ function mapParameterSchema(rawType) {
   if (arrayMatch && TYPE_MAP[arrayMatch[1]]) {
     return { type: 'array', items: { type: TYPE_MAP[arrayMatch[1]] } };
   }
+  // "integer or string" → oneOf
+  const orMatch = t.match(/^(\w+)\s+or\s+(\w+)$/);
+  if (orMatch) {
+    const types = [orMatch[1], orMatch[2]].map((x) => TYPE_MAP[x]).filter(Boolean);
+    if (types.length === 2) {
+      return { oneOf: types.map((x) => ({ type: x })) };
+    }
+  }
   process.stderr.write(
     `warning: unknown parameter type ${JSON.stringify(rawType)}; defaulting to string\n`,
   );
@@ -97,6 +105,47 @@ function collapseWhitespace(s) {
 }
 
 /**
+ * Build an OpenAPI requestBody from body-typed parameters and an optional
+ * example parsed from the Markdown.
+ *
+ * @param {Array<{ name: string, type: string, in: string, description: string }>} parsedParams
+ * @param {any | null} exampleRequestBody
+ * @returns {any | undefined}
+ */
+function buildRequestBody(parsedParams, exampleRequestBody) {
+  const bodyParams = parsedParams.filter((p) => p.in.toLowerCase() === 'body');
+  if (bodyParams.length === 0 && !exampleRequestBody) return undefined;
+
+  let schema;
+  if (exampleRequestBody) {
+    schema = inferSchema(exampleRequestBody);
+  } else if (bodyParams.length > 0) {
+    // Build schema from parameter declarations.
+    const properties = {};
+    for (const p of bodyParams) {
+      properties[p.name] = mapParameterSchema(p.type);
+      if (p.description) {
+        properties[p.name].description = collapseWhitespace(p.description);
+      }
+    }
+    schema = { type: 'object', properties };
+  }
+
+  const result = {
+    required: true,
+    content: {
+      'application/json': { schema },
+    },
+  };
+
+  if (exampleRequestBody) {
+    result.content['application/json'].example = exampleRequestBody;
+  }
+
+  return result;
+}
+
+/**
  * Build a single Path Item Object for one endpoint.
  *
  * @returns {{ pathTemplate: string, pathItem: any }}
@@ -121,6 +170,11 @@ function buildPathItem(endpointSpec, parsed) {
   const parameters = buildParameters(parsed.parameters, endpointSpec);
   if (parameters.length > 0) {
     operation.parameters = parameters;
+  }
+
+  const requestBody = buildRequestBody(parsed.parameters, parsed.exampleRequestBody);
+  if (requestBody) {
+    operation.requestBody = requestBody;
   }
 
   // Build responses from the example payload.
@@ -178,8 +232,7 @@ function buildDocument(endpointResults, info) {
       version: info.version,
       description:
         'Auto-generated from Fleet\'s canonical REST API Markdown reference ' +
-        '(`docs/REST API/rest-api.md`). PoC scope: one endpoint. See ' +
-        'tools/openapi/README.md.',
+        '(`docs/REST API/rest-api.md`). See tools/openapi/README.md.',
       license: {
         name: 'MIT',
         identifier: 'MIT',
@@ -209,4 +262,4 @@ function collectTags(endpointResults) {
   return tags;
 }
 
-module.exports = { buildDocument, buildPathItem, buildParameters };
+module.exports = { buildDocument, buildPathItem, buildParameters, buildRequestBody };
