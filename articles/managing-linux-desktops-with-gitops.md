@@ -323,9 +323,9 @@ labels:
     query: "SELECT 1 FROM os_version WHERE major = 24 AND minor = 4"
     label_membership_type: dynamic
   - name: Fedora
-    platform:
+    platform: linux
     description: Hosts running Fedora
-    query: SELECT 1 from os_version WHERE name LIKE "%Fedora%"
+    query: SELECT 1 FROM os_version WHERE name LIKE "%Fedora%"
     label_membership_type: dynamic
 ```
 
