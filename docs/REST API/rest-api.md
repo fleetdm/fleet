@@ -11546,7 +11546,6 @@ Returns the list of packages associated with a software title. A software title 
       "labels_include_any": null,
       "labels_include_all": null,
       "labels_exclude_any": null,
-      "target": "All hosts",
       "automatic_install_policies": null,
       "status": {
         "installed": 0,
