@@ -139,15 +139,6 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 	}
 
 	var entityIDs []string
-	if metric == "cve" {
-		// TODO(iteration-2): replace with user-configurable filter from
-		// RequestOpts when dynamic CVE filtering ships.
-		entityIDs, err = s.store.TrackedCriticalCVEs(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "resolve tracked critical CVEs")
-		}
-	}
-
 	// entityIDs semantics at the storage layer: nil = no filter; non-nil empty
 	// = match nothing (produces zero-valued buckets). Do NOT convert empty to
 	// nil here.

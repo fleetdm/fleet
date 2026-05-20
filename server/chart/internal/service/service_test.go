@@ -294,59 +294,6 @@ func TestGetChartDataCVEResolution(t *testing.T) {
 	}
 }
 
-func TestGetChartDataCVEUsesCuratedFilter(t *testing.T) {
-	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
-	svc.RegisterDataset(&chart.CVEDataset{})
-
-	ds.trackedCriticalCVEsFn = func(_ context.Context) ([]string, error) {
-		return []string{"CVE-A", "CVE-B"}, nil
-	}
-	var gotEntityIDs []string
-	ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
-		gotEntityIDs = entityIDs
-		return nil, nil
-	}
-
-	_, err := svc.GetChartData(t.Context(), "cve", api.RequestOpts{Days: 7})
-	require.NoError(t, err)
-	assert.Equal(t, []string{"CVE-A", "CVE-B"}, gotEntityIDs)
-}
-
-func TestGetChartDataCVEEmptySetReturnsZeros(t *testing.T) {
-	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
-	svc.RegisterDataset(&chart.CVEDataset{})
-
-	// Non-nil empty slice — the resolver produced no matches but a filter
-	// was requested. The service MUST pass this through verbatim so the
-	// storage layer's "AND 1=0" path fires.
-	ds.trackedCriticalCVEsFn = func(_ context.Context) ([]string, error) {
-		return []string{}, nil
-	}
-	var gotEntityIDs []string
-	gotEntityIDsIsNil := true
-	ds.getSCDDataFunc = func(_ context.Context, _ string, startDate, endDate time.Time, bucketSize time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
-		gotEntityIDs = entityIDs
-		gotEntityIDsIsNil = entityIDs == nil
-		numBuckets := int(endDate.Sub(startDate) / bucketSize)
-		points := make([]api.DataPoint, numBuckets)
-		for i := range points {
-			points[i] = api.DataPoint{Timestamp: startDate.Add(time.Duration(i+1) * bucketSize), Value: 0}
-		}
-		return points, nil
-	}
-
-	resp, err := svc.GetChartData(t.Context(), "cve", api.RequestOpts{Days: 7})
-	require.NoError(t, err)
-	assert.False(t, gotEntityIDsIsNil, "service must pass non-nil empty slice so storage layer emits AND 1=0")
-	assert.Empty(t, gotEntityIDs)
-	require.NotEmpty(t, resp.Data)
-	for _, dp := range resp.Data {
-		assert.Zero(t, dp.Value)
-	}
-}
-
 func TestGetChartDataUptimePassesNilEntityIDs(t *testing.T) {
 	ds := &mockDatastore{}
 	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
