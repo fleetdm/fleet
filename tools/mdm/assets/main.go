@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -23,6 +24,8 @@ const (
 	testAddress  = "localhost:3306"
 	testDatabase = "fleet"
 )
+
+var cfg *viper.Viper
 
 var (
 	exportCmd       = flag.NewFlagSet("export", flag.ExitOnError)
@@ -36,6 +39,13 @@ var (
 	flagImportName  string
 	flagImportValue string
 	flagExportName  string
+
+	// TLS configuration flags
+	flagTLSConfig     string
+	flagTLSCA         string
+	flagTLSCert       string
+	flagTLSKey        string
+	flagTLSServerName string
 
 	validNames = map[fleet.MDMAssetName]struct{}{
 		fleet.MDMAssetABMCert:                  {},
@@ -51,21 +61,65 @@ var (
 	}
 )
 
+// initConfig initializes the viper configuration. It loads defaults,
+// reads environment variables (prefixed ASSETS_DB_), and optionally
+// reads a .env file from the current directory.
+func initConfig() {
+	cfg = viper.New()
+	cfg.SetConfigFile(".env")
+	cfg.SetConfigType("env")
+
+	// Set defaults (lowest priority)
+	cfg.SetDefault("USER", testUsername)
+	cfg.SetDefault("PASSWORD", testPassword)
+	cfg.SetDefault("ADDRESS", testAddress)
+	cfg.SetDefault("NAME", testDatabase)
+	cfg.SetDefault("TLS_CONFIG", "skip-verify")
+	cfg.SetDefault("TLS_CA", "")
+	cfg.SetDefault("TLS_CERT", "")
+	cfg.SetDefault("TLS_KEY", "")
+	cfg.SetDefault("TLS_SERVER_NAME", "")
+
+	// Read env vars (ASSETS_DB_*) — higher priority than .env file values
+	cfg.AutomaticEnv()
+	cfg.SetEnvPrefix("ASSETS_DB")
+
+	// Load .env file if present (lower priority than shell env vars)
+	_ = cfg.ReadInConfig()
+}
+
+// cfgOr returns the config value for the given key, falling back
+// to the default if not set. Keys are looked up via viper with
+// AutomaticEnv (ASSETS_DB_ prefix).
+func cfgOr(key string, defaultValue string) string {
+	if v := cfg.GetString(key); v != "" {
+		return v
+	}
+	return defaultValue
+}
+
 func setupSharedFlags() {
 	for _, fs := range []*flag.FlagSet{exportCmd, importCmd} {
 		fs.StringVar(&flagKey, "key", "", "Key used to encrypt the assets")
 		fs.StringVar(&flagDir, "dir", "", "Directory to put the exported assets")
-		fs.StringVar(&flagDBUser, "db-user", testUsername, "Username used to connect to the MySQL instance")
-		fs.StringVar(&flagDBPass, "db-password", testPassword, "Password used to connect to the MySQL instance")
-		fs.StringVar(&flagDBAddress, "db-address", testAddress, "Address used to connect to the MySQL instance")
-		fs.StringVar(&flagDBName, "db-name", testDatabase, "Name of the database with the asset information in the MySQL instance")
+		fs.StringVar(&flagDBUser, "db-user", cfgOr("USER", testUsername), "Username used to connect to the MySQL instance")
+		fs.StringVar(&flagDBPass, "db-password", cfgOr("PASSWORD", testPassword), "Password used to connect to the MySQL instance")
+		fs.StringVar(&flagDBAddress, "db-address", cfgOr("ADDRESS", testAddress), "Address used to connect to the MySQL instance")
+		fs.StringVar(&flagDBName, "db-name", cfgOr("NAME", testDatabase), "Name of the database with the asset information in the MySQL instance")
+
+		// TLS configuration flags
+		fs.StringVar(&flagTLSConfig, "tls-config", cfgOr("TLS_CONFIG", "skip-verify"), "TLS configuration for MySQL connection (e.g., skip-verify, custom, or a registered TLS config name)")
+		fs.StringVar(&flagTLSCA, "tls-ca", cfgOr("TLS_CA", ""), "Path to the CA certificate file for MySQL TLS")
+		fs.StringVar(&flagTLSCert, "tls-cert", cfgOr("TLS_CERT", ""), "Path to the client certificate file for MySQL TLS")
+		fs.StringVar(&flagTLSKey, "tls-key", cfgOr("TLS_KEY", ""), "Path to the client key file for MySQL TLS")
+		fs.StringVar(&flagTLSServerName, "tls-server-name", cfgOr("TLS_SERVER_NAME", ""), "Server name to use for MySQL TLS certificate verification")
 	}
 }
 
-func setupDS(privateKey, userName, password, address, name string) *mysql.Datastore {
+func setupDS(privateKey, userName, password, address, name string, tlsConfig config.MysqlConfig) *mysql.Datastore {
 	db, err := sql.Open(
 		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true&tls=skip-verify", testUsername, testPassword, testAddress),
+		fmt.Sprintf("%s:%s@tcp(%s)/%s?multiStatements=true&tls=%s", userName, password, address, name, tlsConfig.TLSConfig),
 	)
 	if err != nil {
 		log.Fatal("opening MySQL connection:", err)
@@ -73,11 +127,15 @@ func setupDS(privateKey, userName, password, address, name string) *mysql.Datast
 	defer db.Close()
 
 	mysqlCfg := config.MysqlConfig{
-		Username:  userName,
-		Password:  password,
-		Address:   address,
-		Database:  name,
-		TLSConfig: "skip-verify",
+		Username:      userName,
+		Password:      password,
+		Address:       address,
+		Database:      name,
+		TLSConfig:     tlsConfig.TLSConfig,
+		TLSCA:         tlsConfig.TLSCA,
+		TLSCert:       tlsConfig.TLSCert,
+		TLSKey:        tlsConfig.TLSKey,
+		TLSServerName: tlsConfig.TLSServerName,
 	}
 	ds, err := mysql.New(
 		mysqlCfg,
@@ -96,10 +154,24 @@ func setupDS(privateKey, userName, password, address, name string) *mysql.Datast
 	return ds
 }
 
+func buildTLSConfig() config.MysqlConfig {
+	tlsConfig := config.MysqlConfig{
+		TLSConfig:     flagTLSConfig,
+		TLSCA:         flagTLSCA,
+		TLSCert:       flagTLSCert,
+		TLSKey:        flagTLSKey,
+		TLSServerName: flagTLSServerName,
+	}
+	return tlsConfig
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		log.Fatal("invalid subcommand, expected import or export")
 	}
+
+	// Load config: defaults → .env file → ASSETS_DB_* env vars
+	initConfig()
 
 	ctx := context.Background()
 
@@ -122,7 +194,7 @@ func main() {
 			flagKey = flagKey[:32]
 		}
 
-		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName)
+		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName, buildTLSConfig())
 		defer ds.Close()
 
 		// Check required flags
@@ -166,7 +238,7 @@ func main() {
 			flagKey = flagKey[:32]
 		}
 
-		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName)
+		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName, buildTLSConfig())
 		defer ds.Close()
 
 		if flagDir != "" {
