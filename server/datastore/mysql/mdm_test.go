@@ -10664,7 +10664,7 @@ func testProfileCertPayloadsForCommand(t *testing.T, ds *Datastore) {
 		require.True(t, got.HasACMEPayload)
 	})
 
-	t.Run("darwin host with non-ACME profile reports has_acme_payload=false", func(t *testing.T) {
+	t.Run("darwin host with SCEP profile reports has_scep_payload=true and has_acme_payload=false", func(t *testing.T) {
 		profUUID := mkProfile(t, "scep-darwin", scepXML)
 		cmdUUID := uuid.NewString()
 		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
@@ -10673,6 +10673,7 @@ func testProfileCertPayloadsForCommand(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, "darwin", got.Platform)
 		require.False(t, got.HasACMEPayload)
+		require.True(t, got.HasSCEPPayload)
 	})
 
 	t.Run("unknown command returns not found", func(t *testing.T) {
