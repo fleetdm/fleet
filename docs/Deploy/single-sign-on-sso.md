@@ -15,7 +15,7 @@ Create a new SAML app in Okta:
 
 ![Example Okta IdP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
-If you're configuring [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
+If you're configuring [Require IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
 
 > Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)", but after the app is set up, Okta labels this as "Audience Restriction".
 
