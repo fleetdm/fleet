@@ -104,6 +104,9 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - Custom hooks in `frontend/hooks/` — e.g., `useTeamIdParam`, `useCheckboxListStateManagement`
 - Context providers in `frontend/context/` — `AppContext` for global state, `NotificationContext` for flash messages
 
+## Primo mode
+- Check `config?.partnerships?.enable_primo` from AppContext. Disables fleet creation and defaults to "No team." Use `PRIMO_TOOLTIP` from `utilities/constants.tsx` for disabled tooltips. See `frontend/docs/patterns.md` for details.
+
 ## Terminology
 - "Teams" are now called "fleets" in the product. Code still uses `team_id`, `useTeamIdParam`, `permissions.isTeamAdmin`, etc. — don't rename existing APIs, but use "fleet" in new user-facing strings and comments.
 - "Queries" are now called "reports." The word "query" now refers solely to a SQL query. Code still uses `useQuery`, `queryKey`, etc. for React Query — that's unrelated to the product terminology change.

@@ -12,6 +12,7 @@ should be discussed within the team and documented before merged.
 - [Utilities](#utilities)
 - [Components](#components)
 - [Forms](#forms)
+- [Primo mode](#primo-mode)
 - [React hooks](#react-hooks)
 - [React Context](#react-context)
 - [Fleet API calls](#fleet-api-calls)
@@ -335,6 +336,47 @@ const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
   // continue with submit logic if no errors
 
 ```
+
+## Primo mode
+
+Primo mode is a partnership mode (`partnerships.enable_primo`) that provides a single-fleet
+experience. It hides fleet creation, defaults to "No team" context, and simplifies empty states.
+It can be active at the same time as GitOps mode — they affect different things.
+
+### How to check
+
+```tsx
+const { config } = useContext(AppContext);
+const isPrimoMode = config?.partnerships?.enable_primo || false;
+```
+
+There's also a `PRIMO_TOOLTIP` constant in `utilities/constants.tsx` for disabled tooltips.
+
+### What it affects
+
+- **Fleet creation**: disabled on ManageFleetsPage
+- **Team selection**: `useTeamIdParam` defaults to "No team" instead of "All teams"
+- **Empty states**: use generic text (e.g., "No policies yet" instead of "No policies for this fleet")
+- **User form**: teams input disabled
+- **Software automations**: accessible from "No team" context (normally only from "All teams")
+
+### Pattern: disable with tooltip
+
+```tsx
+const disabledTooltip = isPrimoMode ? PRIMO_TOOLTIP : null;
+
+<Button disabledTooltipContent={disabledTooltip}>Create fleet</Button>
+```
+
+### How it differs from GitOps mode
+
+| | Primo mode | GitOps mode |
+|---|---|---|
+| Purpose | Single-fleet experience for partners | Repository-driven config management |
+| Config | `partnerships.enable_primo` | `gitops.gitops_mode_enabled` |
+| Main effect | Hides multi-fleet UX | Disables manual editing |
+| Component | Conditional checks on the flag | `GitOpsModeTooltipWrapper` |
+| Team behavior | Forces "No team" as default | Doesn't change team selection |
 
 ## React hooks
 
