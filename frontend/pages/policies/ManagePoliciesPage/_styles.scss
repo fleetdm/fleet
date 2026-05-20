@@ -104,21 +104,6 @@
     margin-right: $pad-medium;
   }
 
-  &__sandbox-info {
-    margin-top: $pad-large;
-    margin-bottom: $pad-xxlarge;
-
-    p {
-      font-size: $x-small;
-      margin: 0;
-      margin-bottom: $pad-medium;
-    }
-
-    p:last-child {
-      margin-bottom: 0;
-    }
-  }
-
   &__add-policy-link {
     transition: color 150ms ease-in-out, background 150ms ease-in-out,
       top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
