@@ -367,10 +367,12 @@ func (s *scriptBuilder) Extract(format string) {
 	switch format {
 	case "dmg":
 		s.Write("# extract contents")
+		// Pipe yes into hdiutil to auto-accept license agreements on licensed DMGs (Homebrew
+		// behavior). Harmless when the DMG has no license prompt.
 		s.Write(`MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
-hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"
+yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
-hdiutil detach "$MOUNT_POINT"`)
+hdiutil detach "$MOUNT_POINT" || true`)
 
 	case "zip":
 		s.Write("# extract contents")
