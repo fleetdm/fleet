@@ -151,11 +151,10 @@ const BootstrapPackage = ({
     } finally {
       setShowDeleteBootstrapPackageModal(false);
       refretchBootstrapMetadata();
-      if (currentTeamId !== API_NO_TEAM_ID) {
-        refetchTeamConfig();
-      } else {
-        refetchGlobalConfig();
-      }
+      // We just set macos_manual_agent_install to false, so update the
+      // local state directly instead of refetching from a potentially
+      // stale replica.
+      setSelectedManualAgentInstall(false);
     }
   };
 

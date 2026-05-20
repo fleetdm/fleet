@@ -3386,7 +3386,8 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 type deleteMDMAppleAPNSCertRequest struct{}
 
 type deleteMDMAppleAPNSCertResponse struct {
-	Err error `json:"error,omitempty"`
+	Config *fleet.AppConfig `json:"config,omitempty"`
+	Err    error            `json:"error,omitempty"`
 }
 
 func (r deleteMDMAppleAPNSCertResponse) Error() error {
@@ -3397,8 +3398,13 @@ func deleteMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, sv
 	if err := svc.DeleteMDMAppleAPNSCert(ctx); err != nil {
 		return &deleteMDMAppleAPNSCertResponse{Err: err}, nil
 	}
-
-	return &deleteMDMAppleAPNSCertResponse{}, nil
+	// Return updated config so the frontend can update its cache without a
+	// separate read that might hit a stale replica.
+	config, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return &deleteMDMAppleAPNSCertResponse{Err: err}, nil
+	}
+	return &deleteMDMAppleAPNSCertResponse{Config: config}, nil
 }
 
 func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {

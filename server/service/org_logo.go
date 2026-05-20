@@ -27,7 +27,8 @@ type putOrgLogoRequest struct {
 }
 
 type putOrgLogoResponse struct {
-	Err error `json:"error,omitempty"`
+	Config *fleet.AppConfig `json:"config,omitempty"`
+	Err    error            `json:"error,omitempty"`
 }
 
 func (r putOrgLogoResponse) Error() error { return r.Err }
@@ -64,7 +65,13 @@ func putOrgLogoEndpoint(ctx context.Context, request any, svc fleet.Service) (fl
 	if err := svc.UploadOrgLogo(ctx, req.Mode, bytes.NewReader(req.Body)); err != nil {
 		return putOrgLogoResponse{Err: err}, nil
 	}
-	return putOrgLogoResponse{}, nil
+	// Return updated config so the frontend can update its cache without a
+	// separate read that might hit a stale replica.
+	config, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return putOrgLogoResponse{Err: err}, nil
+	}
+	return putOrgLogoResponse{Config: config}, nil
 }
 
 // DELETE /api/v1/fleet/logo
@@ -74,7 +81,8 @@ type deleteOrgLogoRequest struct {
 }
 
 type deleteOrgLogoResponse struct {
-	Err error `json:"error,omitempty"`
+	Config *fleet.AppConfig `json:"config,omitempty"`
+	Err    error            `json:"error,omitempty"`
 }
 
 func (r deleteOrgLogoResponse) Error() error { return r.Err }
@@ -92,7 +100,11 @@ func deleteOrgLogoEndpoint(ctx context.Context, request any, svc fleet.Service) 
 	if err := svc.DeleteOrgLogo(ctx, req.Mode); err != nil {
 		return deleteOrgLogoResponse{Err: err}, nil
 	}
-	return deleteOrgLogoResponse{}, nil
+	config, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return deleteOrgLogoResponse{Err: err}, nil
+	}
+	return deleteOrgLogoResponse{Config: config}, nil
 }
 
 // GET /api/latest/fleet/logo
