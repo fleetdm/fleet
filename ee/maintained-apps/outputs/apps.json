@@ -653,6 +653,20 @@
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
     },
     {
+      "name": "Duo Desktop",
+      "slug": "duo-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.duosecurity.duo-device-health",
+      "description": "Duo Desktop is an app that checks the health and security posture of macOS, Windows, and Linux devices at every login."
+    },
+    {
+      "name": "Duo Desktop",
+      "slug": "duo-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Duo Desktop",
+      "description": "Duo Desktop is an app that checks the health and security posture of macOS, Windows, and Linux devices at every login."
+    },
+    {
       "name": "Eclipse IDE",
       "slug": "eclipse-ide/darwin",
       "platform": "darwin",
