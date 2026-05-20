@@ -319,9 +319,15 @@ const PageOrComponent = (props) => {
 
 ## React context
 
-[React context](https://reactjs.org/docs/context.html) is a state management store. It stores
-data that is desired and allows for retrieval of that data in whatever component is in need.
-View currently working contexts in the [context directory](../context).
+[React context](https://reactjs.org/docs/context.html) is a state management store. Use context
+for client-side state that multiple components need but doesn't come from the server — React
+Query handles API data. View currently working contexts in the [context directory](../context).
+
+```typescript
+// Consuming a context — destructure what you need from useContext
+const { renderFlash } = useContext(NotificationContext);
+const { currentUser, isPremiumTier } = useContext(AppContext);
+```
 
 ### Context catalog
 
