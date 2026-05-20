@@ -240,8 +240,8 @@ function buildDocument(endpointResults, info) {
       title: info.title || 'Fleet REST API',
       version: info.version,
       description:
-        'Auto-generated from Fleet\'s canonical REST API Markdown reference ' +
-        '(`docs/REST API/rest-api.md`). See tools/openapi/README.md.',
+        'Auto-generated from [Fleet\'s REST API docs](https://fleetdm.com/docs/rest-api/rest-api). ' +
+        'To submit edits or fixes, update the [source docs](https://github.com/fleetdm/fleet/blob/main/docs/REST%20API/rest-api.md).',
       license: {
         name: 'MIT',
         identifier: 'MIT',
