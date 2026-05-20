@@ -40,10 +40,10 @@ permissions:
 
 env:
   R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
-  R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
-  R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
-  R2_BUCKET: download-testing # Production: download | Testing: download-testing
-  BASE_URL: https://download-testing.fleetdm.com # Production: https://download.fleetdm.com | Testing: https://download-testing.fleetdm.com
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID }}
+  R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
+  R2_BUCKET: download # Production: download | Testing: download-testing
+  BASE_URL: https://download.fleetdm.com # Production: https://download.fleetdm.com | Testing: https://download-testing.fleetdm.com
   # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
   NPM_CONFIG_MIN_RELEASE_AGE: 0.5
 
@@ -88,15 +88,13 @@ jobs:
           fi
 
           : # 2. TUF component diff: rebuild if orbit/desktop/osqueryd changed.
-          : # TESTING-ONLY: this block is disabled so step 3 (fleetctl diff) can be exercised
-          : # in isolation against the testing bucket. UNCOMMENT BEFORE MERGING TO MAIN.
-          # curl -O $BASE_URL/stable/tuf-meta.json
-          # if ! diff latest-tuf-meta.json tuf-meta.json >/dev/null 2>&1
-          # then
-          #   echo "TUF components changed since current stable build."
-          #   echo "update_needed=true" >> $GITHUB_OUTPUT
-          #   exit 0
-          # fi
+          curl -O $BASE_URL/stable/tuf-meta.json
+          if ! diff latest-tuf-meta.json tuf-meta.json >/dev/null 2>&1
+          then
+            echo "TUF components changed since current stable build."
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
           : # 3. fleetctl-on-npm diff: rebuild if fleetctl was published after the current
           : # stable base build. This catches packaging-code changes in fleetctl that ship
@@ -367,4 +365,4 @@ jobs:
     needs: update-meta-files
     uses: ./.github/workflows/verify-fleetd-base.yml
     with:
-      base-url: "https://download-testing.fleetdm.com" # Production: "https://download.fleetdm.com" | Testing: "https://download-testing.fleetdm.com"
+      base-url: "https://download.fleetdm.com" # Production: "https://download.fleetdm.com" | Testing: "https://download-testing.fleetdm.com"
