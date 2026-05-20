@@ -1532,7 +1532,7 @@
       "slug": "secretive/darwin",
       "platform": "darwin",
       "unique_identifier": "com.maxgoedjen.Secretive.Host",
-      "description": "Store SSH keys in the Secure Enclave"
+      "description": "Secretive is a fully native Mac app that lets you protect and manage SSH keys with your Mac's Secure Enclave."
     },
     {
       "name": "Sequel Ace",
