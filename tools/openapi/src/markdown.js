@@ -104,7 +104,7 @@ function parseRequestLine(section) {
  */
 function parseParametersTable(section) {
   const lines = section.split('\n');
-  const headerIdx = lines.findIndex((l) => l.trim() === '#### Parameters');
+  const headerIdx = lines.findIndex((l) => /^#{1,6}\s+Parameters\s*$/.test(l.trim()));
   if (headerIdx === -1) return [];
 
   // Find first table row (`| ... |`) after the header.
@@ -174,7 +174,7 @@ function splitTableRow(row) {
 function parseDefaultResponse(section) {
   const lines = section.split('\n');
   const headerIdx = lines.findIndex(
-    (l) => l.trim() === '##### Default response',
+    (l) => /^#{1,6}\s+Default response\s*$/.test(l.trim()),
   );
   if (headerIdx === -1) return null;
 
@@ -183,7 +183,7 @@ function parseDefaultResponse(section) {
   let i = headerIdx + 1;
   for (; i < lines.length; i++) {
     const t = lines[i].trim();
-    const m = t.match(/^`Status:\s*(\d{3})`$/);
+    const m = t.match(/^`Status:\s*(\d{3})`$/) || t.match(/^`(\d{3})`$/);
     if (m) {
       status = parseInt(m[1], 10);
       i++;
@@ -255,7 +255,47 @@ function stripJSONLineComments(src) {
     }
     out += c;
   }
+  // Strip trailing commas before } or ] (not valid JSON but common in the docs).
+  out = out.replace(/,(\s*[}\]])/g, '$1');
   return out;
+}
+
+/**
+ * Extract the first ```json``` block under a "Request body" heading.
+ * Returns the parsed object or null if none found.
+ *
+ * @param {string} section
+ * @returns {any | null}
+ */
+function parseRequestBody(section) {
+  const lines = section.split('\n');
+  const headerIdx = lines.findIndex(
+    (l) => /^#{1,6}\s+(?:Optional\s+)?[Rr]equest body\s*$/.test(l.trim()),
+  );
+  if (headerIdx === -1) return null;
+
+  let i = headerIdx + 1;
+  while (i < lines.length && !lines[i].trim().startsWith('```json')) {
+    if (/^#{1,6}\s/.test(lines[i].trim())) return null;
+    i++;
+  }
+  if (i >= lines.length) return null;
+  i++;
+  const bodyLines = [];
+  while (i < lines.length && !lines[i].trim().startsWith('```')) {
+    bodyLines.push(lines[i]);
+    i++;
+  }
+  const raw = bodyLines.join('\n');
+  const stripped = stripJSONLineComments(raw);
+  try {
+    return JSON.parse(stripped);
+  } catch {
+    process.stderr.write(
+      `warning: could not parse request body example JSON\n`,
+    );
+    return null;
+  }
 }
 
 /**
@@ -268,6 +308,7 @@ function stripJSONLineComments(src) {
  *   path: string,
  *   parameters: Array<{ name: string, type: string, in: string, description: string }>,
  *   exampleResponse: { status: number, body: any } | null,
+ *   exampleRequestBody: any | null,
  * }}
  */
 function parseEndpoint(md, heading) {
@@ -275,7 +316,8 @@ function parseEndpoint(md, heading) {
   const { method, path } = parseRequestLine(section);
   const parameters = parseParametersTable(section);
   const exampleResponse = parseDefaultResponse(section);
-  return { method, path, parameters, exampleResponse };
+  const exampleRequestBody = parseRequestBody(section);
+  return { method, path, parameters, exampleResponse, exampleRequestBody };
 }
 
 module.exports = {
@@ -285,4 +327,5 @@ module.exports = {
   parseRequestLine,
   parseParametersTable,
   parseDefaultResponse,
+  parseRequestBody,
 };
