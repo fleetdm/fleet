@@ -1,12 +1,18 @@
 import React, { useCallback, useContext, useMemo } from "react";
 
+import PATHS from "router/paths";
+
 import { AppContext } from "context/app";
 
 import { IHostScript } from "interfaces/script";
 import { IUser } from "interfaces/user";
 import { IHostScriptsResponse } from "services/entities/scripts";
 
+import permissions from "utilities/permissions";
+import { getPathWithQueryParams } from "utilities/url";
+
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import DataError from "components/DataError/DataError";
 import EmptyState from "components/EmptyState";
 import Modal from "components/Modal";
@@ -55,7 +61,7 @@ const RunScriptModal = ({
   isRunningScript,
   isHidden = false,
 }: IRunScriptModalProps) => {
-  const { config } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
 
   const onSelectAction = useCallback(
     async (action: string, script: IHostScript) => {
@@ -103,6 +109,13 @@ const RunScriptModal = ({
 
   const tableData = hostScriptResponse?.scripts;
 
+  // Technicians can run scripts but can't upload them — hide the "Add a script"
+  // link for them since it would lead to a page they can't act on.
+  const isTechnician =
+    !!currentUser &&
+    (permissions.isGlobalTechnician(currentUser) ||
+      permissions.isTeamTechnician(currentUser, hostTeamId));
+
   return (
     <Modal
       title="Run script"
@@ -119,8 +132,24 @@ const RunScriptModal = ({
           !isError &&
           (!tableData || tableData.length === 0) && (
             <EmptyState
-              header="No scripts available for this host"
-              info="Expecting to see scripts? Close this modal and try again."
+              variant="header-list"
+              header="No scripts available"
+              info={
+                isTechnician ? (
+                  "Ask your admin to add a script for this host."
+                ) : (
+                  <>
+                    <CustomLink
+                      url={getPathWithQueryParams(
+                        PATHS.CONTROLS_SCRIPTS,
+                        isPremiumTier ? { fleet_id: hostTeamId } : undefined
+                      )}
+                      text="Add a script"
+                    />{" "}
+                    available to this host.
+                  </>
+                )
+              }
             />
           )}
         {!isLoadingHostScripts &&
