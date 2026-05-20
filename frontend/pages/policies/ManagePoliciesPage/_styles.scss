@@ -23,42 +23,10 @@
     min-width: 277px;
   }
 
-  &__manage-automations-wrapper {
-    @include button-dropdown;
-    .Select-multi-value-wrapper {
-      width: 146px;
-    }
-
-    // When tabbing through the app
-    .manage-policies-page__manage-automations-dropdown {
-      &.is-focused {
-        outline: 2px solid $ui-vibrant-blue-25;
-      }
-    }
-
-    .Select > .Select-menu-outer {
-      left: -186px;
-      width: 360px;
-    }
-    .Select-input {
-      padding: 8px;
-    }
-
-    .Select-control {
-      margin-top: 0;
-      gap: 6px;
-      .Select-placeholder {
-        color: $core-vibrant-blue;
-        font-weight: $bold;
-      }
-      .dropdown__custom-arrow .dropdown__icon {
-        svg {
-          path {
-            stroke: $core-vibrant-blue-over;
-          }
-        }
-      }
-    }
+  &__automations-button {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
   }
 
   &__header {

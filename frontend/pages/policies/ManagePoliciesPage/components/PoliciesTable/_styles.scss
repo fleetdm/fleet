@@ -1,6 +1,10 @@
 .policies-table {
   border-collapse: collapse;
 
+  .data-table__wrapper {
+    overflow-x: auto;
+  }
+
   thead {
     th {
       &.passing_host_count__header,
@@ -20,26 +24,60 @@
     }
   }
 
+  .data-table tbody td.automations__cell {
+    max-width: 300px;
+  }
+
   &__action-button-container {
     display: flex;
     justify-content: center;
   }
 }
 
-.automations-cell {
-  display: block;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.automations__cell-content {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 
   &--none {
     color: $ui-fleet-black-50;
+    cursor: default;
   }
 }
 
-.no-team-policy {
-  border: 1px solid #e2e4ea;
-  box-sizing: border-box;
-  border-radius: 8px;
+.automations__name {
+  flex: 1;
+  min-width: 0;
+}
+
+// Fixed-size wrapper so layout doesn't shift while a software icon loads
+.automations__software-icon {
+  display: flex;
+  align-items: center;
+  width: 24px;
+  height: 24px;
+  background-color: $ui-fleet-black-33;
+  border-radius: 4px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.automations__count {
+  flex: 1;
+  min-width: 0;
+  font-style: italic;
+  color: $ui-fleet-black-75;
+}
+
+.automations__edit-button {
+  visibility: hidden;
+  flex-shrink: 0;
+  margin-left: $pad-small;
+  display: flex;
+  align-items: center;
+  color: $core-vibrant-blue;
+}
+
+.automations__cell-content:hover .automations__edit-button {
+  visibility: visible;
 }

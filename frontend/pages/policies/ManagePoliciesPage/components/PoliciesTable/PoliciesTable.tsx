@@ -14,6 +14,7 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
 } from "../../ManagePoliciesPage";
+import { OtherAutomationType } from "../../helpers";
 
 // isLastPage is removable if/when API is updated to include meta.has_next_results
 const isLastPage = (count: number, pageSize: number, page: number) => {
@@ -41,6 +42,8 @@ interface IPoliciesTableProps {
   count: number;
   customControl?: () => JSX.Element | null;
   isFiltered?: boolean;
+  otherAutomationType?: OtherAutomationType;
+  onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
 }
 
 const PoliciesTable = ({
@@ -62,6 +65,8 @@ const PoliciesTable = ({
   count,
   customControl,
   isFiltered,
+  otherAutomationType,
+  onOpenManageAutomationsModal,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
@@ -121,6 +126,8 @@ const PoliciesTable = ({
           {
             selectedTeamId: currentTeam?.id,
             hasPermissionAndPoliciesToDelete,
+            otherAutomationType,
+            onOpenManageAutomationsModal,
           },
           isPremiumTier,
           config?.partnerships?.enable_primo
