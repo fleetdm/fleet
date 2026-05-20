@@ -725,22 +725,23 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		}
 	}
 
-	// Delete IdP accounts for Windows/Linux hosts only. macOS hosts are excluded
-	// because they have different re-enrollment behavior.
+	// Delete IdP accounts for Windows/Linux/Android hosts only. macOS hosts are
+	// excluded because they have different re-enrollment behavior (ABM/DEP
+	// enroll-ref preserves the IdP association across deletion).
 	// Additionally, for dual-boot scenarios where a machine has the same UUID across
 	// multiple OS installations, we only delete the IdP account if there's no other
 	// host with the same UUID (e.g., a macOS installation on the same hardware).
-	var windowsLinuxUUIDs []string
+	var idpDeleteUUIDs []string
 	for _, info := range hostInfos {
-		if info.Platform == "windows" || fleet.IsLinux(info.Platform) {
-			windowsLinuxUUIDs = append(windowsLinuxUUIDs, info.UUID)
+		if info.Platform == "windows" || fleet.IsLinux(info.Platform) || info.Platform == "android" {
+			idpDeleteUUIDs = append(idpDeleteUUIDs, info.UUID)
 		}
 	}
-	if len(windowsLinuxUUIDs) > 0 {
+	if len(idpDeleteUUIDs) > 0 {
 		// Check if any of these UUIDs have other hosts (e.g., dual-boot macOS)
 		// that should retain the IdP account association.
 		var uuidsWithOtherHosts []string
-		stmt, args, err = sqlx.In(`SELECT DISTINCT uuid FROM hosts WHERE uuid IN (?)`, windowsLinuxUUIDs)
+		stmt, args, err = sqlx.In(`SELECT DISTINCT uuid FROM hosts WHERE uuid IN (?)`, idpDeleteUUIDs)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "building select statement for remaining hosts with same uuid")
 		}
@@ -749,12 +750,12 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		}
 
 		// Filter out UUIDs that still have other hosts
-		uuidsToDelete := make([]string, 0, len(windowsLinuxUUIDs))
+		uuidsToDelete := make([]string, 0, len(idpDeleteUUIDs))
 		uuidsWithOtherHostsSet := make(map[string]struct{}, len(uuidsWithOtherHosts))
 		for _, uuid := range uuidsWithOtherHosts {
 			uuidsWithOtherHostsSet[uuid] = struct{}{}
 		}
-		for _, uuid := range windowsLinuxUUIDs {
+		for _, uuid := range idpDeleteUUIDs {
 			if _, exists := uuidsWithOtherHostsSet[uuid]; !exists {
 				uuidsToDelete = append(uuidsToDelete, uuid)
 			}

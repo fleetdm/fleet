@@ -20,6 +20,7 @@ func TestMDMIdPAccountsReconciliation(t *testing.T) {
 	}{
 		{"AssociateHostMDMIdPAccountTriggersReconciliation", testAssociateHostMDMIdPAccountTriggersReconciliation},
 		{"AndroidEnrollmentFlowWithIdP", testAndroidEnrollmentFlowWithIdP},
+		{"AndroidDeleteAndReEnrollPopulatesDeviceMapping", testAndroidDeleteAndReEnrollPopulatesDeviceMapping},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -175,4 +176,86 @@ func testAndroidEnrollmentFlowWithIdP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 	// N.b.: if/when username field is added to hosts table, verify it here
+}
+
+// testAndroidDeleteAndReEnrollPopulatesDeviceMapping reproduces the customer
+// scenario from issue #43278: an Android host enrolled with IdP info, then
+// deleted from Fleet (without unenrolling), then re-enrolled. The hosts list
+// device_mapping was returning null for the re-enrolled host because
+// host_mdm_idp_accounts (keyed by host_uuid) was preserved across deletion
+// while host_emails (keyed by host_id) was cleared, leaving the two tables
+// inconsistent on re-enrollment.
+func testAndroidDeleteAndReEnrollPopulatesDeviceMapping(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	idpAccount := &fleet.MDMIdPAccount{
+		Username: "pixel.user",
+		Fullname: "Pixel User",
+		Email:    "pixel.user@example.com",
+	}
+	require.NoError(t, ds.InsertMDMIdPAccount(ctx, idpAccount))
+	insertedAccount, err := ds.GetMDMIdPAccountByEmail(ctx, "pixel.user@example.com")
+	require.NoError(t, err)
+	require.NotNil(t, insertedAccount)
+	idpAccount.UUID = insertedAccount.UUID
+
+	const hostUUID = "pixel9-uuid"
+	newAndroidHost := func(nodeKey string) *fleet.AndroidHost {
+		h := &fleet.AndroidHost{
+			Host: &fleet.Host{
+				Hostname:       "Pixel 9",
+				ComputerName:   "Pixel 9",
+				Platform:       "android",
+				OSVersion:      "Android 14",
+				Build:          "UP1A.231005.007",
+				Memory:         8192,
+				HardwareSerial: "PIXEL9SERIAL",
+				CPUType:        "arm64",
+				HardwareModel:  "Pixel 9",
+				HardwareVendor: "Google",
+				UUID:           hostUUID,
+			},
+			Device: &android.Device{
+				DeviceID:             "device-pixel9",
+				EnterpriseSpecificID: ptr.String(hostUUID),
+			},
+		}
+		h.SetNodeKey(nodeKey)
+		return h
+	}
+
+	// First enrollment: associate with IdP and verify host_emails is populated.
+	first, err := ds.NewAndroidHost(ctx, newAndroidHost(hostUUID), false)
+	require.NoError(t, err)
+	require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, hostUUID, idpAccount.UUID))
+
+	emails, err := ds.GetHostEmails(ctx, hostUUID, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+	require.Equal(t, []string{"pixel.user@example.com"}, emails)
+
+	// Delete the host (simulating the admin removing it from Fleet without
+	// unenrolling first). host_mdm_idp_accounts must be cleared so that
+	// re-enrollment treats the device as a fresh enrollment.
+	require.NoError(t, ds.DeleteHost(ctx, first.Host.ID))
+
+	var count int
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &count,
+		`SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, hostUUID))
+	require.Equal(t, 0, count, "host_mdm_idp_accounts must be cleared on Android host deletion")
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &count,
+		`SELECT COUNT(*) FROM host_emails WHERE host_id = ?`, first.Host.ID))
+	require.Equal(t, 0, count, "host_emails must be cleared on host deletion")
+
+	// Re-enrollment: same enterprise-specific ID -> same host UUID, but a new
+	// hosts row with a new host_id. AssociateHostMDMIdPAccount must repopulate
+	// host_emails so the hosts list endpoint returns device_mapping.
+	second, err := ds.NewAndroidHost(ctx, newAndroidHost(hostUUID+"-2"), false)
+	require.NoError(t, err)
+	require.NotEqual(t, first.Host.ID, second.Host.ID, "re-enrollment should create a new hosts row")
+	require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, hostUUID, idpAccount.UUID))
+
+	emails, err = ds.GetHostEmails(ctx, hostUUID, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+	require.Equal(t, []string{"pixel.user@example.com"}, emails,
+		"host_emails must be repopulated on re-enrollment so the hosts list shows device_mapping")
 }

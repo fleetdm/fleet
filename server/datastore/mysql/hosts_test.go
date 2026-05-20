@@ -13613,12 +13613,25 @@ func testHostsDeleteHostsIdPAccounts(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 
+		androidHost, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String("android-node-key"),
+			UUID:            "android-uuid",
+			Hostname:        "android-host.local",
+			Platform:        "android",
+		})
+		require.NoError(t, err)
+
 		// Create IdP accounts and associate them with hosts
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES
 				('idp-account-1', 'user1', 'User One', 'user1@example.com'),
 				('idp-account-2', 'user2', 'User Two', 'user2@example.com'),
-				('idp-account-3', 'user3', 'User Three', 'user3@example.com')`)
+				('idp-account-3', 'user3', 'User Three', 'user3@example.com'),
+				('idp-account-4', 'user4', 'User Four', 'user4@example.com')`)
 			return err
 		})
 
@@ -13626,16 +13639,17 @@ func testHostsDeleteHostsIdPAccounts(t *testing.T, ds *Datastore) {
 			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES
 				(?, 'idp-account-1'),
 				(?, 'idp-account-2'),
-				(?, 'idp-account-3')`,
-				windowsHost.UUID, linuxHost.UUID, macOSHost.UUID)
+				(?, 'idp-account-3'),
+				(?, 'idp-account-4')`,
+				windowsHost.UUID, linuxHost.UUID, macOSHost.UUID, androidHost.UUID)
 			return err
 		})
 
 		var count int
-		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid IN (?, ?, ?)`,
-			windowsHost.UUID, linuxHost.UUID, macOSHost.UUID)
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid IN (?, ?, ?, ?)`,
+			windowsHost.UUID, linuxHost.UUID, macOSHost.UUID, androidHost.UUID)
 		require.NoError(t, err)
-		require.Equal(t, 3, count, "expected 3 IdP account associations before deletion")
+		require.Equal(t, 4, count, "expected 4 IdP account associations before deletion")
 
 		// Delete the Windows host
 		err = ds.DeleteHost(ctx, windowsHost.ID)
@@ -13646,11 +13660,11 @@ func testHostsDeleteHostsIdPAccounts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, 0, count, "Windows host IdP account should be deleted")
 
-		// Verify Linux and macOS IdP accounts still exist
-		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid IN (?, ?)`,
-			linuxHost.UUID, macOSHost.UUID)
+		// Verify Linux, macOS, and Android IdP accounts still exist
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid IN (?, ?, ?)`,
+			linuxHost.UUID, macOSHost.UUID, androidHost.UUID)
 		require.NoError(t, err)
-		require.Equal(t, 2, count, "Linux and macOS IdP accounts should still exist")
+		require.Equal(t, 3, count, "Linux, macOS, and Android IdP accounts should still exist")
 
 		// Delete the Linux host
 		err = ds.DeleteHost(ctx, linuxHost.ID)
@@ -13660,6 +13674,14 @@ func testHostsDeleteHostsIdPAccounts(t *testing.T, ds *Datastore) {
 		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, linuxHost.UUID)
 		require.NoError(t, err)
 		require.Equal(t, 0, count, "Linux host IdP account should be deleted")
+
+		// Delete the Android host. host_mdm_idp_accounts must be cleared so that
+		// re-enrollment of the same device repopulates host_emails (issue #43278).
+		err = ds.DeleteHost(ctx, androidHost.ID)
+		require.NoError(t, err)
+		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, androidHost.UUID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count, "Android host IdP account should be deleted")
 
 		// Verify macOS IdP account still exists (macOS should NOT have IdP accounts deleted)
 		err = ds.writer(ctx).GetContext(ctx, &count, `SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, macOSHost.UUID)
