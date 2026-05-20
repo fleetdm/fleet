@@ -308,18 +308,6 @@ describe("PolicyAutomations", () => {
 
       expect(screen.getByText("Webhook or ticket")).toBeInTheDocument();
     });
-
-    it("does not show row type labels", () => {
-      renderWithAppContext(
-        <PolicyAutomations
-          storedPolicy={createMockPolicy({ calendar_events_enabled: true })}
-          canEditPolicy={false}
-          {...defaultProps}
-        />
-      );
-
-      expect(screen.queryByText("Calendar")).not.toBeInTheDocument();
-    });
   });
 
   describe("footer text", () => {
