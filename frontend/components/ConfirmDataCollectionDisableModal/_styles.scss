@@ -1,11 +1,22 @@
 .confirm-data-collection-disable-modal {
-  &__dataset-list {
-    margin: 0 0 $pad-medium 0;
-    padding-left: $pad-large;
+  .modal__content {
+    @include vertical-modal-layout;
+  }
 
-    li {
-      margin-bottom: $pad-xsmall;
-    }
+  .modal-cta-wrap {
+    margin-top: 0; // Defer to gap styling
+  }
+
+  p {
+    margin: 0;
+  }
+
+  &__dataset-list {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+    margin: 0;
+    padding-left: $pad-large;
 
     code {
       background-color: var(--ui-off-white);
