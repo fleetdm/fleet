@@ -357,7 +357,7 @@ const endpoints = [
     ],
   },
   {
-    markdownHeading: "### Bypass host's conditional access",
+    markdownHeading: "## Bypass host's conditional access",
     operationId: 'bypassHostConditionalAccess',
     tag: 'Hosts',
     summary: "Bypass host's conditional access",

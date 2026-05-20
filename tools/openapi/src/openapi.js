@@ -81,9 +81,12 @@ function buildParameters(parsedParams, endpointSpec) {
     // Fleet's table uses these values directly. Reject anything weird.
     const where = p.in.toLowerCase();
     if (!['path', 'query', 'header', 'cookie'].includes(where)) {
-      process.stderr.write(
-        `warning: skipping parameter ${JSON.stringify(p.name)} with unsupported "in": ${JSON.stringify(p.in)}\n`,
-      );
+      // Body params are handled by buildRequestBody — only warn for truly unknown values.
+      if (where !== 'body') {
+        process.stderr.write(
+          `warning: skipping parameter ${JSON.stringify(p.name)} with unsupported "in": ${JSON.stringify(p.in)}\n`,
+        );
+      }
       continue;
     }
     const key = `${where}:${p.name}`;
@@ -178,7 +181,7 @@ function buildPathItem(endpointSpec, parsed) {
   }
 
   // Build responses from the example payload.
-  if (parsed.exampleResponse) {
+  if (parsed.exampleResponse && parsed.exampleResponse.body) {
     const { status, body } = parsed.exampleResponse;
     operation.responses = {
       [String(status)]: {
@@ -191,9 +194,15 @@ function buildPathItem(endpointSpec, parsed) {
         },
       },
     };
+  } else if (parsed.exampleResponse) {
+    // Status code present but no body (e.g. 204 No Content).
+    operation.responses = {
+      [String(parsed.exampleResponse.status)]: {
+        description: 'Successful response.',
+      },
+    };
   } else {
     // No example response in the Markdown — emit a minimal 200 placeholder.
-    // This keeps the document valid and signals "shape unknown" to consumers.
     operation.responses = {
       '200': {
         description: 'Successful response.',

@@ -68,9 +68,9 @@ function extractSection(md, heading) {
  * @returns {{ method: string, path: string }}
  */
 function parseRequestLine(section) {
-  // First non-heading, non-blank line is the request line, formatted as
-  //   `GET /api/v1/fleet/hosts`
-  // We tolerate optional surrounding whitespace.
+  // Scan for the backticked request line, e.g. `GET /api/v1/fleet/hosts`.
+  // Some endpoints have description paragraphs between the heading and the
+  // request line, so we skip non-matching lines instead of throwing eagerly.
   const lines = section.split('\n');
   for (let i = 1; i < lines.length; i++) {
     const trimmed = lines[i].trim();
@@ -80,11 +80,6 @@ function parseRequestLine(section) {
     if (m) {
       return { method: m[1].toLowerCase(), path: m[2] };
     }
-    // If the first non-blank line is something else, this section doesn't
-    // follow the convention; surface that explicitly.
-    throw new Error(
-      `expected request line under heading, got: ${JSON.stringify(trimmed)}`,
-    );
   }
   throw new Error('no request line found in section');
 }
@@ -193,9 +188,14 @@ function parseDefaultResponse(section) {
     if (t.startsWith('#')) return null; // ran off the end of the subsection
   }
 
-  // Find ```json fence.
-  while (i < lines.length && !lines[i].trim().startsWith('```json')) i++;
-  if (i >= lines.length) return null;
+  // Find ```json fence. If there's none, return just the status (no body).
+  while (i < lines.length && !lines[i].trim().startsWith('```json')) {
+    if (lines[i].trim().startsWith('#')) break; // ran into next section
+    i++;
+  }
+  if (i >= lines.length || lines[i].trim().startsWith('#')) {
+    return { status, body: null };
+  }
   i++; // step into fence body
   const bodyLines = [];
   while (i < lines.length && !lines[i].trim().startsWith('```')) {
