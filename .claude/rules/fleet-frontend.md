@@ -73,6 +73,7 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`
 - Legacy pattern: some files export both PropTypes (default export) and TypeScript interfaces (named export)
 - New code should use TypeScript interfaces only
+- API interface naming: use `*FormData` for form-driven request bodies, `*ApiParams`/`*QueryParams` for request params, `*Response` for API responses, `*QueryKey` when typing a React Query key
 
 ## Hooks & Context
 - Custom hooks in `frontend/hooks/` — e.g., `useTeamIdParam`, `useCheckboxListStateManagement`
