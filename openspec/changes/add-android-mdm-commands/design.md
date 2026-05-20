@@ -109,9 +109,21 @@ resource (with `errorCode`, status fields, etc.).
   case android.PubSubCommand:
       return svc.handlePubSubCommand(ctx, token, rawData)
   ```
-- The handler decodes the payload, looks up the matching `mdm_android_commands` row by `operation_name`, updates `status` and
-  `error_code` / `error_message`, and on success clears the corresponding `host_mdm_actions.lock_ref` / `wipe_ref` (matching
-  Apple's "command acknowledged → state advances" semantics).
+- The handler decodes the payload, looks up the matching `mdm_android_commands` row by `operation_name`, and updates `status`
+  (to `acknowledged` or `error`) plus `error_code` / `error_message` when present. The handler **does NOT** clear
+  `host_mdm_actions.{lock_ref, wipe_ref}`. The refs stay set; `GetHostLockWipeStatus` joins to `mdm_android_commands` and
+  computes `IsLocked()` / `IsWiped()` from the joined `status` (`acknowledged` ⇒ locked or wiped). This mirrors the Apple
+  state model: `host_mdm_actions.lock_ref` for Apple stays set after ack, and the joined `nano_commands` row carries the
+  `Acknowledged` status. Refs are only cleared on transitions like Unlock (Apple does the same in
+  `server/datastore/mysql/scripts.go` `buildHostLockWipeStatusUpdateStmt`).
+- **HostLockWipeStatus methods must learn Android.** `fleet.HostLockWipeStatus.IsPendingLock()`, `IsLocked()`,
+  `IsPendingWipe()`, `IsWiped()` (`server/fleet/scripts.go:724-800`) currently switch on `HostFleetPlatform` and handle only
+  `darwin|ios|ipados` (MDM-command-based) and `windows|linux` (script-based). For Android they fall through to the
+  script-based / `default:false` paths, which would always return false even with the datastore populated. The pending-state
+  guards on `LockHost` / `WipeHost` would not block double-issue. Add an explicit `case "android":` branch in each of these
+  four methods that checks the joined `mdm_android_commands.status` (`pending` ⇒ IsPending*, `acknowledged` ⇒
+  IsLocked/IsWiped, anything else ⇒ false). This is a task in `tasks.md` Phase 4 (datastore + struct method extension);
+  not just a datastore change.
 - **No polling, no janitor in v1.** Pub/Sub is already a hard dependency of Android MDM (enrollment and status reports use it
   exclusively); commands inherit the same dependency. If a customer's Pub/Sub is broken, the rest of Android MDM is already
   broken.

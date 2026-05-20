@@ -27,8 +27,12 @@ This change implements the end-to-end command flow on top of the merged REST API
   this new table for Android, exactly as they point into `nano_commands` for Apple.
 - **Pub/Sub COMMAND handler**: implement the previously-declared `android.PubSubCommand` notification path
   (`server/mdm/android/pubsub.go:9`, currently falling through to `default:` in `ProcessPubSubPush`). The handler updates
-  `mdm_android_commands.status`, clears the corresponding `host_mdm_actions` entry on success, and surfaces command errors
-  via the same activity-failure paths used elsewhere.
+  `mdm_android_commands.status` to `acknowledged` or `error` (persisting `error_code` / `error_message` when present). The
+  handler does NOT clear `host_mdm_actions.{lock_ref, wipe_ref}` on success — the refs stay set so `GetHostLockWipeStatus`
+  can join to the now-acknowledged command row and compute `IsLocked()` / `IsWiped()`. This mirrors the Apple state model
+  where `lock_ref` remains and the joined `nano_commands` row carries the `Acknowledged` status. Command errors are surfaced
+  via the persisted row + structured logs; lock/wipe activities are emitted at enqueue time (not at ack), so there is no
+  activity-failure event to fire.
 - **BYO Unenroll behavior change** (in scope, per Figma dev note): `UnenrollAndroidHost` for BYO hosts switches from
   `EnterprisesDevicesDelete` to `IssueCommand(WIPE)`. COBO unenroll continues to use `EnterprisesDevicesDelete` (matches the
   Figma's "Delete" menu item, which is separate from "Wipe"). The user-facing operation remains "Unenroll" — the WIPE command
@@ -83,9 +87,10 @@ Non-goals:
 ### New Capabilities
 
 - `mdm-android-commands`: Issuing Lock, Wipe, and Clear-passcode commands to Android hosts via AMAPI, tracking command state
-  via Pub/Sub COMMAND notifications, reusing the cross-platform `host_mdm_actions` state spine, and surfacing pending/done
-  state via existing host-details badges and activity items. BYO vs COBO routing is enforced both server-side (platform
-  branches in `ee/server/service/`) and client-side (dropdown visibility in `helpers.tsx`).
+  via Pub/Sub COMMAND notifications, reusing the cross-platform `host_mdm_actions` state spine for server-side pending-state
+  guards, and surfacing command outcomes via existing activity items. No host-header badges for Android (product decision —
+  see design.md). BYO vs COBO routing is enforced both server-side (platform branches in `ee/server/service/`) and
+  client-side (dropdown visibility in `helpers.tsx`).
 
 ### Modified Capabilities
 

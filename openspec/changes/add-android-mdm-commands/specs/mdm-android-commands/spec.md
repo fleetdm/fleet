@@ -177,20 +177,24 @@ on `host_uuid` (for host-details lookups and joins) and `operation_name` (for Pu
 The `ProcessPubSubPush` dispatcher in `server/mdm/android/service/pubsub.go` SHALL handle the previously declared but
 unhandled `android.PubSubCommand` notification type. The handler SHALL authenticate the Pub/Sub token via the existing
 `authenticatePubSub` helper, decode the notification payload as an `androidmanagement.Command` resource, look up the
-matching `mdm_android_commands` row by AMAPI operation name, update the row's status and error fields, and (on success)
-clear the corresponding `host_mdm_actions.{lock_ref, wipe_ref}` entry for LOCK and update wipe-acknowledged state for WIPE.
-The handler SHALL NOT modify `host_mdm_actions` for RESET_PASSWORD. If the notification refers to an operation Fleet does
-not track, the handler SHALL log at debug level and return success (idempotent no-op).
+matching `mdm_android_commands` row by AMAPI operation name, and update the row's `status` (to `acknowledged` or `error`)
+and error fields. The handler SHALL NOT modify `host_mdm_actions` — refs remain set; `GetHostLockWipeStatus` joins to
+`mdm_android_commands` and computes `IsLocked()` / `IsWiped()` from the joined status. (This mirrors Apple's state model,
+where `lock_ref` stays set after ack and the joined `nano_commands` row carries the `Acknowledged` status; refs are only
+cleared on transitions like Unlock.) If the notification refers to an operation Fleet does not track, the handler SHALL
+log at debug level and return success (idempotent no-op).
 
-#### Scenario: Successful LOCK acknowledgement clears lock_ref
+#### Scenario: Successful LOCK acknowledgement updates command status; ref stays set
 
 - **GIVEN** a row exists in `mdm_android_commands` with `command_type='LOCK'`, `status='pending'`, and a corresponding
   `host_mdm_actions.lock_ref` pointing to it
 - **WHEN** the Pub/Sub endpoint receives a `notificationType=COMMAND` payload with no `errorCode` for that operation
 - **THEN** the handler SHALL update the row's `status` to `acknowledged`
-- **AND** the host's `lockWipe.IsLocked()` evaluation in `GetHostLockWipeStatus` SHALL return true after this update
+- **AND** the handler SHALL NOT modify `host_mdm_actions` (the `lock_ref` remains set)
+- **AND** a subsequent call to `GetHostLockWipeStatus(ctx, host)` SHALL return a `HostLockWipeStatus` whose `IsLocked()`
+  evaluates to true (computed from the joined `acknowledged` row)
 
-#### Scenario: Failed WIPE acknowledgement does NOT clear wipe_ref
+#### Scenario: Failed WIPE acknowledgement persists error; ref stays set
 
 - **GIVEN** a row exists in `mdm_android_commands` with `command_type='WIPE'`, `status='pending'`, and a corresponding
   `host_mdm_actions.wipe_ref`
@@ -212,7 +216,11 @@ not track, the handler SHALL log at debug level and return success (idempotent n
 The `GetHostLockWipeStatus(ctx, host)` datastore method SHALL include an `case "android":` branch that, for hosts with
 `fleet_platform = 'android'` in `host_mdm_actions`, reads the referenced `mdm_android_commands` rows (one per non-NULL
 `lock_ref` / `wipe_ref`) and populates the `HostLockWipeStatus` struct's status fields with semantics equivalent to the
-Apple branch. The same logic SHALL apply in `GetHostsLockWipeStatusBatch`.
+Apple branch. The same logic SHALL apply in `GetHostsLockWipeStatusBatch`. The `HostLockWipeStatus` struct methods
+`IsPendingLock()`, `IsLocked()`, `IsPendingWipe()`, `IsWiped()` in `server/fleet/scripts.go` SHALL also be extended with
+an `android` arm that reads the joined `mdm_android_commands.status` (`pending` ⇒ `IsPending*` true; `acknowledged` ⇒
+`IsLocked()` / `IsWiped()` true; any other value ⇒ false), since the existing arms fall through to script-based or
+default-false paths for Android.
 
 #### Scenario: Pending LOCK on Android returns IsPendingLock
 

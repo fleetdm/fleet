@@ -51,6 +51,14 @@ on operation-name lengths, Pub/Sub COMMAND payload shape, and command-expiry beh
 - [ ] 4.6 Extend the existing `host_mdm_actions` write path used by Apple/Windows to accept the Android UUID format and
       `fleet_platform = 'android'`. May not need any code change — verify the existing `bulkSetPendingMDM*` functions are
       generic enough.
+- [ ] 4.7 Extend the `fleet.HostLockWipeStatus` struct methods in `server/fleet/scripts.go:724-800` with explicit
+      `case "android":` branches in `IsPendingLock()`, `IsLocked()`, `IsPendingWipe()`, `IsWiped()`. Today these methods
+      treat any non-`darwin|ios|ipados` platform as either script-based or `default: return false`, so Android would
+      always evaluate to false without explicit handling — server-side pending-state guards in `LockHost` / `WipeHost`
+      would silently fail to block double-issue. The Android arm should check the joined `mdm_android_commands.status`
+      (e.g. `IsLocked()` returns true when an LOCK command row exists with `status == "acknowledged"`). Add new fields
+      to `HostLockWipeStatus` to carry the joined Android command if needed (mirroring `LockMDMCommand` /
+      `LockMDMCommandResult` for Apple).
 
 ## 5. android.Service new methods
 
@@ -83,10 +91,11 @@ on operation-name lengths, Pub/Sub COMMAND payload shape, and command-expiry beh
       - Decode `rawData` as `androidmanagement.Command` (the AMAPI Command resource carried in the notification).
       - Look up `mdm_android_commands` row by `operation_name` (the notification carries the operation name; the message
         attributes also include `name` and the Command's URL-path equivalent).
-      - On success (no `errorCode`): set `status = 'acknowledged'`. For LOCK / explicit WIPE (rows whose corresponding
-        `host_mdm_actions.lock_ref` or `wipe_ref` matches the row's command_uuid), clear that reference so the cross-platform
-        state advances (matches Apple's "command acknowledged → state advances" semantics). For RESET_PASSWORD and BYO
-        Unenroll's WIPE, no `host_mdm_actions` change is needed (no ref was set at issue time).
+      - On success (no `errorCode`): set `status = 'acknowledged'`. Do NOT clear `host_mdm_actions.{lock_ref, wipe_ref}` —
+        the refs stay set; `GetHostLockWipeStatus` joins to the row and reads the `acknowledged` status to compute
+        `IsLocked()` / `IsWiped()`. This mirrors how Apple's `lock_ref` stays set after ack and the joined `nano_commands`
+        carries the `Acknowledged` status (see `server/datastore/mysql/scripts.go` `buildHostLockWipeStatusUpdateStmt` —
+        Apple refs are only cleared on Unlock transitions).
       - On failure (`errorCode` set): set `status = 'error'`, persist `error_code` and `error_message`, leave any
         `host_mdm_actions` reference in place (admin sees the failed command lingering in pending state and can re-issue),
         log via `logger.WarnContext` (a failed Lock should not page anyone but should appear in logs).
@@ -200,7 +209,9 @@ on operation-name lengths, Pub/Sub COMMAND payload shape, and command-expiry beh
 ## 13. QA + risk mitigation
 
 - [ ] 13.1 Hold a pre-merge real-device QA pass per the spike plan: validate Lock/Wipe/Clear-passcode/Unenroll on one BYO
-      Pixel + one COBO Pixel. Capture timing data for the "Wipe pending" badge appearance and dismissal.
+      Pixel + one COBO Pixel. Capture timing data for command completion: from IssueCommand return to flash message, and
+      from device-side action to activity-feed entry appearance. (No badge timing — per product, Android hosts do not
+      display "Wipe pending" / "Wiped" / "Lock pending" badges.)
 - [ ] 13.2 Confirm the Pub/Sub COMMAND notification arrives reliably for all four commands in real-device QA. If any
       command fails to emit a notification (notably command expiry at 10 min default), file a follow-up for the janitor
       cron.
