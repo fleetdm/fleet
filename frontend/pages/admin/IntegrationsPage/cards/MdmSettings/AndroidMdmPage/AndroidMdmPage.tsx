@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "react-query";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import { IConfig } from "interfaces/config";
 import { getErrorReason } from "interfaces/errors";
 import mdmAndroidAPI from "services/entities/mdm_android";
 import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
@@ -25,7 +26,6 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 
 import TurnOffAndroidMdmModal from "./components/TurnOffAndroidMdmModal";
-import refetchConfigUntil from "./helpers";
 
 const baseClass = "android-mdm-page";
 
@@ -58,19 +58,18 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
       }
       abortController.abort();
       // SSE success means the backend has already set
-      // android_enabled_and_configured=true. The follow-up refresh below is
-      // best-effort: if it fails (network blip, etc.) the toggle itself
-      // still succeeded, so we must not flash a turn-on error.
-      try {
-        const freshConfig = await refetchConfigUntil(
-          (cfg) => !!cfg.mdm.android_enabled_and_configured
-        );
-        // setConfig flips AppContext.isAndroidMdmEnabledAndConfigured so the
-        // card on /admin/integrations/mdm renders correctly on first paint.
-        setConfig(freshConfig);
-        queryClient.setQueryData(["config"], freshConfig);
-      } catch (e) {
-        console.error("Post-success config refresh failed", e);
+      // android_enabled_and_configured=true. Patch the in-memory config so
+      // AppContext.isAndroidMdmEnabledAndConfigured flips immediately and
+      // AndroidMdmCard renders correctly on redirect, without a synchronous
+      // round-trip.
+      const prevConfig = queryClient.getQueryData<IConfig>(["config"]);
+      if (prevConfig) {
+        const patched: IConfig = {
+          ...prevConfig,
+          mdm: { ...prevConfig.mdm, android_enabled_and_configured: true },
+        };
+        setConfig(patched);
+        queryClient.setQueryData(["config"], patched);
       }
       renderFlash("success", "Android MDM turned on successfully.", {
         persistOnPageChange: true,

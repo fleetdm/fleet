@@ -6,11 +6,10 @@ import PATHS from "router/paths";
 import mdmAndroidAPI from "services/entities/mdm_android";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import { IConfig } from "interfaces/config";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-
-import refetchConfigUntil from "../../helpers";
 
 const baseClass = "turn-off-android-mdm-modal";
 
@@ -39,17 +38,16 @@ const TurnOffAndroidMdmModal = ({
       return;
     }
     // DELETE success means the backend has already cleared
-    // android_enabled_and_configured. The follow-up refresh is best-effort:
-    // a failure here must not flash a turn-off error since the toggle itself succeeded.
-    try {
-      const freshConfig = await refetchConfigUntil(
-        (cfg) => !cfg.mdm.android_enabled_and_configured
-      );
-      // setConfig flips AppContext for the parent card on redirect.
-      setConfig(freshConfig);
-      queryClient.setQueryData(["config"], freshConfig);
-    } catch (e) {
-      console.error("Post-success config refresh failed", e);
+    // android_enabled_and_configured. Patch the in-memory config so the
+    // parent MDM page's card flips immediately on redirect.
+    const prevConfig = queryClient.getQueryData<IConfig>(["config"]);
+    if (prevConfig) {
+      const patched: IConfig = {
+        ...prevConfig,
+        mdm: { ...prevConfig.mdm, android_enabled_and_configured: false },
+      };
+      setConfig(patched);
+      queryClient.setQueryData(["config"], patched);
     }
     renderFlash("success", "Android MDM turned off successfully.", {
       persistOnPageChange: true,
