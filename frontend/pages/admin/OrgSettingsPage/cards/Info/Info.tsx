@@ -330,11 +330,18 @@ const Info = ({
         }
       }
 
-      // Use the config returned by the last logo operation to update the
-      // cache directly, avoiding a stale read from a lagging replica.
+      // Merge the config returned by the last logo operation into the
+      // existing cache entry. The logo endpoint returns AppConfig fields
+      // but not the extra top-level fields (license, logging, etc.) that
+      // GET /config includes, so we merge to preserve them.
       if (succeededModes.length > 0 && lastLogoResponse?.config) {
-        queryClient.setQueryData(["config"], lastLogoResponse.config);
-        setConfig(lastLogoResponse.config as Parameters<typeof setConfig>[0]);
+        const logoConfig = lastLogoResponse.config as Record<string, unknown>;
+        const oldConfig = queryClient.getQueryData(["config"]) as
+          | Record<string, unknown>
+          | undefined;
+        const merged = { ...oldConfig, ...logoConfig };
+        queryClient.setQueryData(["config"], merged);
+        setConfig(merged as unknown as Parameters<typeof setConfig>[0]);
       }
 
       const reset = (prev: ILogoModeState) => {

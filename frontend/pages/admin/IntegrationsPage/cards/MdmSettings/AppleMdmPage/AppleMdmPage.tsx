@@ -70,8 +70,12 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
     try {
       const response = await mdmAppleAPI.deleteApplePushCertificate();
       if (response?.config) {
-        queryClient.setQueryData(["config"], response.config);
-        setConfig(response.config);
+        const oldConfig = queryClient.getQueryData(["config"]) as
+          | Record<string, unknown>
+          | undefined;
+        const merged = { ...oldConfig, ...response.config };
+        queryClient.setQueryData(["config"], merged);
+        setConfig(merged as Parameters<typeof setConfig>[0]);
       }
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
       renderFlash("success", "MDM turned off successfully.");
