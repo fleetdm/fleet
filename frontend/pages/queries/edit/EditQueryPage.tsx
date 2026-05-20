@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { Location } from "history";
@@ -68,6 +68,7 @@ const EditQueryPage = ({
     includeNoTeam: false,
   });
 
+  const queryClient = useQueryClient();
   const handlePageError = useErrorHandler();
   const {
     isGlobalAdmin,
@@ -132,33 +133,29 @@ const EditQueryPage = ({
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
-  const {
-    isLoading: isStoredQueryLoading,
-    data: storedQuery,
-    refetch: refetchStoredQuery,
-  } = useQuery<IGetQueryResponse, Error, ISchedulableQuery>(
-    ["query", queryId],
-    () => queryAPI.load(queryId as number),
-    {
-      enabled: !!queryId && !editingExistingQuery,
-      refetchOnWindowFocus: false,
-      select: (data) => data.query,
-      onSuccess: (returnedQuery) => {
-        setLastEditedQueryId(returnedQuery.id);
-        setLastEditedQueryName(returnedQuery.name);
-        setLastEditedQueryDescription(returnedQuery.description);
-        setLastEditedQueryBody(returnedQuery.query);
-        setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
-        setLastEditedQueryFrequency(returnedQuery.interval);
-        setLastEditedQueryAutomationsEnabled(returnedQuery.automations_enabled);
-        setLastEditedQueryPlatforms(returnedQuery.platform);
-        setLastEditedQueryLoggingType(returnedQuery.logging);
-        setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
-        setLastEditedQueryDiscardData(returnedQuery.discard_data);
-      },
-      onError: (error) => handlePageError(error),
-    }
-  );
+  const { isLoading: isStoredQueryLoading, data: storedQuery } = useQuery<
+    IGetQueryResponse,
+    Error,
+    ISchedulableQuery
+  >(["query", queryId], () => queryAPI.load(queryId as number), {
+    enabled: !!queryId && !editingExistingQuery,
+    refetchOnWindowFocus: false,
+    select: (data) => data.query,
+    onSuccess: (returnedQuery) => {
+      setLastEditedQueryId(returnedQuery.id);
+      setLastEditedQueryName(returnedQuery.name);
+      setLastEditedQueryDescription(returnedQuery.description);
+      setLastEditedQueryBody(returnedQuery.query);
+      setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
+      setLastEditedQueryFrequency(returnedQuery.interval);
+      setLastEditedQueryAutomationsEnabled(returnedQuery.automations_enabled);
+      setLastEditedQueryPlatforms(returnedQuery.platform);
+      setLastEditedQueryLoggingType(returnedQuery.logging);
+      setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
+      setLastEditedQueryDiscardData(returnedQuery.discard_data);
+    },
+    onError: (error) => handlePageError(error),
+  });
 
   /** Pesky bug affecting team level users:
    - Navigating to queries/:id immediately defaults the user to the first team they're on
@@ -315,9 +312,16 @@ const EditQueryPage = ({
     });
 
     try {
-      await queryAPI.update(queryId, updatedQuery);
+      const { query: updatedQueryResponse } = await queryAPI.update(
+        queryId,
+        updatedQuery
+      );
+      // Update the React Query cache directly with the server response
+      // instead of refetching, which may return stale data from a read replica
+      queryClient.setQueryData<IGetQueryResponse>(["query", queryId], {
+        query: updatedQueryResponse,
+      });
       renderFlash("success", "Report updated.");
-      refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
     } catch (updateError) {
       console.error(updateError);
       const reason = getErrorReason(updateError);

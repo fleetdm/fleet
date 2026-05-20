@@ -6,7 +6,7 @@ import React, {
   useState,
 } from "react";
 
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import { NotificationContext } from "context/notification";
 
@@ -139,6 +139,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     setShowHostStatusWebhookPreviewModal(!showHostStatusWebhookPreviewModal);
   };
 
+  const queryClient = useQueryClient();
   const { renderFlash } = useContext(NotificationContext);
 
   const { isRouteOk, teamIdForApi } = useTeamIdParam({
@@ -182,7 +183,6 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const {
     data: teamConfig,
     isLoading: isLoadingTeamConfig,
-    refetch: refetchTeamConfig,
     error: errorLoadTeamConfig,
   } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
     ["teamConfig", teamIdForApi],
@@ -320,9 +320,9 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         },
         teamIdForApi
       )
-      .then(() => {
+      .then((updatedTeam: ILoadTeamResponse) => {
         renderFlash("success", "Successfully updated settings.");
-        refetchTeamConfig();
+        queryClient.setQueryData(["teamConfig", teamIdForApi], updatedTeam);
         setIsInitialTeamConfig(false);
         setConfirmModalOpen(false);
       })
@@ -338,7 +338,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   }, [
     formData,
     globalHostExpiryEnabled,
-    refetchTeamConfig,
+    queryClient,
     renderFlash,
     teamIdForApi,
   ]);

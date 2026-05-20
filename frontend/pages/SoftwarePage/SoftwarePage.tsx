@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { Tab, TabList, Tabs } from "react-tabs";
 
 import PATHS from "router/paths";
@@ -134,6 +134,7 @@ interface ISoftwarePageProps {
 const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const {
     config: globalConfigFromContext,
+    setConfig,
     isFreeTier,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -142,6 +143,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     isTeamMaintainer,
     isPremiumTier,
   } = useContext(AppContext);
+
+  const queryClient = useQueryClient();
 
   const isPrimoMode =
     globalConfigFromContext?.partnerships?.enable_primo || false;
@@ -211,7 +214,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     data: softwareConfig,
     error: softwareConfigError,
     isFetching: isFetchingSoftwareConfig,
-    refetch: refetchSoftwareConfig,
   } = useQuery<
     IConfig | ILoadTeamResponse,
     Error,
@@ -254,14 +256,16 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     configSoftwareAutomations: ISoftwareAutomations
   ) => {
     try {
-      const request = configAPI.update(configSoftwareAutomations);
-      await request.then(() => {
-        renderFlash(
-          "success",
-          "Successfully updated vulnerability automations."
-        );
-        refetchSoftwareConfig();
-      });
+      const updatedConfig = await configAPI.update(configSoftwareAutomations);
+      renderFlash("success", "Successfully updated vulnerability automations.");
+      // Use the write response directly instead of refetching to avoid
+      // stale reads from a lagging replica (read-after-write fix).
+      queryClient.setQueryData(["config"], updatedConfig);
+      queryClient.setQueryData(
+        [{ scope: "softwareConfig", teamId: undefined }],
+        updatedConfig
+      );
+      setConfig(updatedConfig);
     } catch {
       renderFlash(
         "error",

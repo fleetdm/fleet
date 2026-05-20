@@ -1,4 +1,5 @@
 import React, { useContext, useState } from "react";
+import { useQueryClient } from "react-query";
 import { isEmpty } from "lodash";
 import { AxiosResponse } from "axios";
 
@@ -123,12 +124,11 @@ const AppleOSTargetForm = ({
   defaultMinOsVersion,
   defaultDeadline,
   defaultUpdateNewHosts,
-  refetchAppConfig,
-  refetchTeamConfig,
 }: IAppleOSTargetFormProps) => {
+  const queryClient = useQueryClient();
   const { renderFlash } = useContext(NotificationContext);
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { config, setConfig } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [isSaving, setIsSaving] = useState(false);
   const [minOsVersion, setMinOsVersion] = useState(defaultMinOsVersion);
@@ -162,16 +162,18 @@ const AppleOSTargetForm = ({
         updateNewHosts
       );
       try {
-        currentTeamId === APP_CONTEXT_NO_TEAM_ID
-          ? await configAPI.update(updateData)
-          : await teamsAPI.update(updateData, currentTeamId);
+        if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
+          const updatedConfig = await configAPI.update(updateData);
+          queryClient.setQueryData(["config"], updatedConfig);
+          setConfig(updatedConfig);
+        } else {
+          const updatedTeam = await teamsAPI.update(updateData, currentTeamId);
+          queryClient.setQueryData(["team-config", currentTeamId], updatedTeam);
+        }
         renderFlash("success", "Successfully updated.");
       } catch (err) {
         renderFlash("error", getErrorMessage(err as AxiosResponse<IApiError>));
       } finally {
-        currentTeamId === APP_CONTEXT_NO_TEAM_ID
-          ? refetchAppConfig()
-          : refetchTeamConfig();
         setIsSaving(false);
       }
     }

@@ -5,6 +5,7 @@ import { getErrorReason } from "interfaces/errors";
 import { ISelectedTargetsForApi } from "interfaces/target";
 import {
   ICreateQueryRequestBody,
+  IGetQueryResponse,
   IModifyQueryRequestBody,
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
@@ -135,7 +136,10 @@ export default {
       );
     }
   },
-  update: (id: number, updateParams: IModifyQueryRequestBody) => {
+  update: (
+    id: number,
+    updateParams: IModifyQueryRequestBody
+  ): Promise<IGetQueryResponse> => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
     if (updateParams.name) {

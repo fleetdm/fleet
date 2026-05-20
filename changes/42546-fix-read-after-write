@@ -1,0 +1,1 @@
+- Fixed read-after-write issues in the frontend where stale config/data could be displayed after saving in environments with database read replica lag. Write responses are now used directly to update the local cache instead of refetching.
