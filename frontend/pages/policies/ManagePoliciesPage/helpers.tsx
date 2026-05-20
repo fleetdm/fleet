@@ -1,11 +1,9 @@
 import React from "react";
 
-import { IPolicyStats } from "interfaces/policy";
+import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
 
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
-
-export type OtherAutomationType = "webhook" | "ticket";
 
 export type AutomationDisplayType =
   | "software"

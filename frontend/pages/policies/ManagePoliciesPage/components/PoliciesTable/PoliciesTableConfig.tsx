@@ -12,7 +12,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import { IPolicyStats } from "interfaces/policy";
+import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
 import PATHS from "router/paths";
 import ENDPOINTS from "utilities/endpoints";
 
@@ -26,11 +26,7 @@ import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/So
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-import {
-  getAutomationsForPolicy,
-  IAutomationData,
-  OtherAutomationType,
-} from "../../helpers";
+import { getAutomationsForPolicy, IAutomationData } from "../../helpers";
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {

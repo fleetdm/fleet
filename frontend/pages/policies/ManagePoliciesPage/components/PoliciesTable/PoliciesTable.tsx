@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import { AppContext } from "context/app";
 
-import { IPolicyStats } from "interfaces/policy";
+import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyStateProps } from "interfaces/empty_state";
 import Button from "components/buttons/Button";
@@ -14,7 +14,6 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
 } from "../../ManagePoliciesPage";
-import { OtherAutomationType } from "../../helpers";
 
 // isLastPage is removable if/when API is updated to include meta.has_next_results
 const isLastPage = (count: number, pageSize: number, page: number) => {

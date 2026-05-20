@@ -24,6 +24,7 @@ import {
   ILoadAllPoliciesResponse,
   ILoadTeamPoliciesResponse,
   IPoliciesCountResponse,
+  OtherAutomationType,
 } from "interfaces/policy";
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 
@@ -58,7 +59,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import PoliciesTable from "./components/PoliciesTable";
 import DeletePoliciesModal from "./components/DeletePoliciesModal";
-import { OtherAutomationType } from "./helpers";
 import { DEFAULT_POLICY } from "../constants";
 import AutomationsModal from "./components/AutomationsModal";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";

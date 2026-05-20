@@ -20,6 +20,8 @@ export default PropTypes.shape({
   updated_at: PropTypes.string.isRequired,
 });
 
+export type OtherAutomationType = "webhook" | "ticket";
+
 export interface IStoredPolicyResponse {
   policy: IPolicy;
 }
