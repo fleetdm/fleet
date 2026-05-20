@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "140.10.2",
+      "version": "140.11.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox' AND version_compare(bundle_short_version, '140.10.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox' AND version_compare(bundle_short_version, '140.11.0') < 0);"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.10.2esr/mac/en-US/Firefox%20140.10.2esr.dmg",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.11.0esr/mac/en-US/Firefox%20140.11.0esr.dmg",
       "install_script_ref": "f659d0e6",
       "uninstall_script_ref": "e150679d",
-      "sha256": "4f08fe2e2f806fcb6db9cea31f7aa4094395a522ba7b510cc07981ecc0476a11",
+      "sha256": "ac2aac7314f9cacf441e047ae9ec30e27b56b32838561b4dfdab4e17ec7928ce",
       "default_categories": [
         "Browsers"
       ]
