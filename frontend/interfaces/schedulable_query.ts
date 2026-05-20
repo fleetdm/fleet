@@ -121,9 +121,9 @@ export interface ICreateQueryFormData {
 
 // response is ISchedulableQuery
 
-// Modify a query by id
+// Edit a query by id
 /** PATCH /api/v1/fleet/queries/{id} */
-export interface IModifyQueryFormData
+export interface IEditQueryFormData
   extends Omit<ICreateQueryFormData, "name" | "query" | "fleet_id"> {
   id?: number;
   name?: string;
