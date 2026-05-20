@@ -94,8 +94,9 @@ const functionWithTableName = (tableName: string)=> {
 
 ```typescript
 // API interfaces should live in the relevant entities file.
-// Their names should be named to clarify what they are used for when interacting
-// with the API
+// Their names should clarify what they are used for when interacting with the
+// API. In service functions, prefer `formData` as the variable name for request
+// bodies to stay consistent with the *FormData interface naming convention.
 
 // should be defined in service/entities/hosts.ts
 interface IHostDetailsResponse {
