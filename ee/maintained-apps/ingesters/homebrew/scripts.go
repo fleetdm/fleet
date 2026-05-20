@@ -11,6 +11,15 @@ import (
 	"github.com/micromdm/plist"
 )
 
+func caskHasPkgArtifact(cask *brewCask) bool {
+	for _, artifact := range cask.Artifacts {
+		if len(artifact.Pkg) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sb := newScriptBuilder()
 
@@ -18,6 +27,19 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sb.AddVariable("APPDIR", `"/Applications/"`)
 
 	sb.Extract(app.InstallerFormat)
+
+	// Some FMAs (e.g. Slack, 1Password) use a universal PKG download URL while the
+	// Homebrew cask still describes a zip/dmg + .app copy flow. When installer_format
+	// is pkg but the cask has no pkg artifact, install the downloaded PKG directly.
+	if app.InstallerFormat == "pkg" && !caskHasPkgArtifact(cask) {
+		sb.AddFunction("quit_and_track_application", quitAndTrackApplicationFunc)
+		sb.AddFunction("relaunch_application", relaunchApplicationFunc)
+		sb.Write("# install pkg files")
+		sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
+		sb.InstallPkgFromInstallerPath()
+		sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+		return sb.String(), nil
+	}
 
 	// Add quit/relaunch functions if we have App or Pkg artifacts
 	var needsQuitRelaunch bool
@@ -388,6 +410,13 @@ func (s *scriptBuilder) Copy(file, dest string) {
 // privileges.
 func (s *scriptBuilder) RemoveFile(file string) {
 	s.Writef(`sudo rm -rf %s`, file)
+}
+
+// InstallPkgFromInstallerPath writes a command to install the package at INSTALLER_PATH.
+// Used when installer_format is pkg but the Homebrew cask has no pkg artifact (the
+// downloaded file name may not match the cask).
+func (s *scriptBuilder) InstallPkgFromInstallerPath() {
+	s.Write(`sudo installer -pkg "$INSTALLER_PATH" -target /`)
 }
 
 // InstallPkg writes a command to install a package using the macOS `installer` utility.
