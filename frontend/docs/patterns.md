@@ -340,8 +340,8 @@ const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
 ## Primo mode
 
 Primo mode is a partnership mode (`partnerships.enable_primo`) that provides a single-fleet
-experience. It hides fleet creation, defaults to "No team" context, and simplifies empty states.
-It can be active at the same time as GitOps mode — they affect different things.
+experience. It hides fleet creation, defaults to the "Unassigned" fleet context, and simplifies
+empty states. It can be active at the same time as GitOps mode — they affect different things.
 
 ### How to check
 
@@ -354,11 +354,11 @@ There's also a `PRIMO_TOOLTIP` constant in `utilities/constants.tsx` for disable
 
 ### What it affects
 
-- **Fleet creation**: disabled on ManageFleetsPage
-- **Team selection**: `useTeamIdParam` defaults to "No team" instead of "All teams"
+- **"Create fleet" button**: disabled on ManageFleetsPage
+- **Selected fleet**: `useTeamIdParam` defaults to "Unassigned" instead of "All fleets"
 - **Empty states**: use generic text (e.g., "No policies yet" instead of "No policies for this fleet")
-- **User form**: teams input disabled
-- **Software automations**: accessible from "No team" context (normally only from "All teams")
+- **User form**: fleets dropdown disabled
+- **Software automations**: accessible from "Unassigned" (normally only from "All fleets")
 
 ### Pattern: disable with tooltip
 
@@ -372,11 +372,10 @@ const disabledTooltip = isPrimoMode ? PRIMO_TOOLTIP : null;
 
 | | Primo mode | GitOps mode |
 |---|---|---|
-| Purpose | Single-fleet experience for partners | Repository-driven config management |
+| Purpose | Hides multi-fleet UI for partners | Repository-driven config management |
 | Config | `partnerships.enable_primo` | `gitops.gitops_mode_enabled` |
-| Main effect | Hides multi-fleet UX | Disables manual editing |
+| Main effect | Disables fleet creation, defaults to "Unassigned" | Disables manual editing |
 | Component | Conditional checks on the flag | `GitOpsModeTooltipWrapper` |
-| Team behavior | Forces "No team" as default | Doesn't change team selection |
 
 ## React hooks
 

@@ -105,7 +105,7 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - Context providers in `frontend/context/` — `AppContext` for global state, `NotificationContext` for flash messages
 
 ## Primo mode
-- Check `config?.partnerships?.enable_primo` from AppContext. Disables fleet creation and defaults to "No team." Use `PRIMO_TOOLTIP` from `utilities/constants.tsx` for disabled tooltips. See `frontend/docs/patterns.md` for details.
+- Check `config?.partnerships?.enable_primo` from AppContext. Disables fleet creation and defaults to "Unassigned" fleet. Use `PRIMO_TOOLTIP` from `utilities/constants.tsx` for disabled tooltips. See `frontend/docs/patterns.md` for details.
 
 ## Terminology
 - "Teams" are now called "fleets" in the product. Code still uses `team_id`, `useTeamIdParam`, `permissions.isTeamAdmin`, etc. — don't rename existing APIs, but use "fleet" in new user-facing strings and comments.
