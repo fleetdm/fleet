@@ -452,7 +452,7 @@ This allows devices to connect using `host.docker.internal` as the server addres
 
 2. Add an entry in the candidate device's `/etc/hosts` (or for Windows, `\WINDOWS\system32\drivers\etc\hosts`) pointing `host.docker.internal` to the IP address of the computer running your Fleet instance.
 
-3. Configure IdP Authentication on the **Integration settings -> Single Sign On -> End Users** page with the following:
+3. Configure IdP authentication on the **Integration settings -> Single Sign On -> End Users** page with the following:
 
 ```
 Identity Provider Name: SimpleSAML
