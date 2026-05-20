@@ -127,7 +127,11 @@ func main() {
 	record := flag.String("record", "", "record a new workflow with this name")
 	run := flag.String("workflow", "", "run a saved workflow (use 'full' for built-in)")
 	list := flag.Bool("list", false, "list saved workflows")
+	workflowsDirFlag := flag.String("workflows-dir", "", "override workflows directory (default: tools/screencap/workflows next to the binary)")
+	insecure := flag.Bool("insecure", false, "ignore TLS certificate errors (for self-signed/dev certs)")
 	flag.Parse()
+
+	workflowsDirOverride = *workflowsDirFlag
 
 	if *list {
 		names, err := listWorkflows()
@@ -168,10 +172,12 @@ func main() {
 	}
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("ignore-certificate-errors", true),
 		chromedp.WindowSize(1440, 900),
 		chromedp.UserDataDir(profileDir),
 	)
+	if *insecure {
+		opts = append(opts, chromedp.Flag("ignore-certificate-errors", true))
+	}
 
 	// Show browser for SSO, login, or recording.
 	if useSSO || *loginFlag || isRecording {
@@ -273,7 +279,12 @@ func recordWorkflow(ctx context.Context, baseURL string, parsed *url.URL, name s
 
 	for {
 		fmt.Print("  [ENTER to capture, 'done' to finish] > ")
-		scanner.Scan()
+		if !scanner.Scan() {
+			if err := scanner.Err(); err != nil {
+				log.Printf("  Input error: %v", err)
+			}
+			break
+		}
 		input := strings.TrimSpace(scanner.Text())
 
 		if input == "done" {
@@ -321,14 +332,10 @@ func recordWorkflow(ctx context.Context, baseURL string, parsed *url.URL, name s
 			path += "?" + currentParsed.RawQuery
 		}
 
-		// If the page changed, only keep the actions from this page
-		// (the ones before navigation are stale).
+		// If the page changed, drop buffered actions from the prior page —
+		// they can't be replayed on this new page.
 		var actions []recordedAction
 		if path == prevPath || prevPath == "" {
-			actions = rawActions
-		} else {
-			// Page navigated — actions from the old page can't be replayed
-			// on this new page, so we drop them.
 			actions = rawActions
 		}
 		prevPath = path
@@ -431,7 +438,7 @@ func runSavedWorkflow(ctx context.Context, baseURL, outDir, name string, waitTim
 			continue
 		}
 
-		filename := fmt.Sprintf("%s-1.png", step.Name)
+		filename := fmt.Sprintf("%s-1.png", sanitizeFilename(step.Name))
 		writeScreenshot(outDir, filename, buf)
 	}
 
@@ -514,6 +521,11 @@ func capturePage(ctx context.Context, outDir, baseName string) {
 		chromedp.Evaluate(`window.innerHeight`, &viewportHeight),
 	); err != nil {
 		log.Printf("  ERROR getting dimensions: %v", err)
+		return
+	}
+
+	if viewportHeight <= 0 {
+		log.Printf("  ERROR invalid viewport height: %.2f (docHeight=%.2f)", viewportHeight, docHeight)
 		return
 	}
 
@@ -763,4 +775,19 @@ func waitForNetworkIdle(ctx context.Context, timeout time.Duration) chromedp.Act
 func pathToFilename(path string) string {
 	path = strings.Trim(path, "/")
 	return strings.ReplaceAll(path, "/", "-")
+}
+
+// sanitizeFilename strips path separators and ".." segments from an untrusted
+// name so it can be safely used as a filename inside an output directory.
+// Returns "step" if the cleaned result is empty.
+func sanitizeFilename(name string) string {
+	name = strings.ReplaceAll(name, "/", "_")
+	name = strings.ReplaceAll(name, `\`, "_")
+	name = strings.ReplaceAll(name, "..", "_")
+	name = filepath.Base(name)
+	name = strings.TrimLeft(name, ".")
+	if name == "" || name == "." {
+		return "step"
+	}
+	return name
 }

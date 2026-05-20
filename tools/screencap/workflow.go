@@ -6,7 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
+
+// workflowsDirOverride, when non-empty, takes precedence over the default
+// source-file-relative workflows directory. Set from the -workflows-dir flag.
+var workflowsDirOverride string
 
 // actionKind describes the type of user interaction recorded.
 type actionKind string
@@ -43,14 +48,25 @@ type workflow struct {
 	Steps []workflowStep `json:"steps"`
 }
 
-// workflowsDir returns tools/screencap/workflows/ relative to this source file,
-// so workflows live in the repo and can be committed and shared.
+// workflowsDir returns the directory where workflow JSON files are stored.
+// By default it resolves to tools/screencap/workflows/ relative to this source
+// file, so workflows live in the repo and can be committed and shared. The
+// -workflows-dir flag (workflowsDirOverride) takes precedence when set.
 func workflowsDir() (string, error) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("cannot determine source file path")
+	var dir string
+	if workflowsDirOverride != "" {
+		abs, err := filepath.Abs(workflowsDirOverride)
+		if err != nil {
+			return "", err
+		}
+		dir = abs
+	} else {
+		_, thisFile, _, ok := runtime.Caller(0)
+		if !ok {
+			return "", fmt.Errorf("cannot determine source file path")
+		}
+		dir = filepath.Join(filepath.Dir(thisFile), "workflows")
 	}
-	dir := filepath.Join(filepath.Dir(thisFile), "workflows")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
@@ -58,6 +74,12 @@ func workflowsDir() (string, error) {
 }
 
 func workflowPath(name string) (string, error) {
+	if name == "" ||
+		name != filepath.Base(name) ||
+		strings.Contains(name, "..") ||
+		strings.ContainsAny(name, `/\`) {
+		return "", fmt.Errorf("invalid workflow name %q", name)
+	}
 	dir, err := workflowsDir()
 	if err != nil {
 		return "", err

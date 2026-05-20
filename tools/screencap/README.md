@@ -84,6 +84,8 @@ Workflow files are saved as JSON in the `workflows/` directory and can be commit
 | Flag | Default | Description |
 |---|---|---|
 | `-wait-time-seconds` | `6` | Seconds to wait for each page to load before capturing. |
+| `-workflows-dir` | *(repo `tools/screencap/workflows/`)* | Override the directory used to read/write workflows. |
+| `-insecure` | `false` | Ignore TLS certificate errors (use only for self-signed/dev certs). |
 
 ## Output
 

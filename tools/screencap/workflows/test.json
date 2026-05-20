@@ -3,7 +3,7 @@
   "steps": [
     {
       "name": "step-1",
-      "path": "/software/add/fleet-maintained?fleet_id=310",
+      "path": "/software/add/fleet-maintained",
       "actions": [
         {
           "kind": "click",
@@ -44,7 +44,7 @@
     },
     {
       "name": "step-2",
-      "path": "/software/add/app-store?fleet_id=310",
+      "path": "/software/add/app-store",
       "actions": [
         {
           "kind": "tab",
@@ -55,7 +55,7 @@
     },
     {
       "name": "step-3",
-      "path": "/software/add/package?fleet_id=310",
+      "path": "/software/add/package",
       "actions": [
         {
           "kind": "tab",
@@ -66,7 +66,7 @@
     },
     {
       "name": "step-4",
-      "path": "/software/add/package?fleet_id=310",
+      "path": "/software/add/package",
       "scroll_y": 243,
       "actions": [
         {
@@ -87,7 +87,7 @@
     },
     {
       "name": "step-5",
-      "path": "/software/vulnerabilities?fleet_id=310\u0026page=0",
+      "path": "/software/vulnerabilities?page=0",
       "actions": [
         {
           "kind": "click",
