@@ -130,7 +130,7 @@ const PolicyAutomations = ({
     "";
 
   return (
-    <div className={`${baseClass} form-field`}>
+    <div className={baseClass}>
       {showCtaCard && (
         <div className={`${baseClass}__cta-card`}>
           <span className={`${baseClass}__cta-label`}>
@@ -190,9 +190,17 @@ const PolicyAutomations = ({
         <div className={`${baseClass}__empty-state`}>No automations</div>
       )}
       <p className={`${baseClass}__footer-text`}>
-        {storedPolicy.continuous_automations_enabled
-          ? "Software and script automations run every time Fleet receives a failing response. All other automations run on a host's first failure, or when a host's response changes from pass to fail."
-          : "Automations run on a host's first failure, or when a host's response changes from pass to fail."}
+        {storedPolicy.continuous_automations_enabled ? (
+          <>
+            Software and script automations run <b>every time</b> Fleet receives
+            a failing response.
+            <br />
+            All other automations run on a host&apos;s first failure, or when a
+            host&apos;s response changes from pass to fail.
+          </>
+        ) : (
+          "Automations run on a host's first failure, or when a host's response changes from pass to fail."
+        )}
       </p>
     </div>
   );

@@ -1,5 +1,7 @@
 .policy-automations {
-  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   font-size: $x-small;
 
   &__cta-card {
@@ -19,6 +21,7 @@
   }
 
   &__list {
+    max-width: 600px;
     border: 1px solid $ui-fleet-black-10;
     border-radius: 8px;
   }
@@ -61,15 +64,15 @@
   &__empty-state {
     display: flex;
     align-items: center;
-    padding: $pad-medium $pad-large;
+    max-width: 600px;
+    height: 40px;
+    padding: 0 $pad-large;
     border: 1px solid $ui-fleet-black-10;
     border-radius: 8px;
     color: $ui-fleet-black-50;
   }
 
   &__footer-text {
-    margin-top: $pad-small;
-    margin-bottom: 0;
-    color: $ui-fleet-black-50;
+    color: $ui-fleet-black-75;
   }
 }
