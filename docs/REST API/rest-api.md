@@ -8741,10 +8741,11 @@ _Available in Fleet Premium_
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
+| labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
 
 
-Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
+Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
 #### Example
 
@@ -8820,11 +8821,12 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
+| labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
 
 Either `query` or `query_id` must be provided.
 
-Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
+Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
 
 
@@ -8973,9 +8975,11 @@ _Available in Fleet Premium_
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
+| labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
 
-Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
+
+Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
 #### Example
 
@@ -9049,11 +9053,13 @@ _Available in Fleet Premium_
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
+| labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
+
 
 Either `query` or `query_id` must be provided.
 
-Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
+Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
 #### Example
 
