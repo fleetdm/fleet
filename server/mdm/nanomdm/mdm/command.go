@@ -11,7 +11,7 @@ var (
 	ErrInvalidCommand       = errors.New("invalid command")
 )
 
-// ErrorChain represents errors that occured on the client executing an MDM command.
+// ErrorChain represents errors that occurred on the client executing an MDM command.
 type ErrorChain struct {
 	ErrorCode            int
 	ErrorDomain          string
