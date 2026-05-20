@@ -1670,20 +1670,17 @@ func canUseOptimizedListQuery(opts fleet.SoftwareListOptions) bool {
 	// Only optimize if:
 	// 1. We're listing all software (not filtering by HostID)
 	// 2. We're ordering by hosts_count only (covering index requirement)
-	// 3. We're not filtering by CVE fields
-	// 4. We're not searching (which requires CVE join)
-	// 5. We're not using multi-column sorts (e.g., "name,id")
+	// 3. We're not using multi-column sorts (e.g., "name,id")
 	//
 	// The covering index optimization only works when ordering by hosts_count
 	// because the inner query uses a covering index scan that only includes
 	// (team_id, global_stats, hosts_count DESC, software_id). This dramatically
 	// improves performance.
+	//
+	// Filters (VulnerableOnly / KnownExploit / MinimumCVSS / MaximumCVSS /
+	// MatchQuery) are now supported in the inner query via EXISTS pushdown —
+	// see buildOptimizedListSoftwareSQL.
 	return opts.HostID == nil &&
-		!opts.VulnerableOnly &&
-		opts.MinimumCVSS == 0 &&
-		opts.MaximumCVSS == 0 &&
-		!opts.KnownExploit &&
-		opts.ListOptions.MatchQuery == "" &&
 		orderKey == "hosts_count" &&
 		!isMultiColumnSort(opts.ListOptions.OrderKey)
 }
@@ -1743,6 +1740,54 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 	default:
 		innerSQL += " WHERE shc.team_id = ? AND shc.global_stats = 0"
 		args = append(args, *opts.TeamID)
+	}
+
+	// Filter pushdown: when the caller requests vulnerable software, a CISA
+	// known exploit, a CVSS range, or a search, push these into the inner
+	// query as semi-joins so they prune candidate rows BEFORE pagination
+	// instead of expanding row count via outer JOIN+GROUP BY (as the goqu
+	// fallback does). The covering index scan on idx_software_host_counts_
+	// team_global_hosts_desc still drives the query; each EXISTS probe uses
+	// idx_software_cve_cve / unq_software_id_cve / idx_cve_meta_exploit /
+	// idx_cve_meta_cvss_score from #45415.
+	if opts.VulnerableOnly || opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
+		needsCVEMeta := opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0
+		innerSQL += ` AND EXISTS (
+			SELECT 1 FROM software_cve sc`
+		if needsCVEMeta {
+			innerSQL += ` INNER JOIN cve_meta cm ON cm.cve = sc.cve`
+			if opts.KnownExploit {
+				innerSQL += ` AND cm.cisa_known_exploit = 1`
+			}
+			if opts.MinimumCVSS > 0 {
+				innerSQL += ` AND cm.cvss_score >= ?`
+				args = append(args, opts.MinimumCVSS)
+			}
+			if opts.MaximumCVSS > 0 {
+				innerSQL += ` AND cm.cvss_score <= ?`
+				args = append(args, opts.MaximumCVSS)
+			}
+		}
+		innerSQL += ` WHERE sc.software_id = shc.software_id)`
+	}
+
+	// Search filter (matches the semantics of the goqu fallback):
+	// software must have a software_titles row, and any of name / version /
+	// title name / one of its CVEs must match the LIKE pattern.
+	if match := opts.ListOptions.MatchQuery; match != "" {
+		pattern := likePattern(match)
+		innerSQL += ` AND EXISTS (
+			SELECT 1 FROM software s
+			INNER JOIN software_titles st ON st.id = s.title_id
+			WHERE s.id = shc.software_id
+			  AND (
+				s.name LIKE ?
+				OR s.version LIKE ?
+				OR st.name LIKE ?
+				OR EXISTS (SELECT 1 FROM software_cve sc WHERE sc.software_id = s.id AND sc.cve LIKE ?)
+			  )
+		)`
+		args = append(args, pattern, pattern, pattern, pattern)
 	}
 
 	// software_id is the secondary key to make ordering deterministic
