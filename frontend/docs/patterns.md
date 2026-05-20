@@ -209,17 +209,8 @@ export default PackComposerPage;
 When building a React-controlled form:
 - Use the native HTML `form` element to wrap the form.
 - Use a `Button` component with `type="submit"` for its submit button.
-- Write a submit handler, e.g. `handleSubmit`, that accepts an `evt:
-React.FormEvent<HTMLFormElement>` argument and, critically:
-  - calls `evt.preventDefault()` in its body. This prevents the HTML `form`'s default submit behavior from interfering with our custom
-handler's logic.
-  - does nothing (e.g., returns `null`) if the form is in an invalid state, preventing submission by any means.
-- Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
-- Disable the form's submit button when the form is in an invalid state. Redundancy with the submit handler returning `null` is good.
-- Use the native HTML form element to wrap the form
-- Use a `Button` component with `type="submit"` for its submit button.
 - Write a submit handler, e.g. `handleSubmit`, that accepts an `evt: React.FormEvent<HTMLFormElement>` argument and:
-  - calls `evt.preventDefault() `in its body, to prevent the HTML `form` default submit behavior from interfering with your logic.
+  - calls `evt.preventDefault()` in its body, to prevent the HTML `form` default submit behavior from interfering with your logic.
   - validates the form and exits early (e.g., returns) if the form is in an invalid state, preventing submission by any means.
 
 Assign that handler to the form’s `onSubmit` property (not the submit button’s `onClick`).
@@ -315,27 +306,17 @@ const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
   const fullValidation = validateFormData(newFormData);
 
   setFormValidation((prev) => {
-    const next: IFormValidation = { ...prev, isValid: true };
+    const next = { ...prev };
 
-    // start from previous errors
-    if (prev.name) next.name = prev.name;
-    if (prev.description) next.description = prev.description;
-    // add other fields as needed, e.g. next.query = prev.query; etc.
-
-    // ONLY CLEAR existing error on this field if it is now valid
-    if (name === "name") {
-      if (prev.name && fullValidation.name?.isValid) {
-        next.name = undefined;
-      }
-    } else if (name === "description") {
-      if (prev.description && fullValidation.description?.isValid) {
-        next.description = undefined;
-      }
+    // Clear error on edited field if it's now valid
+    const key = name as keyof Omit<IFormValidation, "isValid">;
+    if (next[key] && fullValidation[key]?.isValid) {
+      next[key] = undefined;
     }
 
-    // recompute isValid from remaining errors
-    const fields = [next.name, next.description];
-    next.isValid = fields.every((f) => !f || f.isValid);
+    // Recompute isValid from remaining field errors
+    const { isValid: _, ...fields } = next;
+    next.isValid = Object.values(fields).every((f) => !f || f.isValid);
 
     return next;
   });
