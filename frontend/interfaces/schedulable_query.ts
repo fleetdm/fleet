@@ -103,7 +103,7 @@ export interface IQueryKeyQueriesLoadAll {
 }
 // Create a new query
 /** POST /api/v1/fleet/queries */
-export interface ICreateQueryRequestBody {
+export interface ICreateQueryFormData {
   name: string;
   query: string;
   description?: string;
@@ -124,7 +124,7 @@ export interface ICreateQueryRequestBody {
 // Modify a query by id
 /** PATCH /api/v1/fleet/queries/{id} */
 export interface IModifyQueryFormData
-  extends Omit<ICreateQueryRequestBody, "name" | "query" | "fleet_id"> {
+  extends Omit<ICreateQueryFormData, "name" | "query" | "fleet_id"> {
   id?: number;
   name?: string;
   query?: string;

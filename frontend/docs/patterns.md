@@ -120,6 +120,12 @@ interface ISoftwareCountResponse {
 
 // Use *FormData for form-driven bodies, *ApiParams/*QueryParams for request
 // params, *Response for responses, *QueryKey when typing a React Query key.
+// Avoid *Body, *PostBody, *Payload, *Request for API request bodies — use
+// *FormData instead, even for programmatic request bodies (e.g.
+// IDeleteQueriesFormData). One consistent suffix is easier to follow than
+// asking each dev to judge "is this form-driven enough?"
+// *PreviewPayload is fine for outgoing webhook shapes (matches the
+// "Preview payload" UI terminology).
 ```
 
 ## Utilities

@@ -4,7 +4,7 @@ import endpoints from "utilities/endpoints";
 import { getErrorReason } from "interfaces/errors";
 import { ISelectedTargetsForApi } from "interfaces/target";
 import {
-  ICreateQueryRequestBody,
+  ICreateQueryFormData,
   IModifyQueryFormData,
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
@@ -44,7 +44,7 @@ export interface IQueriesResponse {
 
 export default {
   create: (
-    createQueryRequestBody: ICreateQueryRequestBody
+    createQueryRequestBody: ICreateQueryFormData
   ): Promise<ICreateQueryResponse> => {
     const { QUERIES } = endpoints;
     if (createQueryRequestBody.name) {
