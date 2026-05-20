@@ -8,7 +8,7 @@ cask "zoom-rooms" do
   homepage "https://www.zoom.com/en/products/zoom-rooms/"
 
   livecheck do
-    skip "Zoom does not expose a parseable Zoom Rooms version feed; bump manually"
+    skip "Zoom does not expose a parsable Zoom Rooms version feed; bump manually"
   end
 
   depends_on macos: ">= :catalina"

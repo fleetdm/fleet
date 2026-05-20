@@ -63,6 +63,7 @@ go.mod @fleetdm/go
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
 #
+# Includes explicit ownership entries under /articles/ when specific public-facing guidance requires review.
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                                   @rachaelshaw @eashaw
@@ -125,7 +126,7 @@ go.mod @fleetdm/go
 #/handbook/company/go-to-market-operations.md                       Covered in custom.js
 #/handbook/finance/README.md                                    Covered in custom.js
 #/handbook/finance/finance.rituals.yml                          Covered in custom.js
-#/handbook/people                    			        	            Covered in custom.js
+#/handbook/people                                               Covered in custom.js
 #/handbook/it                             	                    Covered in custom.js
 #/handbook/it/security.md                   			              Covered in custom.js
 #/handbook/customer-success                                    	Covered in custom.js
