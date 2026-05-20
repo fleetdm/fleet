@@ -55,6 +55,7 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Benchling logo" src="/images/logos/logo-benchling-126x32@2x.png">
           <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Cursor logo" src="/images/logos/logo-cursor-103x32@2x.png">
+          <img alt="League One Vollyball logo" src="/images/logos/logo-league-one-vollyball-101x32@2x.png">
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
           <!-- Group one -->
           <img alt="Rivian logo" src="/images/logos/logo-rivian-120x32@2x.png">
@@ -103,6 +104,7 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Benchling logo" src="/images/logos/logo-benchling-126x32@2x.png">
           <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Cursor logo" src="/images/logos/logo-cursor-103x32@2x.png">
+          <img alt="League One Vollyball logo" src="/images/logos/logo-league-one-vollyball-101x32@2x.png">
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
           <!-- Group one -->
           <img alt="Rivian logo" src="/images/logos/logo-rivian-120x32@2x.png">
@@ -143,6 +145,7 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Benchling logo" src="/images/logos/logo-benchling-126x32@2x.png">
           <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Cursor logo" src="/images/logos/logo-cursor-103x32@2x.png">
+          <img alt="League One Vollyball logo" src="/images/logos/logo-league-one-vollyball-101x32@2x.png">
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
           <!-- Group three -->
           <img alt="Easygo logo" src="/images/logos/logo-easygo-107x32@2x.png">
@@ -190,6 +193,7 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Benchling logo" src="/images/logos/logo-benchling-126x32@2x.png">
           <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Cursor logo" src="/images/logos/logo-cursor-103x32@2x.png">
+          <img alt="League One Vollyball logo" src="/images/logos/logo-league-one-vollyball-101x32@2x.png">
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
           <!-- Group three -->
           <img alt="Easygo logo" src="/images/logos/logo-easygo-107x32@2x.png">
