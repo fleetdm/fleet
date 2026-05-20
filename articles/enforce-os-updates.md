@@ -8,7 +8,18 @@ For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is 
 
 For Android hosts, you can enforce OS updates using a configuration profile with the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. This setting is only supported on fully-managed Android hosts (not BYO). Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
 
-## Enforce
+## Fleet-managed OS updates vs. custom profiles
+
+Fleet provides two approaches to enforce OS updates:
+
+1. **Fleet-managed settings** — Use the Fleet UI, API, or GitOps YAML to set a minimum version and deadline. Fleet generates and deploys the appropriate enforcement profile automatically.
+2. **Custom profiles** — Upload your own [Apple DDM declaration](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) or [Windows Update CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) profile for full control over enforcement parameters (e.g., custom enforcement time).
+
+These two approaches are **mutually exclusive** per platform. If Fleet-managed OS update settings are configured, you cannot upload a custom OS update profile (and vice versa). You must remove one before configuring the other.
+
+> Custom OS update profiles are a Fleet Premium feature.
+
+## Enforce (Fleet-managed)
 
 You can enforce OS settings using the Fleet UI, Fleet API, or [GitOps](https://fleetdm.com/docs/configuration/yaml-files).
 
@@ -33,6 +44,87 @@ OS version enforcement options are declared within the [controls](https://fleetd
 + [ios_updates](https://fleetdm.com/docs/configuration/yaml-files#ios-updates)
 + [ipados_updates](https://fleetdm.com/docs/configuration/yaml-files#ipados-updates)
 + [windows_updates](https://fleetdm.com/docs/configuration/yaml-files#windows-updates)
+
+## Custom OS update profiles
+
+Instead of using Fleet-managed settings, you can upload a custom profile for more granular control over OS update enforcement. This is useful when you want to customize parameters that Fleet doesn't expose, such as the enforcement time (Fleet defaults to noon local time for Apple).
+
+### Apple (macOS, iOS, iPadOS)
+
+Upload a custom DDM declaration of type `com.apple.configuration.softwareupdate.enforcement.specific`. For example, to enforce macOS 15.4.1 with a deadline of 7 PM local time:
+
+```json
+{
+  "Type": "com.apple.configuration.softwareupdate.enforcement.specific",
+  "Identifier": "com.example.my-os-update-enforcement",
+  "Payload": {
+    "TargetOSVersion": "15.4.1",
+    "TargetLocalDateTime": "2025-07-01T19:00:00"
+  }
+}
+```
+
+See Apple's [SoftwareUpdateEnforcementSpecific](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) documentation for all available payload keys.
+
+### Windows
+
+Upload a custom Windows XML profile targeting the [Update CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) (`./Device/Vendor/MSFT/Policy/Config/Update`). For example, to set custom deadline and grace period values:
+
+```xml
+<Atomic>
+  <Replace>
+    <Item>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForFeatureUpdates</LocURI>
+      </Target>
+      <Meta>
+        <Type xmlns="syncml:metinf">text/plain</Type>
+        <Format xmlns="syncml:metinf">int</Format>
+      </Meta>
+      <Data>5</Data>
+    </Item>
+  </Replace>
+  <Replace>
+    <Item>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineForQualityUpdates</LocURI>
+      </Target>
+      <Meta>
+        <Type xmlns="syncml:metinf">text/plain</Type>
+        <Format xmlns="syncml:metinf">int</Format>
+      </Meta>
+      <Data>3</Data>
+    </Item>
+  </Replace>
+  <Replace>
+    <Item>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineGracePeriod</LocURI>
+      </Target>
+      <Meta>
+        <Type xmlns="syncml:metinf">text/plain</Type>
+        <Format xmlns="syncml:metinf">int</Format>
+      </Meta>
+      <Data>2</Data>
+    </Item>
+  </Replace>
+</Atomic>
+```
+
+See Microsoft's [Update CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) for all available settings.
+
+### Mutual exclusion rules
+
+Fleet enforces the following rules to prevent conflicts between Fleet-managed settings and custom profiles:
+
+| Action | Blocked when | Error |
+| ------ | ------------ | ----- |
+| Upload custom Apple OS update declaration | Fleet OS update settings are configured for that platform | "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first." |
+| Upload custom Windows Update CSP profile | Fleet OS update settings are configured for Windows | "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first." |
+| Set Fleet OS update settings (Apple) | A custom OS update declaration already exists for that platform | "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first." |
+| Set Fleet OS update settings (Windows) | A custom Windows Update CSP profile already exists | "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first." |
+
+To switch between approaches, remove the existing configuration first, then apply the new one.
 
 ## Apple (macOS, iOS, and iPadOS) end user experience
 
