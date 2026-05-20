@@ -20,7 +20,11 @@ import {
 } from "components/TargetLabelSelector/labelScopes";
 import { getPathWithQueryParams } from "utilities/url";
 
-import { IPolicy, IPolicyFormData } from "interfaces/policy";
+import {
+  IPolicy,
+  IPolicyFormData,
+  OtherAutomationType,
+} from "interfaces/policy";
 import {
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
   APP_CONTEXT_NO_TEAM_SUMMARY,
@@ -83,6 +87,7 @@ interface IPolicyFormProps {
   onClickAutofillResolution: () => Promise<void>;
   resetAiAutofillData: () => void;
   currentAutomatedPolicies: number[];
+  otherAutomationType?: OtherAutomationType;
   onCancel?: () => void;
 }
 
@@ -120,6 +125,7 @@ const PolicyForm = ({
   onClickAutofillResolution,
   resetAiAutofillData,
   currentAutomatedPolicies,
+  otherAutomationType,
   onCancel,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
@@ -696,6 +702,7 @@ const PolicyForm = ({
               canEditPolicy={isEditMode}
               onAddAutomation={onAddPatchAutomation}
               isAddingAutomation={isAddingAutomation}
+              otherAutomationType={otherAutomationType}
             />
           )}
           {isEditMode &&

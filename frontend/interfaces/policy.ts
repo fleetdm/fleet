@@ -20,6 +20,8 @@ export default PropTypes.shape({
   updated_at: PropTypes.string.isRequired,
 });
 
+export type OtherAutomationType = "webhook" | "ticket";
+
 export interface IStoredPolicyResponse {
   policy: IPolicy;
 }
@@ -50,6 +52,7 @@ export interface IPolicy {
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
   patch_software?: IPolicySoftwareToInstall;
+  continuous_automations_enabled?: boolean;
   labels_include_any?: ILabelPolicy[];
   labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];

@@ -10,6 +10,7 @@ import {
   IPolicyFormData,
   IPolicy,
   IStoredPolicyResponse,
+  OtherAutomationType,
 } from "interfaces/policy";
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -221,6 +222,7 @@ const PolicyPage = ({
   );
 
   let currentAutomatedPolicies: number[] = [];
+  let otherAutomationType: OtherAutomationType | undefined;
   if (teamData?.team) {
     const {
       webhook_settings: { failing_policies_webhook: webhook },
@@ -232,6 +234,11 @@ const PolicyPage = ({
       false;
     if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
       currentAutomatedPolicies = webhook?.policy_ids || [];
+    }
+    if (isIntegrationEnabled) {
+      otherAutomationType = "ticket";
+    } else if (webhook?.enable_failing_policies_webhook) {
+      otherAutomationType = "webhook";
     }
   }
 
@@ -327,6 +334,7 @@ const PolicyPage = ({
       renderLiveQueryWarning,
       teamIdForApi,
       currentAutomatedPolicies,
+      otherAutomationType,
     };
 
     return <QueryEditor {...queryEditorOpts} />;

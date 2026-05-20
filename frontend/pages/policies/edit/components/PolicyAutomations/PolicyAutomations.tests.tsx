@@ -48,6 +48,26 @@ const renderWithAppContext = (ui: React.ReactElement) => {
   );
 };
 
+const createMockPolicy = (overrides?: Partial<IPolicy>): IPolicy => ({
+  id: 1,
+  name: "Test policy",
+  query: "SELECT 1;",
+  description: "",
+  author_id: 1,
+  author_name: "Admin",
+  author_email: "admin@example.com",
+  resolution: "",
+  platform: "darwin",
+  team_id: 1,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+  critical: false,
+  calendar_events_enabled: false,
+  conditional_access_enabled: false,
+  type: "dynamic",
+  ...overrides,
+});
+
 const defaultProps = {
   onAddAutomation: jest.fn(),
   currentAutomatedPolicies: [] as number[],
@@ -175,6 +195,183 @@ describe("PolicyAutomations", () => {
       );
 
       expect(screen.queryByText(/Automatically patch/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("automations list", () => {
+    it("shows empty state when no automations are configured", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy()}
+          canEditPolicy={false}
+          {...defaultProps}
+        />
+      );
+
+      expect(screen.getByText("No automations")).toBeInTheDocument();
+    });
+
+    it("shows software automation row", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy({
+            install_software: { name: "Zoom", software_title_id: 42 },
+          })}
+          canEditPolicy={false}
+          {...defaultProps}
+        />
+      );
+
+      expect(screen.getByText("Zoom")).toBeInTheDocument();
+      expect(screen.queryByText("No automations")).not.toBeInTheDocument();
+    });
+
+    it("shows script automation row", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy({
+            run_script: { id: 1, name: "fix.sh" },
+          })}
+          canEditPolicy={false}
+          {...defaultProps}
+        />
+      );
+
+      expect(screen.getByText("fix.sh")).toBeInTheDocument();
+    });
+
+    it("shows calendar automation row", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy({ calendar_events_enabled: true })}
+          canEditPolicy={false}
+          {...defaultProps}
+        />
+      );
+
+      expect(screen.getByText("Maintenance window")).toBeInTheDocument();
+    });
+
+    it("shows conditional access automation row", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy({
+            conditional_access_enabled: true,
+          })}
+          canEditPolicy={false}
+          {...defaultProps}
+        />
+      );
+
+      expect(screen.getByText("Block single sign-on")).toBeInTheDocument();
+    });
+
+    it("shows 'Webhook' for other automation when otherAutomationType is webhook", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy({ id: 1 })}
+          currentAutomatedPolicies={[1]}
+          canEditPolicy={false}
+          onAddAutomation={jest.fn()}
+          otherAutomationType="webhook"
+        />
+      );
+
+      expect(screen.getByText("Webhook")).toBeInTheDocument();
+      expect(screen.queryByText("Ticket")).not.toBeInTheDocument();
+    });
+
+    it("shows 'Ticket' for other automation when otherAutomationType is ticket", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy({ id: 1 })}
+          currentAutomatedPolicies={[1]}
+          canEditPolicy={false}
+          onAddAutomation={jest.fn()}
+          otherAutomationType="ticket"
+        />
+      );
+
+      expect(screen.getByText("Ticket")).toBeInTheDocument();
+      expect(screen.queryByText("Webhook")).not.toBeInTheDocument();
+    });
+
+    it("shows 'Webhook or ticket' for other automation when otherAutomationType is not set", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy({ id: 1 })}
+          currentAutomatedPolicies={[1]}
+          canEditPolicy={false}
+          onAddAutomation={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("Webhook or ticket")).toBeInTheDocument();
+    });
+
+    it("does not show row type labels", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy({ calendar_events_enabled: true })}
+          canEditPolicy={false}
+          {...defaultProps}
+        />
+      );
+
+      expect(screen.queryByText("Calendar")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("footer text", () => {
+    it("shows default footer text when continuous_automations_enabled is not set", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy()}
+          canEditPolicy={false}
+          {...defaultProps}
+        />
+      );
+
+      expect(
+        screen.getByText(
+          "Automations run on a host's first failure, or when a host's response changes from pass to fail."
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("shows continuous footer text when continuous_automations_enabled is true", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy({
+            continuous_automations_enabled: true,
+          })}
+          canEditPolicy={false}
+          {...defaultProps}
+        />
+      );
+
+      expect(
+        screen.getByText(
+          "Software and script automations run every time Fleet receives a failing response. All other automations run on a host's first failure, or when a host's response changes from pass to fail."
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("shows footer text even in the empty state", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPolicy()}
+          canEditPolicy={false}
+          {...defaultProps}
+        />
+      );
+
+      expect(screen.getByText("No automations")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "Automations run on a host's first failure, or when a host's response changes from pass to fail."
+        )
+      ).toBeInTheDocument();
     });
   });
 });

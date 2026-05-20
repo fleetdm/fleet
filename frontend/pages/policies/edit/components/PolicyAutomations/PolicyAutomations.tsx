@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router";
 
-import { IPolicy } from "interfaces/policy";
+import { IPolicy, OtherAutomationType } from "interfaces/policy";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -21,7 +21,13 @@ interface IPolicyAutomationsProps {
   canEditPolicy: boolean;
   onAddAutomation: () => void;
   isAddingAutomation?: boolean;
+  otherAutomationType?: OtherAutomationType;
 }
+
+const OTHER_AUTOMATION_NAMES: Record<OtherAutomationType, string> = {
+  webhook: "Webhook",
+  ticket: "Ticket",
+};
 
 interface IAutomationRow {
   name: string;
@@ -39,6 +45,7 @@ const PolicyAutomations = ({
   canEditPolicy,
   onAddAutomation,
   isAddingAutomation,
+  otherAutomationType,
 }: IPolicyAutomationsProps): JSX.Element => {
   const isPatchPolicy = storedPolicy.type === "patch";
   const hasPatchSoftware = !!storedPolicy.patch_software;
@@ -100,8 +107,11 @@ const PolicyAutomations = ({
   }
 
   if (currentAutomatedPolicies.includes(storedPolicy.id)) {
+    const otherName = otherAutomationType
+      ? OTHER_AUTOMATION_NAMES[otherAutomationType]
+      : "Webhook or ticket";
     automationRows.push({
-      name: "Create ticket or send webhook",
+      name: otherName,
       type: "Other",
       graphicName: "settings",
       sortOrder: 4,
@@ -146,40 +156,44 @@ const PolicyAutomations = ({
           />
         </div>
       )}
-      {automationRows.length > 0 && (
-        <>
-          <div className={`${baseClass}__list-label`}>Automations</div>
-          <div className={`${baseClass}__list`}>
-            {automationRows.map((row) => (
-              <div
-                key={`${row.type}-${row.name}`}
-                className={`${baseClass}__row`}
-              >
-                <div className={`${baseClass}__row-name`}>
-                  {row.isSoftware ? (
-                    <SoftwareIcon name={row.name} size="small" />
-                  ) : (
-                    row.graphicName && (
-                      <Graphic
-                        name={row.graphicName}
-                        key={`${row.graphicName}-graphic`}
-                        className={`${baseClass}__row-graphic ${
-                          row.graphicName === "file-sh" ||
-                          row.graphicName === "file-ps1"
-                            ? "scale-40-24"
-                            : ""
-                        }`}
-                      />
-                    )
-                  )}
-                  {row.link ? <Link to={row.link}>{row.name}</Link> : row.name}
-                </div>
-                <span className={`${baseClass}__row-type`}>{row.type}</span>
+      <div className={`${baseClass}__list-label`}>Automations</div>
+      {automationRows.length > 0 ? (
+        <div className={`${baseClass}__list`}>
+          {automationRows.map((row) => (
+            <div
+              key={`${row.type}-${row.name}`}
+              className={`${baseClass}__row`}
+            >
+              <div className={`${baseClass}__row-name`}>
+                {row.isSoftware ? (
+                  <SoftwareIcon name={row.name} size="small" />
+                ) : (
+                  row.graphicName && (
+                    <Graphic
+                      name={row.graphicName}
+                      key={`${row.graphicName}-graphic`}
+                      className={`${baseClass}__row-graphic ${
+                        row.graphicName === "file-sh" ||
+                        row.graphicName === "file-ps1"
+                          ? "scale-40-24"
+                          : ""
+                      }`}
+                    />
+                  )
+                )}
+                {row.link ? <Link to={row.link}>{row.name}</Link> : row.name}
               </div>
-            ))}
-          </div>
-        </>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className={`${baseClass}__empty-state`}>No automations</div>
       )}
+      <p className={`${baseClass}__footer-text`}>
+        {storedPolicy.continuous_automations_enabled
+          ? "Software and script automations run every time Fleet receives a failing response. All other automations run on a host's first failure, or when a host's response changes from pass to fail."
+          : "Automations run on a host's first failure, or when a host's response changes from pass to fail."}
+      </p>
     </div>
   );
 };

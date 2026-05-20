@@ -31,7 +31,6 @@
   &__row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     padding: 0 $pad-large;
     height: 40px;
     border-top: 1px solid $ui-fleet-black-10;
@@ -59,7 +58,18 @@
     }
   }
 
-  &__row-type {
-    color: $ui-fleet-black-75;
+  &__empty-state {
+    display: flex;
+    align-items: center;
+    padding: $pad-medium $pad-large;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 8px;
+    color: $ui-fleet-black-50;
+  }
+
+  &__footer-text {
+    margin-top: $pad-small;
+    margin-bottom: 0;
+    color: $ui-fleet-black-50;
   }
 }

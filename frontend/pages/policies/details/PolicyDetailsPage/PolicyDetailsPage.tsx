@@ -6,7 +6,11 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { PolicyContext } from "context/policy";
-import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
+import {
+  IPolicy,
+  IStoredPolicyResponse,
+  OtherAutomationType,
+} from "interfaces/policy";
 import { ILabelPolicy } from "interfaces/label";
 import {
   API_ALL_TEAMS_ID,
@@ -177,6 +181,7 @@ const PolicyDetailsPage = ({
   const policyFleetName = getPolicyFleetName(storedPolicy, teamData);
 
   let currentAutomatedPolicies: number[] = [];
+  let otherAutomationType: OtherAutomationType | undefined;
   if (teamData?.team) {
     const {
       webhook_settings: { failing_policies_webhook: webhook },
@@ -188,6 +193,11 @@ const PolicyDetailsPage = ({
       false;
     if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
       currentAutomatedPolicies = webhook?.policy_ids || [];
+    }
+    if (isIntegrationEnabled) {
+      otherAutomationType = "ticket";
+    } else if (webhook?.enable_failing_policies_webhook) {
+      otherAutomationType = "webhook";
     }
   }
 
@@ -442,6 +452,7 @@ const PolicyDetailsPage = ({
                 canEditPolicy={canEditPolicy}
                 onAddAutomation={onAddPatchAutomation}
                 isAddingAutomation={isAddingAutomation}
+                otherAutomationType={otherAutomationType}
               />
             )}
           </>
