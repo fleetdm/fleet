@@ -1814,7 +1814,7 @@ const ManageHostsPage = ({
         iconSvg: "transfer",
         hideButton:
           !isPremiumTier ||
-          (!isGlobalAdmin && !isGlobalMaintainer) ||
+          (!isGlobalAdmin && !isGlobalMaintainer && !isGlobalTechnician) ||
           isPrimoMode,
       },
     ];

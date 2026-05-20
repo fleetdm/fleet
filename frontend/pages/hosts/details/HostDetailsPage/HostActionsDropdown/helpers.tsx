@@ -125,7 +125,7 @@ const canTransferTeam = (config: IHostActionConfigOptions) => {
     isGlobalMaintainer,
     isPrimoMode,
   } = config;
-  return isPremiumTier && (isGlobalAdmin || isGlobalMaintainer) && !isPrimoMode;
+  return isPremiumTier && (isGlobalAdmin || isGlobalMaintainer || isGlobalTechnician) && !isPrimoMode;
 };
 
 const canTurnOffMdm = (config: IHostActionConfigOptions) => {

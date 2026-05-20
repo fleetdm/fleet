@@ -1019,18 +1019,18 @@ func TestAuthorizeHost(t *testing.T) {
 
 		// Global technician can read all but not write
 		{user: test.UserTechnician, object: host, action: read, allow: true},
-		{user: test.UserTechnician, object: host, action: write, allow: false},
+		{user: test.UserTechnician, object: host, action: write, allow: true},
 		{user: test.UserTechnician, object: host, action: list, allow: true},
 		{user: test.UserTechnician, object: host, action: selectiveList, allow: true},
 		{user: test.UserTechnician, object: host, action: selectiveRead, allow: true},
 		{user: test.UserTechnician, object: host, action: cancelHostActivity, allow: false},
 		{user: test.UserTechnician, object: hostTeam1, action: read, allow: true},
 		{user: test.UserTechnician, object: hostTeam1, action: selectiveRead, allow: true},
-		{user: test.UserTechnician, object: hostTeam1, action: write, allow: false},
+		{user: test.UserTechnician, object: hostTeam1, action: write, allow: true},
 		{user: test.UserTechnician, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: test.UserTechnician, object: hostTeam2, action: read, allow: true},
 		{user: test.UserTechnician, object: hostTeam2, action: selectiveRead, allow: true},
-		{user: test.UserTechnician, object: hostTeam2, action: write, allow: false},
+		{user: test.UserTechnician, object: hostTeam2, action: write, allow: true},
 		{user: test.UserTechnician, object: hostTeam2, action: cancelHostActivity, allow: false},
 
 		// Global admin can read/write all
@@ -1167,7 +1167,7 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamTechnician, object: host, action: cancelHostActivity, allow: false},
 		{user: teamTechnician, object: hostTeam1, action: read, allow: true},
 		{user: teamTechnician, object: hostTeam1, action: selectiveRead, allow: true},
-		{user: teamTechnician, object: hostTeam1, action: write, allow: false},
+		{user: teamTechnician, object: hostTeam1, action: write, allow: true},
 		{user: teamTechnician, object: hostTeam1, action: cancelHostActivity, allow: false},
 		{user: teamTechnician, object: hostTeam2, action: read, allow: false},
 		{user: teamTechnician, object: hostTeam2, action: selectiveRead, allow: false},

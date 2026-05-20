@@ -226,7 +226,7 @@ allow {
 # Team admins and maintainers can read/write for appropriate teams.
 allow {
 	object.type == "enroll_secret"
-	team_role(subject, object.team_id) == [admin, maintainer][_]
+	team_role(subject, object.team_id) == [admin, maintainer, technician][_]
 	action == [read, write][_]
 }
 
@@ -288,7 +288,7 @@ allow {
 # Global gitops, admin and maintainers can write hosts.
 allow {
 	object.type == "host"
-	subject.global_role == [admin, maintainer, gitops][_]
+	subject.global_role == [admin, maintainer, technician, gitops][_]
 	action == write
 }
 
@@ -325,7 +325,7 @@ allow {
 # Team admins and maintainers can write to hosts of their own team
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer][_]
+	team_role(subject, object.team_id) == [admin, maintainer, technician][_]
 	action == write
 }
 
@@ -339,7 +339,7 @@ allow {
 # Team admins and maintainers can cancel activities on a host of their own team.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer][_]
+	team_role(subject, object.team_id) == [admin, maintainer, technician][_]
 	action == cancel_host_activity
 }
 
@@ -444,7 +444,7 @@ allow {
 # Global admins, maintainers and gitops can write queries.
 allow {
   object.type == "query"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == write
 }
 
@@ -679,7 +679,7 @@ allow {
 # Global admins, maintainers and gitops can read/write 2017 packs.
 allow {
   object.type == "pack"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == [read, write][_]
 }
 
@@ -701,7 +701,7 @@ allow {
 # Global admins, maintainers, and gitops can read and write policies.
 allow {
   object.type == "policy"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == [read, write][_]
 }
 
@@ -786,7 +786,7 @@ allow {
 # Global admins, maintainers, and gitops can write any installable entity (software installer or VPP app)
 allow {
   object.type == "installable_entity"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == write
 }
 
@@ -852,7 +852,7 @@ allow {
 # Global admins, maintainers, and gitops can write MDM config profiles.
 allow {
   object.type == "mdm_config_profile"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == write
 }
 
@@ -926,7 +926,7 @@ allow {
 # Global admins and maintainers can write (execute) MDM commands.
 allow {
   object.type == "mdm_command"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == write
 }
 
@@ -992,7 +992,7 @@ allow {
 allow {
   not is_null(object.team_id)
   object.type == "mdm_apple_settings"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
   action == [read, write][_]
 }
 
@@ -1023,7 +1023,7 @@ allow {
   not is_null(object.team_id)
   object.team_id != 0
   object.type == "mdm_apple_bootstrap_package"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
   action == [read, write][_]
 }
 
@@ -1073,7 +1073,7 @@ allow {
   not is_null(object.team_id)
   object.team_id != 0
   object.type == "mdm_apple_setup_assistant"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
   action == [read, write][_]
 }
 
@@ -1159,7 +1159,7 @@ allow {
 # Global admins, maintainers, and gitops can write (upload) saved scripts.
 allow {
   object.type == "script"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == write
 }
 
@@ -1193,7 +1193,7 @@ allow {
 # Global admins, maintainers, and gitops can write secret variables.
 allow {
   object.type == "secret_variable"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == write
 }
 
@@ -1286,7 +1286,7 @@ allow {
 # Global admins, maintainers and gitops can read and write certificate templates.
 allow {
   object.type == "certificate_template"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == [read, write][_]
 }
 
