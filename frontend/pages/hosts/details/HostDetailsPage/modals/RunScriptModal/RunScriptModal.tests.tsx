@@ -151,7 +151,9 @@ describe("RunScriptModal", () => {
         />
       );
 
-      expect(screen.queryByText("No scripts available")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("No scripts available")
+      ).not.toBeInTheDocument();
       // TooltipTruncatedTextCell renders the script name in both the cell and tooltip
       expect(screen.getAllByText("cleanup.sh").length).toBeGreaterThan(0);
     });
@@ -180,7 +182,9 @@ describe("RunScriptModal", () => {
         />
       );
 
-      expect(screen.queryByText("No scripts available")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("No scripts available")
+      ).not.toBeInTheDocument();
       expect(screen.getByText(/something's gone wrong/i)).toBeInTheDocument();
     });
   });
