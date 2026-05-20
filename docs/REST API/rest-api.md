@@ -11556,11 +11556,6 @@ Returns the list of packages associated with a software title. A software title 
       }
     }
   ],
-  "count": 2,
-  "meta": {
-    "has_next_results": false,
-    "has_previous_results": false
-  }
 }
 ```
 
