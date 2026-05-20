@@ -6,7 +6,7 @@ import React, {
   useState,
 } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -25,6 +25,7 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 
 import TurnOffAndroidMdmModal from "./components/TurnOffAndroidMdmModal";
+import refetchConfigUntil from "./helpers";
 
 const baseClass = "android-mdm-page";
 
@@ -37,6 +38,8 @@ interface ITurnOnAndroidMdmProps {
 
 const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { setConfig } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   // TODO: figure out issue with aborting the SSE fetch when the window is closed
   const newWindow = useRef<Window | null>(null);
@@ -49,6 +52,16 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
       try {
         await mdmAndroidAPI.startSSE(abortController.signal);
         abortController.abort();
+        // The SSE only signals success once the backend has written
+        // android_enabled_and_configured=true. Refetch app config, push
+        // it into AppContext so isAndroidMdmEnabledAndConfigured flips
+        // before we navigate, and invalidate the shared React Query cache
+        // so IntegrationsPage's useQuery(["config"]) resyncs on mount.
+        const freshConfig = await refetchConfigUntil(
+          (cfg) => !!cfg.mdm.android_enabled_and_configured
+        );
+        setConfig(freshConfig);
+        await queryClient.invalidateQueries(["config"]);
         renderFlash("success", "Android MDM turned on successfully.", {
           persistOnPageChange: true,
         });
@@ -59,7 +72,7 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
         setSetupSse(false);
       }
     },
-    [renderFlash, router]
+    [queryClient, renderFlash, router, setConfig]
   );
 
   useEffect(() => {

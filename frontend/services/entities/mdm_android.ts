@@ -52,7 +52,7 @@ export default {
           const { done, value } = await reader?.read();
           if (done) break;
           const text = decoder.decode(value);
-          if (text === "Android Enterprise successfully connected") {
+          if (text.includes("Android Enterprise successfully connected")) {
             resolve();
             break;
           }
