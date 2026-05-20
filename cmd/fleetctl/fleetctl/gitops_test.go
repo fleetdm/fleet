@@ -18,8 +18,9 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -75,7 +76,7 @@ func setupDefaultTeamConfigMocks(ds interface{}) {
 
 func TestGitOpsFilenameValidation(t *testing.T) {
 	filename := strings.Repeat("a", filenameMaxLength+1)
-	_, err := RunAppNoChecks([]string{"gitops", "-f", filename})
+	_, err := runAppNoChecks([]string{"gitops", "-f", filename})
 	assert.ErrorContains(t, err, "file name must be less than")
 }
 
@@ -133,19 +134,19 @@ org_settings:
 
 	// No file
 	var errWriter strings.Builder
-	_, err = RunAppNoChecks([]string{"gitops", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Equal(t, `Required flag "f" not set`, err.Error())
 
 	// Blank file
 	errWriter.Reset()
-	_, err = RunAppNoChecks([]string{"gitops", "-f", ""})
+	_, err = runAppNoChecks([]string{"gitops", "-f", ""})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "file name cannot be empty")
 
 	// Bad file
 	errWriter.Reset()
-	_, err = RunAppNoChecks([]string{"gitops", "-f", "fileDoesNotExist.yml"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", "fileDoesNotExist.yml"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file or directory")
 
@@ -153,13 +154,13 @@ org_settings:
 	errWriter.Reset()
 	badFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", badFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", badFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key")
 
 	// DoGitOps error
 	t.Setenv("ORG_NAME", "")
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "organization name must be present")
 
@@ -183,17 +184,17 @@ org_settings:
 `,
 	)
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
 	require.NoError(t, err)
 	savedAppConfig = &fleet.AppConfig{}
 
 	// Dry run
 	t.Setenv("ORG_NAME", orgName)
-	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 
 	// Real run
-	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Empty(t, enrolledSecrets)
@@ -237,7 +238,7 @@ queries:
 `)
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "labels_include_any")
 	assert.ErrorContains(t, err, "Fleet Premium")
@@ -268,7 +269,7 @@ org_settings:
 `)
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	require.ErrorContains(t, err, "invalid platform")
 	require.ErrorContains(t, err, "linux")
 }
@@ -444,7 +445,7 @@ software:
 
 	// Dry run
 	t.Setenv("ORG_NAME", orgName)
-	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 
 	// Dry run will get existing CAs but won't apply anything
@@ -453,7 +454,7 @@ software:
 	assert.False(t, ds.BatchApplyCertificateAuthoritiesFuncInvoked)
 
 	// Real run
-	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Empty(t, enrolledSecrets)
@@ -606,7 +607,7 @@ policies:
 agent_options:
 `)
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
 
@@ -626,7 +627,7 @@ policies:
 agent_options:
 `)
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"secrets" is excepted from GitOps management`)
 
@@ -641,7 +642,7 @@ agent_options:
 software:
 `)
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile3.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile3.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"software" is excepted from GitOps management`)
 
@@ -654,7 +655,7 @@ software:
 			},
 		}, nil
 	}
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
 }
@@ -705,7 +706,7 @@ policies:
 agent_options:
 `)
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.NoError(t, err)
 
 	// Secrets excepted + present: should NOT error on free tier.
@@ -724,7 +725,7 @@ policies:
 agent_options:
 `)
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
 	require.NoError(t, err)
 
 	// Software excepted + present (team file): should NOT error on free tier.
@@ -739,7 +740,7 @@ agent_options:
 software:
 `)
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile3.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile3.Name()})
 	// Free tier may reject team files for other reasons, but it must NOT be the exception error.
 	if err != nil {
 		assert.NotContains(t, err.Error(), `"software" is excepted from GitOps management`)
@@ -796,7 +797,7 @@ agent_options:
 `)
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
 	require.NoError(t, err)
 
 	require.Len(t, appliedSecrets, 1, "secrets in YAML should be applied on free tier even when Exceptions.Secrets=true")
@@ -854,7 +855,7 @@ agent_options:
 `)
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
 	require.NoError(t, err)
 
 	require.Len(t, appliedLabelSpecs, 1, "labels in YAML should be applied on free tier even when Exceptions.Labels=true")
@@ -947,7 +948,7 @@ agent_options:
 `)
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
 	require.NoError(t, err)
 
 	// Labels should NOT have been deleted (excepted)
@@ -1148,7 +1149,7 @@ policies:
 
 	// Run gitops — should succeed because the synthetic software injection
 	// provides the server-side data for policy validation on both team and no-team.
-	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFile, "-f", teamFile, "-f", unassignedFile})
+	_, err := runAppNoChecks([]string{"gitops", "-f", globalFile, "-f", teamFile, "-f", unassignedFile})
 	require.NoError(t, err, "gitops should succeed when policies reference server-side software and software is excepted")
 	// Check that policies for "Test Fleet" contained the expected software title IDs.
 	testFleetPolicySpecs := policySpecsByTeam["Test Fleet"]
@@ -1271,7 +1272,7 @@ agent_options:
 `)
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
 	require.NoError(t, err)
 
 	// Labels SHOULD have been deleted (not excepted, key omitted)
@@ -1295,7 +1296,7 @@ policies:
 agent_options:
 `)
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 	require.NoError(t, err)
 	// Check that secrets is empty on the saved team
 	assert.NotNil(t, savedTeam.Secrets, "team secrets should not be nil")
@@ -1430,47 +1431,47 @@ software:
 
 	// DoGitOps error
 	t.Setenv("TEST_TEAM_NAME", "")
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "'name' is required")
 
 	// Invalid name for "No team" file (dry and real).
 	t.Setenv("TEST_TEAM_NAME", "no TEam")
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf("file `%s` for No Team must be named `no-team.yml`", tmpFile.Name()))
 	assert.Contains(t, err.Error(), "rename the file")
 	t.Setenv("TEST_TEAM_NAME", "no TEam")
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf("file `%s` for No Team must be named `no-team.yml`", tmpFile.Name()))
 	assert.Contains(t, err.Error(), "rename the file")
 	t.Setenv("TEST_TEAM_NAME", "unassigned")
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf("file `%s` for unassigned hosts must be named `unassigned.yml`", tmpFile.Name()))
 	t.Setenv("TEST_TEAM_NAME", "unAsSIgNeD")
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf("file `%s` for unassigned hosts must be named `unassigned.yml`", tmpFile.Name()))
 
 	t.Setenv("TEST_TEAM_NAME", "All teams")
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `is a reserved fleet name`)
 
 	t.Setenv("TEST_TEAM_NAME", "All TEAMS")
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `is a reserved fleet name`)
 
 	// Dry run
 	t.Setenv("TEST_TEAM_NAME", teamName)
-	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	assert.Nil(t, savedTeam)
 
 	// Real run
-	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	require.NotNil(t, savedTeam)
 	assert.Equal(t, teamName, savedTeam.Name)
 	assert.Empty(t, enrolledTeamSecrets)
@@ -1489,12 +1490,12 @@ software:
 	assert.Equal(t, optjson.SetBool(false), savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts)
 
 	// The previous run created the team, so let's rerun with an existing team
-	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	assert.Empty(t, enrolledTeamSecrets)
 
 	// Add a secret
 	t.Setenv("TEST_SECRET", fmt.Sprintf("[{\"secret\":\"%s\"}]", secret))
-	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	require.Len(t, enrolledTeamSecrets, 1)
 	assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
 }
@@ -1679,7 +1680,7 @@ labels:
     hosts: []
 `, mobileConfigPath), 0o600))
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", teamYAMLPath})
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamYAMLPath})
 	require.NoError(t, err, "fleetctl gitops should succeed when a new label and a profile referencing it are declared in the same fleet YAML (issue #44046)")
 
 	require.NotNil(t, savedTeam, "fleet should have been created")
@@ -1700,7 +1701,7 @@ labels:
 	batchProfileOrder = 0
 	applyOrder = 0
 	mu.Unlock()
-	dryRunBuf, err := RunAppNoChecks([]string{"gitops", "-f", teamYAMLPath, "--dry-run"})
+	dryRunBuf, err := runAppNoChecks([]string{"gitops", "-f", teamYAMLPath, "--dry-run"})
 	require.NoError(t, err, "fleetctl gitops --dry-run should succeed with new label and profile in same fleet YAML")
 	dryRunOut := dryRunBuf.String()
 
@@ -1930,7 +1931,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			t.Setenv("FLEET_ENABLE_LOG_TOPICS", "deprecated-field-names")
 
 			// Dry run w/ top-level labels key
-			logs := RunAppForTest(t, []string{"gitops", "-f", path, "--dry-run"})
+			logs := runAppForTest(t, []string{"gitops", "-f", path, "--dry-run"})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
@@ -1954,7 +1955,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			assert.Empty(t, deletedLabels)
 
 			// Real run w/ top-level labels key
-			logs = RunAppForTest(t, []string{"gitops", "-f", path})
+			logs = runAppForTest(t, []string{"gitops", "-f", path})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
 				assert.Contains(t, logs, "'controls.macos_settings' is deprecated; use 'controls.apple_settings' instead")
@@ -2270,7 +2271,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 			t.Setenv("FLEET_ENABLE_LOG_TOPICS", "deprecated-field-names")
 
 			// Dry run
-			logs := RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+			logs := runAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'team_settings' is deprecated; use 'settings' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
@@ -2298,7 +2299,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 			appConfig.Integrations = fleet.Integrations{
 				GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
 			}
-			logs = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
+			logs = runAppForTest(t, []string{"gitops", "-f", gitopsFile})
 			if useDeprecatedKeys {
 				assert.Contains(t, logs, "'team_settings' is deprecated; use 'settings' instead")
 				assert.Contains(t, logs, "'queries' is deprecated; use 'reports' instead")
@@ -2347,8 +2348,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 			// Change disk encryption settings
 			t.Setenv("ENABLE_DISK_ENCRYPTION", "false")
 			t.Setenv("WINDOWS_REQUIRE_BITLOCKER_PIN", "false")
-			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
-			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
+			_ = runAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+			_ = runAppForTest(t, []string{"gitops", "-f", gitopsFile})
 			require.NotNil(t, savedTeam)
 			assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
 			assert.False(t, savedTeam.Config.MDM.RequireBitLockerPIN)
@@ -2356,17 +2357,17 @@ func TestGitOpsFullTeam(t *testing.T) {
 			// Change team name
 			newTeamName := "New Team Name"
 			t.Setenv("TEST_TEAM_NAME", newTeamName)
-			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
-			_ = RunAppForTest(t, []string{"gitops", "-f", gitopsFile})
+			_ = runAppForTest(t, []string{"gitops", "-f", gitopsFile, "--dry-run"})
+			_ = runAppForTest(t, []string{"gitops", "-f", gitopsFile})
 			require.NotNil(t, savedTeam)
 			assert.Equal(t, newTeamName, savedTeam.Name)
 			assert.Equal(t, basePath+".yml", *savedTeam.Filename)
 
 			// Try to change team name again, but this time the new name conflicts with an existing team
 			t.Setenv("TEST_TEAM_NAME", "Conflict")
-			_, err := RunAppNoChecks([]string{"gitops", "-f", gitopsFile, "--dry-run"})
+			_, err := runAppNoChecks([]string{"gitops", "-f", gitopsFile, "--dry-run"})
 			require.ErrorContains(t, err, `conflicts with existing fleet "Conflict"`)
-			_, err = RunAppNoChecks([]string{"gitops", "-f", gitopsFile})
+			_, err = runAppNoChecks([]string{"gitops", "-f", gitopsFile})
 			require.ErrorContains(t, err, `conflicts with existing fleet "Conflict"`)
 
 			// Now clear the settings
@@ -2397,11 +2398,11 @@ software:
 
 			// Dry run
 			savedTeam = nil
-			_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 			assert.Nil(t, savedTeam)
 
 			// Real run
-			_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 			require.NotNil(t, savedTeam)
 			assert.Equal(t, newTeamName, savedTeam.Name)
 			require.Len(t, enrolledSecrets, 1)
@@ -2676,28 +2677,28 @@ software:
 	require.NoError(t, err)
 
 	// Files out of order
-	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.NoError(t, err)
 
 	// No global file, only team file
-	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "--dry-run"})
 	require.NoError(t, err)
 
 	// Global file specified multiple times
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
 	fmt.Printf("err.Error(): %v\n", err.Error())
 	assert.Contains(t, err.Error(), "only one global config file may be provided")
 
 	// Duplicate secret
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFileDupSecret.Name(), "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFileDupSecret.Name(), "--dry-run"})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "duplicate enroll secret found")
 
 	ds.GetVPPTokenByTeamIDFuncInvoked = false
 
 	// Dry run
-	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 
 	// Dry run should not attempt to get the VPP token when applying VPP apps (it may not exist).
@@ -2706,12 +2707,12 @@ software:
 
 	// Dry run, deleting other teams
 	savedAppConfig = &fleet.AppConfig{}
-	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run", "--delete-other-teams"})
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run", "--delete-other-teams"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 	assert.True(t, ds.ListTeamsFuncInvoked)
 
 	// Real run
-	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name()})
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name()})
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Len(t, enrolledSecrets, 1)
@@ -2723,7 +2724,7 @@ software:
 	// Dry run again (after team was created by real run)
 	ds.GetVPPTokenByTeamIDFuncInvoked = false
 	ds.GetSoftwareCategoryIDsFuncInvoked = false
-	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
 	// Dry run should attempt to get the VPP token when applying VPP apps (it may not exist), so we want to error to the user.
 	require.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
 	require.True(t, ds.GetSoftwareCategoryIDsFuncInvoked)
@@ -2756,7 +2757,7 @@ software:
 		return nil
 	}
 	// Real run, deleting other teams
-	_ = RunAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--delete-other-teams"})
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--delete-other-teams"})
 	assert.True(t, ds.ListTeamsFuncInvoked)
 	assert.True(t, ds.DeleteTeamFuncInvoked)
 }
@@ -2930,7 +2931,7 @@ software:
 		require.NoError(t, err)
 
 		// Dry run, global defines software, should fail.
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithSoftware.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileBasic.Name(),
 			"--dry-run",
@@ -2938,7 +2939,7 @@ software:
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "'software' cannot be set on global file")
 		// Real run, global defines software, should fail.
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithSoftware.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileBasic.Name(),
 		})
@@ -2964,14 +2965,14 @@ software:
 		require.NoError(t, err)
 
 		// Dry run, both global and no-team.yml define controls.
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithControls.Name(), "--dry-run",
 		})
 		require.Error(t, err)
 		assert.True(t, strings.Contains(err.Error(), "'controls' cannot be set on both global config and on no-team.yml"))
 		// Real run, both global and no-team.yml define controls.
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithControls.Name(),
 		})
@@ -2997,14 +2998,14 @@ software:
 		require.NoError(t, err)
 
 		// Dry run, both global and no-team.yml defines policy with calendar events enabled.
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFilePathPoliciesCalendar.Name(), "--dry-run",
 		})
 		require.Error(t, err)
 		assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on policies included in `no-team.yml`: \"Foobar\""), err.Error())
 		// Real run, both global and no-team.yml define controls.
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFilePathPoliciesCalendar.Name(),
 		})
@@ -3026,7 +3027,7 @@ software:
 		require.NoError(t, err)
 
 		// Dry run.
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithoutControls.Name(), "--dry-run",
 		})
@@ -3034,7 +3035,7 @@ software:
 		assert.True(t, strings.Contains(err.Error(), "must be set on global config or no-team.yml"), err.Error())
 
 		// Real run
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithoutControls.Name(),
 		})
@@ -3046,14 +3047,14 @@ software:
 		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, fleetServerURL, orgName)
 
 		// Dry run.
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "--dry-run",
 		})
 		require.Error(t, err)
 		assert.True(t, strings.Contains(err.Error(), "must be set on global config, no-team.yml or unassigned.yml"), err.Error())
 
 		// Real run
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(),
 		})
 		require.Error(t, err)
@@ -3072,14 +3073,14 @@ software:
 		require.NoError(t, err)
 
 		// Dry run.
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithoutControls.Name(), "--dry-run",
 		})
 		require.Error(t, err)
 		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside no-team.yml"), err.Error())
 
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithoutControls.Name(),
 		})
@@ -3099,7 +3100,7 @@ software:
 		require.NoError(t, err)
 
 		// Dry run
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithoutControls.Name(), "--dry-run",
 		})
@@ -3107,7 +3108,7 @@ software:
 		assert.True(t, strings.Contains(err.Error(), "global config must be provided alongside unassigned.yml"), err.Error())
 
 		// Real run
-		_, err = RunAppNoChecks([]string{
+		_, err = runAppNoChecks([]string{
 			"gitops", "-f", teamFileBasic.Name(), "-f",
 			noTeamFileWithoutControls.Name(),
 		})
@@ -3121,7 +3122,7 @@ software:
 		globalFileWithoutControlsAndSoftwareKeys := createGlobalFileWithoutControlsAndSoftwareKeys(t, fleetServerURL, orgName)
 
 		// Dry run, global file without controls and software keys.
-		_ = RunAppForTest(t,
+		_ = runAppForTest(t,
 			[]string{
 				"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
 				noTeamFileBasic.Name(),
@@ -3130,7 +3131,7 @@ software:
 		assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 
 		// Real run, global file without controls and software keys.
-		_ = RunAppForTest(t,
+		_ = runAppForTest(t,
 			[]string{
 				"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
 				noTeamFileBasic.Name(),
@@ -3147,11 +3148,11 @@ software:
 	t.Run("basic global and no-team.yml", func(t *testing.T) {
 		savedAppConfig = &fleet.AppConfig{}
 		// Dry run
-		_ = RunAppForTest(t,
+		_ = runAppForTest(t,
 			[]string{"gitops", "-f", globalFileBasic.Name(), "-f", teamFileBasic.Name(), "-f", noTeamFileBasic.Name(), "--dry-run"})
 		assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 		// Real run
-		_ = RunAppForTest(t, []string{"gitops", "-f", globalFileBasic.Name(), "-f", teamFileBasic.Name(), "-f", noTeamFileBasic.Name()})
+		_ = runAppForTest(t, []string{"gitops", "-f", globalFileBasic.Name(), "-f", teamFileBasic.Name(), "-f", noTeamFileBasic.Name()})
 		assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 		assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 		assert.Len(t, enrolledSecrets, 1)
@@ -3326,7 +3327,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
-	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 	crt, key, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
@@ -3406,7 +3407,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			}
 
 			// Dry run
-			logs := RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", flagName})
+			logs := runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, "--dry-run", flagName})
 			if useDeprecatedKeys {
 				// The test harness doesn't capture stderr output, so we miss this warning in the test.
 				// assert.Contains(t, logs, "'--delete-other-teams' is deprecated; use '--delete-other-fleets' instead")
@@ -3439,7 +3440,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 			assert.Empty(t, appliedQueries)
 
 			// Real run
-			logs = RunAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, flagName})
+			logs = runAppForTest(t, []string{"gitops", "-f", globalFile, "-f", teamFile, flagName})
 			if useDeprecatedKeys {
 				// The test harness doesn't capture stderr output, so we miss this warning in the test.
 				// assert.Contains(t, logs, "'--delete-other-teams' is deprecated; use '--delete-other-fleets' instead")
@@ -3537,20 +3538,20 @@ software:
 		require.NoError(t, err)
 
 		// Validate that global config is required when running noTeam
-		_, err = RunAppNoChecks(
+		_, err = runAppNoChecks(
 			[]string{"gitops", "-f", noTeamFile.Name(), "--dry-run"})
 		assert.Error(t, err)
 
 		// Dry run
 		ds.SaveAppConfigFuncInvoked = false
 		ds.BatchSetScriptsFuncInvoked = false
-		_ = RunAppForTest(t,
+		_ = runAppForTest(t,
 			[]string{"gitops", "-f", globalFileBasic.Name(), "-f", teamFileBasic.Name(), "-f", noTeamFile.Name(), "--dry-run"})
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 		assert.False(t, ds.BatchSetScriptsFuncInvoked)
 
 		// Real run
-		_ = RunAppForTest(t, []string{"gitops", "-f", globalFileBasic.Name(), "-f", teamFileBasic.Name(), "-f", noTeamFile.Name()})
+		_ = runAppForTest(t, []string{"gitops", "-f", globalFileBasic.Name(), "-f", teamFileBasic.Name(), "-f", noTeamFile.Name()})
 		assert.Equal(t, orgName, (*savedAppConfigPtr).OrgInfo.OrgName)
 		assert.Equal(t, fleetServerURL, (*savedAppConfigPtr).ServerSettings.ServerURL)
 		require.Len(t, (*savedAppConfigPtr).MDM.MacOSSettings.CustomSettings, 1)
@@ -3653,7 +3654,7 @@ func TestGitOpsCustomSettings(t *testing.T) {
 				}
 				return ret, nil
 			}
-			_, err := RunAppNoChecks([]string{"gitops", "-f", c.file})
+			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
 				require.NoError(t, err)
 			} else {
@@ -4058,18 +4059,18 @@ software:
 			}
 
 			// Dry run
-			out, err := RunAppNoChecks(append(args, "--dry-run"))
+			out, err := runAppNoChecks(append(args, "--dry-run"))
 			tt.dryRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
 			if t.Failed() {
 				t.FailNow()
 			}
 
 			// Real run
-			out, err = RunAppNoChecks(args)
+			out, err = runAppNoChecks(args)
 			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
 
 			// Second real run, now that all the teams are saved
-			out, err = RunAppNoChecks(args)
+			out, err = runAppNoChecks(args)
 			tt.realRunAssertion(t, *savedAppConfigPtr, ds, out.String(), err)
 		})
 	}
@@ -4090,7 +4091,7 @@ func TestGitOpsWindowsMigration(t *testing.T) {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
 			testing_utils.SetupFullGitOpsPremiumServer(t)
 
-			_, err := RunAppNoChecks([]string{"gitops", "-f", c.file})
+			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
 				require.NoError(t, err)
 			} else {
@@ -4104,7 +4105,7 @@ func TestGitOpsPreserveHostActivitiesOnReenrollment(t *testing.T) {
 	t.Run("explicit true", func(t *testing.T) {
 		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
-		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_true.yml"})
+		_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_true.yml"})
 		require.NoError(t, err)
 		require.True(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
 	})
@@ -4115,7 +4116,7 @@ func TestGitOpsPreserveHostActivitiesOnReenrollment(t *testing.T) {
 		// Seed the AppConfig with true so we can confirm gitops actually flips it.
 		(*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment = true
 
-		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_false.yml"})
+		_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_false.yml"})
 		require.NoError(t, err)
 		require.False(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
 	})
@@ -4127,7 +4128,7 @@ func TestGitOpsPreserveHostActivitiesOnReenrollment(t *testing.T) {
 		// the value when the field is absent from the YAML.
 		(*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment = true
 
-		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_omitted.yml"})
+		_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_omitted.yml"})
 		require.NoError(t, err)
 		require.True(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
 	})
@@ -4143,7 +4144,7 @@ func TestGitOpsGlobalWebhooksDisable(t *testing.T) {
 	webhook.VulnerabilitiesWebhook.Enable = true
 
 	// Run config with no webooks settings
-	_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_windows_migration_true_true.yml"})
+	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_windows_migration_true_true.yml"})
 	require.NoError(t, err)
 
 	webhook = &(*appConfig).WebhookSettings
@@ -4168,7 +4169,7 @@ func TestGitOpsTeamWebhooks(t *testing.T) {
 
 	// Do a GitOps run with no webhook settings.
 	t.Setenv("TEST_TEAM_NAME", teamName)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_webhook.yml"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_webhook.yml"})
 	require.NoError(t, err)
 
 	team, err := ds.TeamByName(context.Background(), teamName)
@@ -4238,7 +4239,7 @@ software:
 `, fleetServerURL))
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
 	require.NoError(t, err)
 
 	require.True(t, (*appConfig).WebhookSettings.FailingPoliciesWebhook.Enable)
@@ -4286,7 +4287,7 @@ agent_options:
 `, fleetName))
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
 	require.NoError(t, err)
 
 	savedFleet, err := ds.TeamByName(context.Background(), fleetName)
@@ -4354,7 +4355,7 @@ agent_options:
 `, fleetName))
 		require.NoError(t, err)
 
-		_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+		_, err = runAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "cannot use both 'webhooks_and_tickets_enabled' on policies and 'policy_ids'")
 	})
@@ -4387,7 +4388,7 @@ agent_options:
 `, fleetName))
 		require.NoError(t, err)
 
-		_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+		_, err = runAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
 		require.NoError(t, err)
 
 		// Verify the fleet's webhook settings were updated with the correct policy IDs.
@@ -4445,7 +4446,7 @@ agent_options:
 `, fleetName))
 		require.NoError(t, err)
 
-		_, err = RunAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
+		_, err = runAppNoChecks([]string{"gitops", "-f", cfgFile.Name()})
 		require.NoError(t, err)
 
 		// GetPolicies should only be called once (the initial fetch to diff
@@ -4515,7 +4516,7 @@ software:
 	}
 
 	// Do a GitOps run with updated feature settings.
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileUpdatedFeatures.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileUpdatedFeatures.Name()})
 	require.NoError(t, err)
 	require.False(t, appConfig.Features.EnableHostUsers)
 	require.False(t, appConfig.Features.EnableSoftwareInventory)
@@ -4530,10 +4531,10 @@ software:
 	require.Equal(t, "SELECT it_works", *appConfig.Features.DetailQueryOverrides["detail_query_a"])
 
 	// Do a GitOps run with no feature settings.
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 
-	require.False(t, appConfig.Features.EnableHostUsers)
+	require.True(t, appConfig.Features.EnableHostUsers)
 	require.True(t, appConfig.Features.EnableSoftwareInventory)
 	require.Nil(t, appConfig.Features.AdditionalQueries)
 	require.Nil(t, appConfig.Features.DetailQueryOverrides)
@@ -4588,7 +4589,7 @@ software:
 	}
 
 	// Apply explicit historical_data values via GitOps and verify they're applied.
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileWithHistoricalData.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithHistoricalData.Name()})
 	require.NoError(t, err)
 	require.True(t, appConfig.Features.HistoricalData.Uptime)
 	require.False(t, appConfig.Features.HistoricalData.Vulnerabilities)
@@ -4596,7 +4597,7 @@ software:
 	// Apply a YAML that omits historical_data entirely and verify that values revert
 	// to defaults (true).
 	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 	require.True(t, appConfig.Features.HistoricalData.Uptime,
 		"omitted historical_data defaults uptime to true")
@@ -4630,7 +4631,7 @@ software:
 `, fleetServerURL, orgName),
 	)
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileWithUptimeOnly.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithUptimeOnly.Name()})
 	require.NoError(t, err)
 	require.False(t, appConfig.Features.HistoricalData.Uptime,
 		"explicit uptime: false is honored")
@@ -4712,7 +4713,7 @@ settings:
 
 	// Apply the GitOps YAMLs. This will call editTeamFromSpec which should now
 	// emit activities via OnHistoricalDataChanged.
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name()})
 	require.NoError(t, err)
 
 	// Verify the team was created/updated with the correct historical_data settings.
@@ -4753,7 +4754,7 @@ func TestGitOpsSSOSettings(t *testing.T) {
 	}
 
 	// Do a GitOps run with no sso settings.
-	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	_, err := runAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 
 	require.Nil(t, appConfig.SSOSettings)
@@ -4799,7 +4800,7 @@ org_settings:
 	}
 
 	// Run GitOps with SSO settings including sso_url
-	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
 	require.NoError(t, err)
 
 	require.NotNil(t, appConfig.SSOSettings)
@@ -4840,7 +4841,7 @@ func TestGitOpsSMTPSettings(t *testing.T) {
 	}
 
 	// Do a GitOps run with no smtp settings.
-	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	_, err := runAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 
 	// Currently we do NOT clear the SMTP settings if they are not in the config,
@@ -4894,7 +4895,7 @@ func TestGitOpsMDMAuthSettings(t *testing.T) {
 	}
 
 	// Do a GitOps run with no mdm end user auth settings.
-	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	_, err := runAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 
 	require.NotNil(t, appConfig.MDM.EndUserAuthentication)
@@ -4921,7 +4922,7 @@ func TestGitOpsTeamConditionalAccess(t *testing.T) {
 
 	// Do a GitOps run with conditional access not set.
 	t.Setenv("TEST_TEAM_NAME", teamName)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_webhook.yml"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_webhook.yml"})
 	require.NoError(t, err)
 
 	team, err := ds.TeamByName(context.Background(), teamName)
@@ -4951,7 +4952,7 @@ func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
 	}
 
 	// Do a GitOps run with conditional access not set.
-	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	_, err := runAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 	require.True(t, appConfig.Integrations.ConditionalAccessEnabled.Set)
 	require.False(t, appConfig.Integrations.ConditionalAccessEnabled.Value)
@@ -5199,14 +5200,14 @@ org_settings:
 			tt.mockSetup(t, ds, filepath.Dir(tmpFile.Name()))
 
 			// Dry run
-			out, err := RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+			out, err := runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 			tt.dryRunAssertion(t, ds, out.String(), err)
 			if t.Failed() {
 				t.FailNow()
 			}
 
 			// Real run
-			out, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+			out, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 			tt.realRunAssertion(t, ds, out.String(), err)
 		})
 	}
@@ -5375,7 +5376,7 @@ software: null
 	require.NoError(t, err)
 
 	// Run GitOps
-	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 	require.NoError(t, err)
 
 	// Verify certificates were created
@@ -5393,14 +5394,14 @@ software: null
 	// Try the same with a cert that uses a DigiCert CA
 	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName, 2, 3))
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Currently, only the custom_scep_proxy certificate authority is supported")
 
 	// Try the same with a non-existent CA
 	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName, 2, 4))
 	require.NoError(t, err)
-	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not found")
 }
@@ -5499,7 +5500,7 @@ software: null
 	require.NoError(t, err)
 
 	// Run GitOps
-	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 	require.NoError(t, err)
 
 	// Verify both certificates were deleted because their SubjectName changed
@@ -5562,7 +5563,7 @@ software: null
 	require.NoError(t, err)
 
 	// Run GitOps
-	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 	require.NoError(t, err)
 
 	// Verify both certificates were deleted because their SubjectName changed
@@ -5625,7 +5626,7 @@ software: null
 	require.NoError(t, err)
 
 	// Run GitOps
-	_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 	require.NoError(t, err)
 
 	require.Len(t, deletedCertificateIDs, 0, "No certificates should be deleted when there are no changes")
@@ -5738,7 +5739,7 @@ software: null
 	require.NoError(t, err)
 
 	// Run GitOps
-	out, err := RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	out, err := runAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 	require.NoError(t, err)
 
 	// Verify output mentions deletion
@@ -5854,7 +5855,7 @@ software: null
 	require.NoError(t, err)
 
 	// Run GitOps
-	out, err := RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+	out, err := runAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 	require.NoError(t, err)
 
 	// Verify output mentions deletion
@@ -5979,7 +5980,7 @@ software:
 `)
 		require.NoError(t, err)
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 		// Verify SetOrUpdateMDMWindowsConfigProfile was called
 		require.Len(t, setOrUpdateCalls, 1, "SetOrUpdateMDMWindowsConfigProfile should be called once")
@@ -6015,7 +6016,7 @@ software:
 `)
 		require.NoError(t, err)
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 		// Verify DeleteMDMWindowsConfigProfileByTeamAndName was called
 		require.Len(t, deleteCalls, 1, "DeleteMDMWindowsConfigProfileByTeamAndName should be called once")
@@ -6047,7 +6048,7 @@ software:
 `)
 		require.NoError(t, err)
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 		// Verify neither function was called
 		assert.Empty(t, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should not be called")
@@ -6379,7 +6380,7 @@ software:
 `)
 		require.NoError(t, err)
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 		require.Len(t, autoUpdateCalls, 1, "UpdateSoftwareTitleAutoUpdateConfig should be called once")
 		assert.Equal(t, uint(100), autoUpdateCalls[0].titleID)
@@ -6412,7 +6413,7 @@ software:
 `)
 		require.NoError(t, err)
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", teamFileNoApps.Name()})
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFileNoApps.Name()})
 
 		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called when no VPP apps are provided")
 	})
@@ -6441,7 +6442,7 @@ software:
 `)
 		require.NoError(t, err)
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", teamFileNoSettings.Name()})
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFileNoSettings.Name()})
 
 		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called when YAML omits settings and no schedule exists")
 	})
@@ -6472,7 +6473,7 @@ software:
 `)
 		require.NoError(t, err)
 
-		_, runErr := RunAppNoChecks([]string{"gitops", "-f", teamFileInvalidWindow.Name()})
+		_, runErr := runAppNoChecks([]string{"gitops", "-f", teamFileInvalidWindow.Name()})
 		require.Error(t, runErr, "Expected error for invalid auto-update window")
 		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called on invalid window")
 	})
@@ -6648,7 +6649,7 @@ software:
 			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "14.6.1"))
 			require.NoError(t, err)
 
-			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
 		})
@@ -6662,7 +6663,7 @@ software:
 			_, err = teamFile.WriteString(macOSYAML("2024-04-04", "14.6.1"))
 			require.NoError(t, err)
 
-			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
 		})
@@ -6676,7 +6677,7 @@ software:
 			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "13.6.9"))
 			require.NoError(t, err)
 
-			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
 		})
@@ -6692,7 +6693,7 @@ software:
 			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6.1"))
 			require.NoError(t, err)
 
-			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
 		})
@@ -6706,7 +6707,7 @@ software:
 			_, err = teamFile.WriteString(iOSYAML("2024-04-04", "17.6.1"))
 			require.NoError(t, err)
 
-			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
 		})
@@ -6720,7 +6721,7 @@ software:
 			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6"))
 			require.NoError(t, err)
 
-			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
 		})
@@ -6736,7 +6737,7 @@ software:
 			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6.1"))
 			require.NoError(t, err)
 
-			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
 		})
@@ -6750,7 +6751,7 @@ software:
 			_, err = teamFile.WriteString(iPadOSYAML("2024-04-04", "17.6.1"))
 			require.NoError(t, err)
 
-			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
 		})
@@ -6764,7 +6765,7 @@ software:
 			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6"))
 			require.NoError(t, err)
 
-			_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
 		})
@@ -6884,7 +6885,7 @@ software:
 		_, err = teamFile.WriteString(teamYAML(7, 2))
 		require.NoError(t, err)
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 		assert.Equal(t, 0, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should not be called when values are unchanged")
 	})
@@ -6898,7 +6899,7 @@ software:
 		_, err = teamFile.WriteString(teamYAML(14, 2))
 		require.NoError(t, err)
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 		assert.Equal(t, 1, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should be called when deadline_days changes")
 	})
@@ -6912,7 +6913,7 @@ software:
 		_, err = teamFile.WriteString(teamYAML(7, 4))
 		require.NoError(t, err)
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 		assert.Equal(t, 1, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should be called when grace_period_days changes")
 	})
@@ -6970,12 +6971,12 @@ software:
 		require.NoError(t, err)
 
 		// Dry run should fail
-		_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "--dry-run"})
+		_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "--dry-run"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "macos_manual_agent_install")
 
 		// Real run should fail
-		_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+		_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "macos_manual_agent_install")
 	})
@@ -7010,12 +7011,12 @@ software:
 		require.NoError(t, err)
 
 		// Dry run should fail
-		_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
+		_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "macos_manual_agent_install")
 
 		// Real run should fail
-		_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamFilePath})
+		_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamFilePath})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "macos_manual_agent_install")
 	})
@@ -7063,7 +7064,7 @@ queries:
 `)
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "bad-query")
 	require.ErrorContains(t, err, "labels_include_any")
@@ -7106,7 +7107,7 @@ queries:
 `)
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "missing labels")
 }
@@ -7155,7 +7156,7 @@ policies:
 `)
 	require.NoError(t, err)
 
-	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "bad-policy")
 	require.ErrorContains(t, err, "labels_include_all")
@@ -7221,12 +7222,226 @@ software:
 `), 0o644))
 
 	// Dry run.
-	logs := RunAppForTest(t, []string{"gitops", "-f", globalPath, "-f", teamPath, "--dry-run"})
+	logs := runAppForTest(t, []string{"gitops", "-f", globalPath, "-f", teamPath, "--dry-run"})
 	assert.Contains(t, logs, "[+] would've applied 1 script\n")
 	assert.Contains(t, logs, fmt.Sprintf("[+] would've applied 1 script for fleet %s\n", teamName))
 
 	// Real run.
-	logs = RunAppForTest(t, []string{"gitops", "-f", globalPath, "-f", teamPath})
+	logs = runAppForTest(t, []string{"gitops", "-f", globalPath, "-f", teamPath})
 	assert.Contains(t, logs, "[+] applied 1 script\n")
 	assert.Contains(t, logs, fmt.Sprintf("[+] applied 1 script for fleet %s\n", teamName))
+}
+
+// gitopsModeYamlSetup wires up the minimum-viable mocks needed to run the
+// gitops apply through the AppConfig PATCH path for the
+// `org_settings.gitops` YAML control tests. It seeds the existing AppConfig
+// (so PATCH-merge has something to merge against) and captures both the
+// saved AppConfig and the activities emitted.
+func gitopsModeYamlSetup(t *testing.T, tier string, seed fleet.GitOpsConfig) (savedAppConfig **fleet.AppConfig, activities *[]activity_api.ActivityDetails) {
+	t.Helper()
+	t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+	t.Setenv("ORG_NAME", "GitOps Mode YAML Test")
+
+	license := &fleet.LicenseInfo{Tier: tier}
+	if tier == fleet.TierPremium {
+		license.Expiration = time.Now().Add(24 * time.Hour)
+	}
+
+	opts := &service.TestServerOpts{
+		License:       license,
+		KeyValueStore: testing_utils.NewMemKeyValueStore(),
+	}
+	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
+	setupEmptyGitOpsMocks(ds)
+
+	captured := &fleet.AppConfig{}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		cfg := &fleet.AppConfig{}
+		cfg.GitOpsConfig = seed
+		return cfg, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		captured = config
+		return nil
+	}
+
+	var emitted []activity_api.ActivityDetails
+	var emittedMu sync.Mutex
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		emittedMu.Lock()
+		defer emittedMu.Unlock()
+		emitted = append(emitted, activity)
+		return nil
+	}
+
+	out := &captured
+	return out, &emitted
+}
+
+// writeGitOpsYamlWithGitops writes a minimal global gitops YAML to a temp
+// file and returns the path. The provided `gitopsBlock` is inserted under
+// `org_settings.gitops`. Pass an empty string to omit the block entirely.
+func writeGitOpsYamlWithGitops(t *testing.T, gitopsBlock string) string {
+	t.Helper()
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	body := `
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: ${ORG_NAME}
+  secrets:
+GITOPS_BLOCK_PLACEHOLDER
+software:
+`
+	if gitopsBlock != "" {
+		body = strings.Replace(body, "GITOPS_BLOCK_PLACEHOLDER\n", "  gitops:\n"+gitopsBlock, 1)
+	} else {
+		body = strings.Replace(body, "GITOPS_BLOCK_PLACEHOLDER\n", "", 1)
+	}
+	_, err = tmpFile.WriteString(body)
+	require.NoError(t, err)
+	require.NoError(t, tmpFile.Close())
+	return tmpFile.Name()
+}
+
+func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
+	// Cannot t.Parallel() — uses t.Setenv.
+
+	t.Run("YAML sets mode and url; server picks them up", func(t *testing.T) {
+		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, fleet.GitOpsConfig{})
+		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		saved := *savedAppConfigPtr
+		assert.True(t, saved.GitOpsConfig.GitopsModeEnabled)
+		assert.Equal(t, "https://github.com/example/fleet-config", saved.GitOpsConfig.RepositoryURL)
+	})
+
+	t.Run("YAML omitting gitops preserves stored mode and url", func(t *testing.T) {
+		seed := fleet.GitOpsConfig{
+			GitopsModeEnabled: true,
+			RepositoryURL:     "https://prior.example.com",
+		}
+		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
+		yml := writeGitOpsYamlWithGitops(t, "")
+
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		saved := *savedAppConfigPtr
+		assert.True(t, saved.GitOpsConfig.GitopsModeEnabled)
+		assert.Equal(t, "https://prior.example.com", saved.GitOpsConfig.RepositoryURL)
+	})
+
+	t.Run("YAML omitting gitops preserves exceptions", func(t *testing.T) {
+		seed := fleet.GitOpsConfig{
+			Exceptions: fleet.GitOpsExceptions{Labels: true, Software: true, Secrets: false},
+		}
+		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
+		yml := writeGitOpsYamlWithGitops(t, "")
+
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		saved := *savedAppConfigPtr
+		assert.True(t, saved.GitOpsConfig.Exceptions.Labels)
+		assert.True(t, saved.GitOpsConfig.Exceptions.Software)
+		assert.False(t, saved.GitOpsConfig.Exceptions.Secrets)
+	})
+
+	t.Run("YAML setting mode and url does not clobber stored exceptions", func(t *testing.T) {
+		seed := fleet.GitOpsConfig{
+			Exceptions: fleet.GitOpsExceptions{Labels: true, Software: true, Secrets: false},
+		}
+		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
+		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		saved := *savedAppConfigPtr
+		assert.True(t, saved.GitOpsConfig.GitopsModeEnabled)
+		assert.Equal(t, "https://github.com/example/fleet-config", saved.GitOpsConfig.RepositoryURL)
+		assert.True(t, saved.GitOpsConfig.Exceptions.Labels)
+		assert.True(t, saved.GitOpsConfig.Exceptions.Software)
+		assert.False(t, saved.GitOpsConfig.Exceptions.Secrets)
+	})
+}
+
+func TestGitOpsModeYamlActivityEmission(t *testing.T) {
+	// Cannot t.Parallel() — uses t.Setenv.
+
+	countActivities := func(emitted []activity_api.ActivityDetails) (enabled, disabled int) {
+		for _, a := range emitted {
+			switch a.(type) {
+			case fleet.ActivityTypeEnabledGitOpsMode:
+				enabled++
+			case fleet.ActivityTypeDisabledGitOpsMode:
+				disabled++
+			}
+		}
+		return
+	}
+
+	t.Run("flip false->true emits enabled_gitops_mode", func(t *testing.T) {
+		_, activitiesPtr := gitopsModeYamlSetup(t, fleet.TierPremium, fleet.GitOpsConfig{})
+		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		enabled, disabled := countActivities(*activitiesPtr)
+		assert.Equal(t, 1, enabled)
+		assert.Equal(t, 0, disabled)
+	})
+
+	t.Run("flip true->false emits disabled_gitops_mode", func(t *testing.T) {
+		seed := fleet.GitOpsConfig{
+			GitopsModeEnabled: true,
+			RepositoryURL:     "https://prior.example.com",
+		}
+		_, activitiesPtr := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
+		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: false\n")
+
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		enabled, disabled := countActivities(*activitiesPtr)
+		assert.Equal(t, 0, enabled)
+		assert.Equal(t, 1, disabled)
+	})
+
+	t.Run("no-op YAML emits no gitops-mode activity", func(t *testing.T) {
+		seed := fleet.GitOpsConfig{
+			GitopsModeEnabled: true,
+			RepositoryURL:     "https://github.com/example/fleet-config",
+		}
+		_, activitiesPtr := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
+		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		enabled, disabled := countActivities(*activitiesPtr)
+		assert.Equal(t, 0, enabled)
+		assert.Equal(t, 0, disabled)
+	})
+}
+
+func TestGitOpsModeYamlFreeTierRejected(t *testing.T) {
+	// Cannot t.Parallel() — uses t.Setenv.
+
+	savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierFree, fleet.GitOpsConfig{})
+	yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+
+	_, err := runAppNoChecks([]string{"gitops", "-f", yml})
+	require.Error(t, err)
+	// The server-side validation in ModifyAppConfig is what flags this on free tier.
+	require.ErrorContains(t, err, "missing or invalid license")
+	// Saved AppConfig should not have been mutated since the PATCH was rejected.
+	saved := *savedAppConfigPtr
+	assert.False(t, saved.GitOpsConfig.GitopsModeEnabled)
 }

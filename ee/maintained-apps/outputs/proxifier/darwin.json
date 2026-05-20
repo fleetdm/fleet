@@ -4,7 +4,7 @@
       "version": "3.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.initex.proxifier.v3.macos';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.initex.proxifier.v3.macos' AND version_compare(bundle_short_version, '3.15') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.initex.proxifier.v3.macos') AND version_compare(bundle_short_version, '3.15') < 0);"
       },
       "installer_url": "https://www.proxifier.com/download/ProxifierMac.dmg",
       "install_script_ref": "29aa068c",

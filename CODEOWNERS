@@ -100,9 +100,9 @@ go.mod @fleetdm/go
 /docs/Contributing/research/software                    @georgekarrv @cdcme
 
 # Security & Compliance
-/docs/Contributing/architecture/security-compliance     @sharon-fdm @getvictor
-/docs/Contributing/product-groups/security-compliance   @sharon-fdm @getvictor
-/docs/Contributing/research/security-compliance         @sharon-fdm @getvictor
+/docs/Contributing/architecture/security-compliance     @sharon-fdm @getvictor @mostlikelee
+/docs/Contributing/product-groups/security-compliance   @sharon-fdm @getvictor @mostlikelee
+/docs/Contributing/research/security-compliance         @sharon-fdm @getvictor @mostlikelee
 /docs/Contributing/reference/patterns-backend.md        @fleetdm/go
 
 ##############################################################################################

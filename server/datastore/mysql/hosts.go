@@ -825,6 +825,7 @@ SELECT
   h.last_enrolled_at,
   h.refetch_requested,
   h.refetch_critical_queries_until,
+  h.orbit_debug_until,
   h.team_id,
   h.policy_updated_at,
   h.public_ip,
@@ -2382,7 +2383,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
         computer_name = COALESCE(NULLIF(computer_name, ''), ?),
         hardware_model = COALESCE(NULLIF(hardware_model, ''), ?),
-        refetch_requested = ?%s
+        refetch_requested = ?
       WHERE id = ?`
 			args := []any{
 				orbitNodeKey,
@@ -2394,21 +2395,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				refetchRequested,
 			}
 
-			if !enrollConfig.IgnoreTeamUpdate {
-				args = append(args, teamID)
-				sqlUpdate = fmt.Sprintf(sqlUpdate, ", team_id = ?")
-			} else {
-				ds.logger.InfoContext(ctx, "skipping team update on orbit enroll", "host_uuid", hostInfo.HardwareUUID)
-				sqlUpdate = fmt.Sprintf(sqlUpdate, "")
-			}
-
 			// WHERE attributes
 			args = append(args, enrolledHostInfo.ID)
-
-			_, err := tx.ExecContext(ctx, sqlUpdate,
-				args...,
-			)
-			if err != nil {
+			if _, err := tx.ExecContext(ctx, sqlUpdate, args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
 			}
 			host.ID = enrolledHostInfo.ID
@@ -2433,7 +2422,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					hostInfo.OsqueryIdentifier, *enrollConfig.IdentityCert.HostID))
 			}
 
-			zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
+			// Use the canonical "never" sentinel (2000-01-01 UTC) so CleanupExpiredHosts does not immediately delete it.
+			zeroTime := common_mysql.GetDefaultNonZeroTime()
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
 			// the refetch is completed.
@@ -2531,7 +2521,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
+		zeroTime := common_mysql.GetDefaultNonZeroTime()
 
 		var hostID uint
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial)
@@ -2621,7 +2611,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				osquery_host_id = ?,
 				uuid = COALESCE(NULLIF(uuid, ''), ?),
 				hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-				refetch_requested = ?%s
+				refetch_requested = ?
 				WHERE id = ?
 			`
 			args := []any{
@@ -2632,17 +2622,8 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				refetchRequested,
 			}
 
-			if !enrollConfig.IgnoreTeamUpdate {
-				args = append(args, teamID)
-				sqlUpdate = fmt.Sprintf(sqlUpdate, ", team_id = ?")
-			} else {
-				ds.logger.InfoContext(ctx, "skipping team update on osquery enroll", "host_uuid", hardwareUUID)
-				sqlUpdate = fmt.Sprintf(sqlUpdate, "")
-			}
-
 			// WHERE attributes
 			args = append(args, enrolledHostInfo.ID)
-
 			_, err := tx.ExecContext(ctx, sqlUpdate, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "update host")
@@ -2877,6 +2858,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       h.last_enrolled_at,
       h.refetch_requested,
       h.refetch_critical_queries_until,
+      h.orbit_debug_until,
       h.team_id,
       h.policy_updated_at,
       h.public_ip,
@@ -4884,6 +4866,7 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 			hm.installed_from_dep,
 			hm.mdm_id,
 			hm.is_personal_enrollment,
+			hm.managed_apple_id,
 			COALESCE(hm.is_server, false) AS is_server,
 			COALESCE(mdms.name, ?) AS name,
 			hdep.assign_profile_response AS dep_profile_assign_status
@@ -4903,6 +4886,43 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
 	}
 	return &hmdm, nil
+}
+
+func (ds *Datastore) GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error) {
+	var maid sql.NullString
+	// Read from the primary: managed_apple_id is set during TokenUpdate and
+	// consumed seconds later by the VPP user-provisioning flow, so replica lag
+	// could otherwise yield a false "no Managed Apple ID" miss.
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &maid,
+		`SELECT managed_apple_id FROM host_mdm WHERE host_id = ?`, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("HostMDMData").WithID(hostID))
+		}
+		return "", ctxerr.Wrapf(ctx, err, "getting managed_apple_id from host_mdm for host_id %d", hostID)
+	}
+	return maid.String, nil
+}
+
+func (ds *Datastore) SetHostManagedAppleID(ctx context.Context, hostID uint, managedAppleID string) error {
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_mdm SET managed_apple_id = ? WHERE host_id = ?`,
+		managedAppleID, hostID,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "setting managed_apple_id on host_mdm for host_id %d", hostID)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "checking managed_apple_id update result for host_id %d", hostID)
+	}
+	if rows == 0 {
+		// A missing host_mdm row means the host hasn't checked in yet (or has
+		// been unenrolled). Returning NotFound prevents silently dropping the
+		// value — the caller should treat this as a retryable condition.
+		return ctxerr.Wrap(ctx, notFound("HostMDMData").WithID(hostID))
+	}
+	return nil
 }
 
 func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
@@ -5487,6 +5507,18 @@ func updateHostRefetchRequestedDB(ctx context.Context, tx sqlx.ExtContext, id ui
 	sqlStatement := `UPDATE hosts SET refetch_requested = ? WHERE id = ?`
 	_, err := tx.ExecContext(ctx, sqlStatement, value, id)
 	return ctxerr.Wrapf(ctx, err, "update host %d refetch_requested", id)
+}
+
+// ExtendHostOrbitDebugUntil writes `until` only when it is later than the
+// current value (or NULL). The conditional WHERE makes the call idempotent
+// and prevents lost-update races shortening a longer override.
+func (ds *Datastore) ExtendHostOrbitDebugUntil(ctx context.Context, id uint, until time.Time) error {
+	const stmt = `
+		UPDATE hosts
+		SET orbit_debug_until = ?
+		WHERE id = ? AND (orbit_debug_until IS NULL OR orbit_debug_until < ?)`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, until, id, until)
+	return ctxerr.Wrapf(ctx, err, "extend host %d orbit_debug_until", id)
 }
 
 // UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.

@@ -4,7 +4,7 @@
       "version": "148.0.3967.54",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND publisher = 'Microsoft Corporation' AND version_compare(version, '148.0.3967.54') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND publisher = 'Microsoft Corporation') AND version_compare(version, '148.0.3967.54') < 0);"
       },
       "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/1c94fae2-b0f4-4415-bb95-dae4c4c7189d/MicrosoftEdgeEnterpriseX64.msi",
       "install_script_ref": "8959087b",

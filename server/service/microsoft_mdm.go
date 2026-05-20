@@ -3432,6 +3432,30 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		return ctxerr.Wrap(ctx, err, "checking Windows profile existence before install upsert")
 	}
 
+	// Pre-build and bulk-insert commands for non-variable install profiles.
+	// Variable profiles and remove commands are not pre-inserted because
+	// they require per-host or per-profile processing.
+	var bulkCommands []*fleet.MDMWindowsCommand
+	for profUUID, target := range installTargets {
+		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
+			continue
+		}
+		p, ok := profileContents[profUUID]
+		if !ok || variables.ContainsBytes(p.SyncML) {
+			continue // variable profiles get per-host commands, can't pre-build
+		}
+		command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
+		if err != nil {
+			continue // will be handled in the per-profile loop below
+		}
+		bulkCommands = append(bulkCommands, command)
+	}
+	if len(bulkCommands) > 0 {
+		if err := ds.MDMWindowsBulkInsertCommands(ctx, bulkCommands); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk inserting commands")
+		}
+	}
+
 	for profUUID, target := range installTargets {
 		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
 			logger.InfoContext(ctx, "skipping Windows profile install; profile was deleted after list",
@@ -3484,7 +3508,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 			for _, payload := range payloads {
 				payload.Checksum = p.Checksum
 			}
-			if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, target.hostUUIDs, command, payloads); err != nil {
+			if err := ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, target.hostUUIDs, command, payloads); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
 			}
 		} else {

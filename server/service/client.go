@@ -694,9 +694,13 @@ func (c *Client) ApplyGroup(
 			specs.AppConfig.(map[string]interface{})["yara_rules"] = rulePayloads
 		}
 
-		// GitOps mode config is managed server-side; remove it from the PATCH
-		// payload so the existing settings are preserved.
-		delete(specs.AppConfig.(map[string]any), "gitops")
+		// GitOps `exceptions` remain UI-only for now; strip them defense-in-depth
+		// in case the parse-time reject in pkg/spec is bypassed. The other
+		// `gitops` sub-keys (`gitops_mode_enabled`, `repository_url`) are
+		// settable via YAML and flow through to ModifyAppConfig.
+		if gitopsBlock, ok := specs.AppConfig.(map[string]any)["gitops"].(map[string]any); ok {
+			delete(gitopsBlock, "exceptions")
+		}
 
 		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
@@ -2036,6 +2040,9 @@ func (c *Client) DoGitOps(
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
 		}
+		if enableHostUsers, ok := features.(map[string]any)["enable_host_users"]; !ok || enableHostUsers == nil {
+			features.(map[string]any)["enable_host_users"] = true
+		}
 		// historical_data sub-keys default to true on every gitops apply so a
 		// deployment that doesn't pin them in YAML keeps dashboard collection
 		// enabled. Mirrors the enable_software_inventory carve-out above.
@@ -2292,6 +2299,9 @@ func (c *Client) DoGitOps(
 		}
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
+		}
+		if enableHostUsers, ok := features.(map[string]any)["enable_host_users"]; !ok || enableHostUsers == nil {
+			features.(map[string]any)["enable_host_users"] = true
 		}
 		// historical_data sub-keys default to true on every gitops apply.
 		// See ensureHistoricalDataDefaults for the rationale.

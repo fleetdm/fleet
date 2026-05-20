@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -93,7 +94,7 @@ func TestNewPackRejectsMissingName(t *testing.T) {
 }
 
 func TestPacksWithDS(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	cases := []struct {
 		name string
@@ -106,7 +107,7 @@ func TestPacksWithDS(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}

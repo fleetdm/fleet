@@ -166,6 +166,11 @@ Additional infrastructure:
 9. **Object storage**. All object storage dependencies necessary to operate a fleetdm.com instance (download.fleetdm.com, updates.fleetdm.com), are hosted in R2 buckets at [Cloudflare](https://www.cloudflare.com).
 
 
+## Why enforce a minimum release age for npm packages?
+
+Fleet configures `min-release-age` in `.npmrc` to reject any npm package published less than 12 hours ago.  This is a supply-chain security measure.  When a [popular package is compromised](https://github.com/axios/axios/issues/10636), the malicious version is almost always removed quickly — but the damage happens to anyone who installed it in those first few minutes.  A short delay gives the community time to detect and respond before Fleet's CI or any contributor pulls the poisoned release.  The same principle applies to other package managers (Go modules, C++/osquery dependencies), but npm is the highest priority since it has the largest attack surface.  The delay is intentionally short so it doesn't frustrate day-to-day development — if it's too long, people work around it, which defeats the purpose.  Fleet also requires npm v11.10.0+ (the first version to support `min-release-age`) and uses Fleet policies to verify compliance across contributor machines.
+
+
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?
 
 Here are a few of the drawbacks that we have experienced when generating docs via tools like Swagger or OpenAPI, and some of the advantages of doing it by hand with Markdown.
@@ -311,6 +316,15 @@ AI can't take responsibility. Only humans can. If your name is on the commit, th
 - **The value of a review is the guarantee, not the findings.** It is normal to review an AI-generated PR carefully and only find nits, or nothing at all. That doesn't mean the review was wasted. The value is the guarantee that a human read every line and understood it. Without that guarantee, we ship work no one understands, and that is how teams accumulate latent bugs, brittle abstractions, and broken systems that nobody can debug.
 
 
+## Why send LinkedIn comments to Unthread?
+
+The problem with this change that was made is it’s not happening.  I've been in LinkedIn ads 5x a day recently, every day, including over the weekends.  I've seen so many comments that were abandoned and never responded to.  And some were spam and needed to be deleted by the OP.
+
+The original process was devised such that LinkedIn comments go to unthread and can be monitored and responded to, not abandoned in a slack channel where they are ignored. The boring solution I see here is to revert to the original process: send to unthread.  I.e., route this inbound to the team with the system for accountability and repeatable success in responding to things like this, who has an inherent reminder system as they manage tickets.
+
+Versus what we've shifted to now, where the ceo just finds and hopefully catches and deletes/responds to/finds a responder for every comment personally by hand and the raw posts are dumped to a slack channel that is only periodically glanced at.
+
+
 ## Why keep issue templates simple?
 
 At Fleet, we optimize for the person submitting the issue, not the person receiving it.
@@ -421,33 +435,6 @@ Some tools like Omnissa say "Windows CSP/XML" instead of "Windows configuration 
 
 By saying "configuration profile," Fleet has one, cross-platform name for a feature used to enforce OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
 
-## Why not mention the CEO in Slack threads?
-
-> UPDATE: Thanks to the addition of some recent executive hires, the CEO is currently able to keep up with threads again.
-
-<!-- Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
-
-Now that the company has grown, the CEO gets mentioned in threads [too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) to keep up with thread replies, even for threads he participates in.
-
-From Mike:
-
-<blockquote purpose="large-quote">
-  Staying on top of your Slack mentions (including in threads!) is very important. Please use them. 
-But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.
-
-I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
-
- What do I still read?
- 
- - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
- - If you send me a direct message, I'll see and read that ASAP.
-
-Keep in mind I am often in meetings all day, and may not be able to reply promptly.
-  
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Mike's [Executive Assistant](https://fleetdm.com/handbook/ceo#team).
-Thank you so much!" 🙇
-</blockquote> 
--->
 
 ## Why "multi-platform" instead of "cross-platform"?
 

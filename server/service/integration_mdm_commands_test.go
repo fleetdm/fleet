@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -116,7 +117,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 
 	// simulate passage of time: backdate unlock_ref so that CleanAppleMDMLock's
 	// 5-minute guard doesn't block the upcoming Idle from clearing the lock state.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(),
 			fmt.Sprintf(`UPDATE host_mdm_actions hma JOIN hosts h ON hma.host_id = h.id
 			SET hma.unlock_ref = DATE_FORMAT(UTC_TIMESTAMP() - INTERVAL %d MINUTE, '%%Y-%%m-%%d %%H:%%i:%%s')

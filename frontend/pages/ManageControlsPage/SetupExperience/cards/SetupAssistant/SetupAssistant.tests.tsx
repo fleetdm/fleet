@@ -46,6 +46,13 @@ describe("SetupAssistant", () => {
         });
       })
     );
+    mockServer.use(
+      http.get(defaultEnrollmentProfileUrl, () => {
+        return HttpResponse.json({
+          enrollment_profile: { is_mandatory: true },
+        });
+      })
+    );
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -54,11 +61,11 @@ describe("SetupAssistant", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/first turn on automatic enrollment/)
+        screen.getByText(/Additional configuration required/)
       ).toBeInTheDocument();
     });
     expect(
-      screen.getByText(/Add an automatic enrollment profile/)
+      screen.getByText(/Turn on MDM and automatic enrollment to customize/)
     ).toBeVisible();
   });
 

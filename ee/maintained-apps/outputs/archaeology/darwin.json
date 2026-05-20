@@ -4,7 +4,7 @@
       "version": "1.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.Archaeology';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.Archaeology' AND version_compare(bundle_short_version, '1.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.mothersruin.Archaeology') AND version_compare(bundle_short_version, '1.5') < 0);"
       },
       "installer_url": "https://www.mothersruin.com/software/downloads/Archaeology.dmg",
       "install_script_ref": "673cc2cb",

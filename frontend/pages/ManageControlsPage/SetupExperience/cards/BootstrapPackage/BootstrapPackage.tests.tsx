@@ -60,7 +60,7 @@ describe("BootstrapPackage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/turn on automatic enrollment/)
+        screen.getByText(/Turn on MDM and automatic enrollment/)
       ).toBeInTheDocument();
     });
     expect(
@@ -83,7 +83,7 @@ describe("BootstrapPackage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/turn on automatic enrollment/)
+        screen.getByText(/Turn on MDM and automatic enrollment/)
       ).toBeInTheDocument();
     });
   });
@@ -105,7 +105,7 @@ describe("BootstrapPackage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/turn on automatic enrollment/)
+        screen.getByText(/Turn on MDM and automatic enrollment/)
       ).toBeInTheDocument();
     });
   });

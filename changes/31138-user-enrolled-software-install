@@ -1,0 +1,6 @@
+- Added support for installing VPP and in-house (`.ipa`) apps on iOS and iPadOS hosts enrolled via Account-Driven User Enrollment with a Managed Apple Account. Previously Fleet returned "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts."
+- Enabled self-service software installs from My device for user-enrolled iOS and iPadOS hosts.
+- Setup experience software selected in Controls > Setup experience now installs automatically on user-enrolled iOS and iPadOS hosts at enrollment.
+- Fleet now provisions a VPP client user per Managed Apple Account on first install and associates VPP licenses to the user rather than the device, supporting Apple's up-to-5-devices-per-user licensing semantics.
+- Install commands for user-enrolled hosts are now scoped to the host's Managed Apple Account (`clientUserIds`) instead of `serialNumbers`, so apps install on the correct user account on the device.
+- Surfaced a clear host-level error when license association fails during install (for example, no licenses available or the user has reached the 5-device limit) instead of failing silently.
