@@ -11481,7 +11481,7 @@ Operating systems other than Windows, macOS, and Linux do not report vulnerabili
 
 _Available in Fleet Premium._
 
-Returns the list of packages (installers) associated with a software title. A software title can have up to 5 packages. If multiple packages target the same host, Fleet will install the one added most recently.
+Returns the list of packages associated with a software title. A software title can have up to 5 packages for each fleet. If multiple packages target the same host, Fleet will install the one added most recently.
 
 `GET /api/v1/fleet/software/titles/:id/packages`
 
