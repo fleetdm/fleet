@@ -19,14 +19,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
 // sha256 of "TestBrand:test-serial". Will need to be updated if our test enrollment message changes
-const testBrandTestSerialHashed = "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfea4f11f31c96c6f052b0"
+var testBrandTestSerialHashed = "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfea4f11f31c96c6f052b0"
 
 func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	androidAPIClient := android_mock.Client{}
@@ -373,7 +372,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	}
 
 	t.Run("single install pending profile with empty compliance details", func(t *testing.T) {
-		policyVersion := ptr.Int(1)
+		policyVersion := new(1)
 
 		installPendingProfile := &fleet.MDMAndroidProfilePayload{
 			ProfileUUID:             uuid.NewString(),
@@ -416,7 +415,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	})
 
 	t.Run("compliance details has failure", func(t *testing.T) {
-		policyVersion := ptr.Int(1)
+		policyVersion := new(1)
 
 		policyRequestUUID := uuid.NewString()
 		installPendingProfile1 := &fleet.MDMAndroidProfilePayload{
@@ -513,7 +512,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	})
 
 	t.Run("profile failed due to non-compliance but is reverified", func(t *testing.T) {
-		policyVersion := ptr.Int(1)
+		policyVersion := new(1)
 
 		policyRequestUUID := uuid.NewString()
 		installPendingProfile1 := &fleet.MDMAndroidProfilePayload{
@@ -634,7 +633,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 
 func TestUpdateHostEmptyUUIDGetsPopulated(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
-	const enterpriseSpecificID = "SHOULD-BE-THIS-UUID"
+	enterpriseSpecificID := "SHOULD-BE-THIS-UUID"
 	const deviceName = "test-empty-uuid-bug"
 
 	// Mock AppConfig
@@ -657,7 +656,7 @@ func TestUpdateHostEmptyUUIDGetsPopulated(t *testing.T) {
 		Device: &android.Device{
 			HostID:               200,
 			DeviceID:             "buggy-device",
-			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+			EnterpriseSpecificID: &enterpriseSpecificID,
 		},
 	}
 	existingHostWithEmptyUUID.SetNodeKey(enterpriseSpecificID)
@@ -747,7 +746,7 @@ func TestStatusReportPopulatesOperatingSystem(t *testing.T) {
 			Device: &android.Device{
 				HostID:               expectedHostID,
 				DeviceID:             "device",
-				EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+				EnterpriseSpecificID: new(enterpriseSpecificID),
 			},
 		}, nil
 	}
@@ -797,7 +796,7 @@ func TestStatusReportPopulatesOperatingSystem(t *testing.T) {
 
 func TestHostPayloadUUIDForFrontend(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
-	const enterpriseSpecificID = "ANDROID-DEVICE-UUID-123"
+	enterpriseSpecificID := "ANDROID-DEVICE-UUID-123"
 	const deviceName = "test-frontend-payload"
 
 	// Mock AppConfig
@@ -844,7 +843,7 @@ func TestHostPayloadUUIDForFrontend(t *testing.T) {
 						Device: &android.Device{
 							HostID:               100,
 							DeviceID:             "test-device",
-							EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+							EnterpriseSpecificID: &enterpriseSpecificID,
 						},
 					}, nil
 				}
@@ -898,7 +897,7 @@ func TestHostPayloadUUIDForFrontend(t *testing.T) {
 func TestUpdateHost(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
 
-	const enterpriseSpecificID = "TEST-UUID-12345"
+	enterpriseSpecificID := "TEST-UUID-12345"
 	const deviceName = "test-update-host"
 
 	// Mock AppConfig
@@ -921,7 +920,7 @@ func TestUpdateHost(t *testing.T) {
 		Device: &android.Device{
 			HostID:               1,
 			DeviceID:             "old-device-id",
-			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+			EnterpriseSpecificID: &enterpriseSpecificID,
 		},
 	}
 	existingHost.SetNodeKey(enterpriseSpecificID)
@@ -1065,7 +1064,7 @@ func TestUpdateHost(t *testing.T) {
 				Device: &android.Device{
 					HostID:               2,
 					DeviceID:             "device-2",
-					EnterpriseSpecificID: ptr.String(testBrandTestSerialHashed),
+					EnterpriseSpecificID: &testBrandTestSerialHashed,
 				},
 			}, nil
 		}
@@ -1516,7 +1515,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
 		})
 
-		policyVersion := ptr.Int(1)
+		policyVersion := new(1)
 
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 			return nil, nil
@@ -1563,7 +1562,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := ptr.Int(1)
+		policyVersion := new(1)
 		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, nil)
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
@@ -1601,7 +1600,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := ptr.Int(2)
+		policyVersion := new(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApp.AdamID, State: "INSTALLED"},
 		}, nil)
@@ -1641,7 +1640,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := ptr.Int(2)
+		policyVersion := new(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApp.AdamID, State: "INSTALLED"},
 		}, []*androidmanagement.NonComplianceDetail{
@@ -1683,7 +1682,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := ptr.Int(2)
+		policyVersion := new(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApp.AdamID, State: "APPLICATION_STATE_UNSPECIFIED"},
 		}, []*androidmanagement.NonComplianceDetail{
@@ -1725,7 +1724,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := ptr.Int(2)
+		policyVersion := new(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, nil, []*androidmanagement.NonComplianceDetail{
 			{PackageName: pendingApp.AdamID, NonComplianceReason: "PENDING", InstallationFailureReason: "IN_PROGRESS"},
 		})
@@ -1806,7 +1805,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return &fleet.User{}, &fleet.ActivityInstalledAppStoreApp{CommandUUID: cmdUUID, Status: string(status)}, nil
 		}
 
-		policyVersion := ptr.Int(2)
+		policyVersion := new(2)
 		// app1 and app2 verified, app3 not reported at all so failed, app4 failed with compliance report
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApps[0].AdamID, State: "INSTALLED"},
