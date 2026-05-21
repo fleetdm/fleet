@@ -684,47 +684,39 @@ const defaultHiddenColumns = [
   "hardware_serial",
 ];
 
+const FREE_TIER_HIDDEN_COLUMN_IDS = [
+  "team_name",
+  "mdm.server_url",
+  "mdm.enrollment_status",
+];
+
 /**
- * Will generate a host table column configuration based off of the current user
- * permissions and license tier of fleet they are on.
+ * Will generate a host table column configuration based off of the current
+ * license tier and whether the current user can select hosts for bulk actions.
+ *
+ * `canSelectHosts` controls the leading checkbox column. It's a capability,
+ * not a role check — callers compute it from whichever roles/conditions apply
+ * to the bulk action(s) the page exposes.
  */
 const generateAvailableTableHeaders = ({
   isFreeTier = true,
-  isOnlyObserver = true,
+  canSelectHosts = false,
   teamId,
 }: {
   isFreeTier: boolean | undefined;
-  isOnlyObserver: boolean | undefined;
+  canSelectHosts: boolean | undefined;
   teamId?: number;
 }): IHostTableColumnConfig[] => {
-  return allHostTableHeaders(teamId).reduce(
-    (columns: Column<IHost>[], currentColumn: Column<IHost>) => {
-      // skip over column headers that are not shown in free observer tier
-      if (isFreeTier) {
-        if (
-          isOnlyObserver &&
-          ["selection", "team_name"].includes(currentColumn.id || "")
-        ) {
-          return columns;
-          // skip over column headers that are not shown in free admin/maintainer
-        }
-        if (
-          currentColumn.id === "team_name" ||
-          currentColumn.id === "mdm.server_url" ||
-          currentColumn.id === "mdm.enrollment_status"
-        ) {
-          return columns;
-        }
-      } else if (isOnlyObserver && currentColumn.id === "selection") {
-        // In premium tier, we want to check user role to enable/disable select column
-        return columns;
-      }
-
-      columns.push(currentColumn);
-      return columns;
-    },
-    []
-  );
+  return allHostTableHeaders(teamId).filter((column) => {
+    const id = column.id ?? "";
+    if (id === "selection" && !canSelectHosts) {
+      return false;
+    }
+    if (isFreeTier && FREE_TIER_HIDDEN_COLUMN_IDS.includes(id)) {
+      return false;
+    }
+    return true;
+  });
 };
 
 /**
@@ -733,18 +725,18 @@ const generateAvailableTableHeaders = ({
 const generateVisibleTableColumns = ({
   hiddenColumns,
   isFreeTier = true,
-  isOnlyObserver = true,
+  canSelectHosts = false,
   teamId,
 }: {
   hiddenColumns: string[];
   isFreeTier: boolean | undefined;
-  isOnlyObserver: boolean | undefined;
+  canSelectHosts: boolean | undefined;
   teamId?: number;
 }): IHostTableColumnConfig[] => {
   // remove columns set as hidden by the user.
   return generateAvailableTableHeaders({
     isFreeTier,
-    isOnlyObserver,
+    canSelectHosts,
     teamId,
   }).filter((column) => {
     return !hiddenColumns.includes(column.id as string);
