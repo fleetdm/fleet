@@ -12169,12 +12169,6 @@ func testListHostSoftwareSortByDisplayName(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Display Name Sort Team"})
 	require.NoError(t, err)
 
-	user, err := ds.NewUser(ctx, &fleet.User{
-		Name: "sort-test-user", Email: "hostsort@test.com", Password: []byte("p"),
-		GlobalRole: ptr.String(fleet.RoleAdmin),
-	})
-	require.NoError(t, err)
-
 	// Create a host on the team.
 	host := test.NewHost(t, ds, "sorthost", "", "sorthostkey", "sorthostuuid", time.Now())
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
@@ -12187,20 +12181,9 @@ func testListHostSoftwareSortByDisplayName(t *testing.T, ds *Datastore) {
 	sw := []fleet.Software{
 		{Name: "alpha", Version: "1.0", Source: "apps"},
 		{Name: "bravo", Version: "1.0", Source: "apps"},
+		{Name: "zzz-installer", Version: "1.0", Source: "apps"},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
-	require.NoError(t, err)
-
-	// Create a script-only package (no matching software on any host).
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "zzz-script-only.pkg",
-		Source:          "apps",
-		InstallScript:   "echo install",
-		Filename:        "zzz-script-only.pkg",
-		UserID:          user.ID,
-		TeamID:          &team.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
-	})
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -12226,12 +12209,12 @@ func testListHostSoftwareSortByDisplayName(t *testing.T, ds *Datastore) {
 	}
 
 	alphaID := titleByName("alpha")
-	scriptID := titleByName("zzz-script-only.pkg")
+	scriptID := titleByName("zzz-installer")
 
 	// Set display names that reorder the titles:
 	//   alpha              -> "Zulu"        (should sort last)
 	//   bravo              -> no display name (falls back to "bravo")
-	//   zzz-script-only.pkg -> "AAA Script"  (should sort first despite filename)
+	//   zzz-installer       -> "AAA Script"  (should sort first despite filename)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, alphaID, "Zulu"); err != nil {
 			return err
@@ -12240,13 +12223,13 @@ func testListHostSoftwareSortByDisplayName(t *testing.T, ds *Datastore) {
 	})
 
 	// List host software sorted by name ASC.
-	// Expected order: AAA Script (zzz-script-only.pkg), bravo, Zulu (alpha).
+	// Expected order: AAA Script (zzz-installer), bravo, Zulu (alpha).
 	hostSw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
 	})
 	require.NoError(t, err)
 	require.Len(t, hostSw, 3)
-	assert.Equal(t, "zzz-script-only.pkg", hostSw[0].Name, "AAA Script (zzz-script-only.pkg) should sort first")
+	assert.Equal(t, "zzz-installer", hostSw[0].Name, "AAA Script (zzz-installer) should sort first")
 	assert.Equal(t, "bravo", hostSw[1].Name, "bravo (no display name) should sort second")
 	assert.Equal(t, "alpha", hostSw[2].Name, "Zulu (alpha) should sort last")
 }
