@@ -319,9 +319,11 @@ const PageOrComponent = (props) => {
 
 ## React context
 
-[React context](https://reactjs.org/docs/context.html) is a state management store. Use context
-for client-side state that multiple components need but doesn't come from the server — React
-Query handles API data. View currently working contexts in the [context directory](../context).
+[React context](https://reactjs.org/docs/context.html) is a way to share values across the
+component tree. Use context for app-wide state or derived UI state that multiple components
+need. For server state, use React Query for fetching, caching, and synchronization; some
+server-derived values may still be exposed through context after they are fetched or
+initialized. View currently working contexts in the [context directory](../context).
 
 ```typescript
 // Consuming a context — destructure what you need from useContext
