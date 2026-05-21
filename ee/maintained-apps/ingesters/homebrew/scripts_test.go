@@ -42,8 +42,8 @@ func TestInstallScriptForPkgWithPkgArtifact(t *testing.T) {
 		},
 	}
 
-	script, err := installScriptForApp(inputApp{
-		Token:            "zoom-for-it-admins", //nolint:gosec // homebrew cask token, not a credential
+	script, err := installScriptForApp(inputApp{ //nolint:gosec // homebrew cask token, not a credential
+		Token:            "zoom-for-it-admins",
 		UniqueIdentifier: "us.zoom.xos",
 		InstallerFormat:  "pkg",
 	}, cask)
