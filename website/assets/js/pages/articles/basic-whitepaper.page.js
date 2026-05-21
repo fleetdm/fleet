@@ -52,6 +52,9 @@ parasails.registerPage('basic-whitepaper', {
         });
         qualified('showFormExperience', 'experience-1772126772950');
       }
+      if (typeof gtag !== 'undefined') {
+        gtag('event', 'fleet_website__whitepaper_download');
+      }
       let pdfDownloadLink = document.createElement('a');
       pdfDownloadLink.href = `/pdfs/${this.thisPage.meta.whitepaperFilename}`;
       pdfDownloadLink.download = this.thisPage.meta.whitepaperFilename;
