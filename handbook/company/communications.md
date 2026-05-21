@@ -712,6 +712,13 @@ Either way, it's up to you to make sure that your responsibilities are covered a
 In this section, you can find information about Fleet's benefit strategies and decisions.
 
 
+### Health, dental, and life insurance
+
+**US-based team members:** Fleet offers a premium US benefits plan that includes health, dental, and life insurance. Health insurance includes 66%+ coverage for dependents.
+
+**International team members:** Fleet provides premium health benefits for international employees as offered by [Remote.com](https://remote.com).
+
+
 ### Paid time off
 
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
