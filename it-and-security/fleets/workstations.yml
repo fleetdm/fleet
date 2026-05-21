@@ -163,6 +163,7 @@ policies:
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
+  - path: ../lib/macos/policies/battle-net-installed.yml
   - path: ../lib/macos/policies/nudge-installed.yml
   - path: ../lib/macos/policies/install-nudge-assets.yml
   - path: ../lib/macos/policies/install-fleet-desktop-launch-agent.yml
@@ -181,6 +182,7 @@ policies:
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/disk-space-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
+  - path: ../lib/windows/policies/battle-net-installed.yml
   - path: ../lib/windows/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
@@ -224,6 +226,10 @@ software:
         - "Macs with Fleet Desktop.app launch agent MDM profile"
       categories:
         - Utilities
+    - path: ../lib/macos/software/battle-net.yml # Battle.net for macOS
+      self_service: true
+      categories:
+        - Productivity
     - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo
       display_name: "Enable Touch ID for sudo"
       self_service: true
@@ -297,6 +303,10 @@ software:
         - Security
       labels_include_any:
         - "x86-based Windows hosts"
+    - path: ../lib/windows/software/battle-net.yml # Battle.net for Windows
+      self_service: true
+      categories:
+        - Productivity
   app_store_apps:
     - app_store_id: "361285480" # Keynote
       display_name: "Keynote"
