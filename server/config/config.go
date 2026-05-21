@@ -179,7 +179,7 @@ var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 // fails before paying for an external Secrets Manager lookup.
 func (s ServerConfig) Validate(initFatal func(err error, msg string)) {
 	if s.PrivateKey != "" && s.PrivateKeySecretArn != "" {
-		initFatal(errors.New("cannot specify both private_key and private_key_secret_arn"),
+		initFatal(errors.New("cannot specify both private_key and private_key_arn"),
 			"validate private key configuration")
 	}
 }
