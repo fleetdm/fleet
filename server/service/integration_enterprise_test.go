@@ -60,7 +60,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps/maintainedappstest"
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/policies"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
@@ -290,7 +289,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.Equal(t, fleet.Features{
 		EnableHostUsers:         false,
 		EnableSoftwareInventory: false,
-		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+		AdditionalQueries:       new(json.RawMessage(`{"foo": "bar"}`)),
 		HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 	}, team.Config.Features)
 	require.Equal(t, fleet.TeamMDM{
@@ -1114,8 +1113,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String(t.Name() + "_global_host"),
-		NodeKey:         ptr.String(t.Name() + "_global_host"),
+		OsqueryHostID:   new(t.Name() + "_global_host"),
+		NodeKey:         new(t.Name() + "_global_host"),
 		UUID:            t.Name() + "_global_host",
 		Hostname:        t.Name() + "_global_host.local",
 		Platform:        "darwin",
@@ -1233,7 +1232,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 
 	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{
 		QueryID:  &qr.ID,
-		Interval: ptr.Uint(42),
+		Interval: new(uint(42)),
 	}}
 	r := teamScheduleQueryResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), gsParams, http.StatusOK, &r)
@@ -1247,7 +1246,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	id := ts.Scheduled[0].ID
 
 	modifyResp := modifyTeamScheduleResponse{}
-	modifyParams := modifyTeamScheduleRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{Interval: ptr.Uint(55)}}
+	modifyParams := modifyTeamScheduleRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{Interval: new(uint(55))}}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", team1.ID, id), modifyParams, http.StatusOK, &modifyResp)
 
 	// just to satisfy my paranoia, wanted to make sure the contents of the json would work
@@ -1440,7 +1439,7 @@ func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftw
 	// Create a patch policy
 	patchPolicy := fleet.TeamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
-		Type:                 ptr.String("patch"),
+		Type:                 new("patch"),
 		PatchSoftwareTitleID: &dummyTitleID,
 	}, http.StatusOK, &patchPolicy)
 	require.NotNil(t, patchPolicy.Policy.PatchSoftware)
@@ -1622,8 +1621,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 
 	// create global query
 	params := fleet.QueryPayload{
-		Name:  ptr.String("global1"),
-		Query: ptr.String("select * from time;"),
+		Name:  new("global1"),
+		Query: new("select * from time;"),
 	}
 	var createQueryResp fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
@@ -1631,9 +1630,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamQueries() {
 
 	// create team query
 	params = fleet.QueryPayload{
-		Name:   ptr.String("team1"),
-		Query:  ptr.String("select * from time;"),
-		TeamID: ptr.Uint(team1.ID),
+		Name:   new("team1"),
+		Query:  new("select * from time;"),
+		TeamID: new(team1.ID),
 	}
 	createQueryResp = fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", &params, http.StatusOK, &createQueryResp)
@@ -1832,7 +1831,7 @@ func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 	user := &fleet.User{
 		Name:       "Available Teams User",
 		Email:      "available@example.com",
-		GlobalRole: ptr.String("observer"),
+		GlobalRole: new("observer"),
 	}
 	err = user.SetPassword(test.GoodPassword, 10, 10)
 	require.Nil(t, err)
@@ -1843,7 +1842,7 @@ func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 	var getResp getUserResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/users/%d", user.ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, user.ID, getResp.User.ID)
-	assert.Equal(t, ptr.String("observer"), getResp.User.GlobalRole)
+	assert.Equal(t, new("observer"), getResp.User.GlobalRole)
 	assert.Len(t, getResp.User.Teams, 0)     // teams is empty if user has a global role
 	assert.Len(t, getResp.AvailableTeams, 1) // available teams includes all teams if user has a global role
 	assert.Equal(t, getResp.AvailableTeams[0].Name, "Available Team")
@@ -1952,7 +1951,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	paddedTeamID := tmResp.Team.ID
 
 	// rename with leading/trailing whitespace — name should be trimmed
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: ptr.String("  Renamed Padded  ")}, http.StatusOK, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", paddedTeamID), fleet.TeamPayload{Name: new("  Renamed Padded  ")}, http.StatusOK, &tmResp)
 	require.Equal(t, "Renamed Padded", tmResp.Team.Name)
 
 	// case-only self-rename is allowed (the team's own id is excluded from
@@ -1979,8 +1978,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 
 	// create a team with invalid host expiry window
 	team4 := &fleet.TeamPayload{
-		Name:        ptr.String(name + "invalid host_expiry_window"),
-		Description: ptr.String("Team4 description"),
+		Name:        new(name + "invalid host_expiry_window"),
+		Description: new("Team4 description"),
 		Secrets:     []*fleet.EnrollSecret{{Secret: "TEAM4"}},
 		HostExpirySettings: &fleet.HostExpirySettings{
 			HostExpiryEnabled: true,
@@ -2075,14 +2074,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusUnprocessableEntity, &tmResp)
 
 	// try to rename to reserved names
-	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("no TEAM")}, http.StatusUnprocessableEntity)
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: new("no TEAM")}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
-	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("ALL teAMs")}, http.StatusUnprocessableEntity)
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: new("ALL teAMs")}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `is a reserved fleet name`)
 
 	// try to rename to a whitespace-only name
-	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: ptr.String("     ")}, http.StatusUnprocessableEntity)
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), fleet.TeamPayload{Name: new("     ")}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), `may not be empty`)
 
 	// Modify team's calendar config
@@ -2113,7 +2112,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	user := &fleet.User{
 		Name:       "Team User",
 		Email:      "user@example.com",
-		GlobalRole: ptr.String("observer"),
+		GlobalRole: new("observer"),
 	}
 	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
 	user, err := s.ds.NewUser(context.Background(), user)
@@ -2297,12 +2296,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 	global_obs := &fleet.User{
 		Name:       "Global Obs",
 		Email:      "global_obs@example.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	global_obs_plus := &fleet.User{
 		Name:       "Global Obs+",
 		Email:      "global_obs_plus@example.com",
-		GlobalRole: ptr.String(fleet.RoleObserverPlus),
+		GlobalRole: new(fleet.RoleObserverPlus),
 	}
 	team_obs := &fleet.User{
 		Name:  "Team Obs",
@@ -2559,7 +2558,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	// update the team with an unrelated field, should not change integrations
 	tmResp = teamResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		Description: ptr.String("team-desc"),
+		Description: new("team-desc"),
 	}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
 	require.Equal(t, "team-desc", tmResp.Team.Description)
@@ -2772,7 +2771,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	// update the team with an unrelated field, should not change integrations
 	tmResp = teamResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		Description: ptr.String("team-desc-2"),
+		Description: new("team-desc-2"),
 	}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 2)
 	require.Equal(t, "team-desc-2", tmResp.Team.Description)
@@ -3114,7 +3113,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("no-team-host-key"),
+		NodeKey:         new("no-team-host-key"),
 		UUID:            "no-team-host-uuid",
 		Hostname:        "no-team-host",
 		PrimaryIP:       "192.168.1.100",
@@ -3170,9 +3169,9 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 
 	// Record policy results - all fail
 	err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
-		noTeamPol1.ID: ptr.Bool(false), // Fails and is in webhook config
-		noTeamPol2.ID: ptr.Bool(false), // Fails and is in webhook config
-		noTeamPol3.ID: ptr.Bool(false), // Fails but NOT in webhook config
+		noTeamPol1.ID: new(false), // Fails and is in webhook config
+		noTeamPol2.ID: new(false), // Fails and is in webhook config
+		noTeamPol3.ID: new(false), // Fails but NOT in webhook config
 	}, time.Now(), false, nil)
 	require.NoError(t, err)
 
@@ -3590,7 +3589,7 @@ func (s *integrationEnterpriseTestSuite) listRecentExceptionActivities(activityT
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
 	t := s.T()
 	if teamID == nil {
-		teamID = ptr.Uint(0)
+		teamID = new(uint(0))
 	}
 
 	var declUUID string
@@ -4034,8 +4033,8 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
-		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
+		OsqueryHostID:   new(strings.ReplaceAll(t.Name(), "/", "_") + "3"),
 		UUID:            t.Name() + "3",
 		Hostname:        t.Name() + "foo3.local",
 		PrimaryIP:       "192.168.1.3",
@@ -4049,14 +4048,14 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "A team"})
 	require.NoError(t, err)
-	teamID := ptr.Uint(team.ID)
+	teamID := new(team.ID)
 	teamHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
-		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		OsqueryHostID:   new(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
 		UUID:            t.Name() + "2",
 		Hostname:        t.Name() + "foo2.local",
 		PrimaryIP:       "192.168.1.2",
@@ -4153,7 +4152,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	}, http.StatusNoContent)
 
 	// upload LUKS data
-	keySlot := ptr.Uint(1)
+	keySlot := new(uint(1))
 	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
 		OrbitNodeKey: *noTeamHost.OrbitNodeKey,
 		Passphrase:   "whale makes pail rise",
@@ -4194,7 +4193,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	require.Equal(t, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{Linux: 1}}, *summary.MDMDiskEncryptionSummary)
 
 	// upload LUKS data (no error, and no trigger, first this time)
-	keySlot = ptr.Uint(3)
+	keySlot = new(uint(3))
 	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{ // #nosec G101 - test data
 		OrbitNodeKey: *teamHost.OrbitNodeKey,
 		Passphrase:   "the mome raths outgrabe",
@@ -5065,11 +5064,11 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 
 	// create valid invite
 	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("some@email.com"),
-		Name:       ptr.String("some name"),
+		Email:      new("some@email.com"),
+		Name:       new("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
-		MFAEnabled: ptr.Bool(true),
-		SSOEnabled: ptr.Bool(true),
+		MFAEnabled: new(true),
+		SSOEnabled: new(true),
 	}}
 	createInviteResp := createInviteResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusConflict, &createInviteResp)
@@ -5091,25 +5090,25 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 
 	var createFromInviteResp createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
-		Name:        ptr.String("Full Name"),
-		Password:    ptr.String(test.GoodPassword),
-		Email:       ptr.String(inv.Email),
-		InviteToken: ptr.String(inv.Token),
+		Name:        new("Full Name"),
+		Password:    new(test.GoodPassword),
+		Email:       new(inv.Email),
+		InviteToken: new(inv.Token),
 	}, http.StatusOK, &createFromInviteResp)
 	require.True(t, createFromInviteResp.User.MFAEnabled)
 
 	// create an invite with SSO, swap to MFA
 	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
-		Email:      ptr.String("a@b.d"),
-		Name:       ptr.String("some other name"),
+		Email:      new("a@b.d"),
+		Name:       new("some other name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
-		SSOEnabled: ptr.Bool(true),
+		SSOEnabled: new(true),
 	}}
 	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
 	validInvite = *createInviteResp.Invite
 	var updateInviteResp updateInviteResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/invites/%d", validInvite.ID), updateInviteRequest{
-		InvitePayload: fleet.InvitePayload{MFAEnabled: ptr.Bool(true), SSOEnabled: ptr.Bool(false)},
+		InvitePayload: fleet.InvitePayload{MFAEnabled: new(true), SSOEnabled: new(false)},
 	}, http.StatusOK, &updateInviteResp)
 	require.True(t, updateInviteResp.Invite.MFAEnabled)
 }
@@ -5182,7 +5181,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	// Test that roles are not updated for an existing user when SSO attributes are not set.
 
 	// Change role to global admin first.
-	user.GlobalRole = ptr.String("admin")
+	user.GlobalRole = new("admin")
 	err = s.ds.SaveUser(context.Background(), user)
 	require.NoError(t, err)
 	// Login should NOT change the role to the default (global observer) because SSO attributes
@@ -5212,7 +5211,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	user3, err = s.ds.UserByEmail(context.Background(), "sso_user_3_global_admin@example.com")
 	require.NoError(t, err)
 	require.Equal(t, "sso_user_3_global_admin@example.com", user3.Email)
-	user3.GlobalRole = ptr.String("maintainer")
+	user3.GlobalRole = new("maintainer")
 	err = s.ds.SaveUser(context.Background(), user3)
 	require.NoError(t, err)
 
@@ -5334,8 +5333,8 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -5379,8 +5378,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -5391,8 +5390,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + "2"),
-		NodeKey:         ptr.String(t.Name() + "2"),
+		OsqueryHostID:   new(t.Name() + "2"),
+		NodeKey:         new(t.Name() + "2"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sbar.local", t.Name()),
 		Platform:        "linux",
@@ -5403,8 +5402,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + "3"),
-		NodeKey:         ptr.String(t.Name() + "3"),
+		OsqueryHostID:   new(t.Name() + "3"),
+		NodeKey:         new(t.Name() + "3"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sbaz.local", t.Name()),
 		Platform:        "windows",
@@ -5414,7 +5413,7 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 	// set disk space information for some hosts (none provided for host3)
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0, nil))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 32.0, 4.0, 1000.0, ptr.Float64(1200.0)))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 32.0, 4.0, 1000.0, new(float64(1200.0))))
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
@@ -5424,7 +5423,7 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.NoError(t, err)
 	for _, h := range resp.Hosts {
 		err = s.ds.RecordLabelQueryExecutions(
-			context.Background(), h.Host, map[uint]*bool{allHostsLabel.ID: ptr.Bool(true)}, time.Now(), false,
+			context.Background(), h.Host, map[uint]*bool{allHostsLabel.ID: new(true)}, time.Now(), false,
 		)
 		require.NoError(t, err)
 	}
@@ -5531,9 +5530,9 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 	vulnMeta := []fleet.CVEMeta{{
 		CVE:              "cve-123-123-123",
-		CVSSScore:        ptr.Float64(9.8),
-		EPSSProbability:  ptr.Float64(0.5),
-		CISAKnownExploit: ptr.Bool(true),
+		CVSSScore:        new(float64(9.8)),
+		EPSSProbability:  new(float64(0.5)),
+		CISAKnownExploit: new(true),
 		Published:        &now,
 		Description:      "a long description of the cve",
 	}}
@@ -5640,8 +5639,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferent
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String(t.Name() + "h1"),
-		NodeKey:         ptr.String(t.Name() + "h1"),
+		OsqueryHostID:   new(t.Name() + "h1"),
+		NodeKey:         new(t.Name() + "h1"),
 		UUID:            uuid.New().String(),
 		Hostname:        t.Name() + "h1.local",
 		Platform:        "darwin",
@@ -5654,8 +5653,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferent
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String(t.Name() + "h2"),
-		NodeKey:         ptr.String(t.Name() + "h2"),
+		OsqueryHostID:   new(t.Name() + "h2"),
+		NodeKey:         new(t.Name() + "h2"),
 		UUID:            uuid.New().String(),
 		Hostname:        t.Name() + "h2.local",
 		Platform:        "darwin",
@@ -5726,11 +5725,11 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
-		OsqueryHostID:   ptr.String(t.Name() + "hostid1"),
+		OsqueryHostID:   new(t.Name() + "hostid1"),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "nodekey1"),
+		NodeKey:         new(t.Name() + "nodekey1"),
 		UUID:            t.Name() + "uuid1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -5738,7 +5737,7 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 		OSVersion:       "Mac OS X 10.14.6",
 		Platform:        "darwin",
 		CPUType:         "cpuType",
-		TeamID:          ptr.Uint(team.ID),
+		TeamID:          new(team.ID),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
@@ -5784,18 +5783,18 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 	assert.NotNil(t, hh.HostHealth)
 	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
 	assert.Equal(t, 2, hh.HostHealth.FailingPoliciesCount)
-	assert.Equal(t, ptr.Int(1), hh.HostHealth.FailingCriticalPoliciesCount)
+	assert.Equal(t, new(int(1)), hh.HostHealth.FailingCriticalPoliciesCount)
 	assert.Contains(t, hh.HostHealth.FailingPolicies, &fleet.HostHealthFailingPolicy{
 		ID:         failingTeamPolicy.ID,
 		Name:       failingTeamPolicy.Name,
 		Resolution: failingTeamPolicy.Resolution,
-		Critical:   ptr.Bool(true),
+		Critical:   new(true),
 	})
 	assert.Contains(t, hh.HostHealth.FailingPolicies, &fleet.HostHealthFailingPolicy{
 		ID:         failingGlobalPolicy.ID,
 		Name:       failingGlobalPolicy.Name,
 		Resolution: failingGlobalPolicy.Resolution,
-		Critical:   ptr.Bool(false),
+		Critical:   new(false),
 	})
 }
 
@@ -5818,8 +5817,8 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
-		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		NodeKey:         new(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		OsqueryHostID:   new(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
 		UUID:            t.Name() + "2",
 		Hostname:        t.Name() + "foo2.local",
 		PrimaryIP:       "192.168.1.2",
@@ -5849,7 +5848,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
 		OSID:              os.ID,
 		CVE:               "CVE-2021-1234",
-		ResolvedInVersion: ptr.String("10.0.19043.2013"),
+		ResolvedInVersion: new("10.0.19043.2013"),
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
@@ -5870,18 +5869,18 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
 		{
 			CVE:              "CVE-2021-1234",
-			CVSSScore:        ptr.Float64(7.5),
-			EPSSProbability:  ptr.Float64(0.5),
-			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(mockTime),
+			CVSSScore:        new(float64(7.5)),
+			EPSSProbability:  new(float64(0.5)),
+			CISAKnownExploit: new(true),
+			Published:        new(mockTime),
 			Description:      "Test CVE 2021-1234",
 		},
 		{
 			CVE:              "CVE-2021-1235",
-			CVSSScore:        ptr.Float64(5.4),
-			EPSSProbability:  ptr.Float64(0.6),
-			CISAKnownExploit: ptr.Bool(false),
-			Published:        ptr.Time(mockTime),
+			CVSSScore:        new(float64(5.4)),
+			EPSSProbability:  new(float64(0.6)),
+			CISAKnownExploit: new(false),
+			Published:        new(mockTime),
 			Description:      "Test CVE 2021-1235",
 		},
 	})
@@ -5908,11 +5907,11 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1234",
 			CVE: fleet.CVE{
 				CVE:              "CVE-2021-1234",
-				CVSSScore:        ptr.Float64Ptr(7.5),
-				EPSSProbability:  ptr.Float64Ptr(0.5),
-				CISAKnownExploit: ptr.BoolPtr(true),
-				CVEPublished:     ptr.TimePtr(mockTime),
-				Description:      ptr.StringPtr("Test CVE 2021-1234"),
+				CVSSScore:        new(new(7.5)),
+				EPSSProbability:  new(new(0.5)),
+				CISAKnownExploit: new(new(true)),
+				CVEPublished:     new(new(mockTime)),
+				Description:      new(new("Test CVE 2021-1234")),
 			},
 		},
 		"CVE-2021-1235": {
@@ -5920,11 +5919,11 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1235",
 			CVE: fleet.CVE{
 				CVE:              "CVE-2021-1235",
-				CVSSScore:        ptr.Float64Ptr(5.4),
-				EPSSProbability:  ptr.Float64Ptr(0.6),
-				CISAKnownExploit: ptr.BoolPtr(false),
-				CVEPublished:     ptr.TimePtr(mockTime),
-				Description:      ptr.StringPtr("Test CVE 2021-1235"),
+				CVSSScore:        new(new(5.4)),
+				EPSSProbability:  new(new(0.6)),
+				CISAKnownExploit: new(new(false)),
+				CVEPublished:     new(new(mockTime)),
+				Description:      new(new("Test CVE 2021-1235")),
 			},
 		},
 	}
@@ -5975,11 +5974,11 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
-	require.Equal(t, ptr.StringPtr("Test CVE 2021-1234"), gResp.Vulnerability.Description)
-	require.Equal(t, ptr.Float64Ptr(7.5), gResp.Vulnerability.CVSSScore)
-	require.Equal(t, ptr.BoolPtr(true), gResp.Vulnerability.CISAKnownExploit)
-	require.Equal(t, ptr.Float64Ptr(0.5), gResp.Vulnerability.EPSSProbability)
-	require.Equal(t, ptr.TimePtr(mockTime), gResp.Vulnerability.CVEPublished)
+	require.Equal(t, new(new("Test CVE 2021-1234")), gResp.Vulnerability.Description)
+	require.Equal(t, new(new(7.5)), gResp.Vulnerability.CVSSScore)
+	require.Equal(t, new(new(true)), gResp.Vulnerability.CISAKnownExploit)
+	require.Equal(t, new(new(0.5)), gResp.Vulnerability.EPSSProbability)
+	require.Equal(t, new(new(mockTime)), gResp.Vulnerability.CVEPublished)
 	require.Len(t, gResp.OSVersions, 1)
 	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
 	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
@@ -6037,10 +6036,10 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	vulnMeta := []fleet.CVEMeta{
 		{
 			CVE:              "CVE-2021-1234",
-			CVSSScore:        ptr.Float64(5.4),
-			EPSSProbability:  ptr.Float64(0.5),
-			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+			CVSSScore:        new(float64(5.4)),
+			EPSSProbability:  new(float64(0.5)),
+			CISAKnownExploit: new(true),
+			Published:        new(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 			Description:      "a long description of the cve",
 		},
 	}
@@ -6079,7 +6078,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	s.DoJSON(
 		"POST", "/api/latest/fleet/teams", createTeamRequest{
 			TeamPayload: fleet.TeamPayload{
-				Name: ptr.String("os_versions_team"),
+				Name: new("os_versions_team"),
 			},
 		}, http.StatusOK, &tr,
 	)
@@ -6217,7 +6216,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 
 		case route.method == "PATCH" && (route.path == "/api/latest/fleet/setup_experience" || route.path == "/api/latest/fleet/mdm/apple/setup"):
 			// These routes don't require MDM if you're only changing end-user auth, so we'll set something else to check.
-			params = fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}
+			params = fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}
 		}
 
 		var res *http.Response
@@ -6242,7 +6241,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
 
 	// setting enable release device manually requires MDM
-	res := s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusBadRequest)
+	res := s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 
@@ -6253,7 +6252,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	require.Contains(t, errMsg, `Couldn't update setup_experience because MDM features aren't turned on in Fleet.`)
 
 	// setting end-user auth does NOT require MDM
-	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
+	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableEndUserAuthentication: new(false)}, http.StatusNoContent)
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
@@ -6301,12 +6300,12 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 
 	patchPol1Req := &fleet.ModifyGlobalPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:        ptr.String("newName1"),
-			Query:       ptr.String("newQuery"),
-			Description: ptr.String("newDescription"),
-			Resolution:  ptr.String("newResolution"),
-			Platform:    ptr.String("windows"),
-			Critical:    ptr.Bool(false),
+			Name:        new("newName1"),
+			Query:       new("newQuery"),
+			Description: new("newDescription"),
+			Resolution:  new("newResolution"),
+			Platform:    new("windows"),
+			Critical:    new(false),
 		},
 	}
 	patchPol1 := &fleet.ModifyGlobalPolicyResponse{}
@@ -6315,12 +6314,12 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 
 	patchPol2Req := &fleet.ModifyGlobalPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:        ptr.String("newName2"),
-			Query:       ptr.String("newQuery"),
-			Description: ptr.String("newDescription"),
-			Resolution:  ptr.String("newResolution"),
-			Platform:    ptr.String("windows"),
-			Critical:    ptr.Bool(true),
+			Name:        new("newName2"),
+			Query:       new("newQuery"),
+			Description: new("newDescription"),
+			Resolution:  new("newResolution"),
+			Platform:    new("windows"),
+			Critical:    new(true),
 		},
 	}
 	patchPol2 := &fleet.ModifyGlobalPolicyResponse{}
@@ -6389,13 +6388,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol1Req := &fleet.ModifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                  ptr.String("newName1"),
-			Query:                 ptr.String("newQuery"),
-			Description:           ptr.String("newDescription"),
-			Resolution:            ptr.String("newResolution"),
-			Platform:              ptr.String("windows"),
-			Critical:              ptr.Bool(false),
-			CalendarEventsEnabled: ptr.Bool(false),
+			Name:                  new("newName1"),
+			Query:                 new("newQuery"),
+			Description:           new("newDescription"),
+			Resolution:            new("newResolution"),
+			Platform:              new("windows"),
+			Critical:              new(false),
+			CalendarEventsEnabled: new(false),
 		},
 	}
 	patchPol1 := &fleet.ModifyTeamPolicyResponse{}
@@ -6404,13 +6403,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol2Req := &fleet.ModifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                  ptr.String("newName2"),
-			Query:                 ptr.String("newQuery"),
-			Description:           ptr.String("newDescription"),
-			Resolution:            ptr.String("newResolution"),
-			Platform:              ptr.String("windows"),
-			Critical:              ptr.Bool(true),
-			CalendarEventsEnabled: ptr.Bool(true),
+			Name:                  new("newName2"),
+			Query:                 new("newQuery"),
+			Description:           new("newDescription"),
+			Resolution:            new("newResolution"),
+			Platform:              new("windows"),
+			Critical:              new(true),
+			CalendarEventsEnabled: new(true),
 		},
 	}
 	patchPol2 := &fleet.ModifyTeamPolicyResponse{}
@@ -6490,9 +6489,9 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	require.NoError(s.T(), err)
 
 	err = s.ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{
-		createPol1.Policy.ID: ptr.Bool(false),
-		createPol2.Policy.ID: ptr.Bool(false),
-		createPol3.Policy.ID: ptr.Bool(false), // This policy is not activated for automation in config.
+		createPol1.Policy.ID: new(false),
+		createPol2.Policy.ID: new(false),
+		createPol3.Policy.ID: new(false), // This policy is not activated for automation in config.
 	}, time.Now(), false, nil)
 	require.NoError(s.T(), err)
 
@@ -6563,8 +6562,8 @@ func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		HardwareSerial:  uuid.New().String(),
@@ -6601,7 +6600,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "1"),
+		NodeKey:         new(t.Name() + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -6626,7 +6625,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		ctx, fleet.SoftwareVulnerability{
 			SoftwareID:        bar.ID,
 			CVE:               "cve-123",
-			ResolvedInVersion: ptr.String("1.2.3"),
+			ResolvedInVersion: new("1.2.3"),
 		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
@@ -6634,9 +6633,9 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 
 	require.NoError(t, s.ds.InsertCVEMeta(ctx, []fleet.CVEMeta{{
 		CVE:              "cve-123",
-		CVSSScore:        ptr.Float64(5.4),
-		EPSSProbability:  ptr.Float64(0.5),
-		CISAKnownExploit: ptr.Bool(true),
+		CVSSScore:        new(float64(5.4)),
+		EPSSProbability:  new(float64(0.5)),
+		CISAKnownExploit: new(true),
 		Published:        &now,
 		Description:      "a long description of the cve",
 	}}))
@@ -6663,12 +6662,12 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Empty(t, fooPayload.Vulnerabilities)
 	require.Len(t, barPayload.Vulnerabilities, 1)
 	require.Equal(t, barPayload.Vulnerabilities[0].CVE, "cve-123")
-	require.NotNil(t, barPayload.Vulnerabilities[0].CVSSScore, ptr.Float64Ptr(5.4))
-	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, ptr.Float64Ptr(0.5))
-	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, ptr.BoolPtr(true))
-	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, ptr.TimePtr(now))
-	require.Equal(t, barPayload.Vulnerabilities[0].Description, ptr.StringPtr("a long description of the cve"))
-	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
+	require.NotNil(t, barPayload.Vulnerabilities[0].CVSSScore, new(new(5.4)))
+	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, new(new(0.5)))
+	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, new(new(true)))
+	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
+	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
+	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
 
 	var respVersions listSoftwareVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &respVersions)
@@ -6689,12 +6688,12 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Empty(t, fooPayload.Vulnerabilities)
 	require.Len(t, barPayload.Vulnerabilities, 1)
 	require.Equal(t, barPayload.Vulnerabilities[0].CVE, "cve-123")
-	require.NotNil(t, barPayload.Vulnerabilities[0].CVSSScore, ptr.Float64Ptr(5.4))
-	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, ptr.Float64Ptr(0.5))
-	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, ptr.BoolPtr(true))
-	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, ptr.TimePtr(now))
-	require.Equal(t, barPayload.Vulnerabilities[0].Description, ptr.StringPtr("a long description of the cve"))
-	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
+	require.NotNil(t, barPayload.Vulnerabilities[0].CVSSScore, new(new(5.4)))
+	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, new(new(0.5)))
+	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, new(new(true)))
+	require.Equal(t, barPayload.Vulnerabilities[0].CVEPublished, new(new(now)))
+	require.Equal(t, barPayload.Vulnerabilities[0].Description, new(new("a long description of the cve")))
+	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, new(new("1.2.3")))
 
 	// vulnerable param required when using vulnerability filters
 	respVersions = listSoftwareVersionsResponse{}
@@ -6850,7 +6849,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	admin, err := s.ds.UserByEmail(ctx, "admin1@example.com")
 	require.NoError(t, err)
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
-		NodeKey:  ptr.String(t.Name() + "1"),
+		NodeKey:  new(t.Name() + "1"),
 		UUID:     t.Name() + "1",
 		Hostname: strings.ReplaceAll(t.Name()+"foo.local", "/", "_"),
 	})
@@ -6868,14 +6867,14 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	})
 	require.NoError(t, err)
 	team1Host, err := s.ds.NewHost(ctx, &fleet.Host{
-		NodeKey:  ptr.String(t.Name() + "2"),
+		NodeKey:  new(t.Name() + "2"),
 		UUID:     t.Name() + "2",
 		Hostname: strings.ReplaceAll(t.Name()+"zoo.local", "/", "_"),
 		TeamID:   &t1.ID,
 	})
 	require.NoError(t, err)
 	globalHost, err := s.ds.NewHost(ctx, &fleet.Host{
-		NodeKey:  ptr.String(t.Name() + "3"),
+		NodeKey:  new(t.Name() + "3"),
 		UUID:     t.Name() + "3",
 		Hostname: strings.ReplaceAll(t.Name()+"global.local", "/", "_"),
 	})
@@ -6903,8 +6902,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	var userPackID uint
 	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
 		PackPayload: fleet.PackPayload{
-			Name:     ptr.String("Foobar"),
-			Disabled: ptr.Bool(false),
+			Name:     new("Foobar"),
+			Disabled: new(false),
 		},
 	}, http.StatusOK, &cpar)
 	userPackID = cpar.Pack.Pack.ID
@@ -6912,10 +6911,10 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	cur := createUserResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
 		UserPayload: fleet.UserPayload{
-			Email:      ptr.String("foo42@example.com"),
-			Password:   ptr.String("p4ssw0rd.123"),
-			Name:       ptr.String("foo42"),
-			GlobalRole: ptr.String("maintainer"),
+			Email:      new("foo42@example.com"),
+			Password:   new("p4ssw0rd.123"),
+			Name:       new("foo42"),
+			GlobalRole: new("maintainer"),
 		},
 	}, http.StatusOK, &cur)
 	maintainer := cur.User
@@ -6937,7 +6936,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	u := &fleet.User{
 		Name:       "GitOps",
 		Email:      "gitops1@example.com",
-		GlobalRole: ptr.String(fleet.RoleGitOps),
+		GlobalRole: new(fleet.RoleGitOps),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 	_, err = s.ds.NewUser(context.Background(), u)
@@ -7031,7 +7030,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to modify a label, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), fleet.ModifyLabelRequest{
 		ModifyLabelPayload: fleet.ModifyLabelPayload{
-			Name: ptr.String("foo2"),
+			Name: new("foo2"),
 		},
 	}, http.StatusOK, &fleet.ModifyLabelResponse{})
 
@@ -7097,7 +7096,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to run live queries asynchronously (saved query), should fail.
 	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{
-		QueryID: ptr.Uint(q1.ID),
+		QueryID: new(q1.ID),
 		Selected: fleet.HostTargets{
 			HostIDs: []uint{h1.ID},
 		},
@@ -7107,37 +7106,37 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	cqr := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo4"),
-			Query: ptr.String("SELECT * from osquery_info;"),
+			Name:  new("foo4"),
+			Query: new("SELECT * from osquery_info;"),
 		},
 	}, http.StatusOK, &cqr)
 	cqr2 := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo5"),
-			Query: ptr.String("SELECT * from os_version;"),
+			Name:  new("foo5"),
+			Query: new("SELECT * from os_version;"),
 		},
 	}, http.StatusOK, &cqr2)
 	cqr3 := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo6"),
-			Query: ptr.String("SELECT * from processes;"),
+			Name:  new("foo6"),
+			Query: new("SELECT * from processes;"),
 		},
 	}, http.StatusOK, &cqr3)
 	cqr4 := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo7"),
-			Query: ptr.String("SELECT * from managed_policies;"),
+			Name:  new("foo7"),
+			Query: new("SELECT * from managed_policies;"),
 		},
 	}, http.StatusOK, &cqr4)
 
 	// Attempt to edit queries, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Query.ID), fleet.ModifyQueryRequest{
 		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo4"),
-			Query: ptr.String("SELECT * FROM system_info;"),
+			Name:  new("foo4"),
+			Query: new("SELECT * FROM system_info;"),
 		},
 	}, http.StatusOK, &fleet.ModifyQueryResponse{})
 
@@ -7163,7 +7162,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to edit a scheduled query in the global schedule, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), fleet.ModifyScheduledQueryRequest{
 		ScheduledQueryPayload: fleet.ScheduledQueryPayload{
-			Interval: ptr.Uint(30),
+			Interval: new(uint(30)),
 		},
 	}, http.StatusOK, &fleet.ScheduleQueryResponse{})
 
@@ -7177,14 +7176,14 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	cpr := createPackResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
 		PackPayload: fleet.PackPayload{
-			Name: ptr.String("foo8"),
+			Name: new("foo8"),
 		},
 	}, http.StatusOK, &cpr)
 
 	// Attempt to edit a pack, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", cpr.Pack.ID), modifyPackRequest{
 		PackPayload: fleet.PackPayload{
-			Name: ptr.String("foo9"),
+			Name: new("foo9"),
 		},
 	}, http.StatusOK, &modifyPackResponse{})
 
@@ -7206,7 +7205,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	mgplr := fleet.ModifyGlobalPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gplr.Policy.ID), fleet.ModifyGlobalPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: ptr.String("SELECT * from plist WHERE path = 'foo';"),
+			Query: new("SELECT * from plist WHERE path = 'foo';"),
 		},
 	}, http.StatusOK, &mgplr)
 
@@ -7232,7 +7231,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	mtplr := fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, tplr.Policy.ID), fleet.ModifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: ptr.String("SELECT * from file WHERE path = 'foo';"),
+			Query: new("SELECT * from file WHERE path = 'foo';"),
 		},
 	}, http.StatusOK, &mtplr)
 
@@ -7250,16 +7249,16 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to create a user, should fail.
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
 		UserPayload: fleet.UserPayload{
-			Email:      ptr.String("foo10@example.com"),
-			Name:       ptr.String("foo10"),
-			GlobalRole: ptr.String("admin"),
+			Email:      new("foo10@example.com"),
+			Name:       new("foo10"),
+			GlobalRole: new("admin"),
 		},
 	}, http.StatusForbidden, &createUserResponse{})
 
 	// Attempt to modify a user, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", admin.ID), modifyUserRequest{
 		UserPayload: fleet.UserPayload{
-			GlobalRole: ptr.String("observer"),
+			GlobalRole: new("observer"),
 		},
 	}, http.StatusForbidden, &modifyUserResponse{})
 
@@ -7293,14 +7292,14 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	tr := teamResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
 		TeamPayload: fleet.TeamPayload{
-			Name: ptr.String("foo11"),
+			Name: new("foo11"),
 		},
 	}, http.StatusOK, &tr)
 
 	// Attempt to edit a team, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tr.Team.ID), modifyTeamRequest{
 		TeamPayload: fleet.TeamPayload{
-			Name: ptr.String("foo12"),
+			Name: new("foo12"),
 		},
 	}, http.StatusOK, &teamResponse{})
 
@@ -7330,7 +7329,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 				},
 				{
 					Secret: "foo500",
-					TeamID: ptr.Uint(t1.ID),
+					TeamID: new(t1.ID),
 				},
 			},
 		},
@@ -7374,8 +7373,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	tcqr := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo600"),
-			Query: ptr.String("SELECT * from orbit_info;"),
+			Name:  new("foo600"),
+			Query: new("SELECT * from orbit_info;"),
 		},
 	}, http.StatusForbidden, &tcqr)
 
@@ -7383,8 +7382,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	tcqr = fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
-			Name:   ptr.String("foo600"),
-			Query:  ptr.String("SELECT * from orbit_info;"),
+			Name:   new("foo600"),
+			Query:  new("SELECT * from orbit_info;"),
 			TeamID: &t1.ID,
 		},
 	}, http.StatusOK, &tcqr)
@@ -7392,8 +7391,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to edit own query, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", tcqr.Query.ID), fleet.ModifyQueryRequest{
 		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo4"),
-			Query: ptr.String("SELECT * FROM system_info;"),
+			Name:  new("foo4"),
+			Query: new("SELECT * FROM system_info;"),
 		},
 	}, http.StatusOK, &fleet.ModifyQueryResponse{})
 
@@ -7403,8 +7402,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to edit query created by somebody else, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Query.ID), fleet.ModifyQueryRequest{
 		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo4"),
-			Query: ptr.String("SELECT * FROM system_info;"),
+			Name:  new("foo4"),
+			Query: new("SELECT * FROM system_info;"),
 		},
 	}, http.StatusForbidden, &fleet.ModifyQueryResponse{})
 
@@ -7435,8 +7434,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	cqrt1 := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
 		QueryPayload: fleet.QueryPayload{
-			Name:   ptr.String("foo8"),
-			Query:  ptr.String("SELECT * from managed_policies;"),
+			Name:   new("foo8"),
+			Query:  new("SELECT * from managed_policies;"),
 			TeamID: &t1.ID,
 		},
 	}, http.StatusOK, &cqrt1)
@@ -7444,8 +7443,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Add a schedule with the deprecated APIs (by referencing a global query).
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), teamScheduleQueryRequest{
 		ScheduledQueryPayload: fleet.ScheduledQueryPayload{
-			QueryID:  ptr.Uint(q1.ID),
-			Interval: ptr.Uint(60),
+			QueryID:  new(q1.ID),
+			Interval: new(uint(60)),
 		},
 	}, http.StatusOK, &ttsqr)
 
@@ -7489,14 +7488,14 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to edit a team policy, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, ttplr.Policy.ID), fleet.ModifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: ptr.String("SELECT * from file WHERE path = 'foobar';"),
+			Query: new("SELECT * from file WHERE path = 'foobar';"),
 		},
 	}, http.StatusOK, &fleet.ModifyTeamPolicyResponse{})
 
 	// Attempt to edit another team's policy, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t2.ID, t2p.ID), fleet.ModifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: ptr.String("SELECT * from file WHERE path = 'foobar';"),
+			Query: new("SELECT * from file WHERE path = 'foobar';"),
 		},
 	}, http.StatusForbidden, &fleet.ModifyTeamPolicyResponse{})
 
@@ -7517,14 +7516,14 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to edit own team, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), modifyTeamRequest{
 		TeamPayload: fleet.TeamPayload{
-			Name: ptr.String("foo123456"),
+			Name: new("foo123456"),
 		},
 	}, http.StatusOK, &teamResponse{})
 
 	// Attempt to edit another team, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t2.ID), modifyTeamRequest{
 		TeamPayload: fleet.TeamPayload{
-			Name: ptr.String("foo123456"),
+			Name: new("foo123456"),
 		},
 	}, http.StatusForbidden, &teamResponse{})
 
@@ -7962,8 +7961,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-time.Minute),
-		OsqueryHostID:   ptr.String("plain-osquery-host"),
-		NodeKey:         ptr.String("plain-osquery-host"),
+		OsqueryHostID:   new("plain-osquery-host"),
+		NodeKey:         new("plain-osquery-host"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", "plain-osquery-host"),
 		HardwareSerial:  uuid.New().String(),
@@ -8328,12 +8327,12 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID + 100, ScriptID: &savedNoTmScript.ID}, http.StatusNotFound, &runResp)
 
 	// attempt to run with both script contents and id
-	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusUnprocessableEntity)
+	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptID: new(savedTmScript.ID + 999)}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_contents' is allowed.`)
 
 	// attempt to run with unknown script id
-	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusNotFound)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: new(savedTmScript.ID + 999)}, http.StatusNotFound)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `No script exists for the provided "script_id".`)
 
@@ -8421,7 +8420,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Contains(t, runSyncResp.Message, fleet.RunScriptHostTimeoutErrMsg)
 
 	// attempt to run sync with both script contents and script id
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptID: new(savedTmScript.ID + 999)}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_contents' is allowed.`)
 
@@ -8435,11 +8434,11 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Contains(t, errMsg, `Only one of 'script_contents' or 'script_name' is allowed.`)
 
 	// attempt to run sync with both script id and script name
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: new(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_name' is allowed.`)
 
-	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: new(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_name' is allowed.`)
 
@@ -8453,11 +8452,11 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
 
 	// attempt to run sync with both script id and team id
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: new(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
 
-	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: new(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
 
@@ -8558,8 +8557,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-time.Minute),
-		OsqueryHostID:   ptr.String("plain-osquery-host-2"),
-		NodeKey:         ptr.String("plain-osquery-host-2"),
+		OsqueryHostID:   new("plain-osquery-host-2"),
+		NodeKey:         new("plain-osquery-host-2"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", "plain-osquery-host-2"),
 		HardwareSerial:  uuid.New().String(),
@@ -8654,19 +8653,19 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 
 	// orbitDarwinClient is member of 'All hosts' and 'Zoobar' labels.
 	err = s.ds.RecordLabelQueryExecutions(ctx, orbitDarwinClient, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		zoobarLabel.ID:   ptr.Bool(true),
+		allHostsLabel.ID: new(true),
+		zoobarLabel.ID:   new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
 	// orbitLinuxClient is member of 'All hosts' and 'Foobar' labels.
 	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		foobarLabel.ID:   ptr.Bool(true),
+		allHostsLabel.ID: new(true),
+		foobarLabel.ID:   new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
 	// orbitWindowsClient is member of the 'All hosts' label only.
 	err = s.ds.RecordLabelQueryExecutions(ctx, orbitWindowsClient, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
+		allHostsLabel.ID: new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
 
@@ -8751,7 +8750,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 
 	// orbitDarwinClient is now also a member of the 'Foobar' label.
 	err = s.ds.RecordLabelQueryExecutions(ctx, orbitDarwinClient, map[uint]*bool{
-		foobarLabel.ID: ptr.Bool(true),
+		foobarLabel.ID: new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
 
@@ -9154,8 +9153,8 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String("host0"),
-		NodeKey:         ptr.String("host0"),
+		OsqueryHostID:   new("host0"),
+		NodeKey:         new("host0"),
 		UUID:            uuid.New().String(),
 		Hostname:        "host0",
 		Platform:        "darwin",
@@ -9168,8 +9167,8 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String("host1"),
-		NodeKey:         ptr.String("host1"),
+		OsqueryHostID:   new("host1"),
+		NodeKey:         new("host1"),
 		UUID:            uuid.New().String(),
 		Hostname:        "host1",
 		Platform:        "darwin",
@@ -9183,8 +9182,8 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String("host2"),
-		NodeKey:         ptr.String("host2"),
+		OsqueryHostID:   new("host2"),
+		NodeKey:         new("host2"),
 		UUID:            uuid.New().String(),
 		Hostname:        "host2",
 		Platform:        "darwin",
@@ -9198,8 +9197,8 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String("host3"),
-		NodeKey:         ptr.String("host3"),
+		OsqueryHostID:   new("host3"),
+		NodeKey:         new("host3"),
 		UUID:            uuid.New().String(),
 		Hostname:        "host3",
 		Platform:        "windows",
@@ -9213,8 +9212,8 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String("host4"),
-		NodeKey:         ptr.String("host4"),
+		OsqueryHostID:   new("host4"),
+		NodeKey:         new("host4"),
 		UUID:            uuid.New().String(),
 		Hostname:        "host4",
 		Platform:        "ubuntu",
@@ -9228,8 +9227,8 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String("host5"),
-		NodeKey:         ptr.String("host5"),
+		OsqueryHostID:   new("host5"),
+		NodeKey:         new("host5"),
 		UUID:            uuid.New().String(),
 		Hostname:        "host5",
 		Platform:        "chrome",
@@ -9294,8 +9293,8 @@ VALUES
 	}
 
 	// insert some ad hoc script results, these are never included in the host script details
-	insertResults(t, host0.ID, &fleet.Script{Name: "ad hoc script", ScriptContents: "echo foo"}, now, "ad-hoc-0", ptr.Int64(0))
-	insertResults(t, host1.ID, &fleet.Script{Name: "ad hoc script", ScriptContents: "echo foo"}, now.Add(-1*time.Hour), "ad-hoc-1", ptr.Int64(1))
+	insertResults(t, host0.ID, &fleet.Script{Name: "ad hoc script", ScriptContents: "echo foo"}, now, "ad-hoc-0", new(int64(0)))
+	insertResults(t, host1.ID, &fleet.Script{Name: "ad hoc script", ScriptContents: "echo foo"}, now.Add(-1*time.Hour), "ad-hoc-1", new(int64(1)))
 
 	t.Run("no team", func(t *testing.T) {
 		noTeamScripts, _, err := s.ds.ListScripts(ctx, nil, fleet.ListOptions{})
@@ -9303,12 +9302,12 @@ VALUES
 		require.Len(t, noTeamScripts, 5)
 
 		// insert saved script results for host0
-		insertResults(t, host0.ID, noTeamScripts[0], now, "exec0-0", ptr.Int64(0))                   // expect status ran
-		insertResults(t, host0.ID, noTeamScripts[1], now.Add(-1*time.Hour), "exec0-1", ptr.Int64(1)) // expect status error
-		insertResults(t, host0.ID, noTeamScripts[2], now.Add(-2*time.Hour), "exec0-2", nil)          // expect status pending
+		insertResults(t, host0.ID, noTeamScripts[0], now, "exec0-0", new(int64(0)))                   // expect status ran
+		insertResults(t, host0.ID, noTeamScripts[1], now.Add(-1*time.Hour), "exec0-1", new(int64(1))) // expect status error
+		insertResults(t, host0.ID, noTeamScripts[2], now.Add(-2*time.Hour), "exec0-2", nil)           // expect status pending
 
 		// insert some ad hoc script results, these are never included in the host script details
-		insertResults(t, host0.ID, &fleet.Script{Name: "ad hoc script", ScriptContents: "echo foo"}, now.Add(-3*time.Hour), "exec0-3", ptr.Int64(0))
+		insertResults(t, host0.ID, &fleet.Script{Name: "ad hoc script", ScriptContents: "echo foo"}, now.Add(-3*time.Hour), "exec0-3", new(int64(0)))
 
 		// check host script details, should include all no team scripts
 		var resp fleet.GetHostScriptDetailsResponse
@@ -9350,7 +9349,7 @@ VALUES
 		require.Len(t, tm1Scripts, 5)
 
 		// insert results for host1
-		insertResults(t, host1.ID, tm1Scripts[0], now, "exec1-0", ptr.Int64(0)) // expect status ran
+		insertResults(t, host1.ID, tm1Scripts[0], now, "exec1-0", new(int64(0))) // expect status ran
 
 		// check host script details, should match team 1
 		var resp fleet.GetHostScriptDetailsResponse
@@ -9551,9 +9550,9 @@ VALUES
 			},
 			{
 				name:       "script-timeout",
-				exitCode:   ptr.Int64(-1),
+				exitCode:   new(int64(-1)),
 				executedAt: now.Add(-1 * time.Hour),
-				expected:   fleet.HostScriptTimeoutMessage(ptr.Int(int(scripts.MaxHostExecutionTime.Seconds()))),
+				expected:   fleet.HostScriptTimeoutMessage(new(int(scripts.MaxHostExecutionTime.Seconds()))),
 			},
 			{
 				name:       "pending",
@@ -9563,19 +9562,19 @@ VALUES
 			},
 			{
 				name:       "success",
-				exitCode:   ptr.Int64(0),
+				exitCode:   new(int64(0)),
 				executedAt: now.Add(-1 * time.Hour),
 				expected:   "",
 			},
 			{
 				name:       "error",
-				exitCode:   ptr.Int64(1),
+				exitCode:   new(int64(1)),
 				executedAt: now.Add(-1 * time.Hour),
 				expected:   "",
 			},
 			{
 				name:       "disabled",
-				exitCode:   ptr.Int64(-2),
+				exitCode:   new(int64(-2)),
 				executedAt: now.Add(-1 * time.Hour),
 				expected:   fleet.RunScriptDisabledErrMsg,
 			},
@@ -9884,8 +9883,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 		LabelUpdatedAt:  time.Now().Add(-10 * time.Hour),
 		PolicyUpdatedAt: time.Now().Add(-10 * time.Hour),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "linux",
@@ -10056,8 +10055,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -10069,8 +10068,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + "tm"),
-		NodeKey:         ptr.String(t.Name() + "tm"),
+		OsqueryHostID:   new(t.Name() + "tm"),
+		NodeKey:         new(t.Name() + "tm"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()+"tm"),
 		Platform:        "linux",
@@ -10127,8 +10126,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
 		{
 			CVE:              "cve-123-123-132",
-			CVSSScore:        ptr.Float64(7.8),
-			CISAKnownExploit: ptr.Bool(true),
+			CVSSScore:        new(float64(7.8)),
+			CISAKnownExploit: new(true),
 		},
 	})
 	require.NoError(t, err)
@@ -10657,8 +10656,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			VersionsCount: 2,
 			HostsCount:    2,
 			Versions: []fleet.SoftwareVersion{
-				{Version: "0.0.1", Vulnerabilities: nil, HostsCount: ptr.Uint(2)},
-				{Version: "0.0.3", Vulnerabilities: nil, HostsCount: ptr.Uint(1)},
+				{Version: "0.0.1", Vulnerabilities: nil, HostsCount: new(uint(2))},
+				{Version: "0.0.3", Vulnerabilities: nil, HostsCount: new(uint(1))},
 			},
 		},
 	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
@@ -10677,7 +10676,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				VersionsCount: 1,
 				HostsCount:    1,
 				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.1", Vulnerabilities: nil, HostsCount: ptr.Uint(1)},
+					{Version: "0.0.1", Vulnerabilities: nil, HostsCount: new(uint(1))},
 				},
 			},
 		}, []fleet.SoftwareTitle{*stResp.SoftwareTitle},
@@ -10707,7 +10706,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				{
 					Version:         "0.0.4",
 					Vulnerabilities: &fleet.SliceString{"cve-123-123-132"},
-					HostsCount:      ptr.Uint(1),
+					HostsCount:      new(uint(1)),
 				},
 			},
 		},
@@ -10765,7 +10764,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 					{
 						Version:         "0.0.4",
 						Vulnerabilities: &fleet.SliceString{"cve-123-123-132"},
-						HostsCount:      ptr.Uint(1),
+						HostsCount:      new(uint(1)),
 					},
 				},
 			},
@@ -10839,7 +10838,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		InstallScript:    "install",
 		Filename:         "vim.deb",
 		SelfService:      true,
-		TeamID:           ptr.Uint(0),
+		TeamID:           new(uint(0)),
 		AutomaticInstall: true,
 		Platform:         "linux",
 	}
@@ -11103,8 +11102,8 @@ func (s *integrationEnterpriseTestSuite) createHosts(t *testing.T, platforms ...
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			OsqueryHostID:   new(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         new(fmt.Sprintf("%s%d", t.Name(), i)),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
 			Platform:        platform,
@@ -11124,8 +11123,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -11137,8 +11136,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + "tm"),
-		NodeKey:         ptr.String(t.Name() + "tm"),
+		OsqueryHostID:   new(t.Name() + "tm"),
+		NodeKey:         new(t.Name() + "tm"),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()+"tm"),
 		Platform:        "linux",
@@ -11239,7 +11238,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				Password:                 &test.GoodPassword,
 				Name:                     &uu.Email,
 				Teams:                    uu.Teams,
-				AdminForcedPasswordReset: ptr.Bool(false),
+				AdminForcedPasswordReset: new(false),
 			},
 		}, http.StatusOK, &cur)
 		extraTestUsers[k] = *cur.User
@@ -11531,8 +11530,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(t.Name() + name),
-			NodeKey:         ptr.String(t.Name() + name),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:        "darwin",
@@ -11594,8 +11593,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(false),
-			team1Policy2.ID:         ptr.Bool(true),
+			team1Policy1Calendar.ID: new(false),
+			team1Policy2.ID:         new(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11604,8 +11603,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host2Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(true),
-			team1Policy2.ID:         ptr.Bool(false),
+			team1Policy1Calendar.ID: new(true),
+			team1Policy2.ID:         new(false),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11615,9 +11614,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host3Team2,
 		map[uint]*bool{
-			team2Policy1Calendar.ID: ptr.Bool(true),
+			team2Policy1Calendar.ID: new(true),
 			team2Policy2.ID:         nil,
-			globalPolicy.ID:         ptr.Bool(false),
+			globalPolicy.ID:         new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -11627,8 +11626,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 		host4Team2,
 		map[uint]*bool{
 			team2Policy1Calendar.ID: nil,
-			team2Policy2.ID:         ptr.Bool(false),
-			globalPolicy.ID:         ptr.Bool(true),
+			team2Policy2.ID:         new(false),
+			globalPolicy.ID:         new(true),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -11668,8 +11667,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 		host4Team2,
 		map[uint]*bool{
 			team2Policy1Calendar.ID: nil,
-			team2Policy2.ID:         ptr.Bool(false),
-			globalPolicy.ID:         ptr.Bool(true),
+			team2Policy2.ID:         new(false),
+			globalPolicy.ID:         new(true),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -11733,8 +11732,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(false),
-			team1Policy2.ID:         ptr.Bool(true),
+			team1Policy1Calendar.ID: new(false),
+			team1Policy2.ID:         new(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11743,8 +11742,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host2Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(true),
-			team1Policy2.ID:         ptr.Bool(false),
+			team1Policy1Calendar.ID: new(true),
+			team1Policy2.ID:         new(false),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11754,9 +11753,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host3Team2,
 		map[uint]*bool{
-			team2Policy1Calendar.ID: ptr.Bool(true),
+			team2Policy1Calendar.ID: new(true),
 			team2Policy2.ID:         nil,
-			globalPolicy.ID:         ptr.Bool(false),
+			globalPolicy.ID:         new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -11766,8 +11765,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 		host4Team2,
 		map[uint]*bool{
 			team2Policy1Calendar.ID: nil,
-			team2Policy2.ID:         ptr.Bool(false),
-			globalPolicy.ID:         ptr.Bool(true),
+			team2Policy2.ID:         new(false),
+			globalPolicy.ID:         new(true),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -11857,8 +11856,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(false),
-			team1Policy2.ID:         ptr.Bool(true),
+			team1Policy1Calendar.ID: new(false),
+			team1Policy2.ID:         new(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11867,8 +11866,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host2Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(true),
-			team1Policy2.ID:         ptr.Bool(false),
+			team1Policy1Calendar.ID: new(true),
+			team1Policy2.ID:         new(false),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11893,8 +11892,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(true),
-			team1Policy2.ID:         ptr.Bool(true),
+			team1Policy1Calendar.ID: new(true),
+			team1Policy2.ID:         new(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11969,8 +11968,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(t.Name() + name),
-			NodeKey:         ptr.String(t.Name() + name),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:        "darwin",
@@ -12011,7 +12010,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1,
 		map[uint]*bool{
-			team1Policy1.ID: ptr.Bool(false),
+			team1Policy1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -12033,7 +12032,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1,
 		map[uint]*bool{
-			team2Policy1.ID: ptr.Bool(false),
+			team2Policy1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -12088,28 +12087,28 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 	// create new users for tm1, tm2 and one with both tm1 and tm2
 	users := []fleet.UserPayload{
 		{
-			Name:                     ptr.String("team1 user"),
-			Email:                    ptr.String("tm1user@example.com"),
-			Password:                 ptr.String(test.GoodPassword),
-			AdminForcedPasswordReset: ptr.Bool(false),
+			Name:                     new("team1 user"),
+			Email:                    new("tm1user@example.com"),
+			Password:                 new(test.GoodPassword),
+			AdminForcedPasswordReset: new(false),
 			Teams: &[]fleet.UserTeam{
 				{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleMaintainer},
 			},
 		},
 		{
-			Name:                     ptr.String("team2 user"),
-			Email:                    ptr.String("tm2user@example.com"),
-			Password:                 ptr.String(test.GoodPassword),
-			AdminForcedPasswordReset: ptr.Bool(false),
+			Name:                     new("team2 user"),
+			Email:                    new("tm2user@example.com"),
+			Password:                 new(test.GoodPassword),
+			AdminForcedPasswordReset: new(false),
 			Teams: &[]fleet.UserTeam{
 				{Team: fleet.Team{ID: tm2.ID}, Role: fleet.RoleAdmin},
 			},
 		},
 		{
-			Name:                     ptr.String("team1and2 user"),
-			Email:                    ptr.String("tm1and2user@example.com"),
-			Password:                 ptr.String(test.GoodPassword),
-			AdminForcedPasswordReset: ptr.Bool(false),
+			Name:                     new("team1and2 user"),
+			Email:                    new("tm1and2user@example.com"),
+			Password:                 new(test.GoodPassword),
+			AdminForcedPasswordReset: new(false),
 			Teams: &[]fleet.UserTeam{
 				{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleObserver},
 				{Team: fleet.Team{ID: tm2.ID}, Role: fleet.RoleObserverPlus},
@@ -12146,13 +12145,13 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 	require.NotZero(t, lblD1)
 
 	// record membership for hosts across no team, team1 and team2
-	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[4], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[4], map[uint]*bool{lblD1: new(true)}, time.Now(), false)
 	require.NoError(t, err)
-	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[2], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[2], map[uint]*bool{lblD1: new(true)}, time.Now(), false)
 	require.NoError(t, err)
-	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[1], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[1], map[uint]*bool{lblD1: new(true)}, time.Now(), false)
 	require.NoError(t, err)
-	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[0], map[uint]*bool{lblD1: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(ctx, hosts[0], map[uint]*bool{lblD1: new(true)}, time.Now(), false)
 	require.NoError(t, err)
 
 	// create another dynamic label which will stay empty
@@ -12168,9 +12167,9 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 
 	// test access with each team user
 	adminUserPayload := fleet.UserPayload{
-		Name:     ptr.String("admin1"),
-		Email:    ptr.String(testUsers["admin1"].Email),
-		Password: ptr.String(testUsers["admin1"].PlaintextPassword),
+		Name:     new("admin1"),
+		Email:    new(testUsers["admin1"].Email),
+		Password: new(testUsers["admin1"].PlaintextPassword),
 	}
 	cases := []struct {
 		desc  string
@@ -12222,7 +12221,7 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", c.lblID), fleet.ModifyLabelRequest{
 					ModifyLabelPayload: fleet.ModifyLabelPayload{
-						Name: ptr.String("will fail"),
+						Name: new("will fail"),
 					},
 				}, http.StatusForbidden, &fleet.ModifyLabelResponse{})
 			}
@@ -12811,10 +12810,10 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// update should succeed
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-			SelfService:       ptr.Bool(true),
-			InstallScript:     ptr.String("some install script"),
-			PreInstallQuery:   ptr.String("some pre install query"),
-			PostInstallScript: ptr.String("some post install script"),
+			SelfService:       new(true),
+			InstallScript:     new("some install script"),
+			PreInstallQuery:   new("some pre install query"),
+			PostInstallScript: new("some post install script"),
 			Filename:          "ruby.deb",
 			TitleID:           titleID,
 			TeamID:            nil,
@@ -12826,7 +12825,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// update with unsupported shebang in install script fails validation
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-			InstallScript: ptr.String("#!/usr/bin/perl\nprint 'hello'"),
+			InstallScript: new("#!/usr/bin/perl\nprint 'hello'"),
 			TitleID:       titleID,
 			TeamID:        nil,
 		}, http.StatusBadRequest, "Interpreter not supported")
@@ -13080,8 +13079,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
 				HostID:                hostInTeam.ID,
 				InstallUUID:           installUUID,
-				InstallScriptExitCode: ptr.Int(0),
-				InstallScriptOutput:   ptr.String("done"),
+				InstallScriptExitCode: new(int(0)),
+				InstallScriptOutput:   new("done"),
 			},
 		}, http.StatusNoContent)
 
@@ -13102,7 +13101,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 	t.Run("create team 0 software installer", func(t *testing.T) {
 		payload := &fleet.UploadSoftwareInstallerPayload{
-			TeamID:            ptr.Uint(0),
+			TeamID:            new(uint(0)),
 			InstallScript:     "another install script",
 			PreInstallQuery:   "another pre install query",
 			PostInstallScript: "another post install script",
@@ -13169,8 +13168,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
 				HostID:                hostInTeam.ID,
 				InstallUUID:           installUUID,
-				InstallScriptExitCode: ptr.Int(0),
-				InstallScriptOutput:   ptr.String("done"),
+				InstallScriptExitCode: new(int(0)),
+				InstallScriptOutput:   new("done"),
 			},
 		}, http.StatusNoContent)
 
@@ -14108,7 +14107,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	newTitlesResp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id",
 		fmt.Sprint(tm.ID))
-	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = ptr.Bool(true)
+	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = new(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// empty payload cleans the software items
@@ -14162,7 +14161,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Nil(t, packages[0].TeamID)
 	newTitlesResp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
-	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = ptr.Bool(true)
+	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = new(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// create some labels A, B and C
@@ -14564,8 +14563,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
-		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		OsqueryHostID:   new(t.Name() + uuid.New().String()),
+		NodeKey:         new(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "ubuntu",
 	})
@@ -14584,8 +14583,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
-		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		OsqueryHostID:   new(t.Name() + uuid.New().String()),
+		NodeKey:         new(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sbar.local", t.Name()),
 		Platform:        "ubuntu",
 	})
@@ -15122,8 +15121,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
-			NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+			OsqueryHostID:   new(t.Name() + uuid.New().String()),
+			NodeKey:         new(t.Name() + uuid.New().String()),
 			Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 			Platform:        platform,
 		})
@@ -15252,8 +15251,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
-		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		OsqueryHostID:   new(t.Name() + uuid.New().String()),
+		NodeKey:         new(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "ubuntu",
 	})
@@ -15815,7 +15814,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
-	err := s.ds.RecordLabelQueryExecutions(context.Background(), host1, map[uint]*bool{labelResp.Label.ID: ptr.Bool(true)}, time.Now(), false)
+	err := s.ds.RecordLabelQueryExecutions(context.Background(), host1, map[uint]*bool{labelResp.Label.ID: new(true)}, time.Now(), false)
 	require.NoError(t, err)
 
 	payloadNoSS := &fleet.UploadSoftwareInstallerPayload{
@@ -16065,8 +16064,8 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		HostID:                host.ID,
 		InstallUUID:           installUUIDs[0],
 		Status:                fleet.SoftwareInstallFailed,
-		PreInstallQueryOutput: ptr.String(fleet.SoftwareInstallerQuerySuccessCopy),
-		Output:                ptr.String(fmt.Sprintf(fleet.SoftwareInstallerInstallFailCopy, "failed")),
+		PreInstallQueryOutput: new(fleet.SoftwareInstallerQuerySuccessCopy),
+		Output:                new(fmt.Sprintf(fleet.SoftwareInstallerInstallFailCopy, "failed")),
 	})
 	wantAct := fleet.ActivityTypeInstalledSoftware{
 		HostID:          host.ID,
@@ -16075,7 +16074,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     installUUIDs[0],
 		Status:          string(fleet.SoftwareInstallFailed),
-		Source:          ptr.String("deb_packages"),
+		Source:          new("deb_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -16091,7 +16090,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		HostID:                host.ID,
 		InstallUUID:           installUUIDs[1],
 		Status:                fleet.SoftwareInstallFailed,
-		PreInstallQueryOutput: ptr.String(fleet.SoftwareInstallerQueryFailCopy),
+		PreInstallQueryOutput: new(fleet.SoftwareInstallerQueryFailCopy),
 	})
 	wantAct = fleet.ActivityTypeInstalledSoftware{
 		HostID:          host.ID,
@@ -16100,7 +16099,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload2.Filename,
 		InstallUUID:     installUUIDs[1],
 		Status:          string(fleet.SoftwareInstallFailed),
-		Source:          ptr.String("deb_packages"),
+		Source:          new("deb_packages"),
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -16120,9 +16119,9 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		HostID:                  host.ID,
 		InstallUUID:             installUUIDs[2],
 		Status:                  fleet.SoftwareInstalled,
-		PreInstallQueryOutput:   ptr.String(fleet.SoftwareInstallerQuerySuccessCopy),
-		Output:                  ptr.String(fmt.Sprintf(fleet.SoftwareInstallerInstallSuccessCopy, "success")),
-		PostInstallScriptOutput: ptr.String(fmt.Sprintf(fleet.SoftwareInstallerPostInstallSuccessCopy, "ok")),
+		PreInstallQueryOutput:   new(fleet.SoftwareInstallerQuerySuccessCopy),
+		Output:                  new(fmt.Sprintf(fleet.SoftwareInstallerInstallSuccessCopy, "success")),
+		PostInstallScriptOutput: new(fmt.Sprintf(fleet.SoftwareInstallerPostInstallSuccessCopy, "ok")),
 	})
 	wantAct = fleet.ActivityTypeInstalledSoftware{
 		HostID:          host.ID,
@@ -16131,7 +16130,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload3.Filename,
 		InstallUUID:     installUUIDs[2],
 		Status:          string(fleet.SoftwareInstalled),
-		Source:          ptr.String("deb_packages"),
+		Source:          new("deb_packages"),
 	}
 	lastActID := s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -16159,7 +16158,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		HostID:      host.ID,
 		InstallUUID: installUUIDs[2],
 		Status:      fleet.SoftwareInstallFailed,
-		Output:      ptr.String(fleet.SoftwareInstallerDownloadFailedCopy),
+		Output:      new(fleet.SoftwareInstallerDownloadFailedCopy),
 	})
 	wantAct = fleet.ActivityTypeInstalledSoftware{
 		HostID:          host.ID,
@@ -16168,7 +16167,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		SoftwarePackage: payload3.Filename,
 		InstallUUID:     installUUIDs[2],
 		Status:          string(fleet.SoftwareInstallFailed),
-		Source:          ptr.String("deb_packages"),
+		Source:          new("deb_packages"),
 	}
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -16496,8 +16495,8 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -16688,21 +16687,21 @@ func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 	require.NotZero(t, titleID)
 
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-		InstallScript: ptr.String(""),
+		InstallScript: new(""),
 		TitleID:       titleID,
 		TeamID:        &team.ID,
 	}, http.StatusBadRequest, "Couldn't edit. Install script is required for .exe packages.")
 
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		Filename:        "hello-world-installer.exe",
-		UninstallScript: ptr.String(""),
+		UninstallScript: new(""),
 		TitleID:         titleID,
 		TeamID:          &team.ID,
 	}, http.StatusBadRequest, "Couldn't edit. Uninstall script is required for .exe packages.")
 
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		Filename:          "hello-world-installer.exe",
-		PostInstallScript: ptr.String("foo bar baz"),
+		PostInstallScript: new("foo bar baz"),
 		TitleID:           titleID,
 		TeamID:            &team.ID,
 	}, http.StatusOK, "")
@@ -16794,9 +16793,9 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	// Test editing script package with unsupported params (should be ignored)
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		Filename:          "install-app.sh",
-		UninstallScript:   ptr.String("should be cleared"),
-		PostInstallScript: ptr.String("should be cleared"),
-		PreInstallQuery:   ptr.String("should be cleared"),
+		UninstallScript:   new("should be cleared"),
+		PostInstallScript: new("should be cleared"),
+		PreInstallQuery:   new("should be cleared"),
 		TitleID:           titleID,
 		TeamID:            &team.ID,
 	}, http.StatusOK, "")
@@ -16833,8 +16832,8 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -16921,8 +16920,8 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -17020,8 +17019,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(t.Name() + name),
-			NodeKey:         ptr.String(t.Name() + name),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:        "darwin",
@@ -17095,8 +17094,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(false),
-			team1Policy2Calendar.ID: ptr.Bool(true),
+			team1Policy1Calendar.ID: new(false),
+			team1Policy2Calendar.ID: new(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -17105,8 +17104,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host2Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(true),
-			team1Policy2Calendar.ID: ptr.Bool(false),
+			team1Policy1Calendar.ID: new(true),
+			team1Policy2Calendar.ID: new(false),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -17433,8 +17432,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(true),
-			team1Policy2Calendar.ID: ptr.Bool(true),
+			team1Policy1Calendar.ID: new(true),
+			team1Policy2Calendar.ID: new(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -17514,8 +17513,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(t.Name() + name),
-			NodeKey:         ptr.String(t.Name() + name),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:        "darwin",
@@ -17595,8 +17594,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(false),
-			team1Policy2Calendar.ID: ptr.Bool(true),
+			team1Policy1Calendar.ID: new(false),
+			team1Policy2Calendar.ID: new(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -17605,8 +17604,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host2Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(true),
-			team1Policy2Calendar.ID: ptr.Bool(false),
+			team1Policy1Calendar.ID: new(true),
+			team1Policy2Calendar.ID: new(false),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -17686,7 +17685,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultResolution)
 
 	// Put resolution back
-	team1Policy1Calendar.Resolution = ptr.String("putResolutionBack")
+	team1Policy1Calendar.Resolution = new("putResolutionBack")
 	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
 	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
 
@@ -17696,7 +17695,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
 
 	// Change resolution
-	team1Policy1Calendar.Resolution = ptr.String("changeResolution")
+	team1Policy1Calendar.Resolution = new("changeResolution")
 	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
 	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
 
@@ -17709,8 +17708,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(false),
-			team1Policy2Calendar.ID: ptr.Bool(false),
+			team1Policy1Calendar.ID: new(false),
+			team1Policy2Calendar.ID: new(false),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -17725,8 +17724,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			team1Policy1Calendar.ID: ptr.Bool(false),
-			team1Policy2Calendar.ID: ptr.Bool(true),
+			team1Policy1Calendar.ID: new(false),
+			team1Policy2Calendar.ID: new(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -17798,7 +17797,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 
 	// Create team and add host to team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{orbitHost.ID}, TeamID: &team.ID}, http.StatusOK)
@@ -17851,8 +17850,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(t.Name() + name),
-			NodeKey:         ptr.String(t.Name() + name),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:        platform,
@@ -18170,7 +18169,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -18218,7 +18217,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -18291,9 +18290,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
-			policy2Team1.ID: ptr.Bool(false),
-			policy3Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
+			policy2Team1.ID: new(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -18315,9 +18314,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
-			policy2Team1.ID: ptr.Bool(false),
-			policy3Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
+			policy2Team1.ID: new(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -18334,18 +18333,18 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(true),
-			policy2Team1.ID: ptr.Bool(false),
-			policy3Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(true),
+			policy2Team1.ID: new(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	distributedResp = submitDistributedQueryResultsResponse{}
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
-			policy2Team1.ID: ptr.Bool(false),
-			policy3Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
+			policy2Team1.ID: new(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -18362,8 +18361,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host2Team1,
 		map[uint]*bool{
-			policy2Team1.ID: ptr.Bool(false),
-			policy3Team1.ID: ptr.Bool(false),
+			policy2Team1.ID: new(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -18387,7 +18386,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host3Team2,
 		map[uint]*bool{
-			policy4Team2.ID: ptr.Bool(false),
+			policy4Team2.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -18412,7 +18411,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host3Team2,
 		map[uint]*bool{
-			policy0AllTeams.ID: ptr.Bool(true),
+			policy0AllTeams.ID: new(true),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -18421,7 +18420,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host0NoTeam,
 		map[uint]*bool{
-			policy0AllTeams.ID: ptr.Bool(false),
+			policy0AllTeams.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -18430,7 +18429,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host3Team2,
 		map[uint]*bool{
-			policy0AllTeams.ID: ptr.Bool(false),
+			policy0AllTeams.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -18447,7 +18446,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host3Team2,
 		map[uint]*bool{
-			policy4Team2.ID: ptr.Bool(false),
+			policy4Team2.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -18527,7 +18526,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		hostVanillaOsquery5Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	hostVanillaOsquery5Team1LastInstall, err := s.ds.GetHostLastInstallData(ctx, hostVanillaOsquery5Team1.ID, dummyInstallerPkgInstallerID)
@@ -18549,8 +18548,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", t.Name()),
 		Platform:        "darwin",
@@ -18610,7 +18609,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			host,
 			map[uint]*bool{
-				policyID: ptr.Bool(passes),
+				policyID: new(passes),
 			},
 		), http.StatusOK, &distributedResp)
 	}
@@ -18875,8 +18874,8 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", t.Name()),
 		Platform:        "darwin",
@@ -19112,8 +19111,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "linux",
@@ -19145,7 +19144,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	lbl3 := newLabelResp.Label
 
 	// Add label1 and label2 to the host
-	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl1.ID: ptr.Bool(true), lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl1.ID: new(true), lbl2.ID: new(true)}, time.Now(), false)
 	require.NoError(t, err)
 
 	// upload software. Add label1 and label3 as "exclude any" labels.
@@ -19200,7 +19199,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy1.ID: ptr.Bool(false),
+			policy1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -19265,7 +19264,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy2.ID: ptr.Bool(false),
+			policy2.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -19463,8 +19462,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "linux",
@@ -19496,7 +19495,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 	lbl3 := newLabelResp.Label
 
 	// Add label1 and label2 to the host
-	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl1.ID: ptr.Bool(true), lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+	err = s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl1.ID: new(true), lbl2.ID: new(true)}, time.Now(), false)
 	require.NoError(t, err)
 
 	// upload software. Add label1 and label3 as "exclude any" labels.
@@ -19552,7 +19551,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy1.ID: ptr.Bool(false),
+			policy1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -19571,9 +19570,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 
 	// Update the installer's labels to "exclude any". This de-scopes the software.
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-		InstallScript:     ptr.String("some install script"),
-		PreInstallQuery:   ptr.String("some pre install query"),
-		PostInstallScript: ptr.String("some post install script"),
+		InstallScript:     new("some install script"),
+		PreInstallQuery:   new("some pre install query"),
+		PostInstallScript: new("some post install script"),
 		Filename:          "ruby.deb",
 		TitleID:           rubyDebTitleID,
 		TeamID:            nil,
@@ -19587,9 +19586,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 
 	// Update the installer's labels to be "include any" again. The software is now back in scope.
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-		InstallScript:     ptr.String("some install script"),
-		PreInstallQuery:   ptr.String("some pre install query"),
-		PostInstallScript: ptr.String("some post install script"),
+		InstallScript:     new("some install script"),
+		PreInstallQuery:   new("some pre install query"),
+		PostInstallScript: new("some post install script"),
 		Filename:          "ruby.deb",
 		TitleID:           rubyDebTitleID,
 		TeamID:            nil,
@@ -19600,7 +19599,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy1.ID: ptr.Bool(false),
+			policy1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -19619,9 +19618,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 	// Update the include any labels. The host doesn't have label2, so this means that the software
 	// moved out of scope.
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-		InstallScript:     ptr.String("some install script"),
-		PreInstallQuery:   ptr.String("some pre install query"),
-		PostInstallScript: ptr.String("some post install script"),
+		InstallScript:     new("some install script"),
+		PreInstallQuery:   new("some pre install query"),
+		PostInstallScript: new("some post install script"),
 		Filename:          "ruby.deb",
 		TitleID:           rubyDebTitleID,
 		TeamID:            nil,
@@ -19635,9 +19634,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 	// Update to exclude any with label 2. This moves the software back into scope. The policy
 	// automation should re-trigger.
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
-		InstallScript:     ptr.String("some install script"),
-		PreInstallQuery:   ptr.String("some pre install query"),
-		PostInstallScript: ptr.String("some post install script"),
+		InstallScript:     new("some install script"),
+		PreInstallQuery:   new("some pre install query"),
+		PostInstallScript: new("some post install script"),
 		Filename:          "ruby.deb",
 		TitleID:           rubyDebTitleID,
 		TeamID:            nil,
@@ -19647,7 +19646,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy1.ID: ptr.Bool(false),
+			policy1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -19679,8 +19678,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(t.Name() + name),
-			NodeKey:         ptr.String(t.Name() + name),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:        platform,
@@ -19823,7 +19822,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -19871,7 +19870,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -19943,9 +19942,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
-			policy2Team1.ID: ptr.Bool(false),
-			policy3Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
+			policy2Team1.ID: new(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -19962,9 +19961,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
-			policy2Team1.ID: ptr.Bool(false),
-			policy3Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
+			policy2Team1.ID: new(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -19978,18 +19977,18 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(true),
-			policy2Team1.ID: ptr.Bool(false),
-			policy3Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(true),
+			policy2Team1.ID: new(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	distributedResp = submitDistributedQueryResultsResponse{}
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
-			policy2Team1.ID: ptr.Bool(false),
-			policy3Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
+			policy2Team1.ID: new(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -20002,8 +20001,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host2Team1,
 		map[uint]*bool{
-			policy2Team1.ID: ptr.Bool(false),
-			policy3Team1.ID: ptr.Bool(false),
+			policy2Team1.ID: new(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -20024,7 +20023,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host3Team2,
 		map[uint]*bool{
-			policy4Team2.ID: ptr.Bool(false),
+			policy4Team2.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -20046,7 +20045,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host3Team2,
 		map[uint]*bool{
-			policy4Team2.ID: ptr.Bool(false),
+			policy4Team2.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -20056,7 +20055,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		hostVanillaOsquery5Team1,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	hostPendingScripts, err := s.ds.ListPendingHostScriptExecutions(ctx, hostVanillaOsquery5Team1.ID, false)
@@ -20110,8 +20109,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", t.Name()),
 		Platform:        "darwin",
@@ -20155,7 +20154,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			host,
 			map[uint]*bool{
-				policyID: ptr.Bool(passes),
+				policyID: new(passes),
 			},
 		), http.StatusOK, &distributedResp)
 	}
@@ -20405,8 +20404,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIden
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
@@ -20490,7 +20489,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     installUUID,
 		Status:          string(fleet.SoftwareInstallFailed),
-		Source:          ptr.String("rpm_packages"),
+		Source:          new("rpm_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
@@ -20584,7 +20583,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Check apps returned
@@ -20756,7 +20755,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(1))
 	require.NoError(t, err)
 	require.Equal(t, mapp.TitleID, i.TitleID)
-	require.Equal(t, ptr.Uint(1), i.FleetMaintainedAppID)
+	require.Equal(t, new(uint(1)), i.FleetMaintainedAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
 	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)
@@ -20785,10 +20784,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, 1, resp.Count)
 	title := resp.SoftwareTitles[0]
 	require.NotNil(t, title.BundleIdentifier)
-	require.Equal(t, ptr.String(mapp.UniqueIdentifier), title.BundleIdentifier)
+	require.Equal(t, new(mapp.UniqueIdentifier), title.BundleIdentifier)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
-	require.Equal(t, ptr.Bool(req.SelfService), title.SoftwarePackage.SelfService)
+	require.Equal(t, new(req.SelfService), title.SoftwarePackage.SelfService)
 
 	// Check activity
 	s.lastActivityOfTypeMatches(
@@ -20840,7 +20839,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"team_id", "0",
 	)
 
-	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4, ptr.Uint(0))
+	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4, new(uint(0)))
 	require.NoError(t, err)
 	_, err = maintained_apps.Hydrate(ctx, mapp, "", nil, nil)
 	require.NoError(t, err)
@@ -20856,7 +20855,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
-	require.Equal(t, ptr.Uint(4), i.FleetMaintainedAppID)
+	require.Equal(t, new(uint(4)), i.FleetMaintainedAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
 	require.NotEmpty(t, i.InstallScriptContentID)
 	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
@@ -20878,9 +20877,9 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	updatePayload := &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:       title.ID,
 		InstallerID:   i.InstallerID,
-		InstallScript: ptr.String(mapp.InstallScript),
+		InstallScript: new(mapp.InstallScript),
 		Version:       title.SoftwarePackage.Version,
-		SelfService:   ptr.Bool(true),
+		SelfService:   new(true),
 		Categories:    []string{cat1.Name, cat2.Name},
 	}
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
@@ -20903,7 +20902,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		PreInstallQuery:   "SELECT 1",
 		InstallScript:     "echo foo",
 		PostInstallScript: "echo done",
-		TeamID:            ptr.Uint(0),
+		TeamID:            new(uint(0)),
 	}
 
 	addMAResp = addFleetMaintainedAppResponse{}
@@ -21025,7 +21024,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		PreInstallQuery:   "SELECT 1",
 		InstallScript:     "echo foo",
 		PostInstallScript: "echo done",
-		TeamID:            ptr.Uint(0),
+		TeamID:            new(uint(0)),
 		LabelsIncludeAny:  []string{lbl1.Name, lbl2.Name},
 	}
 
@@ -21063,7 +21062,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		PreInstallQuery:   "SELECT 1",
 		InstallScript:     "echo foo",
 		PostInstallScript: "echo done",
-		TeamID:            ptr.Uint(0),
+		TeamID:            new(uint(0)),
 		LabelsIncludeAny:  []string{"no-such-label"},
 	}
 	addMAResp = addFleetMaintainedAppResponse{}
@@ -21161,7 +21160,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("Team 1")}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Add WARP for Windows
@@ -21212,8 +21211,8 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "windows",
@@ -21276,7 +21275,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// Use the batch endpoint (GitOps) to add the Windows FMA
 	softwareToInstall := []*fleet.SoftwareInstallerPayload{
-		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+		{Slug: new("cloudflare-warp/windows"), SelfService: true},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
@@ -21431,7 +21430,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 	lbl2 := labelResp.Label
-	err := s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl2.ID: ptr.Bool(true)}, time.Now(), false)
+	err := s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl2.ID: new(true)}, time.Now(), false)
 	require.NoError(t, err)
 
 	updateInstallerLabel(installerID, lbl1.ID, true)
@@ -21657,8 +21656,8 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 		OrbitNodeKey: *host.OrbitNodeKey,
 		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
 			InstallUUID:           swInstallExecID,
-			InstallScriptExitCode: ptr.Int(0),
-			InstallScriptOutput:   ptr.String("hello"),
+			InstallScriptExitCode: new(int(0)),
+			InstallScriptOutput:   new("hello"),
 		},
 	}, http.StatusNoContent)
 
@@ -21682,7 +21681,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 		SoftwarePackage: payload.Filename,
 		InstallUUID:     swInstallExecID,
 		Status:          string(fleet.SoftwareInstalled),
-		Source:          ptr.String("deb_packages"),
+		Source:          new("deb_packages"),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
@@ -22422,7 +22421,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	u := &fleet.User{
 		Name:       "test maintainer",
 		Email:      "maintainer@example.com",
-		GlobalRole: ptr.String(fleet.RoleMaintainer),
+		GlobalRole: new(fleet.RoleMaintainer),
 	}
 	password := test.GoodPassword
 	require.NoError(t, u.SetPassword(password, 10, 10))
@@ -22617,8 +22616,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(t.Name() + name),
-			NodeKey:         ptr.String(t.Name() + name),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:        platform,
@@ -22720,9 +22719,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		h1,
 		map[uint]*bool{
-			cp1.ID: ptr.Bool(true),
-			cp2.ID: ptr.Bool(true),
-			p3.ID:  ptr.Bool(false),
+			cp1.ID: new(true),
+			cp2.ID: new(true),
+			p3.ID:  new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -22751,9 +22750,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		windowsHost1,
 		map[uint]*bool{
-			cp1.ID: ptr.Bool(true),
-			cp2.ID: ptr.Bool(true),
-			p3.ID:  ptr.Bool(false),
+			cp1.ID: new(true),
+			cp2.ID: new(true),
+			p3.ID:  new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -22786,9 +22785,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		h1,
 		map[uint]*bool{
-			cp1.ID: ptr.Bool(true),
-			cp2.ID: ptr.Bool(true),
-			p3.ID:  ptr.Bool(false),
+			cp1.ID: new(true),
+			cp2.ID: new(true),
+			p3.ID:  new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -22819,9 +22818,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		windowsHost1,
 		map[uint]*bool{
-			cp1.ID: ptr.Bool(true),
-			cp2.ID: ptr.Bool(true),
-			p3.ID:  ptr.Bool(false),
+			cp1.ID: new(true),
+			cp2.ID: new(true),
+			p3.ID:  new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -22842,9 +22841,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		h1,
 		map[uint]*bool{
-			cp1.ID: ptr.Bool(true),
-			cp2.ID: ptr.Bool(false),
-			p3.ID:  ptr.Bool(false),
+			cp1.ID: new(true),
+			cp2.ID: new(false),
+			p3.ID:  new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -22868,9 +22867,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		windowsHost1,
 		map[uint]*bool{
-			cp1.ID: ptr.Bool(true),
-			cp2.ID: ptr.Bool(false),
-			p3.ID:  ptr.Bool(false),
+			cp1.ID: new(true),
+			cp2.ID: new(false),
+			p3.ID:  new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -22889,9 +22888,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		h1,
 		map[uint]*bool{
-			cp1.ID: ptr.Bool(true),
-			cp2.ID: ptr.Bool(false),
-			p3.ID:  ptr.Bool(false),
+			cp1.ID: new(true),
+			cp2.ID: new(false),
+			p3.ID:  new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -22910,9 +22909,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		windowsHost1,
 		map[uint]*bool{
-			cp1.ID: ptr.Bool(true),
-			cp2.ID: ptr.Bool(false),
-			p3.ID:  ptr.Bool(false),
+			cp1.ID: new(true),
+			cp2.ID: new(false),
+			p3.ID:  new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -22991,8 +22990,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		h2,
 		map[uint]*bool{
-			cp1.ID: ptr.Bool(false),
-			p2.ID:  ptr.Bool(false),
+			cp1.ID: new(false),
+			p2.ID:  new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -23022,7 +23021,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		h2,
 		map[uint]*bool{
-			p2.ID: ptr.Bool(false),
+			p2.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 
@@ -23109,8 +23108,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(t.Name() + name),
-			NodeKey:         ptr.String(t.Name() + name),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:        "darwin",
@@ -23327,8 +23326,8 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Minute),
-			OsqueryHostID:   ptr.String(name),
-			NodeKey:         ptr.String(name),
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.local", name),
 			HardwareSerial:  uuid.New().String(),
@@ -23802,9 +23801,9 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		// update should succeed
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 			SelfService:       new(true),
-			InstallScript:     ptr.String("some updated install script"),
-			PreInstallQuery:   ptr.String("some new pre install query"),
-			PostInstallScript: ptr.String("some new post install script"),
+			InstallScript:     new("some updated install script"),
+			PreInstallQuery:   new("some new pre install query"),
+			PostInstallScript: new("some new post install script"),
 			Filename:          "vim.deb",
 			TitleID:           debVimTitleID,
 			TeamID:            &team.ID,
@@ -24024,8 +24023,8 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Minute),
-			OsqueryHostID:   ptr.String(name),
-			NodeKey:         ptr.String(name),
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.local", name),
 			HardwareSerial:  uuid.New().String(),
@@ -24259,8 +24258,8 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Minute),
-			OsqueryHostID:   ptr.String(name),
-			NodeKey:         ptr.String(name),
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.local", name),
 			HardwareSerial:  uuid.New().String(),
@@ -24731,8 +24730,8 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-time.Minute),
-			OsqueryHostID:   ptr.String(name),
-			NodeKey:         ptr.String(name),
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.local", name),
 			HardwareSerial:  uuid.New().String(),
@@ -24909,8 +24908,8 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-time.Minute),
-		OsqueryHostID:   ptr.String(name),
-		NodeKey:         ptr.String(name),
+		OsqueryHostID:   new(name),
+		NodeKey:         new(name),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", name),
 		HardwareSerial:  uuid.New().String(),
@@ -25041,7 +25040,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 		Emails: []fleet.ScimUserEmail{
 			{
 				Email:   "scim.user@example.com",
-				Primary: ptr.Bool(true),
+				Primary: new(true),
 			},
 		},
 	}
@@ -25576,8 +25575,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(token),
-			NodeKey:         ptr.String(token),
+			OsqueryHostID:   new(token),
+			NodeKey:         new(token),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s-scim.local", token),
 			HardwareSerial:  uuid.New().String(),
@@ -25749,8 +25748,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(token2),
-			NodeKey:         ptr.String(token2),
+			OsqueryHostID:   new(token2),
+			NodeKey:         new(token2),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.local", token2),
 			HardwareSerial:  uuid.New().String(),
@@ -25926,8 +25925,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		require.NoError(t, err)
 
 		err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
-			caPolicy.ID:    ptr.Bool(true),  // passing
-			nonCAPolicy.ID: ptr.Bool(false), // failing
+			caPolicy.ID:    new(true),  // passing
+			nonCAPolicy.ID: new(false), // failing
 		}, time.Now(), false, nil)
 		require.NoError(t, err)
 
@@ -25990,8 +25989,8 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String("ios-test-host"),
-		NodeKey:         ptr.String("ios-test-node-key"),
+		OsqueryHostID:   new("ios-test-host"),
+		NodeKey:         new("ios-test-node-key"),
 		UUID:            "ios-test-uuid-12345",
 		Hostname:        "ios-test-device",
 		Platform:        "ios",
@@ -26004,8 +26003,8 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String("mac-test-host"),
-		NodeKey:         ptr.String("mac-test-node-key"),
+		OsqueryHostID:   new("mac-test-host"),
+		NodeKey:         new("mac-test-node-key"),
 		UUID:            "mac-test-uuid-67890",
 		Hostname:        "mac-test-device",
 		Platform:        "darwin",
@@ -26132,8 +26131,8 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String("ipad-test-host"),
-			NodeKey:         ptr.String("ipad-test-node-key"),
+			OsqueryHostID:   new("ipad-test-host"),
+			NodeKey:         new("ipad-test-node-key"),
 			UUID:            "ipad-test-uuid-11111",
 			Hostname:        "ipad-test-device",
 			Platform:        "ipados",
@@ -26484,8 +26483,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsDistributedReadWrite() {
 
 	newHost := func(name string, platform string, teamID *uint) *fleet.Host {
 		h, err := s.ds.NewHost(t.Context(), &fleet.Host{
-			OsqueryHostID: ptr.String(t.Name() + name),
-			NodeKey:       ptr.String(t.Name() + name),
+			OsqueryHostID: new(t.Name() + name),
+			NodeKey:       new(t.Name() + name),
 			UUID:          uuid.New().String(),
 			Hostname:      fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:      platform,
@@ -26555,7 +26554,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsDistributedReadWrite() {
 	user := &fleet.User{
 		Name:       "global admin",
 		Email:      "global_admin@example.com",
-		GlobalRole: ptr.String(fleet.RoleAdmin),
+		GlobalRole: new(fleet.RoleAdmin),
 	}
 	err = user.SetPassword(test.GoodPassword, 10, 10)
 	require.NoError(t, err)
@@ -26625,11 +26624,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsDistributedReadWrite() {
 	// macOST1 returns results for the label queries back.
 	distributedResp := submitDistributedQueryResultsResponse{}
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithLabelResults(macOST1, map[uint]*bool{
-		l1t1.ID:        ptr.Bool(true),
-		globalLabel.ID: ptr.Bool(true),
+		l1t1.ID:        new(true),
+		globalLabel.ID: new(true),
 		// Send fake result for t2 (*) to verify it gets filtered.
 		// This could happen if the host was transferred to another team in between distributed/read and distributed/write.
-		l2t2.ID: ptr.Bool(true),
+		l2t2.ID: new(true),
 	}), http.StatusOK, &distributedResp)
 
 	getHostResp := getHostResponse{}
@@ -26644,9 +26643,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsDistributedReadWrite() {
 	// macOST2 returns results for the label queries back.
 	distributedResp = submitDistributedQueryResultsResponse{}
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithLabelResults(macOST2, map[uint]*bool{
-		l2t2.ID:        ptr.Bool(true),
-		l3t2.ID:        ptr.Bool(false), // runs but doesn't belong
-		globalLabel.ID: ptr.Bool(true),
+		l2t2.ID:        new(true),
+		l3t2.ID:        new(false), // runs but doesn't belong
+		globalLabel.ID: new(true),
 	}), http.StatusOK, &distributedResp)
 
 	// Add manual label on macOST2.
@@ -26709,9 +26708,9 @@ func (s *integrationEnterpriseTestSuite) TestDeleteTeamCertificateTemplates() {
 	// Create a test certificate authority
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("TestDeleteTeamCertificateTemplates SCEP CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
+		Name:      new("TestDeleteTeamCertificateTemplates SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
 	})
 	require.NoError(t, err)
 	caID := ca.ID
@@ -26926,9 +26925,9 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	// Update the auto-update config
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
 		TeamID:              &teamID,
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String("02:00"),
-		AutoUpdateEndTime:   ptr.String("04:00"),
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new("02:00"),
+		AutoUpdateEndTime:   new("04:00"),
 	}, http.StatusOK, &titlesResp)
 
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
@@ -26945,7 +26944,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	// Do an update without auto-update fields to check that it still includes the auto-update values.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
 		TeamID:      &teamID,
-		DisplayName: ptr.String("New Display Name"),
+		DisplayName: new("New Display Name"),
 	}, http.StatusOK, &titlesResp)
 
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
@@ -26953,7 +26952,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	// Disable the auto-update config
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
 		TeamID:            &teamID,
-		AutoUpdateEnabled: ptr.Bool(false),
+		AutoUpdateEnabled: new(false),
 	}, http.StatusOK, &titlesResp)
 
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
@@ -26961,7 +26960,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	// Do an update without auto-update fields to check that it still includes the auto-update values.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
 		TeamID:      &teamID,
-		DisplayName: ptr.String("Updated Display Name"),
+		DisplayName: new("Updated Display Name"),
 	}, http.StatusOK, &titlesResp)
 
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
@@ -27084,7 +27083,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	newTeam := func(name string) fleet.Team {
 		var resp teamResponse
 		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: ptr.String(name)},
+			TeamPayload: fleet.TeamPayload{Name: new(name)},
 		}, http.StatusOK, &resp)
 		return *resp.Team
 	}
@@ -27133,7 +27132,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 	// Add an ingested app to the team
 	softwareToInstall := []*fleet.SoftwareInstallerPayload{
-		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+		{Slug: new("cloudflare-warp/windows"), SelfService: true},
 	}
 
 	packages := batchSet(team, softwareToInstall)
@@ -27191,7 +27190,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// Pin to version "2.0" in the batch request (simulating GitOps yaml with version specified).
 	// The active installer should switch to the cached v2.0 installer.
 	packages = batchSet(team, []*fleet.SoftwareInstallerPayload{
-		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+		{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
 	})
 	require.Len(t, packages, 2)
 
@@ -27235,7 +27234,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// ---- Test switching active version back to 3.0 ----
 	// Pin to version "3.0" — the active installer should switch to the cached v3.0 installer.
 	packages = batchSet(team, []*fleet.SoftwareInstallerPayload{
-		{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "3.0"},
+		{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "3.0"},
 	})
 	require.Len(t, packages, 2)
 
@@ -27287,7 +27286,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	rawResp := s.Do("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{
 			Software: []*fleet.SoftwareInstallerPayload{
-				{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+				{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
 			},
 			TeamName: team.Name,
 		},
@@ -27382,7 +27381,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		resetFMAState(warpState, "2.0", []byte("def"))
 
 		pkgs := batchSet(uiTeam, []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+			{Slug: new("cloudflare-warp/windows"), SelfService: true},
 		})
 		require.Len(t, pkgs, 2, "both v1.0 (UI-added) and v2.0 should be cached")
 
@@ -27396,7 +27395,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// Roll back to the original UI-added v1.0 via batch-set.
 		pkgs = batchSet(uiTeam, []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+			{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
 		})
 		require.Len(t, pkgs, 2, "both versions should still be cached after rollback")
 
@@ -27484,8 +27483,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		multiTeam := newTeam("team_multi_" + t.Name())
 
 		bothFMAs := []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
-			{Slug: ptr.String("zoom/windows"), SelfService: true},
+			{Slug: new("cloudflare-warp/windows"), SelfService: true},
+			{Slug: new("zoom/windows"), SelfService: true},
 		}
 
 		// ---- v1.0 for both FMAs ----
@@ -27521,8 +27520,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// ---- Roll back cloudflare-warp to v2.0, leave zoom at v3.0 ----
 		pkgs = batchSet(multiTeam, []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
-			{Slug: ptr.String("zoom/windows"), SelfService: true}, // no rollback — stays at latest
+			{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+			{Slug: new("zoom/windows"), SelfService: true}, // no rollback — stays at latest
 		})
 		require.Len(t, pkgs, 4)
 
@@ -27548,8 +27547,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// Zoom rollback to v2.0 should also succeed independently.
 		pkgs = batchSet(multiTeam, []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
-			{Slug: ptr.String("zoom/windows"), SelfService: true, RollbackVersion: "2.0"},
+			{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+			{Slug: new("zoom/windows"), SelfService: true, RollbackVersion: "2.0"},
 		})
 		require.Len(t, pkgs, 4)
 
@@ -27587,7 +27586,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		teamB := newTeam("team_iso_b_" + t.Name())
 
 		warpPayload := []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+			{Slug: new("cloudflare-warp/windows"), SelfService: true},
 		}
 
 		// ---- Add v1.0 to both teams ----
@@ -27648,7 +27647,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// ---- Roll back Team A to v2.0 — Team B must not be affected ----
 		batchSet(teamA, []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
+			{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "2.0"},
 		})
 
 		titleA = getActiveTitleForTeam(teamA.ID)
@@ -27663,7 +27662,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// Verify Team B can still roll back to v1.0 (its eviction pool is independent).
 		batchSet(teamB, []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+			{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
 		})
 
 		titleB = getActiveTitleForTeam(teamB.ID)
@@ -27686,7 +27685,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		delTeam := newTeam("team_del_" + t.Name())
 
 		warpPayload := []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+			{Slug: new("cloudflare-warp/windows"), SelfService: true},
 		}
 
 		batchSet(delTeam, warpPayload)
@@ -27751,7 +27750,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		statusTeam := newTeam("team_status_" + t.Name())
 
 		warpPayload := []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true},
+			{Slug: new("cloudflare-warp/windows"), SelfService: true},
 		}
 
 		// ---- Step 1a: Add v1.0 ----
@@ -27794,7 +27793,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 		// ---- Step 3: Roll back to v1.0 ----
 		batchSet(statusTeam, []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
+			{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
 		})
 
 		statusTitle = getActiveTitleForTeam(statusTeam.ID)
@@ -27834,7 +27833,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		editTeam := newTeam("team_edit_" + t.Name())
 
 		warpPayload := []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("cloudflare-warp/windows"), SelfService: false},
+			{Slug: new("cloudflare-warp/windows"), SelfService: false},
 		}
 
 		// ---- Add v1.0 ----
@@ -27868,7 +27867,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 			TitleID:     editTitle.ID,
 			TeamID:      &editTeam.ID,
-			SelfService: ptr.Bool(true),
+			SelfService: new(true),
 		}, http.StatusOK, "")
 
 		// Confirm the edit actually took effect.
@@ -27920,7 +27919,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			host,
 			map[uint]*bool{
-				policy.ID: ptr.Bool(false),
+				policy.ID: new(false),
 			},
 		), http.StatusOK, &distributedResp)
 		err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -27991,7 +27990,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			Name:                 "",
 			Query:                "",
 			Description:          "",
-			Type:                 ptr.String("patch"),
+			Type:                 new("patch"),
 			PatchSoftwareTitleID: &titleID,
 		}, http.StatusOK, &policyResp)
 		require.Equal(t, "macOS - DummyApp up to date", policyResp.Policy.Name)
@@ -28101,7 +28100,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		resp := teamResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: ptr.String("team_1")},
+			TeamPayload: fleet.TeamPayload{Name: new("team_1")},
 		}, http.StatusOK, &resp)
 		teamID := resp.Team.ID
 
@@ -28121,7 +28120,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// add a patch policy
 		policyResp := fleet.TeamPolicyResponse{}
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", teamID), fleet.TeamPolicyRequest{
-			Type:                 ptr.String("patch"),
+			Type:                 new("patch"),
 			PatchSoftwareTitleID: &titleID,
 		}, http.StatusOK, &policyResp)
 
@@ -28187,7 +28186,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
 			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
 		)
@@ -28221,7 +28220,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			Team:                   team.Name,
 			Type:                   fleet.PolicyTypePatch,
 			FleetMaintainedAppSlug: "zoom/windows",
-			SoftwareTitleID:        ptr.Uint(title.ID),
+			SoftwareTitleID:        new(title.ID),
 		}
 
 		applyResp = fleet.ApplyPolicySpecsResponse{}
@@ -28272,7 +28271,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		resetFMAState(states["/zoom/windows.json"], "1.2", []byte("abc"), "")
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
 			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
 		)
@@ -28298,7 +28297,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// Test 3: FMA Version is pinned back after update to a newer version (query should use old version)
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
-				{Slug: ptr.String("zoom/windows"), SelfService: true, RollbackVersion: "1.0"},
+				{Slug: new("zoom/windows"), SelfService: true, RollbackVersion: "1.0"},
 			}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
 			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
@@ -28337,7 +28336,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// Add installers at version 1.0
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}, {Slug: ptr.String("1password/darwin")}}, TeamName: team2.Name},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}, {Slug: new("1password/darwin")}}, TeamName: team2.Name},
 			http.StatusAccepted, &resp,
 			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
 		)
@@ -28381,7 +28380,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		resetFMAState(states["/1password/darwin.json"], "1.2", []byte("abc"), "SELECT 1; --custom query 1.2")
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}, {Slug: ptr.String("1password/darwin")}}, TeamName: team2.Name},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}, {Slug: new("1password/darwin")}}, TeamName: team2.Name},
 			http.StatusAccepted, &resp,
 			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
 		)
@@ -28400,8 +28399,8 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		// Rollback FMA versions to 1.0, queries should use older versions
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
-				{Slug: ptr.String("zoom/windows"), SelfService: true, RollbackVersion: "1.0"},
-				{Slug: ptr.String("1password/darwin"), SelfService: true, RollbackVersion: "1.0"},
+				{Slug: new("zoom/windows"), SelfService: true, RollbackVersion: "1.0"},
+				{Slug: new("1password/darwin"), SelfService: true, RollbackVersion: "1.0"},
 			}, TeamName: team2.Name},
 			http.StatusAccepted, &resp,
 			"team_name", team2.Name, "team_id", fmt.Sprint(team2.ID),
@@ -28733,7 +28732,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: teamName},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
 			"team_name", teamName, "team_id", "0",
 		)
@@ -28748,7 +28747,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 
 		// pin version to ^1, call batch, should get 1.0
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
 			"team_name", teamName, "team_id", "0",
 		)
@@ -28764,7 +28763,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		resetFMAState(states["/zoom/windows.json"], "1.1", []byte("abc"), "")
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
 			"team_name", teamName, "team_id", "0",
 		)
@@ -28781,7 +28780,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		// maybe unnecessary test, can remove to speed it up
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows"), RollbackVersion: "1.0"}}, TeamName: teamName},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "1.0"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
 			"team_name", teamName, "team_id", "0",
 		)
@@ -28792,7 +28791,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		require.Equal(t, "1.0", titleResp.SoftwareTitle.SoftwarePackage.Version)
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
 			"team_name", teamName, "team_id", "0",
 		)
@@ -28806,7 +28805,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		resetFMAState(states["/zoom/windows.json"], "2.0", []byte("abc"), "")
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusAccepted, &resp,
 			"team_name", teamName, "team_id", "0",
 		)
@@ -28834,7 +28833,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("1password/darwin"), RollbackVersion: "^1"}}, TeamName: teamName},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("1password/darwin"), RollbackVersion: "^1"}}, TeamName: teamName},
 			http.StatusNotFound, &resp,
 			"team_name", teamName, "team_id", "0",
 		)
@@ -28864,7 +28863,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObs
 	// Setup: batch set only zoom/windows.
 	var resp batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
-		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
 		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
 	)
@@ -28873,8 +28872,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObs
 	// Batch set both zoom/windows and 1password/darwin.
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
-			{Slug: ptr.String("zoom/windows")},
-			{Slug: ptr.String("1password/darwin")},
+			{Slug: new("zoom/windows")},
+			{Slug: new("1password/darwin")},
 		}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
 		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
@@ -28904,7 +28903,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObs
 	// patch_software_title_id without deleting the policy. Gitops then deletes it via the policy
 	// delete API so the deletion produces a deleted_policy activity.
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
-		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
 		"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
 	)
@@ -28930,7 +28929,7 @@ func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
 		u := &fleet.User{
 			Name:       "test " + role,
 			Email:      role + "-api-endpoints@example.com",
-			GlobalRole: ptr.String(role),
+			GlobalRole: new(role),
 		}
 		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 		_, err := s.ds.NewUser(context.Background(), u)
@@ -29158,7 +29157,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 	nonAPIUser := &fleet.User{
 		Name:       "Non API User",
 		Email:      "non-api-patch@example.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	require.NoError(t, nonAPIUser.SetPassword(test.GoodPassword, 10, 10))
 	nonAPIUser, err = s.ds.NewUser(context.Background(), nonAPIUser)
@@ -29404,10 +29403,10 @@ func (s *integrationEnterpriseTestSuite) TestGetUserReturnsAPIEndpoints() {
 	// Create a fresh regular user rather than relying on seed data.
 	var regularUserResp getUserResp
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
-		Name:       ptr.String("Regular User"),
-		Email:      ptr.String("regular-user-get-test@example.com"),
-		Password:   ptr.String(test.GoodPassword),
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		Name:       new("Regular User"),
+		Email:      new("regular-user-get-test@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleObserver),
 	}, http.StatusOK, &regularUserResp)
 	require.NotZero(t, regularUserResp.User.ID)
 
@@ -29693,8 +29692,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(t.Name() + suffix),
-			NodeKey:         ptr.String(t.Name() + suffix),
+			OsqueryHostID:   new(t.Name() + suffix),
+			NodeKey:         new(t.Name() + suffix),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s-%s.local", t.Name(), suffix),
 			Platform:        "linux",
@@ -29806,10 +29805,10 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	autoOn := true
 	var createResp fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
-		Name:               ptr.String("q-include-all-" + t.Name()),
-		Query:              ptr.String("SELECT 1"),
-		Logging:            ptr.String(fleet.LoggingSnapshot),
-		Interval:           ptr.Uint(60),
+		Name:               new("q-include-all-" + t.Name()),
+		Query:              new("SELECT 1"),
+		Logging:            new(fleet.LoggingSnapshot),
+		Interval:           new(uint(60)),
 		AutomationsEnabled: &autoOn,
 		LabelsIncludeAll:   []string{lblA.Name, lblB.Name},
 	}, http.StatusOK, &createResp)
@@ -29820,9 +29819,9 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	// Mutex rejection on create. Assert on the specific validation error so a
 	// generic 400 (e.g., name required) cannot silently satisfy the test.
 	rejCreateResp := s.Do("POST", "/api/latest/fleet/queries", fleet.QueryPayload{
-		Name:             ptr.String("q-rej-" + t.Name()),
-		Query:            ptr.String("SELECT 1"),
-		Logging:          ptr.String(fleet.LoggingSnapshot),
+		Name:             new("q-rej-" + t.Name()),
+		Query:            new("SELECT 1"),
+		Logging:          new(fleet.LoggingSnapshot),
 		LabelsIncludeAll: []string{lblA.Name},
 		LabelsIncludeAny: []string{lblB.Name},
 	}, http.StatusBadRequest)
@@ -29856,7 +29855,7 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	mkHost := func(suffix string) *fleet.Host {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(), PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
-			OsqueryHostID: ptr.String("q" + suffix + t.Name()), NodeKey: ptr.String("q" + suffix + t.Name()),
+			OsqueryHostID: new("q" + suffix + t.Name()), NodeKey: new("q" + suffix + t.Name()),
 			UUID: uuid.New().String(), Hostname: t.Name() + "-" + suffix + ".local", Platform: "linux",
 		})
 		require.NoError(t, err)
@@ -29910,9 +29909,9 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	// Create a test certificate authority
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("Test SCEP CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
+		Name:      new("Test SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
 	})
 	require.NoError(t, err)
 
@@ -30005,7 +30004,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("test-cert-node-key"),
+		NodeKey:         new("test-cert-node-key"),
 		UUID:            "test-uuid-12345",
 		Hostname:        "test-cert-host.local",
 		HardwareSerial:  "TEST-SERIAL-67890",
@@ -30142,7 +30141,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("test-cert-no-team-node-key"),
+		NodeKey:         new("test-cert-no-team-node-key"),
 		UUID:            "test-no-team-uuid-12345",
 		Hostname:        "test-cert-no-team-host.local",
 		HardwareSerial:  "TEST-NO-TEAM-SERIAL",
@@ -30219,7 +30218,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	observerUser := &fleet.User{
 		Name:       "Observer User",
 		Email:      observerEmail,
-		GlobalRole: ptr.String(fleet.RoleObserver),
+		GlobalRole: new(fleet.RoleObserver),
 	}
 	require.NoError(t, observerUser.SetPassword(observerPwd, 10, 10))
 	_, err = s.ds.NewUser(ctx, observerUser)
@@ -30322,7 +30321,7 @@ func (s *integrationEnterpriseTestSuite) TestOrgLogoUploadGitOpsAuth() {
 	gitopsUser := &fleet.User{
 		Name:       "GitOps Logo",
 		Email:      gitopsEmail,
-		GlobalRole: ptr.String(fleet.RoleGitOps),
+		GlobalRole: new(fleet.RoleGitOps),
 	}
 	require.NoError(t, gitopsUser.SetPassword(test.GoodPassword, 10, 10))
 	_, err := s.ds.NewUser(t.Context(), gitopsUser)
@@ -30383,8 +30382,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostReportsIncludeAllPremium() 
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(t.Name() + suffix),
-			NodeKey:         ptr.String(t.Name() + suffix),
+			OsqueryHostID:   new(t.Name() + suffix),
+			NodeKey:         new(t.Name() + suffix),
 			UUID:            uuid.New().String(),
 			Hostname:        t.Name() + "-" + suffix + ".local",
 			Platform:        "linux",
@@ -30748,8 +30747,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", t.Name()),
 		Platform:        "darwin",
@@ -30796,7 +30795,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 		var distributedResp submitDistributedQueryResultsResponse
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			host,
-			map[uint]*bool{policyID: ptr.Bool(passes)},
+			map[uint]*bool{policyID: new(passes)},
 		), http.StatusOK, &distributedResp)
 	}
 	completePendingScripts := func() {
@@ -30824,7 +30823,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 
 	// assertCountStable polls the count for a window to catch delayed enqueues
 	// that a single point-in-time check would miss.
-	assertCountStable := func(expected int, countFn func() int, msgAndArgs ...interface{}) {
+	assertCountStable := func(expected int, countFn func() int, msgAndArgs ...any) {
 		t.Helper()
 		require.Never(t, func() bool {
 			return countFn() != expected
@@ -30876,8 +30875,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", t.Name()),
 		Platform:        "darwin",
@@ -30937,7 +30936,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 		var distributedResp submitDistributedQueryResultsResponse
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			host,
-			map[uint]*bool{policyID: ptr.Bool(passes)},
+			map[uint]*bool{policyID: new(passes)},
 		), http.StatusOK, &distributedResp)
 	}
 	completePendingInstall := func() {
