@@ -2254,7 +2254,7 @@ describe("Host Actions Dropdown", () => {
         },
       });
 
-      render(
+      const { user } = render(
         <HostActionsDropdown
           hostTeamId={1}
           onSelect={noop}
@@ -2267,9 +2267,9 @@ describe("Host Actions Dropdown", () => {
         />
       );
 
-      // Component returns null when no options are available for this role,
-      // so neither the Actions button nor Clear passcode are rendered.
-      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      // Global technicians see the Transfer action, but Clear passcode must
+      // still be hidden since it requires maintainer or above.
+      await user.click(screen.getByText("Actions"));
       expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
     });
 
