@@ -857,6 +857,86 @@ func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestU
 	return &req, nil
 }
 
+// NewMDMAndroidCommand inserts a row into mdm_android_commands at command-issue time. Caller may
+// leave CommandUUID empty to have a fresh UUID generated and written back into the struct.
+func (ds *Datastore) NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
+	if cmd.CommandUUID == "" {
+		cmd.CommandUUID = uuid.NewString()
+	}
+	const stmt = `
+		INSERT INTO mdm_android_commands
+			(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message, request_payload)
+		VALUES
+			(?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		cmd.CommandUUID,
+		cmd.HostUUID,
+		cmd.OperationName,
+		cmd.CommandType,
+		cmd.Status,
+		cmd.ErrorCode,
+		cmd.ErrorMessage,
+		cmd.RequestPayload,
+	)
+	return ctxerr.Wrap(ctx, err, "inserting mdm android command")
+}
+
+// GetMDMAndroidCommandByUUID returns the command row identified by its Fleet-generated command_uuid.
+func (ds *Datastore) GetMDMAndroidCommandByUUID(ctx context.Context, commandUUID string) (*android.MDMAndroidCommand, error) {
+	return ds.getMDMAndroidCommand(ctx, "command_uuid", commandUUID)
+}
+
+// GetMDMAndroidCommandByOperationName returns the command row identified by its AMAPI operation
+// name. Used by the Pub/Sub COMMAND handler to map an incoming notification back to Fleet state.
+func (ds *Datastore) GetMDMAndroidCommandByOperationName(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error) {
+	return ds.getMDMAndroidCommand(ctx, "operation_name", operationName)
+}
+
+// getMDMAndroidCommand is the shared implementation for the two lookup variants. column is one of
+// the indexed columns on mdm_android_commands (command_uuid or operation_name); we never accept
+// caller-supplied column names so this is not a SQL-injection risk.
+func (ds *Datastore) getMDMAndroidCommand(ctx context.Context, column, value string) (*android.MDMAndroidCommand, error) {
+	stmt := `
+		SELECT
+			command_uuid, host_uuid, operation_name, command_type, status,
+			error_code, error_message, request_payload, created_at, updated_at
+		FROM mdm_android_commands
+		WHERE ` + column + ` = ?
+	`
+	cmd := android.MDMAndroidCommand{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &cmd, stmt, value)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(value)
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting mdm android command by %s", column)
+	}
+	return &cmd, nil
+}
+
+// UpdateMDMAndroidCommandStatus updates the row at command_uuid with a new status (and optional
+// error code / message). NotFound is returned if no row matches command_uuid.
+func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+	const stmt = `
+		UPDATE mdm_android_commands
+		SET status = ?, error_code = ?, error_message = ?
+		WHERE command_uuid = ?
+	`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, status, errorCode, errorMessage, commandUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating mdm android command status")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "rows affected updating mdm android command status")
+	}
+	if n == 0 {
+		return common_mysql.NotFound("MDMAndroidCommand").WithName(commandUUID)
+	}
+	return nil
+}
+
 const androidApplicableProfilesQuery = `
 	-- non label-based profiles
 	SELECT

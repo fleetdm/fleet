@@ -2901,6 +2901,24 @@ type Datastore interface {
 	// GetAndroidPolicyRequestByUUID retrieves an Android policy request by ID.
 	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
 
+	// NewMDMAndroidCommand inserts a row into mdm_android_commands at the moment Fleet issues an
+	// AMAPI command (Lock, Wipe, Clear passcode) via EnterprisesDevicesService.IssueCommand. If
+	// cmd.CommandUUID is empty, a fresh UUID is generated and assigned to the input.
+	NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error
+
+	// GetMDMAndroidCommandByUUID looks up a row by its Fleet-generated command_uuid. This is the
+	// identifier host_mdm_actions.{lock_ref, wipe_ref} points to for Android hosts.
+	GetMDMAndroidCommandByUUID(ctx context.Context, commandUUID string) (*android.MDMAndroidCommand, error)
+
+	// GetMDMAndroidCommandByOperationName looks up a row by its AMAPI operation name
+	// (enterprises/X/devices/Y/operations/Z). Used by the Pub/Sub COMMAND handler to correlate an
+	// incoming notification back to the originating Fleet command.
+	GetMDMAndroidCommandByOperationName(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
+
+	// UpdateMDMAndroidCommandStatus updates the status (and optional error_code/error_message) of
+	// a previously-issued command. Called by the Pub/Sub COMMAND handler on ack/error.
+	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error
+
 	// ListMDMAndroidProfilesToSend lists the Android hosts that need to have
 	// their configuration profiles (Android policy) sent. It returns two lists,
 	// the list of profiles to apply and the list of profiles to remove.
@@ -3240,6 +3258,10 @@ type AndroidDatastore interface {
 	// ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion returns a list of all android profiles that are pending or failed install, and where version is less than or equals to the policyVersion.
 	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
 	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
+	NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error
+	GetMDMAndroidCommandByUUID(ctx context.Context, commandUUID string) (*android.MDMAndroidCommand, error)
+	GetMDMAndroidCommandByOperationName(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
+	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
 	// slice, updating existing entries and inserting new entries.

@@ -44,6 +44,7 @@ func TestAndroid(t *testing.T) {
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles3},
 		{"GetHostMDMAndroidProfiles", testGetHostMDMAndroidProfiles},
 		{"GetAndroidPolicyRequestByUUID", testGetAndroidPolicyRequestByUUID},
+		{"MDMAndroidCommandCRUD", testMDMAndroidCommandCRUD},
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
 		{"BatchSetMDMAndroidProfiles_Associations", testBatchSetMDMAndroidProfiles_Associations},
@@ -1888,6 +1889,100 @@ func testGetAndroidPolicyRequestByUUID(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NotNil(t, policyRequest)
 		require.Equal(t, policyRequestUUID, policyRequest.RequestUUID)
+	})
+}
+
+func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("Not found returns typed NotFound error for both lookups", func(t *testing.T) {
+		_, err := ds.GetMDMAndroidCommandByUUID(ctx, "missing-uuid")
+		require.Contains(t, err.Error(), common_mysql.NotFound("MDMAndroidCommand").WithName("missing-uuid").Error())
+
+		_, err = ds.GetMDMAndroidCommandByOperationName(ctx, "missing-op")
+		require.Contains(t, err.Error(), common_mysql.NotFound("MDMAndroidCommand").WithName("missing-op").Error())
+	})
+
+	t.Run("Update on missing row returns NotFound", func(t *testing.T) {
+		err := ds.UpdateMDMAndroidCommandStatus(ctx, "missing-uuid", string(android.MDMAndroidCommandStatusAcknowledged), nil, nil)
+		require.Contains(t, err.Error(), common_mysql.NotFound("MDMAndroidCommand").WithName("missing-uuid").Error())
+	})
+
+	t.Run("Insert, read by both keys, then transition to acknowledged", func(t *testing.T) {
+		cmd := &android.MDMAndroidCommand{
+			HostUUID:       "host-uuid-1",
+			OperationName:  "enterprises/E1/devices/D1/operations/100",
+			CommandType:    string(android.MDMAndroidCommandTypeLock),
+			Status:         string(android.MDMAndroidCommandStatusPending),
+			RequestPayload: []byte(`{"type":"LOCK","duration":"315360000s"}`),
+		}
+
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, cmd))
+		require.NotEmpty(t, cmd.CommandUUID, "NewMDMAndroidCommand should auto-generate command_uuid when empty")
+
+		byUUID, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, cmd.HostUUID, byUUID.HostUUID)
+		require.Equal(t, cmd.OperationName, byUUID.OperationName)
+		require.Equal(t, string(android.MDMAndroidCommandTypeLock), byUUID.CommandType)
+		require.Equal(t, string(android.MDMAndroidCommandStatusPending), byUUID.Status)
+		require.JSONEq(t, `{"type":"LOCK","duration":"315360000s"}`, string(byUUID.RequestPayload))
+		require.False(t, byUUID.ErrorCode.Valid)
+		require.False(t, byUUID.ErrorMessage.Valid)
+		require.False(t, byUUID.CreatedAt.IsZero())
+		require.False(t, byUUID.UpdatedAt.IsZero())
+
+		byOp, err := ds.GetMDMAndroidCommandByOperationName(ctx, cmd.OperationName)
+		require.NoError(t, err)
+		require.Equal(t, cmd.CommandUUID, byOp.CommandUUID)
+
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID,
+			string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+
+		acked, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), acked.Status)
+		require.False(t, acked.ErrorCode.Valid)
+		require.False(t, acked.ErrorMessage.Valid)
+	})
+
+	t.Run("Update writes error_code and error_message when provided", func(t *testing.T) {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   cmdUUID,
+			HostUUID:      "host-uuid-2",
+			OperationName: "enterprises/E1/devices/D1/operations/200",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+
+		errCode := "UNSUPPORTED"
+		errMsg := "device does not support WIPE"
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
+			string(android.MDMAndroidCommandStatusError), &errCode, &errMsg))
+
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandStatusError), got.Status)
+		require.True(t, got.ErrorCode.Valid)
+		require.Equal(t, errCode, got.ErrorCode.V)
+		require.True(t, got.ErrorMessage.Valid)
+		require.Equal(t, errMsg, got.ErrorMessage.V)
+	})
+
+	t.Run("Caller-supplied command_uuid is preserved", func(t *testing.T) {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   cmdUUID,
+			HostUUID:      "host-uuid-3",
+			OperationName: "enterprises/E1/devices/D1/operations/300",
+			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, cmdUUID, got.CommandUUID)
 	})
 }
 
