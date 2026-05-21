@@ -1,1 +1,1 @@
-- Fixed a bug where enrolling an Android device on a Fleet instance with Apple MDM disabled but Android MDM enabled produced two duplicate host records — one from the AMAPI enrollment notification and one from the Fleet Android Agent's orbit enrollment. The orbit/osquery enroll path now correctly matches the existing Android host record regardless of which MDM platform is enabled.
+- Fixed a bug where enrolling an Android device on a Fleet instance with Apple MDM disabled produced a duplicate host record.
