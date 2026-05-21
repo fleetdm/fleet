@@ -1,0 +1,31 @@
+.automations-modal {
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+  }
+
+  &__section &__calendar-events-title-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__section-title {
+    margin: 0;
+    font-size: $small;
+    font-weight: $bold;
+  }
+
+  &__divider {
+    border: 0;
+    border-top: 1px solid $ui-fleet-black-10;
+    margin: 0;
+  }
+}

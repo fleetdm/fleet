@@ -945,7 +945,18 @@ const ManagePolicyPage = ({
           />
         )}
         {showAutomationsModal && (
-          <AutomationsModal onExit={toggleAutomationsModal} />
+          <AutomationsModal
+            router={router}
+            isAllTeamsSelected={isAllTeamsSelected}
+            teamIdForApi={teamIdForApi}
+            globalConfig={globalConfig}
+            teamConfig={teamConfig}
+            gitOpsModeEnabled={
+              globalConfig?.gitops.gitops_mode_enabled ?? false
+            }
+            refetchPolicies={() => refetchPolicies(teamIdForApi)}
+            onExit={toggleAutomationsModal}
+          />
         )}
         {selectedPolicyForAutomations && (
           <ManageAutomationsModal
