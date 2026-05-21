@@ -22,7 +22,7 @@ import enrollSecretsAPI from "services/entities/enroll_secret";
 import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import globalPoliciesAPI from "services/entities/global_policies";
+import policiesAPI from "services/entities/policies";
 import hostsAPI, {
   HOSTS_QUERY_PARAMS as PARAMS,
   ILoadHostsQueryKey,
@@ -133,7 +133,6 @@ interface IManageHostsProps {
   route: RouteProps;
   router: InjectedRouter;
   params: Params;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3 TODO: Improve this type
 }
 
@@ -319,13 +318,12 @@ const ManageHostsPage = ({
   const depAssignProfileResponse = queryParams?.dep_assign_profile_response?.toUpperCase();
 
   // ========= routeParams
-  const { active_label: activeLabel, label_id: labelID } = routeParams;
+  const { label_id: labelID } = routeParams;
   const selectedLabels = useMemo(() => {
     const filters: string[] = [];
     labelID && filters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
-    activeLabel && filters.push(activeLabel);
     return filters;
-  }, [activeLabel, labelID]);
+  }, [labelID]);
 
   // All possible filter states - these align with ILoadHostsOptions, but state names here can
   // differ from param names there:
@@ -480,7 +478,7 @@ const ManageHostsPage = ({
     error: errorPolicy,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["policy", policyId],
-    () => globalPoliciesAPI.load(policyId),
+    () => policiesAPI.load(policyId),
     {
       enabled: isRouteOk && !!policyId,
       select: (data) => data.policy,
@@ -1291,7 +1289,7 @@ const ManageHostsPage = ({
   const onDeleteLabel = async () => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
-      return false;
+      return;
     }
     setIsUpdating(true);
 
@@ -1565,39 +1563,97 @@ const ManageHostsPage = ({
     </div>
   );
 
-  const onExportHostsResults = async (
-    evt: React.MouseEvent<HTMLButtonElement>
-  ) => {
-    evt.preventDefault();
+  const onExportHostsResults = useCallback(
+    async (evt: React.MouseEvent<HTMLButtonElement>) => {
+      evt.preventDefault();
 
-    const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
-    let currentHiddenColumns = [];
-    let visibleColumns;
-    if (hiddenColumnsStorage) {
-      currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
-    }
+      let visibleColumns;
 
-    if (config && currentUser) {
-      const tableColumns = generateVisibleTableColumns({
-        hiddenColumns: currentHiddenColumns,
-        isFreeTier,
-        isOnlyObserver,
+      if (config && currentUser) {
+        const tableColumns = generateVisibleTableColumns({
+          hiddenColumns,
+          isFreeTier,
+          isOnlyObserver,
+          teamId: teamIdForApi,
+        });
+
+        const columnIds = tableColumns
+          .map((column) => (column.id ? column.id : ""))
+          // "selection" colum does not include any relevent data for the CSV
+          // so we filter it out.
+          .filter((element) => element !== "" && element !== "selection");
+        visibleColumns = columnIds.join(",");
+      }
+
+      let options = {
+        selectedLabels,
+        globalFilter: searchQuery,
+        sortBy,
         teamId: teamIdForApi,
-      });
+        policyId,
+        policyResponse,
+        macSettingsStatus,
+        softwareId,
+        softwareTitleId,
+        softwareVersionId,
+        softwareStatus,
+        status,
+        mdmId,
+        mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
+        osName,
+        osVersionId,
+        osVersion,
+        osSettings: osSettingsStatus,
+        bootstrapPackageStatus,
+        vulnerability,
+        visibleColumns,
+        configProfileUUID,
+        configProfileStatus,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
+        diskEncryptionStatus,
+        depProfileError: strToBool(depProfileError),
+        depAssignProfileResponse,
+      };
 
-      const columnIds = tableColumns
-        .map((column) => (column.id ? column.id : ""))
-        // "selection" colum does not include any relevent data for the CSV
-        // so we filter it out.
-        .filter((element) => element !== "" && element !== "selection");
-      visibleColumns = columnIds.join(",");
-    }
+      options = {
+        ...options,
+        teamId: teamIdForApi,
+      };
 
-    let options = {
+      if (
+        queryParams.fleet_id !== API_ALL_TEAMS_ID &&
+        queryParams.fleet_id !== ""
+      ) {
+        options.teamId = queryParams.fleet_id;
+      }
+
+      try {
+        const exportHostResults = await hostsAPI.exportHosts(options);
+
+        const formattedTime = format(new Date(), "yyyy-MM-dd");
+        const filename = `${CSV_HOSTS_TITLE} ${formattedTime}.csv`;
+        const file = new global.window.File([exportHostResults], filename, {
+          type: "text/csv",
+        });
+
+        FileSaver.saveAs(file);
+      } catch (error) {
+        console.error(error);
+        renderFlash("error", "Could not export hosts. Please try again.");
+      }
+    },
+    [
+      config,
+      currentUser,
+      isFreeTier,
+      isOnlyObserver,
+      teamIdForApi,
       selectedLabels,
-      globalFilter: searchQuery,
+      searchQuery,
       sortBy,
-      teamId: teamIdForApi,
       policyId,
       policyResponse,
       macSettingsStatus,
@@ -1613,53 +1669,46 @@ const ManageHostsPage = ({
       osName,
       osVersionId,
       osVersion,
-      osSettings: osSettingsStatus,
+      osSettingsStatus,
       bootstrapPackageStatus,
       vulnerability,
-      visibleColumns,
       configProfileUUID,
       configProfileStatus,
       scriptBatchExecutionStatus,
       scriptBatchExecutionId,
-    };
+      diskEncryptionStatus,
+      depProfileError,
+      depAssignProfileResponse,
+      hiddenColumns,
+      queryParams.fleet_id,
+      renderFlash,
+    ]
+  );
 
-    options = {
-      ...options,
-      teamId: teamIdForApi,
-    };
+  // TODO: try to reduce overlap between maybeEmptyHosts and includesFilterQueryParam
+  const maybeEmptyHosts =
+    totalFilteredHostsCount === 0 && searchQuery === "" && !labelID && !status;
 
-    if (
-      queryParams.fleet_id !== API_ALL_TEAMS_ID &&
-      queryParams.fleet_id !== ""
-    ) {
-      options.teamId = queryParams.fleet_id;
-    }
+  const includesFilterQueryParam = MANAGE_HOSTS_PAGE_FILTER_KEYS.some(
+    (filter) =>
+      filter !== "fleet_id" &&
+      typeof queryParams === "object" &&
+      filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
+  );
 
-    try {
-      const exportHostResults = await hostsAPI.exportHosts(options);
+  // No hosts enrolled at all, no filters active
+  const isTrulyEmpty = maybeEmptyHosts && !includesFilterQueryParam;
 
-      const formattedTime = format(new Date(), "yyyy-MM-dd");
-      const filename = `${CSV_HOSTS_TITLE} ${formattedTime}.csv`;
-      const file = new global.window.File([exportHostResults], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    } catch (error) {
-      console.error(error);
-      renderFlash("error", "Could not export hosts. Please try again.");
-    }
-  };
-
-  const renderHostCount = useCallback(() => {
+  const renderHostCountAndExport = useCallback(() => {
     return (
       <>
         <TableCount name="hosts" count={totalFilteredHostsCount} />
-        {!!totalFilteredHostsCount && (
+        {(!!totalFilteredHostsCount || isTrulyEmpty) && (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
             variant="inverse"
+            disabled={isTrulyEmpty}
           >
             <>
               Export hosts
@@ -1669,7 +1718,7 @@ const ManageHostsPage = ({
         )}
       </>
     );
-  }, [isLoadingHostsCount, totalFilteredHostsCount]);
+  }, [totalFilteredHostsCount, isTrulyEmpty, onExportHostsResults]);
 
   const renderCustomControls = () => {
     // we filter out the status labels as we dont want to display them in the label
@@ -1689,6 +1738,7 @@ const ManageHostsPage = ({
           options={hostSelectStatuses(isPremiumTier || false)}
           onChange={handleStatusDropdownChange}
           variant="table-filter"
+          isDisabled={isTrulyEmpty}
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}
@@ -1698,21 +1748,11 @@ const ManageHostsPage = ({
           onChange={handleLabelChange}
           onAddLabel={onAddLabelClick}
           isLoading={isLoadingLabels}
+          isDisabled={isTrulyEmpty}
         />
       </div>
     );
   };
-
-  // TODO: try to reduce overlap between maybeEmptyHosts and includesFilterQueryParam
-  const maybeEmptyHosts =
-    totalFilteredHostsCount === 0 && searchQuery === "" && !labelID && !status;
-
-  const includesFilterQueryParam = MANAGE_HOSTS_PAGE_FILTER_KEYS.some(
-    (filter) =>
-      filter !== "fleet_id" &&
-      typeof queryParams === "object" &&
-      filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
-  );
 
   // Ensures rendering table/pills simultaneously when all API calls are done
   const isLoading =
@@ -1731,41 +1771,6 @@ const ManageHostsPage = ({
     if (hasErrors) {
       return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
-    if (maybeEmptyHosts) {
-      const emptyState = () => {
-        const emptyHosts: IEmptyStateProps = {
-          header: "Hosts will show up here once they’re added to Fleet",
-          info:
-            "Expecting to see hosts? Try again soon as the system catches up.",
-        };
-        if (includesFilterQueryParam) {
-          emptyHosts.header = "No hosts match the current criteria";
-          emptyHosts.info =
-            "Expecting to see new hosts? Try again soon as the system catches up.";
-        } else if (canEnrollHosts) {
-          emptyHosts.header = "Add your hosts to Fleet";
-          emptyHosts.info =
-            "Generate Fleet's agent (fleetd) to add your own hosts.";
-          emptyHosts.primaryButton = (
-            <Button onClick={toggleAddHostsModal} type="button">
-              Add hosts
-            </Button>
-          );
-        }
-        return emptyHosts;
-      };
-
-      return (
-        <>
-          {EmptyState({
-            header: emptyState().header,
-            info: emptyState().info,
-            additionalInfo: emptyState().additionalInfo,
-            primaryButton: emptyState().primaryButton,
-          })}
-        </>
-      );
-    }
 
     let disableRunScriptBatchTooltipContent: React.ReactNode;
     if (config?.server_settings?.scripts_disabled) {
@@ -1776,18 +1781,17 @@ const ManageHostsPage = ({
         </>
       );
     } else if (isAllTeamsSelected && isPremiumTier) {
-      disableRunScriptBatchTooltipContent = "Select a fleet to run a script";
+      disableRunScriptBatchTooltipContent = "Select a fleet to run a script.";
     } else if (isAllMatchingHostsSelected) {
       if (runScriptBatchFilterNotSupported) {
         disableRunScriptBatchTooltipContent =
-          "Choose different filters to run a script";
+          "Choose different filters to run a script.";
       } else if (
         // default to blocking until count API responds
         !totalFilteredHostsCount ||
         totalFilteredHostsCount > MAX_SCRIPT_BATCH_TARGETS
       ) {
-        disableRunScriptBatchTooltipContent =
-          "Target at most 5,000 hosts to run a script";
+        disableRunScriptBatchTooltipContent = `Target at most ${MAX_SCRIPT_BATCH_TARGETS.toLocaleString()} hosts to run a script.`;
       }
     }
     const secondarySelectActions: IActionButtonProps[] = [
@@ -1827,14 +1831,40 @@ const ManageHostsPage = ({
 
     const emptyState = () => {
       const emptyHosts: IEmptyStateProps = {
-        header: "No hosts match the current criteria",
+        header: "No hosts match your filters",
         info:
-          "Expecting to see new hosts? Try again soon as the system catches up.",
+          "Recently enrolled hosts will appear here after their first check-in.",
+        primaryButton: canEnrollHosts ? (
+          <Button onClick={toggleAddHostsModal} type="button">
+            Add hosts
+          </Button>
+        ) : undefined,
       };
-      if (isLastPage) {
+      if (isTrulyEmpty) {
+        emptyHosts.header = "No hosts";
+        if (canEnrollHosts) {
+          emptyHosts.info = (
+            <>
+              Fleet refers to computers, servers, and mobile devices as hosts.
+              <br />
+              Add a host to start seeing data.
+            </>
+          );
+          emptyHosts.primaryButton = (
+            <Button onClick={toggleAddHostsModal} type="button">
+              Add hosts
+            </Button>
+          );
+        } else {
+          emptyHosts.info =
+            "Fleet refers to computers, servers, and mobile devices as hosts.";
+          emptyHosts.primaryButton = undefined;
+        }
+      } else if (isLastPage) {
         emptyHosts.header = "No more hosts to display";
         emptyHosts.info =
           "Expecting to see more hosts? Try again soon as the system catches up.";
+        emptyHosts.primaryButton = undefined;
       }
 
       return emptyHosts;
@@ -1897,10 +1927,16 @@ const ManageHostsPage = ({
         showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
-        renderCount={renderHostCount}
+        disableSearch={isTrulyEmpty}
+        renderCount={renderHostCountAndExport}
         searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
+        disableActionButton={isTrulyEmpty}
         emptyComponent={() => (
-          <EmptyState header={emptyState().header} info={emptyState().info} />
+          <EmptyState
+            header={emptyState().header}
+            info={emptyState().info}
+            primaryButton={emptyState().primaryButton}
+          />
         )}
         customControl={renderCustomControls}
         onQueryChange={onTableQueryChange}
@@ -1945,10 +1981,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const showAddHostsButton =
-    canEnrollHosts &&
-    !hasErrors &&
-    (!maybeEmptyHosts || includesFilterQueryParam);
+  const showAddHostsButton = canEnrollHosts && !hasErrors;
 
   return (
     <>

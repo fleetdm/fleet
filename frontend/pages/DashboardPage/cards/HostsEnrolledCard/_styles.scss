@@ -1,8 +1,20 @@
 .hosts-enrolled-card {
   &__title {
-    font-size: $small;
     font-weight: $bold;
     margin: 0 0 $pad-medium !important;
+    line-height: 1;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+  }
+
+  // The bar chart's plot height is set inline to match the checkerboard's
+  // cell-grid height (see CHART_HEIGHT_* in HostsEnrolledCard.tsx).
+  &__chart-container {
+    min-height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   // Theme-aware axis tick text. CSS fill overrides the inline fill attribute
@@ -11,7 +23,7 @@
   // Note: recharts portals tick labels out of .recharts-cartesian-axis into a
   // .recharts-zIndex-layer_* group, so we target via .recharts-wrapper.
   .recharts-wrapper text {
-    fill: $ui-fleet-black-75;
+    fill: $ui-fleet-black-50;
   }
 
   // Pointer cursor only on rows with hosts. The component adds these classes

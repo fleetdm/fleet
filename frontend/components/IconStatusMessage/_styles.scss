@@ -1,7 +1,7 @@
 .icon-status-message {
   display: flex;
   align-items: flex-start;
-  gap: $pad-small;
+  gap: $gap-icon-text;
   font-size: $x-small;
 }
 
@@ -15,5 +15,5 @@
 
 .icon-status-message__content {
   flex: 1;
-  line-height: 1.5;
+  line-height: $line-height;
 }

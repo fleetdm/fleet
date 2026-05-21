@@ -47,11 +47,11 @@ locals {
       FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD         = "15m"
       FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE            = "500"
       FLEET_SERVER_GZIP_RESPONSES                    = "true"
-      
+
 
       # Load TLS Certificate for RDS Authentication
-      FLEET_MYSQL_TLS_CA              = local.cert_path
-      FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
+      FLEET_MYSQL_TLS_CA                  = local.cert_path
+      FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
       FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
     },
     local.otel_environment_variables,

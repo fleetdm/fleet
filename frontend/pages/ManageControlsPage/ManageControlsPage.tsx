@@ -186,14 +186,16 @@ const ManageControlsPage = ({
             </TabList>
           </Tabs>
         </TabNav>
-        <div key={location?.pathname} className="tab-nav-routed-content">
-          {React.cloneElement(children, {
-            teamIdForApi,
-            currentPage: page,
-            queryParams: parseOSUpdatesCurrentVersionsQueryParams(
-              location.query
-            ),
-          })}
+        <div className="tab-nav-routed-content">
+          <div key={currentTabIndex} className="tab-nav-routed-content__fade">
+            {React.cloneElement(children, {
+              teamIdForApi,
+              currentPage: page,
+              queryParams: parseOSUpdatesCurrentVersionsQueryParams(
+                location.query
+              ),
+            })}
+          </div>
         </div>
       </div>
     );

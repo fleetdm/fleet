@@ -1,0 +1,1 @@
+* Wrapped Get-ItemProperty calls in try/catch blocks during registry enumeration to gracefully handle terminating exceptions (e.g. System.InvalidCastException) from malformed registry entries, logging the offending path instead of aborting.

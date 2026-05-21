@@ -1,0 +1,358 @@
+import React, { useState, useContext, useCallback, useMemo } from "react";
+import { useQuery } from "react-query";
+
+import { NotificationContext } from "context/notification";
+import { IConfig } from "interfaces/config";
+import {
+  IJiraIntegration,
+  IZendeskIntegration,
+  IIntegration,
+  IIntegrationTableData,
+  IGlobalIntegrations,
+} from "interfaces/integration";
+import { IApiError } from "interfaces/errors";
+
+import configAPI from "services/entities/config";
+
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
+import AddTicketDestinationModal from "./components/AddIntegrationModal";
+import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
+
+import {
+  generateTableHeaders,
+  combineDataSets,
+} from "./IntegrationsTableConfig";
+
+const baseClass = "integrations-management";
+
+const VALIDATION_FAILED_ERROR =
+  "There was a problem with the information you provided.";
+const BAD_REQUEST_ERROR =
+  "Invalid login credentials or URL. Please correct and try again.";
+const UNKNOWN_ERROR =
+  "We experienced an error when attempting to connect. Please try again later.";
+
+const TicketDestinations = (): JSX.Element => {
+  const { renderFlash } = useContext(NotificationContext);
+
+  const [
+    showAddTicketDestinationModal,
+    setShowAddTicketDestinationModal,
+  ] = useState(false);
+  const [showDeleteIntegrationModal, setShowDeleteIntegrationModal] = useState(
+    false
+  );
+  const [
+    integrationEditing,
+    setIntegrationEditing,
+  ] = useState<IIntegrationTableData>();
+  const [isUpdatingIntegration, setIsUpdatingIntegration] = useState(false);
+  const [jiraIntegrations, setJiraIntegrations] = useState<
+    IJiraIntegration[]
+  >();
+  const [zendeskIntegrations, setZendeskIntegrations] = useState<
+    IZendeskIntegration[]
+  >();
+  const [testingConnection, setTestingConnection] = useState(false);
+
+  const {
+    data: integrations,
+    isLoading: isLoadingIntegrations,
+    error: loadingIntegrationsError,
+    refetch: refetchIntegrations,
+  } = useQuery<IConfig, Error, IGlobalIntegrations>(
+    ["integrations"],
+    () => configAPI.loadAll(),
+    {
+      select: (data: IConfig) => {
+        return data.integrations;
+      },
+      onSuccess: (data) => {
+        if (data) {
+          setJiraIntegrations(data.jira);
+          setZendeskIntegrations(data.zendesk);
+        }
+      },
+    }
+  );
+
+  // TODO: Cleanup useCallbacks, add missing dependencies, use state setter functions, e.g.,
+  // `setShowAddTicketDestinationModal((prevState) => !prevState)`, instead of including state
+  // variables as dependencies for toggles, etc.
+
+  const toggleAddTicketDestinationModal = useCallback(() => {
+    setShowAddTicketDestinationModal(!showAddTicketDestinationModal);
+  }, [showAddTicketDestinationModal, setShowAddTicketDestinationModal]);
+
+  const toggleDeleteIntegrationModal = useCallback(
+    (integration?: IIntegrationTableData) => {
+      setShowDeleteIntegrationModal(!showDeleteIntegrationModal);
+      integration
+        ? setIntegrationEditing(integration)
+        : setIntegrationEditing(undefined);
+    },
+    [
+      showDeleteIntegrationModal,
+      setShowDeleteIntegrationModal,
+      setIntegrationEditing,
+    ]
+  );
+
+  const onAddSubmit = useCallback(
+    (integrationSubmitData: IIntegration[], integrationDestination: string) => {
+      // Updates either integrations.jira or integrations.zendesk
+      const destination = () => {
+        if (integrationDestination === "jira") {
+          return {
+            jira: integrationSubmitData,
+            zendesk: zendeskIntegrations,
+          };
+        }
+        return {
+          zendesk: integrationSubmitData,
+          jira: jiraIntegrations,
+        };
+      };
+
+      setTestingConnection(true);
+      configAPI
+        .update({ integrations: destination() })
+        .then(() => {
+          renderFlash(
+            "success",
+            <>
+              Successfully added{" "}
+              <b>
+                {integrationSubmitData[integrationSubmitData.length - 1].url} -{" "}
+                {integrationSubmitData[integrationSubmitData.length - 1]
+                  .project_key ||
+                  integrationSubmitData[integrationSubmitData.length - 1]
+                    .group_id}
+              </b>
+            </>
+          );
+          toggleAddTicketDestinationModal();
+          refetchIntegrations();
+        })
+        .catch((addError: { data: IApiError }) => {
+          if (addError.data?.message.includes("Validation Failed")) {
+            if (
+              addError.data?.errors[0].reason.includes(
+                "duplicate Jira integration"
+              )
+            ) {
+              renderFlash(
+                "error",
+                <>
+                  Could not add{" "}
+                  <b>
+                    {
+                      integrationSubmitData[integrationSubmitData.length - 1]
+                        .url
+                    }{" "}
+                    -{" "}
+                    {integrationSubmitData[integrationSubmitData.length - 1]
+                      .project_key ||
+                      integrationSubmitData[integrationSubmitData.length - 1]
+                        .group_id}
+                  </b>
+                  . This integration already exists
+                </>
+              );
+            } else {
+              renderFlash("error", VALIDATION_FAILED_ERROR);
+            }
+          } else if (addError.data?.message.includes("Bad request")) {
+            renderFlash("error", BAD_REQUEST_ERROR);
+          } else if (addError.data?.message.includes("Unknown Error")) {
+            renderFlash("error", UNKNOWN_ERROR);
+          } else {
+            renderFlash(
+              "error",
+              <>
+                Could not add{" "}
+                <b>
+                  {integrationSubmitData[integrationSubmitData.length - 1].url}
+                </b>
+                . Please try again.
+              </>
+            );
+          }
+        })
+        .finally(() => {
+          setTestingConnection(false);
+        });
+    },
+    [toggleAddTicketDestinationModal]
+  );
+
+  const onDeleteSubmit = useCallback(() => {
+    if (integrationEditing) {
+      const deleteIntegrationDestination = () => {
+        if (integrationEditing.type === "jira") {
+          integrations?.jira.splice(integrationEditing.originalIndex, 1);
+          return configAPI.update({
+            integrations: {
+              jira: integrations?.jira,
+              zendesk: zendeskIntegrations,
+            },
+          });
+        }
+        integrations?.zendesk.splice(integrationEditing.originalIndex, 1);
+        return configAPI.update({
+          integrations: {
+            zendesk: integrations?.zendesk,
+            jira: jiraIntegrations,
+          },
+        });
+      };
+      setIsUpdatingIntegration(true);
+      deleteIntegrationDestination()
+        .then(() => {
+          renderFlash(
+            "success",
+            <>
+              Successfully deleted{" "}
+              <b>
+                {integrationEditing.url} -{" "}
+                {integrationEditing.projectKey ||
+                  integrationEditing.groupId?.toString()}
+              </b>
+            </>
+          );
+          refetchIntegrations();
+        })
+        .catch(() => {
+          renderFlash(
+            "error",
+            <>
+              Could not delete{" "}
+              <b>
+                {integrationEditing.url} -{" "}
+                {integrationEditing.projectKey ||
+                  integrationEditing.groupId?.toString()}
+              </b>
+              . Please try again.
+            </>
+          );
+        })
+        .finally(() => {
+          setIsUpdatingIntegration(false);
+          toggleDeleteIntegrationModal();
+        });
+    }
+  }, [integrationEditing, toggleDeleteIntegrationModal]);
+
+  const onActionSelection = useCallback(
+    (action: string, integration: IIntegrationTableData): void => {
+      switch (action) {
+        case "delete":
+          toggleDeleteIntegrationModal(integration);
+          break;
+        default:
+        // do nothing
+      }
+    },
+    [toggleDeleteIntegrationModal]
+  );
+
+  const tableHeaders = useMemo(() => generateTableHeaders(onActionSelection), [
+    onActionSelection,
+  ]);
+
+  const tableData = useMemo(
+    () => combineDataSets(jiraIntegrations || [], zendeskIntegrations || []),
+    [jiraIntegrations, zendeskIntegrations]
+  );
+
+  const renderTable = () => {
+    if (loadingIntegrationsError) {
+      return <TableDataError />;
+    }
+    if (isLoadingIntegrations) {
+      return <Spinner />;
+    }
+    return (
+      <TableContainer
+        columnConfigs={tableHeaders}
+        data={tableData}
+        defaultSortHeader="name"
+        defaultSortDirection="asc"
+        isLoading={false}
+        actionButton={{
+          name: "add integration",
+          buttonText: "Add integration",
+          variant: "default",
+          onClick: toggleAddTicketDestinationModal,
+          hideButton: !tableData?.length,
+        }}
+        resultsTitle="integrations"
+        emptyComponent={() => (
+          <EmptyState
+            header="No ticket destinations"
+            info="Create tickets whenever Fleet detects vulnerabilities or failing policies."
+            primaryButton={
+              <Button onClick={toggleAddTicketDestinationModal}>
+                Add ticket destination
+              </Button>
+            }
+          />
+        )}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        disablePagination
+      />
+    );
+  };
+
+  return (
+    <SettingsSection title="Ticket destinations" className={baseClass}>
+      <PageDescription
+        content={
+          <>
+            Add or edit integrations to create tickets when Fleet detects new
+            vulnerabilities.{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/policy-automations`}
+              text="Learn more"
+              newTab
+            />
+          </>
+        }
+        variant="right-panel"
+      />
+      {renderTable()}
+      {showAddTicketDestinationModal && (
+        <AddTicketDestinationModal
+          onCancel={toggleAddTicketDestinationModal}
+          onSubmit={onAddSubmit}
+          integrations={integrations || { jira: [], zendesk: [] }}
+          testingConnection={testingConnection}
+        />
+      )}
+      {showDeleteIntegrationModal && (
+        <DeleteIntegrationModal
+          onCancel={toggleDeleteIntegrationModal}
+          onSubmit={onDeleteSubmit}
+          url={integrationEditing?.url || ""}
+          projectKey={
+            integrationEditing?.projectKey ||
+            integrationEditing?.groupId?.toString() ||
+            ""
+          }
+          isUpdatingIntegration={isUpdatingIntegration}
+        />
+      )}
+    </SettingsSection>
+  );
+};
+
+export default TicketDestinations;

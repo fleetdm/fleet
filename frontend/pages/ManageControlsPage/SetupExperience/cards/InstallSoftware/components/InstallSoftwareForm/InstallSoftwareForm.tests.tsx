@@ -8,12 +8,17 @@ import {
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
+import mdmAPI from "services/entities/mdm";
 
 import InstallSoftwareForm from "./InstallSoftwareForm";
 
 const render = createCustomRenderer({ withBackendMock: true });
 
 describe("InstallSoftware", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it("should render the expected message if there are no software titles to select from", () => {
     render(
       <InstallSoftwareForm
@@ -126,7 +131,7 @@ describe("InstallSoftware", () => {
     });
   });
 
-  it('should render the "Cancel setup if software install fails" form for macos platform', async () => {
+  it('should render the "Cancel setup if software fails" form for macos platform', async () => {
     render(
       <InstallSoftwareForm
         savedRequireAllSoftwareMacOS
@@ -155,11 +160,91 @@ describe("InstallSoftware", () => {
 
     await waitFor(() => {
       const checkbox = screen.getByRole("checkbox", {
-        name: /Cancel setup if software install fails/,
+        name: /Cancel setup if software fails/,
       });
       expect(checkbox).toBeVisible();
       expect(checkbox).toBeChecked();
     });
+  });
+
+  it('should render the "Cancel setup if software fails" form for windows platform', async () => {
+    render(
+      <InstallSoftwareForm
+        savedRequireAllSoftwareWindows
+        isWindowsMdmEnabled
+        currentTeamId={1}
+        softwareTitles={[
+          createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              install_during_setup: true,
+            }),
+          }),
+          createMockSoftwareTitle(),
+        ]}
+        hasManualAgentInstall={false}
+        platform="windows"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
+      />
+    );
+
+    await waitFor(() => {
+      const checkbox = screen.getByRole("checkbox", {
+        name: /Cancel setup if software fails/,
+      });
+      expect(checkbox).toBeVisible();
+      expect(checkbox).toBeChecked();
+    });
+  });
+
+  it("calls the Windows require-all API on Save when the Windows checkbox is toggled", async () => {
+    const updateRequireAllSoftwareWindowsSpy = jest
+      .spyOn(mdmAPI, "updateRequireAllSoftwareWindows")
+      .mockResolvedValue({});
+
+    const { user } = render(
+      <InstallSoftwareForm
+        savedRequireAllSoftwareWindows={false}
+        isWindowsMdmEnabled
+        currentTeamId={1}
+        softwareTitles={[createMockSoftwareTitle()]}
+        hasManualAgentInstall={false}
+        platform="windows"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
+      />
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /Cancel setup if software fails/,
+      })
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(updateRequireAllSoftwareWindowsSpy).toHaveBeenCalledWith(1, true);
+    });
+  });
+
+  it("disables the Windows checkbox when Windows MDM is not configured", async () => {
+    render(
+      <InstallSoftwareForm
+        savedRequireAllSoftwareWindows={false}
+        isWindowsMdmEnabled={false}
+        currentTeamId={1}
+        softwareTitles={[createMockSoftwareTitle()]}
+        hasManualAgentInstall={false}
+        platform="windows"
+        router={createMockRouter()}
+        refetchSoftwareTitles={noop}
+      />
+    );
+
+    const checkbox = screen.getByRole("checkbox", {
+      name: /Cancel setup if software fails/,
+    });
+    expect(checkbox).toHaveAttribute("aria-disabled", "true");
   });
 
   it("should disable adding software for macos with manual agent install", async () => {

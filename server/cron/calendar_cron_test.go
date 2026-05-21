@@ -704,6 +704,17 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		return nil
 	}
 
+	// On Tuesdays during work hours, events get scheduled for the next 30-min
+	// slot today and can elapse before the second cron runs. deleteCalendarEvent
+	// then skips the calendar delete (eventInFuture is false) and events leak
+	// into the assertion below. Push StartTime/EndTime far enough out that the
+	// boundary can never be crossed during the test.
+	futureStart := time.Now().Add(24 * time.Hour)
+	for _, ev := range eventPerHost {
+		ev.StartTime = futureStart
+		ev.EndTime = futureStart.Add(30 * time.Minute)
+	}
+
 	err = cronCalendarEvents(ctx, ds, distributedLock, defaultCalendarConfig, logger)
 	require.NoError(t, err)
 

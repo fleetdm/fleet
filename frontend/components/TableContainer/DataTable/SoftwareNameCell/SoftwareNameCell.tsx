@@ -133,6 +133,7 @@ const InstallIconWithTooltip = ({
         underline={false}
         position="top"
         tipOffset={12}
+        fixedPositionStrategy
       >
         <Icon
           name={iconName}

@@ -345,6 +345,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "Cavalry",
+      "slug": "cavalry/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.scenegroup.cavalry",
+      "description": "Cavalry is a motion design and animation app."
+    },
+    {
       "name": "Charles",
       "slug": "charles/darwin",
       "platform": "darwin",
@@ -644,6 +651,20 @@
       "platform": "windows",
       "unique_identifier": "Druva inSync",
       "description": "Druva inSync is a cloud-based product that protects endpoint data."
+    },
+    {
+      "name": "Duo Desktop",
+      "slug": "duo-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.duosecurity.duo-device-health",
+      "description": "Duo Desktop is an app that checks the health and security posture of macOS, Windows, and Linux devices at every login."
+    },
+    {
+      "name": "Duo Desktop",
+      "slug": "duo-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Duo Desktop",
+      "description": "Duo Desktop is an app that checks the health and security posture of macOS, Windows, and Linux devices at every login."
     },
     {
       "name": "Eclipse IDE",
@@ -1318,6 +1339,13 @@
       "description": "OneDrive is Microsoft's cloud storage client."
     },
     {
+      "name": "OpenVPN Connect",
+      "slug": "openvpn-connect/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.openvpn.client.app",
+      "description": "OpenVPN Connect is a VPN client that provides secure remote access to networks and services."
+    },
+    {
       "name": "Opera",
       "slug": "opera/darwin",
       "platform": "darwin",
@@ -1512,6 +1540,13 @@
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
       "description": "Santa is a binary authorization system for macOS."
+    },
+    {
+      "name": "Secretive",
+      "slug": "secretive/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.maxgoedjen.Secretive.Host",
+      "description": "Secretive is a fully native Mac app that lets you protect and manage SSH keys with your Mac's Secure Enclave."
     },
     {
       "name": "Sequel Ace",
@@ -1946,6 +1981,13 @@
       "platform": "darwin",
       "unique_identifier": "com.wrike.Wrike",
       "description": "Wrike is a project management app."
+    },
+    {
+      "name": "XCreds",
+      "slug": "xcreds/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.twocanoes.xcreds",
+      "description": "XCreds is an app that syncs a user's cloud identity provider password with their macOS login password."
     },
     {
       "name": "Yubico Authenticator",

@@ -1,0 +1,56 @@
+name: Test fleet-slackbot
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/fleet-slackbot/**'
+      - '.github/workflows/test-fleet-slackbot.yml'
+  pull_request:
+    paths:
+      - 'tools/fleet-slackbot/**'
+      - '.github/workflows/test-fleet-slackbot.yml'
+  workflow_dispatch: # Manual
+
+# This allows a subsequently queued workflow run to interrupt previous runs.
+# For PRs, github.head_ref groups by source branch. For pushes (e.g. main),
+# head_ref is empty so we fall back to github.ref so successive pushes to the
+# same branch share a group and cancellation actually applies.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: tools/fleet-slackbot
+        run: yarn install --frozen-lockfile
+
+      - name: Run tests
+        working-directory: tools/fleet-slackbot
+        run: yarn test

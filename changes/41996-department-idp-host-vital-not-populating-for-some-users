@@ -1,0 +1,1 @@
+- Fixed an issue where the IdP "Department" host vital would not populate for users whose IdP-to-SCIM mapping included enterprise extension attributes that Fleet does not store.

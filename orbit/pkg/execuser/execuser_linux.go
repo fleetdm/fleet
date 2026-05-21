@@ -175,7 +175,22 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 		Str("session_type", userDisplaySession.Type.String()).
 		Msg("running sudo")
 
-	args = []string{"-n", "-i", "-u", user, "-H"}
+	// On openSUSE Leap 16+ we drop -i (login shell). With -i, sudo runs the target
+	// user's shell as a login shell and passes the rest of the command via
+	// `bash --login -c`, which sources /etc/profile and /etc/profile.d/* and
+	// shell-escapes the inline command. On Leap 16 that environment indirection
+	// causes our `env KEY=val ... fleet-desktop` invocation to lose env vars, so
+	// fleet-desktop exits with "missing URL environment ..." and Orbit respawns it
+	// in a tight loop. -H sets HOME to the target user; sudo's default env_reset
+	// already sets USER/LOGNAME/SHELL.
+	//
+	// We keep -i on every other supported distribution to preserve the previously
+	// QA'd behavior.
+	if isOpenSUSELeap16Plus() {
+		args = []string{"-n", "-u", user, "-H"}
+	} else {
+		args = []string{"-n", "-i", "-u", user, "-H"}
+	}
 	env = make([]string, 0)
 
 	if userDisplaySession.Type == userpkg.GuiSessionTypeWayland {
@@ -198,6 +213,42 @@ func getConfigForCommand(user string, path string) (args []string, env []string,
 	)
 
 	return args, env, nil
+}
+
+// isOpenSUSELeap16Plus reports whether the host is running openSUSE Leap 16 or
+// newer. We scope the no-login-shell sudo workaround to that distribution since
+// it is the one observed to break under sudo -i; other distributions retain the
+// previous (login-shell) launch path so we don't have to re-QA them.
+func isOpenSUSELeap16Plus() bool {
+	data, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return false
+	}
+	var id, versionID string
+	for line := range strings.SplitSeq(string(data), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		// /etc/os-release values may be quoted.
+		value = strings.Trim(value, `"'`)
+		switch key {
+		case "ID":
+			id = value
+		case "VERSION_ID":
+			versionID = value
+		}
+	}
+	if id != "opensuse-leap" {
+		return false
+	}
+	// VERSION_ID is typically "16" or "16.0"; compare the major component.
+	major, _, _ := strings.Cut(versionID, ".")
+	n, err := strconv.Atoi(major)
+	if err != nil {
+		return false
+	}
+	return n >= 16
 }
 
 // getUserWaylandDisplay returns the value to set on WAYLAND_DISPLAY for the given user.

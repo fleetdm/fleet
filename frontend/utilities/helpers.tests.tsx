@@ -80,7 +80,7 @@ describe("helpers utilities", () => {
   });
 
   describe("setupData function", () => {
-    it("sets org_logo_url_light_background to the same value as org_logo_url", () => {
+    it("excludes the org logo file from the JSON setup payload", () => {
       const formData: IRegistrationFormData = {
         email: "admin@example.com",
         name: "Admin",
@@ -88,38 +88,14 @@ describe("helpers utilities", () => {
         password_confirmation: "password123",
         org_name: "Fleet",
         org_web_url: "",
-        org_logo_url: "https://example.com/logo.png",
+        org_logo_file: new File(["x"], "logo.png", { type: "image/png" }),
         fleet_web_address: "",
         server_url: "https://fleet.example.com",
       };
 
       const result = helpers.setupData(formData);
 
-      expect(result.org_info.org_logo_url).toEqual(
-        "https://example.com/logo.png"
-      );
-      expect(result.org_info.org_logo_url_light_background).toEqual(
-        "https://example.com/logo.png"
-      );
-    });
-
-    it("sets org_logo_url_light_background to empty string when org_logo_url is not provided", () => {
-      const formData: IRegistrationFormData = {
-        email: "admin@example.com",
-        name: "Admin",
-        password: "password123",
-        password_confirmation: "password123",
-        org_name: "Fleet",
-        org_web_url: "",
-        org_logo_url: "",
-        fleet_web_address: "",
-        server_url: "https://fleet.example.com",
-      };
-
-      const result = helpers.setupData(formData);
-
-      expect(result.org_info.org_logo_url).toEqual("");
-      expect(result.org_info.org_logo_url_light_background).toEqual("");
+      expect(result.org_info).toEqual({ org_name: "Fleet" });
     });
   });
 });

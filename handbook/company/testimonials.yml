@@ -9,6 +9,13 @@
 #.  productCategories: [Observability, Software management, Device management]
 #
 # TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
+- quote: Fleet has some of the best API tooling we've used in a long time!
+  quoteAuthorName: Andy Gombar
+  quoteAuthorProfileImageFilename: testimonial-author-andy-gombar-100x100@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/andrew-gombar-8846b7155
+  quoteAuthorJobTitle: Staff Incident Response Security Engineer
+  quoteImageFilename: social-proof-logo-webflow-191x32@2x.png
+  productCategories: [Observability]
 - quote: I think it is key that people understand the leverage they have with AI if everything is 'code'. In the AI age, clickops will not prevail!
   quoteAuthorName: Thomas Lübker
   quoteAuthorProfileImageFilename: testimonial-author-thomas-luebker-48x48@2x.png
@@ -281,6 +288,12 @@
   quoteAuthorProfileImageFilename: adam-anklewicz-120x120@2x.png
   quoteAuthorJobTitle: Manager of IT Endpoint Engineering, Thumbtack
   productCategories: [Device management]
+- quote: When Adobe released a patch for the recent Acrobat Reader zero day, I decided to take a look at Fleet's patch management capabilities, and I was surprised at just how quickly a patch policy could be created and deployed. I didn't have to create the query and I didn't have to source the package, since it was one of Fleet's maintained apps. Really great work on making this so effortless by the team at Fleet Device Management.
+  quoteAuthorName: Brian LaShomb
+  quoteAuthorProfileImageFilename: testimonial-author-brian-lashomb-100x100@2x.png
+  quoteLinkUrl: https://www.linkedin.com/posts/brian-lashomb-8056705_when-adobe-released-a-patch-for-the-recent-share-7449543960177569792-EMew
+  quoteAuthorJobTitle: Senior Client Platform Engineer, Epic Games
+  productCategories: [Software management]
 # -
 #   quote: Thank you for enabling SCIM for the admin interface! You have solved de-provisioning for us because if an admin leaves their identity gets turned off automatically by Okta. We also can quickly check user roles in Okta without needing to login to FleetDM or monitoring user_role.yaml with GitOps.
 #   quoteAuthorName: Nick Borgers

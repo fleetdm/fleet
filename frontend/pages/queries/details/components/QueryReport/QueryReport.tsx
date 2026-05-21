@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useCallback } from "react";
+import React, { useState, useContext, useMemo, useCallback } from "react";
 
 import { Row, Column } from "react-table";
 import FileSaver from "file-saver";
@@ -9,6 +9,7 @@ import {
   generateCSVQueryResults,
 } from "utilities/generate_csv";
 import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
+import PATHS from "router/paths";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -17,12 +18,15 @@ import TableCount from "components/TableContainer/TableCount";
 import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 import TooltipWrapper from "components/TooltipWrapper";
 import EmptyState from "components/EmptyState";
+import CustomLink from "components/CustomLink";
 
 import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 
 interface IQueryReportProps {
   queryReport?: IQueryReport;
+  queryId: number;
   isClipped?: boolean;
+  canLiveQuery?: boolean;
 }
 
 const baseClass = "query-report";
@@ -44,28 +48,24 @@ const flattenResults = (results: IQueryReportResultRow[]) => {
 
 const QueryReport = ({
   queryReport,
+  queryId,
   isClipped,
+  canLiveQuery,
 }: IQueryReportProps): JSX.Element => {
   const { lastEditedQueryName } = useContext(QueryContext);
 
   const [filteredResults, setFilteredResults] = useState<Row[]>(
     flattenResults(queryReport?.results || [])
   );
-  const [columnConfigs, setColumnConfigs] = useState<Column[]>([]);
-
-  useEffect(() => {
-    if (queryReport && queryReport.results && queryReport.results.length > 0) {
-      const newColumnConfigs = generateReportColumnConfigsFromResults(
+  const columnConfigs = useMemo<Column[]>(() => {
+    if (queryReport?.results?.length) {
+      return generateReportColumnConfigsFromResults(
         flattenResults(queryReport.results),
         queryReport.query_id
       );
-
-      // Update tableHeaders if new headers are found
-      if (newColumnConfigs !== columnConfigs) {
-        setColumnConfigs(newColumnConfigs);
-      }
     }
-  }, [queryReport]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
+    return [];
+  }, [queryReport]);
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -134,7 +134,22 @@ const QueryReport = ({
               <EmptyState
                 className={baseClass}
                 header="Nothing to report yet"
-                info="This report has returned no data so far."
+                info={
+                  <>
+                    This report hasn&apos;t returned data yet.
+                    {canLiveQuery && (
+                      <>
+                        <br />
+                        Expecting to see results? Run a{" "}
+                        <CustomLink
+                          url={PATHS.LIVE_REPORT(queryId)}
+                          text="live report"
+                        />{" "}
+                        to troubleshoot.
+                      </>
+                    )}
+                  </>
+                }
               />
             );
           }}

@@ -32,3 +32,5 @@
     Screen lock should be automatically enforced by MDM. If this fails, restart the Mac and refetch in Fleet Desktop.
     If it still fails, drop a note in #help-it.
   platform: darwin
+  labels_exclude_any:
+    - macOS screen lock exclusions

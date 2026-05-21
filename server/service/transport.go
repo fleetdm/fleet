@@ -664,6 +664,27 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	return hopt, nil
 }
 
+func labelListOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return fleet.ListOptions{}, err
+	}
+
+	includeHostCountsStr := r.URL.Query().Get("include_host_counts")
+	if includeHostCountsStr != "" && opt.OrderKey == "host_count" {
+		includeHostCounts, parseErr := strconv.ParseBool(includeHostCountsStr)
+		if parseErr == nil && !includeHostCounts {
+			return fleet.ListOptions{}, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Invalid order_key (host_count cannot be ordered when they are disabled)",
+				),
+			)
+		}
+	}
+
+	return opt, nil
+}
+
 func carveListOptionsFromRequest(r *http.Request) (fleet.CarveListOptions, error) {
 	opt, err := listOptionsFromRequest(r)
 	if err != nil {

@@ -65,7 +65,7 @@ func (r GetLabelResponse) Error() error { return r.Err }
 ////////////////////////////////////////////////////////////////////////////////
 
 type ListLabelsRequest struct {
-	ListOptions       ListOptions `url:"list_options"`
+	ListOptions       ListOptions `url:"label_list_options"`
 	TeamID            *string     `query:"team_id,optional" renameto:"fleet_id"` // string because it's an int or "global"
 	IncludeHostCounts *bool       `query:"include_host_counts,optional"`
 }

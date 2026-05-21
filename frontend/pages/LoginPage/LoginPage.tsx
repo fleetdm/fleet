@@ -189,7 +189,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
       };
       const errorObject = formatErrorResponse(ssoError);
       setErrors(errorObject);
-      return false;
     }
   }, [redirectLocation]);
 

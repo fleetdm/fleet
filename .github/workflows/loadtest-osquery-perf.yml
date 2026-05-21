@@ -21,6 +21,11 @@ on:
         type: string
         default: 0
         required: true
+      loadtest_containers_increment:
+        description: "Increment for enroll.sh loop. (Default: 4)."
+        type: string
+        default: 4
+        required: true
       task_size:
         description: "CPU and Memory setting for osquery-perf containers. Example: {\"cpu\":\"4096\",\"memory\":\"8192\"}"
         type: string
@@ -98,10 +103,24 @@ jobs:
       - name: Terraform Init
         id: init
         run: terraform init
+      - name: Check infra workspace exists
+        id: check-infra-workspace
+        working-directory: infrastructure/loadtesting/terraform/infra
+        run: |
+          echo "infra_workspace_missing=true" >> $GITHUB_OUTPUT
+          terraform init
+          if terraform workspace list | sed 's/^[* ]*//' | grep -Fxq "${{ inputs.terraform_workspace }}"; then
+            echo -e "\n\nOK: matching infra workspace '${{ inputs.terraform_workspace }}' exists."
+            echo "infra_workspace_missing=false" >> $GITHUB_OUTPUT
+          else
+            echo -e "\n\nBLOCK: infra workspace '${{ inputs.terraform_workspace }}' does not exist."
+            echo "Deploy the infra workspace first, then deploy osquery-perf."
+            exit 1
+          fi
       - name: Terraform workspace
         id: workspace
         run: |
-          if terraform workspace list | grep -q ${{ inputs.terraform_workspace }};
+          if terraform workspace list | sed 's/^[* ]*//' | grep -Fxq "${{ inputs.terraform_workspace }}";
           then
             echo "MATCH - TF_WORKSPACE: ${{ inputs.terraform_workspace }}\n"
             
@@ -156,7 +175,7 @@ jobs:
           if [[ `terraform workspace show` = "${{ inputs.terraform_workspace }}" ]];
           then
             echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"
-            ./enroll.sh ${{ inputs.git_tag_branch }} "${{ inputs.task_size }}" ${{ inputs.loadtest_containers_starting_index}} ${{ inputs.loadtest_containers }} ${{ inputs.sleep_time }} 
+            ./enroll.sh ${{ inputs.git_tag_branch }} "${{ inputs.task_size }}" ${{ inputs.loadtest_containers_starting_index}} ${{ inputs.loadtest_containers }} ${{ inputs.sleep_time }} ${{ inputs.loadtest_containers_increment }}
           else
             echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ inputs.terraform_workspace }}"
           fi

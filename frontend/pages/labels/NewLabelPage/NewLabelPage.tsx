@@ -594,15 +594,6 @@ const NewLabelPage = ({
       </div>
       {renderVariableFields()}
       <div className="button-wrap">
-        <Button
-          onClick={() => {
-            router.goBack();
-          }}
-          variant="inverse"
-          disabled={isUpdating}
-        >
-          Cancel
-        </Button>
         <GitOpsModeTooltipWrapper
           entityType="labels"
           renderChildren={(disableChildren) => (
@@ -615,6 +606,15 @@ const NewLabelPage = ({
             </Button>
           )}
         />
+        <Button
+          onClick={() => {
+            router.goBack();
+          }}
+          variant="inverse"
+          disabled={isUpdating}
+        >
+          Cancel
+        </Button>
       </div>
     </form>
   );

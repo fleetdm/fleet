@@ -54,6 +54,10 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"org_settings.server_settings.query_reports_disabled", "org_settings.server_settings.discard_reports_data"},
 	{"org_settings.server_settings.query_report_cap", "org_settings.server_settings.report_cap"},
 
+	// Org settings: org_info logo URL fields renamed to mode-aware variants.
+	{"org_settings.org_info.org_logo_url", "org_settings.org_info.org_logo_url_dark_mode"},
+	{"org_settings.org_info.org_logo_url_light_background", "org_settings.org_info.org_logo_url_light_mode"},
+
 	// Nested keys in org_settings.mdm.apple_business_manager[]
 	{"org_settings.mdm.apple_business_manager[].macos_team", "org_settings.mdm.apple_business_manager[].macos_fleet"},
 	{"org_settings.mdm.apple_business_manager[].ios_team", "org_settings.mdm.apple_business_manager[].ios_fleet"},

@@ -28,6 +28,19 @@ func (s HostCertificateSource) IsValid() bool {
 	}
 }
 
+// HostCertificateOrigin identifies the ingestion path that recorded a
+// host_certificates row. It scopes deletion semantics: each ingestion source
+// only soft-deletes rows it owns, so an osquery sync omitting an MDM-only cert
+// does not remove that cert, and vice versa.
+//
+// Internal-only: not exposed in the public API.
+type HostCertificateOrigin string
+
+const (
+	HostCertificateOriginOsquery HostCertificateOrigin = "osquery"
+	HostCertificateOriginMDM     HostCertificateOrigin = "mdm"
+)
+
 // HostCertificateRecord is the database model for a host certificate.
 type HostCertificateRecord struct {
 	ID     uint `json:"-" db:"id"`
@@ -65,6 +78,10 @@ type HostCertificateRecord struct {
 
 	Source   HostCertificateSource `json:"-" db:"source"`
 	Username string                `json:"-" db:"username"` // username that owns the certificate, only if source == 'user'
+
+	// Origin identifies the ingestion source (osquery vs mdm). Used internally to
+	// scope deletion semantics; not exposed in the public API.
+	Origin HostCertificateOrigin `json:"-" db:"origin"`
 }
 
 func NewHostCertificateRecord(

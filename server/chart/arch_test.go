@@ -61,9 +61,11 @@ func TestChartPackageDependencies(t *testing.T) {
 			ignoreDeps: []string{m + "/server/chart/api"},
 		},
 		{
-			name:       "internal/mysql depends on chart, types, and platform",
-			pkg:        m + "/server/chart/internal/mysql",
-			ignoreDeps: slices.Concat(chartPkgs, platformPkgs),
+			name: "internal/mysql depends on chart, types, and platform",
+			pkg:  m + "/server/chart/internal/mysql",
+			ignoreDeps: slices.Concat(chartPkgs, platformPkgs, []string{
+				m + "/server/chart/internal/testutils",
+			}),
 		},
 		{
 			name:       "internal/service depends on chart and platform packages",
@@ -84,6 +86,7 @@ func TestChartPackageDependencies(t *testing.T) {
 			ignoreDeps: slices.Concat([]string{
 				m + "/server/chart/internal/mysql",
 				m + "/server/chart/internal/service",
+				m + "/server/chart/internal/testutils",
 			}, chartPkgs, platformPkgs),
 		},
 	}

@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 
-import { IFormattedDataPoint } from "./types";
+import { IFormattedDataPoint } from "interfaces/charts";
 
 const baseClass = "chart-card";
 

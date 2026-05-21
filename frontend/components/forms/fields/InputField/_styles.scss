@@ -1,11 +1,11 @@
 .input-field {
-  line-height: 1.5;
+  line-height: $line-height;
   background-color: $core-fleet-white;
   border: solid 1px $ui-fleet-black-10;
   border-radius: $border-radius;
   font-size: $x-small;
   padding: $pad-small $pad-medium;
-  color: $core-fleet-blue;
+  color: $core-fleet-black;
   font-family: "Inter", sans-serif;
   box-sizing: border-box;
   height: 36px;
@@ -16,12 +16,6 @@
     color: $ui-fleet-black-50;
   }
 
-  &:hover:not(.input-field--read-only) {
-    box-shadow: none;
-    border: 1px solid $ui-fleet-black-75-over;
-  }
-
-  &:active:not(.input-field--read-only),
   &:focus:not(.input-field--read-only),
   &:focus-visible:not(.input-field--read-only) {
     box-shadow: none;
@@ -79,7 +73,7 @@
   &__help-text {
     font-size: $x-small;
     font-weight: $regular;
-    line-height: 1.57;
+    line-height: $line-height;
     letter-spacing: 1px;
     color: $core-fleet-blue;
 

@@ -17,7 +17,7 @@ export interface IInputFieldWithIconProps {
   iconSvg?: IconName;
   label?: string;
   name?: string;
-  onChange?: (value: any) => void;
+  onChange?: (value: string) => void;
   onClick?: (evt: React.MouseEvent<HTMLInputElement>) => void;
   clearButton?: boolean;
   placeholder?: string;

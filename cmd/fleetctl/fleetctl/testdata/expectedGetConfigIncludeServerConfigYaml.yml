@@ -23,6 +23,9 @@ spec:
   features:
     enable_host_users: true
     enable_software_inventory: false
+    historical_data:
+      uptime: true
+      vulnerabilities: true
   integrations:
     conditional_access_enabled: null
     google_calendar: null
@@ -150,6 +153,8 @@ spec:
   org_info:
     org_logo_url: ""
     org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: ""
     contact_url: https://fleetdm.com/company/contact
   server_settings:

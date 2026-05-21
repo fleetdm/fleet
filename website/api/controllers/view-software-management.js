@@ -36,7 +36,8 @@ module.exports = {
       'Erik Gomez',
       'Eric Tan',
       'Dan Grzelak',
-      'Justin LaBo'
+      'Justin LaBo',
+      'Brian LaShomb',
     ];
 
     // Filter the testimonials by product category

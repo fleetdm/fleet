@@ -170,3 +170,10 @@
   autoIssue:  
     labels: [ ":help-marketing",":mktg-ritual" ] 
     repo: "confidential"
+-
+  task: "Catch up on #help-marketing posts"
+  startedOn: "2026-05-01"
+  frequency: "Monthly"
+  description: "Stop by and hang out in #help-marketing monthly and catch up with all new posts."
+  moreInfoUrl: ""
+  dri: "mikermcneil"
