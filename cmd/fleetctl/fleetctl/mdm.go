@@ -28,6 +28,7 @@ func mdmCommand() *cli.Command {
 			mdmLockCommand(),
 			mdmUnlockCommand(),
 			mdmWipeCommand(),
+			mdmClearPasscodeCommand(),
 		},
 	}
 }
@@ -243,6 +244,51 @@ fleetctl get host %s
 
 `, hostIdent)
 
+			return nil
+		},
+	}
+}
+
+// mdmClearPasscodeCommand issues an MDM clear-passcode request. Supported on iOS/iPadOS hosts
+// (clears the device passcode) and Android hosts (clears the work-profile passcode on BYO; the
+// device passcode on COBO). Other platforms are rejected by the server.
+func mdmClearPasscodeCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "clear-passcode",
+		Aliases: []string{"clear_passcode"},
+		Usage:   "Clear the passcode on a host. Supported on iOS, iPadOS, and Android.",
+		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
+			Name:     "host",
+			Usage:    "The host, specified by hostname, UUID, or serial number.",
+			Required: true,
+		}},
+		Action: func(c *cli.Context) error {
+			hostIdent := c.String("host")
+
+			client, host, err := hostMdmActionSetup(c, hostIdent, "clear passcode for")
+			if err != nil {
+				return err
+			}
+
+			res, err := client.MDMClearPasscodeHost(host.ID)
+			if err != nil {
+				return fmt.Errorf("Failed to clear passcode on host: %w", err)
+			}
+
+			// res.CommandUUID is informative for Apple (a real MDM command UUID that surfaces in
+			// `fleetctl get mdm-command-results`); for Android it's a placeholder the server
+			// returns to keep the shape consistent. Print it either way for symmetry with run-command.
+			fmt.Fprintf(c.App.Writer, `
+The host's passcode will be cleared when it comes online.
+
+Copy and run this command to see results:
+
+fleetctl get host %s
+
+`, hostIdent)
+			if res != nil && res.CommandUUID != "" {
+				fmt.Fprintf(c.App.Writer, "Command UUID: %s\n", res.CommandUUID)
+			}
 			return nil
 		},
 	}

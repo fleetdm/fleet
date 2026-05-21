@@ -1325,6 +1325,65 @@ func writeTmpMobileconfig(t *testing.T, name string) string {
 	return tmpFile.Name()
 }
 
+// TestMDMClearPasscodeCommand exercises the failure paths of `fleetctl mdm clear-passcode`.
+// The happy-path against a real iOS / Android host is covered by integration tests; here we
+// just confirm the subcommand is wired in, the host-required validation works, and the
+// MDM-not-on / unknown-host messages match the existing lock/wipe ergonomics.
+func TestMDMClearPasscodeCommand(t *testing.T) {
+	macEnrolled := testhost{
+		host: &fleet.Host{
+			ID: 1, UUID: "mac-enrolled-cp", Platform: "darwin",
+			MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+	}
+	macNotEnrolled := testhost{
+		host: &fleet.Host{ID: 2, UUID: "mac-not-enrolled-cp", Platform: "darwin"},
+	}
+
+	hostByUUID := map[string]testhost{
+		macEnrolled.host.UUID:    macEnrolled,
+		macNotEnrolled.host.UUID: macNotEnrolled,
+	}
+	hostsByID := map[uint]testhost{
+		macEnrolled.host.ID:    macEnrolled,
+		macNotEnrolled.host.ID: macNotEnrolled,
+	}
+
+	ds := setupTestServer(t)
+	setupDSMocks(ds, hostByUUID, hostsByID)
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		mdmInfo := hostsByID[host.ID].mdmInfo
+		return mdmInfo != nil && mdmInfo.Enrolled && mdmInfo.Name == fleet.WellKnownMDMFleet, nil
+	}
+	// Stubs required by the host-details endpoint that fleetctl hits via HostByIdentifier.
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{HostFleetPlatform: host.FleetPlatform()}, nil
+	}
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
+	appCfgAllMDM, _, _, _ := setupAppConigs()
+	cases := []struct {
+		appCfg  *fleet.AppConfig
+		desc    string
+		flags   []string
+		wantErr string
+	}{
+		{appCfgAllMDM, "no flags", nil, `Required flag "host" not set`},
+		{appCfgAllMDM, "empty host", []string{"--host", ""}, `No host targeted. Please provide --host.`},
+		{appCfgAllMDM, "unknown host", []string{"--host", "doesnotexist"}, fleet.HostNotFoundErrMsg},
+		{appCfgAllMDM, "darwin not enrolled", []string{"--host", macNotEnrolled.host.UUID}, "Can't clear passcode for the host because it doesn't have MDM turned on."},
+	}
+	for _, c := range cases {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return c.appCfg, nil }
+		_, err := runAppNoChecks(append([]string{"mdm", "clear-passcode"}, c.flags...))
+		require.Error(t, err, c.desc)
+		require.ErrorContains(t, err, c.wantErr, c.desc)
+	}
+}
+
 // sets up the test server with the mock datastore and returns the mock datastore
 func setupTestServer(t *testing.T) *mock.Store {
 	enqueuer := new(mdmmock.MDMAppleStore)
