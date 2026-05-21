@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useState } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import deepDifference from "utilities/deep_difference";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -30,7 +30,8 @@ const IntegrationsPage = ({
   params,
 }: IIntegrationSettingsPageProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, setConfig } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   let { section } = params;
   const { subsection } = params;
@@ -45,7 +46,6 @@ const IntegrationsPage = ({
     data: appConfig,
     isLoading: isLoadingAppConfig,
     isFetching: isFetchingAppConfig,
-    refetch: refetchConfig,
   } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
   });
@@ -63,7 +63,6 @@ const IntegrationsPage = ({
       // If there's no actual change, don't make the API call to update config.
       // Still refetch in case settings were changed inside a card (like end-user auth).
       if (Object.keys(diff).length === 0) {
-        refetchConfig();
         return true;
       }
 
@@ -73,9 +72,10 @@ const IntegrationsPage = ({
       diff.agent_options = formUpdates.agent_options;
 
       try {
-        await configAPI.update(diff);
+        const updatedConfig = await configAPI.update(diff);
         renderFlash("success", "Successfully updated settings.");
-        refetchConfig();
+        queryClient.setQueryData(["config"], updatedConfig);
+        setConfig(updatedConfig);
         return true;
       } catch (err: unknown) {
         renderFlash("error", "Could not update settings");
@@ -84,7 +84,7 @@ const IntegrationsPage = ({
         setIsUpdatingSettings(false);
       }
     },
-    [appConfig, refetchConfig, renderFlash]
+    [appConfig, queryClient, setConfig, renderFlash]
   );
 
   if (!appConfig) return <></>;

@@ -17,6 +17,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import logoAPI from "services/entities/logo";
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import {
   ORG_LOGO_ACCEPT,
@@ -133,6 +134,7 @@ const Info = ({
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
+  const { setConfig } = useContext(AppContext);
   const queryClient = useQueryClient();
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
@@ -316,19 +318,30 @@ const Info = ({
       if (opsByMode.dark) {
         pendingOps.push({ mode: "dark", op: opsByMode.dark });
       }
+      let lastLogoResponse: { config?: unknown } | undefined;
       // eslint-disable-next-line no-restricted-syntax
       for (const { mode, op } of pendingOps) {
         try {
           // eslint-disable-next-line no-await-in-loop
-          await op();
+          lastLogoResponse = (await op()) as { config?: unknown };
           succeededModes.push(mode);
         } catch (e) {
           failedModes.push(mode);
         }
       }
 
-      if (succeededModes.length > 0) {
-        await queryClient.invalidateQueries(["config"]);
+      // Merge the config returned by the last logo operation into the
+      // existing cache entry. The logo endpoint returns AppConfig fields
+      // but not the extra top-level fields (license, logging, etc.) that
+      // GET /config includes, so we merge to preserve them.
+      if (succeededModes.length > 0 && lastLogoResponse?.config) {
+        const logoConfig = lastLogoResponse.config as Record<string, unknown>;
+        const oldConfig = queryClient.getQueryData(["config"]) as
+          | Record<string, unknown>
+          | undefined;
+        const merged = { ...oldConfig, ...logoConfig };
+        queryClient.setQueryData(["config"], merged);
+        setConfig((merged as unknown) as Parameters<typeof setConfig>[0]);
       }
 
       const reset = (prev: ILogoModeState) => {

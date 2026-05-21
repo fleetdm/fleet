@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useState } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
 import { IConfig } from "interfaces/config";
@@ -39,11 +39,13 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
 
-  const {
-    data: appConfig,
-    isLoading: isLoadingAppConfig,
-    refetch: refetchConfig,
-  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
+  const queryClient = useQueryClient();
+
+  const { data: appConfig, isLoading: isLoadingAppConfig } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
       setConfig(data);
@@ -63,9 +65,12 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
       diff.agent_options = formUpdates.agent_options;
 
       try {
-        await configAPI.update(diff);
+        const updatedConfig = await configAPI.update(diff);
         renderFlash("success", "Successfully updated settings.");
-        refetchConfig();
+        // Use the write response directly instead of refetching to avoid
+        // stale reads from a lagging replica (read-after-write fix).
+        queryClient.setQueryData(["config"], updatedConfig);
+        setConfig(updatedConfig);
         return true;
       } catch (response) {
         const resp = response as undefined | { data: IApiError };
@@ -103,7 +108,7 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
         setIsUpdatingSettings(false);
       }
     },
-    [appConfig, refetchConfig, renderFlash]
+    [appConfig, queryClient, setConfig, renderFlash]
   );
 
   // filter out non-premium options

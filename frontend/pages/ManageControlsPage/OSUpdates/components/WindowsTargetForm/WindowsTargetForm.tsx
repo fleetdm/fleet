@@ -1,4 +1,5 @@
 import React, { useContext, useState } from "react";
+import { useQueryClient } from "react-query";
 import { isEmpty } from "lodash";
 
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
@@ -104,12 +105,11 @@ const WindowsTargetForm = ({
   currentTeamId,
   defaultDeadlineDays,
   defaultGracePeriodDays,
-  refetchAppConfig,
-  refetchTeamConfig,
 }: IWindowsTargetFormProps) => {
+  const queryClient = useQueryClient();
   const { renderFlash } = useContext(NotificationContext);
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { config, setConfig } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<IWindowsTargetFormData>({
@@ -134,16 +134,18 @@ const WindowsTargetForm = ({
       formData.gracePeriodDays
     );
     try {
-      currentTeamId === APP_CONTEXT_NO_TEAM_ID
-        ? await configAPI.update(updateData)
-        : await teamsAPI.update(updateData, currentTeamId);
+      if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
+        const updatedConfig = await configAPI.update(updateData);
+        queryClient.setQueryData(["config"], updatedConfig);
+        setConfig(updatedConfig);
+      } else {
+        const updatedTeam = await teamsAPI.update(updateData, currentTeamId);
+        queryClient.setQueryData(["team-config", currentTeamId], updatedTeam);
+      }
       renderFlash("success", "Successfully updated Windows OS update options.");
     } catch {
       renderFlash("error", "Couldn’t update. Please try again.");
     } finally {
-      currentTeamId === APP_CONTEXT_NO_TEAM_ID
-        ? refetchAppConfig()
-        : refetchTeamConfig();
       setIsSaving(false);
     }
   };

@@ -98,9 +98,9 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     formData: IDynamicLabelFormData | IManualLabelFormData
   ) => {
     try {
-      await labelsAPI.update(labelId, formData);
+      const response = await labelsAPI.update(labelId, formData);
       renderFlash("success", "Label updated successfully.");
-      queryClient.invalidateQueries(["label", labelId, currentUser]);
+      queryClient.setQueryData(["label", labelId, currentUser], response);
       queryClient.invalidateQueries(["hosts", labelId]);
       queryClient.invalidateQueries(["labels"]);
     } catch (error) {

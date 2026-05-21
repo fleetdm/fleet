@@ -7,7 +7,7 @@ import React, {
   useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -108,8 +108,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isGlobalMaintainer,
     isPremiumTier,
     isOnGlobalTeam,
+    setConfig,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+  const queryClient = useQueryClient();
 
   const {
     currentTeamId,
@@ -185,11 +187,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const canEditActivityFeedAutomations =
     isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
 
-  const { data: config, refetch: refetchConfig } = useQuery<
-    IConfig,
-    Error,
-    IConfig
-  >(["config"], () => configAPI.loadAll(), { ...DEFAULT_USE_QUERY_OPTIONS });
+  const { data: config } = useQuery<IConfig, Error, IConfig>(
+    ["config"],
+    () => configAPI.loadAll(),
+    { ...DEFAULT_USE_QUERY_OPTIONS }
+  );
 
   const { data: teams, isLoading: isLoadingTeams } = useQuery<
     ILoadTeamsResponse,
@@ -562,7 +564,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           formData.url !==
             config?.webhook_settings.activities_webhook.destination_url
         ) {
-          await configAPI.update({
+          const updatedConfig = await configAPI.update({
             webhook_settings: {
               activities_webhook: {
                 enable_activities_webhook: formData.enabled,
@@ -570,6 +572,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               },
             },
           });
+          queryClient.setQueryData(["config"], updatedConfig);
+          setConfig(updatedConfig);
         }
         renderFlash(
           "success",
@@ -583,14 +587,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         );
       } finally {
         setUpdatingActivityFeedAutomations(false);
-        refetchConfig();
         refetchActivities();
       }
     },
     [
       config?.webhook_settings.activities_webhook.destination_url,
       config?.webhook_settings.activities_webhook.enable_activities_webhook,
-      refetchConfig,
+      queryClient,
+      setConfig,
       renderFlash,
     ]
   );

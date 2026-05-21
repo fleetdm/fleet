@@ -25,7 +25,7 @@ export const baseClass = "apple-mdm-page";
 
 const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
   const queryClient = useQueryClient();
-  const { config } = useContext(AppContext);
+  const { config, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [isUpdating, setIsUpdating] = useState(false);
@@ -68,15 +68,22 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
     setIsUpdating(true);
     toggleTurnOffMdmModal();
     try {
-      await mdmAppleAPI.deleteApplePushCertificate();
-      await queryClient.invalidateQueries(["config"]);
+      const response = await mdmAppleAPI.deleteApplePushCertificate();
+      if (response?.config) {
+        const oldConfig = queryClient.getQueryData(["config"]) as
+          | Record<string, unknown>
+          | undefined;
+        const merged = { ...oldConfig, ...response.config };
+        queryClient.setQueryData(["config"], merged);
+        setConfig(merged as Parameters<typeof setConfig>[0]);
+      }
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
       renderFlash("success", "MDM turned off successfully.");
     } catch (e) {
       renderFlash("error", "Couldn't turn off MDM. Please try again.");
       setIsUpdating(false);
     }
-  }, [queryClient, renderFlash, router]);
+  }, [queryClient, setConfig, renderFlash, router]);
 
   const onRenewCert = useCallback(() => {
     refetch();

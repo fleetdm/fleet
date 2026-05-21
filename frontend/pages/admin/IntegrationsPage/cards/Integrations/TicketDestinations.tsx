@@ -1,6 +1,7 @@
 import React, { useState, useContext, useCallback, useMemo } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
 import {
@@ -41,7 +42,9 @@ const UNKNOWN_ERROR =
   "We experienced an error when attempting to connect. Please try again later.";
 
 const TicketDestinations = (): JSX.Element => {
+  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+  const queryClient = useQueryClient();
 
   const [
     showAddTicketDestinationModal,
@@ -67,7 +70,6 @@ const TicketDestinations = (): JSX.Element => {
     data: integrations,
     isLoading: isLoadingIntegrations,
     error: loadingIntegrationsError,
-    refetch: refetchIntegrations,
   } = useQuery<IConfig, Error, IGlobalIntegrations>(
     ["integrations"],
     () => configAPI.loadAll(),
@@ -125,7 +127,7 @@ const TicketDestinations = (): JSX.Element => {
       setTestingConnection(true);
       configAPI
         .update({ integrations: destination() })
-        .then(() => {
+        .then((updatedConfig) => {
           renderFlash(
             "success",
             <>
@@ -140,7 +142,10 @@ const TicketDestinations = (): JSX.Element => {
             </>
           );
           toggleAddTicketDestinationModal();
-          refetchIntegrations();
+          queryClient.setQueryData(["config"], updatedConfig);
+          setConfig(updatedConfig);
+          setJiraIntegrations(updatedConfig.integrations.jira);
+          setZendeskIntegrations(updatedConfig.integrations.zendesk);
         })
         .catch((addError: { data: IApiError }) => {
           if (addError.data?.message.includes("Validation Failed")) {
@@ -216,7 +221,7 @@ const TicketDestinations = (): JSX.Element => {
       };
       setIsUpdatingIntegration(true);
       deleteIntegrationDestination()
-        .then(() => {
+        .then((updatedConfig) => {
           renderFlash(
             "success",
             <>
@@ -228,7 +233,10 @@ const TicketDestinations = (): JSX.Element => {
               </b>
             </>
           );
-          refetchIntegrations();
+          queryClient.setQueryData(["config"], updatedConfig);
+          setConfig(updatedConfig);
+          setJiraIntegrations(updatedConfig.integrations.jira);
+          setZendeskIntegrations(updatedConfig.integrations.zendesk);
         })
         .catch(() => {
           renderFlash(

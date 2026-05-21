@@ -225,11 +225,11 @@ const PolicyDetailsPage = ({
     }
     setIsAddingAutomation(true);
     try {
-      await teamPoliciesAPI.update(policyId as number, {
+      const response = await teamPoliciesAPI.update(policyId as number, {
         team_id: storedPolicy.team_id,
         software_title_id: storedPolicy.patch_software.software_title_id,
       });
-      queryClient.invalidateQueries(["policy", policyId]);
+      queryClient.setQueryData(["policy", policyId], response);
       renderFlash("success", "Automation added.");
     } catch {
       renderFlash("error", "Couldn't set automation. Please try again.");

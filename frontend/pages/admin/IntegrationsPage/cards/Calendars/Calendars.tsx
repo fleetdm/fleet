@@ -80,7 +80,7 @@ const baseClass = "calendars-integration";
 
 const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const { currentTeam, isPremiumTier } = useContext(AppContext);
+  const { currentTeam, isPremiumTier, setConfig } = useContext(AppContext);
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<ICalendarsFormData>({
@@ -203,12 +203,15 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
     };
 
     try {
-      await configAPI.update({ integrations: destination });
+      const updatedConfig = await configAPI.update({
+        integrations: destination,
+      });
       renderFlash(
         "success",
         "Successfully saved calendar integration settings."
       );
-      await queryClient.invalidateQueries(["config"]);
+      queryClient.setQueryData(["config"], updatedConfig);
+      setConfig(updatedConfig);
     } catch (e) {
       renderFlash("error", "Could not save calendar integration settings.");
     } finally {
