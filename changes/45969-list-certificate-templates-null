@@ -1,0 +1,1 @@
+- Fixed `List certificate templates` API endpoint returning `null` instead of `[]` for the `certificates` field when no templates exist.
