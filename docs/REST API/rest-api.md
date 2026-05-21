@@ -11146,7 +11146,7 @@ Returns information about the specified software. By default, `versions` are sor
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
-`packages_count` indicates the total number of packages (installers) associated with the software title for the specified fleet. Use the [List packages for software title](#list-packages-for-software-title) endpoint to retrieve details for all packages. A software title supports a maximum of 5 packages per fleet.
+`packages_count` indicates the total number of packages (installers) associated with the software title for the specified fleet. Use the [List packages for software](#list-packages-for-software) endpoint to retrieve details for all packages. A software title supports a maximum of 5 packages per fleet.
 
 #### Example (app store app)
 
@@ -11486,91 +11486,6 @@ Linux vulnerabilities are based on kernel vulnerabilities for hosts running the 
 
 Operating systems other than Windows, macOS, and Linux do not report vulnerabilities.
 
-### List packages for software title
-
-_Available in Fleet Premium._
-
-Returns the list of packages associated with a software title. A software title can have up to 5 packages for each fleet. If multiple packages target the same host, Fleet will install the one added most recently (`uploaded_at`).
-
-`GET /api/v1/fleet/software/titles/:id/packages`
-
-#### Parameters
-
-| Name            | Type    | In    | Description                                                                                                                                          |
-| --------------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| id              | integer | path  | **Required.** The software title's ID.                                                                                                               |
-| fleet_id        | integer | query | **Required**. The fleet ID. Lists packages for the specified fleet.                                                                                  |
-
-#### Example
-
-`GET /api/v1/fleet/software/titles/12/packages?fleet_id=3`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "packages": [
-    {
-      "installer_id": 23,
-      "name": "GlobalProtect-v71.5.pkg",
-      "version": "71.5",
-      "platform": "darwin",
-      "uploaded_at": "2024-12-01T14:22:58Z",
-      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      "self_service": true,
-      "fleet_maintained_app_id": null,
-      "labels_include_any": [
-        {
-          "name": "Engineering",
-          "id": 294
-        }
-      ],
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-      "automatic_install_policies": [
-        {
-          "id": 343,
-          "name": "[Install software] GlobalProtect",
-          "type": "dynamic"
-        }
-      ],
-      "status": {
-        "installed": 323,
-        "pending_install": 78,
-        "failed_install": 31,
-        "pending_uninstall": 0,
-        "failed_uninstall": 0
-      }
-    },
-    {
-      "installer_id": 19,
-      "name": "GlobalProtect-v6.3.2.pkg",
-      "version": "6.3.2",
-      "platform": "darwin",
-      "uploaded_at": "2024-11-21T10:05:33Z",
-      "hash_sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-      "self_service": false,
-      "fleet_maintained_app_id": null,
-      "labels_include_any": null,
-      "labels_include_all": null,
-      "labels_exclude_any": null,
-      "automatic_install_policies": null,
-      "status": {
-        "installed": 0,
-        "pending_install": 0,
-        "failed_install": 0,
-        "pending_uninstall": 0,
-        "failed_uninstall": 0
-      }
-    }
-  ],
-}
-```
-
-> Install, pending, and failed counts are combined across policy automations, setup experience, and manual installs.
-
 ### Add package
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -11743,6 +11658,92 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
   }
 }
 ```
+
+### List packages for software
+
+_Available in Fleet Premium._
+
+Returns the list of packages associated with a software title. A software title can have up to 5 packages for each fleet. If multiple packages target the same host, Fleet will install the one added most recently (`uploaded_at`).
+
+`GET /api/v1/fleet/software/titles/:id/packages`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                                          |
+| --------------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id              | integer | path  | **Required.** The software title's ID.                                                                                                               |
+| fleet_id        | integer | query | **Required**. The fleet ID. Lists packages for the specified fleet.                                                                                  |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles/12/packages?fleet_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "packages": [
+    {
+      "installer_id": 23,
+      "name": "GlobalProtect-v71.5.pkg",
+      "version": "71.5",
+      "platform": "darwin",
+      "uploaded_at": "2024-12-01T14:22:58Z",
+      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "self_service": true,
+      "fleet_maintained_app_id": null,
+      "labels_include_any": [
+        {
+          "name": "Engineering",
+          "id": 294
+        }
+      ],
+      "labels_include_all": null,
+      "labels_exclude_any": null,
+      "automatic_install_policies": [
+        {
+          "id": 343,
+          "name": "[Install software] GlobalProtect",
+          "type": "dynamic"
+        }
+      ],
+      "status": {
+        "installed": 323,
+        "pending_install": 78,
+        "failed_install": 31,
+        "pending_uninstall": 0,
+        "failed_uninstall": 0
+      }
+    },
+    {
+      "installer_id": 19,
+      "name": "GlobalProtect-v6.3.2.pkg",
+      "version": "6.3.2",
+      "platform": "darwin",
+      "uploaded_at": "2024-11-21T10:05:33Z",
+      "hash_sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      "self_service": false,
+      "fleet_maintained_app_id": null,
+      "labels_include_any": null,
+      "labels_include_all": null,
+      "labels_exclude_any": null,
+      "automatic_install_policies": null,
+      "status": {
+        "installed": 0,
+        "pending_install": 0,
+        "failed_install": 0,
+        "pending_uninstall": 0,
+        "failed_uninstall": 0
+      }
+    }
+  ],
+}
+```
+
+> Install, pending, and failed counts are combined across policy automations, setup experience, and manual installs.
+
 
 ### Update software icon
 
