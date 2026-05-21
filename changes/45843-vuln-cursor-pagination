@@ -1,0 +1,1 @@
+- Fixed `GET /api/v1/fleet/vulnerabilities` returning raw SQL errors when using cursor pagination (`after`) with `order_key` set to `cve`, `hosts_count`, or `cve_published`.

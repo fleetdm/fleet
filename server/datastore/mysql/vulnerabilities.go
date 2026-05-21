@@ -16,16 +16,16 @@ import (
 )
 
 var vulnerabilitiesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"cve":                    "cve",
+	"cve":                    "vhc.cve",
 	"cvss_score":             "cvss_score",
 	"epss_probability":       "epss_probability",
 	"cisa_known_exploit":     "cisa_known_exploit",
-	"cve_published":          "cve_published",
+	"cve_published":          "cm.published",
 	"created_at":             "created_at",
-	"host_count":             "hosts_count",
-	"hosts_count":            "hosts_count",
-	"host_count_updated_at":  "hosts_count_updated_at",
-	"hosts_count_updated_at": "hosts_count_updated_at",
+	"host_count":             "vhc.host_count",
+	"hosts_count":            "vhc.host_count",
+	"host_count_updated_at":  "vhc.updated_at",
+	"hosts_count_updated_at": "vhc.updated_at",
 }
 
 func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error) {
