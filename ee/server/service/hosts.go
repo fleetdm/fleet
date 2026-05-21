@@ -117,6 +117,25 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 			)
 		}
 
+	case "android":
+		// Lock is supported for BYO and COBO. The Android Service.LockAndroidHost call enforces
+		// that the host is enrolled (svc.ds.AndroidHostLiteByHostUUID -> NotFound otherwise).
+		if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+			if errors.Is(err, fleet.ErrMDMNotConfigured) {
+				err = fleet.NewInvalidArgumentError("host_id", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			}
+			return "", ctxerr.Wrap(ctx, err, "check android MDM enabled")
+		}
+		connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+		}
+		if !connected {
+			return "", ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
+			)
+		}
+
 	default:
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
@@ -302,6 +321,23 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 			)
 		}
 
+	case "android":
+		// Wipe is COBO-only for Android. BYO unenroll already runs an AMAPI WIPE under the hood
+		// (see UnenrollAndroidHost) and surfaces as the mdm_unenrolled activity; routing BYO
+		// hosts through the Wipe flow would be redundant + misleading.
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+			return &fleet.BadRequestError{
+				Message: "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.",
+			}
+		}
+		if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+			if errors.Is(err, fleet.ErrMDMNotConfigured) {
+				err = fleet.NewInvalidArgumentError("host_id", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			}
+			return ctxerr.Wrap(ctx, err, "check android MDM enabled")
+		}
+		requireMDM = true
+
 	default:
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
@@ -396,6 +432,13 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 		}, host.FleetPlatform()); err != nil {
 			return "", err
 		}
+	case "android":
+		if err := svc.androidModule.LockAndroidHost(ctx, host.ID); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "enqueuing lock request for android")
+		}
+		// Android has no unlock PIN to surface and the host_locked activity payload's ViewPIN
+		// shouldn't promise one. ViewPIN defaults to false; explicit reset to be unambiguous.
+		activity.ViewPIN = false
 	}
 
 	if err := svc.NewActivity(
@@ -526,6 +569,12 @@ func (svc *Service) enqueueWipeHostRequest(
 			SyncRequest:    false,
 		}, host.FleetPlatform()); err != nil {
 			return err
+		}
+
+	case "android":
+		// COBO-only (BYO rejected in WipeHost above).
+		if err := svc.androidModule.WipeAndroidHost(ctx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for android")
 		}
 	}
 
