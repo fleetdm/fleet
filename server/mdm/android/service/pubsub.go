@@ -67,6 +67,8 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 		return svc.handlePubSubEnrollment(ctx, token, rawData)
 	case android.PubSubStatusReport:
 		return svc.handlePubSubStatusReport(ctx, token, rawData)
+	case android.PubSubCommand:
+		return svc.handlePubSubCommand(ctx, token, rawData)
 	default:
 		// Ignore unknown notification types
 		svc.logger.DebugContext(ctx, "Ignoring PubSub notification type", "notification", notificationType)
@@ -114,6 +116,79 @@ func (svc *Service) getClientAuthenticationSecret(ctx context.Context) (string, 
 		return "", ctxerr.Wrap(ctx, err, "getting Android authentication secret")
 	}
 	return string(assets[fleet.MDMAssetAndroidFleetServerSecret].Value), nil
+}
+
+// handlePubSubCommand processes an AMAPI COMMAND notification, which AMAPI delivers as an
+// Operation envelope whose Name is the operation_name we recorded at IssueCommand time. The
+// envelope's Error field, when populated, indicates AMAPI rejected the command (or the device
+// rejected it); otherwise the device executed it successfully. We correlate the notification
+// to the Fleet row via operation_name and transition the mdm_android_commands row from pending
+// to acknowledged or error. host_mdm_actions does not need updating: HostLockWipeStatus reads
+// the row status string directly.
+func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawData []byte) error {
+	if err := svc.authenticatePubSub(ctx, token); err != nil {
+		return err
+	}
+
+	var op androidmanagement.Operation
+	if err := json.Unmarshal(rawData, &op); err != nil {
+		return ctxerr.Wrap(ctx, err, "decode android pub/sub COMMAND payload")
+	}
+	if op.Name == "" {
+		// AMAPI promises Name on every notification we issue, so an empty name means the payload
+		// is malformed (or possibly a different shape we don't recognise). Log and ack to avoid
+		// Pub/Sub retry loops.
+		svc.logger.WarnContext(ctx, "android pub/sub COMMAND missing operation name", "raw_size", len(rawData))
+		return nil
+	}
+
+	cmd, err := svc.fleetDS.GetMDMAndroidCommandByOperationName(ctx, op.Name)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Unknown operation: most likely an issue-command call from a previous Fleet instance
+			// (or a manual API call). Ack so Pub/Sub doesn't retry forever.
+			svc.logger.WarnContext(ctx, "android pub/sub COMMAND for unknown operation",
+				"operation_name", op.Name)
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "lookup android command by operation name")
+	}
+
+	// Already-terminal rows: don't re-transition. AMAPI may redeliver a notification at-least-once.
+	if cmd.Status != string(android.MDMAndroidCommandStatusPending) {
+		svc.logger.InfoContext(ctx, "android pub/sub COMMAND already terminal, ignoring",
+			"operation_name", op.Name, "command_uuid", cmd.CommandUUID, "current_status", cmd.Status)
+		return nil
+	}
+
+	newStatus := string(android.MDMAndroidCommandStatusAcknowledged)
+	var errCode, errMsg *string
+	if op.Error != nil {
+		newStatus = string(android.MDMAndroidCommandStatusError)
+		code := googleStatusCode(op.Error.Code)
+		message := op.Error.Message
+		errCode = &code
+		errMsg = &message
+	}
+
+	if err := svc.fleetDS.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID, newStatus, errCode, errMsg); err != nil {
+		return ctxerr.Wrap(ctx, err, "update android command status from pub/sub")
+	}
+
+	svc.logger.InfoContext(ctx, "android pub/sub COMMAND processed",
+		"operation_name", op.Name,
+		"command_uuid", cmd.CommandUUID,
+		"command_type", cmd.CommandType,
+		"new_status", newStatus,
+	)
+	return nil
+}
+
+// googleStatusCode renders the int64 status code from googlerpc.Status into a short identifier
+// for storage in mdm_android_commands.error_code. We keep the int representation because the
+// google.rpc.Code enum is stable and round-trippable through the AMAPI REST surface.
+func googleStatusCode(code int64) string {
+	return fmt.Sprintf("%d", code)
 }
 
 func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, rawData []byte) error {
