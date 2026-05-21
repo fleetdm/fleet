@@ -11,9 +11,19 @@
 		A1000001000000000000A002 /* AuthenticationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B002 /* AuthenticationViewController.swift */; };
 		A1000001000000000000A003 /* AuthenticationViewController+PSSO.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B003 /* AuthenticationViewController+PSSO.swift */; };
 		A1000001000000000000A004 /* AuthenticationViewController+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B004 /* AuthenticationViewController+Shared.swift */; };
-		A1000001000000000000A006 /* AuthenticationViewController+WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */; };
 		A1000001000000000000A005 /* FleetPSSOExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C1000001000000000000C002 /* FleetPSSOExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A1000001000000000000A006 /* AuthenticationViewController+WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		61000001000000000000A001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 51000001000000000000A001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 11000001000000000000A002;
+			remoteInfo = FleetPSSOExtension;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		D1000001000000000000D001 /* Embed Foundation Extensions */ = {
@@ -34,24 +44,24 @@
 		B1000001000000000000B002 /* AuthenticationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationViewController.swift; sourceTree = "<group>"; };
 		B1000001000000000000B003 /* AuthenticationViewController+PSSO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthenticationViewController+PSSO.swift"; sourceTree = "<group>"; };
 		B1000001000000000000B004 /* AuthenticationViewController+Shared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthenticationViewController+Shared.swift"; sourceTree = "<group>"; };
-		B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthenticationViewController+WebView.swift"; sourceTree = "<group>"; };
-		B1000001000000000000B005 /* FleetPSSO-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B1000001000000000000B005 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B1000001000000000000B006 /* FleetPSSO.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FleetPSSO.entitlements; sourceTree = "<group>"; };
-		B1000001000000000000B007 /* FleetPSSOExtension-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B1000001000000000000B007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B1000001000000000000B008 /* FleetPSSOExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FleetPSSOExtension.entitlements; sourceTree = "<group>"; };
+		B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthenticationViewController+WebView.swift"; sourceTree = "<group>"; };
 		C1000001000000000000C001 /* FleetPSSO.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FleetPSSO.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C1000001000000000000C002 /* FleetPSSOExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FleetPSSOExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		E1000001000000000000E001 /* Frameworks (App) */ = {
+		E1000001000000000000E001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E1000001000000000000E002 /* Frameworks (Ext) */ = {
+		E1000001000000000000E002 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -61,7 +71,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		F1000001000000000000F001 /* Workspace */ = {
+		F1000001000000000000F001 = {
 			isa = PBXGroup;
 			children = (
 				F1000001000000000000F002 /* FleetPSSO */,
@@ -74,7 +84,7 @@
 			isa = PBXGroup;
 			children = (
 				B1000001000000000000B001 /* AppDelegate.swift */,
-				B1000001000000000000B005 /* FleetPSSO-Info.plist */,
+				B1000001000000000000B005 /* Info.plist */,
 				B1000001000000000000B006 /* FleetPSSO.entitlements */,
 			);
 			path = FleetPSSO;
@@ -87,7 +97,7 @@
 				B1000001000000000000B003 /* AuthenticationViewController+PSSO.swift */,
 				B1000001000000000000B004 /* AuthenticationViewController+Shared.swift */,
 				B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */,
-				B1000001000000000000B007 /* FleetPSSOExtension-Info.plist */,
+				B1000001000000000000B007 /* Info.plist */,
 				B1000001000000000000B008 /* FleetPSSOExtension.entitlements */,
 			);
 			path = FleetPSSOExtension;
@@ -110,7 +120,7 @@
 			buildConfigurationList = 21000001000000000000A001 /* Build configuration list for PBXNativeTarget "FleetPSSO" */;
 			buildPhases = (
 				31000001000000000000A001 /* Sources */,
-				E1000001000000000000E001 /* Frameworks (App) */,
+				E1000001000000000000E001 /* Frameworks */,
 				D1000001000000000000D001 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -128,7 +138,7 @@
 			buildConfigurationList = 21000001000000000000A002 /* Build configuration list for PBXNativeTarget "FleetPSSOExtension" */;
 			buildPhases = (
 				31000001000000000000A002 /* Sources */,
-				E1000001000000000000E002 /* Frameworks (Ext) */,
+				E1000001000000000000E002 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -206,18 +216,8 @@
 		};
 /* End PBXTargetDependency section */
 
-/* Begin PBXContainerItemProxy section */
-		61000001000000000000A001 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 51000001000000000000A001 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 11000001000000000000A002;
-			remoteInfo = FleetPSSOExtension;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin XCBuildConfiguration section */
-		71000001000000000000A001 /* Debug Project */ = {
+		71000001000000000000A001 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -225,15 +225,15 @@
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = "";
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
-				ENABLE_HARDENED_RUNTIME = YES;
 			};
 			name = Debug;
 		};
-		71000001000000000000A002 /* Release Project */ = {
+		71000001000000000000A002 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -241,79 +241,121 @@
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = "";
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
-				ENABLE_HARDENED_RUNTIME = YES;
 			};
 			name = Release;
 		};
-		71000001000000000000A003 /* Debug App */ = {
+		71000001000000000000A003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FleetPSSO/FleetPSSO.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 5K28R5ZUK5;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				INFOPLIST_FILE = FleetPSSO/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.fleetdm.psso";
+				PRODUCT_BUNDLE_IDENTIFIER = com.fleetdm.pssotesting;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "PSSO Testing App";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
-		71000001000000000000A004 /* Release App */ = {
+		71000001000000000000A004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FleetPSSO/FleetPSSO.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 5K28R5ZUK5;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				INFOPLIST_FILE = FleetPSSO/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.fleetdm.psso";
+				PRODUCT_BUNDLE_IDENTIFIER = com.fleetdm.pssotesting;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "PSSO Testing App";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
-		71000001000000000000A005 /* Debug Ext */ = {
+		71000001000000000000A005 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = FleetPSSOExtension/FleetPSSOExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 5K28R5ZUK5;
 				INFOPLIST_FILE = FleetPSSOExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.fleetdm.psso.extension";
+				PRODUCT_BUNDLE_IDENTIFIER = com.fleetdm.pssotesting.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "PSSO Testing Extension";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
-		71000001000000000000A006 /* Release Ext */ = {
+		71000001000000000000A006 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = FleetPSSOExtension/FleetPSSOExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 5K28R5ZUK5;
 				INFOPLIST_FILE = FleetPSSOExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.fleetdm.psso.extension";
+				PRODUCT_BUNDLE_IDENTIFIER = com.fleetdm.pssotesting.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "PSSO Testing Extension";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
@@ -324,8 +366,8 @@
 		21000001000000000000A000 /* Build configuration list for PBXProject "Fleet PSSO" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				71000001000000000000A001 /* Debug Project */,
-				71000001000000000000A002 /* Release Project */,
+				71000001000000000000A001 /* Debug */,
+				71000001000000000000A002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -333,8 +375,8 @@
 		21000001000000000000A001 /* Build configuration list for PBXNativeTarget "FleetPSSO" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				71000001000000000000A003 /* Debug App */,
-				71000001000000000000A004 /* Release App */,
+				71000001000000000000A003 /* Debug */,
+				71000001000000000000A004 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -342,8 +384,8 @@
 		21000001000000000000A002 /* Build configuration list for PBXNativeTarget "FleetPSSOExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				71000001000000000000A005 /* Debug Ext */,
-				71000001000000000000A006 /* Release Ext */,
+				71000001000000000000A005 /* Debug */,
+				71000001000000000000A006 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

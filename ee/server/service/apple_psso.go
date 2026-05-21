@@ -42,8 +42,19 @@ type pssoServiceState struct {
 	kid        string
 }
 
-const pssoSigningCurve = "P-256"
-const pssoSigningAlg = "ES256"
+const (
+	pssoSigningCurve = "P-256"
+	pssoSigningAlg   = "ES256"
+
+	// TODO: It's not clear if we need the overall app bundle ID or not either. We'll add it just in case
+	bundleID1         = "com.fleetdm.pssotesting"
+	bundleID2         = "com.fleetdm.pssotesting.extension"
+
+	// TODO:  Not sure if I actually need to use the team or my private user one so we'll define
+	// both for now...
+	teamID1 = "5K28R5ZUK5"
+	teamID2 = "B34KW9D28L"
+)
 
 // getOrMintPSSOSigningKey returns Fleet's PSSO signing key, loading it from
 // mdm_config_assets or minting+persisting a fresh one if not present.
@@ -446,6 +457,7 @@ func (svc *Service) PSSOJWKS(ctx context.Context) ([]byte, error) {
 // framework consumes for PSSO. Only webcredentials.apps is required.
 type pssoAASA struct {
 	WebCredentials pssoAASAApps `json:"webcredentials"`
+	AuthSrv pssoAASAApps `json:"authsrv"`
 }
 
 type pssoAASAApps struct {
@@ -459,17 +471,13 @@ func (svc *Service) PSSOAASA(ctx context.Context) ([]byte, error) {
 	// skipauth: This is an unauthenticated public endpoint — Apple's
 	// framework fetches it anonymously to validate the extension binding.
 	svc.authz.SkipAuthorization(ctx)
-
-	cfg, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load app config for psso aasa")
-	}
-	if cfg.PSSOSettings == nil || cfg.PSSOSettings.ExtensionTeamID == "" || cfg.PSSOSettings.ExtensionBundleID == "" {
-		return nil, &fleet.BadRequestError{Message: "PSSO is not configured: extension team_id and bundle_id are required"}
-	}
+	ids := []string{teamID1 + "." + bundleID1, teamID2 + "." + bundleID1, teamID1 + "." + bundleID2, teamID2 + "." + bundleID2}
 	doc := pssoAASA{
 		WebCredentials: pssoAASAApps{
-			Apps: []string{cfg.PSSOSettings.ExtensionTeamID + "." + cfg.PSSOSettings.ExtensionBundleID},
+			Apps: ids,
+		},
+				AuthSrv: pssoAASAApps{
+			Apps: ids,
 		},
 	}
 	return json.Marshal(doc)

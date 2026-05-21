@@ -15,7 +15,7 @@ extension AuthenticationViewController: WKNavigationDelegate {
                  decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url,
-              let registration = registrationEndpoint(),
+              let registration = registrationEndpointURL,
               url.absoluteString.hasPrefix(registration.absoluteString) else {
             decisionHandler(.allow); return
         }
@@ -24,7 +24,7 @@ extension AuthenticationViewController: WKNavigationDelegate {
     }
 
     func postRegistration(redirectURL: URL) async {
-        guard let endpoint = registrationEndpoint() else { return }
+        guard let endpoint = registrationEndpointURL else { return }
         let comps = URLComponents(url: redirectURL, resolvingAgainstBaseURL: false)
         let cookies = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
         var req = URLRequest(url: endpoint)

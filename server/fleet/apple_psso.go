@@ -90,11 +90,6 @@ type PSSORegisterRequest struct {
 type PSSOSettings struct {
 	// Enabled toggles the PSSO endpoints on/off at the service layer.
 	Enabled bool `json:"enabled"`
-	// ExtensionBundleID is the bundle ID of the Apple SSO Extension app.
-	ExtensionBundleID string `json:"extension_bundle_id"`
-	// ExtensionTeamID is the Apple Developer Team ID that signed the extension.
-	// Used in the apple-app-site-association response.
-	ExtensionTeamID string `json:"extension_team_id"`
 	// IssuerURL is the Fleet base URL the extension talks to (e.g. https://fleet.example.com).
 	IssuerURL string `json:"issuer_url"`
 	// IdPAuthorizeURL is the upstream OIDC authorize endpoint used during

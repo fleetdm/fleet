@@ -10,23 +10,39 @@ import AuthenticationServices
 import CryptoKit
 import Foundation
 import IOKit
+import Security
 
+@available(macOS 14.0, *)
 extension AuthenticationViewController {
 
-    func registrationPayload(signing: ASAuthorizationProviderExtensionKey,
-                             encryption: ASAuthorizationProviderExtensionKey) -> [String: String] {
+    func registrationPayload(signing: SecKey, encryption: SecKey) -> [String: String] {
         [
             "deviceUUID": deviceUUID(),
-            "signPubKey": signing.publicKey.pemRepresentation,
-            "encPubKey": encryption.publicKey.pemRepresentation,
+            "signPubKey": pemRepresentation(of: signing),
+            "encPubKey": pemRepresentation(of: encryption),
             "signKeyID": keyID(signing),
             "encKeyID": keyID(encryption),
         ]
     }
 
-    func keyID(_ key: ASAuthorizationProviderExtensionKey) -> String {
-        let digest = SHA256.hash(data: key.publicKey.derRepresentation)
+    func keyID(_ key: SecKey) -> String {
+        let digest = SHA256.hash(data: derRepresentation(of: key))
         return Data(digest).base64URLEncodedString()
+    }
+
+    func derRepresentation(of key: SecKey) -> Data {
+        guard let pub = SecKeyCopyPublicKey(key),
+              let data = SecKeyCopyExternalRepresentation(pub, nil) as Data? else {
+            return Data()
+        }
+        return data
+    }
+
+    func pemRepresentation(of key: SecKey) -> String {
+        let der = derRepresentation(of: key)
+        let b64 = der.base64EncodedString(options: [.lineLength64Characters,
+                                                    .endLineWithLineFeed])
+        return "-----BEGIN PUBLIC KEY-----\n\(b64)\n-----END PUBLIC KEY-----"
     }
 
     func deviceUUID() -> String {
@@ -53,24 +69,18 @@ extension AuthenticationViewController {
             clientID: Bundle.main.bundleIdentifier ?? "",
             issuer: issuer,
             tokenEndpointURL: token,
-            jwksEndpointURL: jwks)
+            jwksEndpointURL: jwks,
+            audience: issuer)
         cfg.nonceEndpointURL = nonce
-        cfg.registrationEndpointURL = reg
-        cfg.protocolVersion = .version2_0
-        cfg.supportedGrantTypes = [.password]
-        try mgr.setLoginConfiguration(cfg)
-    }
-
-    func registrationEndpoint() -> URL? {
-        (loginManager?.extensionData["RegistrationEndpoint"] as? String)
-            .flatMap(URL.init(string:))
+        self.registrationEndpointURL = reg
+        try mgr.saveLoginConfiguration(cfg)
     }
 
     func registrationStartURL(
         _ mgr: ASAuthorizationProviderExtensionLoginManager,
         payload: [String: String]
     ) -> URL? {
-        guard let base = registrationEndpoint(),
+        guard let base = registrationEndpointURL,
               var comps = URLComponents(url: base, resolvingAgainstBaseURL: false)
         else { return nil }
         comps.queryItems = payload.map { URLQueryItem(name: $0.key, value: $0.value) }

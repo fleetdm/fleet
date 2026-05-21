@@ -17,6 +17,7 @@ final class AuthenticationViewController: NSViewController,
     var loginManager: ASAuthorizationProviderExtensionLoginManager?
     var webView: WKWebView!
     var pendingRequest: ASAuthorizationProviderExtensionAuthorizationRequest?
+    var registrationEndpointURL: URL?
 
     override func loadView() {
         let frame = NSRect(x: 0, y: 0, width: 640, height: 720)
@@ -30,7 +31,7 @@ final class AuthenticationViewController: NSViewController,
         with request: ASAuthorizationProviderExtensionAuthorizationRequest
     ) {
         pendingRequest = request
-        request.complete(authorizationResult: .init())
+        request.complete(authorizationResult: .init(httpAuthorizationHeaders: [:]))
     }
 
     func cancelAuthorization(

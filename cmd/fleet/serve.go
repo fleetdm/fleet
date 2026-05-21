@@ -1648,6 +1648,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			commander,
 			appCfg.ServerSettings.ServerURL,
 			config,
+			svc,
 		); err != nil {
 			initFatal(err, "setup mdm apple services")
 		}

@@ -2,11 +2,19 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>com.apple.security.app-sandbox</key><true/>
-  <key>com.apple.developer.AppSSO.idp-extension</key><true/>
-  <key>com.apple.developer.associated-domains</key>
-  <array>
-    <string>authsrv:fleet.example.com</string>
-  </array>
+    <key>com.apple.application-identifier</key>
+    <string>5K28R5ZUK5.com.fleetdm.pssotesting.extension</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>5K28R5ZUK5</string>
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+        <string>authsrv:jordan-fleetdm.ngrok.app</string>
+    </array>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+    <key>com.apple.security.network.client</key>
+    <true/>
+    <key>com.apple.security.network.server</key>
+    <true/>
 </dict>
 </plist>

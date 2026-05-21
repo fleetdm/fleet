@@ -79,30 +79,45 @@ containing an `authsrv` entry that names the extension bundle's
 | `com.fleetdm.psso.extension` | same                                    |
 | Development Team ID   | Xcode → target → Signing & Capabilities       |
 
-## Build / sign / notarize
+## Build / sign / package / notarize
+
+`build.sh` runs the whole pipeline end-to-end:
 
 ```bash
-# Build
-xcodebuild -project "Fleet PSSO.xcodeproj" -scheme FleetPSSO \
-  -configuration Release -derivedDataPath ./build clean build
+# Apple Developer credentials for notarytool. AC_PASSWORD must be an
+# app-specific password — use @keychain:<item> if you've stored one.
+export AC_USERNAME="you@example.com"
+export AC_TEAM_ID="TEAMID"
+export AC_PASSWORD="@keychain:notary"
 
-# Sign (Developer ID Application certificate from your Apple Developer account)
-codesign --force --options runtime --timestamp \
-  --sign "Developer ID Application: Your Name (TEAMID)" \
-  --entitlements FleetPSSOExtension/FleetPSSOExtension.entitlements \
-  ./build/Build/Products/Release/FleetPSSO.app/Contents/PlugIns/FleetPSSOExtension.appex
-
-codesign --force --options runtime --timestamp \
-  --sign "Developer ID Application: Your Name (TEAMID)" \
-  --entitlements FleetPSSO/FleetPSSO.entitlements \
-  ./build/Build/Products/Release/FleetPSSO.app
-
-# Notarize
-ditto -c -k --keepParent ./build/Build/Products/Release/FleetPSSO.app FleetPSSO.zip
-xcrun notarytool submit FleetPSSO.zip \
-  --apple-id you@example.com --team-id TEAMID --password "@keychain:notary" --wait
-xcrun stapler staple ./build/Build/Products/Release/FleetPSSO.app
+./build.sh
 ```
+
+This produces `./FleetPSSO.pkg`, a Developer ID-signed and notarized
+installer. The pkg drops `FleetPSSO.app` into `/Applications` (which also
+registers the bundled `.appex` with the system).
+
+Install it:
+
+```bash
+sudo installer -pkg FleetPSSO.pkg -target /
+```
+
+Behind the scenes, the script:
+
+1. Builds the app unsigned with `xcodebuild`.
+2. Signs the `.appex` and `.app` with **Developer ID Application** (the
+   hardened runtime + secure timestamp options that notarization
+   requires).
+3. Wraps the `.app` in a flat installer with `pkgbuild`, signs it with
+   **Developer ID Installer**, and sets the install location to
+   `/Applications`.
+4. Submits the pkg to `notarytool` and waits for the verdict.
+5. Staples the notarization ticket to the pkg so it installs offline.
+
+You'll need both certificates in your login keychain:
+- *Developer ID Application: Your Name (TEAMID)*
+- *Developer ID Installer: Your Name (TEAMID)*
 
 ## Out of scope (intentional)
 
@@ -123,3 +138,7 @@ xcrun stapler staple ./build/Build/Products/Release/FleetPSSO.app
   case name on your SDK.
 - AASA `authsrv:` entry format vs. `webcredentials:` — for PSSO it is
   `authsrv:` per WWDC 2022.
+
+## Debug notes
+
+authsrv: links and swcutil/swcd were the biggest stumbling block I ran into

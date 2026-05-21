@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>ExtensionData</key>
+			<dict>
+				<key>IssuerHostname</key>      <string>jordan-fleetdm.ngrok.app</string>
+				<key>NonceEndpoint</key>       <string>https://jordan-fleetdm.ngrok.app/mdm/apple/psso/nonce</string>
+				<key>JwksEndpoint</key>        <string>https://jordan-fleetdm.ngrok.app/.well-known/jwks.json</string>
+				<key>TokenEndpoint</key>       <string>https://jordan-fleetdm.ngrok.app/mdm/apple/psso/token</string>
+				<key>RegistrationEndpoint</key><string>https://jordan-fleetdm.ngrok.app/mdm/apple/psso/register</string>
+			</dict>
+			<key>ExtensionIdentifier</key>
+			<string>com.fleetdm.pssotesting.extension</string>
+			<key>PayloadDisplayName</key>
+			<string>Fleet Extensible Single Sign-On</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.extensiblesso.AF68D4CF-1250-4FF4-AFFB-1176DB539C49</string>
+			<key>PayloadType</key>
+			<string>com.apple.extensiblesso</string>
+			<key>PayloadUUID</key>
+			<string>AF68D4CF-1250-4FF4-AFFB-1176DB539C49</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PlatformSSO</key>
+			<dict>
+				<key>AuthenticationMethod</key>
+				<string>Password</string>
+				<key>UseSharedDeviceKeys</key>
+				<true/>
+				<key>EnableRegistrationDuringSetup</key>
+				<true/>
+			</dict>
+			<key>ScreenLockedBehavior</key>
+			<string>DoNotHandle</string>
+			<key>TeamIdentifier</key>
+			<string>5K28R5ZUK5</string>
+			<key>Type</key>
+			<string>Redirect</string>
+			<key>URLs</key>
+			<array>
+				<string>https://jordan-fleetdm.ngrok.app</string>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>PlatformSSO Fleet</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.platformsso.fleet.a72B07D0-2E08-45CE-9423-1FCAFFAEC390</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>A72B07D0-2E08-45CE-9423-1FCAFFAEC390</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

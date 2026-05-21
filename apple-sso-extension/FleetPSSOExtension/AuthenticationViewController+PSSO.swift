@@ -5,27 +5,32 @@
 // framework hands us a login manager; we ask it for the user device
 // signing + encryption keys, build a registration payload, and configure
 // the SSO endpoints from extensionData supplied by the configuration
-// profile. Apple owns the private key material — we only see public PEMs.
+// profile. Apple owns the private key material — we only see SecKey
+// handles and derive public PEMs from them.
 
 import AuthenticationServices
 import CryptoKit
 import Foundation
 import IOKit
+import Security
 
+@available(macOS 14.0, *)
 extension AuthenticationViewController:
     ASAuthorizationProviderExtensionRegistrationHandler {
 
     func beginDeviceRegistration(
-        using loginManager: ASAuthorizationProviderExtensionLoginManager,
+        loginManager: ASAuthorizationProviderExtensionLoginManager,
         options: ASAuthorizationProviderExtensionRequestOptions,
-        viewController: NSViewController?,
         completion: @escaping (ASAuthorizationProviderExtensionRegistrationResult) -> Void
     ) {
         self.loginManager = loginManager
         do {
             try applyLoginConfiguration(loginManager)
-            let signKey = try requestKey(loginManager, type: .userDeviceSigning)
-            let encKey = try requestKey(loginManager, type: .userDeviceEncryption)
+            guard let signKey = loginManager.key(for: .userDeviceSigning),
+                  let encKey = loginManager.key(for: .userDeviceEncryption) else {
+                completion(.failed)
+                return
+            }
             let payload = registrationPayload(signing: signKey, encryption: encKey)
             if let url = registrationStartURL(loginManager, payload: payload) {
                 webView.load(URLRequest(url: url))
@@ -36,19 +41,21 @@ extension AuthenticationViewController:
         }
     }
 
-    func beginUserSecureEnclaveKeyRegistration(
-        using loginManager: ASAuthorizationProviderExtensionLoginManager,
+    func beginUserRegistration(
+        loginManager: ASAuthorizationProviderExtensionLoginManager,
+        userName: String?,
+        method: ASAuthorizationProviderExtensionAuthenticationMethod,
         options: ASAuthorizationProviderExtensionRequestOptions,
-        viewController: NSViewController?,
         completion: @escaping (ASAuthorizationProviderExtensionRegistrationResult) -> Void
     ) {
         completion(.success)
     }
 
-    private func requestKey(
-        _ mgr: ASAuthorizationProviderExtensionLoginManager,
-        type: ASAuthorizationProviderExtensionKeyType
-    ) throws -> ASAuthorizationProviderExtensionKey {
-        try mgr.userDeviceKey(forKeyType: type)
+    func protocolVersion() -> ASAuthorizationProviderExtensionPlatformSSOProtocolVersion {
+        .version2_0
+    }
+
+    func supportedGrantTypes() -> ASAuthorizationProviderExtensionSupportedGrantTypes {
+        .password
     }
 }
