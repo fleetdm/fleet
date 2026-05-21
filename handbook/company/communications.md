@@ -380,6 +380,8 @@ Before committing anything to code, we create wireframes (referred to as ["draft
 
 The [Product Design](https://fleetdm.com/handbook/product-design#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
+> Temporary landing pages follow a separate process. [Create a temporary landing page](https://fleetdm.com/handbook/company/writing#temporary-landing-pages).
+
 
 ## Design at Fleet
 
