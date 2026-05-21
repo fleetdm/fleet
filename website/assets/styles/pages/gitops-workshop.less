@@ -421,6 +421,32 @@
     }
   }
 
+  [purpose='bottom-gradient'] {
+    background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
+  }
+
+  [purpose='bottom-cta'] {
+    text-align: center;
+    padding-top: 80px;
+    padding-bottom: 80px;
+    h2 {
+      font-size: 48px;
+      margin-bottom: 0px;
+    }
+    h4 {
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    [purpose='button-row'] {
+      margin-top: 40px;
+      [purpose='cta-button'] {
+        .cta-button();
+        padding: 16px;
+        height: 36px;
+      }
+    }
+  }
+
   @media (max-width: 991px) {
 
     [purpose='landing-page-container'] {
@@ -591,6 +617,11 @@
     }
     [purpose='quote-cards'] {
       flex-direction: column;
+    }
+    [purpose='bottom-cta'] {
+      h2 {
+        font-size: 32px;
+      }
     }
   }
 
