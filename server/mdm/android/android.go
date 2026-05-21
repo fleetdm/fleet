@@ -82,3 +82,48 @@ type MDMAndroidPolicyRequest struct {
 }
 
 const AppStatusAvailable = "AVAILABLE"
+
+// MDMAndroidCommand represents a single AMAPI command Fleet issued via
+// EnterprisesDevicesService.IssueCommand (Lock, Wipe, Clear passcode). One row is inserted at
+// issue time and updated by the Pub/Sub COMMAND handler when the device acks or AMAPI rejects.
+// CommandUUID is the Fleet-generated identifier that host_mdm_actions.{lock_ref, wipe_ref} points
+// to for Android hosts; OperationName is the AMAPI-assigned operation name used to correlate
+// Pub/Sub notifications back to the originating command.
+type MDMAndroidCommand struct {
+	CommandUUID    string           `db:"command_uuid"`
+	HostUUID       string           `db:"host_uuid"`
+	OperationName  string           `db:"operation_name"`
+	CommandType    string           `db:"command_type"`
+	Status         string           `db:"status"`
+	ErrorCode      sql.Null[string] `db:"error_code"`
+	ErrorMessage   sql.Null[string] `db:"error_message"`
+	RequestPayload []byte           `db:"request_payload"`
+	CreatedAt      time.Time        `db:"created_at"`
+	UpdatedAt      time.Time        `db:"updated_at"`
+}
+
+// MDMAndroidCommandType is the AMAPI command type for an MDMAndroidCommand row. Values are the
+// strings AMAPI uses on the wire (Command.type), so they double as the value we send in
+// IssueCommand and the value we read back from Pub/Sub COMMAND notifications.
+type MDMAndroidCommandType string
+
+const (
+	MDMAndroidCommandTypeLock          MDMAndroidCommandType = "LOCK"
+	MDMAndroidCommandTypeResetPassword MDMAndroidCommandType = "RESET_PASSWORD"
+	MDMAndroidCommandTypeWipe          MDMAndroidCommandType = "WIPE"
+)
+
+// MDMAndroidCommandStatus is the lifecycle state of an MDMAndroidCommand row.
+type MDMAndroidCommandStatus string
+
+const (
+	// MDMAndroidCommandStatusPending — Fleet has called IssueCommand and AMAPI accepted, but the
+	// Pub/Sub COMMAND notification with the device-side result has not yet arrived.
+	MDMAndroidCommandStatusPending MDMAndroidCommandStatus = "pending"
+	// MDMAndroidCommandStatusAcknowledged — Pub/Sub COMMAND notification arrived and the device
+	// successfully executed the command (no AMAPI error_code).
+	MDMAndroidCommandStatusAcknowledged MDMAndroidCommandStatus = "acknowledged"
+	// MDMAndroidCommandStatusError — Pub/Sub COMMAND notification arrived with a non-empty
+	// AMAPI error_code (e.g. UNSUPPORTED, API_LEVEL, INVALID_VALUE).
+	MDMAndroidCommandStatusError MDMAndroidCommandStatus = "error"
+)
