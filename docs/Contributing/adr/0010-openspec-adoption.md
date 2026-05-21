@@ -26,7 +26,7 @@ Our existing workflow already provides the structured-thinking benefit that Open
 - **AI-generated PR descriptions** document the problem, approach, affected layers, and alternatives considered.
 - **`CLAUDE.md` conventions** guide AI agents on Fleet-specific patterns, error handling, authorization, and the request lifecycle.
 
-The GitHub issue remains the source of truth for each change. Specs, acceptance criteria, and design context live there, linked directly to the PR that implements them. Adopting OpenSpec would create a parallel specification layer that largely restates what already exists in the issue, but in committed files that require ongoing maintenance and can drift from both the issue and the implementation.
+Engineers are welcome to use OpenSpec locally as a thinking and planning tool. However, the GitHub issue remains the source of truth for each change. Specs, acceptance criteria, and design context live there, linked directly to the PR that implements them. Adopting OpenSpec would create a parallel specification layer that largely restates what already exists in the issue, but in committed files that require ongoing maintenance and can drift from both the issue and the implementation.
 
 ## Consequences
 
