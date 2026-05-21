@@ -11594,6 +11594,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
+| installer_id | integer | body | The ID of the package (installer) to update. Required when the software title has multiple packages. |
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
@@ -11619,6 +11620,7 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 ##### Request body
 
 ```http
+installer_id="23"
 fleet_id="1"
 software="FalconSensor-6.44.pkg"
 self_service="true"
