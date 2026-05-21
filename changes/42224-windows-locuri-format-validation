@@ -1,0 +1,1 @@
+* Rejected Windows MDM configuration profiles whose `<LocURI>` is missing the required `./` prefix or contains `../` path traversal sequences, so invalid OMA-DM URIs are caught at upload instead of failing on devices.

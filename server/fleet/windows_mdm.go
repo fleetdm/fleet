@@ -60,6 +60,11 @@ type windowsProfileValidator struct {
 	// can be empty if not within a top-level element.
 	currentTopLevelElement string
 
+	// Tracks whether we have encountered at least one valid SyncML top-level element
+	// (Replace, Add, Exec, or Atomic). Used to reject inputs that parse as XML but
+	// contain no supported elements, such as plain text or comment-only files.
+	sawValidTopLevel bool
+
 	// The decoder which is used for reading the XML tokens.
 	decoder *xml.Decoder
 
@@ -77,8 +82,11 @@ var validTopLevelElements = map[string]struct{}{
 // ValidateUserProvided ensures that the SyncML content in the profile is valid
 // for Windows.
 //
-// It checks that all top-level elements are <Replace> and none of the <LocURI>
-// elements within <Target> are reserved URIs.
+// It checks that the file contains at least one supported top-level element
+// (<Replace>, <Add>, <Exec>, or <Atomic>), that each <LocURI> follows the
+// OMA-DM addressing rules (must start with "./" and must not contain "../"
+// path traversal sequences), and that none of the <LocURI> elements within
+// <Target> are reserved Fleet-managed URIs.
 //
 // It also performs basic checks for XML well-formedness as defined in the [W3C
 // Recommendation section 2.8][1], as required by the [MS-MDM spec][2].
@@ -130,6 +138,10 @@ func (v *windowsProfileValidator) validate() error {
 		}
 	}
 
+	if !v.sawValidTopLevel {
+		return errors.New("The file should include valid SyncML XML with at least one <Replace>, <Add>, <Exec>, or <Atomic> element.")
+	}
+
 	return v.scepValidator.finalizeValidation()
 }
 
@@ -176,6 +188,7 @@ func (v *windowsProfileValidator) handleStartElement(el xml.StartElement) error 
 		}
 
 		v.currentTopLevelElement = elementName
+		v.sawValidTopLevel = true
 		if v.isAtomicProfile == nil {
 			// We are at top level, and we see a non-Atomic element first, mark the profile as non-Atomic.
 			v.isAtomicProfile = ptr.Bool(false)
@@ -207,6 +220,10 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 
 	locURI := string(el)
 
+	if err := validateLocURIFormat(locURI); err != nil {
+		return err
+	}
+
 	if v.isInExec() {
 		if err := v.scepValidator.validateExecLocURI(locURI); err != nil {
 			return err
@@ -218,6 +235,24 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 	}
 
 	return validateFleetProvidedLocURI(locURI, v.enableCustomOSUpdates)
+}
+
+// validateLocURIFormat enforces that a LocURI follows the OMA-DM URI
+// addressing rules: it must start with "./" (e.g. "./Device/...",
+// "./User/...", or "./Vendor/...") and must not contain "../" path
+// traversal sequences. Empty LocURIs are not flagged here.
+func validateLocURIFormat(locURI string) error {
+	trimmed := strings.TrimSpace(locURI)
+	if trimmed == "" {
+		return nil
+	}
+	if strings.Contains(trimmed, "../") {
+		return errors.New("<LocURI> can't contain \"../\" path traversal sequences.")
+	}
+	if !strings.HasPrefix(trimmed, "./") {
+		return errors.New("<LocURI> must start with \"./\" (e.g. \"./Device/...\" or \"./User/...\").")
+	}
+	return nil
 }
 
 func (v *windowsProfileValidator) isAtTopLevel() bool {
