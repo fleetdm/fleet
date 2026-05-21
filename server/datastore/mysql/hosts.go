@@ -2336,6 +2336,17 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		HardwareSerial: hostInfo.HardwareSerial,
 		Platform:       hostInfo.Platform,
 		PlatformLike:   hostInfo.PlatformLike,
+		// Mirror the hardware UUID onto the returned struct so callers that
+		// rely on host.UUID after this function returns (e.g. linking the
+		// Windows MDM enrollment, host_emails reconciliation in
+		// server/service/orbit.go) see a non-empty value. The hosts row's
+		// uuid column ends up set to this value in both branches below:
+		// the INSERT path stores it directly, and the UPDATE path uses
+		// COALESCE(NULLIF(uuid, ''), ?) — i.e. it fills in this UUID when
+		// the existing row had no uuid and otherwise keeps the existing
+		// value, which by construction matches hostInfo.HardwareUUID
+		// (matchHostDuringEnrollment matched on this UUID).
+		UUID: hostInfo.HardwareUUID,
 	}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		serialToMatch := hostInfo.HardwareSerial

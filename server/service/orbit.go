@@ -134,7 +134,7 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 			return "", "", "", ctxerr.Wrap(ctx, err, "inserting mdm idp account for EUA token")
 		}
 		// Re-fetch to get the UUID assigned by the DB.
-		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctxdb.RequirePrimary(ctx, true), upn)
+		acct, err = svc.ds.GetMDMIdPAccountByEmail(ctx, upn)
 		if err != nil {
 			return "", "", "", ctxerr.Wrap(ctx, err, "re-fetching mdm idp account after insert for EUA token")
 		}
@@ -150,6 +150,17 @@ func (svc *Service) processWindowsEUAToken(ctx context.Context, hostUUID string,
 func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInfo, enrollSecret string, euaToken string) (string, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
+
+	// Force primary reads for the whole handler. EnrollOrbit is a
+	// read-after-write flow: the Setup Experience SSO callback and the MSI
+	// EUA token path both write to host_mdm_idp_accounts immediately before
+	// orbit retries enrollment, and a stale replica read here would silently
+	// reintroduce the IdP-association bugs we fixed in #45066 (and could
+	// also re-trigger END_USER_AUTH_REQUIRED on the first read of
+	// GetMDMIdPAccountByHostUUID). The enrollment endpoint is low-traffic
+	// (runs once per device, not on every check-in), so the load impact on
+	// the primary is negligible.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 
 	logging.WithLevel(
 		logging.WithExtras(ctx,
@@ -288,9 +299,6 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	//
 	// Scoped to Linux and Windows only: macOS hosts reconcile host_emails via
 	// ReconcileMDMAppleEnrollRef during MDM enrollment.
-	//
-	// Use hostInfo.HardwareUUID — the host pointer returned by EnrollOrbit
-	// only has its ID assigned, not its UUID.
 	if isEndUserAuthRequired && (platform == "linux" || platform == "windows") {
 		idpAcctUUID := euaIdpAcctUUID
 		if idpAcctUUID == "" {
