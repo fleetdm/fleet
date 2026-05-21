@@ -11966,7 +11966,7 @@ Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`,
 
 _Available in Fleet Premium._
 
-Pin a Fleet-maintained app to a specific version, a major version, or unpin it so Fleet always installs the latest version. If two versions target the same host, Fleet will install the latest unless pinned to the older version. Only applicable to software titles that have a Fleet-maintained app added.
+Pin a Fleet-maintained app to a specific version, a major version, or unpin it so Fleet always installs the latest version. Only applicable to software titles that have a Fleet-maintained app added.
 
 `POST /api/v1/fleet/software/titles/:id/versions/pin`
 
