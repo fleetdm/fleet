@@ -105,6 +105,24 @@ safe_rm() {
 wipe_btrfs_snapshots() {
     [ -f /proc/mounts ] || return
 
+    # If snapper is available, use it as the primary deletion path. snapper delete
+    # handles read-only and important=yes snapshots correctly and removes the
+    # accompanying metadata (info.xml). --sync commits the btrfs transaction before
+    # returning, avoiding timing races when deleting multiple snapshots in sequence.
+    if command -v snapper >/dev/null 2>&1; then
+        snapper list-configs 2>/dev/null \
+            | awk 'NR > 2 {print $1}' \
+            | while read -r cfg; do
+                _nums=$(snapper -c "$cfg" list 2>/dev/null \
+                     | awk '{gsub(/\*/, "", $1)} $1 ~ /^[0-9]+$/ {print $1}')
+                [ -n "$_nums" ] || continue
+                echo "$_nums" | xargs snapper -c "$cfg" delete --sync 2>/dev/null \
+                    || echo "Warning: snapper delete failed for config $cfg"
+            done
+    fi
+
+    # Fallback: btrfs subvolume delete via subvolid=5 mount. Catches any snapshots
+    # not managed by snapper, or where snapper was unavailable or partially failed.
     awk '$3 == "btrfs" {print $1}' /proc/mounts | sort -u | while read -r dev; do
         # Skip devices where any btrfs mountpoint is on a network filesystem, consistent
         # with how the rest of the script avoids touching network-backed data.
