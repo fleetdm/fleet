@@ -1442,7 +1442,10 @@ const ManageHostsPage = ({
 
     return (
       <EditColumnsModal
-        columns={generateAvailableTableHeaders({ isFreeTier, isOnlyObserver })}
+        columns={generateAvailableTableHeaders({
+          isFreeTier,
+          canSelectHosts: !isOnlyObserver,
+        })}
         hiddenColumns={hiddenColumns}
         onSaveColumns={onSaveColumns}
         onCancelColumns={toggleEditColumnsModal}
@@ -1573,7 +1576,7 @@ const ManageHostsPage = ({
         const tableColumns = generateVisibleTableColumns({
           hiddenColumns,
           isFreeTier,
-          isOnlyObserver,
+          canSelectHosts: !isOnlyObserver,
           teamId: teamIdForApi,
         });
 
@@ -1822,10 +1825,10 @@ const ManageHostsPage = ({
     const tableColumns = generateVisibleTableColumns({
       hiddenColumns,
       isFreeTier,
-      isOnlyObserver:
-        isOnlyObserver ||
-        isGlobalTechnician ||
-        (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
+      canSelectHosts:
+        !isOnlyObserver &&
+        !isGlobalTechnician &&
+        (isOnGlobalTeam || isTeamMaintainerOrTeamAdmin),
       teamId: teamIdForApi,
     });
 
