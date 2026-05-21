@@ -11976,9 +11976,6 @@ Pin a Fleet-maintained app to a specific version, a major version, or unpin it s
 | id   | integer | path | **Required.** The software title's ID. |
 | fleet_id | integer | body | **Required**. The fleet ID. Pins the Fleet-maintained app version in the specified fleet. |
 | version | string | body | specifies the app version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). To pin to the major version, use a caret (`^`) constraint. You can specify only the major version, without the minor and patch versions. For example, `"⁠^147"` means that Fleet will continuously download the latest version until the app updates to 148.0. |
-| major_version | string | body | The major version to pin to (e.g., `"145"`). Fleet will auto-update within this major version but won't update to the next major version. Mutually exclusive with `version`. |
-
-> Only one of `version` or `major_version` can be specified. If neither is specified, the app is unpinned and Fleet will always install the latest available version.
 
 #### Example (pin to specific version)
 
