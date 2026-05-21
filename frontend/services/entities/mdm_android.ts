@@ -44,18 +44,32 @@ export default {
         });
 
         const reader = response?.body?.getReader();
+        if (!reader) {
+          reject(new Error("Android MDM SSE stream unavailable"));
+          return;
+        }
         const decoder = new TextDecoder();
+        const successSignal = "Android Enterprise successfully connected";
+        // Buffer accumulates decoded text so a success message split across
+        // multiple chunks (valid with chunked transfer encoding) is still
+        // detected.
+        let buffer = "";
 
         while (true) {
-          // @ts-ignore
           // eslint-disable-next-line no-await-in-loop
-          const { done, value } = await reader?.read();
-          if (done) break;
-          const text = decoder.decode(value);
-          if (text === "Android Enterprise successfully connected") {
-            resolve();
-            break;
+          const { done, value } = await reader.read();
+          if (done) {
+            // Server closed the stream without ever sending success.
+            // Reject so callers don't await forever on unmount or backend hiccup.
+            reject(new Error("Android MDM SSE ended before success signal"));
+            return;
           }
+          buffer += decoder.decode(value, { stream: true });
+          if (buffer.includes(successSignal)) {
+            resolve();
+            return;
+          }
+          buffer = buffer.slice(-successSignal.length);
         }
       } catch (error) {
         if ((error as Error).name === "AbortError") {
