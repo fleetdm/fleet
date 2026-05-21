@@ -2,8 +2,8 @@ package mysql
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand/v2"
 	"os"
 	"strings"
 	"testing"
