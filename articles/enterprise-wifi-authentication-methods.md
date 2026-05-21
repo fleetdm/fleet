@@ -136,9 +136,9 @@ For devices that can't run a supplicant (many printers, IoT sensors, and some co
 
 In practice, you'll want an inventory of device certificates (including expiry) and a way to reconcile that against which Wi-Fi profiles should be installed. Fleet provides a [certificates table](https://fleetdm.com/tables/certificates) for device certificate visibility and adds fleet-wide [certificate status tracking](https://fleetdm.com/releases/fleet-4-78-0) so you can spot missing or expiring certificates before users start failing 802.1X authentication.
 
-<meta name="articleTitle" value="Enterprise Wi-Fi Authentication Methods Guide 2026">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="articleTitle" value="Enterprise Wi-Fi Authentication: EAP Methods Guide 2026">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-08">
-<meta name="description" value="Compare enterprise wifi authentication methods (EAP-TLS, PEAP-MSCHAPv2, EAP-TTLS) and learn 802.1X and MDM certificate delivery.">
+<meta name="publishedOn" value="2026-05-21">
+<meta name="description" value="Learn how 802.1X enterprise Wi-Fi authentication works, compare EAP-TLS, PEAP, and EAP-TTLS, and deliver certificates via MDM.">
