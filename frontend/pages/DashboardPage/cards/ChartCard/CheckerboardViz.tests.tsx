@@ -171,9 +171,9 @@ describe("CheckerboardViz", () => {
   });
 
   it("stretches the color ramp across the dataset's min/max when relativeScale is true", async () => {
-    // Relative scaling is based on absolute min/max, not percentage.
-    // This test data validates that by setting the percentage to 1 for all non-zero points,
-    // and verifying that we still get a color spread.
+    // All values fall in the 0–20% range, which the default fixed-threshold
+    // ramp would collapse entirely into level-1 (with 0% pinned to level-0).
+    // Relative scaling should rescale the non-zero values across levels 1–5.
     const points: IFormattedDataPoint[] = [
       {
         timestamp: "2026-03-01T00:00:00",
@@ -185,31 +185,31 @@ describe("CheckerboardViz", () => {
         timestamp: "2026-03-01T02:00:00",
         label: "Mar 1, 2am",
         value: 4,
-        percentage: 1,
+        percentage: 4,
       },
       {
         timestamp: "2026-03-01T04:00:00",
         label: "Mar 1, 4am",
         value: 8,
-        percentage: 1,
+        percentage: 8,
       },
       {
         timestamp: "2026-03-01T06:00:00",
         label: "Mar 1, 6am",
         value: 12,
-        percentage: 1,
+        percentage: 12,
       },
       {
         timestamp: "2026-03-01T08:00:00",
         label: "Mar 1, 8am",
         value: 16,
-        percentage: 1,
+        percentage: 16,
       },
       {
         timestamp: "2026-03-01T10:00:00",
         label: "Mar 1, 10am",
         value: 20,
-        percentage: 1,
+        percentage: 20,
       },
     ];
 
