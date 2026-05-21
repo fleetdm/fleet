@@ -32,7 +32,9 @@ var testSetEmptyPrivateKey bool
 
 const (
 	DefaultSignupSSEInterval = 3 * time.Second
-	SignupSSESuccess         = "Android Enterprise successfully connected"
+	// SignupSSESuccess is the SSE event sent on the wire when the Android
+	// enterprise signup completes. Spec-compliant SSE framing ("data: " field + blank-line terminator).
+	SignupSSESuccess = "data: Android Enterprise successfully connected\n\n"
 )
 
 type Service struct {
@@ -661,9 +663,10 @@ func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWr
 			return
 		case <-time.After(5 * time.Second):
 			// We send a heartbeat to prevent the load balancer from closing the (otherwise idle) connection.
-			// The leading colon indicates this is a comment, and is ignored.
+			// The leading colon indicates this is a comment, and is ignored by SSE consumers. A blank
+			// line (\n\n) terminates the event per spec.
 			// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
-			_, _ = fmt.Fprint(w, ":heartbeat\n")
+			_, _ = fmt.Fprint(w, ":heartbeat\n\n")
 			w.(http.Flusher).Flush()
 		}
 	}
@@ -706,7 +709,8 @@ func (svc *Service) EnterpriseSignupSSE(ctx context.Context) (chan string, error
 func (svc *Service) signupSSECheck(ctx context.Context, done chan string) bool {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		done <- fmt.Sprintf("Error getting app config: %v", err)
+		// SSE error event: distinct event type so a client can branch on it.
+		done <- fmt.Sprintf("event: error\ndata: Error getting app config: %v\n\n", err)
 		return true
 	}
 	if appConfig.MDM.AndroidEnabledAndConfigured {

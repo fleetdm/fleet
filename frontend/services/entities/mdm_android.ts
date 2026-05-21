@@ -39,6 +39,7 @@ export default {
           method: "GET",
           headers: {
             Authorization: `Bearer ${authToken.get()}`,
+            Accept: "text/event-stream",
           },
           signal: abortSignal,
         });
@@ -49,7 +50,7 @@ export default {
           return;
         }
         const decoder = new TextDecoder();
-        const successSignal = "Android Enterprise successfully connected";
+        const successSignal = "data: Android Enterprise successfully connected";
         // Buffer accumulates decoded text so a success message split across
         // multiple chunks (valid with chunked transfer encoding) is still
         // detected.
@@ -64,7 +65,15 @@ export default {
             reject(new Error("Android MDM SSE ended before success signal"));
             return;
           }
-          buffer += decoder.decode(value, { stream: true });
+          const chunk = decoder.decode(value, { stream: true });
+          // Surface backend-emitted error events. Chrome's EventStream tab
+          // doesn't attach to fetch-based SSE reliably, so without this log
+          // the only signal of a server-side failure is the generic UI
+          // toast.
+          if (chunk.includes("event: error")) {
+            console.error("[android-sse]:", chunk);
+          }
+          buffer += chunk;
           if (buffer.includes(successSignal)) {
             resolve();
             return;
