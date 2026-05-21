@@ -164,9 +164,10 @@ type TeamPolicyRequest struct {
 	LabelsIncludeAny         []string `json:"labels_include_any"`
 	LabelsIncludeAll         []string `json:"labels_include_all" premium:"true"`
 	LabelsExcludeAny         []string `json:"labels_exclude_any"`
-	ConditionalAccessEnabled bool     `json:"conditional_access_enabled"`
-	Type                     *string  `json:"type"`
-	PatchSoftwareTitleID     *uint    `json:"patch_software_title_id"`
+	ConditionalAccessEnabled     bool    `json:"conditional_access_enabled"`
+	ContinuousAutomationsEnabled bool    `json:"continuous_automations_enabled" premium:"true"`
+	Type                         *string `json:"type"`
+	PatchSoftwareTitleID         *uint   `json:"patch_software_title_id"`
 }
 
 type TeamPolicyResponse struct {

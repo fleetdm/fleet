@@ -2021,10 +2021,12 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter to policies with installers that are newly failing, using the pre-computed set.
+	// Filter to policies with installers that are newly failing, or that have
+	// continuous_automations_enabled set (in which case every failing result
+	// triggers an install, not just pass→fail transitions).
 	var failingPoliciesWithInstaller []fleet.PolicySoftwareInstallerData
 	for _, policyWithInstaller := range policiesWithInstaller {
-		if _, ok := newFailingSet[policyWithInstaller.ID]; ok {
+		if _, ok := newFailingSet[policyWithInstaller.ID]; ok || policyWithInstaller.ContinuousAutomationsEnabled {
 			failingPoliciesWithInstaller = append(failingPoliciesWithInstaller, policyWithInstaller)
 		}
 	}
@@ -2135,10 +2137,12 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter to policies with VPP apps that are newly failing, using the pre-computed set.
+	// Filter to policies with VPP apps that are newly failing, or that have
+	// continuous_automations_enabled set (in which case every failing result
+	// triggers an install, not just pass→fail transitions).
 	var failingPoliciesWithVPP []fleet.PolicyVPPData
 	for _, policyWithVPP := range policiesWithVPP {
-		if _, ok := newFailingSet[policyWithVPP.ID]; ok {
+		if _, ok := newFailingSet[policyWithVPP.ID]; ok || policyWithVPP.ContinuousAutomationsEnabled {
 			failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
 		}
 	}
@@ -2270,10 +2274,12 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter to policies with scripts that are newly failing, using the pre-computed set.
+	// Filter to policies with scripts that are newly failing, or that have
+	// continuous_automations_enabled set (in which case every failing result
+	// triggers a script run, not just pass→fail transitions).
 	var failingPoliciesWithScript []fleet.PolicyScriptData
 	for _, policyWithScript := range policiesWithScript {
-		if _, ok := newFailingSet[policyWithScript.ID]; ok {
+		if _, ok := newFailingSet[policyWithScript.ID]; ok || policyWithScript.ContinuousAutomationsEnabled {
 			failingPoliciesWithScript = append(failingPoliciesWithScript, policyWithScript)
 		}
 	}

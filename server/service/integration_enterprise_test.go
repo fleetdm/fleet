@@ -30613,3 +30613,369 @@ func (s *integrationEnterpriseTestSuite) TestOrbitOsqueryReEnrollDoesNotChangeTe
 		require.Equal(t, teamA.ID, *hostLite.TeamID)
 	})
 }
+
+// TestTeamPolicyContinuousAutomationsCRUD exercises the create, modify, get, and
+// GitOps spec-apply paths for the `continuous_automations_enabled` field on team
+// policies, ensuring the value round-trips through every entry point.
+func (s *integrationEnterpriseTestSuite) TestTeamPolicyContinuousAutomationsCRUD() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// POST: default value is false.
+	createDefault := &fleet.TeamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), &fleet.TeamPolicyRequest{
+		Name:     "default",
+		Query:    "SELECT 1;",
+		Platform: "darwin",
+	}, http.StatusOK, &createDefault)
+	require.NotNil(t, createDefault.Policy)
+	require.False(t, createDefault.Policy.ContinuousAutomationsEnabled)
+
+	// POST: explicitly set to true at creation.
+	createOn := &fleet.TeamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), &fleet.TeamPolicyRequest{
+		Name:                         "on",
+		Query:                        "SELECT 2;",
+		Platform:                     "darwin",
+		ContinuousAutomationsEnabled: true,
+	}, http.StatusOK, &createOn)
+	require.NotNil(t, createOn.Policy)
+	require.True(t, createOn.Policy.ContinuousAutomationsEnabled)
+
+	// GET (single + list) returns the field as persisted.
+	getResp := &fleet.GetTeamPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, createOn.Policy.ID), nil, http.StatusOK, getResp)
+	require.NotNil(t, getResp.Policy)
+	require.True(t, getResp.Policy.ContinuousAutomationsEnabled)
+
+	listResp := &fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), nil, http.StatusOK, listResp)
+	require.Len(t, listResp.Policies, 2)
+	for _, p := range listResp.Policies {
+		switch p.Name {
+		case "default":
+			assert.False(t, p.ContinuousAutomationsEnabled)
+		case "on":
+			assert.True(t, p.ContinuousAutomationsEnabled)
+		default:
+			t.Fatalf("unexpected policy %q", p.Name)
+		}
+	}
+
+	// PATCH: flip the default policy on, flip the explicit one off.
+	patchOn := &fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, createDefault.Policy.ID),
+		&fleet.ModifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{ContinuousAutomationsEnabled: ptr.Bool(true)},
+		}, http.StatusOK, patchOn)
+	require.NotNil(t, patchOn.Policy)
+	require.True(t, patchOn.Policy.ContinuousAutomationsEnabled)
+
+	patchOff := &fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, createOn.Policy.ID),
+		&fleet.ModifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{ContinuousAutomationsEnabled: ptr.Bool(false)},
+		}, http.StatusOK, patchOff)
+	require.NotNil(t, patchOff.Policy)
+	require.False(t, patchOff.Policy.ContinuousAutomationsEnabled)
+
+	// PATCH without sending the field leaves it untouched (no implicit reset).
+	patchUnrelated := &fleet.ModifyTeamPolicyResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, createDefault.Policy.ID),
+		json.RawMessage(`{"description": "unrelated edit"}`), http.StatusOK, patchUnrelated)
+	require.NotNil(t, patchUnrelated.Policy)
+	require.True(t, patchUnrelated.Policy.ContinuousAutomationsEnabled)
+
+	// GitOps spec apply: create a new policy via /spec/policies and verify the
+	// field is stored, then flip it on a subsequent apply.
+	s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{
+				Name:                         "gitops-policy",
+				Query:                        "SELECT 3;",
+				Platform:                     "darwin",
+				Team:                         team.Name,
+				ContinuousAutomationsEnabled: true,
+			},
+		},
+	}, http.StatusOK)
+
+	listResp = &fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), nil, http.StatusOK, listResp)
+	var gitopsPolicy *fleet.Policy
+	for _, p := range listResp.Policies {
+		if p.Name == "gitops-policy" {
+			gitopsPolicy = p
+			break
+		}
+	}
+	require.NotNil(t, gitopsPolicy, "gitops-policy not found")
+	require.True(t, gitopsPolicy.ContinuousAutomationsEnabled)
+
+	s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{
+				Name:                         "gitops-policy",
+				Query:                        "SELECT 3;",
+				Platform:                     "darwin",
+				Team:                         team.Name,
+				ContinuousAutomationsEnabled: false,
+			},
+		},
+	}, http.StatusOK)
+
+	updated, err := s.ds.Policy(ctx, gitopsPolicy.ID)
+	require.NoError(t, err)
+	require.False(t, updated.ContinuousAutomationsEnabled)
+}
+
+// TestPolicyAutomationsContinuousScripts verifies that when a policy has
+// continuous_automations_enabled=true, the attached script automation runs on
+// every failing policy result — not just on the first failure or a pass→fail
+// transition (the default behavior).
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "ok-script.sh",
+		ScriptContents: "echo ok",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Two policies on the same team: one with continuous automations, one
+	// without. Both have the same script attached.
+	continuousPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                         "continuous",
+		Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform:                     "darwin",
+		ContinuousAutomationsEnabled: true,
+	})
+	require.NoError(t, err)
+	transitionPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     "transition-only",
+		Query:    "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	// Attach the script to both policies via the API so the modify path is exercised.
+	for _, p := range []*fleet.Policy{continuousPolicy, transitionPolicy} {
+		var resp fleet.ModifyTeamPolicyResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, p.ID), fleet.ModifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
+			},
+		}, http.StatusOK, &resp)
+	}
+
+	submitPolicyResult := func(policyID uint, passes bool) {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			host,
+			map[uint]*bool{policyID: ptr.Bool(passes)},
+		), http.StatusOK, &distributedResp)
+	}
+	completePendingScripts := func() {
+		pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+		require.NoError(t, err)
+		for _, hs := range pending {
+			var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
+			s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+				json.RawMessage(fmt.Sprintf(
+					`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`,
+					*host.OrbitNodeKey, hs.ExecutionID,
+				)), http.StatusOK, &orbitPostScriptResp)
+		}
+	}
+	countExecutionsFor := func(policyID uint) int {
+		var count int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `
+				SELECT COUNT(*) FROM host_script_results
+				WHERE host_id = ? AND script_id = ? AND policy_id = ?
+			`, host.ID, script.ID, policyID)
+		})
+		return count
+	}
+
+	// First failing result triggers the script for both policies (pass→fail
+	// transition). Complete the scripts so nothing else is pending.
+	submitPolicyResult(continuousPolicy.ID, false)
+	submitPolicyResult(transitionPolicy.ID, false)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, countExecutionsFor(continuousPolicy.ID), "first script run for continuous policy")
+		assert.Equal(t, 1, countExecutionsFor(transitionPolicy.ID), "first script run for transition policy")
+	}, 5*time.Second, 100*time.Millisecond)
+	completePendingScripts()
+
+	// Second failing result (fail→fail): only the continuous policy re-queues a
+	// script. The transition-only policy stays at 1 execution.
+	submitPolicyResult(continuousPolicy.ID, false)
+	submitPolicyResult(transitionPolicy.ID, false)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 2, countExecutionsFor(continuousPolicy.ID), "continuous policy fires on every failing result")
+	}, 5*time.Second, 100*time.Millisecond)
+	require.Equal(t, 1, countExecutionsFor(transitionPolicy.ID), "default policy must not re-trigger on fail→fail")
+	completePendingScripts()
+
+	// Third failing result: continuous still re-triggers, default still does not.
+	submitPolicyResult(continuousPolicy.ID, false)
+	submitPolicyResult(transitionPolicy.ID, false)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 3, countExecutionsFor(continuousPolicy.ID))
+	}, 5*time.Second, 100*time.Millisecond)
+	require.Equal(t, 1, countExecutionsFor(transitionPolicy.ID))
+}
+
+// TestPolicyAutomationsContinuousSoftwareInstaller verifies that
+// continuous_automations_enabled=true causes a software install automation to
+// fire on every failing policy result, not just on pass→fail transitions.
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftwareInstaller() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// Upload a macOS installer to the team.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "echo install",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	titlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp,
+		"query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+	titleID := titlesResp.SoftwareTitles[0].ID
+
+	var installerID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
+			team.ID, "dummy_installer.pkg",
+		)
+	})
+	require.NotZero(t, installerID)
+
+	continuousPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                         "continuous",
+		Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform:                     "darwin",
+		ContinuousAutomationsEnabled: true,
+	})
+	require.NoError(t, err)
+	transitionPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     "transition-only",
+		Query:    "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	for _, p := range []*fleet.Policy{continuousPolicy, transitionPolicy} {
+		var resp fleet.ModifyTeamPolicyResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, p.ID), fleet.ModifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+			},
+		}, http.StatusOK, &resp)
+	}
+
+	submitPolicyResult := func(policyID uint, passes bool) {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			host,
+			map[uint]*bool{policyID: ptr.Bool(passes)},
+		), http.StatusOK, &distributedResp)
+	}
+	completePendingInstall := func() {
+		last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
+		require.NoError(t, err)
+		if last == nil || last.Status == nil || *last.Status != fleet.SoftwareInstallPending {
+			return
+		}
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q,
+				"install_uuid": %q,
+				"install_script_exit_code": 0,
+				"install_script_output": "ok"
+			}`, *host.OrbitNodeKey, last.ExecutionID)),
+			http.StatusNoContent)
+	}
+	countInstallsFor := func(policyID uint) int {
+		var count int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `
+				SELECT COUNT(*) FROM host_software_installs
+				WHERE host_id = ? AND software_installer_id = ? AND policy_id = ?
+			`, host.ID, installerID, policyID)
+		})
+		return count
+	}
+
+	// First fail: both policies queue an install (pass→fail transition).
+	submitPolicyResult(continuousPolicy.ID, false)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, countInstallsFor(continuousPolicy.ID))
+	}, 5*time.Second, 100*time.Millisecond)
+	completePendingInstall()
+	submitPolicyResult(transitionPolicy.ID, false)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, countInstallsFor(transitionPolicy.ID))
+	}, 5*time.Second, 100*time.Millisecond)
+	completePendingInstall()
+
+	// Second fail (fail→fail): continuous policy re-queues, default does not.
+	submitPolicyResult(continuousPolicy.ID, false)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 2, countInstallsFor(continuousPolicy.ID), "continuous policy must fire on every failing result")
+	}, 5*time.Second, 100*time.Millisecond)
+	completePendingInstall()
+	submitPolicyResult(transitionPolicy.ID, false)
+	// give the server a moment to process before asserting the negative.
+	time.Sleep(500 * time.Millisecond)
+	require.Equal(t, 1, countInstallsFor(transitionPolicy.ID), "default policy must not re-trigger on fail→fail")
+}

@@ -24,22 +24,23 @@ import (
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.TeamPolicyRequest)
 	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.NewTeamPolicyPayload{
-		QueryID:                  req.QueryID,
-		Name:                     req.Name,
-		Query:                    req.Query,
-		Description:              req.Description,
-		Resolution:               req.Resolution,
-		Platform:                 req.Platform,
-		Critical:                 req.Critical,
-		CalendarEventsEnabled:    req.CalendarEventsEnabled,
-		SoftwareTitleID:          req.SoftwareTitleID,
-		ScriptID:                 req.ScriptID,
-		LabelsIncludeAny:         req.LabelsIncludeAny,
-		LabelsIncludeAll:         req.LabelsIncludeAll,
-		LabelsExcludeAny:         req.LabelsExcludeAny,
-		ConditionalAccessEnabled: req.ConditionalAccessEnabled,
-		Type:                     req.Type,
-		PatchSoftwareTitleID:     req.PatchSoftwareTitleID,
+		QueryID:                      req.QueryID,
+		Name:                         req.Name,
+		Query:                        req.Query,
+		Description:                  req.Description,
+		Resolution:                   req.Resolution,
+		Platform:                     req.Platform,
+		Critical:                     req.Critical,
+		CalendarEventsEnabled:        req.CalendarEventsEnabled,
+		SoftwareTitleID:              req.SoftwareTitleID,
+		ScriptID:                     req.ScriptID,
+		LabelsIncludeAny:             req.LabelsIncludeAny,
+		LabelsIncludeAll:             req.LabelsIncludeAll,
+		LabelsExcludeAny:             req.LabelsExcludeAny,
+		ConditionalAccessEnabled:     req.ConditionalAccessEnabled,
+		ContinuousAutomationsEnabled: req.ContinuousAutomationsEnabled,
+		Type:                         req.Type,
+		PatchSoftwareTitleID:         req.PatchSoftwareTitleID,
 	})
 	if err != nil {
 		return fleet.TeamPolicyResponse{Err: err}, nil
@@ -215,23 +216,24 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		return fleet.PolicyPayload{}, err
 	}
 	return fleet.PolicyPayload{
-		QueryID:                  p.QueryID,
-		Name:                     p.Name,
-		Query:                    p.Query,
-		Critical:                 p.Critical,
-		Description:              p.Description,
-		Resolution:               p.Resolution,
-		Platform:                 p.Platform,
-		CalendarEventsEnabled:    p.CalendarEventsEnabled,
-		SoftwareInstallerID:      softwareInstallerID,
-		VPPAppsTeamsID:           vppAppsTeamsID,
-		ScriptID:                 p.ScriptID,
-		LabelsIncludeAny:         p.LabelsIncludeAny,
-		LabelsIncludeAll:         p.LabelsIncludeAll,
-		LabelsExcludeAny:         p.LabelsExcludeAny,
-		ConditionalAccessEnabled: p.ConditionalAccessEnabled,
-		Type:                     policyType,
-		PatchSoftwareTitleID:     p.PatchSoftwareTitleID,
+		QueryID:                      p.QueryID,
+		Name:                         p.Name,
+		Query:                        p.Query,
+		Critical:                     p.Critical,
+		Description:                  p.Description,
+		Resolution:                   p.Resolution,
+		Platform:                     p.Platform,
+		CalendarEventsEnabled:        p.CalendarEventsEnabled,
+		SoftwareInstallerID:          softwareInstallerID,
+		VPPAppsTeamsID:               vppAppsTeamsID,
+		ScriptID:                     p.ScriptID,
+		LabelsIncludeAny:             p.LabelsIncludeAny,
+		LabelsIncludeAll:             p.LabelsIncludeAll,
+		LabelsExcludeAny:             p.LabelsExcludeAny,
+		ConditionalAccessEnabled:     p.ConditionalAccessEnabled,
+		ContinuousAutomationsEnabled: p.ContinuousAutomationsEnabled,
+		Type:                         policyType,
+		PatchSoftwareTitleID:         p.PatchSoftwareTitleID,
 	}, nil
 }
 
@@ -575,6 +577,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if p.ConditionalAccessEnabled != nil {
 		policy.ConditionalAccessEnabled = *p.ConditionalAccessEnabled
+	}
+	if p.ContinuousAutomationsEnabled != nil {
+		policy.ContinuousAutomationsEnabled = *p.ContinuousAutomationsEnabled
 	}
 	if removeStats {
 		policy.FailingHostCount = 0
