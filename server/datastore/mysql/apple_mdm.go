@@ -1311,7 +1311,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 
 	// MDM is necessarily enabled if this gets called, always pass true for that
 	// parameter.
-	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial)
+	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial, "")
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, fromPersonalEnrollment)
