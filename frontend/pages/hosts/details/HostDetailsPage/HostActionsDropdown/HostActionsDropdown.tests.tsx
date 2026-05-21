@@ -114,10 +114,7 @@ describe("Host Actions Dropdown", () => {
         />
       );
 
-      const actionsButton = screen.queryByText("Actions");
-      if (actionsButton) {
-        await user.click(actionsButton);
-      }
+      await user.click(screen.queryByText("Actions"));
 
       expect(screen.queryByText("Transfer")).not.toBeInTheDocument();
     });
