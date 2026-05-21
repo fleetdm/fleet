@@ -9111,7 +9111,7 @@ Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` 
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234,
       "installer_id": 23,
-      "package_name": "AdobeAcrobat-v24.1.pkg"
+      "installer_name": "AdobeAcrobat-v24.1.pkg"
     },
     "run_script": {
       "name": "Enable gatekeeper",
