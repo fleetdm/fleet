@@ -24,21 +24,21 @@ import CustomLink from "components/CustomLink";
 import ExampleTicket from "../ExampleTicket";
 import ExamplePayload from "../ExamplePayload";
 
-const baseClass = "other-workflows-form";
+const baseClass = "other-workflows-modal";
 
-export interface IOtherWorkflowsFormSubmit {
+export interface IOtherWorkflowsModalSubmit {
   webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
   integrations: IGlobalIntegrations | ITeamIntegrations;
 }
 
-export interface IOtherWorkflowsFormHandle {
+export interface IOtherWorkflowsModalHandle {
   /** Returns the values to submit, or null when there's nothing to submit. */
-  getFormData: () => IOtherWorkflowsFormSubmit | null;
+  getFormData: () => IOtherWorkflowsModalSubmit | null;
   validate: () => boolean;
   isDirty: () => boolean;
 }
 
-interface IOtherWorkflowsFormProps {
+interface IOtherWorkflowsModalProps {
   router: InjectedRouter;
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
   availableIntegrations: IGlobalIntegrations | ITeamIntegrations;
@@ -57,9 +57,9 @@ const getIntegrationType = (integration?: IIntegration) =>
   (!!integration?.project_key && "jira") ||
   undefined;
 
-const OtherWorkflowsForm = forwardRef<
-  IOtherWorkflowsFormHandle,
-  IOtherWorkflowsFormProps
+const OtherWorkflowsModal = forwardRef<
+  IOtherWorkflowsModalHandle,
+  IOtherWorkflowsModalProps
 >(
   (
     {
@@ -67,7 +67,7 @@ const OtherWorkflowsForm = forwardRef<
       automationsConfig,
       availableIntegrations,
       gitOpsModeEnabled = false,
-    }: IOtherWorkflowsFormProps,
+    }: IOtherWorkflowsModalProps,
     ref
   ) => {
     const {
@@ -113,7 +113,7 @@ const OtherWorkflowsForm = forwardRef<
     const [showExampleTicket, setShowExampleTicket] = useState(false);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-    const buildSubmitData = (): IOtherWorkflowsFormSubmit => {
+    const buildSubmitData = (): IOtherWorkflowsModalSubmit => {
       const newJira =
         availableIntegrations.jira?.map((j) => ({
           ...j,
@@ -363,6 +363,6 @@ const OtherWorkflowsForm = forwardRef<
   }
 );
 
-OtherWorkflowsForm.displayName = "OtherWorkflowsForm";
+OtherWorkflowsModal.displayName = "OtherWorkflowsModal";
 
-export default OtherWorkflowsForm;
+export default OtherWorkflowsModal;

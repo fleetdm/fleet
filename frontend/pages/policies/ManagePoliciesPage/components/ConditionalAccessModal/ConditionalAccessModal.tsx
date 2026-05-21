@@ -11,28 +11,28 @@ import Slider from "components/forms/fields/Slider";
 import { AppContext } from "context/app";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 
-const baseClass = "conditional-access-form";
+const baseClass = "conditional-access-modal";
 
-export interface IConditionalAccessFormData {
+export interface IConditionalAccessModalData {
   enabled: boolean;
 }
 
-export interface IConditionalAccessFormHandle {
-  getFormData: () => IConditionalAccessFormData | null;
+export interface IConditionalAccessModalHandle {
+  getFormData: () => IConditionalAccessModalData | null;
   validate: () => boolean;
   isDirty: () => boolean;
 }
 
-interface IConditionalAccessFormProps {
+interface IConditionalAccessModalProps {
   configured: boolean;
   enabled: boolean;
   gitOpsModeEnabled?: boolean;
   providerText: string;
 }
 
-const ConditionalAccessForm = forwardRef<
-  IConditionalAccessFormHandle,
-  IConditionalAccessFormProps
+const ConditionalAccessModal = forwardRef<
+  IConditionalAccessModalHandle,
+  IConditionalAccessModalProps
 >(
   (
     {
@@ -40,7 +40,7 @@ const ConditionalAccessForm = forwardRef<
       enabled,
       gitOpsModeEnabled = false,
       providerText,
-    }: IConditionalAccessFormProps,
+    }: IConditionalAccessModalProps,
     ref
   ) => {
     const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
@@ -90,6 +90,6 @@ const ConditionalAccessForm = forwardRef<
   }
 );
 
-ConditionalAccessForm.displayName = "ConditionalAccessForm";
+ConditionalAccessModal.displayName = "ConditionalAccessModal";
 
-export default ConditionalAccessForm;
+export default ConditionalAccessModal;

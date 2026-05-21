@@ -14,29 +14,29 @@ import InputField from "components/forms/fields/InputField";
 import paths from "router/paths";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 
-const baseClass = "calendar-events-form";
+const baseClass = "calendar-events-modal";
 
-export interface ICalendarEventsFormData {
+export interface ICalendarEventsModalData {
   enabled: boolean;
   url: string;
 }
 
-export interface ICalendarEventsFormHandle {
-  getFormData: () => ICalendarEventsFormData | null;
+export interface ICalendarEventsModalHandle {
+  getFormData: () => ICalendarEventsModalData | null;
   validate: () => boolean;
   isDirty: () => boolean;
 }
 
-interface ICalendarEventsFormProps {
+interface ICalendarEventsModalProps {
   configured: boolean;
   enabled: boolean;
   url: string;
   gitOpsModeEnabled?: boolean;
 }
 
-const CalendarEventsForm = forwardRef<
-  ICalendarEventsFormHandle,
-  ICalendarEventsFormProps
+const CalendarEventsModal = forwardRef<
+  ICalendarEventsModalHandle,
+  ICalendarEventsModalProps
 >(
   (
     {
@@ -44,13 +44,13 @@ const CalendarEventsForm = forwardRef<
       enabled,
       url,
       gitOpsModeEnabled = false,
-    }: ICalendarEventsFormProps,
+    }: ICalendarEventsModalProps,
     ref
   ) => {
     const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
     const isAdmin = isGlobalAdmin || isTeamAdmin;
 
-    const [formData, setFormData] = useState<ICalendarEventsFormData>({
+    const [formData, setFormData] = useState<ICalendarEventsModalData>({
       enabled,
       url,
     });
@@ -60,7 +60,7 @@ const CalendarEventsForm = forwardRef<
     );
     const [showExamplePayload, setShowExamplePayload] = useState(false);
 
-    const validateForm = (newFormData: ICalendarEventsFormData) => {
+    const validateForm = (newFormData: ICalendarEventsModalData) => {
       const errors: Record<string, string> = {};
       const { url: newUrl } = newFormData;
       if (
@@ -202,6 +202,6 @@ const CalendarEventsForm = forwardRef<
   }
 );
 
-CalendarEventsForm.displayName = "CalendarEventsForm";
+CalendarEventsModal.displayName = "CalendarEventsModal";
 
-export default CalendarEventsForm;
+export default CalendarEventsModal;

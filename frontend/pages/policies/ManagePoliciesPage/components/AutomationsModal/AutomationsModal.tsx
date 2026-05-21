@@ -13,15 +13,15 @@ import teamsAPI, {
 } from "services/entities/teams";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import OtherWorkflowsForm, {
-  IOtherWorkflowsFormHandle,
-} from "../OtherWorkflowsForm/OtherWorkflowsForm";
-import CalendarEventsForm, {
-  ICalendarEventsFormHandle,
-} from "../CalendarEventsForm/CalendarEventsForm";
-import ConditionalAccessForm, {
-  IConditionalAccessFormHandle,
-} from "../ConditionalAccessForm/ConditionalAccessForm";
+import OtherWorkflowsModal, {
+  IOtherWorkflowsModalHandle,
+} from "../OtherWorkflowsModal/OtherWorkflowsModal";
+import CalendarEventsModal, {
+  ICalendarEventsModalHandle,
+} from "../CalendarEventsModal/CalendarEventsModal";
+import ConditionalAccessModal, {
+  IConditionalAccessModalHandle,
+} from "../ConditionalAccessModal/ConditionalAccessModal";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
 
 const baseClass = "automations-modal";
@@ -58,9 +58,9 @@ const AutomationsModal = ({
   const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const otherFormRef = useRef<IOtherWorkflowsFormHandle>(null);
-  const calendarFormRef = useRef<ICalendarEventsFormHandle>(null);
-  const conditionalAccessFormRef = useRef<IConditionalAccessFormHandle>(null);
+  const otherFormRef = useRef<IOtherWorkflowsModalHandle>(null);
+  const calendarFormRef = useRef<ICalendarEventsModalHandle>(null);
+  const conditionalAccessFormRef = useRef<IConditionalAccessModalHandle>(null);
 
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -106,7 +106,7 @@ const AutomationsModal = ({
   };
 
   const onSave = async () => {
-    // Validate every visible form. We always show OtherWorkflowsForm.
+    // Validate every visible form. We always show OtherWorkflowsModal.
     const otherValid = otherFormRef.current?.validate() ?? true;
     const calendarValid = calendarFormRef.current?.validate() ?? true;
     const caValid = conditionalAccessFormRef.current?.validate() ?? true;
@@ -221,7 +221,7 @@ const AutomationsModal = ({
               Webhooks or tickets
             </h2>
           )}
-          <OtherWorkflowsForm
+          <OtherWorkflowsModal
             ref={otherFormRef}
             router={router}
             automationsConfig={automationsConfig}
@@ -256,7 +256,7 @@ const AutomationsModal = ({
                   </>
                 )}
               </div>
-              <CalendarEventsForm
+              <CalendarEventsModal
                 ref={calendarFormRef}
                 configured={isCalEventsConfigured}
                 enabled={isCalEventsEnabled}
@@ -270,7 +270,7 @@ const AutomationsModal = ({
               <h2 className={`${baseClass}__section-title`}>
                 Conditional access
               </h2>
-              <ConditionalAccessForm
+              <ConditionalAccessModal
                 ref={conditionalAccessFormRef}
                 configured={isCAConfigured}
                 enabled={isCAEnabled}
