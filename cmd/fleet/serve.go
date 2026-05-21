@@ -191,9 +191,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	// Validate OTEL server options
-	if err := validateOTELLoggingConfig(config); err != nil {
-		initFatal(err, "OTEL logs require tracing for trace correlation")
-	}
+	config.Logging.Validate(initFatal)
 
 	// Init OTEL providers (traces, metrics, logs)
 	var loggerProvider *otelsdklog.LoggerProvider
@@ -314,20 +312,15 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		createTestBuckets(cmd.Context(), &config, logger)
 	}
 
-	if err := validateOsqueryHostIdentifier(config); err != nil {
-		initFatal(err, "set host identifier")
-	}
+	config.Osquery.Validate(initFatal)
 
 	config.ConditionalAccess.Validate(initFatal)
 
-	if err := normalizeAndValidateServerURLPrefix(&config); err != nil {
-		initFatal(err, "setting server URL prefix")
-	}
+	config.Server.NormalizeURLPrefix()
+	config.Server.ValidateURLPrefix(initFatal)
 
-	// Handle server private key configuration - either direct or via AWS Secrets Manager
-	if err := validateServerPrivateKeyExclusive(config); err != nil {
-		initFatal(err, "validate private key configuration")
-	}
+	// Handle server private key configuration - either direct or via AWS Secrets Manager.
+	config.Server.Validate(initFatal)
 
 	// Retrieve private key from AWS Secrets Manager if specified
 	if config.Server.PrivateKeySecretArn != "" {
@@ -344,12 +337,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		config.Server.PrivateKey = privateKey
 	}
 
-	if err := validateServerPrivateKeyLength(config); err != nil {
-		initFatal(err, "validate private key")
-	}
+	config.Server.ValidatePrivateKeyLength(initFatal)
 	if len(config.Server.PrivateKey) > 0 {
-		// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
-		// infra setups generate keys that are longer than 32 bytes.
+		// Truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK;
+		// some infra setups generate keys that are longer than 32 bytes.
 		config.Server.PrivateKey = config.Server.PrivateKey[:32]
 	}
 
