@@ -1,7 +1,6 @@
 package homebrew
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -44,12 +43,12 @@ func TestInstallScriptForPkgWithPkgArtifact(t *testing.T) {
 	}
 
 	script, err := installScriptForApp(inputApp{
-		Token:            "zoom-for-it-admins",
+		Token:            "zoom-for-it-admins", //nolint:gosec // homebrew cask token, not a credential
 		UniqueIdentifier: "us.zoom.xos",
 		InstallerFormat:  "pkg",
 	}, cask)
 	require.NoError(t, err)
 	require.Contains(t, script, `sudo installer -pkg "$TMPDIR/ZoomInstallerIT.pkg" -target /`)
 	require.NotContains(t, script, `sudo installer -pkg "$INSTALLER_PATH" -target /`)
-	require.True(t, strings.Contains(script, "relaunch_application"))
+	require.Contains(t, script, "relaunch_application")
 }
