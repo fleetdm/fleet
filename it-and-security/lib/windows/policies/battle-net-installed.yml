@@ -1,7 +1,7 @@
 - name: Windows - Battle.net installed
   query: SELECT 1 FROM programs WHERE name LIKE 'Battle.net%';
   install_software:
-    package_path: ../lib/windows/software/battle-net.yml
+    package_path: ../software/battle-net.yml
   critical: false
   description: Battle.net must be installed on all workstations.
   resolution: Battle.net will be automatically installed by Fleet when this policy fails. You can also install it on demand from Fleet Desktop self-service.
