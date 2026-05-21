@@ -2,7 +2,7 @@
 
 Fleet is an open-source device management platform for macOS, Linux, Windows, Chromebooks, iOS, and Android devices (BYOD or corporate-owned).
 
-![Fleet Dashboard](https://raw.githubusercontent.com/fleetdm/fleet/docs/images/fleet-dashboard-612x344@2x.png)
+![Fleet Dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/fleet-dashboard-612x344@2x.png)
 
 ## What's it for?
 
