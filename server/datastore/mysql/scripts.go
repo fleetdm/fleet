@@ -15,6 +15,7 @@ import (
 	constants "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
@@ -1558,6 +1559,32 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 			status.WipeMDMCommandResult = cmdRes
 		}
 
+	case "android":
+		// Android lock/wipe are AMAPI commands tracked in mdm_android_commands; lock_ref and
+		// wipe_ref store the Fleet-generated command_uuid (no unlock_ref on Android).
+		if mdmActions.LockRef != nil {
+			cmd, cmdRes, err := ds.getHostMDMAndroidCommand(ctx, *mdmActions.LockRef)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get android lock reference")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan android lock command reference", "host_id", host.ID, "command_uuid", *mdmActions.LockRef)
+			}
+			status.LockMDMCommand = cmd
+			status.LockMDMCommandResult = cmdRes
+		}
+		if mdmActions.WipeRef != nil {
+			cmd, cmdRes, err := ds.getHostMDMAndroidCommand(ctx, *mdmActions.WipeRef)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get android wipe reference")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan android wipe command reference", "host_id", host.ID, "command_uuid", *mdmActions.WipeRef)
+			}
+			status.WipeMDMCommand = cmd
+			status.WipeMDMCommandResult = cmdRes
+		}
+
 	case "windows", "linux":
 		// lock and unlock references are scripts
 		if mdmActions.LockRef != nil {
@@ -1659,6 +1686,7 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 
 	appleCommandRefs := make([]refKey, 0)
 	windowsCommandRefs := make([]refKey, 0)
+	androidCommandRefs := make([]refKey, 0)
 	scriptRefs := make([]refKey, 0)
 
 	// Build initial status map with platform info
@@ -1755,6 +1783,25 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 			}
 			if mdmActions.WipeRef != nil {
 				windowsCommandRefs = append(windowsCommandRefs, refKey{
+					uuid:     *mdmActions.WipeRef,
+					hostUUID: host.UUID,
+					hostID:   host.ID,
+					refType:  "wipe",
+				})
+			}
+
+		case "android":
+			// Android lock/wipe are AMAPI commands in mdm_android_commands (no unlock_ref).
+			if mdmActions.LockRef != nil {
+				androidCommandRefs = append(androidCommandRefs, refKey{
+					uuid:     *mdmActions.LockRef,
+					hostUUID: host.UUID,
+					hostID:   host.ID,
+					refType:  "lock",
+				})
+			}
+			if mdmActions.WipeRef != nil {
+				androidCommandRefs = append(androidCommandRefs, refKey{
 					uuid:     *mdmActions.WipeRef,
 					hostUUID: host.UUID,
 					hostID:   host.ID,
@@ -1972,6 +2019,68 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 		}
 	}
 
+	// Batch query Android MDM commands (lock/wipe via AMAPI). Pending rows leave the result nil
+	// so HostLockWipeStatus.IsPendingLock/IsPendingWipe report "pending"; acknowledged/error
+	// rows populate the result with the Android status string ("acknowledged" or "error").
+	if len(androidCommandRefs) > 0 {
+		cmdUUIDs := make([]string, 0, len(androidCommandRefs))
+		cmdUUIDMap := make(map[string][]refKey)
+		for _, ref := range androidCommandRefs {
+			if _, exists := cmdUUIDMap[ref.uuid]; !exists {
+				cmdUUIDs = append(cmdUUIDs, ref.uuid)
+			}
+			cmdUUIDMap[ref.uuid] = append(cmdUUIDMap[ref.uuid], ref)
+		}
+
+		cmdStmt := `SELECT command_uuid, host_uuid, command_type, status FROM mdm_android_commands WHERE command_uuid IN (?)`
+		cmdQuery, cmdArgs, err := sqlx.In(cmdStmt, cmdUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for android commands")
+		}
+
+		var rows []struct {
+			CommandUUID string `db:"command_uuid"`
+			HostUUID    string `db:"host_uuid"`
+			CommandType string `db:"command_type"`
+			Status      string `db:"status"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, cmdQuery, cmdArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select android mdm commands batch")
+		}
+
+		commandMap := make(map[string]*fleet.MDMCommand, len(rows))
+		resultMap := make(map[string]*fleet.MDMCommandResult, len(rows))
+		for _, r := range rows {
+			commandMap[r.CommandUUID] = &fleet.MDMCommand{
+				CommandUUID: r.CommandUUID,
+				RequestType: r.CommandType,
+			}
+			if r.Status != string(android.MDMAndroidCommandStatusPending) {
+				resultMap[r.CommandUUID] = &fleet.MDMCommandResult{
+					CommandUUID: r.CommandUUID,
+					HostUUID:    r.HostUUID,
+					Status:      r.Status,
+				}
+			}
+		}
+
+		for cmdUUID, refs := range cmdUUIDMap {
+			cmd := commandMap[cmdUUID]
+			cmdRes := resultMap[cmdUUID]
+			for _, ref := range refs {
+				status := statusMap[ref.hostID]
+				switch ref.refType {
+				case "lock":
+					status.LockMDMCommand = cmd
+					status.LockMDMCommandResult = cmdRes
+				case "wipe":
+					status.WipeMDMCommand = cmd
+					status.WipeMDMCommandResult = cmdRes
+				}
+			}
+		}
+	}
+
 	// Batch query script results
 	if len(scriptRefs) > 0 {
 		execIDs := make([]string, 0, len(scriptRefs))
@@ -2032,6 +2141,35 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 	}
 
 	return statusMap, nil
+}
+
+// getHostMDMAndroidCommand returns the Fleet-shaped MDMCommand + MDMCommandResult for a
+// host_mdm_actions ref pointing at mdm_android_commands.command_uuid. Mirrors
+// getHostMDMAppleCommand / getHostMDMWindowsCommand so the GetHostLockWipeStatus consumer can
+// stay platform-agnostic. While the command is still pending (no Pub/Sub ack yet), result is nil
+// — matching how a pending Apple command leaves LockMDMCommandResult nil.
+func (ds *Datastore) getHostMDMAndroidCommand(ctx context.Context, cmdUUID string) (*fleet.MDMCommand, *fleet.MDMCommandResult, error) {
+	cmd, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get android mdm command")
+	}
+
+	mdmCmd := &fleet.MDMCommand{
+		CommandUUID: cmd.CommandUUID,
+		RequestType: cmd.CommandType,
+	}
+
+	// Pending status means no Pub/Sub COMMAND notification has arrived yet; leave result nil so
+	// IsPendingLock/IsPendingWipe report "pending" and IsLocked/IsWiped report false.
+	if cmd.Status == string(android.MDMAndroidCommandStatusPending) {
+		return mdmCmd, nil, nil
+	}
+
+	return mdmCmd, &fleet.MDMCommandResult{
+		CommandUUID: cmd.CommandUUID,
+		HostUUID:    cmd.HostUUID,
+		Status:      cmd.Status,
+	}, nil
 }
 
 func (ds *Datastore) getHostMDMWindowsCommand(ctx context.Context, cmdUUID, hostUUID string) (*fleet.MDMCommand, *fleet.MDMCommandResult, error) {
