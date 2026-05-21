@@ -82,6 +82,11 @@ const PLATFORM_FILTER_OPTIONS = [
     label: "iPadOS",
     value: "ipados",
   },
+  {
+    disabled: false,
+    label: "Android",
+    value: "android",
+  },
 ];
 
 const SoftwareOSTable = ({

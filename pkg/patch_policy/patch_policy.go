@@ -19,12 +19,10 @@ type PolicyData struct {
 }
 
 const (
-	// templateStart and templateEnd* wrap the caller-supplied exists query in an
-	// inner set of parentheses so that any OR in the WHERE body binds before the
-	// appended AND version_compare(...) clause.
-	templateStart      = "SELECT 1 WHERE NOT EXISTS (("
-	templateEndDarwin  = ") AND version_compare(bundle_short_version, '%s') < 0);"
-	templateEndWindows = ") AND version_compare(version, '%s') < 0);"
+	// notExistsStart is prepended to the exists query body; version_compare is appended
+	// to the same WHERE clause (inside NOT EXISTS), matching the pre-#45647 generator.
+	notExistsStart = "SELECT 1 WHERE NOT EXISTS ("
+	existsPrefix   = "SELECT 1 FROM "
 )
 
 var (
@@ -32,23 +30,79 @@ var (
 	ErrNoExistsQuery = errors.New("exists query was not provided")
 )
 
-// GenerateQueryForManifest wraps the "exists" query to create a patch policy query
+// GenerateQueryForManifest wraps the "exists" query to create a patch policy query.
 func GenerateQueryForManifest(p PolicyData) (string, error) {
 	if p.ExistsQuery == "" {
 		return "", ErrNoExistsQuery
 	}
-	before, _ := strings.CutSuffix(p.ExistsQuery, ";")
-	// Escape any literal '%' in the exists query (e.g. SQL LIKE patterns)
-	// so fmt.Sprintf doesn't interpret them as format verbs.
-	before = strings.ReplaceAll(before, "%", "%%")
 
-	switch p.Platform {
-	case "darwin":
-		return fmt.Sprintf(templateStart+before+templateEndDarwin, p.Version), nil
-	case "windows":
-		return fmt.Sprintf(templateStart+before+templateEndWindows, p.Version), nil
+	suffix, err := versionCompareSuffix(p.Platform, p.ExistsQuery, p.Version)
+	if err != nil {
+		return "", err
 	}
-	return "", ErrWrongPlatform
+
+	before, _ := strings.CutSuffix(p.ExistsQuery, ";")
+	before = strings.TrimSpace(before)
+	if strings.Contains(before, " OR ") {
+		before = parenthesizeWhereClause(before)
+	}
+
+	return notExistsStart + before + suffix, nil
+}
+
+// parenthesizeWhereClause wraps the WHERE body in parens when it contains OR so that
+// the trailing AND version_compare(...) binds to the full predicate, not just the
+// right-hand side of OR (SQL precedence: AND > OR).
+func parenthesizeWhereClause(existsQuery string) string {
+	if !strings.HasPrefix(existsQuery, existsPrefix) {
+		return existsQuery
+	}
+	rest := strings.TrimPrefix(existsQuery, existsPrefix)
+	table, conditions, found := strings.Cut(rest, " WHERE ")
+	if !found {
+		return existsQuery
+	}
+	if !strings.Contains(conditions, " OR ") {
+		return existsQuery
+	}
+	return existsPrefix + table + " WHERE (" + conditions + ")"
+}
+
+func versionCompareSuffix(platform, existsQuery, version string) (string, error) {
+	column, err := versionCompareColumn(platform, existsQuery)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(" AND version_compare(%s, '%s') < 0);", column, version), nil
+}
+
+func versionCompareColumn(platform, existsQuery string) (string, error) {
+	switch platform {
+	case "darwin":
+		return "bundle_short_version", nil
+	case "windows":
+		if tableFromExistsQuery(existsQuery) == "file" {
+			return "file_version", nil
+		}
+		return "version", nil
+	default:
+		return "", ErrWrongPlatform
+	}
+}
+
+func tableFromExistsQuery(existsQuery string) string {
+	trimmed, _ := strings.CutSuffix(strings.TrimSpace(existsQuery), ";")
+	if !strings.HasPrefix(trimmed, existsPrefix) {
+		return ""
+	}
+	rest := strings.TrimPrefix(trimmed, existsPrefix)
+	if table, _, found := strings.Cut(rest, " WHERE "); found {
+		return table
+	}
+	if table, _, found := strings.Cut(rest, " "); found {
+		return table
+	}
+	return strings.TrimSpace(rest)
 }
 
 // GenerateFromInstaller creates a patch policy with all fields from an installer

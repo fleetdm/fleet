@@ -228,6 +228,7 @@ export interface IConfig {
     config: {
       region: string;
       source_arn: string;
+      sender_domain: string;
     };
   };
   mdm: IMdmConfig;

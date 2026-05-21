@@ -3829,7 +3829,7 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	c2.MaxBlock = 3
 	require.NoError(t, s.ds.UpdateCarve(ctx, c2))
 
-	var listResp listCarvesResponse
+	var listResp fleet.ListCarvesResponse
 	s.DoJSON("GET", "/api/latest/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id")
 	require.Len(t, listResp.Carves, 2)
 	assert.Equal(t, c1.ID, listResp.Carves[0].ID)
@@ -3854,7 +3854,7 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	require.Len(t, listResp.Carves, 0)
 
 	// get specific carve
-	var getResp getCarveResponse
+	var getResp fleet.GetCarveResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", c2.ID), nil, http.StatusOK, &getResp)
 	require.Equal(t, c2.ID, getResp.Carve.ID)
 	require.True(t, getResp.Carve.Expired)
@@ -3863,7 +3863,7 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", c3.ID+1), nil, http.StatusNotFound, &getResp)
 
 	// get expired carve block
-	var blkResp getCarveBlockResponse
+	var blkResp fleet.GetCarveBlockResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d/block/%d", c2.ID, 1), nil, http.StatusInternalServerError, &blkResp)
 
 	// get valid carve block, but block not inserted yet
@@ -9835,7 +9835,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// begin a carve with an invalid node key
 	var errRes map[string]interface{}
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey + "zzz",
 		BlockCount: 1,
 		BlockSize:  1,
@@ -9845,7 +9845,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "invalid node key")
 
 	// invalid carve size
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
@@ -9855,7 +9855,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "carve_size must be greater")
 
 	// invalid block size too big
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  maxBlockSize + 1,
@@ -9865,7 +9865,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "block_size exceeds max")
 
 	// invalid carve size too big
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  maxBlockSize,
@@ -9875,7 +9875,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "carve_size exceeds max")
 
 	// invalid carve size, does not match blocks
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
@@ -9885,8 +9885,8 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "carve_size does not match")
 
 	// valid carve begin
-	var beginResp carveBeginResponse
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	var beginResp fleet.CarveBeginResponse
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
@@ -9898,8 +9898,8 @@ func (s *integrationTestSuite) TestCarve() {
 	sid := beginResp.SessionId
 
 	// sending a block with invalid session id
-	var blockResp carveBlockResponse
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	var blockResp fleet.CarveBlockResponse
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   1,
 		SessionId: sid + "zz",
 		RequestId: "??",
@@ -9907,7 +9907,7 @@ func (s *integrationTestSuite) TestCarve() {
 	}, http.StatusUnauthorized, &blockResp)
 
 	// sending a block with valid session id but invalid request id
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "??",
@@ -9915,13 +9915,13 @@ func (s *integrationTestSuite) TestCarve() {
 	}, http.StatusUnauthorized, &blockResp)
 
 	checkCarveError := func(id uint, err string) {
-		var getResp getCarveResponse
+		var getResp fleet.GetCarveResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", id), nil, http.StatusOK, &getResp)
 		require.Equal(t, err, *getResp.Carve.Error)
 	}
 
 	// sending a block with unexpected block id (expects 0, got 1)
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9930,7 +9930,7 @@ func (s *integrationTestSuite) TestCarve() {
 	checkCarveError(1, "block_id does not match expected block (0): 1")
 
 	// sending a block with valid payload, block 0
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   0,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9939,8 +9939,8 @@ func (s *integrationTestSuite) TestCarve() {
 	require.True(t, blockResp.Success)
 
 	// sending next block
-	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	blockResp = fleet.CarveBlockResponse{}
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9949,8 +9949,8 @@ func (s *integrationTestSuite) TestCarve() {
 	require.True(t, blockResp.Success)
 
 	// sending already-sent block again
-	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	blockResp = fleet.CarveBlockResponse{}
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9959,8 +9959,8 @@ func (s *integrationTestSuite) TestCarve() {
 	checkCarveError(1, "block_id does not match expected block (2): 1")
 
 	// sending final block with too many bytes
-	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	blockResp = fleet.CarveBlockResponse{}
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   2,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9969,8 +9969,8 @@ func (s *integrationTestSuite) TestCarve() {
 	checkCarveError(1, "exceeded declared block size 3: 7")
 
 	// sending actual final block
-	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	blockResp = fleet.CarveBlockResponse{}
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   2,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9979,8 +9979,8 @@ func (s *integrationTestSuite) TestCarve() {
 	require.True(t, blockResp.Success)
 
 	// sending unexpected block
-	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	blockResp = fleet.CarveBlockResponse{}
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   3,
 		SessionId: sid,
 		RequestId: "r1",
@@ -17204,4 +17204,94 @@ func (s *integrationTestSuite) TestOrbitDebugLoggingOnEnroll() {
 	unstampedHost, err := s.ds.LoadHostByOrbitNodeKey(ctx, enrollResp2.OrbitNodeKey)
 	require.NoError(t, err)
 	require.Nil(t, unstampedHost.OrbitDebugUntil)
+}
+
+func (s *integrationTestSuite) TestHostDeviceURL() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Pin the server URL so the assertion below is stable. Restore the original
+	// on cleanup so other tests aren't affected.
+	origAC, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origServerURL := origAC.ServerSettings.ServerURL
+	// Trailing slash exercises the TrimRight in HostDeviceURL.
+	origAC.ServerSettings.ServerURL = "https://fleet.example.com/"
+	require.NoError(t, s.ds.SaveAppConfig(ctx, origAC))
+	t.Cleanup(func() {
+		ac, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.ServerSettings.ServerURL = origServerURL
+		require.NoError(t, s.ds.SaveAppConfig(ctx, ac))
+	})
+
+	const freshToken = "my-device-link-fresh-token" //nolint:gosec // G101 false positive, test fixture value
+	host := createOrbitEnrolledHost(t, "linux", "device-url-host", s.ds)
+	createDeviceTokenForHost(t, s.ds, host.ID, freshToken)
+
+	retrievedActivity := fleet.ActivityTypeRetrievedHostMyDeviceURL{}.ActivityName()
+	expectedActivityDetails := fmt.Sprintf(
+		`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName())
+
+	// Case 1: host has a fresh token → it should be reused as-is.
+	var resp getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusOK, &resp)
+	require.Equal(t, host.ID, resp.HostID)
+	require.Equal(t, "https://fleet.example.com/device/"+freshToken, resp.DeviceURL)
+	// Each successful retrieval logs an audit activity tied to the host.
+	s.lastActivityOfTypeMatches(retrievedActivity, expectedActivityDetails, 0)
+
+	// A second call also reuses the same token (still fresh).
+	var resp2 getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusOK, &resp2)
+	require.Equal(t, resp.DeviceURL, resp2.DeviceURL)
+
+	// Case 2: host has a token but it's expired. Push updated_at into the
+	// past, then expect a freshly generated token (different from the stale
+	// one).
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_device_auth SET updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE host_id = ?`, host.ID)
+		return err
+	})
+
+	var respExpired getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusOK, &respExpired)
+	require.True(t, strings.HasPrefix(respExpired.DeviceURL, "https://fleet.example.com/device/"), "URL: %s", respExpired.DeviceURL)
+	require.NotEqual(t, resp.DeviceURL, respExpired.DeviceURL, "expected stale token to be rotated")
+
+	regenToken, err := s.ds.GetDeviceAuthToken(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotEqual(t, freshToken, regenToken)
+	require.Equal(t, "https://fleet.example.com/device/"+regenToken, respExpired.DeviceURL)
+
+	// Case 3: host has never had a token row → Fleet generates one.
+	hostNoToken := createOrbitEnrolledHost(t, "linux", "device-url-no-token", s.ds)
+	var respNew getHostDeviceURLResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", hostNoToken.ID), nil, http.StatusOK, &respNew)
+	require.True(t, strings.HasPrefix(respNew.DeviceURL, "https://fleet.example.com/device/"), "URL: %s", respNew.DeviceURL)
+	newlyMintedToken, err := s.ds.GetDeviceAuthToken(ctx, hostNoToken.ID)
+	require.NoError(t, err)
+	require.Equal(t, "https://fleet.example.com/device/"+newlyMintedToken, respNew.DeviceURL)
+
+	// Unknown host ID: 404.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID+9999), nil, http.StatusNotFound, &resp)
+
+	// iOS and iPadOS hosts can't use device-token auth, so the endpoint
+	// rejects them with 400 instead of minting an unusable URL.
+	iosHost := createOrbitEnrolledHost(t, "ios", "device-url-ios", s.ds)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", iosHost.ID), nil, http.StatusBadRequest, &resp)
+	ipadHost := createOrbitEnrolledHost(t, "ipados", "device-url-ipad", s.ds)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", ipadHost.ID), nil, http.StatusBadRequest, &resp)
+
+	// Non-global-admin roles: 403. Switch tokens, then restore admin token at end.
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	t.Run("global maintainer is forbidden", func(t *testing.T) {
+		s.setTokenForTest(t, TestMaintainerUserEmail, test.GoodPassword)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
+	})
+	t.Run("global observer is forbidden", func(t *testing.T) {
+		s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_url", host.ID), nil, http.StatusForbidden, &resp)
+	})
 }
