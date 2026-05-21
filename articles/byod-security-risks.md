@@ -113,8 +113,8 @@ That usually happens when the data involved becomes too sensitive, the audit bur
 Three criteria worth applying to any BYOD tool you evaluate. First, whether it surfaces ownership context, so you can tell personal enrollments apart from corporate ones in the device list. Second, whether enforcement scope reflects the limits each OS imposes on BYOD-enrolled devices, rather than promising controls it can't apply on personal hardware. Third, whether you can produce audit evidence on demand without manual report-pulling. Fleet covers all three: enrollment type and ownership status surface natively in the device list. Enforcement respects each platform's BYOD boundaries, and live query produces compliance evidence in near real-time. [Schedule a demo](https://fleetdm.com/contact) to walk through how that works with your device mix.
 
 <meta name="articleTitle" value="BYOD security risks: How to reduce the attack surface">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-08">
+<meta name="publishedOn" value="2026-05-21">
 <meta name="description" value="BYOD security risks include data leakage, unpatched devices, and compliance gaps. Learn how enrollment type sets your security boundary.">
