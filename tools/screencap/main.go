@@ -170,8 +170,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error creating Chrome profile directory: %v", err)
 	}
+	// Remove stale SingletonLock left behind if a previous run crashed
+	// (log.Fatalf calls os.Exit which skips defers, so Chrome may not
+	// have cleaned up).
+	os.Remove(filepath.Join(profileDir, "SingletonLock"))
 
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.WindowSize(1440, 900),
 		chromedp.UserDataDir(profileDir),
 	)
