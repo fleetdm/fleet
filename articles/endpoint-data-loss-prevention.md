@@ -76,9 +76,9 @@ That depends on your jurisdiction, workforce model, and what the product records
 
 Start with where sensitive work actually happens and how much control you need outside the browser. If most risk sits in a few managed web apps, browser-based controls may be enough and can be simpler to deploy. If users move data through local apps, removable media, printing, or mixed operating systems, an endpoint agent usually gives you more consistent enforcement. Evaluation should also cover buying factors such as deployment effort, offline behavior, privacy review, and how exceptions are handled. Fleet can help you confirm device readiness and operating system permissions across your environment before either type of rollout begins. [Schedule a demo](https://fleetdm.com/contact) to explore how that works for your fleet.
 
-<meta name="articleTitle" value="Endpoint Data Loss Prevention: A Complete Guide">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="articleTitle" value="Endpoint Data Loss Prevention: A Practical IT Security Guide">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-08">
-<meta name="description" value="Learn how endpoint DLP works on macOS, Windows, and Linux, what controls to deploy, and how to roll out enforcement without false positive overload.">
+<meta name="publishedOn" value="2026-05-21">
+<meta name="description" value="How endpoint DLP works on macOS, Windows, and Linux: controls to deploy, compliance evidence it generates, and rollout without alert overload.">
