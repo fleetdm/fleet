@@ -1,1 +1,0 @@
-- Fixed dynamic SCEP certificate issuance failing with an "Invalid NDES admin credentials" error when the NDES Admin URL is fronted by Okta or another gateway that uses HTTP Basic auth instead of NTLM.
