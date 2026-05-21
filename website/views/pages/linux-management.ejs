@@ -5,109 +5,217 @@
         <div purpose="page-hero-content">
           <div purpose="page-hero-headings">
             <h4>Linux Device Management</h4>
-            <h1>Linux device management for modern IT teams</h1>
+            <h1>No more Linux blindspots for IT teams</h1>
           </div>
           <div purpose="page-hero-text">
-            <p>Support developers’ choice of Linux without losing visibility or control. <br>Manage Linux, macOS, and Windows in one place.</p>
+            <p>Fleet brings open device management, patching, and vulnerability detection to Linux. Support device choice without losing visibility or control.</p>
           </div>
-          <div purpose="button-row" class="d-flex justify-content-center align-items-center">
+          <div purpose="button-row" class="d-flex">
             <a purpose="cta-button" class="btn btn-primary" href="/contact">Talk to an engineer</a>
             <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
           </div>
         </div>
       </div><%/* landing-page-hero */%>
-      <div purpose="landing-page-section">
-        <div purpose="section-heading">
-          <h3>Linux devices create blind spots for IT</h3>
-          <p>Linux is popular with developers and engineers. Most device management tools weren’t built for it. That gap creates risk.</p>
-        </div>
-        <div purpose="four-column-feature-row">
-          <div purpose="feature-item">
-            <h5>Distribution sprawl</h5>
-            <p>Different package managers and update paths across distributions.</p>
+      <div purpose="page-section">
+        <div purpose="section-with-image">
+          <div purpose="feature-text">
+            <h2>Built for Linux</h2>
+            <p>Fleet treats Linux as a first-class platform, not an afterthought. Open source, API-first, and built so Linux devices don't fall through the cracks.</p>
+            <div purpose="checklist-heading">
+            </div>
+            <div purpose="checklists">
+              <div purpose="checklist">
+                <p>CentOS 7.1+</p>
+                <p>Ubuntu 20.04+</p>
+                <p>Fedora 38+</p>
+                <p>Amazon Linux 2+</p>
+              </div>
+              <div purpose="checklist">
+                <p>Red Hat Enterprise Linux (RHEL) 7+</p>
+                <p>openSUSE 15.6+</p>
+                <p>Arch Linux</p>
+                <p>Omarchy</p>
+              </div>
+            </div>
+            <div>
+            <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
+            </div>
           </div>
-          <div purpose="feature-item">
-            <h5>Inconsistent patching</h5>
-            <p>Without automation, updates vary by device and by team.</p>
-          </div>
-          <div purpose="feature-item">
-            <h5>Limited visibility</h5>
-            <p>IT can’t easily see what’s installed or how devices are configured.</p>
-          </div>
-          <div purpose="feature-item">
-            <h5>Fragmented workflows</h5>
-            <p>Linux often sits outside your macOS and Windows management process.</p>
+          <div purpose="section-image">
+            <img alt="Built for Linux" src="/images/linux-mdm-built-for-linux-600x450@2x.png">
           </div>
         </div>
       </div>
 
 
-      <div purpose="landing-page-section">
-        <div purpose="feature-with-image">
-          <div purpose="feature-image">
-            <img alt="A screenshot of Fleet showing scripts that can be run on a Linux device." src="/images/linux-management-feature-image-scripts-504x378@2x.png">
+      <div purpose="page-section">
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <div purpose="feature-headline">
+              <img alt="Open source" purpose="feature-icon" src="/images/icon-open-source-24x24@2x.png">
+              <h5>Open source and transparent</h5>
+            </div>
+            <div purpose="feature-text">
+              <p>Fleet's source code is public. See exactly how devices are managed and how the agent works. End users can see what data Fleet collects from their device directly in <a href="TODO">Fleet Desktop</a>.</p>
+            </div>
           </div>
-          <div purpose="feature-text">
-            <h3>Manage Linux with the same visibility and control as other devices</h3>
-            <p>Use Fleet to manage Linux devices at scale. Apply the same workflows you use for macOS and Windows.</p>
-            <div purpose="checklist">
-              <p>Run scripts remotely to automate installs, updates, and configuration</p>
-              <p>Manage software across Debian-based and RPM-based distributions</p>
-              <p>Monitor hardware, software, and compliance in real time</p>
-              <p>Enforce security policies and track vulnerabilities across your fleet</p>
+          <div purpose="feature-item">
+            <div purpose="feature-headline">
+              <img alt="Infrastructure as code" purpose="feature-icon" src="/images/icon-branch-24x24@2x.png">
+              <h5>Infrastructure as code</h5>
+            </div>
+            <div purpose="feature-text">
+              <p>Store your Linux device configuration in Git. <a href="TODO">Propose changes with pull requests</a>, require peer review before anything reaches a device, and roll back instantly if needed. Every change is tracked, attributed, and reversible.</p>
+            </div>
+          </div>
+          <div purpose="feature-item">
+            <div purpose="feature-headline">
+              <img alt="One API for every OS" purpose="feature-icon" src="/images/icon-closing-tag-24x24@2x.png">
+              <h5>One API for every OS</h5>
+            </div>
+            <div purpose="feature-text">
+              <p>Fleet provides a single <a href="/docs/rest-api">REST API</a> across Linux, macOS, and Windows, and mobile devices. Build automations, export data to your SIEM, or connect to your ticketing system. Out-of-the-box <a href="/integrations">integrations</a> include Jira, Zendesk, and webhooks.</p>
+            </div>
+          </div>
+          <div purpose="feature-item">
+            <div purpose="feature-headline">
+              <img alt="Lightweight deployment" purpose="feature-icon" src="/images/icon-rocket-24x24@2x.png">
+              <h5>Lightweight deployment</h5>
+            </div>
+            <div purpose="feature-text">
+              <p>Install Fleet's agent (fleetd) on Linux devices using your existing tools, like Ansible, Puppet, or Chef. Fleet works alongside your current setup. Start with visibility and add management at your own pace.</p>
             </div>
           </div>
         </div>
       </div>
-      <div purpose="landing-page-section">
-        <div purpose="section-quote">
-          <div purpose="quote-image">
-            <img alt="Nutanix logo" src="/images/logo-nutanix-140x32@2x.png">
-          </div>
-          <p purpose="quote-text">"We chose Fleet because they take Linux desktop management seriously. It was smooth as butter to set up and start deploying. Fleet gives me the peace of mind knowing that our Linux devices are properly managed, monitored, and secure."</p>
-          <div purpose="quote-author-info">
+
+      <div purpose="page-section">
+        <div purpose="quote-and-logos">
+          <div purpose="section-quote">
             <div purpose="quote-author-image">
               <img alt="Roger Cantrell" src="/images/testimonial-author-roger-cantrell-100x100@2x.png">
             </div>
-            <div purpose="name-and-title">
-              <p purpose="author-name">Roger Cantrell</p>
-              <p purpose="author-title">IT Operations Engineer</p>
-              <p purpose="author-title">Nutanix</p>
+            <div purpose="quote-content">
+            <p purpose="quote-text">"We chose Fleet because they take Linux desktop management seriously. It was smooth as butter to set up and start deploying."</p>
+            <div purpose="quote-author-info">
+              <div purpose="name-and-title">
+                <p purpose="author-name">Roger Cantrell</p>
+                <p purpose="author-title">IT Operations Engineer, Nutanix</p>
+              </div>
+            </div>
+            </div>
+          </div>
+
+          <div purpose="logo-grid">
+            <div purpose="logo-row">
+              <div purpose="logo" class="nutanix">
+                <img alt="Nutanix logo" src="/images/logos/logo-nutanix-color-93x12@2x.png">
+              </div>
+              <div purpose="logo" class="leidos">
+                <img alt="Leidos logo"  src="/images/logos/logo-leidos-color-84x20@2x.png">
+              </div>
+              <div purpose="logo" class="proton">
+                <img alt="Proton logo" src="/images/logos/logo-proton-color-79x20@2x.png">
+              </div>
+            </div>
+            <div purpose="logo-row">
+              <div purpose="logo" class="grafana">
+                <img alt="Grafana Labs logo"  src="/images/logos/logo-grafana-labs-color-117x20@2x.png">
+              </div>
+              <div purpose="logo" class="calendly">
+                <img alt="Calendly logo" src="/images/logos/logo-calendly-color-83x20@2x.png">
+              </div>
+              <div purpose="logo" class="mozilla">
+                <img alt="Mozilla logo"  src="/images/logos/logo-mozilla-color-84x20@2x.png">
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div purpose="landing-page-section">
+      <div purpose="page-section">
         <div purpose="section-heading">
-          <h2>Built for Linux-first teams</h2>
+          <h2>Visibility and control</h2>
+          <p>Manage Linux with the depth you'd expect from your macOS and Windows tools, from software and compliance to remote lock and wipe.</p>
+          <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
         </div>
-        <div purpose="feature-row">
+        <div purpose="feature-with-image-row">
           <div purpose="feature-item">
-            <h5>Open source foundation</h5>
-            <p>Fleet is open source. Review how devices are managed and adapt them to your needs.</p>
+            <div purpose="feature-image">
+              <img alt="Real-time device visibility" src="/images/linux-mdm-real-time-visibility-600x338@2x.png">
+            </div>
+            <div purpose="image-caption">
+              <h5>Real-time device visibility</h5>
+              <p>Fleet gives you answers about any Linux device in seconds. Check which packages are installed, what kernel version is running, or which devices have a specific configuration.</p>
+            </div>
           </div>
           <div purpose="feature-item">
-            <h5>GitOps workflows</h5>
-            <p>Version-control configuration. Propose changes with pull requests.</p>
+            <div purpose="feature-image">
+              <img alt="Software management" src="/images/linux-mdm-software-management-600x338@2x.png">
+            </div>
+            <div purpose="image-caption">
+              <h5>Software management</h5>
+              <p>Install, update, and remove software on Debian-based and RPM-based systems. Upload your own .deb, .rpm, and .tar.gz files, or use script-only packages for configuration changes.</p>
+            </div>
           </div>
           <div purpose="feature-item">
-            <h5>Unified device view</h5>
-            <p>See Linux, macOS, and Windows devices in one interface.</p>
+            <div purpose="feature-image">
+              <img alt="Vulnerability detection" src="/images/linux-mdm-vulnerability-detection-600x338@2x.png">
+            </div>
+            <div purpose="image-caption">
+              <h5>Vulnerability detection</h5>
+              <p>Fleet matches installed Linux packages and kernels against known vulnerability databases, including CISA Known Exploited Vulnerabilities. See which devices are exposed, how long they've been at risk, and prioritize by actual exploit likelihood.</p>
+            </div>
           </div>
           <div purpose="feature-item">
-            <h5>Software inventory</h5>
-            <p>Know exactly what’s installed across all distributions.</p>
+            <div purpose="feature-image">
+              <img alt="Remote script execution" src="/images/linux-mdm-remote-script-execution-600x338@2x.png">
+            </div>
+            <div purpose="image-caption">
+              <h5>Remote script execution</h5>
+              <p>Run shell and Python scripts on Linux devices, individually or in bulk. Lock or wipe a lost device remotely. Automate configuration, fix issues, or collect diagnostics without interrupting end users.</p>
+            </div>
           </div>
           <div purpose="feature-item">
-            <h5>Policy enforcement</h5>
-            <p>Define queries and policies to monitor compliance.</p>
+            <div purpose="feature-image">
+              <img alt="Disk encryption enforcement" src="/images/linux-mdm-disk-encryption-enforcement-600x338@2x.png">
+            </div>
+            <div purpose="image-caption">
+              <h5>Disk encryption enforcement</h5>
+              <p>Fleet enforces LUKS2 disk encryption on Ubuntu, Kubuntu, and Fedora. Recovery keys are stored automatically and available to admins in the Fleet console.</p>
+            </div>
           </div>
           <div purpose="feature-item">
-            <h5>Works across environments</h5>
-            <p>Manage cloud, on-prem, and mixed fleets with the same tools.</p>
+            <div purpose="feature-image">
+              <img src="/images/linux-mdm-self-service-for-linux-600x338@2x.png">
+            </div>
+            <div purpose="image-caption">
+              <h5>Self-service for Linux</h5>
+              <p>End users can install approved software and handle common tasks from a self-service page in Fleet Desktop, without filing a ticket or waiting on IT.</p>
+            </div>
           </div>
         </div>
+      </div>
+
+      <div purpose="section">
+        <div purpose="section-with-image">
+          <div purpose="feature-text">
+            <h3>New ways of working with AI</h3>
+            <p>Describe a configuration change in natural language. Fleet's GitOps workflow turns it into a reviewable pull request. A human reviews and approves before anything reaches a device.</p>
+            <div purpose="button-row">
+              <a purpose="cta-button" class="btn btn-primary" href="/contact">Manage devices as code</a>
+            </div>
+            <div>
+            </div>
+          </div>
+          <div purpose="section-image">
+            <img alt="Built for Linux" src="/images/mdm-modern-change-management-600x435@2x.png">
+          </div>
+        </div>
+
+
+
+
       </div>
 
 
@@ -116,6 +224,10 @@
 
 
 
+
+
+
+ %>
     </div>
   </div>
   <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
@@ -129,7 +241,7 @@
     <div purpose="page-container" class="container">
       <div purpose="bottom-cta" class="text-center">
         <h4>Linux Device Management</h4>
-        <h1>Support Linux without adding complexity</h1>
+        <h1>No more Linux blindspots for IT teams</h1>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" class="btn btn-primary" href="/contact">Talk to an engineer</a>
         </div>
