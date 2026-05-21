@@ -125,8 +125,6 @@ import (
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
 
-var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
-
 const (
 	liveQueryMemCacheDuration = 1 * time.Second
 )
