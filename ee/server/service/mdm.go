@@ -1537,11 +1537,19 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}
 
+	// This endpoint serves an unsigned profile for an IT admin to download and
+	// distribute (e.g. by email). The target device is unknown at this point,
+	// so we default to the macOS AccessRights value — preserving legacy
+	// behavior and the "don't change the macOS enrollment profile" constraint
+	// from #23242. iOS/iPadOS BYOD devices that enroll via the
+	// device-initiated download flow (mdmAppleEnrollEndpoint) get the
+	// restricted AccessRights via that path.
 	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.MDMUrl(),
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		"darwin",
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)

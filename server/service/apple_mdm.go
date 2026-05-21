@@ -2244,11 +2244,13 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 
 	}
 
+	platform := apple_mdm.ProductToPlatform(machineInfo.Product)
+
 	var enrollProf []byte
 	if requireACME {
-		enrollProf, err = svc.generateMDMAppleACMEEnrollProfile(ctx, machineInfo.Serial, appConfig.OrgInfo.OrgName, mdmURL, topic)
+		enrollProf, err = svc.generateMDMAppleACMEEnrollProfile(ctx, machineInfo.Serial, appConfig.OrgInfo.OrgName, mdmURL, topic, platform)
 	} else {
-		enrollProf, err = svc.generateMDMAppleSCEPEnrollProfile(ctx, appConfig.OrgInfo.OrgName, mdmURL, topic)
+		enrollProf, err = svc.generateMDMAppleSCEPEnrollProfile(ctx, appConfig.OrgInfo.OrgName, mdmURL, topic, platform)
 	}
 
 	if err != nil {
@@ -2321,7 +2323,7 @@ func isMacACMESupported(modelIdentifier string, osVersion string) (bool, error) 
 	return true, nil
 }
 
-func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardwareSerial string, orgName string, mdmURL string, topic string) ([]byte, error) {
+func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardwareSerial string, orgName string, mdmURL string, topic string, platform string) ([]byte, error) {
 	acmeIdent, err := svc.acmeSvc.NewACMEEnrollment(ctx, hardwareSerial)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating ACME enrollment")
@@ -2333,6 +2335,7 @@ func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardw
 		acmeIdent,
 		hardwareSerial,
 		topic,
+		platform,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleACMEEnrollProfile: generating ACME enrollment profile")
@@ -2341,7 +2344,7 @@ func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardw
 	return b, nil
 }
 
-func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgName string, mdmURL string, topic string) ([]byte, error) {
+func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgName string, mdmURL string, topic string, platform string) ([]byte, error) {
 	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetSCEPChallenge,
 	}, nil)
@@ -2354,6 +2357,7 @@ func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgNa
 		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		platform,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: generating enrollment profile")
@@ -6098,6 +6102,40 @@ const scepCertRenewalThresholdDays = 180
 // ~4 million devices expiring at the same time.
 const maxCertsRenewalPerRun = 100
 
+// getPlatformsForSCEPRenewal returns a map of host UUID → platform string
+// (matching the values in hosts.platform) for the union of the given
+// associations. Used during SCEP renewal so the generated enrollment profile
+// can carry the right AccessRights value per host platform (see #23242).
+//
+// Runs as part of a cron with no user context, so it uses an admin team
+// filter to bypass team scoping.
+func getPlatformsForSCEPRenewal(ctx context.Context, ds fleet.Datastore, groups ...[]fleet.SCEPIdentityAssociation) (map[string]string, error) {
+	seen := map[string]struct{}{}
+	uuids := make([]string, 0)
+	for _, g := range groups {
+		for _, a := range g {
+			if _, ok := seen[a.HostUUID]; ok {
+				continue
+			}
+			seen[a.HostUUID] = struct{}{}
+			uuids = append(uuids, a.HostUUID)
+		}
+	}
+	if len(uuids) == 0 {
+		return map[string]string{}, nil
+	}
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+	hosts, err := ds.ListHostsLiteByUUIDs(ctx, adminFilter, uuids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list hosts by uuid for SCEP renewal")
+	}
+	out := make(map[string]string, len(hosts))
+	for _, h := range hosts {
+		out[h.UUID] = h.Platform
+	}
+	return out, nil
+}
+
 func RenewSCEPCertificates(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -6210,32 +6248,44 @@ func RenewSCEPCertificates(
 	}
 	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
 
+	// Look up host platforms once so we can pick the right AccessRights value
+	// per host (iOS/iPadOS BYOD get a restricted profile; macOS keeps the
+	// legacy one). See #23242.
+	platformByHostUUID, err := getPlatformsForSCEPRenewal(ctx, ds, assocsWithoutRefs, assocsWithRefs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "looking up host platforms for SCEP renewal")
+	}
+
 	// acmeAssocsByHostUUID will store the associations for hosts that require ACME renewal, which
 	// will be handled separately since they require a different enrollment profile.
 	acmeAssocsByHostUUID := make(map[string]fleet.SCEPIdentityAssociation)
 
-	// Filter for ACME requirements then send a single command for all the hosts without references.
+	// Filter for ACME requirements then send commands for hosts without references.
+	// Group by platform so iOS/iPadOS BYOD hosts get the restricted-AccessRights
+	// profile while macOS hosts continue to get the legacy profile.
 	if len(assocsWithoutRefs) > 0 {
-		var filteredAssocs []fleet.SCEPIdentityAssociation
+		assocsByPlatform := map[string][]fleet.SCEPIdentityAssociation{}
 		for _, assoc := range assocsWithoutRefs {
 			if _, ok := acmeRequiredByHostUUID[assoc.HostUUID]; ok {
 				acmeAssocsByHostUUID[assoc.HostUUID] = assoc
 				continue
 			}
-			filteredAssocs = append(filteredAssocs, assoc)
+			platform := platformByHostUUID[assoc.HostUUID]
+			assocsByPlatform[platform] = append(assocsByPlatform[platform], assoc)
 		}
 
-		if len(filteredAssocs) > 0 {
+		for platform, group := range assocsByPlatform {
 			profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 				appConfig.OrgInfo.OrgName,
 				appConfig.MDMUrl(),
 				scepChallenge,
 				mdmPushCertTopic,
+				platform,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
 			}
-			if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, filteredAssocs, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
+			if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, group, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
 			}
 		}
@@ -6299,6 +6349,7 @@ func RenewSCEPCertificates(
 			enrollURL,
 			scepChallenge,
 			mdmPushCertTopic,
+			platformByHostUUID[assoc.HostUUID],
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
@@ -6332,12 +6383,15 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "creating new ACME enrollment")
 		}
 
+		// ACME renewal targets only Apple Silicon Macs (see isMacACMESupported),
+		// so we always pass the macOS platform.
 		profile, err := apple_mdm.GenerateACMEEnrollmentProfileMobileconfig(
 			appConfig.OrgInfo.OrgName,
 			enrollURL,
 			acmeIdent,
 			di.HardwareSerial,
 			mdmPushCertTopic,
+			"darwin",
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts requiring ACME renewal")
@@ -7338,12 +7392,16 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
-	// NOTE: we don't offer ACME enrollment via OTA
+	// NOTE: we don't offer ACME enrollment via OTA.
+	// OTA can target macOS (as well as iOS/iPadOS), and we don't have device
+	// info at this point in the flow to distinguish them, so we use the
+	// macOS default ("darwin") AccessRights — keeping the legacy behavior.
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appCfg.OrgInfo.OrgName,
 		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		"darwin",
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")

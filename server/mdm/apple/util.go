@@ -22,6 +22,24 @@ import (
 // Note Apple rejects CSRs if the key size is not 2048.
 const rsaKeySize = 2048
 
+// ProductToPlatform maps an Apple device product string (e.g. "iPhone14,5",
+// "iPad13,1", "MacBookPro18,3") to a Fleet host platform string matching the
+// values stored in hosts.platform ("ios", "ipados", "darwin").
+//
+// Used to pick platform-appropriate enrollment payload values such as
+// AccessRights — see GenerateEnrollmentProfileMobileconfig.
+func ProductToPlatform(product string) string {
+	p := strings.ToLower(product)
+	switch {
+	case strings.HasPrefix(p, "iphone"), strings.HasPrefix(p, "ipod"):
+		return "ios"
+	case strings.HasPrefix(p, "ipad"):
+		return "ipados"
+	default:
+		return "darwin"
+	}
+}
+
 // newPrivateKey creates an RSA private key
 func newPrivateKey() (*rsa.PrivateKey, error) {
 	return rsa.GenerateKey(rand.Reader, rsaKeySize)

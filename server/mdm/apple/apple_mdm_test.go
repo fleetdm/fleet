@@ -210,6 +210,7 @@ func TestGenerateEnrollmentProfileMobileconfig(t *testing.T) {
 		PayloadType    string
 		ServerURL      string      // used by the enrollment payload
 		PayloadContent scepPayload // scep contains a nested payload content dict
+		AccessRights   int         // only present on the com.apple.mdm payload
 	}
 
 	type enrollmentProfile struct {
@@ -218,57 +219,89 @@ func TestGenerateEnrollmentProfileMobileconfig(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
-		orgName       string
-		fleetURL      string
-		scepChallenge string
-		expectError   bool
+		name                 string
+		orgName              string
+		fleetURL             string
+		scepChallenge        string
+		platform             string
+		expectedAccessRights int
+		expectError          bool
 	}{
 		{
-			name:          "valid input with simple values",
-			orgName:       "Fleet",
-			fleetURL:      "https://example.com",
-			scepChallenge: "testChallenge",
-			expectError:   false,
+			name:                 "macOS keeps legacy AccessRights",
+			orgName:              "Fleet",
+			fleetURL:             "https://example.com",
+			scepChallenge:        "testChallenge",
+			platform:             "darwin",
+			expectedAccessRights: EnrollmentAccessRightsDefault,
 		},
 		{
-			name:          "organization name and enroll secret with special characters",
-			orgName:       `Fleet & Co. "Special" <Org>`,
-			fleetURL:      "https://example.com",
-			scepChallenge: "test/&Challenge",
-			expectError:   false,
+			name:                 "iOS BYOD gets restricted AccessRights (no device erase)",
+			orgName:              "Fleet",
+			fleetURL:             "https://example.com",
+			scepChallenge:        "testChallenge",
+			platform:             "ios",
+			expectedAccessRights: EnrollmentAccessRightsBYODiOS,
+		},
+		{
+			name:                 "iPadOS BYOD gets restricted AccessRights (no device erase)",
+			orgName:              "Fleet",
+			fleetURL:             "https://example.com",
+			scepChallenge:        "testChallenge",
+			platform:             "ipados",
+			expectedAccessRights: EnrollmentAccessRightsBYODiOS,
+		},
+		{
+			name:                 "empty platform falls back to legacy AccessRights",
+			orgName:              "Fleet",
+			fleetURL:             "https://example.com",
+			scepChallenge:        "testChallenge",
+			platform:             "",
+			expectedAccessRights: EnrollmentAccessRightsDefault,
+		},
+		{
+			name:                 "organization name and enroll secret with special characters",
+			orgName:              `Fleet & Co. "Special" <Org>`,
+			fleetURL:             "https://example.com",
+			scepChallenge:        "test/&Challenge",
+			platform:             "darwin",
+			expectedAccessRights: EnrollmentAccessRightsDefault,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := GenerateEnrollmentProfileMobileconfig(tt.orgName, tt.fleetURL, tt.scepChallenge, "com.foo.bar")
+			result, err := GenerateEnrollmentProfileMobileconfig(tt.orgName, tt.fleetURL, tt.scepChallenge, "com.foo.bar", tt.platform)
 			if tt.expectError {
 				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, result)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, result)
 
-				var profile enrollmentProfile
+			var profile enrollmentProfile
 
-				require.NoError(t, plist.Unmarshal(result, &profile))
+			require.NoError(t, plist.Unmarshal(result, &profile))
 
-				for _, p := range profile.PayloadContent {
-					switch p.PayloadType {
-					case "com.apple.security.scep":
-						scepURL, err := ResolveAppleSCEPURL(tt.fleetURL)
-						require.NoError(t, err)
-						require.Equal(t, scepURL, p.PayloadContent.URL)
-						require.Equal(t, tt.scepChallenge, p.PayloadContent.Challenge)
-					case "com.apple.mdm":
-						mdmURL, err := ResolveAppleMDMURL(tt.fleetURL)
-						require.NoError(t, err)
-						require.Contains(t, mdmURL, p.ServerURL)
-					default:
-						require.Failf(t, "unrecognized payload type in enrollment profile: %s", p.PayloadType)
-					}
+			foundMDM := false
+			for _, p := range profile.PayloadContent {
+				switch p.PayloadType {
+				case "com.apple.security.scep":
+					scepURL, err := ResolveAppleSCEPURL(tt.fleetURL)
+					require.NoError(t, err)
+					require.Equal(t, scepURL, p.PayloadContent.URL)
+					require.Equal(t, tt.scepChallenge, p.PayloadContent.Challenge)
+				case "com.apple.mdm":
+					foundMDM = true
+					mdmURL, err := ResolveAppleMDMURL(tt.fleetURL)
+					require.NoError(t, err)
+					require.Contains(t, mdmURL, p.ServerURL)
+					require.Equal(t, tt.expectedAccessRights, p.AccessRights, "AccessRights for platform %q", tt.platform)
+				default:
+					require.Failf(t, "unrecognized payload type in enrollment profile: %s", p.PayloadType)
 				}
 			}
+			require.True(t, foundMDM, "enrollment profile must contain a com.apple.mdm payload")
 		})
 	}
 }

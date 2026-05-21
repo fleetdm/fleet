@@ -41,6 +41,26 @@ func TestMDMAppleEnrollURL(t *testing.T) {
 	}
 }
 
+func TestProductToPlatform(t *testing.T) {
+	cases := []struct {
+		product  string
+		expected string
+	}{
+		{"iPhone14,5", "ios"},
+		{"iphone7,2", "ios"},
+		{"iPod9,1", "ios"},
+		{"iPad13,1", "ipados"},
+		{"IPAD8,11", "ipados"},
+		{"MacBookPro18,3", "darwin"},
+		{"Macmini9,1", "darwin"},
+		{"", "darwin"},
+		{"something-unexpected", "darwin"},
+	}
+	for _, c := range cases {
+		require.Equal(t, c.expected, ProductToPlatform(c.product), "product=%q", c.product)
+	}
+}
+
 func TestGenerateRandomPin(t *testing.T) {
 	for i := 1; i <= 100; i++ {
 		pin, err := GenerateRandomPin(i)

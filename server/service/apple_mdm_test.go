@@ -4800,7 +4800,7 @@ func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
 
 func TestGenerateEnrollmentProfileMobileConfig(t *testing.T) {
 	// SCEP challenge should be escaped for XML
-	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic")
+	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic", "darwin")
 	require.NoError(t, err)
 	require.Contains(t, string(b), "foo&amp;bar")
 }
@@ -5624,6 +5624,57 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 			},
 			expectedError: true,
 		},
+		{
+			// #23242: iOS/iPadOS BYOD hosts get a profile with the restricted
+			// AccessRights (no device erase); macOS hosts keep the legacy
+			// AccessRights. The cron must split the no-refs batch by platform
+			// and send a separate InstallProfile command per group.
+			name: "InstallProfile splits hostsWithoutRefs by platform",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{
+						{HostUUID: "macUUID", EnrollReference: ""},
+						{HostUUID: "ipadUUID", EnrollReference: ""},
+					}, nil
+				}
+				ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+					hosts := make([]*fleet.Host, 0, len(uuids))
+					for _, u := range uuids {
+						platform := "darwin"
+						if u == "ipadUUID" {
+							platform = "ipados"
+						}
+						hosts = append(hosts, &fleet.Host{UUID: u, Platform: platform})
+					}
+					return hosts, nil
+				}
+
+				var sawHostBatches [][]string
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					sawHostBatches = append(sawHostBatches, append([]string{}, id...))
+					return map[string]error{}, nil
+				}
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					require.Len(t, assocs, 1, "each platform group should contain its single host")
+					return nil
+				}
+
+				t.Cleanup(func() {
+					require.Len(t, sawHostBatches, 2, "expected one InstallProfile per platform group")
+					seen := map[string]struct{}{}
+					for _, batch := range sawHostBatches {
+						require.Len(t, batch, 1)
+						seen[batch[0]] = struct{}{}
+					}
+					_, sawMac := seen["macUUID"]
+					_, sawIPad := seen["ipadUUID"]
+					require.True(t, sawMac, "macOS host should receive its own InstallProfile")
+					require.True(t, sawIPad, "iPadOS host should receive its own InstallProfile")
+				})
+			},
+			expectedError: false,
+		},
 	}
 
 	for _, tc := range tests {
@@ -5649,6 +5700,17 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 
 			ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
 				return nil
+			}
+
+			// Default platform lookup for SCEP renewal — empty platform means
+			// the generator falls back to the legacy AccessRights value (macOS
+			// default). Individual cases can override.
+			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+				hosts := make([]*fleet.Host, 0, len(uuids))
+				for _, u := range uuids {
+					hosts = append(hosts, &fleet.Host{UUID: u, Platform: "darwin"})
+				}
+				return hosts, nil
 			}
 
 			appleStorage.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {
@@ -5956,6 +6018,16 @@ func TestRenewACMECertificatesBranches(t *testing.T) {
 
 			ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
 				return nil
+			}
+
+			// Default platform lookup for SCEP renewal (see #23242). All
+			// hosts in these ACME tests are Macs.
+			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+				hosts := make([]*fleet.Host, 0, len(uuids))
+				for _, u := range uuids {
+					hosts = append(hosts, &fleet.Host{UUID: u, Platform: "darwin"})
+				}
+				return hosts, nil
 			}
 
 			appleStorage.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {
