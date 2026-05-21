@@ -7393,15 +7393,15 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	}
 
 	// NOTE: we don't offer ACME enrollment via OTA.
-	// OTA can target macOS (as well as iOS/iPadOS), and we don't have device
-	// info at this point in the flow to distinguish them, so we use the
-	// macOS default ("darwin") AccessRights — keeping the legacy behavior.
+	// Derive the platform from the device's PRODUCT (e.g. "iPhone14,5",
+	// "MacBookPro18,3") so iOS/iPadOS BYOD enrollments get the
+	// restricted AccessRights (no device erase). See #23242.
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appCfg.OrgInfo.OrgName,
 		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
-		"darwin",
+		apple_mdm.ProductToPlatform(deviceInfo.Product),
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
