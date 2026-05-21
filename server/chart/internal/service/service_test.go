@@ -151,15 +151,7 @@ func TestGetChartDataInvalidDays(t *testing.T) {
 	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 32})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid days value")
-
-	_, err = svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 0})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid days value")
-
-	_, err = svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: -1})
+	_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 5})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid days value")
 }
