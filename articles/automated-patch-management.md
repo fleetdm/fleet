@@ -109,9 +109,9 @@ It often makes sense when the two move at different speeds or carry different co
 
 The most useful indicators tend to be time-to-remediate for critical vulnerabilities, the percentage of devices at current patch levels after each cycle, and the number of open exceptions that have exceeded their review date. Tracking those over time shows whether the process is improving or stalling. It also helps to compare remediation timelines against stated targets. If a written policy says 72 hours for actively exploited vulnerabilities but the median is two weeks, the gap tells you where to focus. Fleet surfaces patch status, vulnerability exposure, and policy compliance in the same console, so you can identify unpatched devices and track remediation without cross-referencing separate tools. [Schedule a demo](https://fleetdm.com/contact) to see how it tracks remediation progress across platforms.
 
-<meta name="articleTitle" value="Automated patch management: Best practices for enterprise IT">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="articleTitle" value="Automated patch management guide for enterprise IT (2026)">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-08">
-<meta name="description" value="Learn how automated patch management works across Windows, macOS, and Linux, and the practices that keep multi-platform patching reliable.">
+<meta name="publishedOn" value="2026-05-21">
+<meta name="description" value="Automate patching across macOS, Windows, and Linux. Covers the full lifecycle, compliance frameworks like NIST and PCI DSS, and rollout strategies.">
