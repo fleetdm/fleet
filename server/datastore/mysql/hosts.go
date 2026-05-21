@@ -2336,17 +2336,6 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		HardwareSerial: hostInfo.HardwareSerial,
 		Platform:       hostInfo.Platform,
 		PlatformLike:   hostInfo.PlatformLike,
-		// Mirror the hardware UUID onto the returned struct so callers that
-		// rely on host.UUID after this function returns (e.g. linking the
-		// Windows MDM enrollment, host_emails reconciliation in
-		// server/service/orbit.go) see a non-empty value. The hosts row's
-		// uuid column ends up set to this value in both branches below:
-		// the INSERT path stores it directly, and the UPDATE path uses
-		// COALESCE(NULLIF(uuid, ''), ?) — i.e. it fills in this UUID when
-		// the existing row had no uuid and otherwise keeps the existing
-		// value, which by construction matches hostInfo.HardwareUUID
-		// (matchHostDuringEnrollment matched on this UUID).
-		UUID: hostInfo.HardwareUUID,
 	}
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		serialToMatch := hostInfo.HardwareSerial
@@ -2500,6 +2489,17 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "update host identity cert host id")
 			}
+		}
+
+		// Read back the persisted uuid so the returned struct matches the
+		// hosts row. Callers (e.g. orbit Windows MDM linking, host_emails
+		// reconciliation in server/service/orbit.go) rely on host.UUID after
+		// this returns; the value can diverge from hostInfo.HardwareUUID in
+		// the UPDATE branch because matchHostDuringEnrollment can match by
+		// osquery_host_id or hardware_serial and the UPDATE preserves the
+		// existing uuid via COALESCE(NULLIF(uuid, ''), ?).
+		if err := sqlx.GetContext(ctx, tx, &host.UUID, `SELECT uuid FROM hosts WHERE id = ?`, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load persisted host uuid after orbit enroll")
 		}
 
 		return nil
