@@ -33,7 +33,7 @@ import usePlatformSelector from "hooks/usePlatformSelector";
 
 import {
   ISchedulableQuery,
-  ICreateQueryRequestBody,
+  ICreateQueryFormData,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
@@ -88,9 +88,9 @@ interface IEditQueryFormProps {
   isStoredQueryLoading: boolean;
   isQuerySaving: boolean;
   isQueryUpdating: boolean;
-  onSubmitNewQuery: (formData: ICreateQueryRequestBody) => void;
+  onSubmitNewQuery: (formData: ICreateQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
-  onUpdate: (formData: ICreateQueryRequestBody) => void;
+  onUpdate: (formData: ICreateQueryFormData) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };

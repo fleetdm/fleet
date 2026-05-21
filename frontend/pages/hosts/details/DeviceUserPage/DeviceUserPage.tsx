@@ -11,7 +11,7 @@ import { NotificationContext } from "context/notification";
 import classNames from "classnames";
 
 import deviceUserAPI, {
-  IGetDeviceCertsRequestParams,
+  IGetDeviceCertsApiParams,
   IGetDeviceCertificatesResponse,
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
@@ -199,7 +199,7 @@ const DeviceUserPage = ({
     IGetDeviceCertificatesResponse,
     Error,
     IGetDeviceCertificatesResponse,
-    Array<IGetDeviceCertsRequestParams & { scope: "device-certificates" }>
+    Array<IGetDeviceCertsApiParams & { scope: "device-certificates" }>
   >(
     [
       {
