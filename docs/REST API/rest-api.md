@@ -11988,6 +11988,65 @@ Pin a Fleet-maintained app to a specific version, a major version, or unpin it s
   "fleet_id": 2,
   "version": "145.0.7632.160"
 }
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_id": 234,
+  "pinned_version": "145.0.7632.160"
+}
+```
+
+#### Example (pin to major version)
+
+`POST /api/v1/fleet/software/titles/234/versions/pin`
+
+##### Request body
+
+```json
+{
+  "fleet_id": 2,
+  "version": "^145"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_id": 234,
+  "pinned_version": "^145"
+}
+```
+
+#### Example (unpin — set to latest)
+
+`POST /api/v1/fleet/software/titles/234/versions/pin`
+
+##### Request body
+
+```json
+{
+  "fleet_id": 2
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_id": 234,
+  "pinned_version": null
+}
+```
 
 ### Create Android web app
 
