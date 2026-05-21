@@ -96,7 +96,11 @@ parasails.registerComponent('scrollableTweets', {
   mounted: async function(){
     this.tweetsDiv = $('div[purpose="tweets"]')[0];
     this.tweetCards = $('a[purpose="tweet-card"]');
-    this.firstCardPosition = this.tweetCards[0].getBoundingClientRect().x;
+    try {
+      this.firstCardPosition = this.tweetCards[0].getBoundingClientRect().x;
+    } catch (err) {
+      console.warn('Could not determine position of testimonials in scrollable-tweets component.  Details:',err);
+    }
     this.numberOfTweetCardsDisplayedOnThisPage = this.tweetCards.length;
     this.calculateHowManyFullTweetsCanBeDisplayed();
     $(window).on('resize', this.calculateHowManyFullTweetsCanBeDisplayed);
