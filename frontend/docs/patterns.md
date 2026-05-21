@@ -356,17 +356,43 @@ There's also a `PRIMO_TOOLTIP` constant in `utilities/constants.tsx` for disable
 
 - **"Create fleet" button**: disabled on ManageFleetsPage
 - **Selected fleet**: `useTeamIdParam` defaults to "Unassigned" instead of "All fleets"
-- **Empty states**: use generic text (e.g., "No policies yet" instead of "No policies for this fleet")
+- **Empty states**: skip the fleet-scoped copy premium normally shows, falling back to the generic header that free tier already uses (e.g., "No policies yet" instead of "No policies for this fleet" or "No policies apply to all fleets")
 - **User form**: fleets dropdown disabled
 - **Software automations**: accessible from "Unassigned" (normally only from "All fleets")
 
 ### Pattern: disable with tooltip
 
+The shared `Button` component doesn't accept a tooltip prop — use one of these patterns instead.
+
+**`TableContainer` action buttons** accept `disabledTooltipContent` directly on the
+`actionButton` config (see `ManageFleetsPage.tsx`):
+
 ```tsx
 const disabledTooltip = isPrimoMode ? PRIMO_TOOLTIP : null;
 
-<Button disabledTooltipContent={disabledTooltip}>Create fleet</Button>
+<TableContainer
+  // ...
+  actionButton={{
+    name: "create fleet",
+    buttonText: "Create fleet",
+    onClick: toggleCreateFleetModal,
+    disabledTooltipContent: disabledTooltip,
+  }}
+/>;
 ```
+
+**Standalone controls** (a `Button`, `Radio`, etc.) should be wrapped in
+`TooltipWrapper` and disabled explicitly:
+
+```tsx
+<TooltipWrapper tipContent={PRIMO_TOOLTIP} disableTooltip={!isPrimoMode} showArrow>
+  <Button disabled={isPrimoMode} onClick={onCreate}>
+    Create fleet
+  </Button>
+</TooltipWrapper>
+```
+
+`RevealButton` is the exception — it accepts `disabledTooltipContent` directly.
 
 ### How it differs from GitOps mode
 
