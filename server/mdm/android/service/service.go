@@ -857,13 +857,64 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		return &fleet.BadRequestError{Message: "missing android device or enterprise id"}
 	}
 
-	// Authenticate client and call AMAPI delete
+	// Authenticate client.
 	secret, err := svc.getClientAuthenticationSecret(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting Android authentication secret")
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
+
+	// Per product (2026-05-20): BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal
+	// device only wipes the work profile, leaving the personal side intact) instead of the
+	// EnterprisesDevicesDelete call. The mdm_unenrolled activity is still emitted on the
+	// subsequent Pub/Sub COMMAND notification path. For COBO we keep the existing delete-device
+	// behavior (terminates management without factory-resetting the device).
+	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")
+	}
+	isBYO := hostMDM != nil && hostMDM.IsPersonalEnrollment
+
+	if isBYO {
+		payload, err := json.Marshal(struct {
+			Type       string                 `json:"type"`
+			WipeParams map[string]interface{} `json:"wipeParams"`
+			Duration   string                 `json:"duration"`
+		}{Type: string(android.MDMAndroidCommandTypeWipe), WipeParams: map[string]interface{}{}, Duration: longCommandDuration})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshal android byo-unenroll wipe payload")
+		}
+
+		op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
+			Type:       string(android.MDMAndroidCommandTypeWipe),
+			WipeParams: &androidmanagement.WipeParams{},
+			Duration:   longCommandDuration,
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amapi issue byo-unenroll wipe command")
+		}
+
+		// Persist the row but don't write wipe_ref — BYO unenroll surfaces as the mdm_unenrolled
+		// activity (existing behavior), not as a wipe in the UI.
+		cmd := &android.MDMAndroidCommand{
+			HostUUID:       host.UUID,
+			OperationName:  op.Name,
+			CommandType:    string(android.MDMAndroidCommandTypeWipe),
+			Status:         string(android.MDMAndroidCommandStatusPending),
+			RequestPayload: payload,
+		}
+		if err := svc.fleetDS.NewMDMAndroidCommand(ctx, cmd); err != nil {
+			svc.logger.ErrorContext(ctx, "amapi byo-unenroll wipe issued but local persist failed",
+				"host_id", host.ID, "operation_name", op.Name, "err", err)
+			return ctxerr.Wrap(ctx, err, "persist android byo-unenroll wipe command")
+		}
+
+		svc.logger.InfoContext(ctx, "android BYO unenroll wipe issued",
+			"host_id", host.ID, "command_uuid", cmd.CommandUUID, "operation_name", op.Name)
+		return nil
+	}
+
 	if err := svc.androidAPIClient.EnterprisesDevicesDelete(ctx, deviceName); err != nil {
 		return ctxerr.Wrap(ctx, err, "amapi delete device")
 	}
