@@ -712,11 +712,11 @@ Either way, it's up to you to make sure that your responsibilities are covered a
 In this section, you can find information about Fleet's benefit strategies and decisions.
 
 
-### Health, dental, and life insurance
+### Health coverage
 
-**US-based team members:** Fleet offers a premium US benefits plan that includes health, dental, and life insurance. Health insurance includes 66%+ coverage for dependents.
+**US-based team members:** Fleet offers premium US benefits that includes health, dental, and life insurance, with 66%+ coverage for dependents.
 
-**International team members:** Fleet provides premium health benefits for international employees as offered by [Remote.com](https://remote.com).
+**International team members:** Fleet provides premium health benefits for international employees via our employer of record [Remote](https://remote.com).
 
 
 ### Paid time off
