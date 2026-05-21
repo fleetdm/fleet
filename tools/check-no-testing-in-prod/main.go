@@ -54,9 +54,17 @@ type pkgInfo struct {
 
 func main() {
 	// Use the same build tags as the production build (see Makefile).
+	//
+	// -e lets `go list` report packages even when they have load errors. We
+	// need this so the audit works on fresh checkouts where `make
+	// generate-go` hasn't been run yet (server/bindata/generated.go is not
+	// committed; without -e, the `-tags full` build sees no Go files in
+	// that package and fails). The import graph we walk is still complete
+	// because go list emits the package record either way.
 	args := []string{
 		"list",
 		"-tags", "full,fts5,netgo",
+		"-e",
 		"-deps",
 		"-json",
 	}
