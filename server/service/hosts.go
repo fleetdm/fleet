@@ -1210,8 +1210,8 @@ func addHostsToTeamEndpoint(ctx context.Context, request interface{}, svc fleet.
 	return addHostsToTeamResponse{}, err
 }
 
-// authorizeHostSourceTeams checks that the caller has write access to the
-// source teams of the hosts being transferred.
+// authorizeHostSourceTeams checks that the caller is permitted to transfer
+// hosts out of their current (source) teams.
 func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet.Host) error {
 	seenTeamIDs := make(map[uint]struct{})
 	var checkedNoTeam bool
@@ -1219,13 +1219,13 @@ func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet
 		if h.TeamID == nil { // "No Team" team / "Unassigned" fleet
 			if !checkedNoTeam {
 				checkedNoTeam = true
-				if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: nil}, fleet.ActionWrite); err != nil {
+				if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: nil}, fleet.ActionTransferHost); err != nil {
 					return err
 				}
 			}
 		} else if _, ok := seenTeamIDs[*h.TeamID]; !ok {
 			seenTeamIDs[*h.TeamID] = struct{}{}
-			if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: h.TeamID}, fleet.ActionWrite); err != nil {
+			if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: h.TeamID}, fleet.ActionTransferHost); err != nil {
 				return err
 			}
 		}
@@ -1234,8 +1234,8 @@ func (svc *Service) authorizeHostSourceTeams(ctx context.Context, hosts []*fleet
 }
 
 func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error {
-	// Authorize write access to the destination team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
+	// Authorize transfer access to the destination team.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
 		return err
 	}
 
@@ -1376,8 +1376,8 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filters *map[string]interface{}) error {
-	// Authorize write access to the destination team.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionWrite); err != nil {
+	// Authorize transfer access to the destination team.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionTransferHost); err != nil {
 		return err
 	}
 
@@ -1398,7 +1398,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		return nil
 	}
 
-	// Authorize write access to the source teams of the hosts being transferred.
+	// Authorize transfer access for the source teams of the hosts being transferred.
 	if err := svc.authorizeHostSourceTeams(ctx, hosts); err != nil {
 		return err
 	}

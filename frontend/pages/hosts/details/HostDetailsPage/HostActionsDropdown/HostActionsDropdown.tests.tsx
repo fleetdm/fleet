@@ -64,6 +64,63 @@ describe("Host Actions Dropdown", () => {
 
       expect(screen.getByText("Transfer")).toBeInTheDocument();
     });
+
+    it("renders the Transfer action when on premium tier and the user is a global technician", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalTechnician: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Transfer")).toBeInTheDocument();
+    });
+
+    it("does not render the Transfer action for a fleet-scoped technician", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isTeamTechnician: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={1}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      const actionsButton = screen.queryByText("Actions");
+      if (actionsButton) {
+        await user.click(actionsButton);
+      }
+
+      expect(screen.queryByText("Transfer")).not.toBeInTheDocument();
+    });
   });
   describe("Query action", () => {
     it("renders the Query action when the user is a global admin and the host is online", async () => {
