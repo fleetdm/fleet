@@ -50,7 +50,7 @@ This checklist provides a list of questions contributors will commonly ask when 
    1. If possible: Does the issue persist after a wipe?  
 11. Are any detail queries disabled for the fleet in Fleet?  
 12. If the issue is enrollment related:  
-    1. Is end user authentication enabled on the fleet?  
+    1. Is IdP authentication enabled on the fleet?  
     2. Do hosts have fleetd installed before MDM enrollment?  
 13. For Apple related issues:  
     1. Is the APNS certificate valid? Has the APNS certificate been renewed recently?  

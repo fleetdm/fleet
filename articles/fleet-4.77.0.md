@@ -26,7 +26,7 @@ You can now update a host’s identity provider (IdP) username directly from the
 
 ### Enforce authentication during enrollment
 
-You can now require end users to authenticate with your IdP before Fleet installs software or runs policies on company-owned Windows and Linux setup. This ensures only authenticated users get access to company resources. Learn more in the [Windows and Linux setup guide](https://fleetdm.com/guides/windows-linux-setup-experience#end-user-authentication).
+You can now require end users to authenticate with your IdP before Fleet installs software or runs policies on company-owned Windows and Linux setup. This ensures only authenticated users get access to company resources. Learn more in the [Windows and Linux setup guide](https://fleetdm.com/guides/windows-linux-setup-experience#require-idp-authentication).
 
 Also, you can require end users to authenticate when turning on and/or enrolling a Mac via profile-based device enrollment. [Learn more](https://fleetdm.com/guides/apple-mdm-setup#manual-enrollment).
 

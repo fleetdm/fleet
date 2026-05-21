@@ -329,7 +329,7 @@
 #  ╚═╝╚═╝╚═╝╩╚═  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝ ╩ ╝╚╝╚═╝
 - industryName: User account sync
   description: Sync macOS local user accounts via Okta, AD, or any IdP. 
-  documentationUrl: https://fleetdm.com/guides/setup-experience#end-user-authentication
+  documentationUrl: https://fleetdm.com/guides/setup-experience#require-idp-authentication
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Devices]
   usualDepartment: IT

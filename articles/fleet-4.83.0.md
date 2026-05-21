@@ -41,7 +41,7 @@ GitHub issue: [#31914](https://github.com/fleetdm/fleet/issues/31914)
 
 Fleet now lets IT admins control whether end users can edit their macOS local account "Full Name" and "Account Name" during the Setup Assistant (out-of-box enrollment flow). When **Lock end user info** is enabled, end users cannot modify these fields during setup.
 
-To configure, head to **Controls > Setup experience** and expand the new **Advanced options** section. The **Lock end user info** option is only available when end user authentication is turned on. This setting is also supported via GitOps using the `controls.setup_experience.lock_end_user_info` key.
+To configure, head to **Controls > Setup experience** and expand the new **Advanced options** section. The **Lock end user info** option is only available when IdP authentication is turned on. This setting is also supported via GitOps using the `controls.setup_experience.lock_end_user_info` key.
 
 GitHub issue: [#38669](https://github.com/fleetdm/fleet/issues/38669)
 

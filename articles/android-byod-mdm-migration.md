@@ -24,7 +24,7 @@ Send the enrollment link to end users to open in a web browser. An easy alternat
 - If this option is missing, select the three dot menu icon on the right side of the toolbar > **Cast, Save, and Share** > **Create QR Code**.
 
 1. Open the enrollment link on the Android device.
-   - If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is set up for the fleet, authentication via SSO is required. After successfully authenticating, a page with an Enroll button will appear.
+   - If [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) is set up for the fleet, authentication via SSO is required. After successfully authenticating, a page with an Enroll button will appear.
 2. Select **Enroll**. A "Set up your work profile" screen will then appear.
 3. Select **Next**. The next screen will describe what a Work Profile is.
 4. Select **Accept & continue**.

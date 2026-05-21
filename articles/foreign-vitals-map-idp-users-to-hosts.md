@@ -8,7 +8,7 @@ Fleet can map an end user's IdP username, groups, and department to their host(s
 
 Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace), as well as [any other IdP](#other-idps) that supports the [SCIM (System for Cross-domain Identity Management) protocol](https://scim.cloud/).
 
-Fleet automatically collects IdP host vitals when an [end user authenticates](https://fleetdm.com/guides/setup-experience#end-user-authentication) during these enrollment scenarios:
+Fleet automatically collects IdP host vitals when an [end user authenticates](https://fleetdm.com/guides/setup-experience#require-idp-authentication) during these enrollment scenarios:
 - Automatic enrollment for [Apple](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) (macOS, iOS, iPadOS) and [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) hosts.
 - Manual enrollment for Apple (macOS, iOS, iPadOS), Android, Windows, and Linux hosts.
 
