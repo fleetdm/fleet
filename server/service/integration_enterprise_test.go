@@ -30669,7 +30669,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyContinuousAutomationsCRUD
 	patchOn := &fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, createDefault.Policy.ID),
 		&fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{ContinuousAutomationsEnabled: ptr.Bool(true)},
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{ContinuousAutomationsEnabled: new(true)},
 		}, http.StatusOK, patchOn)
 	require.NotNil(t, patchOn.Policy)
 	require.True(t, patchOn.Policy.ContinuousAutomationsEnabled)
@@ -30677,7 +30677,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyContinuousAutomationsCRUD
 	patchOff := &fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, createOn.Policy.ID),
 		&fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{ContinuousAutomationsEnabled: ptr.Bool(false)},
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{ContinuousAutomationsEnabled: new(false)},
 		}, http.StatusOK, patchOff)
 	require.NotNil(t, patchOff.Policy)
 	require.False(t, patchOff.Policy.ContinuousAutomationsEnabled)
@@ -30822,6 +30822,15 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 		return count
 	}
 
+	// assertCountStable polls the count for a window to catch delayed enqueues
+	// that a single point-in-time check would miss.
+	assertCountStable := func(expected int, countFn func() int, msgAndArgs ...interface{}) {
+		t.Helper()
+		require.Never(t, func() bool {
+			return countFn() != expected
+		}, 2*time.Second, 100*time.Millisecond, msgAndArgs...)
+	}
+
 	// First failing result triggers the script for both policies (pass→fail
 	// transition). Complete the scripts so nothing else is pending.
 	submitPolicyResult(continuousPolicy.ID, false)
@@ -30839,7 +30848,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		assert.Equal(t, 2, countExecutionsFor(continuousPolicy.ID), "continuous policy fires on every failing result")
 	}, 5*time.Second, 100*time.Millisecond)
-	require.Equal(t, 1, countExecutionsFor(transitionPolicy.ID), "default policy must not re-trigger on fail→fail")
+	assertCountStable(1, func() int { return countExecutionsFor(transitionPolicy.ID) },
+		"default policy must not re-trigger on fail→fail")
 	completePendingScripts()
 
 	// Third failing result: continuous still re-triggers, default still does not.
@@ -30848,7 +30858,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		assert.Equal(t, 3, countExecutionsFor(continuousPolicy.ID))
 	}, 5*time.Second, 100*time.Millisecond)
-	require.Equal(t, 1, countExecutionsFor(transitionPolicy.ID))
+	assertCountStable(1, func() int { return countExecutionsFor(transitionPolicy.ID) })
 }
 
 // TestPolicyAutomationsContinuousSoftwareInstaller verifies that
@@ -30975,7 +30985,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 	}, 5*time.Second, 100*time.Millisecond)
 	completePendingInstall()
 	submitPolicyResult(transitionPolicy.ID, false)
-	// give the server a moment to process before asserting the negative.
-	time.Sleep(500 * time.Millisecond)
-	require.Equal(t, 1, countInstallsFor(transitionPolicy.ID), "default policy must not re-trigger on fail→fail")
+	// Poll for a window so a delayed enqueue doesn't slip past a one-shot check.
+	require.Never(t, func() bool {
+		return countInstallsFor(transitionPolicy.ID) != 1
+	}, 2*time.Second, 100*time.Millisecond, "default policy must not re-trigger on fail→fail")
 }

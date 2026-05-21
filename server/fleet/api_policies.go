@@ -150,24 +150,24 @@ func (r AutofillPoliciesResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type TeamPolicyRequest struct {
-	TeamID                   uint     `url:"fleet_id"`
-	QueryID                  *uint    `json:"query_id" renameto:"report_id"`
-	Query                    string   `json:"query"`
-	Name                     string   `json:"name"`
-	Description              string   `json:"description"`
-	Resolution               string   `json:"resolution"`
-	Platform                 string   `json:"platform"`
-	Critical                 bool     `json:"critical" premium:"true"`
-	CalendarEventsEnabled    bool     `json:"calendar_events_enabled"`
-	SoftwareTitleID          *uint    `json:"software_title_id"`
-	ScriptID                 *uint    `json:"script_id"`
-	LabelsIncludeAny         []string `json:"labels_include_any"`
-	LabelsIncludeAll         []string `json:"labels_include_all" premium:"true"`
-	LabelsExcludeAny         []string `json:"labels_exclude_any"`
-	ConditionalAccessEnabled     bool    `json:"conditional_access_enabled"`
-	ContinuousAutomationsEnabled bool    `json:"continuous_automations_enabled" premium:"true"`
-	Type                         *string `json:"type"`
-	PatchSoftwareTitleID         *uint   `json:"patch_software_title_id"`
+	TeamID                       uint     `url:"fleet_id"`
+	QueryID                      *uint    `json:"query_id" renameto:"report_id"`
+	Query                        string   `json:"query"`
+	Name                         string   `json:"name"`
+	Description                  string   `json:"description"`
+	Resolution                   string   `json:"resolution"`
+	Platform                     string   `json:"platform"`
+	Critical                     bool     `json:"critical" premium:"true"`
+	CalendarEventsEnabled        bool     `json:"calendar_events_enabled"`
+	SoftwareTitleID              *uint    `json:"software_title_id"`
+	ScriptID                     *uint    `json:"script_id"`
+	LabelsIncludeAny             []string `json:"labels_include_any"`
+	LabelsIncludeAll             []string `json:"labels_include_all" premium:"true"`
+	LabelsExcludeAny             []string `json:"labels_exclude_any"`
+	ConditionalAccessEnabled     bool     `json:"conditional_access_enabled"`
+	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`
+	Type                         *string  `json:"type"`
+	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`
 }
 
 type TeamPolicyResponse struct {
