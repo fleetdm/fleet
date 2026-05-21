@@ -45,6 +45,7 @@ func TestAndroid(t *testing.T) {
 		{"GetHostMDMAndroidProfiles", testGetHostMDMAndroidProfiles},
 		{"GetAndroidPolicyRequestByUUID", testGetAndroidPolicyRequestByUUID},
 		{"MDMAndroidCommandCRUD", testMDMAndroidCommandCRUD},
+		{"LockWipeHostViaAndroidMDM", testLockWipeHostViaAndroidMDM},
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
 		{"BatchSetMDMAndroidProfiles_Associations", testBatchSetMDMAndroidProfiles_Associations},
@@ -1983,6 +1984,73 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
 		require.NoError(t, err)
 		require.Equal(t, cmdUUID, got.CommandUUID)
+	})
+}
+
+func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(uuid.NewString()),
+		UUID:            uuid.NewString(),
+		Hostname:        "android-lockwipe-helper-test",
+		Platform:        "android",
+	})
+	require.NoError(t, err)
+
+	t.Run("Lock writes both rows atomically and reports pending", func(t *testing.T) {
+		cmd := &android.MDMAndroidCommand{
+			HostUUID:      host.UUID,
+			OperationName: "enterprises/E/devices/D/operations/lock-1",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.LockHostViaAndroidMDM(ctx, host, cmd))
+		require.NotEmpty(t, cmd.CommandUUID, "helper must populate command_uuid when missing")
+
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandTypeLock), got.CommandType)
+		require.Equal(t, string(android.MDMAndroidCommandStatusPending), got.Status)
+
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		require.Equal(t, fleet.PendingActionLock, status.PendingAction())
+		require.Equal(t, "android", status.HostFleetPlatform)
+	})
+
+	t.Run("Wipe overwrites wipe_ref on subsequent calls (re-queue)", func(t *testing.T) {
+		first := &android.MDMAndroidCommand{
+			HostUUID:      host.UUID,
+			OperationName: "enterprises/E/devices/D/operations/wipe-1",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, host, first))
+
+		second := &android.MDMAndroidCommand{
+			HostUUID:      host.UUID,
+			OperationName: "enterprises/E/devices/D/operations/wipe-2",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, host, second))
+
+		// Both command rows persist (audit trail).
+		_, err := ds.GetMDMAndroidCommandByUUID(ctx, first.CommandUUID)
+		require.NoError(t, err)
+		_, err = ds.GetMDMAndroidCommandByUUID(ctx, second.CommandUUID)
+		require.NoError(t, err)
+
+		// host_mdm_actions.wipe_ref points at the latest one.
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		require.NotNil(t, status.WipeMDMCommand)
+		require.Equal(t, second.CommandUUID, status.WipeMDMCommand.CommandUUID)
 	})
 }
 

@@ -21,6 +21,23 @@ type Service interface {
 	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
 	UnenrollAndroidHost(ctx context.Context, hostID uint) error
 
+	// LockAndroidHost issues an AMAPI LOCK command for the given host, persists the row in
+	// mdm_android_commands (status=pending), and writes host_mdm_actions.lock_ref. The device-
+	// side ack arrives asynchronously via Pub/Sub COMMAND notification and is applied by
+	// ProcessPubSubPush.
+	LockAndroidHost(ctx context.Context, hostID uint) error
+
+	// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD command with newPassword="" — per
+	// product, the work-profile (BYO) or device (COBO) passcode is cleared, not regenerated.
+	// Persists the row in mdm_android_commands but does NOT touch host_mdm_actions (clear
+	// passcode is a one-shot action with no UI lock/wipe state).
+	ClearAndroidPasscode(ctx context.Context, hostID uint) error
+
+	// WipeAndroidHost issues an AMAPI WIPE command. COBO-only; callers in the EE service layer
+	// reject BYO before reaching here. Persists the row in mdm_android_commands and writes
+	// host_mdm_actions.wipe_ref.
+	WipeAndroidHost(ctx context.Context, hostID uint) error
+
 	EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error)
 	AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*MDMAndroidPolicyRequest, error)
 	RemoveAppsFromAndroidPolicy(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*MDMAndroidPolicyRequest, error)

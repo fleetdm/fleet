@@ -915,6 +915,51 @@ func (ds *Datastore) getMDMAndroidCommand(ctx context.Context, column, value str
 	return &cmd, nil
 }
 
+// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and upserts
+// host_mdm_actions.lock_ref in a single transaction. Mirrors WipeHostViaWindowsMDM.
+func (ds *Datastore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "lock_ref")
+}
+
+// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and upserts
+// host_mdm_actions.wipe_ref in a single transaction.
+func (ds *Datastore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "wipe_ref")
+}
+
+// issueAndroidHostMDMRef performs the two-write transaction shared by LockHostViaAndroidMDM and
+// WipeHostViaAndroidMDM. refColumn is hard-coded by callers (never user input) so the
+// fmt.Sprintf into the SQL stays safe.
+func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, refColumn string) error {
+	if cmd.CommandUUID == "" {
+		cmd.CommandUUID = uuid.NewString()
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		const insertCmdStmt = `
+			INSERT INTO mdm_android_commands
+				(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message, request_payload)
+			VALUES
+				(?, ?, ?, ?, ?, ?, ?, ?)
+		`
+		if _, err := tx.ExecContext(ctx, insertCmdStmt,
+			cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.Status,
+			cmd.ErrorCode, cmd.ErrorMessage, cmd.RequestPayload,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert mdm_android_commands for "+refColumn)
+		}
+
+		actionsStmt := fmt.Sprintf(`
+			INSERT INTO host_mdm_actions (host_id, %s, fleet_platform)
+			VALUES (?, ?, ?)
+			ON DUPLICATE KEY UPDATE %s = VALUES(%s), fleet_platform = VALUES(fleet_platform)
+		`, refColumn, refColumn, refColumn)
+		if _, err := tx.ExecContext(ctx, actionsStmt, host.ID, cmd.CommandUUID, host.FleetPlatform()); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert host_mdm_actions for android "+refColumn)
+		}
+		return nil
+	})
+}
+
 // UpdateMDMAndroidCommandStatus updates the row at command_uuid with a new status (and optional
 // error code / message). NotFound is returned if no row matches command_uuid.
 func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {

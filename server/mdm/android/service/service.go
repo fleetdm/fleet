@@ -871,6 +871,193 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	return nil
 }
 
+// longCommandDuration is the AMAPI Command.duration we set on every command Fleet issues. AMAPI's
+// default is 600s, after which it silently drops the command (no Pub/Sub on expiry — confirmed
+// during the spike). To match Apple/Windows MDM semantics where commands stay queued at the MDM
+// server until delivered, we set this to 10 years — effectively "pending forever" for any
+// realistic device lifecycle. AMAPI docs explicitly state "There is no maximum duration."
+const longCommandDuration = "315360000s" // 10 * 365 * 24 * 3600
+
+// resolveAndroidCommandTarget centralises the host/enterprise/secret lookup shared by all three
+// command-issuing methods (Lock, Wipe, ClearPasscode). Returns the host (for host_mdm_actions
+// writes and audit fields) and the AMAPI deviceName ready to pass to IssueCommand. Authorisation
+// is applied here so the per-command methods stay thin.
+func (svc *Service) resolveAndroidCommandTarget(ctx context.Context, hostID uint, opLabel string) (*fleet.Host, string, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, "", err
+	}
+
+	host, err := svc.fleetDS.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "getting host for android "+opLabel)
+	}
+
+	if !fleet.IsAndroidPlatform(host.Platform) {
+		return nil, "", &fleet.BadRequestError{Message: "host is not an Android host"}
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+		TeamID: host.TeamID,
+	}, fleet.ActionWrite); err != nil {
+		return nil, "", err
+	}
+
+	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, host.UUID)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "getting android host by uuid")
+	}
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "getting android enterprise")
+	}
+	if ah.Device == nil || ah.Device.DeviceID == "" || enterprise.EnterpriseID == "" {
+		return nil, "", &fleet.BadRequestError{Message: "missing android device or enterprise id"}
+	}
+
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "getting Android authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
+	return host, deviceName, nil
+}
+
+// LockAndroidHost issues an AMAPI LOCK command and persists state. The Pub/Sub COMMAND
+// notification (see ProcessPubSubPush) transitions the row from pending to acknowledged/error.
+func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
+	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "lock")
+	if err != nil {
+		return err
+	}
+
+	payload, err := json.Marshal(struct {
+		Type     string `json:"type"`
+		Duration string `json:"duration"`
+	}{Type: string(android.MDMAndroidCommandTypeLock), Duration: longCommandDuration})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshal android lock payload")
+	}
+
+	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
+		Type:     string(android.MDMAndroidCommandTypeLock),
+		Duration: longCommandDuration,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "amapi issue lock command")
+	}
+
+	cmd := &android.MDMAndroidCommand{
+		HostUUID:       host.UUID,
+		OperationName:  op.Name,
+		CommandType:    string(android.MDMAndroidCommandTypeLock),
+		Status:         string(android.MDMAndroidCommandStatusPending),
+		RequestPayload: payload,
+	}
+	if err := svc.fleetDS.LockHostViaAndroidMDM(ctx, host, cmd); err != nil {
+		// AMAPI already accepted the command at this point; log the orphan but surface the error
+		// so the caller knows the local state is out of sync.
+		svc.logger.ErrorContext(ctx, "amapi lock issued but local state write failed",
+			"host_id", host.ID, "operation_name", op.Name, "err", err)
+		return ctxerr.Wrap(ctx, err, "persist android lock command")
+	}
+
+	svc.logger.InfoContext(ctx, "android lock command issued",
+		"host_id", host.ID, "command_uuid", cmd.CommandUUID, "operation_name", op.Name)
+	return nil
+}
+
+// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row.
+// Unlike Lock/Wipe, ClearPasscode is a one-shot action with no UI lock state, so it does NOT
+// touch host_mdm_actions.
+func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) error {
+	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "clear-passcode")
+	if err != nil {
+		return err
+	}
+
+	payload, err := json.Marshal(struct {
+		Type        string `json:"type"`
+		NewPassword string `json:"newPassword"`
+		Duration    string `json:"duration"`
+	}{Type: string(android.MDMAndroidCommandTypeResetPassword), NewPassword: "", Duration: longCommandDuration})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshal android reset-password payload")
+	}
+
+	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
+		Type:        string(android.MDMAndroidCommandTypeResetPassword),
+		NewPassword: "", // explicit empty: clears the passcode per product spec
+		Duration:    longCommandDuration,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "amapi issue reset-password command")
+	}
+
+	cmd := &android.MDMAndroidCommand{
+		HostUUID:       host.UUID,
+		OperationName:  op.Name,
+		CommandType:    string(android.MDMAndroidCommandTypeResetPassword),
+		Status:         string(android.MDMAndroidCommandStatusPending),
+		RequestPayload: payload,
+	}
+	if err := svc.fleetDS.NewMDMAndroidCommand(ctx, cmd); err != nil {
+		svc.logger.ErrorContext(ctx, "amapi clear-passcode issued but local state write failed",
+			"host_id", host.ID, "operation_name", op.Name, "err", err)
+		return ctxerr.Wrap(ctx, err, "persist android clear-passcode command")
+	}
+
+	svc.logger.InfoContext(ctx, "android clear-passcode command issued",
+		"host_id", host.ID, "command_uuid", cmd.CommandUUID, "operation_name", op.Name)
+	return nil
+}
+
+// WipeAndroidHost issues an AMAPI WIPE command and persists state. AMAPI requires WipeParams to
+// be set (even if empty) — spike confirmed AMAPI rejects WIPE without it, despite the SDK's
+// "Optional" annotation.
+func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
+	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "wipe")
+	if err != nil {
+		return err
+	}
+
+	payload, err := json.Marshal(struct {
+		Type       string                 `json:"type"`
+		WipeParams map[string]interface{} `json:"wipeParams"`
+		Duration   string                 `json:"duration"`
+	}{Type: string(android.MDMAndroidCommandTypeWipe), WipeParams: map[string]interface{}{}, Duration: longCommandDuration})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshal android wipe payload")
+	}
+
+	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
+		Type:       string(android.MDMAndroidCommandTypeWipe),
+		WipeParams: &androidmanagement.WipeParams{}, // empty struct required by AMAPI
+		Duration:   longCommandDuration,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "amapi issue wipe command")
+	}
+
+	cmd := &android.MDMAndroidCommand{
+		HostUUID:       host.UUID,
+		OperationName:  op.Name,
+		CommandType:    string(android.MDMAndroidCommandTypeWipe),
+		Status:         string(android.MDMAndroidCommandStatusPending),
+		RequestPayload: payload,
+	}
+	if err := svc.fleetDS.WipeHostViaAndroidMDM(ctx, host, cmd); err != nil {
+		svc.logger.ErrorContext(ctx, "amapi wipe issued but local state write failed",
+			"host_id", host.ID, "operation_name", op.Name, "err", err)
+		return ctxerr.Wrap(ctx, err, "persist android wipe command")
+	}
+
+	svc.logger.InfoContext(ctx, "android wipe command issued",
+		"host_id", host.ID, "command_uuid", cmd.CommandUUID, "operation_name", op.Name)
+	return nil
+}
+
 func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error) {
 	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
 }

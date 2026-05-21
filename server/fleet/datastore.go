@@ -2453,6 +2453,17 @@ type Datastore interface {
 	// updates the states in host_mdm_actions.
 	WipeHostViaWindowsMDM(ctx context.Context, host *Host, cmd *MDMWindowsCommand) error
 
+	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the
+	// lock_ref on host_mdm_actions in a single transaction, mirroring WipeHostViaWindowsMDM.
+	// The caller is expected to have already issued the AMAPI command and populated
+	// cmd.OperationName / cmd.CommandUUID before invoking this method.
+	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
+	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the
+	// wipe_ref on host_mdm_actions in a single transaction. AMAPI WIPE is COBO-only; the EE
+	// service layer must reject BYO hosts before calling.
+	WipeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
 	// UpdateHostLockWipeStatusFromAppleMDMResult updates the host_mdm_actions
 	// table to reflect the result of the corresponding lock/wipe MDM command for
 	// Apple hosts. It is optimized to update using only the information
@@ -3262,6 +3273,8 @@ type AndroidDatastore interface {
 	GetMDMAndroidCommandByUUID(ctx context.Context, commandUUID string) (*android.MDMAndroidCommand, error)
 	GetMDMAndroidCommandByOperationName(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
 	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error
+	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+	WipeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
 	// slice, updating existing entries and inserting new entries.

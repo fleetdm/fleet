@@ -1793,6 +1793,10 @@ type GetMDMAndroidCommandByOperationNameFunc func(ctx context.Context, operation
 
 type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error
 
+type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
+
+type WipeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
+
 type ListMDMAndroidProfilesToSendFunc func(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error)
 
 type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
@@ -4652,6 +4656,12 @@ type DataStore struct {
 
 	UpdateMDMAndroidCommandStatusFunc        UpdateMDMAndroidCommandStatusFunc
 	UpdateMDMAndroidCommandStatusFuncInvoked bool
+
+	LockHostViaAndroidMDMFunc        LockHostViaAndroidMDMFunc
+	LockHostViaAndroidMDMFuncInvoked bool
+
+	WipeHostViaAndroidMDMFunc        WipeHostViaAndroidMDMFunc
+	WipeHostViaAndroidMDMFuncInvoked bool
 
 	ListMDMAndroidProfilesToSendFunc        ListMDMAndroidProfilesToSendFunc
 	ListMDMAndroidProfilesToSendFuncInvoked bool
@@ -11155,6 +11165,20 @@ func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUU
 	s.UpdateMDMAndroidCommandStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage)
+}
+
+func (s *DataStore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.LockHostViaAndroidMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.LockHostViaAndroidMDMFunc(ctx, host, cmd)
+}
+
+func (s *DataStore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.WipeHostViaAndroidMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.WipeHostViaAndroidMDMFunc(ctx, host, cmd)
 }
 
 func (s *DataStore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
