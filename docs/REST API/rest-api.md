@@ -11725,7 +11725,6 @@ Returns the list of packages associated with a software title. A software title 
       "uploaded_at": "2024-11-21T10:05:33Z",
       "hash_sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
       "self_service": false,
-      "fleet_maintained_app_id": null,
       "labels_include_any": null,
       "labels_include_all": null,
       "labels_exclude_any": null,
