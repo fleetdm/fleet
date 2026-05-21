@@ -853,14 +853,14 @@ func TestValidateUserProvided(t *testing.T) {
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte("this is not xml"),
 			},
-			wantErr: "The file should include valid SyncML XML with at least one <Replace>, <Add>, <Exec>, or <Atomic> element.",
+			wantErr: "The file should include valid SyncML XML with at least one supported element.",
 		},
 		{
 			name: "XML with only comments is rejected",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`<!-- just a comment --><!-- another -->`),
 			},
-			wantErr: "The file should include valid SyncML XML with at least one <Replace>, <Add>, <Exec>, or <Atomic> element.",
+			wantErr: "The file should include valid SyncML XML with at least one supported element.",
 		},
 		{
 			name: "LocURI missing ./ prefix is rejected (#42224)",
@@ -875,14 +875,21 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: `<LocURI> must start with "./"`,
+			wantErr: `<LocURI> must start with "./Device/", "./User/", or "./Vendor/".`,
 		},
 		{
 			name: "LocURI with leading single slash is rejected",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`<Replace><Target><LocURI>/Vendor/MSFT/BitLocker/Foo</LocURI></Target></Replace>`),
 			},
-			wantErr: `<LocURI> must start with "./"`,
+			wantErr: `<LocURI> must start with "./Device/", "./User/", or "./Vendor/".`,
+		},
+		{
+			name: "LocURI with unknown root is rejected",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`<Replace><Target><LocURI>./Custom/Foo</LocURI></Target></Replace>`),
+			},
+			wantErr: `<LocURI> must start with "./Device/", "./User/", or "./Vendor/".`,
 		},
 		{
 			name: "LocURI with ../ path traversal is rejected (#42224)",
@@ -897,12 +904,26 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: `<LocURI> can't contain "../" path traversal sequences.`,
+			wantErr: `<LocURI> can't contain ".." path traversal segments.`,
+		},
+		{
+			name: "LocURI with trailing .. segment is rejected",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`<Replace><Target><LocURI>./Device/Vendor/..</LocURI></Target></Replace>`),
+			},
+			wantErr: `<LocURI> can't contain ".." path traversal segments.`,
 		},
 		{
 			name: "LocURI with implicit ./Vendor prefix is allowed",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`<Replace><Target><LocURI>./Vendor/MSFT/Foo/Bar</LocURI></Target></Replace>`),
+			},
+			wantErr: "",
+		},
+		{
+			name: "LocURI with ./User prefix is allowed",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`<Replace><Target><LocURI>./User/Vendor/MSFT/Foo</LocURI></Target></Replace>`),
 			},
 			wantErr: "",
 		},

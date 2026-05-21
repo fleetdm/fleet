@@ -139,7 +139,7 @@ func (v *windowsProfileValidator) validate() error {
 	}
 
 	if !v.sawValidTopLevel {
-		return errors.New("The file should include valid SyncML XML with at least one <Replace>, <Add>, <Exec>, or <Atomic> element.")
+		return errors.New("The file should include valid SyncML XML with at least one supported element.")
 	}
 
 	return v.scepValidator.finalizeValidation()
@@ -238,19 +238,23 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 }
 
 // validateLocURIFormat enforces that a LocURI follows the OMA-DM URI
-// addressing rules: it must start with "./" (e.g. "./Device/...",
-// "./User/...", or "./Vendor/...") and must not contain "../" path
-// traversal sequences. Empty LocURIs are not flagged here.
+// addressing rules: it must start with "./Device/", "./User/", or
+// "./Vendor/", and must not contain ".." path traversal segments. Empty
+// LocURIs are not flagged here.
 func validateLocURIFormat(locURI string) error {
 	trimmed := strings.TrimSpace(locURI)
 	if trimmed == "" {
 		return nil
 	}
-	if strings.Contains(trimmed, "../") {
-		return errors.New("<LocURI> can't contain \"../\" path traversal sequences.")
+	if !(strings.HasPrefix(trimmed, "./Device/") ||
+		strings.HasPrefix(trimmed, "./User/") ||
+		strings.HasPrefix(trimmed, "./Vendor/")) {
+		return errors.New("<LocURI> must start with \"./Device/\", \"./User/\", or \"./Vendor/\".")
 	}
-	if !strings.HasPrefix(trimmed, "./") {
-		return errors.New("<LocURI> must start with \"./\" (e.g. \"./Device/...\" or \"./User/...\").")
+	for _, segment := range strings.Split(strings.TrimPrefix(trimmed, "./"), "/") {
+		if segment == ".." {
+			return errors.New("<LocURI> can't contain \"..\" path traversal segments.")
+		}
 	}
 	return nil
 }
