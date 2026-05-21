@@ -8457,7 +8457,7 @@ _Available in Fleet Premium_
         "name": "Adobe Acrobat",
         "software_title_id": 1234,
         "installer_id": 23,
-        "package_name": "AdobeAcrobat-v24.1.pkg"
+        "installer_name": "AdobeAcrobat-v24.1.pkg"
       }
     }
   ],
