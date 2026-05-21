@@ -979,4 +979,13 @@ func TestServerConfigURLPrefix(t *testing.T) {
 		cfg.ValidateURLPrefix(func(err error, msg string) { called = true })
 		require.True(t, called)
 	})
+
+	t.Run("bare slash is rejected (preserved through normalization)", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/", cfg.URLPrefix)
+		called := false
+		cfg.ValidateURLPrefix(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
 }

@@ -197,12 +197,20 @@ func (s ServerConfig) ValidatePrivateKeyLength(initFatal func(err error, msg str
 // NormalizeURLPrefix trims a trailing slash and ensures a leading slash on
 // the configured URL prefix. Mutates the receiver; safe to call when empty.
 // Call before ValidateURLPrefix.
+//
+// A user-supplied "/" trims down to "" and would otherwise be indistinguishable
+// from "no prefix configured" by ValidateURLPrefix. Restore it to "/" so the
+// regex check rejects it instead of silently accepting a misconfiguration.
 func (s *ServerConfig) NormalizeURLPrefix() {
 	if len(s.URLPrefix) == 0 {
 		return
 	}
 	s.URLPrefix = strings.TrimSuffix(s.URLPrefix, "/")
-	if len(s.URLPrefix) > 0 && !strings.HasPrefix(s.URLPrefix, "/") {
+	if len(s.URLPrefix) == 0 {
+		s.URLPrefix = "/"
+		return
+	}
+	if !strings.HasPrefix(s.URLPrefix, "/") {
 		s.URLPrefix = "/" + s.URLPrefix
 	}
 }
