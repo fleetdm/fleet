@@ -1,4 +1,4 @@
-# ADR-0001: OpenSpec Adoption
+# ADR-0010: OpenSpec Adoption
 
 ## Status
 
