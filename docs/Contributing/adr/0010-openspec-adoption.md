@@ -38,6 +38,7 @@ Engineers are welcome to use OpenSpec locally as a thinking and planning tool. H
 **Negative:**
 - We forgo a standardized, machine-readable spec format that could improve AI agent context in the future.
 - No centralized "spec library" describing current system behavior. This role is filled by user stories and docs, which are less structured.
+- For agents to gather context on previous decisions they would require gh api calls instead of a locally readable log of design / business logic decisions to keep the product from changing without intent
 
 **Future considerations:**
 - Revisit if our current workflow breaks down at scale.
