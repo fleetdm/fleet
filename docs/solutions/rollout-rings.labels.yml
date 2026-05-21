@@ -1,0 +1,53 @@
+# Rollout rings. Cumulative model.
+# Reference from default.yml with:
+#   labels:
+#     - path: ./labels/rollout-rings.labels.yml
+#
+# Shard = ((hex@pos10 nibble) * 16) + (hex@pos25 nibble) → 0-255.
+# Positions chosen to avoid RFC 4122 version (15) and variant (20) digits,
+# and Apple/Dell/HP vendor-prefix clustering near the start of the UUID.
+
+- name: Ring 1 - Canary (1%)
+  description: "Cumulative ~1% shard. First to receive new versions."
+  label_membership_type: dynamic
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 3;
+
+- name: Ring 2 - Early (5%)
+  description: "Cumulative. Includes all hosts in Ring 1."
+  label_membership_type: dynamic
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 13;
+
+- name: Ring 3 - Pilot (25%)
+  description: "Cumulative. Includes all hosts in Rings 1-2."
+  label_membership_type: dynamic
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 64;
+
+- name: Ring 4 - Broad (75%)
+  description: "Cumulative. Includes all hosts in Rings 1-3."
+  label_membership_type: dynamic
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 192;
+
+- name: Ring 5 - All (100%)
+  description: "Equivalent to All hosts. Kept for promotion-target symmetry."
+  label_membership_type: dynamic
+  query: SELECT 1 FROM system_info;
