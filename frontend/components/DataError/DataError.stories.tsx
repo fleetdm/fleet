@@ -19,3 +19,11 @@ export const WithChildren: Story = {
     children: <p>this is custom JSX</p>,
   },
 };
+
+export const SingleCustomLine: Story = {
+  args: {
+    singleCustomLine: true,
+    description:
+      "We can't retrieve data from Apple right now. Please try again later.",
+  },
+};

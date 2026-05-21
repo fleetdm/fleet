@@ -302,6 +302,18 @@ func (c *TestWindowsMDMClient) shouldAuth(req *fleet.SyncML) (bool, *string) {
 }
 
 func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperation, error) {
+	// A real Windows client does not POST a message that contains only a SyncHdr Status ack and
+	// no protocol commands. Per [MS-MDM] §2.2.7.8 (Status):
+	//   "when a client creates a message containing only a successful Status in a SyncHdr,
+	//    the entire message MUST NOT be sent."
+	// (https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/36b1a4d9-fd93-48ce-b865-6a9d396c52a4)
+	// This is the same section that limits Status-on-Status to auth-renegotiation edge cases, so
+	// when Fleet's response contained only <Status> acks, the client has nothing to send back.
+	// Fleet also rejects such a body with "invalid SyncML body: no SyncML protocol commands"
+	if len(c.queuedCommandResponses) == 0 {
+		return nil, nil
+	}
+
 	// Get SessionID
 	sessionID, err := c.lastManagementResp.GetSessionID()
 	if err != nil {

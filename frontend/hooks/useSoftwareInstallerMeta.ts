@@ -1,5 +1,6 @@
 import { useContext, useMemo } from "react";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { isAndroid } from "interfaces/platform";
 import {
   ISoftwareTitleDetails,
@@ -13,17 +14,22 @@ import {
   getInstallerCardInfo,
   InstallerCardInfo,
 } from "pages/SoftwarePage/SoftwareTitleDetailsPage/helpers";
+import { isAndroidWebApp } from "pages/SoftwarePage/helpers";
 import { compareVersions } from "utilities/helpers";
 
 export interface SoftwareInstallerMeta {
   installerType: InstallerType;
+  /** Includes both Google Play Store apps and Google Play Store web apps */
   isAndroidPlayStoreApp: boolean;
+  /** Only includes Google Play Store web apps */
+  isAndroidPlayStoreWebApp: boolean;
   isFleetMaintainedApp: boolean;
   isLatestFmaVersion: boolean;
   isCustomPackage: boolean;
   isIosOrIpadosApp: boolean;
   sha256?: string;
   androidPlayStoreId?: string;
+  patchPolicy?: ISoftwarePackage["patch_policy"]; // Only available on FMA packages
   automaticInstallPolicies:
     | ISoftwarePackage["automatic_install_policies"]
     | IAppStoreApp["automatic_install_policies"];
@@ -46,6 +52,7 @@ export const useSoftwareInstaller = (
   softwareTitle: ISoftwareTitleDetails
 ): UseSoftwareInstallerResult | undefined => {
   const appContext = useContext(AppContext);
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
 
   return useMemo(() => {
     if (!softwareTitle.software_package && !softwareTitle.app_store_app) {
@@ -63,6 +70,11 @@ export const useSoftwareInstaller = (
 
     const isAndroidPlayStoreApp =
       "platform" in softwareInstaller && isAndroid(softwareInstaller.platform);
+
+    const isAndroidPlayStoreWebApp =
+      isAndroidPlayStoreApp && "app_store_id" in softwareInstaller
+        ? isAndroidWebApp(softwareInstaller.app_store_id)
+        : false;
 
     const isFleetMaintainedApp =
       "fleet_maintained_app_id" in softwareInstaller &&
@@ -102,20 +114,17 @@ export const useSoftwareInstaller = (
       automatic_install_policies: automaticInstallPolicies,
     } = softwareInstaller;
 
+    const patchPolicy =
+      "patch_policy" in softwareInstaller
+        ? softwareInstaller.patch_policy
+        : undefined;
+
     const {
       isGlobalAdmin,
       isGlobalMaintainer,
       isTeamAdmin,
       isTeamMaintainer,
-      config,
     } = appContext;
-
-    const {
-      gitops_mode_enabled: configGitOpsModeEnabled,
-      repository_url: repoURL,
-    } = config?.gitops || {};
-
-    const gitOpsModeEnabled = !!configGitOpsModeEnabled;
 
     const canManageSoftware = !!(
       isGlobalAdmin ||
@@ -129,6 +138,7 @@ export const useSoftwareInstaller = (
       meta: {
         installerType,
         isAndroidPlayStoreApp,
+        isAndroidPlayStoreWebApp,
         isFleetMaintainedApp,
         isLatestFmaVersion,
         fmaVersions,
@@ -136,6 +146,7 @@ export const useSoftwareInstaller = (
         isIosOrIpadosApp,
         sha256,
         androidPlayStoreId,
+        patchPolicy,
         automaticInstallPolicies,
         gitOpsModeEnabled,
         repoURL,
@@ -143,5 +154,5 @@ export const useSoftwareInstaller = (
         softwareInstaller,
       },
     };
-  }, [softwareTitle, appContext]);
+  }, [softwareTitle, appContext, gitOpsModeEnabled, repoURL]);
 };

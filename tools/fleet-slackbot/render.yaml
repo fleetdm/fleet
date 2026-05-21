@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: fleet
+    runtime: node
+    plan: starter
+    rootDir: tools/fleet-slackbot
+    buildCommand: yarn install --frozen-lockfile
+    startCommand: node app.js
+    healthCheckPath: /healthz
+    envVars:
+      - key: SLACK_BOT_TOKEN
+        sync: false
+      - key: SLACK_APP_TOKEN
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        value: fleetdm/fleet
+      - key: GITHUB_BASE_BRANCH
+        value: main
+      - key: GITOPS_BASE_PATH
+        value: it-and-security
+      - key: GITHUB_BOT_USERNAME
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-opus-4-6
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: PORT
+        value: "3000"
+      - key: GITOPS_CI_CHECK_NAME
+        value: fleet-gitops
+      - key: CI_AUTO_FIX
+        value: "true"
+      - key: FLEET_MCP_URL
+        sync: false
+      - key: FLEET_MCP_AUTH_TOKEN
+        sync: false

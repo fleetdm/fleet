@@ -1,0 +1,25 @@
+.recovery-lock-password-modal {
+  .input-field {
+    font-family: SourceCodePro, $monospace;
+  }
+
+  .info-banner {
+    margin-top: $pad-medium;
+    margin-bottom: $pad-small;
+  }
+
+  &__rotate-button .children-wrapper {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__rotate-button--disabled {
+    color: $ui-fleet-black-50;
+    cursor: default;
+
+    .icon {
+      color: $ui-fleet-black-50;
+    }
+  }
+}

@@ -75,7 +75,7 @@ func (m *mockHostProvider) GetHostLite(ctx context.Context, hostID uint) (*activ
 	return nil, platform_mysql.NotFound("Host").WithID(hostID)
 }
 
-// mockDataProviders combines user and host providers for testing.
+// mockDataProviders combines all provider interfaces for testing.
 type mockDataProviders struct {
 	*mockUserProvider
 	*mockHostProvider
@@ -86,4 +86,12 @@ func newMockDataProviders() *mockDataProviders {
 		mockUserProvider: newMockUserProvider(),
 		mockHostProvider: newMockHostProvider(),
 	}
+}
+
+func (m *mockDataProviders) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
+	return &activity.ActivitiesWebhookSettings{Enable: false}, nil
+}
+
+func (m *mockDataProviders) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return nil
 }

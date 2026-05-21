@@ -17,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
@@ -43,7 +42,7 @@ func (s *integrationLoggerTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationLoggerTestSuite")
 
 	s.handler = testutils.NewTestHandler()
-	logger := logging.NewLogger(slog.New(s.handler))
+	logger := slog.New(s.handler)
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
@@ -74,7 +73,7 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 		"query":       "select 1 from osquery;",
 		"fleet_id":    nil,
 	}
-	var createResp createQueryResponse
+	var createResp fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", params, http.StatusOK, &createResp)
 
 	records := s.handler.Records()
@@ -95,12 +94,14 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 			assert.Equal(t, "/api/latest/fleet/config", attrs["uri"])
 			assert.Equal(t, "admin1@example.com", attrs["user"])
 		case 2:
-			assert.Equal(t, slog.LevelDebug, rec.Level)
+			assert.Equal(t, slog.LevelWarn, rec.Level) // Warn because /queries is a deprecated path
 			assert.Equal(t, "POST", attrs["method"])
 			assert.Equal(t, "/api/latest/fleet/queries", attrs["uri"])
 			assert.Equal(t, "admin1@example.com", attrs["user"])
 			assert.Equal(t, "somequery", attrs["name"])
 			assert.Equal(t, "select 1 from osquery;", attrs["sql"])
+			assert.Equal(t, "/api/_version_/fleet/queries", attrs["deprecated_path"])
+			assert.Contains(t, attrs["deprecation_warning"], "deprecated")
 		default:
 			t.Fail()
 		}
@@ -116,19 +117,19 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 	}
 
 	testCases := []struct {
-		loginRequest   contract.LoginRequest
+		loginRequest   fleet.LoginRequest
 		expectedStatus int
 		expectedLevel  slog.Level
 		expectedAttrs  []expectedAttr
 	}{
 		{
-			loginRequest:   contract.LoginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
+			loginRequest:   fleet.LoginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
 			expectedStatus: http.StatusOK,
 			expectedLevel:  slog.LevelInfo,
 			expectedAttrs:  []expectedAttr{{"email", testUsers["admin1"].Email}},
 		},
 		{
-			loginRequest:   contract.LoginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
+			loginRequest:   fleet.LoginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
 			expectedStatus: http.StatusUnauthorized,
 			expectedLevel:  slog.LevelInfo,
 			expectedAttrs: []expectedAttr{
@@ -137,7 +138,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 			},
 		},
 		{
-			loginRequest:   contract.LoginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
+			loginRequest:   fleet.LoginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
 			expectedStatus: http.StatusUnauthorized,
 			expectedLevel:  slog.LevelInfo,
 			expectedAttrs: []expectedAttr{
@@ -146,7 +147,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 			},
 		},
 	}
-	var resp loginResponse
+	var resp fleet.LoginResponse
 	for _, tt := range testCases {
 		s.DoJSON("POST", "/api/latest/fleet/login", tt.loginRequest, tt.expectedStatus, &resp)
 

@@ -1,0 +1,1 @@
+- Added support for setting `gitops_mode_enabled` and `repository_url` via GitOps.

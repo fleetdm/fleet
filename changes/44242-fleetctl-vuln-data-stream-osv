@@ -1,0 +1,1 @@
+- Fixed `fleetctl vulnerability-data-stream` to also download OSV (Ubuntu and RHEL) artifacts.

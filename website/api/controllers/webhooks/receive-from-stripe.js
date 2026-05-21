@@ -58,14 +58,19 @@ module.exports = {
 
     let stripeEventData = data.object;
 
+    // Find the subscription ID associated with this event. For most events this is at stripeEventData.subscription,
+    // but for customer.subscription.* events, the data object IS the subscription, so the ID is at stripeEventData.id.
+    let subscriptionIdToFind = stripeEventData.subscription;
+    if(type === 'customer.subscription.updated') {
+      subscriptionIdToFind = stripeEventData.id;
+    }
     // If this event does not include a subscription ID, we'll ignore it and return a 200 response.
-    if(!stripeEventData.subscription) {
+    if(!subscriptionIdToFind) {
       return;
     }
     assert(stripeEventData.customer !== undefined);
 
     // Find the subscription record for this event.
-    let subscriptionIdToFind = stripeEventData.subscription;
     let subscriptionForThisEvent = await Subscription.findOne({stripeSubscriptionId: subscriptionIdToFind}).populate('user');
 
     let STRIPE_EVENTS_SENT_BEFORE_A_SUBSCRIPTION_RECORD_EXISTS = [
@@ -77,7 +82,8 @@ module.exports = {
       'invoice.payment_action_required',// Sent when a user's billing card requires additional verification from stripe.
       'invoice.updated',// Sent before an incomplete invoice is voided. (~24 hours after a payment fails)
       'invoice.voided',// Sent when an incomplete invoice is marked as voided. (~24 hours after a payment fails)
-      'checkout.session.completed'// Sent when a user completes a Stripe Checkout session.
+      'checkout.session.completed',// Sent when a user completes a Stripe Checkout session.
+      'customer.subscription.updated',// Stripe can emit this during the initial creation flow, before the DB record exists.
     ];
 
     // If this event is for a subscription that was just created, we won't have a matching Subscription record in the database. This is because we wait until the subscription's invoice is paid to create the record in our database.
@@ -266,15 +272,14 @@ module.exports = {
         }
       });
 
-      let todayOn = new Date();
-      let isoTimestampForDescription = todayOn.toISOString();
+
       sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: userForThisSubscription.emailAddress,
         firstName: userForThisSubscription.firstName,
         lastName: userForThisSubscription.lastName,
         organization: userForThisSubscription.organization,
         contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
-        description: `Purchased a self-service Fleet Premium license on ${isoTimestampForDescription.split('T')[0]} for ${numberOfHosts} host${numberOfHosts > 1 ? 's' : ''}.`
+        description: `Purchased a self-service Fleet Premium license for ${numberOfHosts} host${numberOfHosts > 1 ? 's' : ''}.`
       }).exec((err)=>{
         if(err){
           sails.log.warn(`Background task failed: When a user (email: ${userForThisSubscription.emailAddress} purchased a self-service Fleet premium subscription, a Contact and Account record could not be created/updated in the CRM.`, err);
@@ -282,6 +287,70 @@ module.exports = {
         return;
       });
 
+    //  ┬─┐┌─┐┌┬┐┬ ┬┌─┐┌┬┐┬┌─┐┌┐┌  ┬┌┐┌  ┌─┐┌┬┐┬─┐┬┌─┐┌─┐  ┬ ┬┬
+    //  ├┬┘├┤  │││ ││   │ ││ ││││  ││││  └─┐ │ ├┬┘│├─┘├┤   │ ││
+    //  ┴└─└─┘─┴┘└─┘└─┘ ┴ ┴└─┘┘└┘  ┴┘└┘  └─┘ ┴ ┴└─┴┴  └─┘  └─┘┴
+    } else if(type === 'customer.subscription.updated') {
+      // Quantity reductions made in the Stripe UI do not generate an invoice.paid + subscription_update event,
+      // so we detect them here by comparing the new quantity against the stored numberOfHosts. Increases continue to
+      // be handled by the invoice.paid + subscription_update branch above; if both events fire for the same change,
+      // whichever runs second sees no diff and becomes a no-op.
+
+      // If we don't have a Subscription record yet, this event arrived during initial creation. Nothing to reconcile.
+      if(!subscriptionForThisEvent) {
+        return;
+      }
+
+      // Get the new subscription item from the event.
+      let subscriptionItem = stripeEventData.items && stripeEventData.items.data ? stripeEventData.items.data[0] : undefined;
+      if(!subscriptionItem) {
+        return;
+      }
+
+      // Get the updated number of hosts from the subscription item.
+      let newNumberOfHosts = subscriptionItem.quantity;
+
+      // Only act on reductions. Increases are handled by the invoice.paid + subscription_update branch above.
+      if(newNumberOfHosts >= subscriptionForThisEvent.numberOfHosts) {
+        return;
+      }
+
+      // Use information from the nested plan object to determine the new price of this subscription.
+      let pricePerHost = subscriptionItem.plan.amount / 100;
+
+      let subscriptionPrice = Math.floor(pricePerHost * newNumberOfHosts);
+
+      // (Optionally) adjust the price of this subscription if a coupon was applied.
+      if(stripeEventData.discount) {
+        if(stripeEventData.discount.coupon) {
+          if(stripeEventData.discount.coupon.amount_off) {
+            // If the coupon applied takes a fixed dollar amount off of the total price, subtract the amount from the subscriptionPrice.
+            subscriptionPrice = _.round(subscriptionPrice - (stripeEventData.discount.coupon.amount_off / 100), 2); // Note: coupon.amount_off contains the discounted amount in cents.
+          } else if(stripeEventData.discount.coupon.percent_off) {
+            // Otherwise if it is a percent discount,
+            let discountAmount = subscriptionPrice * (stripeEventData.discount.coupon.percent_off / 100);
+            subscriptionPrice = _.round(subscriptionPrice - discountAmount, 2);
+          }
+        }
+      }
+
+      // Use the subscription's current period end as the new license expiration.
+      let nextBillingAt = stripeEventData.current_period_end * 1000;
+
+      // Generate a new license key for this subscription.
+      let newLicenseKeyForThisSubscription = await sails.helpers.createLicenseKey.with({
+        numberOfHosts: newNumberOfHosts,
+        organization: subscriptionForThisEvent.user.organization,
+        expiresAt: nextBillingAt,
+      });
+
+      // Update the subscription record.
+      await Subscription.updateOne({id: subscriptionForThisEvent.id}).set({
+        numberOfHosts: newNumberOfHosts,
+        subscriptionPrice,
+        fleetLicenseKey: newLicenseKeyForThisSubscription,
+        nextBillingAt: nextBillingAt,
+      });
     }
     // FUTURE: send emails about failed payments. (type === 'invoice.payment_failed' && stripeEventData.billing_reason === 'subscription_cycle')
 

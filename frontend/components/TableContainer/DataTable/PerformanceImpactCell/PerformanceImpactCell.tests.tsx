@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
 import PerformanceImpactCell from "./PerformanceImpactCell";
@@ -14,6 +14,8 @@ describe("Query performance cell", () => {
 
     await user.hover(screen.getByText("Minimal"));
 
-    expect(screen.getByText(/little to no impact/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/little to no impact/i)).toBeInTheDocument();
+    });
   });
 });

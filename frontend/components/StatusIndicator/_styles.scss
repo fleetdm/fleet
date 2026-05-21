@@ -32,10 +32,9 @@
 
   &--indeterminate {
     &:before {
-      background-color: $ui-offline;
+      display: none; // Do not show indicator for "---" statuses
     }
   }
-
 
   // NOTE: We will move away from styling the indicator status depending
   // on the value passed to the component. Instead we have added an `indicator`

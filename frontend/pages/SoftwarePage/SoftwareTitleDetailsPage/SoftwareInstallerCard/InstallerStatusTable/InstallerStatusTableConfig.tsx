@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React from "react";
 
 import { ISoftwareTitleVersion } from "interfaces/software";
 import PATHS from "router/paths";
@@ -9,7 +9,6 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import { isAndroid } from "interfaces/platform";
 
 interface ISoftwareTitleDetailsTableConfigProps {
   softwareId?: number;

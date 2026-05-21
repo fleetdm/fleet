@@ -91,13 +91,13 @@ func generateMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm-apple-bm",
 		Aliases: []string{"mdm_apple_bm"},
-		Usage:   "Generate Apple Business Manager public key to enable automatic enrollment for macOS hosts.",
+		Usage:   "Generate Apple Business public key to enable automatic enrollment for macOS hosts.",
 		Flags: []cli.Flag{
 			contextFlag(),
 			debugFlag(),
 			&cli.StringFlag{
 				Name:  "public-key",
-				Usage: "The output path for the Apple Business Manager public key certificate.",
+				Usage: "The output path for the Apple Business public key certificate.",
 				Value: bmPublicKeyCertPath,
 			},
 		},

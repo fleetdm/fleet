@@ -1,1 +1,0 @@
-Added `logging.otel_logs_enabled` contributor config option to export server logs to OpenTelemetry.

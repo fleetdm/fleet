@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/aws/smithy-go/ptr"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kithttp "github.com/go-kit/kit/transport/http"

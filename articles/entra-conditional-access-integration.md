@@ -1,6 +1,6 @@
 # Conditional access: Entra
 
-With Fleet, you can integrate with Microsoft Entra to enforce conditional access on macOS hosts.
+With Fleet, you can integrate with Microsoft Entra to enforce conditional access on macOS and Windows hosts.
 
 When a host fails a policy in Fleet, Fleet can mark it as non-compliant in Entra. This allows IT and Security teams to block access to third-party apps until the issue is resolved.
 
@@ -16,11 +16,13 @@ To enforce conditional access, end users must be a member of a group called "Fle
 
 ## Step 2: Configure Fleet in Intune
 
+> For Windows, you can skip this step.
+
 Login to [Intune](https://intune.microsoft.com), and follow [this Microsoft guide](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners#add-a-compliance-partner-to-intune) to add Fleet as compliance partner in Intune.
 
-For **Platform**, select **macOS**. 
+For **Platform**, select **macOS**.
 
-If you're migrating from your old MDM solution to Fleet, **macOS** won't appear until you delete your old MDM solution in Intune. When you switch to Fleet there will be a gap in conditional access coverage. Specific hosts won't have conditional access enforced until the end user re-registers with Platform SSO (sign in to Entra via Company Portal). 
+> If you're migrating from your old MDM solution to Fleet, **macOS** won't appear until you delete your old MDM solution in Intune. When you switch to Fleet there will be a gap in conditional access coverage. Specific hosts won't have conditional access enforced until the end user re-registers with Platform SSO (sign in to Entra via Company Portal). 
 
 For **Assignments** add the "Fleet conditional access" group you created to **Included groups**. Don't select **Add all users** or pick a different group. Fleet requires the "Fleet conditional access" group.
 
@@ -42,12 +44,15 @@ After clicking **Save** you will be redirected to https://login.microsoftonline.
 
 After consenting you will be redirected back to Fleet (to `/settings/integrations/conditional-access`). If you don't see a green checkmark in Fleet, please verify that you have a "Fleet conditional access" [group in Entra](#step-3-connect-fleet-to-entra). If you do and you still don't see a green checkmark, please [reach out to support](https://fleetdm.com/support).
 
-
 ## Step 4: Deploy Company Portal and the Platform SSO configuration profile
 
-The following steps need to be configured on the Fleet teams you want to enable Microsoft "Conditional Access".
+> For Windows, you can skip this step.
+
+The following steps need to be configured for fleets you want to enable Microsoft "Conditional Access".
 
 ### Automatically install Company Portal
+
+> For Windows, you can skip this step.
 
 To enroll macOS devices to Entra for Conditional Access you will need to configure Fleet to automatically install the "Company Portal" macOS application.
 
@@ -59,6 +64,8 @@ You should also configure "Company Portal" as a software package to deploy durin
 Go to **Controls > Setup experience > Install software > Add software**, select **Company Portal** and select **Save**.
 
 ### Add "Company Portal installed" label
+
+> For Windows, you can skip this step.
 
 We will need to create a dynamic label to determine which macOS devices have "Company Portal" installed.
 
@@ -77,10 +84,12 @@ Select the avatar on the right side of the top navigation and select **Labels > 
 
 ### Deploy Platform SSO configuration profile
 
+> For Windows, you can skip this step.
+
 For Entra's "Conditional Access" feature we need to deploy a Platform SSO extension for Company Portal.
 The extension must be deployed via configuration profiles. For more information see https://learn.microsoft.com/en-us/intune/intune-service/configuration/platform-sso-macos#step-3---deploy-the-company-portal-app-for-macos.
 
-If you're using Fleet's MDM features, head to **Controls > OS settings > Custom settings > + Add profile**.
+If you're using Fleet's MDM features, head to **Controls > OS settings > Configuration profiles > + Add profile**.
 Set **Target > Custom > Include all** and select **Company Portal installed**.
 
 Upload the following configuration profile:
@@ -161,8 +170,8 @@ If you're using another MDM solution, add the same configuration profile and tar
 
 Next, add policies in Fleet that will determine whether a device is marked as "compliant" or "not compliant" in Entra.
 
-Head to **Policies > Select team > Automations > Conditional access**.
-1. Make sure the feature is enabled for the team.
+Head to **Policies > Automations > Conditional access**.
+1. Make sure the feature is enabled for the fleet.
 2. Select the policies you want enforce conditional access with.
 
 ## Step 6: Add Entra policies
@@ -180,7 +189,7 @@ If you want to unblock all end users, you can disable conditional access by head
 
 ## End user experience
 
-### Platform SSO registration
+### macOS
 
 After the Platform SSO profile is deployed to end-user devices, users will see a notification and will perform the authentication flow with Entra ID.
 
@@ -192,11 +201,16 @@ After following the authentication steps, the user might hit the following messa
 
 On that scenario, after hitting "Continue" the user will be redirected to https://fleetdm.com/microsoft-compliance-partner/enroll which will advise to click on the Fleet tray icon "My device" > "🔄 Refetch". The refetch will synchronize data to Intune and the user will be able to log in to Microsoft services/apps without entering credentials.
 
+### Windows
+
+Users enroll their hosts to Entra via the [Settings > Access work or school workflow](
+https://support.microsoft.com/en-us/account-billing/join-your-work-device-to-your-work-or-school-network-ef4d6adb-5095-4e51-829e-5457430f3973).
+
 ### Access blocked experience
 
 When a Fleet policy configured for conditional access starts failing on a host, then the user will be logged out and blocked from logging in to Entra ID.
 
-E.g. here's "Microsoft Teams" message on a blocked host:
+E.g. here's "Microsoft Teams" message on a macOS blocked host:
 ![Microsoft Teams message user needs to login again](../website/assets/images/articles/entra-conditional-access-microsoft-teams-log-message-1311x111@2x.png)
 
 And here's the error message when trying to re-login:
@@ -230,12 +244,12 @@ labels:
     SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac'
 org_settings:
   integrations:
-    conditional_access_enabled: true # enables setting for "No team"
+    conditional_access_enabled: true # enables setting for "Unassgined"
 ```
 
-`teams/team-name.yml` (should be the same for `teams/no-team.yml` with the `team_settings` removed):
+`fleets/fleet-name.yml` (should be the same for `fleet/unassigned.yml` with the `settings` removed):
 ```yml
-team_settings:
+settings:
   integrations:
     conditional_access_enabled: true
 controls:
@@ -243,7 +257,7 @@ controls:
     custom_settings:
     - labels_include_all:
       - Company Portal installed
-      path: ../lib/team-name/profiles/company-portal-single-signon-extension.mobileconfig
+      path: ../lib/fleet-name/profiles/company-portal-single-signon-extension.mobileconfig
 policies:
 - calendar_events_enabled: false
   conditional_access_enabled: true
@@ -270,16 +284,16 @@ software:
   - hash_sha256: 931db4af2fe6320a1bfb6776fae75b6f7280a947203a5a622b2cae00e8f6b6e6
       # Company Portal (CompanyPortal-Installer.pkg) version 5.2504.0
     install_script:
-      path: ../lib/team-name/scripts/company-portal-darwin-install
+      path: ../lib/fleet-name/scripts/company-portal-darwin-install
     uninstall_script:
-      path: ../lib/team-name/scripts/company-portal-darwin-uninstall
+      path: ../lib/fleet-name/scripts/company-portal-darwin-uninstall
 ```
 
-For `lib/team-name/profiles/company-portal-single-signon-extension.mobileconfig`: See [Platform SSO configuration profile](#platform-sso-configuration-profile).
+For `lib/fleet-name/profiles/company-portal-single-signon-extension.mobileconfig`: See [Platform SSO configuration profile](#platform-sso-configuration-profile).
 
 <meta name="articleTitle" value="Conditional access: Entra">
 <meta name="authorFullName" value="Lucas Manuel Rodriguez">
 <meta name="authorGitHubUsername" value="lucasmrod">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-06-20">
+<meta name="publishedOn" value="2026-04-27">
 <meta name="description" value="Learn how to enforce conditional access with Fleet and Microsoft Entra.">

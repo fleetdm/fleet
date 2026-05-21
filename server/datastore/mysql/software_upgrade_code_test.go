@@ -251,7 +251,7 @@ func testUpgradeCodeDuplicateEntryError(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, softwareEntries, 1)
 	require.NotNil(t, softwareEntries[0].TitleID)
-	assert.Equal(t, uint(titleAID), *softwareEntries[0].TitleID,
+	assert.Equal(t, uint(titleAID), *softwareEntries[0].TitleID, //nolint:gosec // dismiss G115
 		"Software should be linked to Title A (the one with matching upgrade_code)")
 }
 
@@ -308,7 +308,7 @@ func testUpgradeCodeCaseSensitivityWithExistingUpgradeCode(t *testing.T, ds *Dat
 
 	// Software should be linked to the existing title despite case difference
 	require.NotNil(t, softwareEntries[0].TitleID, "Software should have title_id set")
-	assert.Equal(t, uint(titleID), *softwareEntries[0].TitleID,
+	assert.Equal(t, uint(titleID), *softwareEntries[0].TitleID, //nolint:gosec // dismiss G115
 		"Software should be linked to existing title")
 }
 

@@ -13,8 +13,8 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
-// RedisKeyValue is a basic key/value store with SET and GET operations
-// Items are removed via expiration (defined in the SET operation).
+// RedisKeyValue is a key/value store with basic SET and GET operations and advanced operations
+// Items are removed via expiration (defined in the SET operation), or via the DEL command
 type RedisKeyValue struct {
 	pool       fleet.RedisPool
 	testPrefix string // for tests, the key prefix to use to avoid conflicts
@@ -55,4 +55,51 @@ func (r *RedisKeyValue) Get(ctx context.Context, key string) (*string, error) {
 		return nil, ctxerr.Wrap(ctx, err, "redis failed to get")
 	}
 	return &res, nil
+}
+
+func (r *RedisKeyValue) MGet(ctx context.Context, keys []string) (map[string]*string, error) {
+	if len(keys) == 0 {
+		return map[string]*string{}, nil
+	}
+
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	redisKeys := make([]any, len(keys))
+	for i, key := range keys {
+		redisKeys[i] = r.testPrefix + prefix + key
+	}
+
+	res, err := redigo.Values(conn.Do("MGET", redisKeys...))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "redis failed to mget")
+	}
+
+	result := make(map[string]*string, len(keys))
+	for i, key := range keys {
+		if res[i] == nil {
+			result[key] = nil
+		} else {
+			str, err := redigo.String(res[i], nil)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "redis failed to convert value to string")
+			}
+			result[key] = &str
+		}
+	}
+	return result, nil
+}
+
+func (r *RedisKeyValue) Delete(ctx context.Context, key string) error {
+	if key == "" {
+		return nil
+	}
+
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := redigo.Int(conn.Do("DEL", r.testPrefix+prefix+key)); err != nil {
+		return ctxerr.Wrap(ctx, err, "redis failed to delete")
+	}
+	return nil
 }

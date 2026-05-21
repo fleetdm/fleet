@@ -3,13 +3,13 @@ import { noop } from "lodash";
 
 import { AppContext } from "context/app";
 import { syntaxHighlight } from "utilities/helpers";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import classnames from "classnames";
 import validURL from "components/forms/validators/valid_url";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
 import Slider from "components/forms/fields/Slider";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Icon from "components/Icon";
@@ -158,7 +158,11 @@ const CalendarEventsModal = ({
   const renderPlaceholderModal = () => {
     return (
       <div className="placeholder">
-        <a href="https://www.fleetdm.com/learn-more-about/calendar-events">
+        <a
+          href={`${LEARN_MORE_ABOUT_BASE_LINK}/calendar-events`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           <img src={CalendarPreview} alt="Calendar preview" />
         </a>
         <div>
@@ -181,7 +185,7 @@ const CalendarEventsModal = ({
           />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onExit}>Done</Button>
+          <Button onClick={onExit}>Close</Button>
         </div>
       </div>
     );

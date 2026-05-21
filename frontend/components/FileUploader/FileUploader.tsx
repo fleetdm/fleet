@@ -25,6 +25,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-pem"
   | "file-vpp"
   | "file-png"
+  | "fleet-logo"
 >;
 
 interface IFileUploaderProps {
@@ -62,6 +63,10 @@ interface IFileUploaderProps {
   canEdit?: boolean;
   /** renders a custom editor for the current file replacing the edit pencil button */
   customEditor?: () => React.ReactNode;
+  /** if provided, replaces the default file-type Graphic shown next to the
+   * file details (e.g. to display a preview thumbnail of the picked image
+   * instead of a generic file icon). */
+  customPreview?: React.ReactNode;
   /** renders the current file with the delete trash button */
   onDeleteFile?: () => void;
   /** if provided, will be called when the button is clicked
@@ -101,6 +106,7 @@ export const FileUploader = ({
   onFileUpload,
   canEdit = false,
   customEditor,
+  customPreview,
   onDeleteFile,
   fileDetails,
   gitopsCompatible = false,
@@ -244,9 +250,9 @@ export const FileUploader = ({
 
   const renderFileUploader = () => {
     return (
-      <div className="content-wrapper">
-        <div className="outer">
-          <div className="inner">
+      <div className={`${baseClass}__content-wrapper`}>
+        <div className={`${baseClass}__outer`}>
+          <div className={`${baseClass}__inner`}>
             <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
             {renderTitle()}
             <p className={`${baseClass}__message`}>{message}</p>
@@ -265,6 +271,7 @@ export const FileUploader = ({
               id="upload-file"
               type="file"
               onChange={onFileSelect}
+              className="file-input-visually-hidden"
             />
           )}
         </div>
@@ -282,6 +289,7 @@ export const FileUploader = ({
             fileDetails={fileDetails}
             canEdit={canEdit}
             customEditor={customEditor}
+            customPreview={customPreview}
             onDeleteFile={onDeleteFile}
             onFileSelect={onFileSelect}
             accept={accept}

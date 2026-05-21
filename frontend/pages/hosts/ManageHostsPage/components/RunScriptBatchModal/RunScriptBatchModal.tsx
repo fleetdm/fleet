@@ -4,12 +4,12 @@ import { useQuery } from "react-query";
 import PATHS from "router/paths";
 
 import classnames from "classnames";
+import { getPathWithQueryParams } from "utilities/url";
 
-import { Link } from "react-router";
 import Radio from "components/forms/fields/Radio";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
 
 import { NotificationContext } from "context/notification";
 
@@ -28,7 +28,7 @@ import scriptsAPI, {
 } from "services/entities/scripts";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import Spinner from "components/Spinner";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 
 import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
@@ -176,11 +176,16 @@ const RunScriptBatchModal = ({
             "success",
             <>
               Successfully scheduled script.{" "}
-              <Link
-                to={`${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}?status=scheduled&fleet_id=${teamId}`}
-              >
-                Show schedule
-              </Link>
+              <CustomLink
+                url={getPathWithQueryParams(
+                  PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS,
+                  {
+                    status: "scheduled",
+                    fleet_id: teamId,
+                  }
+                )}
+                text="Show schedule"
+              />
             </>
           );
         } else {
@@ -188,11 +193,16 @@ const RunScriptBatchModal = ({
             "success",
             <>
               Successfully ran script.{" "}
-              <Link
-                to={`${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}?status=started&fleet_id=${teamId}`}
-              >
-                Show script activity
-              </Link>
+              <CustomLink
+                url={getPathWithQueryParams(
+                  PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS,
+                  {
+                    status: "started",
+                    fleet_id: teamId,
+                  }
+                )}
+                text="Show script activity"
+              />
             </>
           );
         }
@@ -218,22 +228,23 @@ const RunScriptBatchModal = ({
       return <Spinner />;
     }
     if (!scripts.length) {
+      // No permission gate needed on the "Add a script" link — only
+      // admin/maintainer roles can open this modal (canRunScriptBatch),
+      // and those roles also have permission to add scripts.
       return (
-        <EmptyTable
-          header="No scripts available for this fleet"
+        <EmptyState
+          variant="header-list"
+          header="No scripts available"
           info={
             <>
-              You can add saved scripts{" "}
-              <a
-                href={
-                  isFreeTier
-                    ? "/controls/scripts"
-                    : `/controls/scripts?fleet_id=${teamId}`
-                }
-              >
-                here
-              </a>
-              .
+              <CustomLink
+                url={getPathWithQueryParams(
+                  PATHS.CONTROLS_SCRIPTS,
+                  !isFreeTier ? { fleet_id: teamId } : undefined
+                )}
+                text="Add a script"
+              />{" "}
+              to this fleet.
             </>
           }
         />
@@ -336,44 +347,42 @@ const RunScriptBatchModal = ({
         className={classes}
         disableClosingModal={isUpdating}
       >
-        <>
-          {renderModalContent()}
-          {!selectedScript && !scriptForDetails && (
-            <div className="modal-cta-wrap">
-              <Button disabled={isUpdating} onClick={onCancel}>
-                Done
-              </Button>
-            </div>
-          )}
-          {selectedScript && (
-            <div className="modal-cta-wrap">
-              <TooltipWrapper
-                tipContent="Enter a date and time to schedule this script."
-                underline={false}
-                position="top"
-                disableTooltip={formValidation.isValid}
-                showArrow
-              >
-                <Button
-                  disabled={isUpdating || !formValidation.isValid}
-                  onClick={() => onRunScriptBatch(selectedScript)}
-                  isLoading={isUpdating}
-                >
-                  Run
-                </Button>
-              </TooltipWrapper>
+        {renderModalContent()}
+        {!selectedScript && !scriptForDetails && (
+          <div className="modal-cta-wrap">
+            <Button disabled={isUpdating} onClick={onCancel}>
+              Close
+            </Button>
+          </div>
+        )}
+        {selectedScript && (
+          <div className="modal-cta-wrap">
+            <TooltipWrapper
+              tipContent="Enter a date and time to schedule this script."
+              underline={false}
+              position="top"
+              disableTooltip={formValidation.isValid}
+              showArrow
+            >
               <Button
-                disabled={isUpdating}
-                variant="inverse"
-                onClick={() => {
-                  setSelectedScript(undefined);
-                }}
+                disabled={isUpdating || !formValidation.isValid}
+                onClick={() => onRunScriptBatch(selectedScript)}
+                isLoading={isUpdating}
               >
-                Cancel
+                Run
               </Button>
-            </div>
-          )}
-        </>
+            </TooltipWrapper>
+            <Button
+              disabled={isUpdating}
+              variant="inverse"
+              onClick={() => {
+                setSelectedScript(undefined);
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
       </Modal>
       {!!scriptForDetails && !selectedScript && (
         <ScriptDetailsModal

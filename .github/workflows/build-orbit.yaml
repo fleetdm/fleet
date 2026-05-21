@@ -57,7 +57,7 @@ jobs:
           rm certificate.p12
 
       - name: Set up Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
 
@@ -68,7 +68,7 @@ jobs:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
+          CODESIGN_IDENTITY: 604D877399AAEB7630A78B84F288E2D28A2EDE42
           ORBIT_VERSION: ${{ env.ORBIT_VERSION }}
           ORBIT_COMMIT: ${{ github.sha }}
 

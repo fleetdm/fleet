@@ -9,9 +9,11 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -27,7 +29,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -329,7 +330,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				require.Len(t, cmds, 1)
 
 				// Simulate the host having fleetd installed and reporting back in as un-enrolled
-				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 					_, err := q.ExecContext(context.Background(), `
 	              UPDATE host_mdm
 	              SET enrolled = 0, server_url = ''
@@ -355,7 +356,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				status, err := s.ds.GetHostLockWipeStatus(context.Background(), host)
 				require.NoError(t, err)
 
-				var orbitScriptResp orbitPostScriptResultResponse
+				var orbitScriptResp fleet.OrbitPostScriptResultResponse
 				s.DoJSON(
 					"POST",
 					"/api/fleet/orbit/scripts/result",
@@ -371,7 +372,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				)
 
 				// Simulate the host having fleetd installed after being wiped and reporting back in as un-enrolled
-				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 					_, err := q.ExecContext(context.Background(), `
 	              UPDATE host_mdm
 	              SET enrolled = 0, server_url = ''
@@ -508,6 +509,7 @@ func (s *integrationMDMTestSuite) recordWindowsHostStatus(
 
 	msgID, err := device.GetCurrentMsgID()
 	require.NoError(t, err)
+	euaTokenRe := regexp.MustCompile(`EUA_TOKEN="[^"]*"`)
 	for _, c := range cmds {
 		cmdID := c.Cmd.CmdID
 		status := syncml.CmdStatusOK
@@ -522,6 +524,12 @@ func (s *integrationMDMTestSuite) recordWindowsHostStatus(
 		})
 		c.Cmd.CmdID.Value = ""
 		c.Cmd.CmdRef = nil
+		for i := range c.Cmd.Items {
+			if c.Cmd.Items[i].Data != nil {
+				c.Cmd.Items[i].Data.Content = euaTokenRe.ReplaceAllString(
+					c.Cmd.Items[i].Data.Content, `EUA_TOKEN="<redacted>"`)
+			}
+		}
 		recordedCmds = append(recordedCmds, c)
 	}
 
@@ -549,8 +557,11 @@ func (s *integrationMDMTestSuite) recordAppleHostStatus(
 ) ([]*micromdm.CommandPayload, getHostMDMSummaryResponse, getHostMDMResponseTest) {
 	t := s.T()
 
-	s.runWorkerUntilDone()
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	// run worker to process the enroll request
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorkerUntilDone()
 
 	var cmds []*micromdm.CommandPayload
 
@@ -634,7 +645,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	// helper functions
 	getEnrollRef := func(hostUUID string) string {
 		var foundRef string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &foundRef, `
 	              SELECT fleet_enroll_ref FROM host_mdm
 	              WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)
@@ -645,7 +656,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 	existsRefetchCmd := func(hostUUID string) bool {
 		var foundRefetchCmd bool
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &foundRefetchCmd, `
 	              SELECT 1 FROM host_mdm_commands
 	              WHERE host_id = (SELECT id FROM hosts WHERE uuid = ?)
@@ -657,7 +668,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 	getRenewCmdUUID := func(hostUUID string) sql.NullString {
 		var renewCmdUUID sql.NullString
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &renewCmdUUID, `
 	              SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE id = ?
 		`, hostUUID)
@@ -813,7 +824,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	migratedDevice.SerialNumber = migratedHost.HardwareSerial
 	err = migratedDevice.Enroll()
 	require.NoError(t, err)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 	              UPDATE nano_enrollments
 	              SET enrolled_from_migration = 1
@@ -857,8 +868,8 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	)
 	expectedProfiles := 4 // Fleetd configuration, Fleet root cert, N1, N2
 
-	s.runWorker()
 	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	ackAllCommands := func(mdmDevice *mdmtest.TestAppleMDMClient, wantFleetdInstall, wantBootstrapInstall bool) int {
 		var count int
@@ -866,6 +877,13 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
+			if cmd.Command.RequestType == "DeclarativeManagement" {
+				// skip declarative management commands
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+				continue
+			}
+
 			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			count++
@@ -909,6 +927,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	err = manualEnrolledDevice.Enroll()
 	require.NoError(t, err)
 
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	s.awaitTriggerProfileSchedule(t)
 	require.Equal(t, expectedProfiles+1, ackAllCommands(manualEnrolledDevice, true, false)) // re-enrolled device gets the same commands as before
@@ -920,10 +939,10 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	fleetCfg := config.TestConfig()
 	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
-	logger := logging.NewJSONLogger(os.Stdout)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	// run without expired certs, no command enqueued
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 	cmd, err := manualEnrolledDevice.Idle()
 	require.NoError(t, err)
@@ -946,7 +965,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Nil(t, cmd)
 
 	expireCerts := func() {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `
 	              UPDATE nano_cert_auth_associations
 	              SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
@@ -960,7 +979,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	expireCerts()
 
 	// generate a new config here so we can manipulate the certs.
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
 	checkRenewCertCommand := func(device *mdmtest.TestAppleMDMClient, enrollRef string, wantProfile string, wantManagedAppleID string) {
@@ -1013,12 +1032,12 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 	// set the env var, and run the cron
 	t.Setenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", base64.StdEncoding.EncodeToString([]byte("<foo></foo>")))
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 	checkRenewCertCommand(migratedDevice, "", "<foo></foo>", "")
 
 	// another cron run shouldn't enqueue more commands
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
 	cmd, err = manualEnrolledDevice.Idle()
@@ -1042,11 +1061,11 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Nil(t, cmd)
 
 	// devices renew their SCEP cert by re-enrolling.
-	require.NoError(t, manualEnrolledDevice.Enroll())
-	require.NoError(t, automaticEnrolledDevice.Enroll())
-	require.NoError(t, automaticEnrolledDeviceWithRef.Enroll())
-	require.NoError(t, migratedDevice.Enroll())
-	require.NoError(t, iPhoneMdmDevice.Enroll())
+	require.NoError(t, manualEnrolledDevice.Reenroll())
+	require.NoError(t, automaticEnrolledDevice.Reenroll())
+	require.NoError(t, automaticEnrolledDeviceWithRef.Reenroll())
+	require.NoError(t, migratedDevice.Reenroll())
+	require.NoError(t, iPhoneMdmDevice.Reenroll())
 
 	// no new commands are enqueued right after enrollment
 	cmd, err = manualEnrolledDevice.Idle()
@@ -1085,7 +1104,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 	checkRenewCertCommand(automaticEnrolledDevice, "", "", "")
 	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo", "", "")
@@ -1093,7 +1112,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 	// migrated device is still marked as migrated
 	var stillMigrated bool
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &stillMigrated, `
 	              SELECT enrolled_from_migration FROM nano_enrollments
 	              WHERE id = ?
@@ -1108,6 +1127,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	iPadMdmDevice := mdmtest.NewTestMDMClientAppleOTA(s.server.URL, enrollSecrets[0].Secret, "iPad8,1", mdmtest.WithLegacyIDeviceEnrollRef("some-legacy-ref"))
 	require.NoError(t, iPadMdmDevice.Enroll())
 
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.runWorker()
 	s.awaitTriggerProfileSchedule(t)
 	require.Equal(t, expectedProfiles-1, ackAllCommands(iPadMdmDevice, false, false))
@@ -1116,7 +1136,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Empty(t, getEnrollRef(iPadMdmDevice.UUID))
 
 	// enqueue refetch commands and report results
-	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
@@ -1126,7 +1146,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Equal(t, "some-legacy-ref", getEnrollRef(iPadMdmDevice.UUID))
 
 	// expire cert
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 	              UPDATE nano_cert_auth_associations
 	              SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
@@ -1141,7 +1161,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.False(t, renewCmdUUID.Valid)
 
 	// running cron enqueues the renew command
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
 	// we now have a renew command uuid
@@ -1165,7 +1185,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Nil(t, cmd) // error doesn't trigger new command immediately
 
 	// running cron again doesn't change anything if the renew command failed
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 	cmd, err = iPadMdmDevice.Idle()
 	require.NoError(t, err)
@@ -1178,7 +1198,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Equal(t, wantCmdUUID, renewCmdUUID.String)
 
 	// now clear the enroll_ref to simulate device that failed prior to #37880
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 	              UPDATE host_mdm
 	              SET fleet_enroll_ref = ''
@@ -1189,7 +1209,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Empty(t, getEnrollRef(iPadMdmDevice.UUID))
 
 	// running cron again doesn't change anything until refetch is done
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 	cmd, err = iPadMdmDevice.Idle()
 	require.NoError(t, err)
@@ -1202,7 +1222,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.Equal(t, wantCmdUUID, renewCmdUUID.String)
 
 	// backdate host.detail_updated_at so we can do another refetch
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
 	              UPDATE hosts
 	              SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR)
@@ -1212,7 +1232,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	})
 
 	// enqueue refetch commands and report results
-	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger.SlogLogger(), func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}))
 	require.True(t, existsRefetchCmd(iPadMdmDevice.UUID))
@@ -1227,7 +1247,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.False(t, renewCmdUUID.Valid)
 
 	// nano_enrollment_queue is deactivated
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var active bool
 		err := sqlx.GetContext(ctx, q, &active, `
 	              SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?
@@ -1238,7 +1258,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	})
 
 	// now run renewal cron to issue new command
-	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
 	renewCmdUUID = getRenewCmdUUID(iPadMdmDevice.UUID)
@@ -1263,7 +1283,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	t := s.T()
 
 	triggerRefetchCron := func(hostID uint) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), `UPDATE hosts SET detail_updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE id = ?`, hostID)
 			return err
 		})
@@ -1346,7 +1366,7 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 		hwModel,
 	)
 	require.NoError(t, mdmDevice.Enroll())
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 	checkInstallFleetdCommandSent(t, mdmDevice, false)
 
 	// mu.Lock()
@@ -1357,7 +1377,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
-	require.False(t, hostByIdentifierResp.Host.RefetchRequested)
+	// iOS/iPadOS enrollment sets refetch_requested=true so the iphone_ipad_refetcher
+	// cron picks the host up; the flag is cleared by the DeviceInformation ack handler.
+	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 	hostID := hostByIdentifierResp.Host.ID
 
 	triggerRefetchCron(hostID)
@@ -1365,7 +1387,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	hostByIdentifierResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
-	require.False(t, hostByIdentifierResp.Host.RefetchRequested) // refetch cron doesn't set the refetch_requested flag
+	// The cron queues commands but doesn't clear refetch_requested — that happens
+	// only after the device acks the DeviceInformation command below.
+	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 
 	// mu.Lock()
 	// require.Len(t, recordedPushes, 4)
@@ -1411,7 +1435,9 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	hostByIdentifierResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
-	require.False(t, hostByIdentifierResp.Host.RefetchRequested) // re-enrollment also clears the refetch_requested flag
+	// Re-enrollment re-flags iOS/iPadOS hosts with refetch_requested=true so the cron
+	// will pick them up again; the flag is cleared by the next DeviceInformation ack.
+	require.True(t, hostByIdentifierResp.Host.RefetchRequested)
 }
 
 // TestMDMLockHostUnenrolled tests that we cannot lock a macOS host that is not enrolled in MDM.
@@ -1442,7 +1468,7 @@ func (s *integrationMDMTestSuite) TestMDMLockHostUnenrolled() {
 	hostID := hostByIdentifierResp.Host.ID
 
 	// mark the host as unenrolled in MDM
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), `
 			UPDATE nano_enrollments
 			SET enabled = 0
@@ -1479,7 +1505,7 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 	// Check that FileVault profile exists in the database
 	var initialProfileID uint
 	var initialTimestamp time.Time
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return q.QueryRowxContext(context.Background(),
 			`SELECT profile_id, uploaded_at FROM mdm_apple_configuration_profiles 
 			 WHERE identifier = ? AND team_id = 0`,
@@ -1499,7 +1525,7 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 	// Check that FileVault profile still exists and has been updated
 	var updatedProfileID uint
 	var updatedTimestamp time.Time
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return q.QueryRowxContext(context.Background(),
 			`SELECT profile_id, uploaded_at FROM mdm_apple_configuration_profiles 
 			 WHERE identifier = ? AND team_id = 0`,
@@ -1515,7 +1541,7 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 
 	// Disable MDM and remove filevault profile, then re-enable
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/apns_certificate", nil, http.StatusOK)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(),
 			`DELETE FROM mdm_apple_configuration_profiles 
 			 WHERE identifier = ? AND team_id = 0`,
@@ -1527,7 +1553,7 @@ func (s *integrationMDMTestSuite) TestFileVaultProfileUpdatedOnMDMToggle() {
 	s.appleCoreCertsSetup()
 
 	var finalProfileID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return q.QueryRowxContext(context.Background(),
 			`SELECT profile_id FROM mdm_apple_configuration_profiles 
 			 WHERE identifier = ? AND team_id = 0`,

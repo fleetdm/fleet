@@ -64,9 +64,9 @@ export const getSelectedTeamIds = (
     return acc;
   }, {} as Record<string, number>);
   return {
-    ios_team_id: byName[ios_team],
-    ipados_team_id: byName[ipados_team],
-    macos_team_id: byName[macos_team],
+    ios_fleet_id: byName[ios_team],
+    ipados_fleet_id: byName[ipados_team],
+    macos_fleet_id: byName[macos_team],
   };
 };
 
@@ -132,70 +132,74 @@ const EditTeamsAbmModal = ({
       width="large"
       isContentDisabled={isSaving}
     >
-      <>
-        <p>
-          Edit fleets for <b>{token.org_name}</b>.
-        </p>
-        <form onSubmit={onSave} className={baseClass} autoComplete="off">
-          <Dropdown
-            searchable={false}
-            options={options}
-            onChange={(value: string) => {
-              setSelectedTeamNames((prev) => ({ ...prev, macos_team: value }));
-            }}
-            value={selectedTeamNames.macos_team}
-            label="macOS fleet"
-            wrapperClassName={`${baseClass}__form-field form-field--macos`}
-            tooltip={
-              <>
-                macOS hosts are automatically added to this fleet in Fleet when
-                they appear in Apple Business Manager.
-              </>
-            }
-          />
-          <Dropdown
-            searchable={false}
-            options={options}
-            onChange={(value: string) => {
-              setSelectedTeamNames((prev) => ({ ...prev, ios_team: value }));
-            }}
-            value={selectedTeamNames.ios_team}
-            label="iOS fleet"
-            wrapperClassName={`${baseClass}__form-field form-field--ios`}
-            tooltip={
-              <>
-                iOS hosts are automatically added to this fleet in Fleet when
-                they appear in Apple Business Manager.
-              </>
-            }
-          />
-          <Dropdown
-            searchable={false}
-            options={options}
-            onChange={(value: string) =>
-              setSelectedTeamNames((prev) => ({ ...prev, ipados_team: value }))
-            }
-            value={selectedTeamNames.ipados_team}
-            label="iPadOS fleet"
-            wrapperClassName={`${baseClass}__form-field form-field--ipados`}
-            tooltip={
-              <>
-                iPadOS hosts are automatically added to this fleet in Fleet when
-                they appear in Apple Business Manager.
-              </>
-            }
-          />
-          <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              className="save-abm-teams-loading"
-              isLoading={isSaving}
-            >
-              Save
-            </Button>
-          </div>
-        </form>
-      </>
+      <p>
+        Edit fleets for <b>{token.org_name}</b>.
+      </p>
+      <form onSubmit={onSave} className={baseClass} autoComplete="off">
+        <Dropdown
+          searchable={false}
+          options={options}
+          onChange={(value: string) => {
+            setSelectedTeamNames((prev) => ({ ...prev, macos_team: value }));
+          }}
+          value={selectedTeamNames.macos_team}
+          label="macOS fleet"
+          wrapperClassName={`${baseClass}__form-field form-field--macos`}
+          tooltip={
+            <>
+              macOS hosts are automatically added to this fleet on initial sync
+              from ABM. If a host is manually assigned to a different fleet
+              before enrollment, it will enroll to the newly assigned fleet and
+              not the default.
+            </>
+          }
+        />
+        <Dropdown
+          searchable={false}
+          options={options}
+          onChange={(value: string) => {
+            setSelectedTeamNames((prev) => ({ ...prev, ios_team: value }));
+          }}
+          value={selectedTeamNames.ios_team}
+          label="iOS fleet"
+          wrapperClassName={`${baseClass}__form-field form-field--ios`}
+          tooltip={
+            <>
+              iOS hosts are automatically added to this fleet on initial sync
+              from ABM. If a host is manually assigned to a different fleet
+              before enrollment, it will enroll to the newly assigned fleet and
+              not the default.
+            </>
+          }
+        />
+        <Dropdown
+          searchable={false}
+          options={options}
+          onChange={(value: string) =>
+            setSelectedTeamNames((prev) => ({ ...prev, ipados_team: value }))
+          }
+          value={selectedTeamNames.ipados_team}
+          label="iPadOS fleet"
+          wrapperClassName={`${baseClass}__form-field form-field--ipados`}
+          tooltip={
+            <>
+              iPadOS hosts are automatically added to this fleet on initial sync
+              from ABM. If a host is manually assigned to a different fleet
+              before enrollment, it will enroll to the newly assigned fleet and
+              not the default.
+            </>
+          }
+        />
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            className="save-abm-teams-loading"
+            isLoading={isSaving}
+          >
+            Save
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

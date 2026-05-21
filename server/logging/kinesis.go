@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"math/rand"
 	"time"
@@ -17,8 +18,6 @@ import (
 	smithy "github.com/aws/smithy-go"
 	"github.com/fleetdm/fleet/v4/server/aws_common"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log/level"
 )
 
 const (
@@ -40,11 +39,11 @@ type KinesisAPI interface {
 type kinesisLogWriter struct {
 	client KinesisAPI
 	stream string
-	logger *platformlogging.Logger
+	logger *slog.Logger
 	rand   *rand.Rand
 }
 
-func NewKinesisLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, stream string, logger *platformlogging.Logger) (*kinesisLogWriter, error) {
+func NewKinesisLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, stream string, logger *slog.Logger) (*kinesisLogWriter, error) {
 	var opts []func(*aws_config.LoadOptions) error
 
 	// The service endpoint is deprecated, but we still set it
@@ -131,8 +130,7 @@ func (k *kinesisLogWriter) Write(ctx context.Context, logs []json.RawMessage) er
 		// the beginning bytes of the log should help the Fleet admin
 		// diagnose the query generating huge results.
 		if len(log)+len(partitionKey) > kinesisMaxSizeOfRecord {
-			level.Info(k.logger).Log(
-				"msg", "dropping log over 1MB Kinesis limit",
+			k.logger.InfoContext(ctx, "dropping log over 1MB Kinesis limit",
 				"size", len(log),
 				"log", string(log[:100])+"...",
 			)

@@ -40,7 +40,7 @@ const LoginForm = ({
 
   const loginFormClass = classnames(baseClass);
 
-  const [errors, setErrors] = useState<any>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<ILoginUserData>({
     email: "",
     password: "",

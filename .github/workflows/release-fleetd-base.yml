@@ -16,6 +16,12 @@ name: Release and upload fleetd base to https://download.fleetdm.com
 
 on:
   workflow_dispatch: # Manual
+    inputs:
+      force:
+        description: "Skip the up-to-date check and rebuild the base MSI/PKG anyway."
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 3 * * *' # Nightly 3AM UTC
 
@@ -38,6 +44,8 @@ env:
   R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
   R2_BUCKET: download # Production: download | Testing: download-testing
   BASE_URL: https://download.fleetdm.com # Production: https://download.fleetdm.com | Testing: https://download-testing.fleetdm.com
+  # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
+  NPM_CONFIG_MIN_RELEASE_AGE: 0.5
 
 jobs:
   check-for-fleetd-component-updates:
@@ -57,25 +65,60 @@ jobs:
           fetch-depth: 0
 
       - name: Install Go
-        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
 
       - name: Check for fleetd component updates
         id: check-for-fleetd-component-updates
         run: |
-          go run tools/tuf/status/tuf-status.go channel-version -channel stable --components orbit,desktop,osqueryd --format json > latest-tuf-meta.json
-          : # Check that latest-tuf-meta.json is valid
-          jq -e . >/dev/null 2>&1 <<< $(cat latest-tuf-meta.json)
-          : # Download the current TUF meta file in order to compare it with the latest
-          curl -O $BASE_URL/stable/tuf-meta.json
-          if diff latest-tuf-meta.json tuf-meta.json >/dev/null 2>&1
-          then
-            echo "update_needed=false" >> $GITHUB_OUTPUT
-          else
-            echo "update_needed=true" >> $GITHUB_OUTPUT
-          fi
+          : # Always record a fresh date_dir for archive/ uploads.
           echo "date_dir=$(date -u +%Y-%m-%d_%H-%M-%S)" >> $GITHUB_OUTPUT
+
+          : # Always produce latest-tuf-meta.json: the downstream upload step expects it
+          : # and the TUF diff below also needs it.
+          go run tools/tuf/status/tuf-status.go channel-version -channel stable --components orbit,desktop,osqueryd --format json > latest-tuf-meta.json
+          jq -e . >/dev/null 2>&1 <<< $(cat latest-tuf-meta.json)
+
+          : # 1. Manual override: rebuild without further checks.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.force }}" = "true" ]; then
+            echo "Forcing rebuild via workflow_dispatch input."
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          : # 2. TUF component diff: rebuild if orbit/desktop/osqueryd changed.
+          curl -O $BASE_URL/stable/tuf-meta.json
+          if ! diff latest-tuf-meta.json tuf-meta.json >/dev/null 2>&1
+          then
+            echo "TUF components changed since current stable build."
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          : # 3. fleetctl-on-npm diff: rebuild if fleetctl was published after the current
+          : # stable base build. This catches packaging-code changes in fleetctl that ship
+          : # with a Fleet release but don't bump any TUF component, e.g. new MSI properties.
+          : # Compare RFC3339 timestamps as strings (lexicographic order matches chronological).
+          : # Transient fetch/parse failures produce empty values and skip the rebuild; the
+          : # next nightly run will retry, so a one-day delay is the worst case.
+          stable_build_dir=$(curl -fsS $BASE_URL/stable/meta.json 2>/dev/null | jq -r .version 2>/dev/null)
+          : # stable_build_dir format: YYYY-MM-DD_HH-MM-SS -> convert to YYYY-MM-DDTHH:MM:SSZ.
+          : # Use -n + p so an unexpected format yields an empty string instead of passing garbage through to the comparison.
+          stable_built_at=$(echo "$stable_build_dir" | sed -nE 's/^([0-9]{4}-[0-9]{2}-[0-9]{2})_([0-9]{2})-([0-9]{2})-([0-9]{2})$/\1T\2:\3:\4Z/p')
+          : # Skip npm metadata keys ("created","modified") and fall through to empty string
+          : # if there are no version entries (instead of jq's default "null").
+          fleetctl_published_at=$(npm view fleetctl time --json 2>/dev/null | jq -r '[to_entries[] | select(.key | test("^[0-9]"))] | sort_by(.value) | last.value // ""' 2>/dev/null)
+          echo "stable built at:        $stable_built_at"
+          echo "fleetctl published at:  $fleetctl_published_at"
+          if [ -n "$stable_built_at" ] && [ -n "$fleetctl_published_at" ] && [[ "$fleetctl_published_at" > "$stable_built_at" ]]; then
+            echo "fleetctl on npm was published after the current stable base build; rebuilding to pick up packaging changes."
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "No update needed."
+          echo "update_needed=false" >> $GITHUB_OUTPUT
 
       - name: Upload latest TUF meta artifact
         uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
@@ -129,7 +172,7 @@ jobs:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          PACKAGE_SIGNING_IDENTITY_SHA1: D52080FD1F0941DE31346F06DA0F08AED6FACBBF
+          PACKAGE_SIGNING_IDENTITY_SHA1: 4608F71FB42E1845C7FC9B2D2B6A7A8D11BBD940
         # We use retry because we've seen Apple notarization fail or timeout
         uses: nick-fields/retry@7152eba30c6575329ac0576536151aca5a72780e # v3.0.0
         with:

@@ -225,10 +225,10 @@ func buildTargetBinary(cmdDir string, version string, binaryPath string, arch st
 	// check if cmdDir contains desktop
 	// if it does, add -ldflags "-H=windowsgui" to exec.Command
 	if strings.Contains(cmdDir, "desktop") {
-		linkFlags := fmt.Sprintf("-H=windowsgui -X=main.version=%s", version)
+		linkFlags := fmt.Sprintf("-s -w -H=windowsgui -X=main.version=%s", version)
 		buildExec = exec.Command("go", "build", "-ldflags", linkFlags, "-o", outputBinary)
 	} else {
-		linkFlags := fmt.Sprintf("-X=github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=%s", version)
+		linkFlags := fmt.Sprintf("-s -w -X=github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=%s", version)
 		buildExec = exec.Command("go", "build", "-ldflags", linkFlags, "-o", outputBinary)
 	}
 	buildExec.Env = append(os.Environ(), "GOOS=windows", fmt.Sprintf("GOARCH=%s", arch))

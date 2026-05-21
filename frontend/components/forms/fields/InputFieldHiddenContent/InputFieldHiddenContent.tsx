@@ -1,6 +1,5 @@
 import React from "react";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import classnames from "classnames";
 

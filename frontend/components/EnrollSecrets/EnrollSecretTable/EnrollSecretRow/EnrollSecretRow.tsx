@@ -42,6 +42,7 @@ const EnrollSecretRow = ({
 
   const renderEditDeleteButtons = () => (
     <GitOpsModeTooltipWrapper
+      entityType="secrets"
       tipOffset={8}
       renderChildren={(disableChildren) => (
         <div className={`${baseClass}__edit-delete-btns`}>

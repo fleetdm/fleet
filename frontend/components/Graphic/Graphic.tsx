@@ -5,6 +5,7 @@ import { GraphicNames, GRAPHIC_MAP } from "components/graphics";
 
 interface IGraphicProps {
   name: GraphicNames;
+  /** scale-40-24 Workaround to scale 40px to 24px */
   className?: string;
 }
 

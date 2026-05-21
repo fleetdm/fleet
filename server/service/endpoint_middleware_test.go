@@ -3,13 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/stretchr/testify/assert"
@@ -155,7 +155,7 @@ func TestAuthenticatedHost(t *testing.T) {
 
 	endpoint := authenticatedHost(
 		svc,
-		logging.NewNopLogger(),
+		slog.New(slog.DiscardHandler),
 		func(ctx context.Context, request interface{}) (interface{}, error) {
 			host, ok := hostctx.FromContext(ctx)
 			assert.True(t, ok)

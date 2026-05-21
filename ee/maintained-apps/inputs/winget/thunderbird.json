@@ -1,0 +1,12 @@
+{
+  "name": "Thunderbird",
+  "slug": "thunderbird/windows",
+  "package_identifier": "Mozilla.Thunderbird",
+  "unique_identifier": "Mozilla Thunderbird (x64 en-US)",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/thunderbird_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/thunderbird_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

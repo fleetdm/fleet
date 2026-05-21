@@ -57,10 +57,12 @@ const MainContent = ({
 
     // the order of these checks is important. This is the priority order
     // for showing banners and only one banner is shown at a time.
-    if (isPremiumTier) {
-      if (isApplePnsExpired || willApplePnsExpire) {
-        banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
-      } else if (isAndroidEnterpriseDeleted) {
+    if (isApplePnsExpired || willApplePnsExpire) {
+      // APNs expiration banner will show for either premium or free tiers
+      // but all other banners are only for premium tiers
+      banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
+    } else if (isPremiumTier) {
+      if (isAndroidEnterpriseDeleted) {
         banner = <AndroidEnterpriseDeletedMessage />;
       } else if (isAppleBmExpired || willAppleBmExpire) {
         banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;

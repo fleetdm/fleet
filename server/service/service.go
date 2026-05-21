@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -19,7 +20,6 @@ import (
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
@@ -34,7 +34,7 @@ type Service struct {
 	carveStore     fleet.CarveStore
 	resultStore    fleet.QueryResultStore
 	liveQueryStore fleet.LiveQueryStore
-	logger         *logging.Logger
+	logger         *slog.Logger
 	config         config.FleetConfig
 	clock          clock.Clock
 
@@ -48,7 +48,7 @@ type Service struct {
 
 	authz *authz.Authorizer
 
-	jitterMu *sync.Mutex
+	jitterMu *sync.RWMutex
 	jitterH  map[time.Duration]*jitterHashTable
 
 	geoIP fleet.GeoIP
@@ -71,6 +71,15 @@ type Service struct {
 	keyValueStore fleet.KeyValueStore
 
 	androidSvc android.Service
+
+	// activitySvc is the activity bounded context service for write operations.
+	activitySvc fleet.ActivityWriteService
+
+	// acmeSvc is the ACME service module for write operations.
+	acmeSvc fleet.ACMEWriteService
+
+	// orgLogoStore stores the bytes of customer-uploaded org logos.
+	orgLogoStore fleet.OrgLogoStore
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -124,7 +133,7 @@ func NewService(
 	ds fleet.Datastore,
 	task *async.Task,
 	resultStore fleet.QueryResultStore,
-	logger *logging.Logger,
+	logger *slog.Logger,
 	osqueryLogger *OsqueryLogger,
 	config config.FleetConfig,
 	mailService fleet.MailService,
@@ -145,6 +154,7 @@ func NewService(
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 	keyValueStore fleet.KeyValueStore,
 	androidSvc android.Service,
+	orgLogoStore fleet.OrgLogoStore,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -166,7 +176,7 @@ func NewService(
 		failingPolicySet:  failingPolicySet,
 		authz:             authorizer,
 		jitterH:           make(map[time.Duration]*jitterHashTable),
-		jitterMu:          new(sync.Mutex),
+		jitterMu:          new(sync.RWMutex),
 		geoIP:             geoIP,
 		enrollHostLimiter: enrollHostLimiter,
 		depStorage:        depStorage,
@@ -184,12 +194,25 @@ func NewService(
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
 		androidSvc:                      androidSvc,
+		orgLogoStore:                    orgLogoStore,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
 
 func (svc *Service) SendEmail(ctx context.Context, mail fleet.Email) error {
 	return svc.mailService.SendEmail(ctx, mail)
+}
+
+// SetActivityService sets the activity bounded context service for write operations.
+// This should be called after NewService to inject the activity service dependency.
+func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
+	svc.activitySvc = activitySvc
+}
+
+// SetACMEService sets the ACME service module service for write operations.
+// This should be called after NewService to inject the ACME service dependency.
+func (svc *Service) SetACMEService(acmeSvc fleet.ACMEWriteService) {
+	svc.acmeSvc = acmeSvc
 }
 
 type validationMiddleware struct {

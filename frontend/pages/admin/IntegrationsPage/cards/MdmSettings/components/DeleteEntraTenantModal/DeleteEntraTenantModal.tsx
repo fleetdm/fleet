@@ -52,25 +52,19 @@ const DeleteEntraTenantModal = ({
       width="medium"
       isContentDisabled={isDeleting}
     >
-      <>
-        <p>
-          This will stop both automatic (Autopilot) and manual enrollment by end
-          users (<b>Settings &gt; Accounts &gt; Access work or school</b> on
-          Windows) from this tenant.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={onDeleteToken}
-            variant="alert"
-            isLoading={isDeleting}
-          >
-            Delete
-          </Button>
-          <Button onClick={onExit} variant="inverse">
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        This will stop both automatic (Autopilot) and manual enrollment by end
+        users (<b>Settings &gt; Accounts &gt; Access work or school</b> on
+        Windows) from this tenant.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button onClick={onDeleteToken} variant="alert" isLoading={isDeleting}>
+          Delete
+        </Button>
+        <Button onClick={onExit} variant="inverse">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

@@ -48,7 +48,7 @@ const VppCard = ({ isAppleMdmOn, isVppOn, viewDetails }: IVppCardProps) => {
       }
     >
       Add a VPP connection to install Apple App Store apps purchased through
-      Apple Business Manager.
+      Apple Business.
     </SectionCard>
   );
 

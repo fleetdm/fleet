@@ -8,7 +8,7 @@ import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 
 import Card from "components/Card";
 import Spinner from "components/Spinner";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -134,20 +134,19 @@ const SelfServiceCard = ({
     return <Spinner {...(isMobileView && { variant: "mobile" })} />;
   if (isError)
     return (
-      <EmptyTable
-        header="Error loading software."
-        {...(isMobileView && { variant: "mobile" })}
+      <EmptyState
+        header="Error loading software"
+        {...(isMobileView && { variant: "list" })}
       />
     );
 
   // Empty state
   if ((isEmpty || !selfServiceData) && !isFetching) {
     return (
-      <EmptyTable
-        graphicName="empty-software"
+      <EmptyState
         header="No self-service software available yet"
         info="Your organization didn’t add any self-service software."
-        {...(isMobileView && { variant: "mobile" })}
+        {...(isMobileView && { variant: "list" })}
       />
     );
   }

@@ -28,11 +28,11 @@ const (
 // redis list will be LTRIM'd if there are more policy IDs than this.
 var maxRedisPolicyResultsPerHost = 1000
 
-func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool) error {
+func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool, newlyPassingPolicyIDs []uint) error {
 	cfg := t.taskConfigs[config.AsyncTaskPolicyMembership]
 	if !cfg.Enabled {
 		host.PolicyUpdatedAt = ts
-		return t.datastore.RecordPolicyQueryExecutions(ctx, host, results, ts, deferred)
+		return t.datastore.RecordPolicyQueryExecutions(ctx, host, results, ts, deferred, newlyPassingPolicyIDs)
 	}
 
 	keyList := fmt.Sprintf(policyPassHostKey, host.ID)

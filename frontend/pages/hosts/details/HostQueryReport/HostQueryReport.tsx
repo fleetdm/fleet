@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
-import { browserHistory, InjectedRouter, Link } from "react-router";
+import { browserHistory, InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -39,7 +39,7 @@ const HostQueryReport = ({
   const queryId = Number(query_id);
 
   if (globalReportsDisabled) {
-    router.push(PATHS.HOST_QUERIES(hostId));
+    router.push(PATHS.HOST_REPORTS(hostId));
   }
 
   const [showQuery, setShowQuery] = useState(false);
@@ -97,7 +97,7 @@ const HostQueryReport = ({
 
   // previous reroute can be done before API call, not this one, hence 2
   if (queryDiscardData) {
-    router.push(PATHS.HOST_QUERIES(hostId));
+    router.push(PATHS.HOST_REPORTS(hostId));
   }
 
   // Updates title that shows up on browser tabs
@@ -111,7 +111,7 @@ const HostQueryReport = ({
 
   const HQRHeader = useCallback(() => {
     const fullReportPath = getPathWithQueryParams(
-      PATHS.QUERY_DETAILS(queryId),
+      PATHS.REPORT_DETAILS(queryId),
       { fleet_id: currentTeam?.id }
     );
     return (

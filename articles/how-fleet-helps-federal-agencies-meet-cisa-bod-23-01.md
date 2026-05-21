@@ -44,15 +44,15 @@ What if your agency wants to limit the number of third-party vendors? Fleet has 
 
 Every organization wants to ensure stability. But device performance takes on greater importance for agencies that deal with public health or power plants. We’ve mentioned the shortcomings of traditional vulnerability scanners. Those performance hits hurt a lot more if your systems need to be online and fast 24/7.
 
-Fleet’s security agent, osquery, has a lightweight resource footprint. If a query is set to exceed a certain RAM threshold, then the query will be canceled before any devices are affected. We call this the osquery watchdog. Under the default configuration, the watchdog will ensure that utilization stays below 200 MB of memory and 10% CPU. If a query is canceled, you’ll receive a notification that offers suggestions to lower its impact.
+Fleet’s security agent, osquery, has a lightweight resource footprint. If a report is set to exceed a certain RAM threshold, then the report will be canceled before any devices are affected. We call this the osquery watchdog. Under the default configuration, the watchdog will ensure that utilization stays below 200 MB of memory and 10% CPU. If a report is canceled, you’ll receive a notification that offers suggestions to lower its impact.
 
-For queries that have been run before, Fleet also gives you the ability to measure an estimated performance impact directly on the Queries page. You’ll be able to see the average impact rating across all hosts where this query was scheduled.
+For queries that have been run before, Fleet also gives you the ability to measure an estimated performance impact directly on the Queries page. You’ll be able to see the average impact rating across all hosts where this report was scheduled.
 
 ## Enjoy simple implementation
 
 Fleet can fit into the security ecosystem of any federal agency. Some SaaS solutions have limitations about where they can be deployed. That’s non-negotiable for agencies handling highly sensitive information. And that isn’t a problem for Fleet. You can deploy Fleet anywhere — including cloud.gov. [Learn how to deploy Fleet to cloud.gov](https://fleetdm.com/docs/deploying/cloudgov) in our documentation.
 
-The scope of just one FCEB agency can be quite broad. Complex organizational structures are a natural result. Fleet lets you assign devices to specific teams. Each team can have its own queries, schedules, and policies. So, you can tailor compliance standards to specific departments.
+The scope of just one FCEB agency can be quite broad. Complex organizational structures are a natural result. Fleet lets you assign devices to specific fleets. Each fleet can have its own queries, schedules, and policies. So, you can tailor compliance standards to specific departments.
 
 You shouldn’t have to trade one tool for another, only to discover it can’t do the job. Fleet provides visibility into servers and workstations at scale. You can easily identify vulnerabilities and misconfigurations on every laptop in your agency. But you can’t scan routers. That’s why we recommend deploying Fleet in addition to software you already use, like Rapid7 or Tableau. Fleet’s up-to-the-minute data can supplement reports from these trusted platforms.
 

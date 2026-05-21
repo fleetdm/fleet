@@ -2,9 +2,6 @@
   display: inline-flex;
   flex-direction: row;
   text-wrap: nowrap;
-  gap: $pad-small;
-
-  .tooltip__tooltip-text {
-    text-wrap: wrap;
-  }
+  gap: $gap-icon-text;
+  align-items: center;
 }

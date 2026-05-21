@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
 
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/zstd"
 	"github.com/nats-io/nats-server/v2/server"
@@ -189,6 +189,7 @@ func TestNatsLogWriter(t *testing.T) {
 		// Create the NATS log writer, specifying that the logs should be
 		// published directly to the NATS subject, without using JetStream.
 		writer, err := NewNatsLogWriter(
+			t.Context(),
 			ns.ClientURL(),
 			natsTestDirectSubject,
 			"",
@@ -199,7 +200,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			false,
 			natsTestTimeout,
-			platformlogging.NewNopLogger(),
+			slog.New(slog.DiscardHandler),
 		)
 
 		require.NoError(t, err)
@@ -231,6 +232,7 @@ func TestNatsLogWriter(t *testing.T) {
 		// Create the NATS log writer with a template subject that requires
 		// parsing the JSON to route the message.
 		writer, err := NewNatsLogWriter(
+			t.Context(),
 			ns.ClientURL(),
 			natsTestDirectSubject+".invalid.{log.name}",
 			"",
@@ -241,7 +243,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			false,
 			natsTestTimeout,
-			platformlogging.NewNopLogger(),
+			slog.New(slog.DiscardHandler),
 		)
 
 		require.NoError(t, err)
@@ -284,6 +286,7 @@ func TestNatsLogWriter(t *testing.T) {
 		// Create the NATS log writer, specifying that the logs should be
 		// published to the JetStream stream.
 		writer, err := NewNatsLogWriter(
+			t.Context(),
 			ns.ClientURL(),
 			natsTestStreamSubject,
 			"",
@@ -294,7 +297,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			true,
 			natsTestTimeout,
-			platformlogging.NewNopLogger(),
+			slog.New(slog.DiscardHandler),
 		)
 
 		require.NoError(t, err)
@@ -338,6 +341,7 @@ func TestNatsLogWriter(t *testing.T) {
 		// Create the NATS log writer with a template subject that requires
 		// parsing the JSON to route the message.
 		writer, err := NewNatsLogWriter(
+			t.Context(),
 			ns.ClientURL(),
 			natsTestStreamSubject+".invalid.{log.name}",
 			"",
@@ -348,7 +352,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"",
 			true,
 			natsTestTimeout,
-			platformlogging.NewNopLogger(),
+			slog.New(slog.DiscardHandler),
 		)
 
 		require.NoError(t, err)
@@ -411,6 +415,7 @@ func TestNatsLogWriter(t *testing.T) {
 
 		// Create the NATS log writer with gzip compression enabled.
 		writer, err := NewNatsLogWriter(
+			t.Context(),
 			ns.ClientURL(),
 			natsTestDirectSubject+".gzip",
 			"",
@@ -421,7 +426,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"gzip",
 			false,
 			natsTestTimeout,
-			platformlogging.NewNopLogger(),
+			slog.New(slog.DiscardHandler),
 		)
 
 		require.NoError(t, err)
@@ -456,6 +461,7 @@ func TestNatsLogWriter(t *testing.T) {
 
 		// Create the NATS log writer with gzip compression enabled.
 		writer, err := NewNatsLogWriter(
+			t.Context(),
 			ns.ClientURL(),
 			natsTestStreamSubject+".gzip",
 			"",
@@ -466,7 +472,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"gzip",
 			true,
 			natsTestTimeout,
-			platformlogging.NewNopLogger(),
+			slog.New(slog.DiscardHandler),
 		)
 
 		require.NoError(t, err)
@@ -538,6 +544,7 @@ func TestNatsLogWriter(t *testing.T) {
 
 		// Create the NATS log writer with snappy compression enabled.
 		writer, err := NewNatsLogWriter(
+			t.Context(),
 			ns.ClientURL(),
 			natsTestDirectSubject+".snappy",
 			"",
@@ -548,7 +555,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"snappy",
 			false,
 			natsTestTimeout,
-			platformlogging.NewNopLogger(),
+			slog.New(slog.DiscardHandler),
 		)
 
 		require.NoError(t, err)
@@ -604,6 +611,7 @@ func TestNatsLogWriter(t *testing.T) {
 
 		// Create the NATS log writer with zstd compression enabled.
 		writer, err := NewNatsLogWriter(
+			t.Context(),
 			ns.ClientURL(),
 			natsTestDirectSubject+".zstd",
 			"",
@@ -614,7 +622,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"zstd",
 			false,
 			natsTestTimeout,
-			platformlogging.NewNopLogger(),
+			slog.New(slog.DiscardHandler),
 		)
 
 		require.NoError(t, err)
@@ -649,6 +657,7 @@ func TestNatsLogWriter(t *testing.T) {
 
 		// Create the NATS log writer with snappy compression enabled.
 		writer, err := NewNatsLogWriter(
+			t.Context(),
 			ns.ClientURL(),
 			natsTestStreamSubject+".snappy",
 			"",
@@ -659,7 +668,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"snappy",
 			true,
 			natsTestTimeout,
-			platformlogging.NewNopLogger(),
+			slog.New(slog.DiscardHandler),
 		)
 
 		require.NoError(t, err)
@@ -711,6 +720,7 @@ func TestNatsLogWriter(t *testing.T) {
 
 		// Create the NATS log writer with zstd compression enabled.
 		writer, err := NewNatsLogWriter(
+			t.Context(),
 			ns.ClientURL(),
 			natsTestStreamSubject+".zstd",
 			"",
@@ -721,7 +731,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"zstd",
 			true,
 			natsTestTimeout,
-			platformlogging.NewNopLogger(),
+			slog.New(slog.DiscardHandler),
 		)
 
 		require.NoError(t, err)
@@ -764,6 +774,7 @@ func TestNatsLogWriter(t *testing.T) {
 		// Attempt to create a NATS log writer with an invalid compression
 		// algorithm.
 		_, err := NewNatsLogWriter(
+			t.Context(),
 			ns.ClientURL(),
 			natsTestDirectSubject,
 			"",
@@ -774,7 +785,7 @@ func TestNatsLogWriter(t *testing.T) {
 			"invalid",
 			false,
 			natsTestTimeout,
-			platformlogging.NewNopLogger(),
+			slog.New(slog.DiscardHandler),
 		)
 
 		// Ensure an error is returned.

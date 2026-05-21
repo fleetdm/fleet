@@ -32,12 +32,20 @@ func (c *Client) GetAppleMDM() (*fleet.AppleMDM, error) {
 	return responseBody.AppleMDM, err
 }
 
-// GetAppleBM retrieves the Apple Business Manager information.
+// GetAppleBM retrieves the Apple Business information.
 func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	verb, path := "GET", "/api/latest/fleet/mdm/apple_bm"
 	var responseBody getAppleBMResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
 	return responseBody.AppleBM, err
+}
+
+// GetVPPTokens retrieves the List Volume Purchasing Program (VPP) tokens
+func (c *Client) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
+	verb, path := "GET", "/api/latest/fleet/vpp_tokens"
+	var responseBody getVPPTokensResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	return responseBody.Tokens, err
 }
 
 func (c *Client) CountABMTokens() (int, error) {
@@ -80,7 +88,7 @@ func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*flee
 func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint, dryRun bool) error {
 	_, err := c.GetBootstrapPackageMetadata(teamID, true)
 	switch {
-	case errors.As(err, &notFoundErr{}):
+	case isNotFoundErr(err):
 		// not found is OK, it means there is nothing to delete
 		return nil
 	case err != nil:
@@ -116,8 +124,8 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dry
 		return err
 	}
 
-	// add the team_id field
-	if err := w.WriteField("team_id", fmt.Sprint(pkg.TeamID)); err != nil {
+	// add the fleet_id field
+	if err := w.WriteField("fleet_id", fmt.Sprint(pkg.TeamID)); err != nil {
 		return err
 	}
 
@@ -137,7 +145,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dry
 	defer response.Body.Close()
 
 	var bpResponse uploadBootstrapPackageResponse
-	if err := c.parseResponse(verb, path, response, &bpResponse); err != nil {
+	if err := c.ParseResponse(verb, path, response, &bpResponse); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 
@@ -149,7 +157,7 @@ func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPacka
 	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
 		// not found is OK, it means this is our first time uploading a package
-		if !errors.As(err, &notFoundErr{}) {
+		if !isNotFoundErr(err) {
 			return fmt.Errorf("getting bootstrap package metadata: %w", err)
 		}
 		isFirstTime = true
@@ -192,7 +200,7 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("the URL to the bootstrap_package doesn't exist. Please make this URL publicly accessible to the internet.")
+		return nil, errors.New("the URL to the macos_bootstrap_package doesn't exist. Please make this URL publicly accessible to the internet.")
 	}
 
 	// try to extract the name from a header
@@ -226,9 +234,9 @@ func downloadRemoteMacosBootstrapPackage(pkgURL string) (*fleet.MDMAppleBootstra
 	if err := file.CheckPKGSignature(pkgReader); err != nil {
 		switch {
 		case errors.Is(err, file.ErrInvalidType):
-			return nil, errors.New("Couldn’t edit bootstrap_package. The file must be a package (.pkg).")
+			return nil, errors.New("Couldn’t edit macos_bootstrap_package. The file must be a package (.pkg).")
 		case errors.Is(err, file.ErrNotSigned):
-			return nil, errors.New("Couldn’t edit bootstrap_package. The bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")
+			return nil, errors.New("Couldn’t edit macos_bootstrap_package. The macos_bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")
 		default:
 			return nil, fmt.Errorf("checking package signature: %w", err)
 		}
@@ -247,7 +255,7 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 	}
 
 	if strings.ToLower(filepath.Ext(fileName)) != ".json" {
-		return nil, errors.New("Couldn’t edit macos_setup_assistant. The file should be a .json file.")
+		return nil, errors.New("Couldn’t edit apple_setup_assistant. The file should be a .json file.")
 	}
 
 	b, err := os.ReadFile(fileName)
@@ -256,7 +264,7 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 	}
 	var raw json.RawMessage
 	if err := json.Unmarshal(b, &raw); err != nil {
-		return nil, fmt.Errorf("Couldn’t edit macos_setup_assistant. The file should include valid JSON: %w", err)
+		return nil, fmt.Errorf("Couldn’t edit apple_setup_assistant. The file should include valid JSON: %w", err)
 	}
 
 	return b, nil
@@ -396,7 +404,7 @@ func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
 }
 
 func (c *Client) MDMLockHost(hostID uint) error {
-	var response lockHostResponse
+	var response fleet.LockHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", hostID), &response); err != nil {
 		return fmt.Errorf("lock host request: %w", err)
 	}
@@ -404,7 +412,7 @@ func (c *Client) MDMLockHost(hostID uint) error {
 }
 
 func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
-	var response unlockHostResponse
+	var response fleet.UnlockHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", hostID), &response); err != nil {
 		return "", fmt.Errorf("lock host request: %w", err)
 	}
@@ -412,7 +420,7 @@ func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
 }
 
 func (c *Client) MDMWipeHost(hostID uint) error {
-	var response wipeHostResponse
+	var response fleet.WipeHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
 		return fmt.Errorf("wipe host request: %w", err)
 	}
@@ -449,7 +457,7 @@ func (c *Client) GetEULAMetadata() (*fleet.MDMEULA, error) {
 func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
 	eula, err := c.GetEULAMetadata()
 	switch {
-	case errors.As(err, &notFoundErr{}):
+	case isNotFoundErr(err):
 		// not found is OK, it means there is nothing to delete
 		return nil
 	case err != nil:
@@ -475,7 +483,7 @@ func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
 	oldMeta, err := c.GetEULAMetadata()
 	if err != nil {
 		// not found is OK, it means this is our first time uploading a eula
-		if !errors.As(err, &notFoundErr{}) {
+		if !isNotFoundErr(err) {
 			return fmt.Errorf("getting eula metadata: %w", err)
 		}
 		isFirstTime = true
@@ -548,7 +556,7 @@ func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
 	defer resp.Body.Close()
 
 	var eulaResponse createMDMEULAResponse
-	if err := c.parseResponse(verb, path, resp, &eulaResponse); err != nil {
+	if err := c.ParseResponse(verb, path, resp, &eulaResponse); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 

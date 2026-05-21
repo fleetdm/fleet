@@ -43,18 +43,24 @@
   &--tooltip-link,
   &--flash-message-link {
     font-size: inherit; // Overrides link default font size with parent tooltip font size
-    @include animated-bottom-border($core-fleet-white, $ui-off-white);
+    // Use static (non-themed) colors so the underline and icon stay light on
+    // the always-dark tooltip/flash background regardless of light/dark mode.
+    @include animated-bottom-border($static-white, rgba($static-white, 0.4));
 
     .external-link-icon__outline {
-      stroke: $core-fleet-white;
+      stroke: $static-white;
+    }
+
+    .external-link-icon__arrow {
+      stroke: $static-white;
     }
 
     // Inverse hover over effect
     &:hover {
-      color: $ui-off-white;
+      color: rgba($static-white, 0.7);
 
       .external-link-icon__outline {
-        fill: $ui-off-white;
+        fill: rgba($static-white, 0.7);
       }
 
       .external-link-icon__arrow {

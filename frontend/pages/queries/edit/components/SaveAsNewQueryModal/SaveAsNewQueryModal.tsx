@@ -24,7 +24,6 @@ import {
 } from "interfaces/team";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TeamsDropdown from "components/TeamsDropdown";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
@@ -72,7 +71,7 @@ const SaveAsNewQueryModal = ({
   const [formData, setFormData] = useState<ISANQFormData>({
     queryName: `Copy of ${initialQueryData.name}`,
     team: {
-      id: initialQueryData.team_id,
+      id: initialQueryData.fleet_id,
       name: undefined,
     },
   });
@@ -155,14 +154,14 @@ const SaveAsNewQueryModal = ({
     const createBody = {
       ...initialQueryData,
       name: queryName,
-      team_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
+      fleet_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
     };
     try {
       const { query: newQuery } = await queryAPI.create(createBody);
       setIsSaving(false);
       renderFlash("success", `Successfully added report ${newQuery.name}.`);
       router.push(
-        getPathWithQueryParams(PATHS.QUERY_DETAILS(newQuery.id), {
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(newQuery.id), {
           fleet_id: newQuery.team_id,
           host_id: hostId,
         })

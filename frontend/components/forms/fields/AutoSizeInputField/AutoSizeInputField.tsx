@@ -40,14 +40,16 @@ const AutoSizeInputField = ({
     [`${baseClass}__textarea`]: true,
   });
 
-  const inputElement = useRef<any>(null);
+  const inputElement = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isFocused && inputElement.current) {
       inputElement.current.focus();
-      inputElement.current.selectionStart = value.length;
-      inputElement.current.selectionEnd = value.length;
+      const end = inputElement.current.value.length;
+      inputElement.current.selectionStart = end;
+      inputElement.current.selectionEnd = end;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFocused]);
 
   const onInputFocus = () => {

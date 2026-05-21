@@ -2,6 +2,7 @@ package cached_mysql
 
 import (
 	"encoding/json"
+	"maps"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -38,4 +39,17 @@ type integer int
 
 func (i integer) Clone() (fleet.Cloner, error) {
 	return i, nil
+}
+
+// fmaNameMap is a map of unique_identifier -> canonical FMA name.
+// Used during software ingestion to override osquery-reported names.
+type fmaNameMap map[string]string
+
+func (m fmaNameMap) Clone() (fleet.Cloner, error) {
+	if m == nil {
+		return fmaNameMap(nil), nil
+	}
+	clone := make(fmaNameMap, len(m))
+	maps.Copy(clone, m)
+	return clone, nil
 }

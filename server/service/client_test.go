@@ -1047,3 +1047,181 @@ func TestGitOpsErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestResolvePolicySoftwareTitleID(t *testing.T) {
+	byURL := map[string]uint{
+		"https://example.com/pkg.pkg": 100,
+	}
+	byAppStoreID := map[string]uint{
+		"com.example.app": 200,
+	}
+	byHash := map[string]uint{
+		"abc123hash":     100, // same title as the URL entry
+		"different-hash": 999, // different title — used to test URL-over-hash precedence
+	}
+	bySlug := map[string]uint{
+		"some-fma-slug": 300,
+	}
+
+	tests := []struct {
+		name         string
+		policy       *spec.GitOpsPolicySpec
+		wantTitleID  uint
+		wantResolved bool
+	}{
+		{
+			name: "URL lookup succeeds",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftwareURL: "https://example.com/pkg.pkg",
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						HashSHA256: "abc123hash",
+					},
+				},
+			},
+			wantTitleID:  100,
+			wantResolved: true,
+		},
+		{
+			name: "URL takes precedence over hash when both match different titles",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftwareURL: "https://example.com/pkg.pkg",
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						HashSHA256: "different-hash",
+					},
+				},
+			},
+			wantTitleID:  100, // URL's title (100), not hash's title (999)
+			wantResolved: true,
+		},
+		{
+			name: "URL lookup fails, hash fallback succeeds",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftwareURL: "https://example.com/DIFFERENT-url.pkg",
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						HashSHA256: "abc123hash",
+					},
+				},
+			},
+			wantTitleID:  100,
+			wantResolved: true,
+		},
+		{
+			name: "App Store ID lookup succeeds",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						AppStoreID: "com.example.app",
+					},
+				},
+			},
+			wantTitleID:  200,
+			wantResolved: true,
+		},
+		{
+			name: "FMA slug lookup succeeds",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						FleetMaintainedAppSlug: "some-fma-slug",
+					},
+				},
+			},
+			wantTitleID:  300,
+			wantResolved: true,
+		},
+		{
+			name: "all lookups fail",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftwareURL: "https://example.com/nonexistent.pkg",
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						HashSHA256: "nonexistent-hash",
+					},
+				},
+			},
+			wantTitleID:  0,
+			wantResolved: false,
+		},
+		{
+			name: "hash-only policy (no URL)",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						HashSHA256: "abc123hash",
+					},
+				},
+			},
+			wantTitleID:  100,
+			wantResolved: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			titleID, resolved := resolvePolicySoftwareTitleID(tt.policy, byURL, byAppStoreID, byHash, bySlug)
+			require.Equal(t, tt.wantResolved, resolved)
+			require.Equal(t, tt.wantTitleID, titleID)
+		})
+	}
+}
+
+func TestEnsureHistoricalDataDefaults(t *testing.T) {
+	cases := []struct {
+		name      string
+		features  map[string]any
+		wantErr   string
+		wantValue map[string]any
+	}{
+		{
+			name:      "missing key gets defaults",
+			features:  map[string]any{},
+			wantValue: map[string]any{"uptime": true, "vulnerabilities": true},
+		},
+		{
+			name:      "nil value gets defaults",
+			features:  map[string]any{"historical_data": nil},
+			wantValue: map[string]any{"uptime": true, "vulnerabilities": true},
+		},
+		{
+			name:      "partial map fills missing sub-keys",
+			features:  map[string]any{"historical_data": map[string]any{"uptime": false}},
+			wantValue: map[string]any{"uptime": false, "vulnerabilities": true},
+		},
+		{
+			name:      "explicit values are preserved",
+			features:  map[string]any{"historical_data": map[string]any{"uptime": false, "vulnerabilities": false}},
+			wantValue: map[string]any{"uptime": false, "vulnerabilities": false},
+		},
+		{
+			name:     "scalar value is rejected",
+			features: map[string]any{"historical_data": true},
+			wantErr:  "features.historical_data must be a map, got bool",
+		},
+		{
+			name:     "list value is rejected",
+			features: map[string]any{"historical_data": []any{"uptime"}},
+			wantErr:  "features.historical_data must be a map, got []interface {}",
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ensureHistoricalDataDefaults(tt.features)
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantValue, tt.features["historical_data"])
+		})
+	}
+}

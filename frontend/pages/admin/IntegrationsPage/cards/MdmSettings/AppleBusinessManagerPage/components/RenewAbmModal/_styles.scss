@@ -3,31 +3,12 @@
   &__setup-content {
     display: flex;
     flex-direction: column;
-    gap: $pad-large;
+    gap: $pad-medium;
     color: $core-fleet-black;
 
     p {
       margin: 0;
     }
-  }
-
-  &__setup-instructions-list {
-    padding: 0;
-    margin: 0;
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
-
-    li > p {
-      margin: 0;
-    }
-  }
-
-
-  &__file-uploader {
-    margin-top: $pad-medium;
-    margin-left: $pad-medium;
   }
 
   &__button-wrap {

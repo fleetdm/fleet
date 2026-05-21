@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -101,9 +100,6 @@ func TestEmptyEnrollSecret(t *testing.T) {
 	}
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 		return nil, nil
-	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
 	}
 
 	err := svc.ApplyEnrollSecretSpec(
@@ -410,8 +406,9 @@ func TestService_EmailConfig(t *testing.T) {
 			want: &fleet.EmailConfig{
 				Backend: "ses",
 				Config: fleet.SESConfig{
-					Region:    "us-east-1",
-					SourceARN: "qux",
+					Region:       "us-east-1",
+					SourceARN:    "qux",
+					SenderDomain: "email.example.com",
 				},
 			},
 			wantErr: assert.NoError,

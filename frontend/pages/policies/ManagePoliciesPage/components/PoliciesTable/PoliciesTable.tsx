@@ -3,10 +3,11 @@ import { AppContext } from "context/app";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
+import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 import {
   DEFAULT_SORT_COLUMN,
@@ -25,6 +26,7 @@ interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
   onDeletePoliciesClick: (selectedTableIds: number[]) => void;
+  onAddPolicyClick: () => void;
   canAddOrDeletePolicies?: boolean;
   hasPoliciesToDelete?: boolean;
   currentTeam: ITeamSummary | undefined;
@@ -37,12 +39,15 @@ interface IPoliciesTableProps {
   sortDirection?: "asc" | "desc";
   page: number;
   count: number;
+  customControl?: () => JSX.Element | null;
+  isFiltered?: boolean;
 }
 
 const PoliciesTable = ({
   policiesList,
   isLoading,
   onDeletePoliciesClick,
+  onAddPolicyClick,
   canAddOrDeletePolicies,
   hasPoliciesToDelete,
   currentTeam,
@@ -55,39 +60,42 @@ const PoliciesTable = ({
   sortDirection,
   page,
   count,
+  customControl,
+  isFiltered,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const emptyState: IEmptyTableProps = {
-    graphicName: "empty-policies",
-    header: "You don't have any policies",
+  const isAllFleets =
+    isPremiumTier &&
+    (currentTeam?.id === null || currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID);
+
+  let emptyHeader = "No policies yet";
+  // Primo mode uses a generic empty state header
+  if (isPremiumTier && !config?.partnerships?.enable_primo) {
+    emptyHeader = isAllFleets
+      ? "No policies apply to all fleets"
+      : "No policies for this fleet";
+  }
+
+  const emptyState: IEmptyStateProps = {
+    header: emptyHeader,
     info:
-      "Add policies to detect device health issues and trigger automations.",
+      "Policies are queries that return a pass or fail result. Failures trigger fixes or prompt end users to solve them on their own.",
+    primaryButton: canAddOrDeletePolicies ? (
+      <Button onClick={onAddPolicyClick} type="button">
+        Add policy
+      </Button>
+    ) : undefined,
   };
 
-  if (isPremiumTier && !config?.partnerships?.enable_primo) {
-    if (
-      currentTeam?.id === null ||
-      currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
-    ) {
-      emptyState.header += ` that apply to all fleets`;
-    } else {
-      emptyState.header += ` that apply to this fleet`;
-    }
-  }
-
-  if (!canAddOrDeletePolicies) {
-    emptyState.info = "";
-  }
-
-  if (searchQuery) {
-    delete emptyState.graphicName;
+  if (searchQuery || isFiltered) {
     delete emptyState.primaryButton;
     emptyState.header = "No matching policies";
     emptyState.info = "No policies match the current filters.";
   }
 
-  const searchable = !(policiesList?.length === 0 && searchQuery === "");
+  const isTrulyEmpty =
+    policiesList?.length === 0 && searchQuery === "" && !isFiltered;
 
   const isPrimoMode = config?.partnerships?.enable_primo || false;
   const viewingTeamPolicies =
@@ -137,19 +145,20 @@ const PoliciesTable = ({
           variant: "inverse",
           onClick: onDeletePoliciesClick,
         }}
-        emptyComponent={() =>
-          EmptyTable({
-            graphicName: emptyState.graphicName,
-            header: emptyState.header,
-            info: emptyState.info,
-            additionalInfo: emptyState.additionalInfo,
-            primaryButton: emptyState.primaryButton,
-          })
-        }
+        emptyComponent={() => (
+          <EmptyState
+            header={emptyState.header}
+            info={emptyState.info}
+            additionalInfo={emptyState.additionalInfo}
+            primaryButton={emptyState.primaryButton}
+          />
+        )}
         renderCount={renderPoliciesCount}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
-        searchable={searchable}
+        searchable
+        disableSearch={isTrulyEmpty}
+        customControl={customControl}
       />
     </div>
   );

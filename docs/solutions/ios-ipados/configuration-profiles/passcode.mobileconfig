@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>allowSimple</key>
+            <false/>
+            <key>forcePIN</key>
+            <true/>
+            <key>maxFailedAttempts</key>
+            <integer>10</integer>
+            <key>minLength</key>
+            <integer>6</integer>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.passwordpolicy</string>
+            <key>PayloadType</key>
+            <string>com.apple.mobiledevice.passwordpolicy</string>
+            <key>PayloadUUID</key>
+            <string>CD81A573-4FD3-4A63-B7B9-6651544E458A</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>Passcode</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.passwordpolicy</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>D1958A4A-2CBD-4076-89E9-2BC1AB026936</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

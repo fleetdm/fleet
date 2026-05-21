@@ -8,18 +8,20 @@ import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import Icon from "components/Icon";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
 
 import { getPathWithQueryParams } from "utilities/url";
 import sortUtils from "utilities/sort";
-import { PolicyResponse } from "utilities/constants";
+import { DEFAULT_EMPTY_CELL_VALUE, PolicyResponse } from "utilities/constants";
 
-import InheritedBadge from "components/InheritedBadge";
+import CriticalPolicyBadge from "components/CriticalPolicyBadge";
+import PillBadge from "components/PillBadge";
+import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
+import { getAutomationTypesString } from "../../helpers";
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -108,7 +110,7 @@ const generateTableHeaders = (
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const { critical, id, team_id } = cellProps.row.original;
+        const { critical, id, team_id, type } = cellProps.row.original;
         return (
           <LinkCell
             className="w250"
@@ -116,44 +118,51 @@ const generateTableHeaders = (
             value={cellProps.cell.value}
             suffix={
               <>
-                {isPremiumTier && critical && (
-                  <div className="critical-badge">
-                    <span
-                      className="critical-badge-icon"
-                      data-tooltip-id={`critical-tooltip-${id}`}
-                    >
-                      <Icon
-                        className="critical-policy-icon"
-                        name="policy"
-                        size="small"
-                        color="ui-fleet-black-75"
-                      />
-                    </span>
-                    <ReactTooltip5
-                      className="critical-tooltip"
-                      disableStyleInjection
-                      place="top"
-                      opacity={1}
-                      id={`critical-tooltip-${id}`}
-                      offset={8}
-                      positionStrategy="fixed"
-                    >
-                      This policy has been marked as critical.
-                    </ReactTooltip5>
-                  </div>
+                {isPremiumTier && critical && <CriticalPolicyBadge />}
+                {type === "patch" && (
+                  <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>
+                    Patch
+                  </PillBadge>
                 )}
                 {viewingTeamPolicies && team_id === null && (
-                  <InheritedBadge tooltipContent="This policy runs on all hosts." />
+                  <PillBadge tipContent="This policy runs on all hosts.">
+                    Inherited
+                  </PillBadge>
                 )}
               </>
             }
-            path={getPathWithQueryParams(PATHS.EDIT_POLICY(id), {
-              fleet_id: team_id,
+            path={getPathWithQueryParams(PATHS.POLICY_DETAILS(id), {
+              // Inherited policies show team_id === null; preserve the
+              // current team context so back nav returns to the same list
+              // instead of "All teams".
+              fleet_id:
+                team_id ?? (selectedTeamId !== -1 ? selectedTeamId : null),
             })}
           />
         );
       },
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Automations",
+      Header: "Automations",
+      accessor: "automations",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const policy = cellProps.row.original;
+        const automationsText = getAutomationTypesString(policy);
+        const isNone = automationsText === DEFAULT_EMPTY_CELL_VALUE;
+        return (
+          <span
+            className={`automations-cell${
+              isNone ? " automations-cell--none" : ""
+            }`}
+            title={isNone ? undefined : automationsText}
+          >
+            {automationsText}
+          </span>
+        );
+      },
     },
     {
       title: "Pass",
@@ -249,6 +258,9 @@ const generateTableHeaders = (
   if (hasPermissionAndPoliciesToDelete) {
     tableHeaders.unshift({
       id: "selection",
+      // TODO: headerProps is `any` because local IHeaderProps is a simplified
+      // subset of react-table's HeaderProps. Fixing requires refactoring
+      // IDataColumn/IHeaderProps to align with react-table's actual types.
       Header: (headerProps: any) => {
         // When viewing team policies, the select all checkbox will ignore inherited policies
         const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({

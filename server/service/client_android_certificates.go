@@ -8,7 +8,7 @@ import (
 func (c *Client) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTemplateResponseSummary, error) {
 	verb, path := "GET", "/api/latest/fleet/certificates"
 	var responseBody listCertificateTemplatesResponse
-	query := "team_id=" + teamID
+	query := "fleet_id=" + teamID
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
 		return nil, err

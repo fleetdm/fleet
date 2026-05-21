@@ -10,6 +10,12 @@ Fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Installing fleetctl
 
+The easiest way to install or update fleetctl is from the [fleetdm.com/download page](https://fleetdm.com/download).
+
+You can also manually download the fleetctl binary from [GitHub](https://github.com/fleetdm/fleet/releases). Double-click the `tar.gz` or `zip` file to extract the binary. To run fleetctl commands, use the binary's path (`/path/to/fleetctl`). For convenience, copy or move the binary to a directory in your `$PATH` (ex: `/usr/local/bin`). This allows you to execute fleetctl without specifying its location.
+
+<!--
+
 The easiest way to install fleetctl is with this macOS and Linux script:
 
 ```bash
@@ -23,12 +29,6 @@ for /f "tokens=1,* delims=:" %a in ('curl -s https://api.github.com/repos/fleetd
 ```
 
 Run this script again to update fleetctl if you've installed it this way.
-
-> Be sure to match the version of fleetctl with the version of your Fleet server.
-
-You can also manually download the fleetctl binary from [GitHub](https://github.com/fleetdm/fleet/releases).
-
-Double-click the `tar.gz` or `zip` file to extract the binary. To run fleetctl commands, use the binary's path (`/path/to/fleetctl`). For convenience, copy or move the binary to a directory in your `$PATH` (ex: `/usr/local/bin`). This allows you to execute fleetctl without specifying its location.
 
 Alternatively, you can install and manage [fleetctl using npm](https://www.npmjs.com/package/fleetctl).
 
@@ -45,6 +45,8 @@ If you see an error such as `Please try running this command again as root/Admin
 ```sh
 sudo npm install -g fleetctl
 ```
+
+-->
 
 
 ### Upgrading fleetctl
@@ -122,18 +124,25 @@ An API-only user does not have access to the Fleet UI. Instead, it's only purpos
 
 #### Create API-only user
 
-Before creating the API-only user, log in to fleetctl as an admin.  See [authentication](#authentication) above for details.
+To create an API-only user, navigate to **Settings > Users > Create user** and select the **API-only** option. 
 
-To create your new API-only user, use `fleetctl user create`:
+You can optionally restrict the user to a specific list of API endpoints, which narrows access without expanding permissions beyond the user's role (for example, a team admin granted access to the [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) endpoint will still receive a `403` response, because that endpoint is restricted to global admins).
+
+You can also create an API-only user with `fleetctl`. First, log in to fleetctl as an admin (see [authentication](#authentication) above for details), then run:
 
 ```sh
-fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only
+fleetctl user create --name 'API User' --api-only
 ```
 
-You'll then receive an API token:
+`--email` and `--password` are optional when creating an API-only user. If omitted, Fleet generates an email derived from the creator's address; the user authenticates via API token only.
+
+After running the command, you'll receive an API token:
 
 ```sh
-Success! The API token for your new user is: <TOKEN>
+Successfully created new user!
+
+When you're ready to view the API token, press any key (will not be shown again):
+The API token for your new user is: <TOKEN>
 ```
 
 > If you need to retrieve this user's token again in the future, you can do so via the [log in API](https://fleetdm.com/docs/rest-api/rest-api#log-in).
@@ -143,13 +152,13 @@ Success! The API token for your new user is: <TOKEN>
 An API-only user can be given the same permissions as a regular user. The default access level is **Observer**. You can specify what level of access the new user should have using the `--global-role` flag:
 
 ```sh
-fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --global-role 'admin'
+fleetctl user create --name 'API User' --api-only --global-role 'admin'
 ```
 
-On Fleet Premium, use the `--team <team_id>:<role>` to create an API-only user on a team:
+On Fleet Premium, use the `--team <team_id>:<role>` to create an API-only user on a fleet:
 
 ```sh
-fleetctl user create --name 'API User' --email 'api@example.com' --password 'temp@pass123' --api-only --team 4:gitops
+fleetctl user create --name 'API User' --api-only --team 4:gitops
 ```
 
 #### Changing permissions
@@ -200,6 +209,25 @@ This will generate a `tar.gz` file with:
 - `prof` archives that can be inspected via `go tools pprof <archive_name_here>`.
 - A file containing a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](https://fleetdm.com/docs/deploying/configuration#logging-error-retention-period) configuration.
 - Files containing database-specific information.
+
+### Deprecation warnings
+
+In the v4.82.0 version of `fleetctl`, several commands and options (like `fleetctl get queries`) were deprecated in favor of newer names (like `fleetctl get reports`). Starting in v4.83.0, you will begin to see warnings whenever deprecated command or option names are used. You can enable these warnings in v4.82.0 to get a head start on updating your files. To do so, either set the `FLEET_ENABLE_LOG_TOPICS` environment variable to `deprecated-field-names`, or use the `--enable_log_topics=deprecated-field-names` option in your commands.  For example:
+
+```
+> FLEET_ENABLE_LOG_TOPICS=deprecated-field-names fleetctl get queries
+```
+
+```
+> export FLEET_ENABLE_LOG_TOPICS=deprecated-field-names 
+> fleetctl get queries
+```
+
+```
+> fleetctl get queries --enable_log_topics=deprecated-field-names
+```
+
+Once the warnings become enabled by default (in v4.83.0), you can use the `FLEET_DISABLE_LOG_TOPICS` environment variable or `--enable_log_topics` command-line option to disable them.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

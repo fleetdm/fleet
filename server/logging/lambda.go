@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	aws_config "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/fleetdm/fleet/v4/server/aws_common"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log/level"
 )
 
 const (
@@ -30,10 +29,10 @@ type LambdaAPI interface {
 type lambdaLogWriter struct {
 	client       LambdaAPI
 	functionName string
-	logger       *platformlogging.Logger
+	logger       *slog.Logger
 }
 
-func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, stsExternalID, functionName string, logger *platformlogging.Logger) (*lambdaLogWriter, error) {
+func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, stsExternalID, functionName string, logger *slog.Logger) (*lambdaLogWriter, error) {
 	var opts []func(*aws_config.LoadOptions) error
 
 	// Only provide static credentials if we have them
@@ -97,8 +96,7 @@ func (f *lambdaLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 		// that are too big for Lambda. This behavior is consistent
 		// with other logging plugins.
 		if len(log) > lambdaMaxSizeOfPayload {
-			level.Info(f.logger).Log(
-				"msg", "dropping log over 6MB Lambda limit",
+			f.logger.InfoContext(ctx, "dropping log over 6MB Lambda limit",
 				"size", len(log),
 				"log", string(log[:100])+"...",
 			)

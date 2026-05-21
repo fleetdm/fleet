@@ -20,6 +20,10 @@ This directory contains guides for common development tasks in Fleet.
 - [Generating UI Component Boilerplate](ui/generating-ui-component-boilerplate.md) - Guide for generating UI component boilerplate
 - [Design QA Considerations](ui/design-qa-considerations.md) - Guide for design QA considerations
 
+## Observability
+
+- [Telemetry attribute naming](telemetry-attribute-naming.md) - Naming conventions for log, trace, and metric attributes
+
 ## API development
 
 - [Adding New Endpoints](api/adding-new-endpoints.md) - Guide for adding new endpoints to the Fleet API

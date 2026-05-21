@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var SoftwareTitleIconURLRegex = regexp.MustCompile(`fleet/software/titles/\d+/icon\?team_id=\d+`)
+var SoftwareTitleIconURLRegex = regexp.MustCompile(`fleet/software/titles/\d+/icon\?(?:team_id|fleet_id)=\d+`)
 
 const SoftwareTitleIconSignedURLExpiry = 6 * time.Hour
 
@@ -26,7 +26,7 @@ type SoftwareTitleIcon struct {
 	// can properly check team ownership (rego marshals the struct to JSON to pass it to
 	// the rego policies script). This struct is never marshalled directly to JSON in
 	// API responses at this time so it doesn't affect anything else.
-	TeamID          uint   `db:"team_id" json:"team_id"` // TODO -- rename to `fleet_id` when authz code switches to using `fleet_id` instead of `team_id`
+	TeamID          uint   `db:"team_id" json:"team_id"` //nolint:apiparamcheck // TODO -- rename when authz code switches to using `fleet_id` instead of `team_id`
 	SoftwareTitleID uint   `db:"software_title_id"`
 	StorageID       string `db:"storage_id"`
 	Filename        string `db:"filename"`
@@ -37,7 +37,7 @@ func (s *SoftwareTitleIcon) AuthzType() string {
 }
 
 func (s *SoftwareTitleIcon) IconUrl() string {
-	return fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", s.SoftwareTitleID, s.TeamID)
+	return fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", s.SoftwareTitleID, s.TeamID)
 }
 
 func (s *SoftwareTitleIcon) IconUrlWithDeviceToken(deviceToken string) string {
@@ -67,4 +67,5 @@ type DetailsForSoftwareIconActivity struct {
 	Platform            *InstallableDevicePlatform `json:"platform"`
 	LabelsIncludeAny    []ActivitySoftwareLabel    `db:"-"`
 	LabelsExcludeAny    []ActivitySoftwareLabel    `db:"-"`
+	LabelsIncludeAll    []ActivitySoftwareLabel    `db:"-"`
 }

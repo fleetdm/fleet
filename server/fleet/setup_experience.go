@@ -121,6 +121,10 @@ func (s *SetupExperienceStatusResult) IsForSoftwarePackage() bool {
 	return s.SoftwareInstallerID != nil
 }
 
+func (s *SetupExperienceStatusResult) IsForVPPApp() bool {
+	return s.VPPAppTeamID != nil
+}
+
 func (s *SetupExperienceStatusResult) ForMyDevicePage(token string) {
 	// convert api style iconURL to device token URL
 	if s.IconURL != "" && s.SoftwareTitleID != nil {
@@ -204,7 +208,7 @@ func (r SetupExperienceScriptResult) SetupExperienceStatus() SetupExperienceStat
 type SetupExperienceStatusPayload struct {
 	Script                *SetupExperienceStatusResult                 `json:"script,omitempty"`
 	Software              []*SetupExperienceStatusResult               `json:"software,omitempty"`
-	BootstrapPackage      *SetupExperienceBootstrapPackageResult       `json:"bootstrap_package,omitempty"`
+	BootstrapPackage      *SetupExperienceBootstrapPackageResult       `json:"bootstrap_package,omitempty" renameto:"macos_bootstrap_package"`
 	ConfigurationProfiles []*SetupExperienceConfigurationProfileResult `json:"configuration_profiles,omitempty"`
 	AccountConfiguration  *SetupExperienceAccountConfigurationResult   `json:"account_configuration,omitempty"`
 	OrgLogoURL            string                                       `json:"org_logo_url"`

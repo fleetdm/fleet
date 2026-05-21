@@ -1,1 +1,0 @@
-Fixed a bug where certain macOS app names could be ingested as empty strings due to incorrect ".app" suffix removal.

@@ -47,21 +47,16 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
  * if one already exists
  */
 export const generateDropdownOptions = (hasNDESCert: boolean) => {
-  if (!hasNDESCert) {
-    return DEFAULT_CERT_AUTHORITY_OPTIONS;
-  }
-
-  // We only allow one NDES configuration, if ones exists disable the option and
-  // add a tooltip.
-  const ndesOption = DEFAULT_CERT_AUTHORITY_OPTIONS.find((option) => {
-    return option.value === "ndes_scep_proxy";
+  return DEFAULT_CERT_AUTHORITY_OPTIONS.map((option) => {
+    if (option.value === "ndes_scep_proxy" && hasNDESCert) {
+      return {
+        ...option,
+        disabled: true,
+        tooltipContent: "Only one NDES can be added.",
+      };
+    }
+    return option;
   });
-  if (ndesOption) {
-    ndesOption.disabled = true;
-    ndesOption.tooltipContent = "Only one NDES can be added.";
-  }
-
-  return DEFAULT_CERT_AUTHORITY_OPTIONS;
 };
 
 /**

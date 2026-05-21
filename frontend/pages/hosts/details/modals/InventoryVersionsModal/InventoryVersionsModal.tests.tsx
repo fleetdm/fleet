@@ -42,8 +42,8 @@ describe("SoftwareDetailsModal", () => {
     // Vulnerabilities
     expect(screen.getByText(/CVE-2020-0001/)).toBeVisible();
 
-    // Done button
-    expect(screen.getByRole("button", { name: "Done" })).toBeVisible();
+    // Close button
+    expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
   });
 
   it("does not render hash if signature_information is missing", () => {

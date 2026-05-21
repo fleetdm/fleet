@@ -1,13 +1,14 @@
 import React, { useContext, useState } from "react";
 import { isEmpty } from "lodash";
+import { AxiosResponse } from "axios";
 
+import { IApiError } from "interfaces/errors";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { NotificationContext } from "context/notification";
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
 import { ApplePlatform } from "interfaces/platform";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -15,6 +16,7 @@ import validatePresence from "components/forms/validators/validate_presence";
 import CustomLink from "components/CustomLink";
 import { AppContext } from "context/app";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "apple-os-target-form";
 
@@ -164,8 +166,8 @@ const AppleOSTargetForm = ({
           ? await configAPI.update(updateData)
           : await teamsAPI.update(updateData, currentTeamId);
         renderFlash("success", "Successfully updated.");
-      } catch {
-        renderFlash("error", "Couldn’t update. Please try again.");
+      } catch (err) {
+        renderFlash("error", getErrorMessage(err as AxiosResponse<IApiError>));
       } finally {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? refetchAppConfig()
@@ -212,7 +214,7 @@ const AppleOSTargetForm = ({
         disabled={gitOpsModeEnabled}
         name="deadline"
         label="Deadline"
-        tooltip="The end user can't dismiss the OS update once they reach this deadline. Deadline is 19:00 (7PM), the host's local time."
+        tooltip="The end user can't dismiss the OS update once they reach this deadline. Deadline is 12:00 (Noon), the host's local time."
         helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
         value={deadline}
         error={deadlineError}
@@ -226,7 +228,7 @@ const AppleOSTargetForm = ({
           value={updateNewHosts}
           className={`${baseClass}__checkbox`}
           labelTooltipContent={
-            "Hosts that automatically enroll (ADE) are updated to Apple's latest version during macOS Setup Assistant."
+            "During automated enrollment (ADE), hosts below the minimum version are updated to the latest version. If a minimum version isn't set, all hosts are updated to the latest version."
           }
         >
           Update new hosts to latest

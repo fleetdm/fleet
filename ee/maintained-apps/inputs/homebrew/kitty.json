@@ -1,0 +1,8 @@
+{
+  "name": "kitty",
+  "slug": "kitty/darwin",
+  "unique_identifier": "net.kovidgoyal.kitty",
+  "token": "kitty",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

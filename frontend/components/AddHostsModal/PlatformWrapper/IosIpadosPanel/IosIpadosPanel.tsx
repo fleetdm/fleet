@@ -4,7 +4,6 @@ import CustomLink from "components/CustomLink";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 const generateUrl = (serverUrl: string, enrollSecret: string) => {

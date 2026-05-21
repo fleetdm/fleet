@@ -194,7 +194,7 @@ const ManageQueriesPage = ({
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
     router.push(
-      getPathWithQueryParams(PATHS.NEW_QUERY, { fleet_id: currentTeamId })
+      getPathWithQueryParams(PATHS.NEW_REPORT, { fleet_id: currentTeamId })
     );
   }, [currentTeamId, router, setLastEditedQueryBody]);
 
@@ -233,18 +233,13 @@ const ManageQueriesPage = ({
       } else {
         await queriesAPI.destroy(selectedQueryIds[0]);
       }
-      renderFlash(
-        "success",
-        `Successfully deleted ${bulk ? "reports" : "report"}.`
-      );
+      renderFlash("success", "Successfully deleted reports.");
       setResetSelectedRows(true);
       refetchQueries();
     } catch (errorResponse) {
       renderFlash(
         "error",
-        `There was an error deleting your ${
-          bulk ? "reports" : "report"
-        }. Please try again later.`
+        "There was an error deleting your reports. Please try again later."
       );
     } finally {
       toggleDeleteQueryModal();
@@ -270,6 +265,14 @@ const ManageQueriesPage = ({
     return <h1>Reports</h1>;
   };
 
+  // CTA button shows for all roles but global observers and current team's observers
+  const canCustomQuery =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isObserverPlus; // isObserverPlus checks global and selected team
+
   const renderQueriesTable = () => {
     if (queriesError) {
       return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
@@ -286,6 +289,8 @@ const ManageQueriesPage = ({
         }
         isLoading={isLoadingQueries || isFetchingQueries}
         onDeleteQueryClick={onDeleteQueryClick}
+        onAddReportClick={onCreateQueryClick}
+        canAddReport={canCustomQuery}
         isOnlyObserver={isOnlyObserver}
         isObserverPlus={isObserverPlus}
         isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
@@ -376,14 +381,6 @@ const ManageQueriesPage = ({
       </>
     );
   };
-
-  // CTA button shows for all roles but global observers and current team's observers
-  const canCustomQuery =
-    isGlobalAdmin ||
-    isGlobalMaintainer ||
-    isTeamAdmin ||
-    isTeamMaintainer ||
-    isObserverPlus; // isObserverPlus checks global and selected team
 
   const canManageAutomations = isGlobalAdmin || isTeamAdmin;
   const isManageAutomationsEnabled = isAnyTeamSelected

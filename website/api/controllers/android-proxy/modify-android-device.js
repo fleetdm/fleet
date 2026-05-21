@@ -80,6 +80,8 @@ module.exports = {
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Devices.html#patch
       let patchDeviceResponse = await androidmanagement.enterprises.devices.patch({
         name: `enterprises/${androidEnterpriseId}/devices/${deviceId}`,
+        // Note: Typically, we use defined inputs instead of accessing req.body directly. We forward req.body here to prevent previously set values from being overwritten by undefined values.
+        // This behavior should not be repeated in future Android proxy endpoints.
         requestBody: this.req.body,
       });
       return patchDeviceResponse.data;

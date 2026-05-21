@@ -187,7 +187,7 @@ const LocationModal = ({
       <ModalFooter
         primaryButtons={
           <Button type="button" onClick={onExit}>
-            Done
+            Close
           </Button>
         }
       />
@@ -196,10 +196,8 @@ const LocationModal = ({
 
   return (
     <Modal title="Location" className={baseClass} onExit={onExit}>
-      <>
-        {renderContent()}
-        {renderFooter()}
-      </>
+      {renderContent()}
+      {renderFooter()}
     </Modal>
   );
 };

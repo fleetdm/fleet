@@ -28,7 +28,7 @@ services:
       timeout: 5s
       retries: 12
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     restart: unless-stopped
 
   redis:
@@ -42,7 +42,7 @@ services:
       timeout: 5s
       retries: 12
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     restart: unless-stopped
 
   fleet-init:

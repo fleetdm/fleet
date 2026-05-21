@@ -4,7 +4,6 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -88,40 +87,38 @@ const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
       onExit={onExit}
       isContentDisabled={isAdding}
     >
-      <>
-        <div>
-          <InputField
-            label="Tenant ID"
-            name="tenant id"
-            placeholder="6d8769e6-0f8b-418d-b385-1a53968781c9"
-            value={formData.tenantId}
-            onChange={onChangeTenantID}
-            error={formValidation.tenantId?.message}
-            helpText={
-              <>
-                Find your <b>Tenant ID</b>, on{" "}
-                <CustomLink
-                  text="Microsoft Entra ID > Home"
-                  url="https://fleetdm.com/learn-more-about/microsoft-entra-tenant-id"
-                  newTab
-                />
-              </>
-            }
-          />
-        </div>
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={onAddTenant}
-            disabled={!formValidation.isValid}
-            isLoading={isAdding}
-          >
-            Add
-          </Button>
-          <Button onClick={onExit} variant="inverse">
-            Cancel
-          </Button>
-        </div>
-      </>
+      <div>
+        <InputField
+          label="Tenant ID"
+          name="tenant id"
+          placeholder="6d8769e6-0f8b-418d-b385-1a53968781c9"
+          value={formData.tenantId}
+          onChange={onChangeTenantID}
+          error={formValidation.tenantId?.message}
+          helpText={
+            <>
+              Find your <b>Tenant ID</b>, on{" "}
+              <CustomLink
+                text="Microsoft Entra ID > Home"
+                url="https://fleetdm.com/learn-more-about/microsoft-entra-tenant-id"
+                newTab
+              />
+            </>
+          }
+        />
+      </div>
+      <div className="modal-cta-wrap">
+        <Button
+          onClick={onAddTenant}
+          disabled={!formValidation.isValid}
+          isLoading={isAdding}
+        >
+          Add
+        </Button>
+        <Button onClick={onExit} variant="inverse">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

@@ -27,7 +27,7 @@ import (
 
 var (
 	rxOption       = regexp.MustCompile(`\-\-(\w+)\s`)
-	osqueryVersion = "5.21.0"
+	osqueryVersion = "5.23.0"
 
 	structTpl = template.Must(template.New("struct").Funcs(template.FuncMap{
 		"camelCase": camelCaseOptionName,
@@ -66,27 +66,17 @@ type templateData struct {
 
 func main() {
 	fmt.Printf("Generating osquery flags for version: %s\n", osqueryVersion)
-	if runtime.GOOS != "darwin" {
-		log.Fatal("Currently only supported on macOS")
-	}
-	urlStr := fmt.Sprintf("https://updates.fleetdm.com/targets/osqueryd/macos-app/%s/osqueryd.app.tar.gz", osqueryVersion)
-	osqueryTUFURL, err := url.Parse(urlStr)
-	if err != nil {
-		log.Fatalf("parse osquery TUF URL: %q: %s", urlStr, err)
-	}
+
 	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		log.Fatalf("create temp dir: %s", err)
 	}
 	defer os.RemoveAll(tmpDir)
-	osquerydAppTarGzPath := filepath.Join(tmpDir, "osqueryd.app.tar.gz")
-	if err := download.Download(http.DefaultClient, osqueryTUFURL, osquerydAppTarGzPath); err != nil {
-		log.Fatalf("download osqueryd.app.tar.gz to %s: %s", osquerydAppTarGzPath, err) //nolint:gocritic // ignore exitAfterDefer
+
+	osquerydPath, err := downloadOsqueryd(tmpDir)
+	if err != nil {
+		log.Fatalf("download osqueryd: %s", err) //nolint:gocritic // ignore exitAfterDefer
 	}
-	if err := extractTarGz(osquerydAppTarGzPath); err != nil {
-		log.Fatalf("extract tar.gz %q: %s", osquerydAppTarGzPath, err)
-	}
-	osquerydPath := filepath.Join(filepath.Dir(osquerydAppTarGzPath), "osquery.app", "Contents", "MacOS", "osqueryd")
 
 	// marshal/unmarshal the OS-specific structs into a map so we have all their
 	// keys and we can ignore them in the auto-generated structs (because we
@@ -214,6 +204,44 @@ func main() {
 
 	if err := outputFile.Close(); err != nil {
 		log.Fatalf("close file %q: %s", outputFilePath, err)
+	}
+}
+
+// downloadOsqueryd fetches osqueryd for the current OS into tmpDir and returns
+// the path to the executable. macOS ships as a tar.gz app bundle; Linux ships
+// as a single binary.
+func downloadOsqueryd(tmpDir string) (string, error) {
+	switch runtime.GOOS {
+	case "darwin":
+		urlStr := fmt.Sprintf("https://updates.fleetdm.com/targets/osqueryd/macos-app/%s/osqueryd.app.tar.gz", osqueryVersion)
+		osqueryTUFURL, err := url.Parse(urlStr)
+		if err != nil {
+			return "", fmt.Errorf("parse osquery TUF URL %q: %w", urlStr, err)
+		}
+		osquerydAppTarGzPath := filepath.Join(tmpDir, "osqueryd.app.tar.gz")
+		if err := download.Download(http.DefaultClient, osqueryTUFURL, osquerydAppTarGzPath); err != nil {
+			return "", fmt.Errorf("download osqueryd.app.tar.gz to %s: %w", osquerydAppTarGzPath, err)
+		}
+		if err := extractTarGz(osquerydAppTarGzPath); err != nil {
+			return "", fmt.Errorf("extract tar.gz %q: %w", osquerydAppTarGzPath, err)
+		}
+		return filepath.Join(tmpDir, "osquery.app", "Contents", "MacOS", "osqueryd"), nil
+	case "linux":
+		urlStr := fmt.Sprintf("https://updates.fleetdm.com/targets/osqueryd/linux/%s/osqueryd", osqueryVersion)
+		osqueryTUFURL, err := url.Parse(urlStr)
+		if err != nil {
+			return "", fmt.Errorf("parse osquery TUF URL %q: %w", urlStr, err)
+		}
+		osquerydPath := filepath.Join(tmpDir, "osqueryd")
+		if err := download.Download(http.DefaultClient, osqueryTUFURL, osquerydPath); err != nil {
+			return "", fmt.Errorf("download osqueryd to %s: %w", osquerydPath, err)
+		}
+		if err := os.Chmod(osquerydPath, 0o755); err != nil { // nolint:gosec // G302
+			return "", fmt.Errorf("chmod osqueryd: %w", err)
+		}
+		return osquerydPath, nil
+	default:
+		return "", fmt.Errorf("unsupported OS: %s (only macOS and Linux are supported)", runtime.GOOS)
 	}
 }
 

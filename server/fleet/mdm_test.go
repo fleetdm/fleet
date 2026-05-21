@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -17,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +67,7 @@ func TestDEPClient(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	ds := new(mock.Store)
 
 	appCfg := fleet.AppConfig{}
@@ -241,7 +241,7 @@ func TestDEPClient(t *testing.T) {
 			return &nanodep_client.Config{BaseURL: srv.URL}, nil
 		}
 
-		dep := apple_mdm.NewDEPClient(store, ds, logger.SlogLogger())
+		dep := apple_mdm.NewDEPClient(store, ds, logger)
 		orgName := c.orgName
 		if orgName == "" {
 			// simulate using a new token, not yet saved in the DB, so we pass the
@@ -554,6 +554,80 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := fleet.MDMProfileSpecsMatch(tc.a, tc.b)
 			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+// TestMDMProfileSpecsMatchPanicsOnDuplicatePaths pins the precondition
+// documented on MDMProfileSpecsMatch: duplicate Paths within a slice are a
+// programming-bug indicator (upstream validation in client.go and mdm.go
+// rejects them before they reach storage), so the function panics rather
+// than silently miscomparing. See issue #45485.
+func TestMDMProfileSpecsMatchPanicsOnDuplicatePaths(t *testing.T) {
+	dup := []fleet.MDMProfileSpec{{Path: "/a"}, {Path: "/a"}}
+	clean := []fleet.MDMProfileSpec{{Path: "/a"}, {Path: "/b"}}
+
+	t.Run("duplicates in a", func(t *testing.T) {
+		require.PanicsWithValue(t,
+			`MDMProfileSpecsMatch: a contains duplicate Path "/a"; upstream validation should have rejected this`,
+			func() { fleet.MDMProfileSpecsMatch(dup, clean) },
+		)
+	})
+	t.Run("duplicates in b", func(t *testing.T) {
+		require.PanicsWithValue(t,
+			`MDMProfileSpecsMatch: b contains duplicate Path "/a"; upstream validation should have rejected this`,
+			func() { fleet.MDMProfileSpecsMatch(clean, dup) },
+		)
+	})
+}
+
+func TestHasCAVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		vars     []string
+		expected bool
+	}{
+		{"empty", nil, false},
+		{"no CA vars", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarHostHardwareSerial)}, false},
+		{"NDES challenge", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarNDESSCEPChallenge)}, true},
+		{"NDES proxy URL", []string{string(fleet.FleetVarNDESSCEPProxyURL)}, true},
+		{"SCEP renewal", []string{string(fleet.FleetVarSCEPRenewalID)}, true},
+		{"Certificate renewal (preferred)", []string{string(fleet.FleetVarCertificateRenewalID)}, true},
+		{"DigiCert data", []string{string(fleet.FleetVarDigiCertDataPrefix) + "my_ca"}, true},
+		{"DigiCert password", []string{string(fleet.FleetVarDigiCertPasswordPrefix) + "my_ca"}, true},
+		{"Custom SCEP challenge", []string{string(fleet.FleetVarCustomSCEPChallengePrefix) + "my_ca"}, true},
+		{"Custom SCEP proxy URL", []string{string(fleet.FleetVarCustomSCEPProxyURLPrefix) + "my_ca"}, true},
+		{"Smallstep challenge", []string{string(fleet.FleetVarSmallstepSCEPChallengePrefix) + "my_ca"}, true},
+		{"Smallstep proxy URL", []string{string(fleet.FleetVarSmallstepSCEPProxyURLPrefix) + "my_ca"}, true},
+		{"Windows SCEP cert ID", []string{string(fleet.FleetVarSCEPWindowsCertificateID)}, true},
+		{"mixed with CA", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarNDESSCEPChallenge)}, true},
+		{"unknown var", []string{"UNKNOWN_VAR"}, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := fleet.HasCAVariables(tc.vars)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestFleetVarRenewalIDRegexp(t *testing.T) {
+	cases := []struct {
+		input string
+		want  bool
+	}{
+		{"$FLEET_VAR_CERTIFICATE_RENEWAL_ID", true},
+		{"${FLEET_VAR_CERTIFICATE_RENEWAL_ID}", true},
+		{"$FLEET_VAR_SCEP_RENEWAL_ID", true},
+		{"${FLEET_VAR_SCEP_RENEWAL_ID}", true},
+		{"prefix $FLEET_VAR_CERTIFICATE_RENEWAL_ID suffix", true},
+		{"$FLEET_VAR_OTHER_VAR", false},
+		{"static-value", false},
+		{"", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			require.Equal(t, tc.want, fleet.FleetVarRenewalIDRegexp.MatchString(tc.input))
 		})
 	}
 }

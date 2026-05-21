@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved
+Completed
 
 ## Date
 
@@ -384,4 +384,16 @@ The pilot will be considered successful if:
 6. **Documentation clear:** Future contexts can follow this pattern without significant guidance
 7. **Pattern established:** Clear path for future bounded contexts to own their activity types (documented but not implemented in this pilot)
 
-We will evaluate these criteria 2 weeks after completion and update this ADR with findings.
+### Evaluation
+
+The pilot is complete. All seven criteria were met:
+
+1. **Boundaries respected:** Architecture tests enforce import restrictions. Go's `internal/` directory provides compiler-level enforcement.
+2. **Migration completed:** All past activity code moved to `server/activity/` without breaking existing functionality.
+3. **Table naming works:** Database migration to `activity_past` and `activity_host_past` completed without performance degradation.
+4. **Developer experience:** The new structure makes it clear where activity-related code lives and who owns it.
+5. **No regressions:** All existing activity tests pass, audit trail remains complete.
+6. **Documentation clear:** Patterns and learnings are documented in [modular monolith architecture](../architecture/modular-monolith/README.md) for future bounded contexts to follow.
+7. **Pattern established:** Reference patterns for directory structure, anti-corruption layers, bootstrap, CI workflows, and dependency injection are documented.
+
+**Additional benefit:** The refactoring surfaced several bugs in the existing code.

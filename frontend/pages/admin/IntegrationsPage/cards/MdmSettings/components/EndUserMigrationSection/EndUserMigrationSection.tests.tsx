@@ -81,6 +81,7 @@ describe("EndUserMigrationSection", () => {
         gitops: {
           gitops_mode_enabled: true,
           repository_url: "https://example.com/repo.git",
+          exceptions: { labels: false, software: false, secrets: true },
         },
       })
     );
@@ -121,7 +122,7 @@ describe("EndUserMigrationSection", () => {
     render(<EndUserMigrationSection router={mockRouter} />);
 
     expect(
-      screen.getByText("Connect to Apple Business Manager to get started.")
+      screen.getByText("Connect to Apple Business to get started.")
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Connect" })).toBeInTheDocument();
   });

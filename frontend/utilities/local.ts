@@ -17,12 +17,4 @@ const local = {
   },
 };
 
-export const authToken = (): string | null => {
-  return local.getItem("auth_token");
-};
-
-export const clearToken = (): void => {
-  return local.removeItem("auth_token");
-};
-
 export default local;

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import { AxiosError, AxiosResponse } from "axios";
 import { useQuery } from "react-query";
 import { ErrorBoundary } from "react-error-boundary";
@@ -10,7 +10,7 @@ import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
 import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
-import { authToken, clearToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 import useDeepEffect from "hooks/useDeepEffect";
 import { QueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -166,7 +166,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     }
   );
 
-  const fetchConfig = async () => {
+  const fetchConfig = useCallback(async () => {
     try {
       const configResponse = await configAPI.loadAll();
       if (configResponse.sandbox_enabled) {
@@ -184,9 +184,9 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       setIsLoading(false);
     }
     return true;
-  };
+  }, [setConfig, setSandboxExpiry, setNoSandboxHosts]);
 
-  const fetchCurrentUser = async () => {
+  const fetchCurrentUser = useCallback(async () => {
     try {
       const { user, available_teams, settings } = await usersAPI.me();
       setCurrentUser(user);
@@ -206,7 +206,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       ) {
         return true;
       }
-      clearToken();
+      authToken.remove();
       // if this is not the device user page,
       // redirect to login
       if (!location?.pathname.includes("/device/")) {
@@ -214,13 +214,19 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       }
     }
     return true;
-  };
+  }, [
+    location?.pathname,
+    setCurrentUser,
+    setAvailableTeams,
+    setUserSettings,
+    fetchConfig,
+  ]);
 
   useEffect(() => {
-    if (authToken() && !location?.pathname.includes("/device/")) {
+    if (authToken.get() && !location?.pathname.includes("/device/")) {
       fetchCurrentUser();
     }
-  }, [location?.pathname]);
+  }, [location?.pathname, fetchCurrentUser]);
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
@@ -233,7 +239,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     if (curTitle && curTitle.title) {
       document.title = curTitle.title;
     }
-  }, [location, config]);
+  }, [location?.pathname, config]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =
@@ -252,7 +258,6 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         setEnrollSecret(spec.secrets);
       } catch (error) {
         console.error(error);
-        return false;
       }
     };
 
@@ -263,6 +268,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   // "any" is used on purpose. We are using Axios but this
   // function expects a native React Error type, which is incompatible.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderErrorOverlay = ({ error }: any) => {
     // @ts-ignore
     console.error(error);

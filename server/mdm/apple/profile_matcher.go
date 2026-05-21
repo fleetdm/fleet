@@ -59,7 +59,7 @@ func (p *profileMatcher) PreassignProfile(ctx context.Context, payload fleet.MDM
 		}
 	}
 	if invArg.HasErrors() {
-		return ctxerr.Wrap(ctx, invArg)
+		return ctxerr.Wrap(ctx, &invArg)
 	}
 
 	md5Hash := payload.HexMD5Hash()

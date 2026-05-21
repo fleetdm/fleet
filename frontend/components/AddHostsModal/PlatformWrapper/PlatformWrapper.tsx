@@ -9,7 +9,6 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import RevealButton from "components/buttons/RevealButton";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabNav from "components/TabNav";
@@ -240,11 +239,11 @@ const PlatformWrapper = ({
       <>
         {packageType !== "plain-osquery" && (
           <span className={`${baseClass}__cta`}>
-            Run this command with the{" "}
+            Use this command to generate Fleet&apos;s agent.{" "}
             <CustomLink
               className={`${baseClass}__command-line-tool`}
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/installing-fleetctl`}
-              text="Fleet command-line tool"
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/generate-fleets-agent`}
+              text="Learn how"
               newTab
             />
           </span>
@@ -271,19 +270,23 @@ const PlatformWrapper = ({
     if (packageType === "deb") {
       packageTypeHelpText = (
         <>
-          For CentOS, Red Hat, and Fedora Linux, use <code>--type=rpm</code>.
-          For Arch Linux, use <code>--type=pkg.tar.zst</code>.<br />
-          For ARM, use <code>--arch=arm64</code>
+          Run this on your computer, then deploy the generated package to your
+          hosts. For CentOS, Red Hat, and Fedora Linux, use{" "}
+          <code>--type=rpm</code>. For Arch Linux, use{" "}
+          <code>--type=pkg.tar.zst</code>. For ARM, use{" "}
+          <code>--arch=arm64</code>.
         </>
       );
     } else if (packageType === "msi") {
       packageTypeHelpText = (
         <>
-          For ARM, use <code>--arch=arm64</code>
+          Run this on your computer, then deploy the generated package to your
+          hosts. For ARM, use <code>--arch=arm64</code>
         </>
       );
     } else if (packageType === "pkg") {
-      packageTypeHelpText = "Install this package to add hosts to Fleet.";
+      packageTypeHelpText =
+        "Run this on your computer, then deploy the generated package to your hosts.";
     } else {
       packageTypeHelpText = "";
     }
@@ -366,12 +369,9 @@ const PlatformWrapper = ({
           <div>
             <InfoBanner className={`${baseClass}__chrome--instructions`}>
               This works for macOS, Windows, and Linux hosts. To add
-              Chromebooks,&nbsp;
-              <Button
-                variant="text-link-dark"
-                onClick={() => setSelectedTabIndex(3)}
-              >
-                click here
+              Chromebooks,{" "}
+              <Button variant="link" onClick={() => setSelectedTabIndex(3)}>
+                visit the ChromeOS tab
               </Button>
               .
             </InfoBanner>
@@ -429,13 +429,11 @@ const PlatformWrapper = ({
               <div className={`${baseClass}__advanced--osqueryd`}>
                 <p className={`${baseClass}__advanced--heading`}>
                   With{" "}
-                  <a
-                    href="https://www.osquery.io/downloads"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    osquery
-                  </a>{" "}
+                  <CustomLink
+                    url="https://www.osquery.io/downloads"
+                    text="osquery"
+                    newTab
+                  />{" "}
                   installed:
                 </p>
                 <p className={`${baseClass}__advanced--text`}>
@@ -531,7 +529,7 @@ const PlatformWrapper = ({
         </Tabs>
       </TabNav>
       <div className="modal-cta-wrap">
-        <Button onClick={onCancel}>Done</Button>
+        <Button onClick={onCancel}>Close</Button>
       </div>
     </div>
   );

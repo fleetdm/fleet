@@ -74,7 +74,7 @@ func (c *Client) LiveQueryWithContext(
 		QuerySQL: query,
 		Selected: distributedQueryCampaignTargetsByIdentifiers{Labels: labels, Hosts: hostIdentifiers},
 	}
-	verb, path := "POST", "/api/latest/fleet/queries/run_by_identifiers"
+	verb, path := "POST", "/api/latest/fleet/reports/run_by_identifiers"
 	var responseBody createDistributedQueryCampaignResponse
 	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
@@ -85,15 +85,15 @@ func (c *Client) LiveQueryWithContext(
 	dialer := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
 		HandshakeTimeout: 45 * time.Second,
-		TLSClientConfig:  &tls.Config{InsecureSkipVerify: c.insecureSkipVerify},
+		TLSClientConfig:  &tls.Config{InsecureSkipVerify: c.InsecureSkipVerify},
 	}
 
-	wssURL := *c.baseURL
+	wssURL := *c.BaseURL
 	wssURL.Scheme = "wss"
 	if flag.Lookup("test.v") != nil {
 		wssURL.Scheme = "ws"
 	}
-	wssURL.Path = c.urlPrefix + "/api/latest/fleet/results/websocket"
+	wssURL.Path = c.URLPrefix + "/api/latest/fleet/results/websocket"
 	// Ensure custom headers (set by config) are added to websocket request
 	headers := make(http.Header)
 	for k, v := range c.customHeaders {

@@ -122,7 +122,7 @@ const ScriptDetailsModal = ({
     data: scriptContent,
     error: isSelectedScriptContentError,
     isLoading: isLoadingSelectedScriptContent,
-  } = useQuery<any, Error>(
+  } = useQuery<string, Error>(
     ["scriptContent", scriptId],
     () =>
       scriptId
@@ -144,7 +144,7 @@ const ScriptDetailsModal = ({
 
   const getScriptContent = async () => {
     try {
-      const content = selectedScriptContent || scriptContent;
+      const content = selectedScriptContent || scriptContent || "";
       const formatDate = format(new Date(), "yyyy-MM-dd");
       const filename = `${formatDate} ${
         selectedScriptDetails?.name || "Script details"
@@ -245,7 +245,7 @@ const ScriptDetailsModal = ({
                   />
                 </div>
               )}
-              <Button onClick={onCancel}>Done</Button>
+              <Button onClick={onCancel}>Close</Button>
             </>
           )
         }
@@ -290,10 +290,8 @@ const ScriptDetailsModal = ({
       onExit={onClose ?? onCancel}
       isHidden={isHidden}
     >
-      <>
-        {renderContent()}
-        {shouldShowFooter && renderFooter()}
-      </>
+      {renderContent()}
+      {shouldShowFooter && renderFooter()}
     </Modal>
   );
 };

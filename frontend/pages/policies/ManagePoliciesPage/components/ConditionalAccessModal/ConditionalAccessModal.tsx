@@ -1,18 +1,14 @@
 import React, { useContext, useRef, useState } from "react";
 
-import {
-  FLEET_WEBSITE_URL,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import PATHS from "router/paths";
 
-import { isOktaConditionalAccessConfigured } from "interfaces/config";
-
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import CriticalPolicyBadge from "components/CriticalPolicyBadge";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
-import Checkbox from "components/forms/fields/Checkbox";
-import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
 import { IPaginatedListHandle } from "components/PaginatedList";
 import PoliciesPaginatedList, {
@@ -53,7 +49,7 @@ const ConditionalAccessModal = ({
   });
 
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
-  const { isGlobalAdmin, isTeamAdmin, config } = useContext(AppContext);
+  const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
   const isAdmin = isGlobalAdmin || isTeamAdmin;
 
   const onChangeEnabled = () => {
@@ -69,10 +65,12 @@ const ConditionalAccessModal = ({
   };
 
   const getPolicyDisabled = (policy: IFormPolicy) =>
-    !policy.platform.includes("darwin");
+    !policy.platform.includes("darwin") && !policy.platform.includes("windows");
 
   const getPolicyTooltipContent = (policy: IFormPolicy) =>
-    !policy.platform.includes("darwin") ? "Policy does not target macOS" : null;
+    !policy.platform.includes("darwin") && !policy.platform.includes("windows")
+      ? "Policy does not target macOS or Windows"
+      : null;
 
   const learnMoreLink = (
     <CustomLink
@@ -82,43 +80,12 @@ const ConditionalAccessModal = ({
     />
   );
 
-  const renderItemRow = (
-    item: IFormPolicy,
-    onChange: (item: IFormPolicy) => void
-  ) => {
-    const shouldShowCheckbox =
-      item.conditional_access_enabled &&
-      // currently redundant as only darwin-targeting policies are enabled in this list
-      item.platform.includes("darwin") &&
-      isOktaConditionalAccessConfigured(config) &&
-      !config?.conditional_access?.bypass_disabled;
-
-    if (!shouldShowCheckbox) {
-      return null;
-    }
-
-    return (
-      <span
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-      >
-        <Checkbox
-          value={item.conditional_access_bypass_enabled}
-          onChange={() => {
-            onChange({
-              ...item,
-              conditional_access_bypass_enabled: !item.conditional_access_bypass_enabled,
-            });
-          }}
-        >
-          <TooltipWrapper tipContent="Allows end users to bypass conditional access for a single login if they are unable to resolve the failing policy.">
-            End users can bypass
-          </TooltipWrapper>
-        </Checkbox>
-      </span>
-    );
-  };
+  const renderItemLabel = (policy: IFormPolicy) => (
+    <>
+      <TooltipTruncatedText value={policy.name} />
+      {policy.critical && <CriticalPolicyBadge />}
+    </>
+  );
 
   const renderConfigured = () => {
     return (
@@ -132,19 +99,13 @@ const ConditionalAccessModal = ({
               activeText="Enabled"
               disabled={gitOpsModeEnabled || !isAdmin}
             />
-            <CustomLink
-              text="Preview end user experience"
-              newTab
-              multiline={false}
-              url={`${FLEET_WEBSITE_URL}/microsoft-compliance-partner/remediate`}
-            />
           </span>
           <PoliciesPaginatedList
             ref={paginatedListRef}
             isSelected="conditional_access_enabled"
             getPolicyDisabled={getPolicyDisabled}
             getPolicyTooltipContent={getPolicyTooltipContent}
-            renderItemRow={renderItemRow}
+            renderItemLabel={renderItemLabel}
             onToggleItem={(item: IFormPolicy) => {
               item.conditional_access_enabled = !item.conditional_access_enabled;
               return item;
@@ -166,6 +127,7 @@ const ConditionalAccessModal = ({
             onCancel={onExit}
             teamId={teamId}
             disableList={!formData.enabled}
+            renderPlatform
           />
         </div>
       </>
@@ -178,13 +140,24 @@ const ConditionalAccessModal = ({
       connect Fleet to {providerText}.
       <br />
       <br />
-      This can be configured in <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
-      <b>Conditional access</b>.
+      This can be configured in{" "}
+      {isGlobalAdmin ? (
+        <CustomLink
+          url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
+          text="Settings > Integrations > Conditional access"
+        />
+      ) : (
+        <>
+          <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
+          <b>Conditional access</b>
+        </>
+      )}
+      .
       <br />
       <br />
       {learnMoreLink}
       <div className="modal-cta-wrap">
-        <Button onClick={onExit}>Done</Button>
+        <Button onClick={onExit}>Close</Button>
       </div>
     </>
   );

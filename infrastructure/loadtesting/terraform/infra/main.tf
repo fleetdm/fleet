@@ -30,7 +30,7 @@ resource "aws_route53_record" "main" {
 }
 
 module "loadtest" {
-  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-root-v1.18.3"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-root-v1.26.1"
   vpc_config = {
     name   = local.customer
     vpc_id = data.terraform_remote_state.shared.outputs.vpc.vpc_id
@@ -42,12 +42,13 @@ module "loadtest" {
     name                         = local.customer
     instance_class               = var.database_instance_size
     replicas                     = var.database_instance_count
-    engine_version               = "8.0.mysql_aurora.3.08.2"
+    engine_version               = "8.0.mysql_aurora.3.10.3"
     snapshot_identifier          = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned-8-0-teams-fixes-v4-55-0-minimum"
     preferred_maintenance_window = "fri:04:00-fri:05:00"
     # VPN
     subnets             = data.terraform_remote_state.shared.outputs.vpc.database_subnets
     allowed_cidr_blocks = concat(data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks, local.vpn_cidr_blocks)
+    monitoring_interval = 0
     db_parameters = {
       # 8mb up from 262144 (256k) default
       sort_buffer_size = 8388608
@@ -55,9 +56,15 @@ module "loadtest" {
     db_cluster_parameters = {
       require_secure_transport = "ON"
     }
+    observability = {
+      database_insights_mode = "standard"
+    }
   }
   redis_config = {
     name                          = local.customer
+    engine                        = "redis"
+    engine_version                = "7.1"
+    family                        = "redis7"
     instance_type                 = var.redis_instance_size
     cluster_size                  = var.redis_instance_count
     subnets                       = data.terraform_remote_state.shared.outputs.vpc.private_subnets
@@ -73,6 +80,17 @@ module "loadtest" {
   }
   ecs_cluster = {
     cluster_name = local.customer
+    cluster_configuration = {
+      execute_command_configuration = {
+        logging = "OVERRIDE"
+        log_configuration = {
+          cloud_watch_log_group_name = "/aws/ecs/${local.customer}"
+        }
+      }
+    }
+    cloudwatch_log_group = {
+      retention_in_days = 365
+    }
   }
   fleet_config = {
     image               = local.fleet_image
@@ -138,6 +156,12 @@ module "loadtest" {
       local.extra_secrets
     )
     private_key_secret_name = "${local.customer}-fleet-server-private-key"
+    software_installers = {
+      # bucket_prefix shortened to allow for terraform.workspace values with longer names
+      bucket_prefix  = "${terraform.workspace}-sw-inst-"
+      create_kms_key = true
+      kms_alias      = "${terraform.workspace}-software-installers"
+    }
     volumes = [
       {
         name = "rds-tls-certs"
@@ -186,7 +210,7 @@ module "acm" {
 }
 
 module "ses" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.1"
   zone_id           = data.aws_route53_zone.main.id
   domain            = "${terraform.workspace}.loadtest.fleetdm.com"
   extra_txt_records = []
@@ -197,7 +221,7 @@ module "ses" {
 }
 
 module "migrations" {
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.1"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.2"
   ecs_cluster              = module.loadtest.byo-db.byo-ecs.service.cluster
   task_definition          = module.loadtest.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.loadtest.byo-db.byo-ecs.task_definition.revision
@@ -215,7 +239,7 @@ module "migrations" {
 }
 
 module "vuln-processing" {
-  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.3.0"
+  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.5.0"
   ecs_cluster                         = module.loadtest.byo-db.byo-ecs.service.cluster
   execution_iam_role_arn              = module.loadtest.byo-db.byo-ecs.execution_iam_role_arn
   subnets                             = module.loadtest.byo-db.byo-ecs.service.network_configuration[0].subnets
@@ -241,14 +265,14 @@ module "mdm" {
 }
 
 module "osquery-carve" {
-  source = "github.com/fleetdm/fleet-terraform//addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.1.1"
+  source = "github.com/fleetdm/fleet-terraform//addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.3.1"
   osquery_carve_s3_bucket = {
     name = "${local.customer}-osquery-carve"
   }
 }
 
 module "logging_alb" {
-  source          = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.6.2"
+  source          = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v2.2.2"
   prefix          = local.customer
   alt_path_prefix = local.customer
   enable_athena   = true

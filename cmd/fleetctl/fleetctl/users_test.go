@@ -10,17 +10,19 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUserDelete(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
+	opts := &service.TestServerOpts{}
+	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
 
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return &fleet.User{
@@ -30,25 +32,18 @@ func TestUserDelete(t *testing.T) {
 		}, nil
 	}
 
-	// Allow deletion by returning multiple admins exist
-	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-		return 2, nil
-	}
-
 	deletedUser := uint(0)
 
-	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+	ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
 		deletedUser = id
 		return nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 		assert.Equal(t, fleet.ActivityTypeDeletedUser{}.ActivityName(), activity.ActivityName())
 		return nil
 	}
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"user", "delete", "--email", "user1@test.com"}))
+	assert.Empty(t, runAppForTest(t, []string{"user", "delete", "--email", "user1@test.com"}))
 	assert.Equal(t, uint(42), deletedUser)
 }
 
@@ -63,20 +58,11 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, &notFoundError{}
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
+	// createdUsers tracks users created during tests so Login can find them by email.
+	createdUsers := map[string]*fleet.User{}
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		if email == "bar@example.com" {
-			apiOnlyUser := &fleet.User{
-				ID:    1,
-				Email: email,
-			}
-			err := apiOnlyUser.SetPassword(pwd, 24, 10)
-			require.NoError(t, err)
-			return apiOnlyUser, nil
+		if u, ok := createdUsers[email]; ok {
+			return u, nil
 		}
 		return nil, &notFoundError{}
 	}
@@ -101,45 +87,52 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 		args                            []string
 		expectedAdminForcePasswordReset bool
 		displaysToken                   bool
+		isAPIOnly                       bool
 	}{
 		{
 			name:                            "sso",
 			args:                            []string{"--email", "foo@example.com", "--name", "foo", "--sso"},
 			expectedAdminForcePasswordReset: false,
-			displaysToken:                   false,
 		},
 		{
 			name:                            "api-only",
-			args:                            []string{"--email", "bar@example.com", "--password", pwd, "--name", "bar", "--api-only"},
+			args:                            []string{"--name", "bar", "--api-only"},
 			expectedAdminForcePasswordReset: false,
 			displaysToken:                   true,
+			isAPIOnly:                       true,
 		},
 		{
+			// --sso is ignored by the api-only endpoint, so a password-based user
+			// is always created and a token is always returned.
 			name:                            "api-only-sso",
 			args:                            []string{"--email", "baz@example.com", "--name", "baz", "--api-only", "--sso"},
 			expectedAdminForcePasswordReset: false,
-			displaysToken:                   false,
+			displaysToken:                   true,
+			isAPIOnly:                       true,
 		},
 		{
 			name:                            "non-sso-non-api-only",
 			args:                            []string{"--email", "zoo@example.com", "--password", pwd, "--name", "zoo"},
 			expectedAdminForcePasswordReset: true,
-			displaysToken:                   false,
 		},
 	} {
 		ds.NewUserFuncInvoked = false
 		ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
 			assert.Equal(t, tc.expectedAdminForcePasswordReset, user.AdminForcedPasswordReset)
+			createdUsers[user.Email] = user
 			return user, nil
 		}
 
-		stdout := RunAppForTest(t, append(
+		stdout := runAppForTest(t, append(
 			[]string{"user", "create"},
 			tc.args...,
 		))
-		if tc.displaysToken {
-			require.Equal(t, stdout, fmt.Sprintf("Success! The API token for your new user is: %s\n", apiOnlyUserSessionKey))
-		} else {
+		switch {
+		case tc.displaysToken:
+			require.Equal(t, fmt.Sprintf("Successfully created new user!\nThe API token for your new user is: %s\n", apiOnlyUserSessionKey), stdout)
+		case tc.isAPIOnly:
+			require.Equal(t, "Successfully created new user!\n", stdout)
+		default:
 			require.Empty(t, stdout)
 		}
 		require.True(t, ds.NewUserFuncInvoked)
@@ -159,11 +152,6 @@ func TestCreateBulkUsers(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
 		team1 := &fleet.TeamSummary{
@@ -187,17 +175,12 @@ func TestCreateBulkUsers(t *testing.T) {
 	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"fleets":null,"global_role":"admin","teams":null},"user11@example.com":{"fleets":null,"global_role":"maintainer","teams":null},"user12@example.com":{"fleets":null,"global_role":"observer","teams":null},"user13@example.com":{"fleets":null,"global_role":"admin","teams":null},"user14@example.com":{"fleets":[{"fleet":"","role":"maintainer","team":""}],"global_role":null,"teams":[{"fleet":"","role":"maintainer","team":""}]},"user15@example.com":{"fleets":[{"fleet":"","role":"admin","team":""}],"global_role":null,"teams":[{"fleet":"","role":"admin","team":""}]},"user16@example.com":{"fleets":[{"fleet":"","role":"admin","team":""},{"fleet":"","role":"maintainer","team":""}],"global_role":null,"teams":[{"fleet":"","role":"admin","team":""},{"fleet":"","role":"maintainer","team":""}]},"user1@example.com":{"fleets":null,"global_role":"maintainer","teams":null},"user2@example.com":{"fleets":null,"global_role":"observer","teams":null}}}}
 `
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))
-	assert.Equal(t, expectedText, RunAppForTest(t, []string{"get", "user_roles", "--json"}))
+	assert.Empty(t, runAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))
+	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles", "--json"}))
 }
 
 func TestDeleteBulkUsers(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	csvFilePath := writeTmpCsv(t,
 		`Email
 	user11@example.com
@@ -242,19 +225,17 @@ func TestDeleteBulkUsers(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 
-	// Allow deletion by returning multiple admins exist
-	ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-		return 2, nil
-	}
-
 	deletedUser := uint(0)
 
 	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
 		deletedUser = id
 		return nil
 	}
+	ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+		return nil
+	}
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"user", "delete-users", "--csv", csvFilePath}))
+	assert.Empty(t, runAppForTest(t, []string{"user", "delete-users", "--csv", csvFilePath}))
 	for indx, user := range users {
 		deletedUser = deletedUserIds[indx]
 		assert.Equal(t, user.ID, deletedUser)

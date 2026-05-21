@@ -3,7 +3,8 @@
     {
       "version": "3.0.23",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'VLC media player' AND publisher = 'VideoLAN';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'VLC media player' AND publisher = 'VideoLAN';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'VLC media player' AND publisher = 'VideoLAN' AND version_compare(version, '3.0.23') < 0);"
       },
       "installer_url": "https://download.videolan.org/pub/videolan/vlc/3.0.23/win64/vlc-3.0.23-win64.msi",
       "install_script_ref": "8959087b",

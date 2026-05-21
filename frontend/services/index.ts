@@ -3,8 +3,9 @@ import axios, {
   ResponseType as AxiosResponseType,
   AxiosProgressEvent,
 } from "axios";
+
 import URL_PREFIX from "router/url_prefix";
-import { authToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 
 export const sendRequestWithProgress = async ({
   method,
@@ -32,7 +33,6 @@ export const sendRequestWithProgress = async ({
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
-  const token = authToken();
 
   try {
     const response = await axios({
@@ -42,7 +42,7 @@ export const sendRequestWithProgress = async ({
       responseType,
       timeout,
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${authToken.get()}`,
       },
       onDownloadProgress,
       onUploadProgress,
@@ -79,7 +79,6 @@ export const sendRequest = async (
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
-  const token = authToken();
 
   try {
     const response = await axios({
@@ -89,7 +88,7 @@ export const sendRequest = async (
       responseType,
       timeout,
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${authToken.get()}`,
       },
     });
 
@@ -128,7 +127,6 @@ export const sendRequestWithHeaders = async (
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
-  const token = authToken();
 
   try {
     const response = await axios({
@@ -138,7 +136,7 @@ export const sendRequestWithHeaders = async (
       responseType,
       timeout,
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${authToken.get()}`,
         ...customHeaders,
       },
     });
@@ -193,7 +191,6 @@ export const sendRequestWithProgressAndHeaders = async ({
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
-  const token = authToken();
 
   try {
     const response = await axios({
@@ -203,7 +200,7 @@ export const sendRequestWithProgressAndHeaders = async ({
       responseType,
       timeout,
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${authToken.get()}`,
         ...customHeaders,
       },
       onDownloadProgress,

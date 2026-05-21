@@ -10,7 +10,6 @@ import {
   trimEnd,
   union,
   uniqueId,
-  upperFirst,
 } from "lodash";
 import md5 from "js-md5";
 import {
@@ -56,9 +55,10 @@ import {
   isPlatformLabelNameFromAPI,
 } from "utilities/constants";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import CustomLink from "components/CustomLink";
 
-const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
+const ORG_INFO_ATTRS = ["org_name"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 
 export const addGravatarUrlToResource = (resource: any): any => {
@@ -222,7 +222,7 @@ export const formatScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -242,7 +242,7 @@ export const formatScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -280,7 +280,7 @@ export const formatScheduledQueryForClient = (
 
 export const formatGlobalScheduledQueryForServer = (
   scheduledQuery: IScheduledQuery
-): IScheduledQuery => {
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -288,7 +288,7 @@ export const formatGlobalScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -304,7 +304,7 @@ export const formatGlobalScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -351,7 +351,7 @@ export const formatTeamScheduledQueryForServer = (
     shard,
     team_id: teamID,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id", "team_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -367,7 +367,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -375,7 +375,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (teamID) {
-    result.query_id = Number(teamID);
+    (result as any).fleet_id = Number(teamID);
   }
 
   return result;
@@ -517,15 +517,13 @@ export const greyCell = (roleOrTeamText: string): boolean => {
   );
 };
 
-const setupData = (formData: any) => {
+const setupData = (formData: IRegistrationFormData) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
 
   return {
     server_url: formData.server_url,
-    org_info: {
-      ...orgInfo,
-    },
+    org_info: orgInfo,
     admin: {
       admin: true,
       ...adminInfo,
@@ -728,9 +726,9 @@ export const getPerformanceImpactIndicatorTooltip = (
     case PerformanceImpactIndicatorValue.UNDETERMINED:
       return (
         <>
-          Performance impact will be available when{" "}
-          {isHostSpecific ? "the" : "this"} <br />
-          report runs{isHostSpecific && " on this host"}.
+          Performance impact will be available
+          <br /> when {isHostSpecific ? "the" : "this"} report runs
+          {isHostSpecific && " on this host"}.
         </>
       );
     default:
@@ -761,8 +759,7 @@ export const secondsToHms = (d: number): string => {
 export const abbreviateTimeUnits = (str: string): string =>
   str.replace("minute", "min").replace("second", "sec");
 
-// TODO: Type any because ts files missing the following properties from type 'JSON': parse, stringify, [Symbol.toStringTag]
-export const syntaxHighlight = (json: any): string => {
+export const syntaxHighlight = (json: unknown): string => {
   let jsonStr: string = JSON.stringify(json, undefined, 2);
   jsonStr = jsonStr
     .replace(/&/g, "&amp;")

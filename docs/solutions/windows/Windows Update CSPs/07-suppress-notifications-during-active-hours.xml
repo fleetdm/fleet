@@ -1,0 +1,7 @@
+<Replace>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/NoUpdateNotificationsDuringActiveHours</LocURI></Target>
+    <Data>1</Data>
+  </Item>
+</Replace>

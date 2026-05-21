@@ -5,6 +5,9 @@ spec:
   features:
     enable_host_users: false
     enable_software_inventory: false
+    historical_data:
+      uptime: true
+      vulnerabilities: true
   fleet_desktop:
     transparency_url: https://fleetdm.com/transparency
     alternative_browser_host: ""
@@ -14,6 +17,7 @@ spec:
   activity_expiry_settings:
     activity_expiry_enabled: false
     activity_expiry_window: 0
+    preserve_host_activities_on_reenrollment: false
   conditional_access:
     microsoft_entra_tenant_id: ""
     microsoft_entra_connection_configured: false
@@ -37,29 +41,52 @@ spec:
     enabled_and_configured: true
     windows_enabled_and_configured: false
     enable_disk_encryption: false
+    enable_recovery_lock_password: false
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
+    apple_require_hardware_attestation: false
     macos_migration:
       enable: false
       mode: ""
       webhook_url: ""
     macos_settings:
       custom_settings: null
+    apple_settings:
+      configuration_profiles: null
     windows_settings:
       custom_settings: null
+      configuration_profiles: null
     android_settings:
       custom_settings: null
+      configuration_profiles: null
       certificates: null
     macos_setup:
       bootstrap_package: null
       enable_end_user_authentication: false
+      enable_managed_local_account: false
+      end_user_local_account_type: "admin"
+      lock_end_user_info: false
       macos_setup_assistant: null
       manual_agent_install: null
       require_all_software_macos: false
+      require_all_software_windows: false
       enable_release_device_manually: false
       script: null
+      software: null
+    setup_experience:
+      macos_bootstrap_package: null
+      enable_create_local_admin_account: false
+      enable_end_user_authentication: false
+      end_user_local_account_type: "admin"
+      lock_end_user_info: false
+      apple_setup_assistant: null
+      macos_manual_agent_install: null
+      require_all_software_macos: false
+      require_all_software_windows: false
+      apple_enable_release_device_manually: false
+      macos_script: null
       software: null
     macos_updates:
       deadline: null
@@ -86,6 +113,8 @@ spec:
   org_info:
     org_logo_url: ""
     org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: "Fleet"
     contact_url: "https://fleetdm.com/company/contact"
   server_settings:
@@ -150,3 +179,7 @@ spec:
   gitops:
     gitops_mode_enabled: false
     repository_url: ""
+    exceptions:
+      labels: false
+      software: false
+      secrets: false

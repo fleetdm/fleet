@@ -83,9 +83,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			return ctxerr.Wrap(ctx, err, "amount active users")
 		}
 		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
-		if err == sql.ErrNoRows {
-			ds.logger.DebugContext(ctx, "amount policy violation days", "err", err)
-		} else if err != nil {
+		if err != nil && err != sql.ErrNoRows {
 			return ctxerr.Wrap(ctx, err, "amount policy violation days")
 		}
 		storedErrs, err := ctxerr.Aggregate(ctx)
@@ -136,6 +134,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.MDMMacOsEnabled = appConfig.MDM.EnabledAndConfigured
 		stats.HostExpiryEnabled = appConfig.HostExpirySettings.HostExpiryEnabled
 		stats.MDMWindowsEnabled = appConfig.MDM.WindowsEnabledAndConfigured
+		stats.MDMRecoveryLockPasswordEnabled = appConfig.MDM.EnableRecoveryLockPassword.Value
 		stats.LiveQueryDisabled = appConfig.ServerSettings.LiveQueryDisabled
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
 		stats.NumWeeklyPolicyViolationDaysActual = amountPolicyViolationDaysActual
@@ -170,10 +169,23 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.FleetMaintainedAppsMacOS = fleetMaintainedAppsMacOS
 		stats.FleetMaintainedAppsWindows = fleetMaintainedAppsWindows
 
+		stats.ConditionalAccessEnabled, err = ds.conditionalAccessEnabledOnATeam(ctx, teams)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "conditional access enabled on a team")
+		}
+
 		if appConfig.ConditionalAccess != nil {
 			stats.OktaConditionalAccessConfigured = appConfig.ConditionalAccess.OktaConfigured()
 			stats.ConditionalAccessBypassDisabled = !appConfig.ConditionalAccess.BypassEnabled()
 		}
+
+		stats.EntraConditionalAccessConfigured, err = ds.entraConditionalAccessConfigured(ctx, config)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "entra conditional access configured")
+		}
+
+		stats.GitOpsModeEnabled = appConfig.GitOpsConfig.GitopsModeEnabled
+		stats.GitOpsModeExceptions = gitOpsExceptionsList(appConfig.GitOpsConfig.Exceptions)
 
 		return nil
 	}
@@ -264,7 +276,7 @@ func (ds *Datastore) getTableRowCountsViaInformationSchema(ctx context.Context) 
 		return nil, err
 	}
 
-	var byName = make(map[string]uint)
+	byName := make(map[string]uint)
 	for _, row := range results {
 		byName[row.Table] = row.Rows
 	}
@@ -304,4 +316,56 @@ func fleetMaintainedAppsInUseDB(ctx context.Context, db sqlx.QueryerContext) (ma
 	}
 
 	return macOSApps, windowsApps, nil
+}
+
+func (ds *Datastore) entraConditionalAccessConfigured(ctx context.Context, fleetConfig config.FleetConfig) (bool, error) {
+	// Check if the needed server configuration for Conditional Access is set.
+	if !fleetConfig.MicrosoftCompliancePartner.IsSet() {
+		return false, nil
+	}
+
+	// Check if the integration is fully configured.
+	integration, err := ds.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "failed to load the integration")
+	}
+	return integration.SetupDone, nil
+}
+
+// gitOpsExceptionsList returns the names of enabled GitOps mode exceptions, in a stable order.
+// Always returns a non-nil slice so the payload serializes as [] when empty.
+func gitOpsExceptionsList(e fleet.GitOpsExceptions) []string {
+	exceptions := make([]string, 0, 3)
+	if e.Labels {
+		exceptions = append(exceptions, "labels")
+	}
+	if e.Software {
+		exceptions = append(exceptions, "software")
+	}
+	if e.Secrets {
+		exceptions = append(exceptions, "secrets")
+	}
+	return exceptions
+}
+
+func (ds *Datastore) conditionalAccessEnabledOnATeam(ctx context.Context, teams []*fleet.Team) (bool, error) {
+	// Check configuration for "Unassigned" is stored in the main appconfig.
+	cfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "failed to load appconfig")
+	}
+	if cfg.Integrations.ConditionalAccessEnabled.Set && cfg.Integrations.ConditionalAccessEnabled.Value {
+		return true, nil
+	}
+
+	// Check for the setting in teams.
+	for _, team := range teams {
+		if team.Config.Integrations.ConditionalAccessEnabled.Set && team.Config.Integrations.ConditionalAccessEnabled.Value {
+			return true, nil
+		}
+	}
+	return false, nil
 }

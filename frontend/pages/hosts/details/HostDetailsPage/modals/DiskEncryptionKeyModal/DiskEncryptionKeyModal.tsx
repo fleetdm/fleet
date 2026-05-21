@@ -30,7 +30,7 @@ const DiskEncryptionKeyModal = ({
     IHostEncrpytionKeyResponse,
     unknown,
     string
-  >("hostEncrpytionKey", () => hostAPI.getEncryptionKey(hostId), {
+  >(["hostEncrpytionKey", hostId], () => hostAPI.getEncryptionKey(hostId), {
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
@@ -66,7 +66,7 @@ const DiskEncryptionKeyModal = ({
             />
           </p>
           <div className="modal-cta-wrap">
-            <Button onClick={onCancel}>Done</Button>
+            <Button onClick={onCancel}>Close</Button>
           </div>
         </>
       )}

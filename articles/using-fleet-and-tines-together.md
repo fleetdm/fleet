@@ -10,7 +10,7 @@ First, by leveraging the “Software” tab, you can add a filter that will disp
 
 ![](../website/assets/images/articles/using-fleet-and-tines-together-filter-800x450@2x.gif)
 
-From the “Hosts” column, you can see the count of hosts in the respective team that have the vulnerable software installed. If you click “View all hosts,” you can get the list of hosts displayed. Additionally, in this view, you can export the list of hosts to take further action toward remediation or compliance reporting.
+From the “Hosts” column, you can see the count of hosts in the respective fleet that have the vulnerable software installed. If you click “View all hosts,” you can get the list of hosts displayed. Additionally, in this view, you can export the list of hosts to take further action toward remediation or compliance reporting.
 
 ![](../website/assets/images/articles/using-fleet-and-tines-together-hosts-800x450@2x.gif)
 
@@ -22,11 +22,11 @@ Out of the box, Tines just knows about Fleet. They have a concept called “Temp
 
 ![](../website/assets/images/articles/using-fleet-and-tines-together-templates-1600x897@2x.png)
 
-I will use the HTTP Request element to access the “Get Specific Host” information in this example. In order to query all the information about a host, I simply need the Host ID or UUID. The Host ID is accessible by navigating to the host's detail page in Fleet, and the ID will be present in the browser as `https://<fleetserver>/hosts/<host_id>`. Alternatively, you can get the Host UUID from the columns list on the main Hosts page.
+I will use the HTTP Request element to access the “Get Specific Host” information in this example. In order to get all the information about a host, I simply need the Host ID or UUID. The Host ID is accessible by navigating to the host's detail page in Fleet, and the ID will be present in the browser as `https://<fleetserver>/hosts/<host_id>`. Alternatively, you can get the Host UUID from the columns list on the main Hosts page.
 
 ![](../website/assets/images/articles/using-fleet-and-tines-together-columns-list-1402x1556@2x.png)
 
-Before we can make a query in Tines, we will need to get an API key and user setup in Fleet. Please refer to our [API documentation regarding Authentication](https://fleetdm.com/docs/using-fleet/rest-api#retrieve-your-api-token). Once you have your API token, head over to Tines and add it to the Credentials section. Out of the box, there will be a text-based credential item that is used in the Tines “fleet” Templates called “fleet\_dm\_API\_key”. In the “Credentials” section of Tines, you will need to create this credential to match what the templates are referencing (fleet\_dm\_API\_key).
+Before we can make a report in Tines, we will need to get an API key and user setup in Fleet. Please refer to our [API documentation regarding Authentication](https://fleetdm.com/docs/using-fleet/rest-api#retrieve-your-api-token). Once you have your API token, head over to Tines and add it to the Credentials section. Out of the box, there will be a text-based credential item that is used in the Tines “fleet” Templates called “fleet\_dm\_API\_key”. In the “Credentials” section of Tines, you will need to create this credential to match what the templates are referencing (fleet\_dm\_API\_key).
 
 ![](../website/assets/images/articles/using-fleet-and-tines-together-API-key-1600x1172@2x.png)
 
@@ -34,7 +34,7 @@ Enter “Bearer \<your token>” in the “Value” field, where \<your token> i
 
 ![](../website/assets/images/articles/using-fleet-and-tines-together-resource-1600x1356@2x.png)
 
-Now that you have Tines configured to pre-populate the Fleet API token and server name, let us build on our example above by adding an “Event Transform” so that we can take the Event Response of the “Get Specific Host” query and remove any software from the list where vulnerabilities do not exist. In order to accomplish this, add the following code to the Payload Builder:
+Now that you have Tines configured to pre-populate the Fleet API token and server name, let us build on our example above by adding an “Event Transform” so that we can take the Event Response of the “Get Specific Host” report and remove any software from the list where vulnerabilities do not exist. In order to accomplish this, add the following code to the Payload Builder:
 
 ```
 WHERE(get_specific_host.body.host.software,'vulnerabilities')
@@ -50,7 +50,7 @@ JSONPATH(vulnerabilites_not_null, "*.vulnerabilities[?(@.cvss_score>9.0)]")
 
 ![](../website/assets/images/articles/using-fleet-and-tines-together-json-path-1600x881@2x.png)
 
-Lastly, I’m going to use the response from the previous query to build my “Send Email” function. 
+Lastly, I’m going to use the response from the previous report to build my “Send Email” function. 
 
 In the Tines Editor, the formatting would look something like this:
 

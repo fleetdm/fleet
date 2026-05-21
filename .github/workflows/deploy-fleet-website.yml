@@ -24,6 +24,10 @@ defaults:
 permissions:
   contents: read
 
+env:
+  # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
+  NPM_CONFIG_MIN_RELEASE_AGE: 0.5
+
 jobs:
   build:
     if: ${{ github.repository == 'fleetdm/fleet' }}
@@ -63,7 +67,7 @@ jobs:
 
     # Install the right version of Go for the Golang child process that we are currently using for CSR signing
     - name: Set up Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+      uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
       with:
         go-version-file: 'go.mod'
 

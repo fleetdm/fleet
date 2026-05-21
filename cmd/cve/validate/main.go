@@ -50,7 +50,12 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 	if !ok {
 		panic("failed to cast CVE-2025-0938 to a Vuln")
 	}
-	if len(vulnEntry.Schema().Configurations.Nodes) < 1 || len(vulnEntry.Schema().Configurations.Nodes[0].CPEMatch) < 6 {
+	// NVD lists CVE-2025-0938 as Deferred with no configurations, so any CPE match
+	// here proves VulnCheck enrichment ran. The threshold was previously the historical
+	// row count (6), which broke the daily release pipeline whenever VulnCheck dropped
+	// a row. Floor of 1 catches a complete enrichment failure for this CVE without
+	// breaking on per-CVE drift.
+	if len(vulnEntry.Schema().Configurations.Nodes) < 1 || len(vulnEntry.Schema().Configurations.Nodes[0].CPEMatch) < 1 {
 		panic(errors.New("enriched vulnerability spot-check failed for Python on CVE-2025-0938"))
 	}
 
@@ -71,6 +76,14 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 	if len(vulnEntry.Schema().Configurations.Nodes) < 1 || len(vulnEntry.Schema().Configurations.Nodes[0].CPEMatch) < 2 ||
 		vulnEntry.Schema().Configurations.Nodes[0].CPEMatch[1].VersionEndExcluding != "2403.1" {
 		panic(errors.New("enriched vulnerability spot-check failed for Citrix Workstation on CVE-2024-6286"))
+	}
+	for _, match := range vulnEntry.Schema().Configurations.Nodes[0].CPEMatch {
+		// there are a number of matches here with "ltsr" in their cpe23Uri but no versionEndExcluding.
+		// We are only interested in confirming that the `versionEndExcluding` for the match whose CPE
+		// contains "ltsr", which came from NVD with an incorrect value,has been replaced with "2402"
+		if strings.Contains(match.Cpe23Uri, ":ltsr:") && match.VersionEndExcluding != "" && match.VersionEndExcluding != "2402" {
+			panic(fmt.Errorf("CVE-2024-6286 LTSR versionEndExcluding spot-check failed: got %q, expected \"2402\"", match.VersionEndExcluding))
+		}
 	}
 
 	// check CVSS score extraction; confirm that secondary CVSS scores are extracted when primary isn't set

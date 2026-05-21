@@ -18,7 +18,7 @@ describe("AppleOSTargetForm", () => {
     withBackendMock: true,
   });
   const updateTeamConfigHandler = http.patch(
-    baseUrl("/teams/1"),
+    baseUrl("/fleets/1"),
     async ({ request }) => {
       requestBody = await request.json();
       return HttpResponse.json({});

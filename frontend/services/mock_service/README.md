@@ -58,7 +58,7 @@ You can declare different responses for specific route parameters or query param
 you can use wildcards if you don't particularly care what parameter value is contained in the request. 
 The example below shows how you might use wildcards or specific values as the `id` route parameter 
 to get a host's device mapping by host id and how you might use wildcards or specific values 
-for the `team_id` query parameter to get hosts filtered by team id.
+for the `team_id` query parameter to get hosts filtered by fleet id.
 ```js
 const REQUEST_RESPONSE_MAPPINGS = {
     GET: {

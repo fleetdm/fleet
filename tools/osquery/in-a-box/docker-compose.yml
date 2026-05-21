@@ -9,7 +9,7 @@ networks:
 
 services:
   mysql01:
-    image: mysql:8.0.36
+    image: mysql:8.0.44
     platform: linux/x86_64
     volumes:
       - .:/data
@@ -25,7 +25,7 @@ services:
       - fleet-preview
 
   redis01:
-    image: redis:6
+    image: redis:6.2
     networks:
       - fleet-preview
 
@@ -64,6 +64,8 @@ services:
       FLEET_VULNERABILITIES_PERIODICITY: 5m
       FLEET_LOGGING_DEBUG: 'true'
       FLEET_SERVER_PRIVATE_KEY: ${FLEET_SERVER_PRIVATE_KEY}
+      FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT: "${FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT:-}"
+      FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY: "${FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY:-}"
       # This can be configured for testing purposes but otherwise uses the
       # typical default of provided.
       FLEET_OSQUERY_HOST_IDENTIFIER: ${FLEET_OSQUERY_HOST_IDENTIFIER:-provided}
@@ -121,6 +123,8 @@ services:
       FLEET_OSQUERY_LABEL_UPDATE_INTERVAL: 1m
       FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS: "no"
       FLEET_SERVER_PRIVATE_KEY: ${FLEET_SERVER_PRIVATE_KEY}
+      FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT: "${FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT:-}"
+      FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY: "${FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY:-}"
       # This can be configured for testing purposes but otherwise uses the
       # typical default of provided.
       FLEET_OSQUERY_HOST_IDENTIFIER: ${FLEET_OSQUERY_HOST_IDENTIFIER:-provided}
@@ -136,12 +140,11 @@ services:
       - fleet-preview
 
   s3:
-    image: rustfs/rustfs:1.0.0-alpha.80
+    image: rustfs/rustfs:1.0.0-alpha.85
     entrypoint: sh
     command: -c 'mkdir -p /data/software-installers-preview && /usr/bin/rustfs /data'
     environment:
       - RUSTFS_ADDRESS=0.0.0.0:9000
-      - RUSTFS_EXTERNAL_ADDRESS=:9000
       - RUSTFS_ACCESS_KEY=locals3
       - RUSTFS_SECRET_KEY=locals3
     volumes:

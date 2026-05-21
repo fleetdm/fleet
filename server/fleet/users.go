@@ -12,6 +12,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// ErrLastGlobalAdmin is returned when an operation would remove the last global admin.
+var ErrLastGlobalAdmin = errors.New("cannot remove the last global admin")
+
 // UserSummary contains the minimal user fields.
 type UserSummary struct {
 	ID          uint   `db:"id"`
@@ -19,6 +22,32 @@ type UserSummary struct {
 	Email       string `db:"email"`
 	GravatarURL string `db:"gravatar_url"`
 	APIOnly     bool   `db:"api_only"`
+}
+
+// APIEndpointRef represents an endpoint an API-only user has access to.
+type APIEndpointRef struct {
+	Method string `json:"method"`
+	Path   string `json:"path"`
+}
+
+// OptionalAPIEndpoints is a JSON-nullable field that distinguishes three states
+// when decoding a PATCH request body:
+//
+//   - Field absent → Present=false: no change to the user's current endpoints.
+//   - Field is null → Present=true, Value=nil: clear all entries (full access).
+//   - Field is an array → Present=true, Value=[...]: replace with specific entries.
+type OptionalAPIEndpoints struct {
+	Present bool
+	Value   []APIEndpointRef
+}
+
+func (o *OptionalAPIEndpoints) UnmarshalJSON(data []byte) error {
+	o.Present = true
+	if string(data) == "null" {
+		o.Value = nil
+		return nil
+	}
+	return json.Unmarshal(data, &o.Value)
 }
 
 // User is the model struct that represents a Fleet user.
@@ -47,6 +76,10 @@ type User struct {
 
 	Settings *UserSettings `json:"settings,omitempty"`
 	Deleted  bool          `json:"-" db:"deleted"`
+
+	// APIEndpoints if this user is an API-only user, this returns
+	// a list of all end-points the user has access to.
+	APIEndpoints []APIEndpointRef `json:"api_endpoints,omitempty"`
 }
 
 type UserSettings struct {
@@ -197,6 +230,10 @@ type UserPayload struct {
 	NewPassword              *string       `json:"new_password,omitempty"`
 	Settings                 *UserSettings `json:"settings,omitempty"`
 	InviteID                 *uint         `json:"-"`
+
+	// If this is an API-only user, then this can be used to specify which
+	// API endpoints the user has access to
+	APIEndpoints *[]APIEndpointRef `json:"api_endpoints,omitempty"`
 }
 
 func (p *UserPayload) VerifyInviteCreate() error {
@@ -339,6 +376,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 	if p.APIOnly != nil {
 		user.APIOnly = *p.APIOnly
+		if p.APIEndpoints != nil {
+			user.APIEndpoints = *p.APIEndpoints
+		}
 	}
 	if p.Teams != nil {
 		user.Teams = *p.Teams
@@ -362,6 +402,9 @@ func (u *User) ValidatePassword(password string) error {
 }
 
 func (u *User) SetPassword(plaintext string, keySize, cost int) error {
+	if u.SSOEnabled {
+		return errors.New("set password for single sign on user not allowed")
+	}
 	if err := ValidatePasswordRequirements(plaintext); err != nil {
 		return err
 	}

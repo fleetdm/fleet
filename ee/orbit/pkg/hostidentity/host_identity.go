@@ -19,7 +19,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/rs/zerolog"
 )

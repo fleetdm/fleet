@@ -22,5 +22,9 @@
   &__edit-delete-btns {
     display: flex;
     gap: $pad-xsmall;
+
+    .button--icon__small {
+      @include bordered-icon-button;
+    }
   }
 }

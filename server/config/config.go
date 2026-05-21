@@ -16,7 +16,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"golang.org/x/net/http2"
@@ -89,6 +88,18 @@ type RedisConfig struct {
 	ConnWaitTimeout time.Duration `yaml:"conn_wait_timeout"`
 	WriteTimeout    time.Duration `yaml:"write_timeout"`
 	ReadTimeout     time.Duration `yaml:"read_timeout"`
+	// HostCacheEnabled turns on the Redis-backed cache that fronts
+	// LoadHostByNodeKey and LoadHostByOrbitNodeKey on the osquery and orbit
+	// authentication paths. When false, every authenticated request resolves the
+	// host from MySQL; when true (default), successful lookups are cached in
+	// Redis and invalidated on write paths. Hidden from --help: this is a
+	// feature flag, not an operator-facing tunable. See
+	// server/datastore/mysqlredis/host_cache.go.
+	HostCacheEnabled bool `yaml:"host_cache_enabled"`
+	// HostCacheTTL is the base TTL for cached host lookup entries. Actual
+	// per-entry TTL is jittered by ±10% to avoid synchronized expiry waves.
+	// Only meaningful when HostCacheEnabled is true. Hidden from --help.
+	HostCacheTTL time.Duration `yaml:"host_cache_ttl"`
 }
 
 const (
@@ -211,6 +222,28 @@ type OsqueryConfig struct {
 	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
+
+	// MaxLogWriteBodySize overrides the default request body size limit
+	// for the /api/osquery/log endpoint. A value of 0 means use the
+	// built-in default (DefaultMaxOsqueryLogWriteSize). This setting
+	// only takes effect when allow_body_auth_fallback is true (legacy
+	// body-auth mode). When allow_body_auth_fallback is false (header-
+	// auth mode) the route is not subject to any body size limit.
+	MaxLogWriteBodySize int64 `yaml:"max_log_write_body_size"`
+	// MaxDistributedWriteBodySize is the equivalent of MaxLogWriteBodySize
+	// for /api/osquery/distributed/write.
+	MaxDistributedWriteBodySize int64 `yaml:"max_distributed_write_body_size"`
+
+	// AllowBodyAuthFallback selects which authentication scheme is in
+	// effect for host-authenticated osquery requests.
+	//
+	//   - true (default): the Authorization: NodeKey header is ignored
+	//     entirely. The node_key extracted from the JSON body
+	//     is the sole authenticator.
+	//   - false: the Authorization: NodeKey header is required and the
+	//     body's node_key field is ignored. Pre-auth rejects
+	//     absent/invalid headers BEFORE the body is read.
+	AllowBodyAuthFallback bool `yaml:"allow_body_auth_fallback"`
 }
 
 // AsyncTaskName is the type of names that identify tasks supporting
@@ -324,6 +357,7 @@ type SESConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StsExternalID    string `yaml:"sts_external_id"`
 	SourceArn        string `yaml:"source_arn"`
+	SenderDomain     string `yaml:"sender_domain"`
 }
 
 type EmailConfig struct {
@@ -589,6 +623,7 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
+	OSVForVulnerabilities       bool          `json:"osv_for_vulnerabilities" yaml:"osv_for_vulnerabilities"`
 	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
 }
 
@@ -772,9 +807,6 @@ type MDMConfig struct {
 	// AppleSCEPSignerValidityDays are the days signed client certificates will
 	// be valid.
 	AppleSCEPSignerValidityDays int `yaml:"apple_scep_signer_validity_days"`
-	// AppleSCEPSignerAllowRenewalDays are the allowable renewal days for
-	// certificates.
-	AppleSCEPSignerAllowRenewalDays int `yaml:"apple_scep_signer_allow_renewal_days"`
 	// AppleConnectJWT is the Apple Connect JWT used to access VPP app metadata.
 	// If supplied, Fleet will contact the Apple API directly rather than checking the Fleet proxy
 	AppleConnectJWT string `yaml:"apple_vpp_app_metadata_api_bearer_token"`
@@ -800,7 +832,9 @@ type MDMConfig struct {
 	microsoftWSTEPKeyPEM  []byte
 
 	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
+	CertificateProfilesLimit          int  `yaml:"certificate_profiles_limit"`
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
+	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
 
 	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
 }
@@ -1190,6 +1224,13 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
 	man.addConfigString("redis.sts_assume_role_arn", "", "ARN of role to assume for AWS authentication")
 	man.addConfigString("redis.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity")
+	man.addConfigBool("redis.host_cache_enabled", true,
+		"Enable Redis-backed cache for host lookups on the osquery and orbit auth paths. Disable to bypass the cache "+
+			"and serve every check-in from MySQL.")
+	man.addConfigDuration("redis.host_cache_ttl", 60*time.Second,
+		"Base TTL for Redis-backed host lookup cache entries. Actual per-entry TTL is jittered by ±10% to avoid "+
+			"synchronized expiry waves. Must be > 0 when redis.host_cache_enabled is true; set "+
+			"redis.host_cache_enabled=false to disable the cache.")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -1234,7 +1275,7 @@ func (man Manager) addConfigs() {
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
 		"Size of salt for passwords")
-	man.addConfigDuration("auth.sso_session_validity_period", 5*time.Minute,
+	man.addConfigDuration("auth.sso_session_validity_period", 15*time.Minute,
 		"Timeout from SSO start to SSO callback")
 	man.addConfigBool("auth.require_http_message_signature", false,
 		"Require HTTP message signatures for fleetd requests (Premium feature)")
@@ -1300,8 +1341,14 @@ func (man Manager) addConfigs() {
 		"Batch size to pop items from redis in async collection")
 	man.addConfigInt("osquery.async_host_redis_scan_keys_count", 1000,
 		"Batch size to scan redis keys in async collection")
-	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
+	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
+	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
+		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
+	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
+		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
+	man.addConfigBool("osquery.allow_body_auth_fallback", true,
+		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,
@@ -1340,6 +1387,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("ses.sts_assume_role_arn", "", "ARN of role to assume for AWS")
 	man.addConfigString("ses.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigString("ses.source_arn", "", "ARN of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter")
+	man.addConfigString("ses.sender_domain", "", "Optional domain to use in the From address for SES emails. If empty, Fleet uses the hostname from the Fleet Web Address (server_settings.server_url)")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -1524,6 +1572,11 @@ func (man Manager) addConfigs() {
 		false,
 		"Don't sync installed Windows updates nor perform Windows OS vulnerability processing.",
 	)
+	man.addConfigBool(
+		"vulnerabilities.osv_for_vulnerabilities",
+		true,
+		"Use OSV (osv.dev) format for vulnerability detection instead of OVAL where supported.",
+	)
 	man.addConfigInt(
 		"vulnerabilities.max_concurrency",
 		1,
@@ -1569,15 +1622,14 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_scep_cert_bytes", "", "Apple SCEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
 	man.addConfigString("mdm.apple_scep_key_bytes", "", "Apple SCEP PEM-encoded private key bytes")
-	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business Manager encrypted server token path (.p7m file)")
-	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business Manager encrypted server token bytes")
-	man.addConfigString("mdm.apple_bm_cert", "", "Apple Business Manager PEM-encoded certificate path")
-	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business Manager PEM-encoded certificate bytes")
-	man.addConfigString("mdm.apple_bm_key", "", "Apple Business Manager PEM-encoded private key path")
-	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business Manager PEM-encoded private key bytes")
+	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business encrypted server token path (.p7m file)")
+	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business encrypted server token bytes")
+	man.addConfigString("mdm.apple_bm_cert", "", "Apple Business PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business PEM-encoded certificate bytes")
+	man.addConfigString("mdm.apple_bm_key", "", "Apple Business PEM-encoded private key path")
+	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business PEM-encoded private key bytes")
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
-	man.addConfigInt("mdm.apple_scep_signer_allow_renewal_days", 14, "Allowable renewal days for client certificates")
 	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
@@ -1586,7 +1638,9 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
-	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Experimental feature: allows usage of specific Apple MDM profiles for OS updates and FileVault")
+	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
+	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for OS updates and FileVault (Fleet Premium required)")
+	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
@@ -1605,7 +1659,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 
-	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
+	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
 
 	// Conditional Access
 	man.addConfigString("conditional_access.cert_serial_format", "hex",
@@ -1678,6 +1732,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 			StsAssumeRoleArn:          man.getConfigString("redis.sts_assume_role_arn"),
 			StsExternalID:             man.getConfigString("redis.sts_external_id"),
+			HostCacheEnabled:          man.getConfigBool("redis.host_cache_enabled"),
+			HostCacheTTL:              man.getConfigDuration("redis.host_cache_ttl"),
 		},
 		Server: ServerConfig{
 			Address:                          man.getConfigString("server.address"),
@@ -1745,6 +1801,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			AsyncHostRedisPopCount:           man.getConfigInt("osquery.async_host_redis_pop_count"),
 			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
+			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
+			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
+			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
@@ -1805,6 +1864,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("ses.sts_assume_role_arn"),
 			StsExternalID:    man.getConfigString("ses.sts_external_id"),
 			SourceArn:        man.getConfigString("ses.source_arn"),
+			SenderDomain:     man.getConfigString("ses.sender_domain"),
 		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),
@@ -1865,6 +1925,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
+			OSVForVulnerabilities:       man.getConfigBool("vulnerabilities.osv_for_vulnerabilities"),
 			MaxConcurrency:              man.getConfigInt("vulnerabilities.max_concurrency"),
 		},
 		Upgrades: UpgradesConfig{
@@ -1901,7 +1962,6 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
 			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
 			AppleConnectJWT:                   man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
-			AppleSCEPSignerAllowRenewalDays:   man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),
 			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
 			WindowsWSTEPIdentityCert:          man.getConfigString("mdm.windows_wstep_identity_cert"),
@@ -1909,7 +1969,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
+			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
+			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
@@ -2289,15 +2351,16 @@ func TestConfig() FleetConfig {
 			Duration: 24 * 5 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:          24,
-			HostIdentifier:       "instance",
-			EnrollCooldown:       42 * time.Minute,
-			StatusLogPlugin:      "filesystem",
-			ResultLogPlugin:      "filesystem",
-			LabelUpdateInterval:  1 * time.Hour,
-			PolicyUpdateInterval: 1 * time.Hour,
-			DetailUpdateInterval: 1 * time.Hour,
-			MaxJitterPercent:     0,
+			NodeKeySize:           24,
+			HostIdentifier:        "instance",
+			EnrollCooldown:        42 * time.Minute,
+			StatusLogPlugin:       "filesystem",
+			ResultLogPlugin:       "filesystem",
+			LabelUpdateInterval:   1 * time.Hour,
+			PolicyUpdateInterval:  1 * time.Hour,
+			DetailUpdateInterval:  1 * time.Hour,
+			MaxJitterPercent:      0,
+			AllowBodyAuthFallback: true,
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,
@@ -2318,7 +2381,18 @@ func TestConfig() FleetConfig {
 			// smaller than normal max to allow for testing max in CI, while being above the multipart chunk size
 			MaxInstallerSizeBytes: 513 * units.MiB,
 		},
+		Vulnerabilities: VulnerabilitiesConfig{
+			OSVForVulnerabilities: true,
+		},
 	}
+}
+
+// TestingT is the subset of *testing.T that SetTestMDMConfig needs.
+// *testing.T (and testing.TB) satisfy it without an explicit conversion, so
+// callers continue to pass `t` as-is. Defining this interface locally keeps
+// the "testing" package out of this package's production import graph.
+type TestingT interface {
+	Fatal(args ...any)
 }
 
 // SetTestMDMConfig modifies the provided cfg so that MDM is enabled and
@@ -2326,7 +2400,7 @@ func TestConfig() FleetConfig {
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
+func SetTestMDMConfig(t TestingT, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 
 	if wstepCertAndKeyDir == "" {

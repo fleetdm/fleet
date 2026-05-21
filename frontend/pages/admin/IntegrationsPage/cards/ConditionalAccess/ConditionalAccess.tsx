@@ -21,7 +21,7 @@ import {
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import { AppContext } from "context/app";
-import Spinner from "components/Spinner";
+
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import { useQuery } from "react-query";
 import DataError from "components/DataError";
@@ -29,6 +29,8 @@ import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
+
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 import SectionCard from "../MdmSettings/components/SectionCard";
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
@@ -130,27 +132,25 @@ const DeleteConditionalAccessModal = ({
       onExit={toggleDeleteConditionalAccessModal}
       onEnter={handleDelete}
     >
-      <>
-        {copy}
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            variant="alert"
-            onClick={handleDelete}
-            isLoading={isDeleting}
-            disabled={isDeleting}
-          >
-            Delete
-          </Button>
-          <Button
-            onClick={toggleDeleteConditionalAccessModal}
-            variant="inverse-alert"
-            disabled={isDeleting}
-          >
-            Cancel
-          </Button>
-        </div>
-      </>
+      {copy}
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          variant="alert"
+          onClick={handleDelete}
+          isLoading={isDeleting}
+          disabled={isDeleting}
+        >
+          Delete
+        </Button>
+        <Button
+          onClick={toggleDeleteConditionalAccessModal}
+          variant="inverse-alert"
+          disabled={isDeleting}
+        >
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };
@@ -298,7 +298,11 @@ const ConditionalAccess = () => {
   }, [entraTenantId, entraConfigured, entraPhase]);
 
   if (!isPremiumTier) {
-    return <PremiumFeatureMessage />;
+    return (
+      <SettingsSection title="Conditional access">
+        <PremiumFeatureMessage />
+      </SettingsSection>
+    );
   }
 
   // HANDLERS
@@ -551,15 +555,15 @@ const ConditionalAccess = () => {
               <TooltipWrapper
                 tipContent={
                   <>
-                    When enabled, disables the per-policy setting to allow
-                    bypassing Okta conditional access.{" "}
+                    Disables bypassing Okta conditional access for non-critical
+                    policies.{" "}
                     <em>
                       (Default: <strong>Off</strong>)
                     </em>
                     <br />
                     <br />
                     Bypassing is valid for a single login attempt and is tracked
-                    in audit logs.
+                    in audit logs. Critical policies can never be bypassed.
                   </>
                 }
                 showArrow={false}

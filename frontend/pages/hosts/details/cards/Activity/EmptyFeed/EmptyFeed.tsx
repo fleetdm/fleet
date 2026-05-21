@@ -1,7 +1,6 @@
 import React from "react";
-import classnames from "classnames";
 
-const baseClass = "empty-feed";
+import EmptyState from "components/EmptyState";
 
 interface IEmptyFeedProps {
   title: string;
@@ -10,13 +9,13 @@ interface IEmptyFeedProps {
 }
 
 const EmptyFeed = ({ title, message, className }: IEmptyFeedProps) => {
-  const classNames = classnames(baseClass, className);
-
   return (
-    <div className={classNames}>
-      <p className={`${baseClass}__title`}>{title}</p>
-      <p>{message}</p>
-    </div>
+    <EmptyState
+      variant="list"
+      header={title}
+      info={message}
+      className={className}
+    />
   );
 };
 

@@ -6,19 +6,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
-	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/googleapi"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
+
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/googleapi"
 )
 
 // GoogleCalendarLoadAPI is used for load testing.
 type GoogleCalendarLoadAPI struct {
-	Logger            *logging.Logger
+	Logger            *slog.Logger
 	baseUrl           string
 	userToImpersonate string
 	ctx               context.Context
@@ -30,7 +31,7 @@ type GoogleCalendarLoadAPI struct {
 func (lowLevelAPI *GoogleCalendarLoadAPI) Configure(ctx context.Context, _ string, privateKey string, userToImpersonate string,
 	serverURL string) error {
 	if lowLevelAPI.Logger == nil {
-		lowLevelAPI.Logger = logging.NewLogfmtLogger(os.Stderr).With("mock", "GoogleCalendarLoadAPI", "user", userToImpersonate)
+		lowLevelAPI.Logger = slog.New(slog.NewTextHandler(os.Stderr, nil)).With("mock", "GoogleCalendarLoadAPI", "user", userToImpersonate)
 	}
 	lowLevelAPI.baseUrl = privateKey
 	lowLevelAPI.userToImpersonate = userToImpersonate

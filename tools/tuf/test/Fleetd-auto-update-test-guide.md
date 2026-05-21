@@ -20,9 +20,9 @@ source ./tools/tuf/test/load_orbit_version_vars.sh
 
 Build:
 ```sh
-GOOS=darwin GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit-darwin ./orbit/cmd/orbit
-GOOS=linux GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit-linux ./orbit/cmd/orbit
-GOOS=windows GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit.exe ./orbit/cmd/orbit
+GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit-darwin ./orbit/cmd/orbit
+GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit-linux ./orbit/cmd/orbit
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit.exe ./orbit/cmd/orbit
 ```
 Push:
 ```sh
@@ -76,6 +76,6 @@ Release:
 
 ## Verify auto-update
 
-1. Run the following live query on the hosts: `SELECT * FROM orbit_info;`. The query should now return `version=$ORBIT_VERSION`.
-2. Run the following live query on the hosts: `SELECT * FROM osquery_info;`. The query should now return `version=5.11.0`.
+1. Run the following live report on the hosts: `SELECT * FROM orbit_info;`. The report should now return `version=$ORBIT_VERSION`.
+2. Run the following live report on the hosts: `SELECT * FROM osquery_info;`. The report should now return `version=5.11.0`.
 3. Verify all hosts now show "Fleet Desktop $ORBIT_VERSION" on the Fleet Desktop menu.

@@ -20,7 +20,7 @@ import DataError from "components/DataError";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import {
@@ -71,7 +71,7 @@ const Certificates = ({
     [
       {
         scope: "certificates",
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         page: currentPage,
         per_page: 10,
       },
@@ -110,15 +110,16 @@ const Certificates = ({
     }
     if (!androidMdmEnabled) {
       return (
-        <div className={`${baseClass}__mdm-disabled-message`}>
-          <GenericMsgWithNavButton
-            header="Manage your hosts"
-            buttonText="Turn on"
-            path={PATHS.ADMIN_INTEGRATIONS_MDM}
-            router={router}
-            info="Android MDM must be turned on to apply custom settings."
-          />
-        </div>
+        <EmptyState
+          variant="header-list"
+          header="Additional configuration required"
+          info="Android MDM must be turned on to add certificates."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
+        />
       );
     }
     if (isLoadingCerts) {

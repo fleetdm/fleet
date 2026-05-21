@@ -48,7 +48,7 @@ func (tdb *TestDB) Conns() *common_mysql.DBConnections {
 // TruncateTables clears the tables used by activity bounded context.
 func (tdb *TestDB) TruncateTables(t *testing.T) {
 	t.Helper()
-	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil, "host_activities", "activities", "hosts", "users")
+	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil, "activity_host_past", "activity_past", "hosts", "users")
 }
 
 // InsertUser creates a user in the database and returns the user ID.
@@ -64,7 +64,7 @@ func (tdb *TestDB) InsertUser(t *testing.T, name, email string) uint {
 
 	id, err := result.LastInsertId()
 	require.NoError(t, err)
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 // InsertActivity creates an activity in the database and returns the activity ID.
@@ -97,14 +97,14 @@ func (tdb *TestDB) InsertActivityWithTime(t *testing.T, userID *uint, activityTy
 	}
 
 	result, err := tdb.DB.ExecContext(ctx, `
-		INSERT INTO activities (user_id, user_name, user_email, activity_type, details, created_at, host_only, streamed)
+		INSERT INTO activity_past (user_id, user_name, user_email, activity_type, details, created_at, host_only, streamed)
 		VALUES (?, ?, ?, ?, ?, ?, false, false)
 	`, userID, userName, userEmail, activityType, detailsJSON, createdAt)
 	require.NoError(t, err)
 
 	id, err := result.LastInsertId()
 	require.NoError(t, err)
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 // InsertHost creates a host in the database and returns the host ID.
@@ -120,16 +120,16 @@ func (tdb *TestDB) InsertHost(t *testing.T, hostname string, teamID *uint) uint 
 
 	id, err := result.LastInsertId()
 	require.NoError(t, err)
-	return uint(id)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
-// InsertHostActivity creates a link between a host and an activity in the host_activities junction table.
+// InsertHostActivity creates a link between a host and an activity in the activity_host_past join table.
 func (tdb *TestDB) InsertHostActivity(t *testing.T, hostID, activityID uint) {
 	t.Helper()
 	ctx := t.Context()
 
 	_, err := tdb.DB.ExecContext(ctx, `
-		INSERT INTO host_activities (host_id, activity_id) VALUES (?, ?)
+		INSERT INTO activity_host_past (host_id, activity_id) VALUES (?, ?)
 	`, hostID, activityID)
 	require.NoError(t, err)
 }

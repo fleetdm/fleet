@@ -46,6 +46,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
   refetchHostDetails: noop,
   isHostDetailsPolling: false,
   hostDisplayName: DEFAULT_HOST_HOSTNAME,
+  mdmEnrollmentStatus: "Off",
 };
 
 describe("SelfService", () => {
@@ -53,9 +54,9 @@ describe("SelfService", () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
-          createMockDeviceSoftware({ name: "test1" }),
-          createMockDeviceSoftware({ name: "test2" }),
-          createMockDeviceSoftware({ name: "test3" }),
+          createMockDeviceSoftware({ id: 1, name: "test1" }),
+          createMockDeviceSoftware({ id: 2, name: "test2" }),
+          createMockDeviceSoftware({ id: 3, name: "test3" }),
         ],
         count: 3,
       })
@@ -273,5 +274,32 @@ describe("SelfService", () => {
     expect(screen.getByRole("button", { name: "Reinstall" })).toBeDisabled(); // TODO: Should this say "Reinstall"?
     const moreDropdown = getMoreDropdown();
     expect(moreDropdown).toBeDisabled();
+  });
+
+  it("renders the self-service list for BYOD Account-Driven User Enrollment on mobile view", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({ id: 1, name: "user-enrolled-app" }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(
+      <SelfService
+        {...TEST_PROPS}
+        isMobileView
+        mdmEnrollmentStatus="On (personal)"
+      />
+    );
+
+    // The "not supported" gate has been removed; the user-enrolled host gets
+    // the same self-service list as a manually-enrolled iOS/iPadOS host.
+    expect(await screen.findByText("user-enrolled-app")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Self-service isn't supported/i)
+    ).not.toBeInTheDocument();
   });
 });

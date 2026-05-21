@@ -3,11 +3,17 @@ package fleetctl
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"math/big"
 	"net/http"
 	"os"
 	"os/exec"
@@ -27,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/go-github/v37/github"
 	"github.com/mitchellh/go-ps"
@@ -92,12 +97,10 @@ func newDockerCompose() (dockerCompose, error) {
 
 func previewCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "preview",
-		Aliases: []string{"sandbox"},
-		Usage:   "Start a sandbox deployment of the Fleet server",
-		Description: `Start a sandbox deployment of the Fleet server using Docker and docker compose. Docker tools must be available in the environment.
-
-Use the stop and reset subcommands to manage the server and dependencies once started.`,
+		Name:        "preview",
+		Aliases:     []string{"sandbox"},
+		Usage:       "Start a sandbox deployment of the Fleet server",
+		Description: `The quickest way to try Fleet. For a long-lived instance, deploy Fleet: https://fleetdm.com/learn-more-about/deploy-fleet`,
 		Subcommands: []*cli.Command{
 			previewStopCommand(),
 			previewResetCommand(),
@@ -269,6 +272,18 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("failed to set private key: %w", err)
 			}
 
+			// Generate a self-signed WSTEP certificate and key for Windows MDM
+			// and save them to the config directory for use in subsequent runs.
+			if err := ensureWSTEPCerts(filepath.Join(previewDir, "config")); err != nil {
+				return fmt.Errorf("generating WSTEP certificates: %w", err)
+			}
+			if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT", "/config/wstep.crt"); err != nil {
+				return fmt.Errorf("failed to set WSTEP cert path: %w", err)
+			}
+			if err := os.Setenv("FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY", "/config/wstep.key"); err != nil {
+				return fmt.Errorf("failed to set WSTEP key path: %w", err)
+			}
+
 			if err := os.Setenv("FLEET_VERSION", c.String(tagFlagName)); err != nil {
 				return fmt.Errorf("failed to set Fleet version: %w", err)
 			}
@@ -373,9 +388,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			fmt.Println("Loading starter library...")
 
-			logger := logging.NewNopLogger()
+			logger := slog.New(slog.DiscardHandler)
 			if c.Bool(debugFlagName) {
-				logger = logging.NewLogfmtLogger(os.Stderr)
+				logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			}
 
 			if err := service.ApplyStarterLibrary(
@@ -383,9 +398,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				address,
 				token,
 				logger,
-				fleethttp.NewClient,
-				service.NewClient,
-				nil, // No mock ApplyGroup for production code
+				func(args []string) error {
+					_, err := RunApp(args)
+					return err
+				},
 			); err != nil {
 				return fmt.Errorf("failed to apply starter library: %w", err)
 			}
@@ -462,6 +478,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			fmt.Println("Preview environment complete. Enjoy using Fleet!")
+			fmt.Println()
+			fmt.Println("Use the fleetctl stop and fleetctl reset subcommands to shut down Fleet or start fresh.")
 
 			return nil
 		},
@@ -487,6 +505,83 @@ func copyDirectory(destDir, sourceDir string) error {
 		}
 		return os.WriteFile(filepath.Join(destDir, relPath), data, 0o777)
 	})
+}
+
+// ensureWSTEPCerts generates a self-signed WSTEP identity certificate and key
+// for Windows MDM if they don't already exist in configDir. The generated files
+// match the parameters recommended in the Windows MDM setup guide.
+func ensureWSTEPCerts(configDir string) error {
+	certPath := filepath.Join(configDir, "wstep.crt")
+	keyPath := filepath.Join(configDir, "wstep.key")
+
+	_, certErr := os.Stat(certPath)
+	if certErr != nil && !os.IsNotExist(certErr) {
+		return fmt.Errorf("checking WSTEP certificate: %w", certErr)
+	}
+
+	_, keyErr := os.Stat(keyPath)
+	if keyErr != nil && !os.IsNotExist(keyErr) {
+		return fmt.Errorf("checking WSTEP key: %w", keyErr)
+	}
+
+	certExists := certErr == nil
+	keyExists := keyErr == nil
+
+	// Both cert and key already exist; nothing to do.
+	if certExists && keyExists {
+		return nil
+	}
+
+	// One exists without the other: inconsistent state; refuse to overwrite and provide remediation.
+	if certExists != keyExists {
+		return fmt.Errorf("inconsistent WSTEP certificate/key state: certificate exists=%t, key exists=%t. Please delete the existing wstep.crt and/or wstep.key in %q and re-run `fleetctl preview` to regenerate them", certExists, keyExists, configDir)
+	}
+
+	// Both files are missing; generate a new keypair and self-signed certificate.
+	key, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return fmt.Errorf("generating RSA key: %w", err)
+	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return fmt.Errorf("generating certificate serial number: %w", err)
+	}
+	if serialNumber.Sign() <= 0 {
+		serialNumber = big.NewInt(1)
+	}
+
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName:   "Fleet Root CA",
+			Country:      []string{"US"},
+			Organization: []string{"Fleet."},
+		},
+		NotBefore:             time.Now().Add(-10 * time.Minute),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	if err != nil {
+		return fmt.Errorf("creating certificate: %w", err)
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+
+	if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
+		return fmt.Errorf("writing WSTEP certificate: %w", err)
+	}
+	if err := os.WriteFile(keyPath, keyPEM, 0o644); err != nil {
+		return fmt.Errorf("writing WSTEP key: %w", err)
+	}
+
+	return nil
 }
 
 var TestOverridePreviewDirectory string

@@ -3,35 +3,70 @@
   <div style="max-width: 560px;" class="container-fluid pb-5 px-lg-0 px-3" v-if="!showSuccessMessage">
     <div purpose="page-heading">
       <h1>Welcome to Fleet Premium</h1>
-      <p class="pb-2">We just need a few details in order to get started.</p>
+      <p >We just need a few details in order to get started.</p>
     </div>
-    <div purpose="customer-portal-form" class="card card-body">
-      <ajax-form action="createQuote" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="quoteFormRules" @submitted="submittedQuoteForm($event)">
-        <div class="d-flex flex-column flex-sm-row">
-          <div class="form-group flex-grow-1 col-12 col-sm-6 order-first px-0 mb-3 mb-sm-5">
-            <label for="numberOfHosts">Total number of hosts</label>
-            <input class="form-control" min="1" purpose="quote-input" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]" focus-first v-model.trim="formData.numberOfHosts" v-if="!numberOfHostsQuoted">
-            <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of hosts</div>
-            <span purpose="quote-input" style="position: relative; cursor: text; padding: 6px 16px 8px 16px;" class="form-control" @click="clickResetForm()" v-if="numberOfHostsQuoted">{{formData.numberOfHosts}}<span style="position: absolute; cursor: pointer; bottom: 14px; right: 16px;" class="text-muted fa fa-times-circle pl-2"></span></span>
+    <div purpose="customer-portal-form">
+      <ajax-form :handle-submitting="handleSubmittingQuoteForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="newLicenseFormData" :form-rules="quoteFormRules" @submitted="submittedQuoteForm($event)">
+        <div purpose="form-body" class="d-flex flex-column" v-if="!numberOfHostsQuoted">
+          <div purpose="form-heading">
+            <strong>How many hosts do you manage?</strong>
           </div>
 
-          <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4" v-if="showQuotedPrice && numberOfHostsQuoted < 700">
-            <p class="small">
-              <strong class="pr-1" style="font-size: 18px; color: #192147">$7.00</strong>/ host / month<br>(Billed annually)
-            </p>
+          <div purpose="form-row" class="form-group">
+            <label for="macosHosts">macOS</label>
+            <input class="form-control" placeholder="0" min="0" purpose="quote-input" id="macosHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]" focus-first v-model.trim="newLicenseFormData.macosHosts" v-if="!numberOfHostsQuoted">
+            <div class="invalid-feedback" v-if="formErrors.macosHosts">Please enter a number of hosts</div>
           </div>
-
+          <div purpose="form-row" class="form-group">
+            <label for="windowsHosts">Windows</label>
+            <input class="form-control" placeholder="0" min="0" purpose="quote-input" id="windowsHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]"  v-model.trim="newLicenseFormData.windowsHosts" v-if="!numberOfHostsQuoted">
+            <div class="invalid-feedback" v-if="formErrors.windowsHosts">Please enter a number of hosts</div>
+          </div>
+          <div purpose="form-row" class="form-group">
+            <label for="linuxHosts">Linux</label>
+            <input class="form-control" placeholder="0" min="0" purpose="quote-input" id="linuxHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]"  v-model.trim="newLicenseFormData.linuxHosts" v-if="!numberOfHostsQuoted">
+            <div class="invalid-feedback" v-if="formErrors.linuxHosts">Please enter a number of hosts</div>
+          </div>
+          <div purpose="form-row" class="form-group">
+            <label for="iosHosts">iOS/iPadOS</label>
+            <input class="form-control" placeholder="0" min="0" purpose="quote-input" id="iosHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]"  v-model.trim="newLicenseFormData.iosHosts" v-if="!numberOfHostsQuoted">
+            <div class="invalid-feedback" v-if="formErrors.iosHosts">Please enter a number of hosts</div>
+          </div>
+          <div purpose="form-row" class="form-group">
+            <label for="androidHosts">Android</label>
+            <input class="form-control" placeholder="0" min="0" purpose="quote-input" id="androidHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]"  v-model.trim="newLicenseFormData.androidHosts" v-if="!numberOfHostsQuoted">
+            <div class="invalid-feedback" v-if="formErrors.androidHosts">Please enter a number of hosts</div>
+          </div>
+          <div purpose="form-row" class="form-group">
+            <label for="otherHosts">Other</label>
+            <input class="form-control" placeholder="0" min="0" purpose="quote-input" id="otherHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]"  v-model.trim="newLicenseFormData.otherHosts" v-if="!numberOfHostsQuoted">
+          </div>
+          <div purpose="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of hosts</div>
         </div>
+          <div style="color: #515774;" v-if="showQuotedPrice">
+            <div purpose="summary-row">
+              <div purpose="total-number-of-hosts-input">
+                <div>{{numberOfHostsQuoted}}</div>
+                <div><img alt="A pencil icon" src="/images/pencil-16x16@2x.png" @click="clickResetForm()"></div>
+              </div>
+              <div>
+              <p class="small text-right">
+                <strong class="pr-1" style="font-size: 18px; color: #192147">$7.00</strong>/ host / month<br>(Billed annually)
+              </p>
+              </div>
+            </div>
+          </div>
         <cloud-error purpose="cloud-error" v-if="cloudError && !showBillingForm"></cloud-error>
-        <div class="mt-2 pt-3 border-top d-flex flex-column" v-if="showQuotedPrice && formData.numberOfHosts && numberOfHostsQuoted">
+
+        <div class="mt-2 pt-3 border-top d-flex flex-column" v-if="showQuotedPrice && numberOfHostsQuoted">
           <div class="pb-2">
             <strong>Order summary</strong>
           </div>
           <div class="d-flex flex-row justify-content-between">
             <p class="">Fleet Premium (self-hosted<span v-if="numberOfHostsQuoted > 699" > or managed cloud</span>)</p>
-          <div class="ml-auto text-right" v-if="numberOfHostsQuoted < 700">
-            <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 7.00 * 12)) ? quotedPrice : formData.numberOfHosts * 7.00 * 12}}.00 <br purpose="order-form-line-break">/year</strong>
-          </div>
+            <div class="text-right" v-if="numberOfHostsQuoted < 700">
+              <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 7.00 * 12)) ? quotedPrice : formData.numberOfHosts * 7.00 * 12}}.00 <br purpose="order-form-line-break">/year</strong>
+            </div>
           </div>
         </div>
         <div :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">
@@ -41,11 +76,11 @@
         </div>
       </ajax-form>
     </div>
-    <div class="card card-body mt-3" v-if="showBillingForm">
-      <h3 class="pb-3">Billing information</h3>
+    <div purpose="customer-portal-form" class="mt-3" v-if="showBillingForm">
       <ajax-form :handle-submitting="handleSubmittingCheckoutForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="checkoutFormRules" v-if="!cloudError || cloudError === 'couldNotSaveBillingInfo' || cloudError === 'cardVerificationRequired'">
+        <h3 class="pb-3">Billing information</h3>
         <div class="form-group" purpose="self-hosted-checkbox">
-          <input type="checkbox" id="self-hosted-acknowledgment"  v-model.trim="formData.selfHostedAcknowledgment" @input="clickClearOneFormError('selfHostedAcknowledgment')">
+          <input type="checkbox" id="self-hosted-acknowledgment" v-model.trim="formData.selfHostedAcknowledgment" @input="clickClearOneFormError('selfHostedAcknowledgment')">
           <label purpose="self-hosted-note" :class="[formErrors.selfHostedAcknowledgment ? 'is-invalid' : '']"  for="self-hosted-acknowledgment">I understand that managed cloud hosting is not available for less than 700 hosts. I will host Fleet myself.</label>
           <div class="invalid-feedback" v-if="formErrors.selfHostedAcknowledgment"><p>Please confirm that you will be hosting Fleet yourself.</p></div>
 

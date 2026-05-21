@@ -19,6 +19,9 @@ flag_management:
         - server/
         - ee/
         - orbit/
+    - name: backend-activity
+      paths:
+        - server/activity/
     - name: frontend
       paths:
         - frontend/

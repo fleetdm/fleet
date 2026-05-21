@@ -14,6 +14,10 @@ permissions:
   contents: read          # fetch repo metadata
   pull-requests: read     # read PR timelines
 
+env:
+  # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
+  NPM_CONFIG_MIN_RELEASE_AGE: 0.5
+
 jobs:
   collect-metrics:
     runs-on: ubuntu-latest
@@ -29,7 +33,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # 4.4.0
         with:
-          node-version: '20.18.1'
+          node-version: '24.14.0'
           cache: 'npm'
           cache-dependency-path: .github/actions/eng-metrics/package-lock.json
 

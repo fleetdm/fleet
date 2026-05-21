@@ -1,12 +1,12 @@
 /* eslint-disable react/prop-types */
-import React, { useContext, useCallback, useMemo } from "react";
+import React, { useContext, useCallback, useMemo, useRef } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import { SingleValue } from "react-select-5";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
@@ -16,10 +16,10 @@ import { getPathWithQueryParams } from "utilities/url";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import CustomLink from "components/CustomLink";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import generateColumnConfigs from "./QueriesTableConfig";
 
@@ -31,6 +31,8 @@ export interface IQueriesTableProps {
   curTeamScopeQueriesPresent: boolean;
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
+  onAddReportClick?: () => void;
+  canAddReport?: boolean;
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isAnyTeamObserverPlus: boolean;
@@ -88,6 +90,8 @@ const QueriesTable = ({
   curTeamScopeQueriesPresent,
   isLoading,
   onDeleteQueryClick,
+  onAddReportClick,
+  canAddReport,
   isOnlyObserver,
   isObserverPlus,
   isAnyTeamObserverPlus,
@@ -97,6 +101,7 @@ const QueriesTable = ({
   isPremiumTier,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser, config } = useContext(AppContext);
+  const isFirstNavigation = useRef(true);
 
   // Functions to avoid race conditions
   // TODO - confirm these are still necessary
@@ -155,11 +160,16 @@ const QueriesTable = ({
       newQueryParams.fleet_id = queryParams?.fleet_id;
 
       const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_QUERIES,
+        pathPrefix: PATHS.MANAGE_REPORTS,
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
-      router?.push(locationPath);
+      if (isFirstNavigation.current) {
+        isFirstNavigation.current = false;
+        router?.replace(locationPath);
+      } else {
+        router?.push(locationPath);
+      }
     },
     [
       curTargetedPlatformFilter,
@@ -171,45 +181,42 @@ const QueriesTable = ({
     ]
   );
 
-  const emptyParams: IEmptyTableProps = {
-    graphicName: "empty-queries",
-    header: "You don't have any reports",
-  };
-
-  if (isPremiumTier && !config?.partnerships?.enable_primo) {
-    if (
-      typeof currentTeamId === "undefined" ||
+  const isAllFleets =
+    isPremiumTier &&
+    (typeof currentTeamId === "undefined" ||
       currentTeamId === null ||
-      currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
-    ) {
-      emptyParams.header += " that apply to all fleets";
-    } else {
-      emptyParams.header += " that apply to this fleet";
-    }
+      currentTeamId === APP_CONTEXT_ALL_TEAMS_ID);
+
+  let emptyHeader = "No reports yet";
+  // Primo mode uses a generic empty state header
+  if (isPremiumTier && !config?.partnerships?.enable_primo) {
+    emptyHeader = isAllFleets
+      ? "No reports apply to all fleets"
+      : "No reports for this fleet";
   }
 
+  const emptyParams: IEmptyStateProps = {
+    header: emptyHeader,
+    info:
+      "Reports are queries that run on a schedule. Results are saved in Fleet.",
+    primaryButton: canAddReport ? (
+      <Button onClick={onAddReportClick} type="button">
+        Add report
+      </Button>
+    ) : undefined,
+  };
+
   if (searchQuery || curTargetedPlatformFilter !== "all") {
-    delete emptyParams.graphicName;
+    delete emptyParams.primaryButton;
     emptyParams.header = "No matching reports";
     emptyParams.info = "No reports match the current filters.";
-  } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
-    emptyParams.additionalInfo = (
-      <>
-        Create a new report, or{" "}
-        <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/standard-query-library"
-          text="import Fleet's standard query library"
-          newTab
-        />
-      </>
-    );
   }
 
   const handlePlatformFilterDropdownChange = useCallback(
     (selectedTargetedPlatform: SingleValue<CustomOptionType>) => {
       router?.push(
         getNextLocationPath({
-          pathPrefix: PATHS.MANAGE_QUERIES,
+          pathPrefix: PATHS.MANAGE_REPORTS,
           queryParams: {
             ...queryParams,
             page: 0,
@@ -229,25 +236,12 @@ const QueriesTable = ({
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
       router?.push(
-        getPathWithQueryParams(PATHS.QUERY_DETAILS(row.original.id), {
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(row.original.id), {
           fleet_id: currentTeamId,
         })
       );
     }
   };
-
-  const renderPlatformDropdown = useCallback(() => {
-    return (
-      <DropdownWrapper
-        name="platform-dropdown"
-        value={curTargetedPlatformFilter}
-        className={`${baseClass}__platform-dropdown`}
-        options={PLATFORM_FILTER_OPTIONS}
-        onChange={handlePlatformFilterDropdownChange}
-        variant="table-filter"
-      />
-    );
-  }, [curTargetedPlatformFilter, queryParams, router]);
 
   const columnConfigs = useMemo(
     () =>
@@ -260,8 +254,26 @@ const QueriesTable = ({
     [currentUser, currentTeamId, curTeamScopeQueriesPresent]
   );
 
-  const searchable =
-    (totalQueriesCount ?? 0) > 0 || !!targetedPlatformParam || !!searchQuery;
+  const isTrulyEmpty =
+    (totalQueriesCount ?? 0) === 0 && !targetedPlatformParam && !searchQuery;
+
+  const renderPlatformDropdown = useCallback(() => {
+    return (
+      <DropdownWrapper
+        name="platform-dropdown"
+        value={curTargetedPlatformFilter}
+        className={`${baseClass}__platform-dropdown`}
+        options={PLATFORM_FILTER_OPTIONS}
+        onChange={handlePlatformFilterDropdownChange}
+        variant="table-filter"
+        isDisabled={isTrulyEmpty}
+      />
+    );
+  }, [
+    curTargetedPlatformFilter,
+    handlePlatformFilterDropdownChange,
+    isTrulyEmpty,
+  ]);
 
   const trimmedSearchQuery = searchQuery.trim();
 
@@ -282,23 +294,21 @@ const QueriesTable = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           primarySelectAction={{
-            name: "delete report",
+            name: "delete reports",
             buttonText: "Delete",
             iconSvg: "trash",
             variant: "inverse",
             onClick: onDeleteQueryClick,
           }}
-          emptyComponent={() => EmptyTable(emptyParams)}
-          renderCount={() =>
-            ((totalQueriesCount || searchQuery) && (
-              <TableCount name="reports" count={totalQueriesCount} />
-            )) ||
-            null
-          }
+          emptyComponent={() => <EmptyState {...emptyParams} />}
+          renderCount={() => (
+            <TableCount name="reports" count={totalQueriesCount} />
+          )}
           inputPlaceHolder="Search by name"
           onQueryChange={onQueryChange}
-          searchable={searchable}
-          customControl={searchable ? renderPlatformDropdown : undefined}
+          searchable
+          disableSearch={isTrulyEmpty}
+          customControl={renderPlatformDropdown}
           disableMultiRowSelect={!curTeamScopeQueriesPresent}
           onClickRow={handleRowSelect}
           selectedDropdownFilter={curTargetedPlatformFilter}

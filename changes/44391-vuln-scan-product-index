@@ -1,0 +1,1 @@
+* Improved vulnerability scanning performance by using a per-vendor product cache during CVE matching to optimize translate_cpe_to_cve.

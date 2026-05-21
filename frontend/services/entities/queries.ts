@@ -100,7 +100,11 @@ export default {
       snakeCaseParams.platform = "macos";
     }
 
-    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const { team_id, ...restParams } = snakeCaseParams;
+    const queryString = buildQueryStringFromParams({
+      ...restParams,
+      fleet_id: team_id,
+    });
 
     return sendRequest(
       "GET",
@@ -121,7 +125,7 @@ export default {
     try {
       const { campaign } = await sendRequest("POST", LIVE_QUERY, {
         query,
-        query_id: queryId,
+        report_id: queryId,
         selected,
       });
       return campaign;

@@ -1,0 +1,1742 @@
+{
+    "layout": [
+        {
+            "h": 6,
+            "i": "rps",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 0,
+            "y": 0
+        },
+        {
+            "h": 6,
+            "i": "avg-dur",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 6,
+            "y": 0
+        },
+        {
+            "h": 6,
+            "i": "83588a79-739c-4842-89ec-63c74e1e0125",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 0,
+            "y": 6
+        },
+        {
+            "h": 6,
+            "i": "5316909f-3d26-4649-81d4-7d4db19a31f9",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 6,
+            "y": 6
+        },
+        {
+            "h": 6,
+            "i": "bba90ad8-179b-434e-b09e-86f024f1611e",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 0,
+            "y": 12
+        },
+        {
+            "h": 6,
+            "i": "2bccc3f8-da0b-40ac-9115-d26c09356033",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 6,
+            "y": 12
+        },
+        {
+            "h": 6,
+            "i": "f881f862-6665-40be-81d6-1af5084d29d2",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 0,
+            "y": 18
+        },
+        {
+            "h": 6,
+            "i": "afe9e692-fcba-414a-812d-bf7826085a5e",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 6,
+            "y": 18
+        },
+        {
+            "h": 6,
+            "i": "3211ae8b-f9b2-4c1e-86b3-b214013065de",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 0,
+            "y": 24
+        },
+        {
+            "h": 6,
+            "i": "342b3cf0-b6bc-4ca7-86b3-dc11806a8d88",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 6,
+            "y": 24
+        },
+        {
+            "h": 6,
+            "i": "cc2a2fea-09eb-4736-868a-9316eeb3820d",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 0,
+            "y": 30
+        },
+        {
+            "h": 6,
+            "i": "404b92ed-c805-4b1b-b2c3-37f98ff25cb3",
+            "moved": false,
+            "static": false,
+            "w": 6,
+            "x": 6,
+            "y": 30
+        }
+    ],
+    "panelMap": {},
+    "title": "DB & Connection Observability",
+    "uploadedGrafana": false,
+    "version": "v5",
+    "widgets": [
+        {
+            "id": "rps",
+            "panelTypes": "graph",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.sql.latency.count",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "sum",
+                                    "timeAggregation": "rate"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "queryName": "A"
+                        }
+                    ]
+                },
+                "queryType": "builder"
+            },
+            "title": "Database Calls RPS",
+            "type": "timeseries"
+        },
+        {
+            "bucketCount": 30,
+            "bucketWidth": 0,
+            "columnUnits": {},
+            "contextLinks": {
+                "linksData": []
+            },
+            "customLegendColors": {},
+            "decimalPrecision": 2,
+            "description": "",
+            "fillSpans": false,
+            "id": "avg-dur",
+            "isLogScale": false,
+            "legendPosition": "bottom",
+            "mergeAllActiveQueries": false,
+            "nullZeroValues": "zero",
+            "opacity": "1",
+            "panelTypes": "graph",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.sql.latency.sum",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "sum",
+                                    "timeAggregation": "rate"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": true,
+                            "expression": "A",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "A",
+                            "source": "",
+                            "stepInterval": null
+                        },
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.sql.latency.count",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "sum",
+                                    "timeAggregation": "rate"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": true,
+                            "expression": "A",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "B",
+                            "source": "",
+                            "stepInterval": null
+                        }
+                    ],
+                    "queryFormulas": [
+                        {
+                            "disabled": false,
+                            "expression": "A / B",
+                            "legend": "Avg Duration",
+                            "queryName": "F1"
+                        }
+                    ]
+                },
+                "clickhouse_sql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "id": "dc3e9384-6d94-4bb5-99cb-cc027f8b3737",
+                "promql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "queryType": "builder",
+                "unit": ""
+            },
+            "selectedLogFields": [],
+            "selectedTracesFields": [],
+            "softMax": 0,
+            "softMin": 0,
+            "stackedBarChart": false,
+            "thresholds": [],
+            "timePreferance": "GLOBAL_TIME",
+            "title": "Average Query Duration",
+            "type": "timeseries",
+            "yAxisUnit": "ms"
+        },
+        {
+            "bucketCount": 30,
+            "bucketWidth": 0,
+            "columnUnits": {},
+            "contextLinks": {
+                "linksData": []
+            },
+            "customLegendColors": {},
+            "decimalPrecision": 2,
+            "description": "",
+            "fillSpans": false,
+            "id": "83588a79-739c-4842-89ec-63c74e1e0125",
+            "isLogScale": false,
+            "legendPosition": "bottom",
+            "mergeAllActiveQueries": false,
+            "nullZeroValues": "zero",
+            "opacity": "1",
+            "panelTypes": "graph",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.sql.latency.bucket",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "A",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "A",
+                            "source": "",
+                            "stepInterval": null
+                        },
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.sql.latency.bucket",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "B",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "B",
+                            "source": "",
+                            "stepInterval": null
+                        }
+                    ],
+                    "queryFormulas": [
+                        {
+                            "disabled": false,
+                            "expression": "histogram_quantile(0.99)",
+                            "legend": "",
+                            "queryName": "F1"
+                        }
+                    ],
+                    "queryTraceOperator": []
+                },
+                "clickhouse_sql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "id": "5eefa7f4-1096-4bae-aaf0-4ee5f974987f",
+                "promql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "queryType": "builder",
+                "unit": ""
+            },
+            "selectedLogFields": [
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "timestamp",
+                    "signal": "logs",
+                    "type": "log"
+                },
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "body",
+                    "signal": "logs",
+                    "type": "log"
+                }
+            ],
+            "selectedTracesFields": [
+                {
+                    "fieldContext": "resource",
+                    "fieldDataType": "string",
+                    "name": "service.name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "string",
+                    "name": "name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "duration_nano",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "http_method",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "response_status_code",
+                    "signal": "traces"
+                }
+            ],
+            "softMax": 0,
+            "softMin": 0,
+            "stackedBarChart": false,
+            "thresholds": [],
+            "timePreferance": "GLOBAL_TIME",
+            "title": "P99 Latency",
+            "yAxisUnit": "ms"
+        },
+        {
+            "bucketCount": 30,
+            "bucketWidth": 0,
+            "columnUnits": {},
+            "contextLinks": {
+                "linksData": []
+            },
+            "customLegendColors": {},
+            "decimalPrecision": 2,
+            "description": "",
+            "fillSpans": false,
+            "id": "bba90ad8-179b-434e-b09e-86f024f1611e",
+            "isLogScale": false,
+            "legendPosition": "bottom",
+            "mergeAllActiveQueries": false,
+            "nullZeroValues": "zero",
+            "opacity": "1",
+            "panelTypes": "graph",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.client.connection.count",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "sum",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "A",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [
+                                {
+                                    "dataType": "",
+                                    "id": "state----",
+                                    "key": "state",
+                                    "type": ""
+                                }
+                            ],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "A",
+                            "source": "",
+                            "stepInterval": null
+                        }
+                    ],
+                    "queryFormulas": [],
+                    "queryTraceOperator": []
+                },
+                "clickhouse_sql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "id": "2be716da-5e6f-4675-a056-9d6ad723821e",
+                "promql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "queryType": "builder",
+                "unit": ""
+            },
+            "selectedLogFields": [
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "timestamp",
+                    "signal": "logs",
+                    "type": "log"
+                },
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "body",
+                    "signal": "logs",
+                    "type": "log"
+                }
+            ],
+            "selectedTracesFields": [
+                {
+                    "fieldContext": "resource",
+                    "fieldDataType": "string",
+                    "name": "service.name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "string",
+                    "name": "name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "duration_nano",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "http_method",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "response_status_code",
+                    "signal": "traces"
+                }
+            ],
+            "softMax": 0,
+            "softMin": 0,
+            "stackedBarChart": false,
+            "thresholds": [],
+            "timePreferance": "GLOBAL_TIME",
+            "title": "Conn Occupancy",
+            "yAxisUnit": ""
+        },
+        {
+            "bucketCount": 30,
+            "bucketWidth": 0,
+            "columnUnits": {},
+            "contextLinks": {
+                "linksData": []
+            },
+            "customLegendColors": {},
+            "decimalPrecision": 2,
+            "description": "",
+            "fillSpans": false,
+            "id": "5316909f-3d26-4649-81d4-7d4db19a31f9",
+            "isLogScale": false,
+            "legendPosition": "bottom",
+            "mergeAllActiveQueries": false,
+            "nullZeroValues": "zero",
+            "opacity": "1",
+            "panelTypes": "value",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.client.connection.count",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "A",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "A",
+                            "source": "",
+                            "stepInterval": null
+                        },
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.client.connection.max",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "B",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "B",
+                            "source": "",
+                            "stepInterval": null
+                        }
+                    ],
+                    "queryFormulas": [
+                        {
+                            "disabled": false,
+                            "expression": "(A / B) * 100",
+                            "legend": "percent",
+                            "queryName": "F1"
+                        }
+                    ],
+                    "queryTraceOperator": []
+                },
+                "clickhouse_sql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "id": "f375d73d-193b-4010-aaee-5226328feb66",
+                "promql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "queryType": "builder",
+                "unit": ""
+            },
+            "selectedLogFields": [
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "timestamp",
+                    "signal": "logs",
+                    "type": "log"
+                },
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "body",
+                    "signal": "logs",
+                    "type": "log"
+                }
+            ],
+            "selectedTracesFields": [
+                {
+                    "fieldContext": "resource",
+                    "fieldDataType": "string",
+                    "name": "service.name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "string",
+                    "name": "name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "duration_nano",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "http_method",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "response_status_code",
+                    "signal": "traces"
+                }
+            ],
+            "softMax": 0,
+            "softMin": 0,
+            "stackedBarChart": false,
+            "thresholds": [],
+            "timePreferance": "GLOBAL_TIME",
+            "title": "Pool Saturation %",
+            "yAxisUnit": "none"
+        },
+        {
+            "bucketCount": 30,
+            "bucketWidth": 0,
+            "columnUnits": {},
+            "contextLinks": {
+                "linksData": []
+            },
+            "customLegendColors": {},
+            "decimalPrecision": 2,
+            "description": "",
+            "fillSpans": false,
+            "id": "f881f862-6665-40be-81d6-1af5084d29d2",
+            "isLogScale": false,
+            "legendPosition": "bottom",
+            "mergeAllActiveQueries": false,
+            "nullZeroValues": "zero",
+            "opacity": "1",
+            "panelTypes": "graph",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.client.connection.wait_time",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "A",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "A",
+                            "source": "",
+                            "stepInterval": null
+                        }
+                    ],
+                    "queryFormulas": [],
+                    "queryTraceOperator": []
+                },
+                "clickhouse_sql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "id": "17d784a3-1019-4e5f-aea0-6f372cf9d7d6",
+                "promql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "queryType": "builder",
+                "unit": ""
+            },
+            "selectedLogFields": [
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "timestamp",
+                    "signal": "logs",
+                    "type": "log"
+                },
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "body",
+                    "signal": "logs",
+                    "type": "log"
+                }
+            ],
+            "selectedTracesFields": [
+                {
+                    "fieldContext": "resource",
+                    "fieldDataType": "string",
+                    "name": "service.name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "string",
+                    "name": "name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "duration_nano",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "http_method",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "response_status_code",
+                    "signal": "traces"
+                }
+            ],
+            "softMax": 0,
+            "softMin": 0,
+            "stackedBarChart": false,
+            "thresholds": [],
+            "timePreferance": "GLOBAL_TIME",
+            "title": "Avg Connection Wait Time",
+            "yAxisUnit": "ms"
+        },
+        {
+            "bucketCount": 30,
+            "bucketWidth": 0,
+            "columnUnits": {},
+            "contextLinks": {
+                "linksData": []
+            },
+            "customLegendColors": {},
+            "decimalPrecision": 2,
+            "description": "",
+            "fillSpans": false,
+            "id": "2bccc3f8-da0b-40ac-9115-d26c09356033",
+            "isLogScale": false,
+            "legendPosition": "bottom",
+            "mergeAllActiveQueries": false,
+            "nullZeroValues": "zero",
+            "opacity": "1",
+            "panelTypes": "graph",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.client.connection.wait_count",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "A",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "A",
+                            "source": "",
+                            "stepInterval": null
+                        }
+                    ],
+                    "queryFormulas": [],
+                    "queryTraceOperator": []
+                },
+                "clickhouse_sql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "id": "a3012b77-e868-45dc-88e1-adea1355ff7b",
+                "promql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "queryType": "builder",
+                "unit": ""
+            },
+            "selectedLogFields": [
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "timestamp",
+                    "signal": "logs",
+                    "type": "log"
+                },
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "body",
+                    "signal": "logs",
+                    "type": "log"
+                }
+            ],
+            "selectedTracesFields": [
+                {
+                    "fieldContext": "resource",
+                    "fieldDataType": "string",
+                    "name": "service.name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "string",
+                    "name": "name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "duration_nano",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "http_method",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "response_status_code",
+                    "signal": "traces"
+                }
+            ],
+            "softMax": 0,
+            "softMin": 0,
+            "stackedBarChart": false,
+            "thresholds": [],
+            "timePreferance": "GLOBAL_TIME",
+            "title": "Pending Requests (Queue)",
+            "yAxisUnit": ""
+        },
+        {
+            "bucketCount": 30,
+            "bucketWidth": 0,
+            "columnUnits": {},
+            "contextLinks": {
+                "linksData": []
+            },
+            "customLegendColors": {},
+            "decimalPrecision": 2,
+            "description": "",
+            "fillSpans": false,
+            "id": "3211ae8b-f9b2-4c1e-86b3-b214013065de",
+            "isLogScale": false,
+            "legendPosition": "bottom",
+            "mergeAllActiveQueries": false,
+            "nullZeroValues": "zero",
+            "opacity": "1",
+            "panelTypes": "graph",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.client.connection.count",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "A",
+                            "filter": {
+                                "expression": "status IN (\"idle\") "
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "A",
+                            "source": "",
+                            "stepInterval": null
+                        }
+                    ],
+                    "queryFormulas": [],
+                    "queryTraceOperator": []
+                },
+                "clickhouse_sql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "id": "5949afcc-96c2-40cf-b09f-dc350294d082",
+                "promql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "queryType": "builder",
+                "unit": ""
+            },
+            "selectedLogFields": [
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "timestamp",
+                    "signal": "logs",
+                    "type": "log"
+                },
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "body",
+                    "signal": "logs",
+                    "type": "log"
+                }
+            ],
+            "selectedTracesFields": [
+                {
+                    "fieldContext": "resource",
+                    "fieldDataType": "string",
+                    "name": "service.name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "string",
+                    "name": "name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "duration_nano",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "http_method",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "response_status_code",
+                    "signal": "traces"
+                }
+            ],
+            "softMax": 0,
+            "softMin": 0,
+            "stackedBarChart": false,
+            "thresholds": [],
+            "timePreferance": "GLOBAL_TIME",
+            "title": "Connection Churn Rate",
+            "yAxisUnit": "none"
+        },
+        {
+            "bucketCount": 30,
+            "bucketWidth": 0,
+            "columnUnits": {},
+            "contextLinks": {
+                "linksData": []
+            },
+            "customLegendColors": {},
+            "decimalPrecision": 2,
+            "description": "",
+            "fillSpans": false,
+            "id": "afe9e692-fcba-414a-812d-bf7826085a5e",
+            "isLogScale": false,
+            "legendPosition": "bottom",
+            "mergeAllActiveQueries": false,
+            "nullZeroValues": "zero",
+            "opacity": "1",
+            "panelTypes": "graph",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.client.connection.wait_time",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "A",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "A",
+                            "source": "",
+                            "stepInterval": null
+                        },
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.sql.latency.sum",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "B",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "B",
+                            "source": "",
+                            "stepInterval": null
+                        }
+                    ],
+                    "queryFormulas": [
+                        {
+                            "disabled": false,
+                            "expression": "A / B",
+                            "legend": "",
+                            "queryName": "F1"
+                        }
+                    ],
+                    "queryTraceOperator": []
+                },
+                "clickhouse_sql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "id": "71685f66-f214-4e8d-bf26-07861d5057c5",
+                "promql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "queryType": "builder",
+                "unit": ""
+            },
+            "selectedLogFields": [
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "timestamp",
+                    "signal": "logs",
+                    "type": "log"
+                },
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "body",
+                    "signal": "logs",
+                    "type": "log"
+                }
+            ],
+            "selectedTracesFields": [
+                {
+                    "fieldContext": "resource",
+                    "fieldDataType": "string",
+                    "name": "service.name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "string",
+                    "name": "name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "duration_nano",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "http_method",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "response_status_code",
+                    "signal": "traces"
+                }
+            ],
+            "softMax": 0,
+            "softMin": 0,
+            "stackedBarChart": false,
+            "thresholds": [],
+            "timePreferance": "GLOBAL_TIME",
+            "title": "Wait-to-Work Ratio",
+            "yAxisUnit": "ms"
+        },
+        {
+            "bucketCount": 30,
+            "bucketWidth": 0,
+            "columnUnits": {},
+            "contextLinks": {
+                "linksData": []
+            },
+            "customLegendColors": {},
+            "decimalPrecision": 2,
+            "description": "",
+            "fillSpans": false,
+            "id": "342b3cf0-b6bc-4ca7-86b3-dc11806a8d88",
+            "isLogScale": false,
+            "legendPosition": "bottom",
+            "mergeAllActiveQueries": false,
+            "nullZeroValues": "zero",
+            "opacity": "1",
+            "panelTypes": "graph",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.client.connection.closed.max_idle",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "A",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "A",
+                            "source": "",
+                            "stepInterval": null
+                        },
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.client.connection.closed.max_idle_time",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "B",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "B",
+                            "source": "",
+                            "stepInterval": null
+                        }
+                    ],
+                    "queryFormulas": [
+                        {
+                            "disabled": false,
+                            "expression": "A+B",
+                            "legend": "",
+                            "queryName": "F1"
+                        }
+                    ],
+                    "queryTraceOperator": []
+                },
+                "clickhouse_sql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "id": "79737dbb-50a6-4558-af3a-134984415420",
+                "promql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "queryType": "builder",
+                "unit": ""
+            },
+            "selectedLogFields": [
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "timestamp",
+                    "signal": "logs",
+                    "type": "log"
+                },
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "body",
+                    "signal": "logs",
+                    "type": "log"
+                }
+            ],
+            "selectedTracesFields": [
+                {
+                    "fieldContext": "resource",
+                    "fieldDataType": "string",
+                    "name": "service.name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "string",
+                    "name": "name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "duration_nano",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "http_method",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "response_status_code",
+                    "signal": "traces"
+                }
+            ],
+            "softMax": 0,
+            "softMin": 0,
+            "stackedBarChart": false,
+            "thresholds": [],
+            "timePreferance": "GLOBAL_TIME",
+            "title": "Idle Limit Evictions",
+            "yAxisUnit": "none"
+        },
+        {
+            "bucketCount": 30,
+            "bucketWidth": 0,
+            "columnUnits": {},
+            "contextLinks": {
+                "linksData": []
+            },
+            "customLegendColors": {},
+            "decimalPrecision": 2,
+            "description": "",
+            "fillSpans": false,
+            "id": "cc2a2fea-09eb-4736-868a-9316eeb3820d",
+            "isLogScale": false,
+            "legendPosition": "bottom",
+            "mergeAllActiveQueries": false,
+            "nullZeroValues": "zero",
+            "opacity": "1",
+            "panelTypes": "graph",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.sql.latency.max",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "A",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "A",
+                            "source": "",
+                            "stepInterval": null
+                        }
+                    ],
+                    "queryFormulas": [],
+                    "queryTraceOperator": []
+                },
+                "clickhouse_sql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "id": "8e3d11a7-5122-40a0-a59f-72b60520c771",
+                "promql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "queryType": "builder",
+                "unit": ""
+            },
+            "selectedLogFields": [
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "timestamp",
+                    "signal": "logs",
+                    "type": "log"
+                },
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "body",
+                    "signal": "logs",
+                    "type": "log"
+                }
+            ],
+            "selectedTracesFields": [
+                {
+                    "fieldContext": "resource",
+                    "fieldDataType": "string",
+                    "name": "service.name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "string",
+                    "name": "name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "duration_nano",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "http_method",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "response_status_code",
+                    "signal": "traces"
+                }
+            ],
+            "softMax": 0,
+            "softMin": 0,
+            "stackedBarChart": false,
+            "thresholds": [],
+            "timePreferance": "GLOBAL_TIME",
+            "title": "Max Queue Latency",
+            "yAxisUnit": "ms"
+        },
+        {
+            "bucketCount": 30,
+            "bucketWidth": 0,
+            "columnUnits": {},
+            "contextLinks": {
+                "linksData": []
+            },
+            "customLegendColors": {},
+            "decimalPrecision": 2,
+            "description": "",
+            "fillSpans": false,
+            "id": "404b92ed-c805-4b1b-b2c3-37f98ff25cb3",
+            "isLogScale": false,
+            "legendPosition": "bottom",
+            "mergeAllActiveQueries": false,
+            "nullZeroValues": "zero",
+            "opacity": "1",
+            "panelTypes": "graph",
+            "query": {
+                "builder": {
+                    "queryData": [
+                        {
+                            "aggregations": [
+                                {
+                                    "metricName": "db.sql.latency.min",
+                                    "reduceTo": "avg",
+                                    "spaceAggregation": "avg",
+                                    "temporality": "",
+                                    "timeAggregation": "avg"
+                                }
+                            ],
+                            "dataSource": "metrics",
+                            "disabled": false,
+                            "expression": "A",
+                            "filter": {
+                                "expression": ""
+                            },
+                            "functions": [],
+                            "groupBy": [],
+                            "having": {
+                                "expression": ""
+                            },
+                            "legend": "",
+                            "limit": null,
+                            "orderBy": [],
+                            "queryName": "A",
+                            "source": "",
+                            "stepInterval": null
+                        }
+                    ],
+                    "queryFormulas": [],
+                    "queryTraceOperator": []
+                },
+                "clickhouse_sql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "id": "64ba4c3f-dc9f-41dc-9963-b7c545cb29a7",
+                "promql": [
+                    {
+                        "disabled": false,
+                        "legend": "",
+                        "name": "A",
+                        "query": ""
+                    }
+                ],
+                "queryType": "builder",
+                "unit": ""
+            },
+            "selectedLogFields": [
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "timestamp",
+                    "signal": "logs",
+                    "type": "log"
+                },
+                {
+                    "dataType": "",
+                    "fieldContext": "log",
+                    "fieldDataType": "",
+                    "isIndexed": false,
+                    "name": "body",
+                    "signal": "logs",
+                    "type": "log"
+                }
+            ],
+            "selectedTracesFields": [
+                {
+                    "fieldContext": "resource",
+                    "fieldDataType": "string",
+                    "name": "service.name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "string",
+                    "name": "name",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "duration_nano",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "http_method",
+                    "signal": "traces"
+                },
+                {
+                    "fieldContext": "span",
+                    "fieldDataType": "",
+                    "name": "response_status_code",
+                    "signal": "traces"
+                }
+            ],
+            "softMax": 0,
+            "softMin": 0,
+            "stackedBarChart": false,
+            "thresholds": [],
+            "timePreferance": "GLOBAL_TIME",
+            "title": "Min queue latency",
+            "yAxisUnit": "ms"
+        }
+    ],
+    "uuid": "019d0766-4fc4-73e0-b272-dd7cdbe5f67b"
+}

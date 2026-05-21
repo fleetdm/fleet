@@ -5,15 +5,16 @@
 package hostidentity
 
 import (
+	"log/slog"
 	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,13 +57,13 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, requireSignature 
 		configModifier(&fleetCfg)
 	}
 
-	logger := logging.NewLogfmtLogger(os.Stdout)
-	hostIdentitySCEPDepot, err := ds.NewHostIdentitySCEPDepot(logger.SlogLogger().With("component", "host-id-scep-depot"), &fleetCfg)
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	hostIdentitySCEPDepot, err := ds.NewHostIdentitySCEPDepot(slogLogger.With("component", "host-id-scep-depot"), &fleetCfg)
 	require.NoError(t, err)
-	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
+	users, server := svctest.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License:     license,
 		FleetConfig: &fleetCfg,
-		Logger:      logger,
+		Logger:      slogLogger,
 		HostIdentity: &service.HostIdentity{
 			SCEPStorage:                 hostIdentitySCEPDepot,
 			RequireHTTPMessageSignature: requireSignature,
@@ -71,7 +72,7 @@ func SetUpSuiteWithConfig(t *testing.T, uniqueTestName string, requireSignature 
 
 	s := &Suite{
 		BaseSuite: integrationtest.BaseSuite{
-			Logger:   logger,
+			Logger:   slogLogger,
 			DS:       ds,
 			FleetCfg: fleetCfg,
 			Users:    users,

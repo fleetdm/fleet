@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -12,7 +13,7 @@ import (
 // expiration and marks them for renewal by updating their status.
 func RenewCertificateTemplates(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	const batchSize = 1000
-	templates, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, batchSize)
+	templates, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, time.Now(), batchSize)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get android certificate templates for renewal")
 	}

@@ -21,7 +21,7 @@ func NewMDMConfigMiddleware(svc fleet.Service) *Middleware {
 
 func (m *Middleware) VerifyAppleMDM() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			if err := m.svc.VerifyMDMAppleConfigured(ctx); err != nil {
 				return nil, err
 			}
@@ -35,7 +35,7 @@ func (m *Middleware) VerifyAppleMDM() endpoint.Middleware {
 // This is used on API endpoints that are reused on Linux hosts (which don't require Apple MDM to be configured).
 func (m *Middleware) VerifyAppleMDMOnMacOSHosts() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			host, ok := hostctx.FromContext(ctx)
 			if !ok {
 				return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -53,8 +53,20 @@ func (m *Middleware) VerifyAppleMDMOnMacOSHosts() endpoint.Middleware {
 
 func (m *Middleware) VerifyWindowsMDM() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			if err := m.svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+				return nil, err
+			}
+
+			return next(ctx, req)
+		}
+	}
+}
+
+func (m *Middleware) VerifyAndroidMDM() endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req any) (any, error) {
+			if err := m.svc.VerifyMDMAndroidConfigured(ctx); err != nil {
 				return nil, err
 			}
 
@@ -65,7 +77,7 @@ func (m *Middleware) VerifyWindowsMDM() endpoint.Middleware {
 
 func (m *Middleware) VerifyAnyMDM() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			if err := m.svc.VerifyAnyMDMConfigured(ctx); err != nil {
 				return nil, err
 			}

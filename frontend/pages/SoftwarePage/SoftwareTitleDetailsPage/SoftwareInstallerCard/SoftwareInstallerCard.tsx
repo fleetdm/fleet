@@ -1,7 +1,6 @@
 /** software/titles/:id > Second section */
 
 import React, { useCallback, useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -17,6 +16,7 @@ import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
   getSelfServiceTooltip,
   getAutoUpdatesTooltip,
+  mergePolicies,
 } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
@@ -155,7 +155,6 @@ export const SoftwareActionButtons = ({
 interface ISoftwareInstallerCardProps {
   softwareId: number;
   teamId: number;
-  teamIdForApi?: number;
   onDelete: () => void;
   isLoading: boolean;
   onToggleViewYaml: () => void;
@@ -169,7 +168,6 @@ interface ISoftwareInstallerCardProps {
 const SoftwareInstallerCard = ({
   softwareId,
   teamId,
-  teamIdForApi,
   onDelete,
   isLoading,
   onToggleViewYaml,
@@ -189,7 +187,6 @@ const SoftwareInstallerCard = ({
 
   const {
     softwareTitleName,
-    softwareDisplayName,
     softwareInstaller,
     name,
     version,
@@ -213,6 +210,7 @@ const SoftwareInstallerCard = ({
     isIosOrIpadosApp,
     sha256,
     androidPlayStoreId,
+    patchPolicy,
     automaticInstallPolicies,
     gitOpsModeEnabled,
     repoURL,
@@ -269,6 +267,11 @@ const SoftwareInstallerCard = ({
     isGlobalTechnician ||
     isTeamTechnician;
 
+  const mergedPolicies = mergePolicies({
+    automaticInstallPolicies,
+    patchPolicy,
+  });
+
   return (
     <Card borderRadiusSize="xxlarge" className={baseClass}>
       <div className={`${baseClass}__installer-header`}>
@@ -286,21 +289,6 @@ const SoftwareInstallerCard = ({
               androidPlayStoreId={androidPlayStoreId}
             />
             <div className={`${baseClass}__tags-wrapper`}>
-              {Array.isArray(automaticInstallPolicies) &&
-                automaticInstallPolicies.length > 0 && (
-                  <TooltipWrapper
-                    showArrow
-                    position="top"
-                    tipContent={
-                      automaticInstallPolicies.length === 1
-                        ? "A policy triggers install."
-                        : `${automaticInstallPolicies.length} policies trigger install.`
-                    }
-                    underline={false}
-                  >
-                    <Tag icon="refresh" text="Automatic install" />
-                  </TooltipWrapper>
-                )}
               {isSelfService && (
                 <TooltipWrapper
                   showArrow
@@ -361,12 +349,12 @@ const SoftwareInstallerCard = ({
           isLoading={isLoading}
         />
       </div>
-      {automaticInstallPolicies && (
+      {mergedPolicies.length > 0 && (
         <div className={`${baseClass}__installer-policies-table`}>
           <InstallerPoliciesTable
             teamId={teamId}
             isLoading={isLoading}
-            policies={automaticInstallPolicies}
+            policies={mergedPolicies}
           />
         </div>
       )}
@@ -386,14 +374,11 @@ const SoftwareInstallerCard = ({
       {showViewYamlModal && isCustomPackage && (
         <ViewYamlModal
           softwareTitleName={softwareTitleName}
-          softwareTitleId={softwareId}
-          teamId={teamId}
           iconUrl={iconUrl}
           displayName={displayName}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
           isScriptPackage={isScriptPackage}
-          isIosOrIpadosApp={isIosOrIpadosApp}
         />
       )}
     </Card>

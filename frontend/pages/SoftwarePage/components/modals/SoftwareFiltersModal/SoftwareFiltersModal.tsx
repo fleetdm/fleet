@@ -9,7 +9,6 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 import {
@@ -18,7 +17,7 @@ import {
   findOptionBySeverityRange,
   ISoftwareVulnFiltersParams,
   SEVERITY_DROPDOWN_OPTIONS,
-} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 
 const baseClass = "software-filters-modal";
 

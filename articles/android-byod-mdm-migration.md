@@ -4,7 +4,7 @@ On BYOD Android devices, enrolling in an MDM installs a [Work Profile](https://s
 
 **Prerequisites**  
 - Set up [Android MDM](https://fleetdm.com/guides/android-mdm-setup) in Fleet.
-- Get a Fleet enrollment link for the team. Follow our [Enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui) for instructions on how to get this link.
+- Get a Fleet enrollment link for the fleet. Follow our [Enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui) for instructions on how to get this link.
 
 
 ## Remove the old Work Profile
@@ -24,7 +24,7 @@ Send the enrollment link to end users to open in a web browser. An easy alternat
 - If this option is missing, select the three dot menu icon on the right side of the toolbar > **Cast, Save, and Share** > **Create QR Code**.
 
 1. Open the enrollment link on the Android device.
-   - If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is set up for the team, authentication via SSO is required. After successfully authenticating, a page with an Enroll button will appear.
+   - If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is set up for the fleet, authentication via SSO is required. After successfully authenticating, a page with an Enroll button will appear.
 2. Select **Enroll**. A "Set up your work profile" screen will then appear.
 3. Select **Next**. The next screen will describe what a Work Profile is.
 4. Select **Accept & continue**.
@@ -33,9 +33,9 @@ Send the enrollment link to end users to open in a web browser. An easy alternat
    - A series of enrollment screens will appear. When the Work Profile is active, a briefcase icon appears in the status bar on Google Pixel devices, and in the lower right corner on Samsung devices.
 5. If Google authentication is enabled in [Google Admin](https://support.google.com/work/android/answer/9415508?hl=en), sign in using your work Google account.
    - If **Skip** is selected at this screen, you will later be required to sign in to this Google account to access apps like Google Calendar.
-6. When enrollment is complete, the Work Profile screens will go away and you will be brought back to the web browser with the Fleet enrollment page.
+6. When enrollment is complete, the Work Profile screens will go away and you will be brought back to the web browser with the Fleet enrollment page. You can close this tab.
 
-Open the App Drawer (swipe up at the home screen, or select the Apps icon), and a separate tab at the bottom will appear for Work Profile apps. These apps have a briefcase icon in the bottom right corner of their icon.
+Open the App Drawer (swipe up at the home screen, or select the Apps icon), and a separate tab will appear for Work Profile apps. These apps have a briefcase icon in the bottom right corner of their icon.
 
 When signing in with a work Google account, if the device doesn't meet the requirements set up by the admin in Google Admin, you will be prompted to resolve these.
 

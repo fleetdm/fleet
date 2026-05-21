@@ -1,0 +1,2 @@
+- Added include_all label scope to policies.
+- Added include_all and include_any scope to reports.

@@ -60,11 +60,19 @@ WHERE triggering_extension IS NOT NULL AND username NOT LIKE '\\_%' ESCAPE '\\';
     expect(tables).toEqual([
       "file",
       "parse_json",
-      "chrome_preferences",
       "extension_safety_hub_menu_notifications",
       "extension_details",
       "problematic_extensions",
     ]);
+  });
+
+  // from https://github.com/fleetdm/fleet/issues/40117
+  it("should not include table aliases from column references", () => {
+    const sql =
+      "SELECT * FROM mounts m, disk_encryption d WHERE m.device_alias = d.name";
+    const { tables, error } = checkTable(sql);
+    expect(error).toBeNull();
+    expect(tables).toEqual(["mounts", "disk_encryption"]);
   });
 
   it("should return an error if SQL is invalid", () => {

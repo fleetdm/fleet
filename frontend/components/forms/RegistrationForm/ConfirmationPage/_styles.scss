@@ -99,8 +99,8 @@
       top: 0;
     }
   }
+}
 
-  .button {
-    width: 160px;
-  }
+body.dark-mode .confirm-user-reg__table tbody tr {
+  background-color: transparent;
 }

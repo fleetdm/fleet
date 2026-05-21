@@ -18,6 +18,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -641,8 +642,28 @@ func atomicSyncMLForTestWithExec(locURI string) []byte {
 // Setups a reconciler test run by mocking required datastore methods, for a single profile pending installation.
 // Use $FLEET_VAR_HOST_UUID in the profile SyncML to simulate error in profile variable processing flow.
 func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWindowsConfigProfile) (capturedUpdates *[]*fleet.MDMWindowsBulkUpsertHostProfilePayload, managedCerts *[]*fleet.MDMManagedCertificate) {
-	// Mock ListMDMWindowsProfilesToInstall to return a profile with Fleet variable
-	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+	// Cursor stubs: tests don't care about cursor state, just need the
+	// reconciler not to panic on the calls.
+	ds.GetMDMWindowsReconcileCursorFunc = func(ctx context.Context) (string, error) {
+		return "", nil
+	}
+	ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, cursor string) error {
+		return nil
+	}
+
+	// The cron's batched path picks a host window first, then calls the
+	// scoped listings for that window. For the mock, return all host UUIDs
+	// from hostToProfile so the rest of the reconciler runs against the
+	// same set the test wants.
+	ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+		hostUUIDs := make([]string, 0, len(hostToProfile))
+		for hostUUID := range hostToProfile {
+			hostUUIDs = append(hostUUIDs, hostUUID)
+		}
+		return hostUUIDs, nil
+	}
+
+	listInstall := func(_ context.Context, _ ...any) ([]*fleet.MDMWindowsProfilePayload, error) {
 		profilesToInstall := []*fleet.MDMWindowsProfilePayload{}
 		for hostUUID, profile := range hostToProfile {
 			profilesToInstall = append(profilesToInstall, &fleet.MDMWindowsProfilePayload{
@@ -655,8 +676,19 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		}
 		return profilesToInstall, nil
 	}
+	// Mock both the legacy global listing (kept for tests still using it
+	// directly) and the new scoped listing the cron now calls.
+	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return listInstall(ctx)
+	}
+	ds.ListMDMWindowsProfilesToInstallForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return listInstall(ctx)
+	}
 
 	ds.ListMDMWindowsProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+		return nil, nil
+	}
+	ds.ListMDMWindowsProfilesToRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
 		return nil, nil
 	}
 
@@ -669,6 +701,23 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 			}
 		}
 		return profileContentsMap, nil
+	}
+
+	ds.MDMWindowsBulkInsertCommandsFunc = func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error {
+		return nil
+	}
+	ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+
+	// Default: every requested profile still exists. Tests that want to
+	// exercise the deletion-race guard can override this with their own Func.
+	ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
+		out := make(map[string]struct{}, len(profileUUIDs))
+		for _, u := range profileUUIDs {
+			out[u] = struct{}{}
+		}
+		return out, nil
 	}
 
 	capturedUpdates = &[]*fleet.MDMWindowsBulkUpsertHostProfilePayload{}
@@ -728,12 +777,13 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	capturedUpdates, managedCerts := setupReconcilerTest(ds, hostToProfile)
 
 	var receivedCommand *fleet.MDMWindowsCommand
-	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 		receivedCommand = cmd
 		// Simulate error only for commands with substituted UUID (to test error handling)
 		if strings.Contains(string(cmd.RawCommand), testHostUUID) {
 			return errors.New("command insert failed after preprocessing")
 		}
+		*capturedUpdates = append(*capturedUpdates, updates...)
 		return nil
 	}
 
@@ -750,7 +800,7 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 	require.Empty(t, managedCerts, "No managed certificates should have been added")
 
 	// Verify that the error was captured and the profile was marked as failed
-	require.True(t, ds.MDMWindowsInsertCommandForHostsFuncInvoked, "MDMWindowsInsertCommandForHosts should have been called")
+	require.True(t, ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked, "MDMWindowsInsertCommandAndUpsertHostProfilesForHosts should have been called")
 	require.True(t, ds.BulkUpsertMDMWindowsHostProfilesFuncInvoked, "BulkUpsertMDMWindowsHostProfiles should have been called")
 
 	// Find the error status update
@@ -804,7 +854,7 @@ func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertifica
 		return "secret", nil
 	}
 
-	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 		return errors.New("fake error to check managed certificate")
 	}
 
@@ -871,7 +921,8 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 		return "secret", nil
 	}
 
-	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		*capturedUpdates = append(*capturedUpdates, updates...)
 		return nil
 	}
 
@@ -917,6 +968,143 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 	require.EqualValues(t, 1, foundErrors, "Should have found one failed status update")
 }
 
+// TestReconcileWindowsProfilesSkipsDeletedProfile covers the race where an
+// admin deletes a Windows profile between the cron's initial list and the
+// per-profile upsert. Without the guard, the cron would insert a
+// host_mdm_windows_profiles row + enqueue an install command for a profile
+// that no longer exists in mdm_windows_configuration_profiles; later the
+// remove path can't build a <Delete> command (SyncML is gone) and the row
+// is stuck. The fix: GetExistingMDMWindowsProfileUUIDs pre-filter right
+// before the upsert loop.
+func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	deletedProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "deleted-profile-uuid",
+		Name:        "Deleted Before Upsert",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>v</Data></Item></Replace>`),
+	}
+	hostToProfile := map[string]*fleet.MDMWindowsConfigProfile{
+		"host-a": deletedProfile,
+	}
+	setupReconcilerTest(ds, hostToProfile)
+
+	// Simulate the race: ListMDMWindowsProfilesToInstall and
+	// GetMDMWindowsProfilesContents already ran (both set up by
+	// setupReconcilerTest to include the profile). Between those and the
+	// upsert, the admin deleted the profile, so
+	// GetExistingMDMWindowsProfileUUIDs returns an empty set.
+	ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
+		return map[string]struct{}{}, nil
+	}
+
+	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	require.NoError(t, err)
+	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked, "existence pre-check must run")
+	require.False(t, ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked,
+		"no zombie row should be written when the profile is gone")
+}
+
+// TestReconcileWindowsProfilesSkipsInsertLag covers the asymmetric race
+// where a profile was just inserted on the primary but the replica
+// hasn't caught up: GetMDMWindowsProfilesContents (replica) misses the
+// row even though GetExistingMDMWindowsProfileUUIDs (primary) sees it.
+// Without the skip-and-continue, the cron would error out with
+// "missing profile content", leave the cursor unchanged, and re-fire the
+// same race every 30s until the replica converges. The fix: log + skip
+// + advance the cursor; the hosts stay in the listing universe and the
+// next tick picks them up after replication catches up.
+func TestReconcileWindowsProfilesSkipsInsertLag(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	freshProfile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "fresh-profile-uuid",
+		Name:        "Just-Inserted-On-Primary",
+		SyncML:      []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>v</Data></Item></Replace>`),
+	}
+	hostToProfile := map[string]*fleet.MDMWindowsConfigProfile{
+		"host-a": freshProfile,
+	}
+	setupReconcilerTest(ds, hostToProfile)
+
+	// Simulate insert-lag: the existence pre-check (primary) finds the
+	// profile, but the content fetch (replica) returns nothing because
+	// replication hasn't caught up to the just-committed insert.
+	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+		return map[string]fleet.MDMWindowsProfileContents{}, nil
+	}
+
+	err := ReconcileWindowsProfiles(ctx, ds, logger)
+	require.NoError(t, err, "insert-lag must not fail the tick; the cursor must advance so the next tick can retry")
+	require.True(t, ds.GetExistingMDMWindowsProfileUUIDsFuncInvoked,
+		"existence pre-check still runs (it confirms the profile exists on primary)")
+	require.False(t, ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked,
+		"no install command should be enqueued when content is not yet visible")
+}
+
+// TestReconcileWindowsProfilesEmptyPopulation covers the cron's two
+// terminating branches when there is no pending Windows MDM work.
+// A fresh ("") cursor stays empty and writes nothing. A non-empty cursor
+// (left over from a prior partial pass) is reset to "" exactly once. In
+// both cases the cron returns nil and the per-host / per-profile mocks
+// are never reached, so leaving them nil on the mock store is itself an
+// implicit assertion.
+func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
+	cases := []struct {
+		name            string
+		initialCursor   string
+		wantSetCalls    int
+		wantFinalCursor string
+	}{
+		{
+			name:            "fresh cursor and no work is a no-op",
+			initialCursor:   "",
+			wantSetCalls:    0,
+			wantFinalCursor: "",
+		},
+		{
+			name:            "non-empty cursor is reset to empty once",
+			initialCursor:   "left-over-host-uuid",
+			wantSetCalls:    1,
+			wantFinalCursor: "",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			ds := new(mock.Store)
+			logger := slog.New(slog.DiscardHandler)
+			cursor := tc.initialCursor
+			var setCalls int
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.MDM.WindowsEnabledAndConfigured = true
+				return cfg, nil
+			}
+			ds.GetMDMWindowsReconcileCursorFunc = func(ctx context.Context) (string, error) {
+				return cursor, nil
+			}
+			ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, c string) error {
+				cursor = c
+				setCalls++
+				return nil
+			}
+			ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, after string, batchSize int) ([]string, error) {
+				return nil, nil
+			}
+
+			require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+			require.Equal(t, tc.wantSetCalls, setCalls)
+			require.Equal(t, tc.wantFinalCursor, cursor)
+		})
+	}
+}
+
 func TestRekeyWindowsDevice(t *testing.T) {
 	ds := new(mock.Store)
 	kv := new(mock.KVStore)
@@ -925,8 +1113,10 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	})
 
 	var credsHash *[]byte
+	const testEnrollmentID uint = 123
 	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 		return &fleet.MDMWindowsEnrolledDevice{
+			ID:              testEnrollmentID,
 			MDMDeviceID:     "device",
 			HostUUID:        "host-uuid-123",
 			CredentialsHash: credsHash,
@@ -1041,7 +1231,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 
 	// Now respond with credentials to ack the rekey
 	// WE only need to mock this as we short-circuit when challenging or invalid creds
-	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, deviceID string) ([]*fleet.MDMWindowsCommand, error) {
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+		require.Equal(t, testEnrollmentID, enrollmentID)
 		return []*fleet.MDMWindowsCommand{}, nil
 	}
 	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
@@ -1092,4 +1283,440 @@ func hashMDMCredentials(username, password, nonce string) []byte {
 	encodedCreds := base64.StdEncoding.EncodeToString(credsHash[:])
 	nonceHash := md5.Sum([]byte(encodedCreds + ":" + nonce)) //nolint:gosec // Windows MDM Auth uses MD5
 	return nonceHash[:]
+}
+
+func TestGetESPCommands(t *testing.T) {
+	t.Parallel()
+	const deviceID = "test-device-id"
+	const hostUUID = "test-host-uuid"
+
+	// newSvc returns a mock-backed Service with every datastore method handleESPRelease can call defaulted to a
+	// no-op success return. Tests override ONLY the methods whose specific behavior they care about, which
+	// keeps each subtest focused on its one variable instead of being a wall of mock-setup boilerplate.
+	//
+	// Tests that need a method to return an error / different value / track invocations install their own
+	// override; tests that need to assert "this method must NOT be called" install a t.Fatal override or
+	// assert ds.<Func>Invoked == false (the auto-set flag is independent of the func body).
+	newSvc := func(t *testing.T) (*mock.Store, *Service) {
+		ds := new(mock.Store)
+		// HostLiteByIdentifier exposes OsqueryHostID so Stage 3's setupExperienceHostUUID() resolves to the same
+		// key Windows orbit uses as setup_experience_status_results.host_uuid (production data shape).
+		osqueryHostID := "osquery-" + hostUUID
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: nil}, nil
+		}
+		// Stage 1, 2, 3 listings default empty so the wait gates pass through to finalize cleanly.
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return nil, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return nil, nil
+		}
+		// No setup-experience items configured: empty Stage 3 disambiguates to "safe to release". Tests that
+		// expect waiting due to items configured override this to return true.
+		ds.HasWindowsSetupExperienceItemsForTeamFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
+		}
+		// require_all_software_windows defaults to false via the no-team / app-config path. setRequireAll(ds, true)
+		// flips it for tests that need require_all=true.
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		// Finalize side-effects: default no-op success. Tests that need to capture, fail, or assert ordering
+		// install their own override.
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+			return nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			return true, nil
+		}
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			return nil
+		}
+		ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
+			return nil, nil
+		}
+		svc := &Service{ds: ds, logger: testutils.TestLogger(t)}
+		svc.SetActivityService(&mock.MockActivityService{})
+		return ds, svc
+	}
+
+	// newActiveDevice returns the most common device fixture used by these tests: AwaitingConfiguration=Active
+	// with the standard test deviceID/hostUUID. Tests that need a different state (Pending, None) or a timeout
+	// timestamp construct their own struct literal.
+	newActiveDevice := func() *fleet.MDMWindowsEnrolledDevice {
+		return &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:           deviceID,
+			HostUUID:              hostUUID,
+			AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
+		}
+	}
+
+	t.Run("no awaiting configuration returns nil", func(t *testing.T) {
+		_, svc := newSvc(t)
+		device := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:           deviceID,
+			AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone,
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), device)
+		require.NoError(t, err)
+		assert.Nil(t, cmds)
+	})
+
+	t.Run("pending without host UUID sends hold commands", func(t *testing.T) {
+		_, svc := newSvc(t)
+		device := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:           deviceID,
+			HostUUID:              "",
+			AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending,
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), device)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds, "should return hold commands")
+	})
+
+	t.Run("pending with host UUID transitions to active", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		device := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:           deviceID,
+			HostUUID:              hostUUID,
+			AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending,
+		}
+		transitioned := false
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			transitioned = true
+			return true, nil
+		}
+
+		// At orbit-link transition, handleESPHoldOrTransition flips awaiting_configuration to Active and
+		// returns a single DevicePreparation/InstallationState=3 command to advance the ESP from the
+		// Device-setup phase to the Account-setup phase. ESP release itself is signaled later via
+		// ServerHasFinishedProvisioning from buildESPReleaseCommands.
+		cmds, err := svc.getESPCommands(t.Context(), device)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		assert.Contains(t, cmds[0].GetTargetURI(), "DevicePreparation/PolicyProviders/")
+		assert.Contains(t, cmds[0].GetTargetURI(), "/InstallationState")
+		assert.True(t, transitioned)
+	})
+
+	t.Run("active with pending profiles waits", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return []fleet.HostMDMWindowsProfile{
+				{ProfileUUID: "prof-1", Name: "WiFi", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+			}, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		assert.Nil(t, cmds, "should wait while profiles are pending")
+	})
+
+	t.Run("active with verifying profiles waits", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return []fleet.HostMDMWindowsProfile{
+				{ProfileUUID: "prof-1", Name: "WiFi", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
+			}, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		assert.Nil(t, cmds, "should wait while profiles are verifying")
+	})
+
+	t.Run("active waits when profiles not yet queued by reconciler", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return []*fleet.MDMWindowsProfilePayload{
+				{ProfileUUID: "prof-1", ProfileName: "WiFi"},
+			}, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		assert.Nil(t, cmds, "should wait when profiles are configured but not yet queued")
+		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not check delivery status when profiles not yet queued")
+	})
+
+	// setRequireAll flips the require_all_software_windows lookup to the given value via the no-team /
+	// app-config path. Default in newSvc is false; call this with true when a test needs require_all=true. The
+	// team-config path is covered explicitly by its own subtest.
+	setRequireAll := func(ds *mock.Store, requireAll bool) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.MacOSSetup.RequireAllSoftwareWindows = requireAll
+			return ac, nil
+		}
+	}
+
+	t.Run("active with all profiles delivered releases device", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return []fleet.HostMDMWindowsProfile{
+				{ProfileUUID: "prof-1", Name: "WiFi", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
+			}, nil
+		}
+		// Capture ordering: persist must run BEFORE the CAS so a persist failure can't leave the device finalized
+		// without the dropped-response retry safety net.
+		persisted := false
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+			persisted = true
+			return nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			require.True(t, persisted, "persist must run BEFORE CAS Active->None")
+			return true, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds, "should return release commands")
+		assert.True(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked,
+			"release path must persist final commands as the dropped-response retry backup")
+		assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"should transition awaiting_configuration out of Active")
+	})
+
+	t.Run("active with no profiles releases device", func(t *testing.T) {
+		ds, svc := newSvc(t)
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds, "should return release commands when no profiles configured")
+		assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"should transition awaiting_configuration out of Active")
+	})
+
+	// findCmdByLocURI returns the first SyncMLCmd whose target LocURI contains
+	// the given substring, or nil if none match.
+	findCmdByLocURI := func(cmds []*fleet.SyncMLCmd, substr string) *fleet.SyncMLCmd {
+		for _, c := range cmds {
+			if c.GetTargetURI() != "" && strings.Contains(c.GetTargetURI(), substr) {
+				return c
+			}
+		}
+		return nil
+	}
+
+	t.Run("profile failure alone does not block even with require_all=true", func(t *testing.T) {
+		// Profile delivery failures (e.g. CSP not supported on the host's edition) should not trigger the ESP
+		// block screen. The require_all_software_windows setting is software-scoped (matching macOS), so a
+		// failed profile with no software failure must release the device normally.
+		ds, svc := newSvc(t)
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return []fleet.HostMDMWindowsProfile{
+				{ProfileUUID: "prof-1", Name: "WiFi", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall},
+			}, nil
+		}
+		setRequireAll(ds, true)
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds, "profile failure alone should release the device")
+
+		// Release path: ServerHasFinishedProvisioning is set, BlockInStatusPage is not.
+		assert.NotNil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"profile-only failure must release the device")
+		assert.Nil(t, findCmdByLocURI(cmds, "BlockInStatusPage"),
+			"profile-only failure must not block the device")
+		// No software failure and no timeout means no error text on the release.
+		assert.Nil(t, findCmdByLocURI(cmds, "CustomErrorText"),
+			"profile-only failure should not surface error text")
+		// Cancel should NOT be called: profile failures don't trigger cancel.
+		assert.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"profile failure must not cancel pending setup experience steps")
+	})
+
+	t.Run("profile failure combined with software failure still blocks on software", func(t *testing.T) {
+		// When BOTH a profile and a software install fail, the software failure still triggers the block (with
+		// require_all=true) and the software-specific error text wins (because it's more actionable than a
+		// generic timeout/profile message).
+		ds, svc := newSvc(t)
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return []fleet.HostMDMWindowsProfile{
+				{ProfileUUID: "prof-1", Name: "WiFi", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall},
+			}, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
+			}, nil
+		}
+		setRequireAll(ds, true)
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+
+		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"),
+			"software failure with require_all=true blocks regardless of profile state")
+		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
+		require.NotNil(t, errCmd)
+		require.NotNil(t, errCmd.Items[0].Data)
+		assert.Equal(t, microsoft_mdm.ESPSoftwareFailureErrorText, errCmd.Items[0].Data.Content,
+			"software failure error text takes precedence over profile/timeout text")
+	})
+
+	t.Run("timeout cancel tolerates upcoming activity already gone", func(t *testing.T) {
+		// CancelHostUpcomingActivity returns notFound when the row is already absent (e.g., a previous finalize
+		// attempt cancelled the queue row and crashed before the status table update; the retry sees status
+		// still Pending and re-tries). Tolerating notFound keeps retries idempotent; anything stricter would
+		// loop forever on the same checkin until the 3-hour timeout expires server-side.
+		ds, svc := newSvc(t)
+		past := time.Now().Add(-4 * time.Hour)
+		device := newActiveDevice()
+		device.AwaitingConfigurationAt = &past
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Already Cancelled Queue", Status: fleet.SetupExperienceStatusPending, HostSoftwareInstallsExecutionID: new("exec-gone")},
+			}, nil
+		}
+		ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
+			return nil, newNotFoundError()
+		}
+
+		_, err := svc.getESPCommands(t.Context(), device)
+		require.NoError(t, err,
+			"notFound from CancelHostUpcomingActivity must be tolerated -- otherwise mid-loop crashes loop forever on retry")
+		assert.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"after tolerating the notFound, the status-table cancel must still run so the iteration eventually clears "+
+				"the rows and the next retry's pending check skips them")
+	})
+
+	t.Run("require_all read via team config blocks when team has require_all_software_windows=true", func(t *testing.T) {
+		// Covers the team-path branch of the require_all_software_windows lookup chain (HostLite returns
+		// TeamID set -> TeamLite -> team config). Other tests use the no-team path via setRequireAll.
+		ds, svc := newSvc(t)
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
+			}, nil
+		}
+		// Team-path overrides: HostLite returns a host with TeamID set; TeamLite returns the team config with
+		// require_all_software_windows=true. AppConfig MUST NOT be consulted on the team path.
+		teamID := uint(42)
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, UUID: identifier, TeamID: &teamID}, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			require.Equal(t, teamID, tid, "TeamLite must be called with the host's team_id")
+			return &fleet.TeamLite{
+				ID: tid,
+				Config: fleet.TeamConfigLite{
+					MDM: fleet.TeamMDM{MacOSSetup: fleet.MacOSSetup{RequireAllSoftwareWindows: true}},
+				},
+			}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			t.Fatal("AppConfig must not be called when host has a team_id")
+			return nil, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+		assert.True(t, ds.TeamLiteFuncInvoked, "TeamLite must be called on the team path")
+		assert.NotNil(t, findCmdByLocURI(cmds, "BlockInStatusPage"),
+			"team config require_all_software_windows=true must drive the block path")
+	})
+
+	t.Run("persist failure aborts finalize without committing CAS", func(t *testing.T) {
+		// Safety property: if the persist (dropped-response retry safety net) fails, we must NOT commit the CAS
+		// transition Active -> None. Otherwise the device would be left without an inline send AND without the
+		// retry backup -- stuck on "Working on it..." forever, since awaiting_configuration=None means subsequent
+		// management sessions return no ESP commands. Persist runs before the CAS for exactly this reason.
+		ds, svc := newSvc(t)
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
+			}, nil
+		}
+		setRequireAll(ds, true)
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+			return errors.New("transient db error")
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			t.Fatal("CAS Active->None must NOT run when persist fails")
+			return false, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.Error(t, err, "must return error so device retries on next session")
+		assert.Nil(t, cmds)
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"CAS must NOT have been invoked when persist fails")
+	})
+
+	t.Run("cancel failure aborts finalize without committing CAS", func(t *testing.T) {
+		// Cancel runs before persist and CAS. A transient cancel failure must abort the finalize cleanly:
+		// otherwise we'd commit awaiting=None while leaving non-terminal setup-experience rows behind, which is
+		// exactly the state cancellation is supposed to prevent. CancelPendingSetupExperienceSteps is idempotent
+		// so a retry on the next session is safe.
+		ds, svc := newSvc(t)
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Critical App", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(7))},
+			}, nil
+		}
+		setRequireAll(ds, true)
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			return errors.New("transient db error")
+		}
+		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+			t.Fatal("persist must NOT run when cancel fails")
+			return nil
+		}
+		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+			t.Fatal("CAS Active->None must NOT run when cancel fails")
+			return false, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.Error(t, err, "must return error so device retries on next session")
+		assert.Nil(t, cmds)
+		assert.False(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked,
+			"persist must NOT have been invoked when cancel fails")
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"CAS must NOT have been invoked when cancel fails")
+	})
+
+	t.Run("require_all lookup error returns error and keeps device active", func(t *testing.T) {
+		// Failing AppConfig (not HostLite) ensures the test exercises the require_all chain itself rather than
+		// erroring out earlier at setupExperienceHostUUID. With HostLite returning a valid host (default),
+		// loadRequireAll proceeds to AppConfig and gets the error injected here. Property under test is the
+		// same regardless of which lookup fails: any error in the finalize path must keep the device Active.
+		ds, svc := newSvc(t)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return nil, errors.New("transient db error")
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.Error(t, err, "must return error so device retries on next session")
+		assert.Nil(t, cmds)
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"must NOT transition to None on lookup failure")
+	})
+
+	t.Run("active waits when results empty but setup experience configured", func(t *testing.T) {
+		// Setup experience is configured for the team but orbit hasn't called SetupExperienceInit yet, so
+		// results are empty. The disambiguation must wait for orbit rather than releasing.
+		ds, svc := newSvc(t)
+		ds.HasWindowsSetupExperienceItemsForTeamFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return true, nil
+		}
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		assert.Nil(t, cmds, "should wait for orbit to initialize setup experience")
+		// Must NOT have proceeded to the Active->None transition.
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"must not transition state while waiting for orbit init")
+	})
 }

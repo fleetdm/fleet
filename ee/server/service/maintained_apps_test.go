@@ -86,6 +86,20 @@ func TestListMaintainedAppsAuth(t *testing.T) {
 			true,
 			true,
 		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+			false,
+			false,
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			false,
+			false,
+			true,
+		},
 	}
 
 	var forbiddenError *authz.Forbidden
@@ -224,6 +238,20 @@ func TestGetMaintainedAppAuth(t *testing.T) {
 			true,
 			true,
 		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+			false,
+			false,
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			false,
+			false,
+			true,
+		},
 	}
 
 	var forbiddenError *authz.Forbidden
@@ -282,8 +310,8 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 			UniqueIdentifier: "Internet Exploder",
 		}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 
 	// Mock server to serve the "installer"
@@ -337,7 +365,7 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 	authCtx := authz_ctx.AuthorizationContext{}
 	ctx := authz_ctx.NewContext(context.Background(), &authCtx)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	_, err = svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil)
+	_, err = svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil, nil)
 	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
 
 	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
@@ -367,8 +395,8 @@ func TestExtractMaintainedAppVersionWhenLatest(t *testing.T) {
 			UniqueIdentifier: "com.example.dummy",
 		}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 
 	// Mock server to serve the dummy package
@@ -417,7 +445,7 @@ func TestExtractMaintainedAppVersionWhenLatest(t *testing.T) {
 	authCtx := authz_ctx.AuthorizationContext{}
 	ctx := authz_ctx.NewContext(context.Background(), &authCtx)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	_, err = svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil)
+	_, err = svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil, nil)
 	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
 
 	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)

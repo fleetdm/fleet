@@ -1,11 +1,45 @@
 import { IEndUserAuthentication } from "interfaces/config";
 import {
+  isEmptyFormData,
   isMissingAnyRequiredField,
   newFormDataIdp,
   validateFormDataIdp,
 } from "./helpers";
 
 describe("IdPSection helpers", () => {
+  describe("isEmptyFormData", () => {
+    it("returns true when all fields are empty", () => {
+      expect(
+        isEmptyFormData({
+          entity_id: "",
+          idp_name: "",
+          metadata: "",
+          metadata_url: "",
+        })
+      ).toBe(true);
+    });
+
+    it("returns false when any field is non-empty", () => {
+      expect(
+        isEmptyFormData({
+          entity_id: "entityId",
+          idp_name: "",
+          metadata: "",
+          metadata_url: "",
+        })
+      ).toBe(false);
+
+      expect(
+        isEmptyFormData({
+          entity_id: "",
+          idp_name: "idpName",
+          metadata: "",
+          metadata_url: "",
+        })
+      ).toBe(false);
+    });
+  });
+
   describe("isMissingAnyRequiredField", () => {
     it("returns true if missing any required field", () => {
       expect(
@@ -82,12 +116,7 @@ describe("IdPSection helpers", () => {
           metadata: "",
           metadata_url: "",
         })
-      ).toEqual({
-        entity_id: "Entity ID must be present.",
-        idp_name: "Identity provider name must be present.",
-        metadata: "Metadata or Metadata URL must be present.",
-        metadata_url: "Metadata or Metadata URL must be present.",
-      }); // all fields missing
+      ).toEqual(null); // all fields empty is valid (allows clearing settings)
 
       expect(
         validateFormDataIdp({

@@ -1,4 +1,5 @@
 import React from "react";
+import { addHours, isPast } from "date-fns";
 
 import InfoBanner from "components/InfoBanner";
 import Button from "components/buttons/Button";
@@ -33,6 +34,7 @@ const DeviceUserBanners = ({
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
   onTriggerEscrowLinuxKey,
+  lastMdmEnrolledAt,
 }: IDeviceUserBannersProps) => {
   const isMdmUnenrolled =
     mdmEnrollmentStatus === "Off" || mdmEnrollmentStatus === null;
@@ -42,10 +44,19 @@ const DeviceUserBanners = ({
   const showTurnOnAppleMdmBanner =
     hostPlatform === "darwin" && isMdmUnenrolled && mdmEnabledAndConfigured;
 
+  const isNewMdmEnrollment =
+    !isMdmUnenrolled &&
+    !!lastMdmEnrolledAt &&
+    // if less than an hour has passed since the last MDM enrollment, we consider it a new
+    // enrollment and won't show the disk encryption action required banner, as it's possible the
+    // host just hasn't sent its disk encryption status to Fleet yet
+    !isPast(addHours(lastMdmEnrolledAt, 1));
+
   const showMacDiskEncryptionKeyResetRequired =
     mdmEnabledAndConnected &&
     macDiskEncryptionStatus === "action_required" &&
-    diskEncryptionActionRequired === "rotate_key";
+    diskEncryptionActionRequired === "rotate_key" &&
+    !isNewMdmEnrollment;
 
   const turnOnMdmButton = mdmManualEnrolmentUrl ? (
     <CustomLink
@@ -55,7 +66,7 @@ const DeviceUserBanners = ({
       variant="banner-link"
     />
   ) : (
-    <Button variant="text-link-dark" onClick={onClickTurnOnMdm}>
+    <Button variant="link" onClick={onClickTurnOnMdm}>
       Turn on MDM
     </Button>
   );
@@ -142,7 +153,7 @@ const DeviceUserBanners = ({
         <InfoBanner
           color="yellow"
           cta={
-            <Button variant="text-link-dark" onClick={onClickCreatePIN}>
+            <Button variant="link" onClick={onClickCreatePIN}>
               Create PIN
             </Button>
           }

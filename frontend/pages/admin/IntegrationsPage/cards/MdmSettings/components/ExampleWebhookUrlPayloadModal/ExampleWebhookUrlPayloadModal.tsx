@@ -24,26 +24,24 @@ const ExampleWebhookUrlPayloadModal = ({
 }: IExampleWebhookUrlPayloadModalProps) => {
   return (
     <Modal title="Example payload" onExit={onCancel} className={baseClass}>
-      <>
-        <p>
-          An example request sent to your configured <b>Webhook URL</b>.
-        </p>
-        <pre className={`${baseClass}__endpoint-preview`}>
-          POST https://organization.com/send-request-here
-        </pre>
-        <div className={`${baseClass}__webhook-preview`}>
-          <pre
-            // purposely ignore dangerouslySetInnerHTML for this example payload
-            // eslint-disable-next-line react/no-danger
-            dangerouslySetInnerHTML={{
-              __html: syntaxHighlight(EXAMPLE_PAYLOAD),
-            }}
-          />
-        </div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
-        </div>
-      </>
+      <p>
+        An example request sent to your configured <b>Webhook URL</b>.
+      </p>
+      <pre className={`${baseClass}__endpoint-preview`}>
+        POST https://organization.com/send-request-here
+      </pre>
+      <div className={`${baseClass}__webhook-preview`}>
+        <pre
+          // purposely ignore dangerouslySetInnerHTML for this example payload
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{
+            __html: syntaxHighlight(EXAMPLE_PAYLOAD),
+          }}
+        />
+      </div>
+      <div className="modal-cta-wrap">
+        <Button onClick={onCancel}>Close</Button>
+      </div>
     </Modal>
   );
 };

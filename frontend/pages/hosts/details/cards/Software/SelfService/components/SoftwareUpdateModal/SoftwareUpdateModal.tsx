@@ -111,37 +111,35 @@ const SoftwareUpdateModal = ({
 
   return (
     <Modal title="Update details" className={baseClass} onExit={onExit}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          <StatusMessage
-            hostDisplayName={hostDisplayName}
-            isDeviceUser={isDeviceUser}
-            softwareStatus={status}
-            softwareName={softwareDisplayName}
-            installerName={installerName}
-            installerVersion={installerVersion}
-          />
-          {showCurrentVersions && <InventoryVersions hostSoftware={software} />}
-        </div>
-        <ModalFooter
-          primaryButtons={
-            status === "pending_install" ? (
-              <Button type="submit" onClick={onExit}>
-                Done
-              </Button>
-            ) : (
-              <>
-                <Button variant="inverse" onClick={onExit}>
-                  Cancel
-                </Button>
-                <Button type="submit" onClick={onClickUpdate}>
-                  Update
-                </Button>
-              </>
-            )
-          }
+      <div className={`${baseClass}__modal-content`}>
+        <StatusMessage
+          hostDisplayName={hostDisplayName}
+          isDeviceUser={isDeviceUser}
+          softwareStatus={status}
+          softwareName={softwareDisplayName}
+          installerName={installerName}
+          installerVersion={installerVersion}
         />
-      </>
+        {showCurrentVersions && <InventoryVersions hostSoftware={software} />}
+      </div>
+      <ModalFooter
+        primaryButtons={
+          status === "pending_install" ? (
+            <Button type="submit" onClick={onExit}>
+              Close
+            </Button>
+          ) : (
+            <>
+              <Button variant="inverse" onClick={onExit}>
+                Cancel
+              </Button>
+              <Button type="submit" onClick={onClickUpdate}>
+                Update
+              </Button>
+            </>
+          )
+        }
+      />
     </Modal>
   );
 };

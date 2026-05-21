@@ -1,0 +1,14 @@
+<Replace>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursStart</LocURI></Target>
+    <Data>8</Data>
+  </Item>
+</Replace>
+<Replace>
+  <Item>
+    <Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+    <Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursEnd</LocURI></Target>
+    <Data>18</Data>
+  </Item>
+</Replace>

@@ -13,7 +13,7 @@ import diskEncryptionAPI, {
 import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import DataError from "components/DataError";
 
 import {
@@ -90,7 +90,7 @@ const DiskEncryptionTable = ({
         disablePagination
         disableCount
         emptyComponent={() => (
-          <EmptyTable
+          <EmptyState
             header="No disk encryption status"
             info="Expecting to status data? Try again in a few seconds as the system
               catches up."

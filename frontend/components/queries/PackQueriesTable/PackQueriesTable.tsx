@@ -6,7 +6,7 @@ import { IScheduledQuery } from "interfaces/scheduled_query";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Icon from "components/Icon/Icon";
 import {
   generateTableHeaders,
@@ -83,12 +83,12 @@ const PackQueriesTable = ({
           inputPlaceHolder="Search queries"
           onQueryChange={onTableQueryChange}
           resultsTitle="queries"
-          emptyComponent={() =>
-            EmptyTable({
-              header: "No queries match your search criteria",
-              info: "Try a different search.",
-            })
-          }
+          emptyComponent={() => (
+            <EmptyState
+              header="No queries match your search criteria"
+              info="Try a different search."
+            />
+          )}
           showMarkAllPages={false}
           actionButton={{
             name: "add query",
@@ -111,19 +111,21 @@ const PackQueriesTable = ({
           isAllPagesSelected={false}
         />
       ) : (
-        <div className={`${baseClass}__no-queries`}>
-          <p>Your pack has no reports.</p>
-          <Button
-            onClick={onAddPackQuery}
-            variant="brand-inverse-icon"
-            iconStroke
-          >
-            <>
-              Add query
-              <Icon name="plus" color="core-fleet-green" />
-            </>
-          </Button>
-        </div>
+        <EmptyState
+          header="Your pack has no reports"
+          primaryButton={
+            <Button
+              onClick={onAddPackQuery}
+              variant="brand-inverse-icon"
+              iconStroke
+            >
+              <>
+                Add report
+                <Icon name="plus" color="core-fleet-green" />
+              </>
+            </Button>
+          }
+        />
       )}
     </div>
   );

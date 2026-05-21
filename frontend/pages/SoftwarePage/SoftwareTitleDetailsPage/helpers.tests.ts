@@ -13,6 +13,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         software_package: {
           labels_include_any: null,
           labels_exclude_any: null,
+          labels_include_all: null,
           name: "TestPackage.pkg",
           title_id: 2,
           version: "1.0.0",
@@ -79,6 +80,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           icon_url: "https://example.com/icon.png",
           labels_exclude_any: null,
           labels_include_any: null,
+          labels_include_all: null,
         },
         source: "apps",
         hosts_count: 10,

@@ -154,7 +154,7 @@ describe("EditQueryForm - component", () => {
       },
     });
 
-    const { container, user } = render(
+    const { user } = render(
       <EditQueryForm
         router={mockRouter}
         location={mockLocation}
@@ -429,8 +429,10 @@ describe("EditQueryForm - component", () => {
         expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
         expect(screen.getByLabelText("Custom")).toBeInTheDocument();
         expect(screen.getByLabelText("Custom")).toBeChecked();
-        expect(screen.getByLabelText("Fun")).toBeChecked();
-        expect(screen.getByLabelText("Fresh")).not.toBeChecked();
+        expect(screen.getByRole("checkbox", { name: "Fun" })).toBeChecked();
+        expect(
+          screen.getByRole("checkbox", { name: "Fresh" })
+        ).not.toBeChecked();
         expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
       });
     });
@@ -449,9 +451,11 @@ describe("EditQueryForm - component", () => {
         expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
         expect(screen.getByLabelText("Custom")).toBeInTheDocument();
         expect(screen.getByLabelText("Custom")).toBeChecked();
-        funButton = screen.getByLabelText("Fun");
+        funButton = screen.getByRole("checkbox", { name: "Fun" });
         expect(funButton).toBeChecked();
-        expect(screen.getByLabelText("Fresh")).not.toBeChecked();
+        expect(
+          screen.getByRole("checkbox", { name: "Fresh" })
+        ).not.toBeChecked();
         saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeEnabled();
       });
@@ -499,6 +503,286 @@ describe("EditQueryForm - component", () => {
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
       expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
+    });
+  });
+  describe("renderQueryTeam", () => {
+    const baseQueryContext = {
+      lastEditedQueryId: mockQuery.id,
+      lastEditedQueryName: mockQuery.name,
+      lastEditedQueryDescription: mockQuery.description,
+      lastEditedQueryBody: mockQuery.query,
+      lastEditedQueryObserverCanRun: mockQuery.observer_can_run,
+      lastEditedQueryFrequency: mockQuery.interval,
+      lastEditedQueryAutomationsEnabled: mockQuery.automations_enabled,
+      lastEditedQueryPlatforms: mockQuery.platform,
+      lastEditedQueryMinOsqueryVersion: mockQuery.min_osquery_version,
+      lastEditedQueryLoggingType: mockQuery.logging,
+      lastEditedQueryDiscardData: mockQuery.discard_data,
+      setLastEditedQueryName: jest.fn(),
+      setLastEditedQueryDescription: jest.fn(),
+      setLastEditedQueryBody: jest.fn(),
+      setLastEditedQueryObserverCanRun: jest.fn(),
+      setLastEditedQueryFrequency: jest.fn(),
+      setLastEditedQueryAutomationsEnabled: jest.fn(),
+      setLastEditedQueryMinOsqueryVersion: jest.fn(),
+      setLastEditedQueryLoggingType: jest.fn(),
+      setLastEditedQueryDiscardData: jest.fn(),
+      setLastEditedQueryPlatforms: jest.fn(),
+      setEditingExistingQuery: jest.fn(),
+    };
+
+    const baseProps = {
+      router: mockRouter,
+      location: mockLocation,
+      queryIdForEdit: mockQuery.id,
+      apiTeamIdForQuery: 1,
+      currentTeamId: 1,
+      currentTeamName: "Engineering team",
+      showOpenSchemaActionText: true,
+      storedQuery: createMockQuery(),
+      isStoredQueryLoading: false,
+      isQuerySaving: false,
+      isQueryUpdating: false,
+      onSubmitNewQuery: jest.fn(),
+      onOsqueryTableSelect: jest.fn(),
+      onUpdate: jest.fn(),
+      onOpenSchemaSidebar: jest.fn(),
+      renderLiveQueryWarning: jest.fn(),
+      backendValidators: {},
+      showConfirmSaveChangesModal: false,
+      setShowConfirmSaveChangesModal: jest.fn(),
+    };
+
+    beforeEach(() => {
+      mockServer.use(labelSummariesHandler);
+    });
+
+    it("does not render anything on free tier", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: baseQueryContext,
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: false,
+            isTeamMaintainerOrTeamAdmin: true,
+            isAnyTeamMaintainerOrTeamAdmin: true,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isObserverPlus: false,
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: false,
+            isFreeTier: true,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(
+        <EditQueryForm {...baseProps} currentTeamName="Engineering team" />
+      );
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/report for/i)).not.toBeInTheDocument();
+    });
+
+    it("does not render anything when currentTeamName is missing", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: baseQueryContext,
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: false,
+            isTeamMaintainerOrTeamAdmin: true,
+            isAnyTeamMaintainerOrTeamAdmin: true,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isObserverPlus: false,
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: true,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(<EditQueryForm {...baseProps} currentTeamName={undefined} />);
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/report for/i)).not.toBeInTheDocument();
+    });
+
+    it("shows 'Editing report' when existing query and user has save permissions", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: baseQueryContext,
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: false,
+            isTeamMaintainerOrTeamAdmin: true,
+            isAnyTeamMaintainerOrTeamAdmin: true,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isObserverPlus: false,
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: true,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(
+        <EditQueryForm {...baseProps} currentTeamName="Engineering team" />
+      );
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Editing report for/i)).toBeInTheDocument();
+      expect(screen.getByText("Engineering team")).toBeInTheDocument();
+    });
+
+    it("shows 'Viewing report' when existing query and user has no save permissions", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: baseQueryContext,
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: true,
+            isTeamMaintainerOrTeamAdmin: false,
+            isAnyTeamMaintainerOrTeamAdmin: false,
+            isGlobalAdmin: false,
+            isGlobalMaintainer: false,
+            isObserverPlus: false,
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: true,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(
+        <EditQueryForm {...baseProps} currentTeamName="Engineering team" />
+      );
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Viewing report for/i)).toBeInTheDocument();
+      expect(screen.getByText("Engineering team")).toBeInTheDocument();
+    });
+
+    it("shows 'Creating a new report' when there is no existing query and user has save permissions", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: {
+            ...baseQueryContext,
+            lastEditedQueryId: null,
+            lastEditedQueryName: "",
+          },
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: false,
+            isTeamMaintainerOrTeamAdmin: true,
+            isAnyTeamMaintainerOrTeamAdmin: true,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isObserverPlus: false,
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: true,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(
+        <EditQueryForm
+          {...baseProps}
+          queryIdForEdit={null}
+          storedQuery={undefined}
+          currentTeamName="Engineering team"
+        />
+      );
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(
+        await screen.findByText(/Creating a new report for/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText("Engineering team")).toBeInTheDocument();
+    });
+
+    it("shows 'Running a new report' when there is no existing query and user has no save permissions", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: {
+            ...baseQueryContext,
+            lastEditedQueryId: null,
+            lastEditedQueryName: "",
+          },
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: true,
+            isTeamMaintainerOrTeamAdmin: false,
+            isAnyTeamMaintainerOrTeamAdmin: false,
+            isGlobalAdmin: false,
+            isGlobalMaintainer: false,
+            isObserverPlus: true, // can run, but no save perms
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: true,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(
+        <EditQueryForm
+          {...baseProps}
+          queryIdForEdit={null}
+          storedQuery={undefined}
+          currentTeamName="Engineering team"
+        />
+      );
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(
+        await screen.findByText(/Running a new report for/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText("Engineering team")).toBeInTheDocument();
     });
   });
 });

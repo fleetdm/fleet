@@ -6,11 +6,21 @@
     display: flex;
     flex-direction: column;
     gap: $pad-medium;
+
+    // Hardcoded to fit all 3 custom target options (Exclude any, Include all,
+    // Include any) without scrolling
+    .Select-menu-outer {
+      max-height: 260px;
+    }
+
+    .Select-menu {
+      max-height: 244px;
+    }
   }
 
   &__checkboxes {
     display: flex;
-    max-height: 187px;
+    max-height: 189px; // Fits 5 options before scrolling
     flex-direction: column;
     border-radius: $border-radius;
     border: 1px solid $ui-fleet-black-10;
@@ -38,6 +48,6 @@
   }
 
   &__label-name {
-    padding-left: $pad-large;
+    padding-left: $pad-small;
   }
 }

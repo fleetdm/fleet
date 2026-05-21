@@ -6,7 +6,7 @@ import { ILabelSummary } from "interfaces/label";
 import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
@@ -27,7 +27,6 @@ import {
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 
@@ -67,9 +66,7 @@ const EditAutoUpdateConfigModal = ({
   onExit,
 }: EditAutoUpdateConfigModal) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { config } = useContext(AppContext);
-
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled || false;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const formClassNames = classnames(formClass, {
     [`edit-auto-update-config-form--disabled`]: gitOpsModeEnabled,
@@ -208,126 +205,123 @@ const EditAutoUpdateConfigModal = ({
 
   return (
     <Modal className={baseClass} title="Schedule auto updates" onExit={onExit}>
-      <>
-        <div className={formClassNames}>
-          <div className={`${formClass}__form-frame`}>
-            <Card paddingSize="medium" borderRadiusSize="medium">
-              <div className={`${formClass}__auto-update-config`}>
-                <div className={`form-field`}>
-                  <div className="form-field__label">Auto updates</div>
-                  <div className="form-field__subtitle">
-                    Automatically update{" "}
-                    <strong>
-                      {getDisplayedSoftwareName(
-                        softwareTitle.name,
-                        softwareTitle.display_name
-                      )}
-                    </strong>{" "}
-                    on all targeted hosts when a new version is available.
+      <div className={formClassNames}>
+        <div className={`${formClass}__form-frame`}>
+          <Card paddingSize="medium" borderRadiusSize="medium">
+            <div className={`${formClass}__auto-update-config`}>
+              <div className={`form-field`}>
+                <div className="form-field__label">Auto updates</div>
+                <div className="form-field__subtitle">
+                  Automatically update{" "}
+                  <strong>
+                    {getDisplayedSoftwareName(
+                      softwareTitle.name,
+                      softwareTitle.display_name
+                    )}
+                  </strong>{" "}
+                  on all targeted hosts when a new version is available.
+                </div>
+                <div>
+                  <Checkbox
+                    value={formData.autoUpdateEnabled}
+                    onChange={(newVal: boolean) => onToggleEnabled(newVal)}
+                  >
+                    Enable auto updates
+                  </Checkbox>
+                </div>
+              </div>
+              {formData.autoUpdateEnabled && (
+                <>
+                  <div>
+                    <div className="form-field">
+                      <div className={updateWindowLabelClass}>
+                        {updateWindowLabel}
+                      </div>
+                      <div className="form-field__subtitle">
+                        Times are formatted as HH:MM in 24 hour time (e.g.,
+                        &quot;13:37&quot;).
+                      </div>
+                    </div>
                   </div>
                   <div>
-                    <Checkbox
-                      value={formData.autoUpdateEnabled}
-                      onChange={(newVal: boolean) => onToggleEnabled(newVal)}
-                    >
-                      Enable auto updates
-                    </Checkbox>
+                    <div className={`${formClass}__auto-update-schedule-form`}>
+                      <span className="date-time-inputs">
+                        <InputField
+                          value={formData.autoUpdateStartTime}
+                          onChange={onChangeTimeField}
+                          onBlur={() =>
+                            setFormValidation(validateFormData(formData))
+                          }
+                          label="Earliest start time"
+                          name="autoUpdateStartTime"
+                          parseTarget
+                          error={earliestStartTimeError}
+                        />
+                        <InputField
+                          value={formData.autoUpdateEndTime}
+                          onChange={onChangeTimeField}
+                          onBlur={() =>
+                            setFormValidation(validateFormData(formData))
+                          }
+                          label="Latest start time"
+                          name="autoUpdateEndTime"
+                          parseTarget
+                          error={latestStartTimeError}
+                        />
+                      </span>
+                    </div>
                   </div>
-                </div>
-                {formData.autoUpdateEnabled && (
-                  <>
-                    <div>
-                      <div className="form-field">
-                        <div className={updateWindowLabelClass}>
-                          {updateWindowLabel}
-                        </div>
-                        <div className="form-field__subtitle">
-                          Times are formatted as HH:MM in 24 hour time (e.g.,
-                          &quot;13:37&quot;).
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <div
-                        className={`${formClass}__auto-update-schedule-form`}
-                      >
-                        <span className="date-time-inputs">
-                          <InputField
-                            value={formData.autoUpdateStartTime}
-                            onChange={onChangeTimeField}
-                            onBlur={() =>
-                              setFormValidation(validateFormData(formData))
-                            }
-                            label="Earliest start time"
-                            name="autoUpdateStartTime"
-                            parseTarget
-                            error={earliestStartTimeError}
-                          />
-                          <InputField
-                            value={formData.autoUpdateEndTime}
-                            onChange={onChangeTimeField}
-                            onBlur={() =>
-                              setFormValidation(validateFormData(formData))
-                            }
-                            label="Latest start time"
-                            name="autoUpdateEndTime"
-                            parseTarget
-                            error={latestStartTimeError}
-                          />
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </Card>
-            <Card paddingSize="medium" borderRadiusSize="medium">
-              <TargetLabelSelector
-                selectedTargetType={formData.targetType}
-                selectedCustomTarget={formData.customTarget}
-                selectedLabels={formData.labelTargets}
-                customTargetOptions={CUSTOM_TARGET_OPTIONS}
-                className={`${formClass}__target`}
-                onSelectTargetType={onSelectTargetType}
-                onSelectCustomTarget={onSelectCustomTargetOption}
-                onSelectLabel={onSelectLabel}
-                labels={labels || []}
-                dropdownHelpText={
-                  generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
-                }
-                subTitle="Changes to targets will also apply to self-service."
-              />
-            </Card>
-          </div>
+                </>
+              )}
+            </div>
+          </Card>
+          <Card paddingSize="medium" borderRadiusSize="medium">
+            <TargetLabelSelector
+              selectedTargetType={formData.targetType}
+              selectedCustomTarget={formData.customTarget}
+              selectedLabels={formData.labelTargets}
+              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              className={`${formClass}__target`}
+              onSelectTargetType={onSelectTargetType}
+              onSelectCustomTarget={onSelectCustomTargetOption}
+              onSelectLabel={onSelectLabel}
+              labels={labels || []}
+              dropdownHelpText={
+                generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+              }
+              subTitle="Changes to targets will also apply to self-service."
+            />
+          </Card>
         </div>
-        <ModalFooter
-          primaryButtons={
-            <>
-              <Button onClick={onExit} variant="inverse">
-                Cancel
-              </Button>
-              <GitOpsModeTooltipWrapper
-                position="right"
-                tipOffset={8}
-                renderChildren={(disableChildren) => (
-                  <Button
-                    type="submit"
-                    onClick={onSubmitForm}
-                    isLoading={isUpdatingConfiguration}
-                    disabled={
-                      !formValidation.isValid ||
-                      isUpdatingConfiguration ||
-                      disableChildren
-                    }
-                  >
-                    Save
-                  </Button>
-                )}
-              />
-            </>
-          }
-        />
-      </>
+      </div>
+      <ModalFooter
+        primaryButtons={
+          <>
+            <Button onClick={onExit} variant="inverse">
+              Cancel
+            </Button>
+            <GitOpsModeTooltipWrapper
+              entityType="software"
+              position="right"
+              tipOffset={8}
+              renderChildren={(disableChildren) => (
+                <Button
+                  type="submit"
+                  onClick={onSubmitForm}
+                  isLoading={isUpdatingConfiguration}
+                  disabled={
+                    !formValidation.isValid ||
+                    isUpdatingConfiguration ||
+                    disableChildren
+                  }
+                >
+                  Save
+                </Button>
+              )}
+            />
+          </>
+        }
+      />
     </Modal>
   );
 };

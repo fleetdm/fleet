@@ -4,7 +4,7 @@
 
 Passcode MDM profiles do not work the way we might think they should. We recently onboarded a new Fleetie, which is always an opportunity to _eat our own dog food_ when using Fleet for device management. 
 
-This is the first in a series of things we encounter when managing our own devices (aka hosts). Fleet is an open-source and open-core company. Our [handbook](https://fleetdm.com/handbook) is public for everyone to view (and improve!). The [configuration policies](https://github.com/fleetdm/fleet-gitops) we apply to our devices reside in our public git repo. Today, we are looking at Fleet's password policy for macOS devices, which utilizes the [passcode policy payload](https://developer.apple.com/documentation/devicemanagement/passcode).
+This is the first in a series of things we encounter when managing our own devices (aka hosts). Fleet is an open-source and open-core company. Our [handbook](https://fleetdm.com/handbook) is public for everyone to view (and improve!). The [configuration policies](https://github.com/fleetdm/fleet/tree/1d99974665b56771567c266a4f227481cecfdac0/it-and-security/lib/macos/configuration-profiles) we apply to our devices reside in our public git repo. Today, we are looking at Fleet's password policy for macOS devices, which utilizes the [passcode policy payload](https://developer.apple.com/documentation/devicemanagement/passcode).
 
 The user set up their new computer, created an account, and used a passcode that does not meet Fleet's passcode policy, namely a length of 10 characters. Sometime after that, the MDM profiles were delivered to the host. The expected behavior would be that the user would be prompted to enter a compliant passcode upon the next login.
 
@@ -31,7 +31,7 @@ A quick search of the [Mac Admins Slack](https://www.macadmins.org/) confirmed m
 We discovered that the policy was not applied because Fleet needed to lock out account creation before all the policies had been successfully applied to the host. We have corrected this in [Fleet 4.48.0](https://fleetdm.com/releases/fleet-4.48.0), but how do we resolve this issue with an existing enrolled device and a change in the organization's password policy?
 
 
-Do we add the `changeAtNextAuth` key? A read of Apple's documentation means every user with this policy must reset their password on the next authentication. That could be highly disruptive. And, if the policy is redeployed for any reason, could institute a password reset to every host in that team.
+Do we add the `changeAtNextAuth` key? A read of Apple's documentation means every user with this policy must reset their password on the next authentication. That could be highly disruptive. And, if the policy is redeployed for any reason, could institute a password reset to every host in that fleet.
 
 
 <blockquote purpose="large-quote">

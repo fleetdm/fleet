@@ -25,9 +25,9 @@ In addition, you can do GitOps because you can control your Fleet instance throu
 
 ## Does Fleet include pre-built queries?
 
-Fleet comes with a [built-in query library](https://fleetdm.com/queries) for reporting device health and also includes over 400 optional [built-in CIS policies](https://fleetdm.com/docs/using-fleet/cis-benchmarks) for Mac and Windows.
+Fleet comes with a [built-in library](https://fleetdm.com/queries) for reporting device health and also includes over 400 optional [built-in CIS policies](https://fleetdm.com/docs/using-fleet/cis-benchmarks) for Mac and Windows.
 
-You can easily write queries yourself with query auto-complete, as well as import query packs for HID to detect IOCs using Yara or other intrusion detection mechanisms from the community or other vendors. Or, you can import policies to monitor for high-impact vulnerabilities such as a particular TPM chip; for example, a large vehicle manufacturer uses Fleet to do this.
+You can easily write reports yourself with auto-complete, as well as import queries for HID to detect IOCs using Yara or other intrusion detection mechanisms from the community or other vendors. Or, you can import policies to monitor for high-impact vulnerabilities such as a particular TPM chip; for example, a large vehicle manufacturer uses Fleet to do this.
 
 Customers can build on these built-in policies to monitor ongoing compliance with regulatory standards like NIST, PCI, ISO, SOC, and HIPAA.
 
@@ -41,7 +41,7 @@ It’s standard deployment practice to have multiple Fleet servers behind a load
 
 Unlike legacy systems, Fleet gives you complete control over how frequent and labor-intensive the scanning is.
 
-When you collect data with Fleet, the [performance impact](https://fleetdm.com/releases/fleet-4.5.0) is automatically reported.  You can analyze CPU, memory, and network usage or just compare whether a query's performance impact is “minimal,” “considerable,” or “excessive.”  You can easily compare the average performance of a scan across all systems or troubleshoot performance on an individual host.  If one of your queries gets too rowdy on a particular host, Fleet will [temporarily disable it](https://fleetdm.com/docs/using-fleet/osquery-process).
+When you collect data with Fleet, the [performance impact](https://fleetdm.com/releases/fleet-4.5.0) is automatically reported.  You can analyze CPU, memory, and network usage or just compare whether a report's performance impact is “minimal,” “considerable,” or “excessive.”  You can easily compare the average performance of a scan across all systems or troubleshoot performance on an individual host.  If one of your queries gets too rowdy on a particular host, Fleet will [temporarily disable it](https://fleetdm.com/docs/using-fleet/osquery-process).
 
 You can test changes on a small subset of hosts first, then roll them out to the rest of your organization.
 
@@ -77,23 +77,22 @@ Fleet supports the following operating system versions on hosts.
 | :--------- | :-------------------------------------- |
 | macOS      | 14+ (Sonoma)                            |
 | iOS/iPadOS | 17+                                     |
-| Windows    | Pro and Enterprise 10+, Server 2012+    |
-| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38, 39, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7, 8, 9, openSUSE 15.6+, Arch Linux, Omarchy |
+| Windows    | Pro and Enterprise 10 21H2 (E) (LTS)+, Server 2012+    |
+| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7+, openSUSE 15.6+, Arch Linux, Omarchy |
 | ChromeOS   | 112.0.5615.134+                         |
 | Android    | 14+                                     |
 
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
+### Linux support
 
-### Note
+Fleet Desktop is supported on the GNOME and KDE Plasma desktop environments. Fedora requires a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) to enable system tray support. Other distributions like Ubuntu include this by default.
 
-> - Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information.
->   - If a table is not available for your host, Fleet will generally handle things behind the scenes for you.
-> - On Linux, Fleet Desktop is supported on the GNOME and KDE Plasma desktop environments.
->   - GNOME requires a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/).
-> - Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
-> - The `fleetctl package` command is not supported on DISA-STIG distribution.
+Enforcing [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption#enforce-disk-encryption-on-linux) is only supported on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
 
+Fleet's default install/uninstall scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
+
+The `fleetctl package` command is not supported on DISA-STIG distribution.
 
 ## Is Fleet MIT licensed?
 
@@ -109,7 +108,7 @@ If your organization has Fleet Premium, you can [access professional support](ht
 
 ## Do you offer pricing for unmanaged hosts? What about ephemeral hosts which may scale up or down?
 
-For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Umanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
+For now, the number of hosts is the maximum cap of hosts enrolled at any given time. Unmanaged hosts ("Pending" MDM status in Fleet) are not included in the enrolled hosts count.
 
 ## Where's the data stored?
 
@@ -126,9 +125,48 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
+
+## Why is my EDR flagging the fleetd agent (orbit)?
+
+EDR products such as SentinelOne and CrowdStrike may occasionally flag the fleetd agent (orbit) after an update. This is a known false-positive scenario that can occur when changes to the agent's behavior trigger heuristic-based detections.
+
+It's common for security products to be falsely flagged as malicious because they need to access security-sensitive data (keychains, certificates, system configurations) to do their intended work. This is a known pattern across the industry and is not unique to Fleet; endpoint agents from many vendors encounter the same heuristic-based false positives.
+
+<!-- For example, osquery v5.23.0 (released as part of the fleetd agent) included a change to prevent keychain corruption when querying the macOS `certificates` table. To safely access keychain data without risking corruption, osquery performs a temporary copy of keychain files to a temporary folder, uses the Apple APIs to read the keychain contents, and removes the temporary files after processing. This type of keychain access pattern can trigger EDR heuristic alerts even though the behavior is legitimate and expected.-->
+
+Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. If you notice a new flag against the orbit binary, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
+
+If your vendor supports excluding by "Publisher", add `Fleet Device Management Inc` as an exclusion rule that will prevent Fleet software from being mistakenly flagged. Additionally, us a recursive path exclusion with `/opt/obit/` for macOS/Linux and `C:\Program Files\Orbit\` for Windows.
+
+### SLSA provenance attestation 🌶️
+
+Fleet's orbit binaries are built via GitHub Actions and include SLSA (Supply-chain Levels for Software Artifacts) provenance attestations. These attestations allow customers to cryptographically verify that a given binary was produced from a specific GitHub build job and source commit—providing confidence that the binary has not been tampered with.
+
+You can verify the attestation using the `gh` CLI:
+
+```bash
+gh attestation verify <path-to-orbit-binary> --repo fleetdm/fleet
+```
+
+This gives your security team an additional signal when triaging EDR alerts: if the attestation verifies successfully, the binary is the authentic artifact produced by Fleet's CI pipeline.
+
 ## How can I uninstall fleetd?
 
 See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-uninstall-fleetd).
+
+
+## How do I properly handle all these deprecation warnings in GitOps?
+
+If you set up GitOps before Fleet version 4.82.0, you may see deprecation warnings like so in your GitOps runs:
+
+```
+[!] 'queries' is deprecated; use 'reports' instead
+```
+
+To migrate from queries to reports, teams to fleets, etc. and take care of any of these deprecation warnings, you can use `grep -ri "team" . --exclude-dir=.git` to search your GitOps folder for a term (in this case `team`), then edit the files and update the references to `fleet`. Be cautious about using a general find-and-replace command to do this for all files at once, as you may end up unintentionally replacing something incorrectly. Note that in some cases the word is plural (team vs. teams) or may be in all caps (teams vs. TEAMS).
+
+If you used the `teams/` directory to organize your ~~teams~~ fleets, use `git mv teams fleets` to _rename_ the folder. This is critical, as renaming with the file manager, the standard `mv` command, or GitHub Desktop will not cause git to initiate a _rename_ command, and will instead _delete_ and then _create_ files/folders, which will cause Fleet to delete the ~~teams~~ fleets and move all your devices into Unassigned.
+
 
 ## What is your commitment to open source stewardship?
 
@@ -152,11 +190,15 @@ See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-unin
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 8.0.36, 8.4.7, and 9.5.0. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.07.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+Fleet is tested with MySQL 8.0.44, 8.4.8, and 9.5.0 (9.6.0 is currently incompatible). Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.10.3. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+
+### What Redis versions are supported?
+
+Fleet is actively tested with Redis 6.2 and 7 (specifically engine_version 7.1 on AWS ElastiCache). Redis 8 and Valkey are also known to work, though we don't currently actively test with those versions.
 
 ### What version of the Mac Admins osquery extension is supported?
 
-Fleet deploys v1.2.7 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
+Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
 
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
@@ -513,7 +555,6 @@ We've found this error when you try to build an MSI on Docker 4.17. The underlyi
 - [Does Fleet support MySQL replication?](#does-fleet-support-mysql-replication)
 - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
 - [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-i-expose-to-the-public-internet)
-- [What Redis versions are supported?](#what-redis-versions-are-supported)
 
 ### How do I get support for working with Fleet?
 
@@ -697,14 +738,11 @@ If you would like to use Fleet's MDM features, the following endpoints need to b
 
 ### What is the minimum version of MySQL required by Fleet?
 
-Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.36, 8.4.7, and 9.5.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L51)
+Fleet requires at least MySQL version 8.0.44, and is tested using the InnoDB storage engine [with versions 8.0.44, 8.4.8, and 9.5.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L73-L90). MySQL 9.6.0 is currently incompatible.
 
 ### How do I migrate from Fleet Free to Fleet Premium?
 
 To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in [Fleet's config file](https://fleetdm.com/docs/deploying/configuration#license). You don't need to redeploy Fleet after the migration.
-
-### What Redis versions are supported?
-Fleet is tested with Redis 6. Any version of Redis after version 6 will typically work well.
 
 ## What happened to the "Schedule" page?
 Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval" and "platform"), or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query that every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept.

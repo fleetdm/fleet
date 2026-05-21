@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -16,10 +17,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	ws "github.com/fleetdm/fleet/v4/server/websocket"
@@ -31,7 +33,11 @@ import (
 func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	t.Skip("Seems to be a bit problematic in CI")
 
-	store := pubsub.SetupRedisForTest(t, false, false)
+	store := pubsub.NewRedisQueryResults(
+		redistest.SetupRedis(t, "zz", false, false, false),
+		false,
+		slog.New(slog.DiscardHandler),
+	)
 
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
@@ -60,11 +66,6 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	}
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 		return fleet.TargetMetrics{TotalHosts: 1}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return &fleet.Session{
@@ -96,7 +97,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.NoError(t, err)
 
-	pathHandler := makeStreamDistributedQueryCampaignResultsHandler(config.TestConfig().Server, svc, logging.NewNopLogger())
+	pathHandler := makeStreamDistributedQueryCampaignResultsHandler(config.TestConfig().Server, svc, slog.New(slog.DiscardHandler))
 	s := httptest.NewServer(pathHandler("/api/latest/fleet/results/"))
 	defer s.Close()
 	// Convert http://127.0.0.1 to ws://127.0.0.1
@@ -247,7 +248,7 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 	done := make(chan struct{}, 1)
 	go func() {
 		for {
-			aggStats, err = mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
+			aggStats, err = mysqltest.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
 			if usingReplica && err != nil {
 				time.Sleep(30 * time.Millisecond)
 			} else {
@@ -264,7 +265,7 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 		if err != nil {
 			lastErr = err.Error()
 		}
-		aggStats, err = mysql.GetAggregatedStats(
+		aggStats, err = mysqltest.GetAggregatedStats(
 			ctxdb.RequirePrimary(ctx, true), svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID,
 		)
 		if err != nil {
@@ -347,7 +348,7 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 	done = make(chan struct{}, 1)
 	go func() {
 		for {
-			newAggStats, err = mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
+			newAggStats, err = mysqltest.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
 			if usingReplica && (*aggStats.SystemTimeP50 == *newAggStats.SystemTimeP50 ||
 				*aggStats.SystemTimeP95 == *newAggStats.SystemTimeP95 ||
 				*aggStats.UserTimeP50 == *newAggStats.UserTimeP50 ||
@@ -393,14 +394,14 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 }
 
 func TestUpdateStats(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer mysql.TruncateTables(t, ds)
+	ds := mysqltest.CreateMySQLDS(t)
+	defer mysqltest.TruncateTables(t, ds)
 	testUpdateStats(t, ds, false)
 }
 
 func TestIntegrationsUpdateStatsOnReplica(t *testing.T) {
-	ds := mysql.CreateMySQLDSWithReplica(t, nil)
-	defer mysql.TruncateTables(t, ds)
+	ds := mysqltest.CreateMySQLDSWithReplica(t, nil)
+	defer mysqltest.TruncateTables(t, ds)
 	testUpdateStats(t, ds, true)
 }
 

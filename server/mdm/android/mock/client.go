@@ -41,6 +41,8 @@ type EnterprisesPoliciesModifyPolicyApplicationsFunc func(ctx context.Context, p
 
 type EnterprisesPoliciesRemovePolicyApplicationsFunc func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error)
 
+type EnterprisesWebAppsCreateFunc func(ctx context.Context, enterpriseName string, webApp *androidmanagement.WebApp) (*androidmanagement.WebApp, error)
+
 type Client struct {
 	SignupURLsCreateFunc        SignupURLsCreateFunc
 	SignupURLsCreateFuncInvoked bool
@@ -83,6 +85,9 @@ type Client struct {
 
 	EnterprisesPoliciesRemovePolicyApplicationsFunc        EnterprisesPoliciesRemovePolicyApplicationsFunc
 	EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked bool
+
+	EnterprisesWebAppsCreateFunc        EnterprisesWebAppsCreateFunc
+	EnterprisesWebAppsCreateFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -183,4 +188,11 @@ func (p *Client) EnterprisesPoliciesRemovePolicyApplications(ctx context.Context
 	p.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterprisesPoliciesRemovePolicyApplicationsFunc(ctx, policyName, packageNames)
+}
+
+func (p *Client) EnterprisesWebAppsCreate(ctx context.Context, enterpriseName string, webApp *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+	p.mu.Lock()
+	p.EnterprisesWebAppsCreateFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesWebAppsCreateFunc(ctx, enterpriseName, webApp)
 }

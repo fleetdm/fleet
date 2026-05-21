@@ -5,8 +5,29 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"math/big"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"runtime"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
+	"github.com/stretchr/testify/require"
 )
+
+// TestingT is the subset of *testing.T that this package needs. It combines
+// what testify's require functions require (Errorf, FailNow) with t.Cleanup
+// and t.Setenv used by dev_mode.SetOverride. *testing.T satisfies it without
+// an explicit conversion, so callers continue to pass `t` as-is. Defining
+// this interface locally keeps the "testing" package out of this package's
+// production import graph.
+type TestingT interface {
+	Errorf(format string, args ...any)
+	FailNow()
+	Cleanup(f func())
+	Setenv(key, value string)
+}
 
 func NewTestMDMAppleCertTemplate() *x509.Certificate {
 	return &x509.Certificate{
@@ -26,4 +47,24 @@ func NewTestMDMAppleCertTemplate() *x509.Certificate {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 	}
+}
+
+// StartNewAppleGDMFTestServer creates a new test server that serves the GDMF data from the testdata
+// file. It also sets the necessary dev mode overrides to point to the test server and disable
+// caching. It closes the server and clears the underlying overrides when the test finishes.
+func StartNewAppleGDMFTestServer(t TestingT) {
+	_, thisFile, _, _ := runtime.Caller(0)
+	gdmfTestDataPath := filepath.Join(filepath.Dir(thisFile), "../apple/gdmf/testdata/gdmf.json")
+
+	appleGDMFSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile(gdmfTestDataPath)
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(appleGDMFSrv.Close)
+
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", appleGDMFSrv.URL, t)
 }

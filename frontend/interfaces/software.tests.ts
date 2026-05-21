@@ -58,6 +58,11 @@ describe("formatSoftwareType", () => {
         expected: "Package (pkg)",
         description: "macOS pkg packages",
       },
+      {
+        source: "go_binaries" as const,
+        expected: "Binary (Go)",
+        description: "Go binaries",
+      },
     ];
 
     testCases.forEach(({ source, expected, description }) => {
@@ -101,9 +106,9 @@ describe("formatSoftwareType", () => {
       },
       {
         source: "firefox_addons" as const,
-        extension_for: undefined,
+        extension_for: "firefox" as const,
         expected: "Browser plugin (Firefox)",
-        description: "Firefox add-ons without extension_for",
+        description: "Firefox add-ons",
       },
       {
         source: "safari_extensions" as const,
@@ -260,6 +265,7 @@ describe("formatSoftwareType", () => {
       "chocolatey_packages",
       "pkg_packages",
       "vscode_extensions",
+      "go_binaries",
     ] as const;
 
     allSourceTypes.forEach((source) => {

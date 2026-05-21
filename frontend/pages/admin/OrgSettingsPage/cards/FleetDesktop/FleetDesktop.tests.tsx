@@ -104,7 +104,11 @@ describe("FleetDesktop", () => {
   describe("GitOps Mode", () => {
     it("disables inputs when gitops mode is enabled", () => {
       const mockConfig = createMockConfig({
-        gitops: { gitops_mode_enabled: true, repository_url: "" },
+        gitops: {
+          gitops_mode_enabled: true,
+          repository_url: "",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
       });
 
       renderWithSetup(

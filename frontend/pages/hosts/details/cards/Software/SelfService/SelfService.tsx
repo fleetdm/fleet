@@ -17,7 +17,6 @@ import {
   IHostSoftware,
   IDeviceSoftwareWithUiStatus,
   IVPPHostSoftware,
-  NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 
 import deviceApi, {
@@ -36,6 +35,7 @@ import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDe
 import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 import UpdatesCard from "./components/UpdatesCard/UpdatesCard";
 import SelfServiceCard from "./SelfServiceCard/SelfServiceCard";
@@ -86,6 +86,7 @@ export interface ISoftwareSelfServiceProps {
   hostSoftwareUpdatedAt?: string | null;
   hostDisplayName: string;
   isMobileView?: boolean;
+  mdmEnrollmentStatus: MdmEnrollmentStatus;
 }
 
 export const parseSelfServiceQueryParams = (queryParams: {

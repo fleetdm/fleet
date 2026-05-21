@@ -4,8 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="robots" content="noindex" />
     <meta name="viewport" content="width=768" id="viewport-meta-tag" />
+    <meta property="csp-nonce" content="{{.CSPNonce}}" />
 
-    <script>
+    <script nonce="{{.CSPNonce}}">
       // If URL contains /device/, set mobile-friendly viewport
       if (window.location.pathname.includes("/device/")) {
         document
@@ -22,7 +23,7 @@
     <link rel="shortcut icon" href="{{.URLPrefix}}/assets/favicon.ico" />
 
     <title>Fleet</title>
-    <script type="text/javascript">
+    <script type="text/javascript" nonce="{{.CSPNonce}}}">
       var urlPrefix = "{{.URLPrefix}}";
     </script>
   </head>
@@ -31,6 +32,7 @@
     <script
       async
       defer
+      nonce="{{.CSPNonce}}"
       src="{{.URLPrefix}}<%= htmlWebpackPlugin.files.js[0] %>"
     ></script>
   </body>

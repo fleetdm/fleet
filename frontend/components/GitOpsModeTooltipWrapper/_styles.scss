@@ -5,6 +5,12 @@
     align-items: center;
   }
 
+  &--inputfield {
+    .component__tooltip-wrapper__element {
+      width: 100%;
+    }
+  }
+
   .component__tooltip-wrapper {
     &__tip-text {
       cursor: default;

@@ -137,3 +137,15 @@ func (m *mockService) ListHostPastActivities(_ context.Context, _ uint, _ api.Li
 func (m *mockService) StreamActivities(_ context.Context, _ api.JSONLogger) error {
 	panic("mockService.StreamActivities should not be called in validation tests")
 }
+
+func (m *mockService) NewActivity(_ context.Context, _ *api.User, _ api.ActivityDetails) error {
+	panic("mockService.NewActivity should not be called in validation tests")
+}
+
+func (m *mockService) CleanupExpiredActivities(_ context.Context, _ int, _ int) error {
+	panic("mockService.CleanupExpiredActivities should not be called in validation tests")
+}
+
+func (m *mockService) CleanupHostActivities(_ context.Context, _ []uint) error {
+	panic("mockService.CleanupHostActivities should not be called in validation tests")
+}

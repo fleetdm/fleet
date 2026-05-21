@@ -11,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 )
 
 func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
@@ -38,7 +37,7 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 	}
 
 	if macosHasManualAgentInstall && fleet.IsMacOSPlatform(platform) && len(titleIDs) != 0 {
-		return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience software. To add software, first disable manual_agent_install."), http.StatusUnprocessableEntity)
+		return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience software. To add software, first disable macos_manual_agent_install."), http.StatusUnprocessableEntity)
 	}
 
 	if err := svc.ds.SetSetupExperienceSoftwareTitles(ctx, platform, teamID, titleIDs); err != nil {
@@ -107,7 +106,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 			return ctxerr.Wrap(ctx, err, "getting app config")
 		}
 		if ac.MDM.MacOSSetup.ManualAgentInstall.Value {
-			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience script. To add script, first disable manual_agent_install."), http.StatusUnprocessableEntity)
+			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience script. To add script, first disable macos_manual_agent_install."), http.StatusUnprocessableEntity)
 		}
 	} else {
 		team, err := svc.ds.TeamLite(ctx, *teamID)
@@ -115,7 +114,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 			return ctxerr.Wrap(ctx, err, "load team")
 		}
 		if team.Config.MDM.MacOSSetup.ManualAgentInstall.Value {
-			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience script. To add script, first disable manual_agent_install."), http.StatusUnprocessableEntity)
+			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience script. To add script, first disable macos_manual_agent_install."), http.StatusUnprocessableEntity)
 		}
 	}
 
@@ -152,7 +151,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("script", err.Error()).WithStatus(http.StatusConflict) // TODO: confirm error message with product/frontend
 		} else if errors.As(err, &fkErr) {
-			err = fleet.NewInvalidArgumentError("team_id", "The team does not exist.").WithStatus(http.StatusNotFound)
+			err = fleet.NewInvalidArgumentError("team_id/fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
 		}
 		return ctxerr.Wrap(ctx, err, "create setup experience script")
 	}
@@ -187,13 +186,19 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
 	}
-	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, ptr.ValOrZero(host.TeamID))
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}
 
-	var installersPending, appsPending, scriptsPending []*fleet.SetupExperienceStatusResult
-	var installersRunning, appsRunning, scriptsRunning int
+	// Software (installers and VPP apps) are treated as a single group,
+	// ordered alphabetically by display name (falling back to name). This
+	// ordering is determined at enqueue time by enqueueSetupExperienceItems,
+	// which inserts them with auto-incremented IDs in the correct order.
+	// ListSetupExperienceResultsByHostUUID returns rows ordered by sesr.id.
+	// Scripts always run after all software is done.
+	var softwarePending, scriptsPending []*fleet.SetupExperienceStatusResult
+	var softwareRunning, scriptsRunning int
 
 	for _, status := range statuses {
 		if err := status.IsValid(); err != nil {
@@ -201,21 +206,14 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 		}
 
 		switch {
-		case status.SoftwareInstallerID != nil:
+		case status.IsForSoftware():
 			switch status.Status {
 			case fleet.SetupExperienceStatusPending:
-				installersPending = append(installersPending, status)
+				softwarePending = append(softwarePending, status)
 			case fleet.SetupExperienceStatusRunning:
-				installersRunning++
+				softwareRunning++
 			}
-		case status.VPPAppTeamID != nil:
-			switch status.Status {
-			case fleet.SetupExperienceStatusPending:
-				appsPending = append(appsPending, status)
-			case fleet.SetupExperienceStatusRunning:
-				appsRunning++
-			}
-		case status.SetupExperienceScriptID != nil:
+		case status.IsForScript():
 			switch status.Status {
 			case fleet.SetupExperienceStatusPending:
 				scriptsPending = append(scriptsPending, status)
@@ -226,38 +224,41 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	}
 
 	switch {
-	case len(installersPending) > 0:
-		// enqueue installers
-		for _, installer := range installersPending {
-			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *installer.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+	case len(softwarePending) > 0 && softwareRunning == 0:
+		// Enqueue only the first pending software item (installer or VPP app).
+		// On the next call, this item will be in "running" state and the next
+		// pending item will be picked up. This ensures software is installed
+		// one at a time in the alphabetical display-name order determined at
+		// enqueue time (rows are ordered by sesr.id).
+		sw := softwarePending[0]
+
+		switch {
+		case sw.SoftwareInstallerID != nil:
+			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *sw.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
 				SelfService:        false,
 				ForSetupExperience: true,
 			})
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
 			}
-			installer.HostSoftwareInstallsExecutionID = &installUUID
-			installer.Status = fleet.SetupExperienceStatusRunning
-			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, installer); err != nil {
+			sw.HostSoftwareInstallsExecutionID = &installUUID
+			sw.Status = fleet.SetupExperienceStatusRunning
+			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience result with install uuid")
 			}
-		}
-	case installersRunning == 0 && len(appsPending) > 0:
-		// enqueue vpp apps
-		var skipRemainingVPPInstalls bool
-	enqueueVPPApps:
-		for _, app := range appsPending {
-			vppAppID, err := app.VPPAppID()
+
+		case sw.VPPAppTeamID != nil:
+			vppAppID, err := sw.VPPAppID()
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "constructing vpp app details for installation")
 			}
 
-			if app.SoftwareTitleID == nil {
-				return false, ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", app.ID)
+			if sw.SoftwareTitleID == nil {
+				return false, ctxerr.Errorf(ctx, "setup experience software title id missing from vpp app install request: %d", sw.ID)
 			}
 
 			vppApp := &fleet.VPPApp{
-				TitleID: *app.SoftwareTitleID,
+				TitleID: *sw.SoftwareTitleID,
 				VPPAppTeam: fleet.VPPAppTeam{
 					VPPAppID: *vppAppID,
 				},
@@ -268,16 +269,31 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 				ForSetupExperience: true,
 			})
 
-			app.NanoCommandUUID = &cmdUUID
-			app.Status = fleet.SetupExperienceStatusRunning
-
 			if err != nil {
 				// if we get an error (e.g. no available licenses) while attempting to enqueue the
 				// install, then we should immediately go to an error state so setup experience
 				// isn't blocked.
-				level.Warn(svc.logger).Log("msg", "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", app.VPPAppAdamID)
-				app.Status = fleet.SetupExperienceStatusFailure
-				app.Error = ptr.String(err.Error())
+				svc.logger.WarnContext(ctx, "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", sw.VPPAppAdamID)
+				sw.Status = fleet.SetupExperienceStatusFailure
+				sw.Error = ptr.String(err.Error())
+				// Persist the failure before cancelling other steps, so that
+				// maybeCancelPendingSetupExperienceSteps can find the failed
+				// item from its loaded statuses.
+				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install failure")
+				}
+				failActivity := fleet.ActivityInstalledAppStoreApp{
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					SoftwareTitle:       sw.Name,
+					AppStoreID:          ptr.ValOrZero(sw.VPPAppAdamID),
+					Status:              string(fleet.SoftwareInstallFailed),
+					HostPlatform:        host.Platform,
+					FromSetupExperience: true,
+				}
+				if actErr := svc.NewActivity(ctx, nil, failActivity); actErr != nil {
+					svc.logger.WarnContext(ctx, "failed to create activity for VPP app install failure during setup experience", "err", actErr)
+				}
 				// At this point we need to check whether the "cancel if software install fails" setting is active,
 				// in which case we'll cancel the remaining pending items.
 				requireAllSoftware, err := svc.IsAllSetupExperienceSoftwareRequired(ctx, host)
@@ -289,17 +305,16 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 					if err != nil {
 						return false, ctxerr.Wrap(ctx, err, "cancelling remaining setup experience steps after vpp app install failure")
 					}
-					skipRemainingVPPInstalls = true
+				}
+			} else {
+				sw.NanoCommandUUID = &cmdUUID
+				sw.Status = fleet.SetupExperienceStatusRunning
+				if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, sw); err != nil {
+					return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
 				}
 			}
-			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
-			}
-			if skipRemainingVPPInstalls {
-				break enqueueVPPApps
-			}
 		}
-	case installersRunning == 0 && appsRunning == 0 && len(scriptsPending) > 0:
+	case softwareRunning == 0 && len(scriptsPending) > 0:
 		// enqueue scripts
 		for _, script := range scriptsPending {
 			if script.ScriptContentID == nil {
@@ -324,7 +339,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience script execution id")
 			}
 		}
-	case installersRunning == 0 && appsRunning == 0 && scriptsRunning == 0:
+	case softwareRunning == 0 && scriptsRunning == 0:
 		// finished
 		return true, nil
 	}

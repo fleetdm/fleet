@@ -3,4 +3,13 @@
   // aligns properly in text, buttons, dropdowns, summary tile custom component
   display: inline-flex;
   align-self: center;
+
+  // Workaround to rescale 40px to 24px
+  // For file-sh and file-ps1 graphics used in 24px PolicyAutomations.tsx
+  &.scale-40-24 {
+    svg {
+      height: 24px;
+      width: 24px;
+    }
+  }
 }

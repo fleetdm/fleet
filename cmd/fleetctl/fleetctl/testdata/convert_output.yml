@@ -1,6 +1,6 @@
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the list of application scheme/protocol-based IPC handlers.
@@ -15,7 +15,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the current disk encryption status for the target system.
@@ -30,7 +30,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the current disk encryption status for the target system.
@@ -45,7 +45,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieve basic information about the physical disks of a system.
@@ -60,7 +60,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the current filters and chains per filter in the target system.
@@ -75,7 +75,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description:
@@ -92,7 +92,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the list of listening ports.
@@ -107,7 +107,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Retrieves the list of listening ports.
@@ -122,7 +122,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Lists the application bundle that owns a sandbox label.
@@ -137,7 +137,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: System resource usage limits.
@@ -152,7 +152,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: System uptime.
@@ -167,7 +167,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: System uptime.
@@ -182,7 +182,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: System uptime.
@@ -197,7 +197,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: System uptime.
@@ -212,7 +212,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Lists the application bundle that owns a sandbox label.
@@ -227,7 +227,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -242,7 +242,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -257,7 +257,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -272,7 +272,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -287,7 +287,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -302,7 +302,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -317,7 +317,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -332,7 +332,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: List of all user groups.
@@ -347,7 +347,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: Extracted information from Windows crash logs (Minidumps).
@@ -362,7 +362,7 @@ spec:
   fleet: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description:

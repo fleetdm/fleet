@@ -1,13 +1,14 @@
 package scim
 
 import (
+	"log/slog"
 	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 )
 
 type Suite struct {
@@ -22,17 +23,17 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	ds, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndService(t, uniqueTestName, &service.TestServerOpts{
 		License: license,
 	})
-	logger := logging.NewLogfmtLogger(os.Stdout)
-	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	users, server := svctest.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License:     license,
 		FleetConfig: &fleetCfg,
-		Logger:      logger,
+		Logger:      slogLogger,
 		EnableSCIM:  true,
 	})
 
 	s := &Suite{
 		BaseSuite: integrationtest.BaseSuite{
-			Logger:   logger,
+			Logger:   slogLogger,
 			DS:       ds,
 			FleetCfg: fleetCfg,
 			Users:    users,

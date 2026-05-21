@@ -56,7 +56,7 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
                 serialNumber = result.serialNumber,
             )
         } else {
-            EnrollmentResult.Failure("Certificate installation failed")
+            EnrollmentResult.Failure("Certificate installation failed for alias '${config.name}': installKeyPair returned false")
         }
     } catch (e: ScepEnrollmentException) {
         // SCEP server rejected enrollment (e.g., PENDING status, invalid challenge)
@@ -76,6 +76,9 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
     } catch (e: IllegalArgumentException) {
         // Configuration validation failed
         EnrollmentResult.Failure("Invalid configuration: ${e.message}", e, isRetryable = false)
+    } catch (e: IllegalStateException) {
+        // Delegation or system state issue (e.g. CERT_INSTALL not granted)
+        EnrollmentResult.Failure("Certificate installation failed: ${e.message}", e, isRetryable = false)
     } catch (e: Exception) {
         // Unexpected errors
         EnrollmentResult.Failure("Unexpected error during enrollment: ${e.message}", e, isRetryable = false)

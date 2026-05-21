@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Disable Apple Intelligence in Mail</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-apple-intelligence-mail.check</string>
+			<key>PayloadUUID</key>
+			<string>C3D4E5F6-A7B8-9012-CDEF-123456789012</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>allowMailSmartReplies</key>
+			<false/>
+			<key>allowMailSummary</key>
+			<false/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Disables Apple Intelligence features in Mail (smart replies, email summarization) to prevent mail content from being processed by AI. CIS macOS 15 benchmark.</string>
+	<key>PayloadDisplayName</key>
+	<string>[macOS 15] CIS - Ensure Apple Intelligence in Mail is disabled</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.macos15.cis-apple-intelligence-mail</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>C3D4E5F6-A7B8-9012-CDEF-123456789013</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

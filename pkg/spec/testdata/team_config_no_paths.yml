@@ -39,6 +39,7 @@ controls:
   scripts:
     - path: ./lib/collect-fleetd-logs.sh
   enable_disk_encryption: true
+  enable_recovery_lock_password: true
   windows_require_bitlocker_pin: true
   macos_setup:
     bootstrap_package: null
@@ -64,6 +65,7 @@ controls:
   windows_migration_enabled: false
   enable_turn_on_windows_mdm_manually: false
   windows_entra_tenant_ids: []
+  apple_require_hardware_attestation: false
 labels:
   - name: a
     description: A cool global label

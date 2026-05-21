@@ -1,0 +1,4 @@
+hash_sha256: 4e9ea9fb20ce87e2ce838af44d5d928c5c1adc9f372a11a9fd386533034b2f44
+display_name: Fleet Desktop.app launch agent
+icon:
+  path: ../../all/icons/fleet-desktop-icon.png

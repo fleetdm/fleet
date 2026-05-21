@@ -1,0 +1,8 @@
+{
+  "name": "Warp",
+  "slug": "warp/darwin",
+  "unique_identifier": "dev.warp.Warp-Stable",
+  "token": "warp",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

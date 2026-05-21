@@ -56,25 +56,27 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @edwardsb @georgekarrv @BCTBB @ddribeiro
-/charts/ @rfairburn @ksatter @edwardsb @georgekarrv @BCTBB @ddribeiro
-/terraform/ @rfairburn @ksatter @edwardsb @georgekarrv @BCTBB @ddribeiro
+/infrastructure/ @rfairburn @ksatter @georgekarrv @BCTBB @ddribeiro
+/charts/ @rfairburn @ksatter @georgekarrv @BCTBB @ddribeiro
+/terraform/ @rfairburn @ksatter @georgekarrv @BCTBB @ddribeiro
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                                   @rachaelshaw
+/docs                                                   @rachaelshaw @eashaw
 /docs/solutions                                         @ddribeiro
-/docs/Configuration                                     @rachaelshaw
+/docs/Configuration                                     @rachaelshaw @eashaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing guidelines
 /docs/Contributing/product-groups/orchestration/understanding-host-vitals.md @sharon-fdm @sgress454 @getvictor # software ingestion is security & compliance
-/docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
-/docs/Contributing/reference                            @rachaelshaw
+/docs/REST\ API/rest-api.md                             @rachaelshaw @eashaw # « REST API reference documentation
+/docs/Contributing/reference                            @rachaelshaw @eashaw
+/docs/Get\ started/why-fleet.md                         @mike-j-thomas
 /render.yaml                                            @edwardsb
 /it-and-security                                        @allenhouchins
 /articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn @BCTBB # « Infra: active notification of changes to IP Allowlists
+/openspec                                               @lukeheath
 
 ################################################################################################
 #  ╔═╗┬ ┬┌┐┌┌─┐┌┬┐  ┌┐ ┬ ┬  ┌─┐┬─┐┌─┐┌┬┐┬ ┬┌─┐┌┬┐  ┌─┐┬─┐┌─┐┬ ┬┌─┐┌─┐
@@ -98,9 +100,9 @@ go.mod @fleetdm/go
 /docs/Contributing/research/software                    @georgekarrv @cdcme
 
 # Security & Compliance
-/docs/Contributing/architecture/security-compliance     @sharon-fdm @getvictor
-/docs/Contributing/product-groups/security-compliance   @sharon-fdm @getvictor
-/docs/Contributing/research/security-compliance         @sharon-fdm @getvictor
+/docs/Contributing/architecture/security-compliance     @sharon-fdm @getvictor @mostlikelee
+/docs/Contributing/product-groups/security-compliance   @sharon-fdm @getvictor @mostlikelee
+/docs/Contributing/research/security-compliance         @sharon-fdm @getvictor @mostlikelee
 /docs/Contributing/reference/patterns-backend.md        @fleetdm/go
 
 ##############################################################################################
@@ -137,12 +139,6 @@ go.mod @fleetdm/go
 # 🌐 GitHub issue templates
 ##############################################################################################
 #/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
-
-
-##############################################################################################
-# 🌐 Fleet website
-##############################################################################################
-/website/.sailsrc 		@eashaw # Note: eashaw will not approve any PR that changes this file. This codeowner exists to make sure no changes are committed to the repo.
 
 ##############################################################################################
 # 🌐 GitHub workflows

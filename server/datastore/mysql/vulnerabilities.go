@@ -11,8 +11,22 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+var vulnerabilitiesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"cve":                    "cve",
+	"cvss_score":             "cvss_score",
+	"epss_probability":       "epss_probability",
+	"cisa_known_exploit":     "cisa_known_exploit",
+	"cve_published":          "cve_published",
+	"created_at":             "created_at",
+	"host_count":             "hosts_count",
+	"hosts_count":            "hosts_count",
+	"host_count_updated_at":  "hosts_count_updated_at",
+	"hosts_count_updated_at": "hosts_count_updated_at",
+}
 
 func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error) {
 	var vuln fleet.VulnerabilityWithMetadata
@@ -303,7 +317,10 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 	}
 
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
-	selectStmt, args = appendListOptionsWithCursorToSQL(selectStmt, args, &opt.ListOptions)
+	selectStmt, args, err := appendListOptionsWithCursorToSQLSecure(selectStmt, args, &opt.ListOptions, vulnerabilitiesAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list vulnerabilities")
+	}
 
 	// Execute the query
 	var vulns []fleet.VulnerabilityWithMetadata

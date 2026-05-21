@@ -35,6 +35,11 @@ module.exports = {
       type: 'string',
       required: true,
       description: 'The custom message, in plain text.'
+    },
+
+    websiteUrl: {
+      type: 'string',
+      description: 'Honeypot field. If filled, the submission is silently discarded.'
     }
 
   },
@@ -53,7 +58,9 @@ module.exports = {
   },
 
 
-  fn: async function({emailAddress, firstName, lastName, message}) {
+  fn: async function({emailAddress, firstName, lastName, message, websiteUrl}) {
+
+    if (websiteUrl) { return; }// Honeypot input provided — return a success response
 
     let emailDomain = emailAddress.split('@')[1];
     if(_.includes(sails.config.custom.bannedEmailDomainsForContactFormSubmissions, emailDomain.toLowerCase())){

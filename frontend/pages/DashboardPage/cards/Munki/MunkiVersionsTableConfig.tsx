@@ -15,13 +15,6 @@ interface ICellProps {
   };
 }
 
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
-  };
-}
-
 const munkiVersionsTableHeaders = [
   {
     title: "Version",

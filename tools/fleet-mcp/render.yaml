@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: fleet-mcp
+    runtime: go
+    plan: starter
+    rootDir: tools/fleet-mcp
+    buildCommand: go build -o fleet-mcp .
+    startCommand: ./fleet-mcp
+    envVars:
+      - key: FLEET_BASE_URL
+        sync: false
+      - key: FLEET_API_KEY
+        sync: false
+      - key: MCP_AUTH_TOKEN
+        sync: false
+      - key: LOG_LEVEL
+        value: info

@@ -23,27 +23,27 @@ export const formatAlreadyAvailableInstallMessage = (msg: string) => {
   // Remove prefix (with or without trailing space)
   const cleaned = msg.replace(/^Couldn't add software\.?\s*/, "");
 
-  // New regex for "<package> already has an installer available for the <team> team."
-  const installerExistsRegex = /^(.+?) already.+the (.+?) team\./;
+  // New regex for "<package> already has an installer available for the <fleet> fleet."
+  const installerExistsRegex = /^(.+?) already.+the (.+?) fleet\./;
   let match = cleaned.match(installerExistsRegex);
   if (match) {
     return (
       <>
         {ADD_SOFTWARE_ERROR_PREFIX} <b>{match[1]}</b> already has an installer
-        available for the <b>{match[2]}</b> team.{" "}
+        available for the <b>{match[2]}</b> fleet.{" "}
       </>
     );
   }
 
-  // New regex for "SoftwareInstaller <package> already exists with team <team>."
-  // or "In-house app <package> already exists with team <team>."
-  const packageExistsRegex = /^(?:SoftwareInstaller|In-house app) "(.+?)" already.+ team "(.+?)"\./;
+  // New regex for "SoftwareInstaller <package> already exists with fleet <fleet>."
+  // or "In-house app <package> already exists with fleet <fleet>."
+  const packageExistsRegex = /^(?:SoftwareInstaller|In-house app) "(.+?)" already.+ fleet "(.+?)"\./;
   match = cleaned.match(packageExistsRegex);
   if (match) {
     return (
       <>
         {ADD_SOFTWARE_ERROR_PREFIX} <b>{match[1]}</b> already has an installer
-        available for the <b>{match[2]}</b> team.{" "}
+        available for the <b>{match[2]}</b> fleet.{" "}
       </>
     );
   }

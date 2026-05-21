@@ -32,6 +32,13 @@ func (gh ghMock) MSRCBulletins(ctx context.Context) (map[io.MetadataFileName]str
 	return gh.TestData.RemoteList, gh.TestData.RemoteListError
 }
 
+func (gh ghMock) WinOfficeBulletin(ctx context.Context) (io.MetadataFileName, string, error) {
+	for k, v := range gh.TestData.RemoteList {
+		return k, v, gh.TestData.RemoteListError
+	}
+	return io.MetadataFileName{}, "", gh.TestData.RemoteListError
+}
+
 func (gh ghMock) MacOfficeReleaseNotes(ctx context.Context) (io.MetadataFileName, string, error) {
 	for k, v := range gh.TestData.RemoteList {
 		return k, v, gh.TestData.RemoteListError
@@ -47,6 +54,10 @@ func (gh ghMock) Download(url string) (string, error) {
 type fsMock struct{ TestData *testData }
 
 func (fs fsMock) MSRCBulletins() ([]io.MetadataFileName, error) {
+	return fs.TestData.LocalList, fs.TestData.LocalListError
+}
+
+func (fs fsMock) WinOfficeBulletin() ([]io.MetadataFileName, error) {
 	return fs.TestData.LocalList, fs.TestData.LocalListError
 }
 

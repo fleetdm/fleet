@@ -28,7 +28,7 @@
 
 6. Add a description for the app in `outputs/apps.json` file. You can use descriptions from [Homebrew formulae](https://formulae.brew.sh/). For consistency and presentation on the website, the description should follow sentence casing and the following format: `<App Name>` is a(n) (copy description from Homebrew)., making sure to end with a `.`.
 
-7. Open a PR to the `fleet` repository with the above changes. The [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added reviewer. Also, @ mention the #g-software Product Designer (PD) in a comment that points them to the new icon. This way, the icon change gets a second pair of eyes.
+7. Open a PR to the `fleet` repository with the above changes. The [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added reviewer. Also, @ mention the [Fleet-maintained apps DRI](https://fleetdm.com/handbook/company/communications#:~:text=Fleet%2Dmaintained%20apps).
 
 8. If the app passes automated tests, it is approved and merged. The EM reviews the PR within 3 business days. The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet. The app icon will not appear in Fleet until the following release.
 
@@ -46,6 +46,24 @@
 | `post_uninstall_scripts` | string        | Command lines run **after** the generated uninstall script (e.g., for [Box](inputs/homebrew/box-drive.json)).                                                                                                                                                                   |
 | `install_script_path`    | string        | Filepath to a custom install script (`.sh`). Overrides the generated install script. Script must be placed in `inputs/homebrew/scripts/`.                                                                                                      |
 | `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.sh`). Overrides the generated uninstall script. Cannot be used together with `pre_uninstall_scripts` or `post_uninstall_scripts`. Script must be placed in `inputs/homebrew/scripts/`.                 |
+| `cask_path`              | string        | Path (relative to the repo root) to a local file containing the cask JSON in the same schema as `https://formulae.brew.sh/api/cask/<token>.json`. Used to commit cask metadata for third-party taps directly into this repo under [`inputs/homebrew/custom-tap/`](inputs/homebrew/custom-tap/). See [Ingesting apps from a custom tap](#ingesting-apps-from-a-custom-tap) below. |
+
+### Ingesting apps from a custom tap
+
+Apps that live in a third-party Homebrew tap (not `Homebrew/homebrew-cask`) are not proxied by `https://formulae.brew.sh/api/`. To ingest them, commit both the `.rb` source and the generated `.json` into [`inputs/homebrew/custom-tap/`](inputs/homebrew/custom-tap/), laid out like a Homebrew tap:
+
+```
+custom-tap/
+├── Casks/<token>.rb      # Cask DSL source
+├── api/<token>.json      # Generated with regenerate.sh
+└── regenerate.sh         # Rebuild api/*.json from Casks/*.rb
+```
+
+1. Write the cask DSL in `inputs/homebrew/custom-tap/Casks/<token>.rb`.
+2. Run `./regenerate.sh` from inside `custom-tap/` to produce `api/<token>.json`. Requires macOS with Homebrew and `jq`.
+3. In the app's input manifest (`inputs/homebrew/<token>.json`), set `cask_path` to `ee/maintained-apps/inputs/homebrew/custom-tap/api/<token>.json`. See `inputs/homebrew/fleet-desktop.json` for an example.
+
+See [`inputs/homebrew/custom-tap/README.md`](inputs/homebrew/custom-tap/README.md) for the full contributor flow. Apps without `cask_path` continue to be fetched from `formulae.brew.sh`.
 
 ## Adding a new app (Windows)
 

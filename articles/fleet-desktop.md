@@ -11,7 +11,7 @@ Fleet Desktop unlocks two key benefits:
    <iframe src="https://www.youtube.com/embed/cI2vDG3PbVo" allowfullscreen></iframe>
 </div>
 
-If your end users have a hard time finding Fleet Desktop in the macOS menu bar, you can deploy [this Fleet Desktop app](https://github.com/allenhouchins/fleet-desktop/releases).
+If your end users have a hard time finding Fleet Desktop in the macOS menu bar, you can deploy [this Fleet Desktop app](https://github.com/allenhouchins/fleet-desktop/releases). Additionally, to remind end users that they're failing policies, you can deploy [this configuration profile](https://github.com/fleetdm/fleet/blob/8cd2da576b01075db63d0a254ae597291c1d3d96/it-and-security/lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig) to open the app everytime the end user logs in or restarts their Mac. 
 
 ## Install Fleet Desktop
 For information on how to install Fleet Desktop, visit: [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop).

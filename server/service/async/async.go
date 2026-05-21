@@ -3,6 +3,7 @@ package async
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -10,8 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
@@ -54,9 +53,9 @@ func NewTask(ds fleet.Datastore, pool fleet.RedisPool, clck clock.Clock, fleetCo
 // Collect runs the various collectors as distinct background goroutines if
 // async processing is enabled.  Each collector will stop processing when ctx
 // is done.
-func (t *Task) StartCollectors(ctx context.Context, logger *logging.Logger) {
+func (t *Task) StartCollectors(ctx context.Context, logger *slog.Logger) {
 	collectorErrHandler := func(name string, err error) {
-		level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
+		logger.ErrorContext(ctx, fmt.Sprintf("%s collector", name), "err", err)
 		ctxerr.Handle(ctx, err)
 	}
 
@@ -68,7 +67,7 @@ func (t *Task) StartCollectors(ctx context.Context, logger *logging.Logger) {
 	}
 	for task, cfg := range t.taskConfigs {
 		if !cfg.Enabled {
-			level.Debug(logger).Log("task", "async disabled, not starting collector", "name", task)
+			logger.DebugContext(ctx, "async disabled, not starting collector", "name", task)
 			continue
 		}
 
@@ -84,7 +83,7 @@ func (t *Task) StartCollectors(ctx context.Context, logger *logging.Logger) {
 			errHandler:   collectorErrHandler,
 		}
 		go coll.Start(ctx)
-		level.Debug(logger).Log("task", "async enabled, starting collectors", "name", task, "interval", cfg.CollectInterval, "jitter", cfg.CollectMaxJitterPercent)
+		logger.DebugContext(ctx, "async enabled, starting collectors", "name", task, "interval", cfg.CollectInterval, "jitter", cfg.CollectMaxJitterPercent)
 
 		if cfg.CollectLogStatsInterval > 0 {
 			go func() {
@@ -93,7 +92,7 @@ func (t *Task) StartCollectors(ctx context.Context, logger *logging.Logger) {
 					select {
 					case <-tick:
 						stats := coll.ReadStats()
-						level.Debug(logger).Log("stats", fmt.Sprintf("%#v", stats), "name", coll.name)
+						logger.DebugContext(ctx, "collector stats", "stats", fmt.Sprintf("%#v", stats), "name", coll.name)
 					case <-ctx.Done():
 						return
 					}

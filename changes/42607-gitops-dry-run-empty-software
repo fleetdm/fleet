@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops --dry-run` intermittently failing with "Resource Not Found" when a team's `software` config was empty.

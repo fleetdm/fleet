@@ -10,7 +10,6 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import validEmail from "components/forms/validators/valid_email";
@@ -298,6 +297,13 @@ const Smtp = ({
             name="smtpEnableSSLTLS"
             value={smtpEnableSSLTLS}
             parseTarget
+            labelTooltipContent={
+              <>
+                To disable this setting, STARTTLS must first be disabled in{" "}
+                <strong>Organization settings</strong> &gt;{" "}
+                <strong>Advanced options</strong>.
+              </>
+            }
           >
             Use SSL/TLS to connect (recommended)
           </Checkbox>
@@ -327,7 +333,6 @@ const Smtp = ({
           {renderSmtpSection()}
         </div>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <TooltipWrapper
               tipContent={

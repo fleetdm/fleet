@@ -1,0 +1,254 @@
+name: Product & Engineering Handbook Weekly Summary
+
+on:
+  schedule:
+    - cron: '0 13 * * 1' # Every Monday at 8am EST (1pm UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  models: read
+  pull-requests: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0
+
+      - name: Collect handbook diffs
+        id: diffs
+        run: |
+          SINCE_DATE=$(date -d '7 days ago' '+%Y-%m-%d' 2>/dev/null || date -v-7d '+%Y-%m-%d')
+          echo "since_date=$SINCE_DATE" >> "$GITHUB_OUTPUT"
+
+          HANDBOOK_PATHS="handbook/engineering/ handbook/product-design/"
+
+          # Get commit log for the period
+          COMMITS=$(git log --since="$SINCE_DATE" --pretty=format:'- %h %s (%an, %as)' -- $HANDBOOK_PATHS)
+
+          if [ -z "$COMMITS" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No handbook changes in the last 7 days."
+            exit 0
+          fi
+
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+
+          # Get the diff. Use FIRST_COMMIT^ as the base when possible;
+          # fall back to diffing against the empty tree if the commit has no
+          # parent (root commit) or is HEAD itself.
+          FIRST_COMMIT=$(git log --since="$SINCE_DATE" --reverse --pretty=format:'%H' -- $HANDBOOK_PATHS | head -1)
+          EMPTY_TREE=$(git hash-object -t tree /dev/null)
+          if git rev-parse "${FIRST_COMMIT}^" >/dev/null 2>&1; then
+            DIFF_BASE="${FIRST_COMMIT}^"
+          else
+            DIFF_BASE="$EMPTY_TREE"
+          fi
+          DIFF=$(git diff "${DIFF_BASE}..HEAD" -- $HANDBOOK_PATHS)
+
+          # Truncate diff to ~80K chars to stay within model context limits
+          DIFF=$(echo "$DIFF" | head -c 80000)
+
+          # Write to files for next steps
+          echo "$COMMITS" > /tmp/commits.txt
+          echo "$DIFF" > /tmp/diff.txt
+
+      - name: Collect PR context
+        if: steps.diffs.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          HANDBOOK_PATHS="handbook/engineering/ handbook/product-design/"
+          SINCE_DATE="${{ steps.diffs.outputs.since_date }}"
+
+          # Get unique commit SHAs for handbook changes
+          COMMIT_SHAS=$(git log --since="$SINCE_DATE" --pretty=format:'%H' -- $HANDBOOK_PATHS | sort -u)
+
+          echo "PR_CONTEXT:" > /tmp/pr_context.txt
+
+          # Track PRs we've already processed to avoid duplicates
+          declare -A SEEN_PRS
+
+          for SHA in $COMMIT_SHAS; do
+            # Find the PR that introduced this commit
+            PR_JSON=$(gh api "repos/${GH_REPO}/commits/${SHA}/pulls" \
+              --jq '.[0] | {number, title, html_url, body}' 2>/dev/null || echo "")
+
+            if [ -z "$PR_JSON" ] || [ "$PR_JSON" = "null" ]; then
+              continue
+            fi
+
+            PR_NUM=$(echo "$PR_JSON" | jq -r '.number')
+
+            # Skip if we already processed this PR
+            if [ -n "${SEEN_PRS[$PR_NUM]:-}" ]; then
+              continue
+            fi
+            SEEN_PRS[$PR_NUM]=1
+
+            PR_TITLE=$(echo "$PR_JSON" | jq -r '.title')
+            PR_URL=$(echo "$PR_JSON" | jq -r '.html_url')
+            # Truncate PR body to 500 chars to keep context manageable
+            PR_BODY=$(echo "$PR_JSON" | jq -r '.body // ""' | head -c 500)
+
+            echo "" >> /tmp/pr_context.txt
+            echo "---" >> /tmp/pr_context.txt
+            echo "PR #${PR_NUM}: ${PR_TITLE}" >> /tmp/pr_context.txt
+            echo "URL: ${PR_URL}" >> /tmp/pr_context.txt
+            echo "Description: ${PR_BODY}" >> /tmp/pr_context.txt
+          done
+
+      - name: Summarize with AI
+        if: steps.diffs.outputs.has_changes == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SINCE_DATE: ${{ steps.diffs.outputs.since_date }}
+        run: |
+          COMMITS=$(cat /tmp/commits.txt)
+          DIFF=$(cat /tmp/diff.txt)
+          PR_CONTEXT=$(cat /tmp/pr_context.txt)
+
+          # Build the prompt
+          PROMPT="You are summarizing changes to a company handbook for a Slack post.
+
+          Below are the commits, associated pull requests, and diffs made to the Product Design and Engineering sections of the Fleet handbook in the past week (since ${SINCE_DATE}).
+
+          COMMITS:
+          ${COMMITS}
+
+          PULL REQUESTS (with descriptions for additional context):
+          ${PR_CONTEXT}
+
+          DIFF:
+          ${DIFF}
+
+          Write a concise, well-organized summary suitable for posting in Slack. Format it using Slack mrkdwn syntax (use *bold* not **bold**, use • for bullets).
+          Group changes by section (Engineering vs Product Design) if both have changes.
+          Focus on WHAT changed and WHY it matters — use the PR descriptions for context on the intent behind changes. Skip trivial whitespace or formatting-only changes.
+          For each significant change, include a link to the relevant PR using Slack link syntax: <URL|PR #123>.
+          Keep it under 3000 characters. Do not include a greeting or sign-off."
+
+          # Call GitHub Models API (OpenAI-compatible endpoint, no extra secrets needed)
+          RESPONSE=$(jq -n --arg prompt "$PROMPT" \
+            '{
+              "model": "openai/gpt-4.1",
+              "max_tokens": 1024,
+              "messages": [{"role": "user", "content": $prompt}]
+            }' | curl -sf -L -X POST "https://models.github.ai/inference/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d @-)
+
+          # Extract the text content (OpenAI-compatible response format)
+          SUMMARY=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+
+          if [ -z "$SUMMARY" ]; then
+            echo "::error::Failed to get summary from GitHub Models API"
+            echo "$RESPONSE" | jq . || echo "$RESPONSE"
+            exit 1
+          fi
+
+          echo "$SUMMARY" > /tmp/summary.txt
+
+      - name: Post summary to Slack
+        if: steps.diffs.outputs.has_changes == 'true'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.TEST_SLACK_PRODUCT_ENG_HANDBOOK_SUMMARY_WEBHOOK_URL }}
+          SINCE_DATE: ${{ steps.diffs.outputs.since_date }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::error::TEST_SLACK_PRODUCT_ENG_HANDBOOK_SUMMARY_WEBHOOK_URL secret is not set or is empty. Add it in repo Settings → Secrets → Actions."
+            exit 1
+          fi
+
+          SUMMARY=$(cat /tmp/summary.txt)
+
+          # Slack section.text.mrkdwn has a 3000 char limit. Split the
+          # summary into chunks on line boundaries in bash, then build
+          # a section block per chunk via jq.
+          MAX_LEN=2900
+          CHUNKS=()
+          CURRENT=""
+          while IFS= read -r LINE || [ -n "$LINE" ]; do
+            if [ $(( ${#CURRENT} + ${#LINE} + 1 )) -gt "$MAX_LEN" ] && [ -n "$CURRENT" ]; then
+              CHUNKS+=("$CURRENT")
+              CURRENT="$LINE"
+            else
+              if [ -n "$CURRENT" ]; then
+                CURRENT="${CURRENT}"$'\n'"${LINE}"
+              else
+                CURRENT="$LINE"
+              fi
+            fi
+          done <<< "$SUMMARY"
+          [ -n "$CURRENT" ] && CHUNKS+=("$CURRENT")
+
+          # Build a JSON array of chunks, preserving newlines within each chunk
+          CHUNKS_JSON=$(jq -n '$ARGS.positional' --args -- "${CHUNKS[@]}")
+
+          # Build Slack Block Kit payload
+          FALLBACK="Product & Engineering handbook weekly summary (since ${SINCE_DATE})"
+          jq -n --arg fallback "$FALLBACK" --arg since "$SINCE_DATE" --argjson chunks "$CHUNKS_JSON" \
+            '{
+              "text": $fallback,
+              "blocks": (
+                [
+                  {"type": "header", "text": {"type": "plain_text", "text": "📋 Product & Engineering Handbook Weekly Summary", "emoji": true}},
+                  {"type": "context", "elements": [{"type": "mrkdwn", "text": ("Changes since " + $since)}]},
+                  {"type": "divider"}
+                ] + [
+                  $chunks[] | {"type": "section", "text": {"type": "mrkdwn", "text": .}}
+                ]
+              )
+            }' | curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d @-
+
+      - name: Post no-changes notice to Slack
+        if: steps.diffs.outputs.has_changes == 'false'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.TEST_SLACK_PRODUCT_ENG_HANDBOOK_SUMMARY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::error::TEST_SLACK_PRODUCT_ENG_HANDBOOK_SUMMARY_WEBHOOK_URL secret is not set or is empty. Add it in repo Settings → Secrets → Actions."
+            exit 1
+          fi
+
+          jq -n '{
+            "text": "Product & Engineering handbook weekly summary — no changes this week.",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "📋 Product & Engineering Handbook Weekly Summary",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "No changes to the Product Design or Engineering handbook sections this week. 🎉"
+                }
+              }
+            ]
+          }' | curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d @-

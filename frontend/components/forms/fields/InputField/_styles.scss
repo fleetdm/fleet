@@ -1,11 +1,11 @@
 .input-field {
-  line-height: 1.5;
+  line-height: $line-height;
   background-color: $core-fleet-white;
   border: solid 1px $ui-fleet-black-10;
   border-radius: $border-radius;
   font-size: $x-small;
   padding: $pad-small $pad-medium;
-  color: $core-fleet-blue;
+  color: $core-fleet-black;
   font-family: "Inter", sans-serif;
   box-sizing: border-box;
   height: 36px;
@@ -16,12 +16,6 @@
     color: $ui-fleet-black-50;
   }
 
-  &:hover:not(.input-field--read-only) {
-    box-shadow: none;
-    border: 1px solid $ui-fleet-black-75-over;
-  }
-
-  &:active:not(.input-field--read-only),
   &:focus:not(.input-field--read-only),
   &:focus-visible:not(.input-field--read-only) {
     box-shadow: none;
@@ -75,21 +69,23 @@
     margin-bottom: $pad-medium;
   }
 
+  // Same styling as .form-field__help-text TODO: consider consolidating
   &__help-text {
     font-size: $x-small;
     font-weight: $regular;
-    line-height: 1.57;
+    line-height: $line-height;
     letter-spacing: 1px;
     color: $core-fleet-blue;
 
     code {
-      color: $core-vibrant-blue;
-      background-color: $ui-gray;
+      color: $ui-fleet-black-75;
+      background-color: $ui-light-grey;
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
   }
 
+  // Old-style textarea copy button (absolute positioned icon above textarea)
   &__copy-wrapper {
     display: flex;
     align-items: center;
@@ -100,16 +96,43 @@
     margin: 1px 4px;
     background-color: $core-fleet-white;
 
-    &__text-area {
+    &--text-area {
       top: -30px;
     }
   }
 
   &__input-container.copy-enabled {
     position: relative;
+  }
+
+  // New input action buttons (bordered boxes beside input)
+  &__input-container--has-actions {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
 
     .input-field {
-      padding-right: 35px; // horizontal scroll of long inputs will not be hidden by copy button
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  &__action-buttons {
+    display: flex;
+    gap: $pad-xsmall;
+    flex-shrink: 0;
+  }
+
+  &__action-button-wrapper {
+    position: relative;
+  }
+
+  &__action-button {
+    @include bordered-icon-button;
+
+    .fleeticon {
+      width: 16px;
+      height: 16px;
     }
   }
 
@@ -117,8 +140,15 @@
     @include copy-message;
   }
 
-  &__copied-confirmation-outside {
-    margin-left: -88px;
+  // Positioning for new bordered action buttons — float to the left of the button
+  &__action-button-wrapper &__copied-confirmation {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + $pad-xsmall);
+    transform: translateY(-50%);
+    margin: 0;
+    white-space: nowrap;
+    pointer-events: none;
   }
 }
 

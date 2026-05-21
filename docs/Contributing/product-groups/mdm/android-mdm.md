@@ -15,6 +15,8 @@ You can also setup a local proxy or use the Google API directly.
 
 ## Setup a Google project and service account
 
+> Instead of creating your own, you can use the shared Android DEV Google cloud project. The credentials for the Android DEV google cloud project can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=lsq2qqbfjlrh6eyby2tr2qc7nu&h=fleetdevicemanagement.1password.com).
+
 Create a Google service account with the following Roles
 - Android Management User
 - Pub/Sub Admin

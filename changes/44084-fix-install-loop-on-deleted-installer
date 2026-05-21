@@ -1,0 +1,1 @@
+- Fixed a bug where setup experience could remain stuck for up to 90 minutes after a software installer was edited or deleted while a host was installing it.

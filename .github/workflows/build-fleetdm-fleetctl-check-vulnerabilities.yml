@@ -38,8 +38,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
+      - name: Login to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+
       - name: Set up Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: "go.mod"
 
@@ -64,8 +70,8 @@ jobs:
         run: |
           mkdir trivy-download
           cd trivy-download
-          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.68.1/trivy_0.68.1_Linux-64bit.tar.gz --output trivy_0.68.1_Linux-64bit.tar.gz
-          tar -xf trivy_0.68.1_Linux-64bit.tar.gz
+          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.69.2/trivy_0.69.2_Linux-64bit.tar.gz --output trivy_0.69.2_Linux-64bit.tar.gz
+          tar -xf trivy_0.69.2_Linux-64bit.tar.gz
           mv trivy ..
           cd ..
           chmod +x ./trivy
@@ -75,7 +81,33 @@ jobs:
             --pkg-types=os,library \
             --severity=HIGH,CRITICAL \
             --vex="${{ steps.generate_vex_files.outputs.VEX_FILES }}" \
-            fleetdm/fleetctl
+            --format=json \
+            --output=trivy-results.json \
+            fleetdm/fleetctl || trivy_exit_code=$?
+          # Print a human-readable table to the job log for debugging.
+          ./trivy convert --format table trivy-results.json
+          exit "${trivy_exit_code:-0}"
+
+      - name: Extract CVE list for Slack notification
+        id: extract_cves
+        if: failure()
+        run: |
+          if [ -f trivy-results.json ]; then
+            # `safe` JSON-escapes string fields so they can be embedded inline in
+            # the Slack payload JSON (titles can contain quotes, backslashes, etc.).
+            # `\\n` (literal backslash-n) is used as the separator so the value
+            # stays on a single line in $GITHUB_OUTPUT and Slack renders it as a
+            # newline when parsing the JSON payload.
+            cve_list=$(jq -r '
+              def safe(s): (s // "") | tojson | .[1:-1];
+              [.Results[]?.Vulnerabilities[]?]
+              | unique_by(.VulnerabilityID + "|" + (.PkgName // ""))
+              | sort_by(.Severity, .VulnerabilityID)
+              | map("• *\(.VulnerabilityID)* (\(.Severity // "UNKNOWN")) — \(safe(.PkgName // "?")) \(safe(.InstalledVersion // "?")) → \(safe(.FixedVersion // "?"))\\n    _\(safe(.Title // "(no title)"))_")
+              | join("\\n")
+            ' trivy-results.json)
+          fi
+          echo "cve_list=${cve_list:-(no CVE list available — check job logs)}" >> "$GITHUB_OUTPUT"
 
       - name: Slack notification
         if: github.event.schedule == '0 6 * * *' && failure()
@@ -89,7 +121,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "⚠️ Build fleetdm/fleetctl and check vulnerabilities failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                    "text": "⚠️ Build fleetdm/fleetctl and check vulnerabilities failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n\n*Detected CVEs:*\n${{ steps.extract_cves.outputs.cve_list }}"
                   }
                 }
               ]

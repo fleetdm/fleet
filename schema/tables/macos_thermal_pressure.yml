@@ -1,0 +1,20 @@
+name: macos_thermal_pressure
+platforms:
+  - darwin
+description: Reports whether macOS is thermally throttling the device, via powermetrics. Returns thermal_pressure (Nominal/Light/Moderate/Heavy/Sleeping) and a derived is_throttling integer (1 if not Nominal). Requires root.
+columns:
+  - name: thermal_pressure
+    type: text
+    required: false
+    description: Nominal/Light/Moderate/Heavy/Sleeping.
+  - name: is_throttling
+    type: integer
+    required: false
+    description: Value is 1 if thermal_pressure is not Nominal.
+  - name: interval
+    type: integer
+    required: false
+    description: |
+      Sampling duration in milliseconds. (Default 1000.)
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+evented: false

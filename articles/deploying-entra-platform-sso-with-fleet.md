@@ -3,6 +3,8 @@ Apple’s Platform Single Sign-on (Platform SSO), [introduced at WWDC22](https:/
 
 This guide details how to deploy Microsoft Entra ID's macOS Platform SSO extension to your Fleet macOS hosts.
 
+> Fleet is testing [Simplified Setup](https://support.apple.com/en-gb/guide/deployment/dep7bbb05313/web#:~:text=Activate%20and%20enforce%20Platform%20SSO%20during%20Automated%20Device%20Enrollment%20to%20authenticate%20the%20enrollment%2C%20sign%20in%20with%20a%20Managed%20Apple%20Account%2C%20and%20create%20a%20local%20user) with Entra ID, which is currently in "preview" status. 
+
 ## Why use Platform SSO?
 If your Identity Provider (IdP) supports Platform Single Sign-on, deploying it in your environment offers a great and secure sign-in experience for your users.
 
@@ -20,7 +22,7 @@ This speeds up the authentication process for your employees and is more resista
 
 ## Deploy the Company Portal app
 ### Upload the Company Portal app to your Fleet server
-On your Fleet server, select the team you want to deploy Platform SSO to. Navigate to **Software > Add software > Custom package > Choose file**.
+On your Fleet server, select the fleet you want to deploy Platform SSO to. Navigate to **Software > Add software > Custom package > Choose file**.
 
 Select the `CompanyPortal-Installer.pkg` file on your computer, then click the **Add software** button.
 
@@ -122,9 +124,9 @@ Save the profile to your computer so you can upload it to Fleet in the next sect
 ### Deploy the configuration profile to your hosts
 Now that we have a configuration profile with our desired settings, we can upload it to Fleet to deploy it to our hosts and activate the Platform SSO extension.
 
-On your Fleet server, select the team you want to deploy Platform SSO to. Navigate to Controls > OS Settings > Custom settings. Click the Add profile button, then find the `platform-sso-settings.mobileconfig` profile on your computer and upload it to Fleet.
+On your Fleet server, select the fleet you want to deploy Platform SSO to. Navigate to **Controls** > **OS Settings** > **Configuration profiles**. Click the Add profile button, then find the `platform-sso-settings.mobileconfig` profile on your computer and upload it to Fleet.
 
-Uploading the profile to a team in Fleet will automatically deliver it to all macOS hosts enrolled in that team. If you wish to have more control over which hosts on the team receive the profile, you can use labels to target or exclude specific hosts.
+Uploading the profile to a fleet will automatically deliver it to all macOS hosts enrolled in that fleet. If you wish to have more control over which hosts on the fleet receive the profile, you can use labels to target or exclude specific hosts.
 
 
 ## End user experience

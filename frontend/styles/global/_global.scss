@@ -4,16 +4,44 @@ html {
   // Because iOS hates us we must fight to the death!
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   // End Apple War
+  color-scheme: light;
+}
+
+html:has(body.dark-mode) {
+  // Tells the browser to render native UI (scrollbars, form controls, etc.)
+  // in their dark variants when dark mode is active.
+  color-scheme: dark;
 }
 
 body {
   color: $ui-fleet-black-75;
+  background-color: $core-fleet-white;
   padding: 0;
   margin: 0;
   font-family: "Inter", sans-serif;
   font-size: $medium;
   height: 100%;
-  line-height: 1.5;
+  line-height: $line-height;
+}
+
+// Applied briefly by theme.ts during toggle to fade all colors smoothly.
+// Removed after 300ms so it doesn't interfere with normal interactions.
+// Only applies when the user hasn't requested reduced motion.
+@media (prefers-reduced-motion: no-preference) {
+  body.theme-transition,
+  body.theme-transition *,
+  body.theme-transition *::before,
+  body.theme-transition *::after {
+    transition: background-color 300ms ease, color 300ms ease,
+      border-color 300ms ease, box-shadow 300ms ease, fill 300ms ease,
+      stroke 300ms ease !important;
+  }
+
+  // Hide the gradient image during theme switch so background-color
+  // can transition smoothly without the gradient snapping.
+  body.theme-transition .core-wrapper {
+    background-image: none !important;
+  }
 }
 
 html,
@@ -55,7 +83,7 @@ p {
   // Desired default line-height for text is 1.5x the font size for paragrah text.
   // This allows for a comfortable reading experience by adding space between
   // multiline paragraphs.
-  line-height: 1.5;
+  line-height: $line-height;
   font-size: $x-small;
 }
 
@@ -101,10 +129,17 @@ form,
     margin: 0;
     display: flex;
     gap: $pad-medium;
+
+    &--center {
+      margin: 0;
+      display: flex;
+      gap: $pad-medium;
+      justify-content: center;
+    }
   }
 
-  // Override button width to auto unless icon-only which has fixed widths
-  .button:not(.button--icon):not(.button--icon__small) {
+  // Override button width to auto unless icon-only or wide buttons which has fixed widths
+  .button:not(.button--icon):not(.button--icon__small):not(.button__wide) {
     width: auto;
   }
 
@@ -164,8 +199,8 @@ form,
       }
     }
     code {
-      color: $core-vibrant-blue;
-      background-color: $core-fleet-white;
+      color: $ui-fleet-black-75;
+      background-color: $ui-light-grey;
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
@@ -211,28 +246,72 @@ input {
 }
 
 // syntax highlighting for pretty-printed JSON
+// Pinned to dark palette — code blocks stay dark in both modes.
 pre {
   padding: $pad-large;
-  background-color: $core-fleet-black;
-  color: $core-fleet-white;
+  background-color: $static-black;
+  color: $static-white;
   border-radius: 4px;
   white-space: pre-wrap;
 
   .string {
-    color: $rainbow-green;
+    color: #63c740;
   }
   .number {
-    color: $rainbow-orange;
+    color: #faa669;
   }
   .boolean {
-    color: $rainbow-blue;
+    color: #5cabdf;
   }
   .null {
     color: magenta;
   }
   .key {
-    color: $core-fleet-white;
+    color: $static-white;
   }
+}
+
+body.dark-mode pre {
+  background-color: #111214;
+}
+
+body.dark-mode .data-table-block thead,
+body.dark-mode thead {
+  background-color: $dark-mode-table-header;
+}
+
+body.dark-mode .data-table-block tbody tr,
+body.dark-mode tbody tr {
+  background-color: $dark-mode-table-row;
+}
+
+body.dark-mode .site-nav-item:not(.dup-org-logo):hover {
+  background-color: $dark-mode-nav-hover;
+}
+
+body.dark-mode .card .button--inverse:hover,
+body.dark-mode .card .button--inverse-alert:hover,
+body.dark-mode .card .button--text-icon:hover,
+body.dark-mode .card .button--icon:hover {
+  background-color: $core-fleet-white;
+}
+
+body.dark-mode .checkbox-unchecked-state {
+  fill: $core-fleet-white;
+  stroke: $ui-fleet-black-25;
+}
+
+// react-select v2 (DropdownWrapper) uses inline styles via COLORS proxy,
+// so !important is needed to override them in dark mode.
+body.dark-mode .react-select__control {
+  background-color: $ui-fleet-black-5 !important;
+}
+
+// Legacy react-select v1 (Dropdown) uses SCSS-applied backgrounds.
+body.dark-mode .Select .Select-control,
+body.dark-mode .Select .Select-control .Select-value,
+body.dark-mode .Select .Select-value {
+  background-color: $ui-fleet-black-5;
 }
 
 hr {
@@ -250,4 +329,65 @@ dl {
 
 dd {
   margin: 0;
+}
+
+// Dark mode: remap illustration SVG fill/stroke colors via attribute
+// selectors so light-palette graphics adapt to dark backgrounds.
+// Grouped by luminance band — light backgrounds darken, accents stay.
+// Uses [attr] on any element (path, rect, circle, etc.).
+body.dark-mode .empty-table__image-wrapper {
+  // Very light fills (near-white backgrounds) → dark surface
+  [fill="#F7F8FC" i],
+  [fill="#F0F0FF" i],
+  [fill="#F1F0FF" i],
+  [fill="#F8F8FF" i],
+  [fill="#F9FAFC" i],
+  [fill="#EDEEF2" i],
+  [fill="#fff" i],
+  [fill="#ffffff" i],
+  [fill="white"] {
+    fill: #252830;
+  }
+
+  // Light decorative fills → dark decorative
+  [fill="#E1E1FF" i],
+  [fill="#E0E7F9" i],
+  [fill="#E9E9FF" i],
+  [fill="#F1F1FD" i],
+  [fill="#E3E3FE" i],
+  [fill="#E0E3E3" i],
+  [fill="#D3E8F3" i] {
+    fill: #282b50;
+  }
+
+  // Medium fills → muted dark
+  [fill="#C9D5F3" i],
+  [fill="#D2D2FF" i],
+  [fill="#D9D9FE" i],
+  [fill="#E2E4EA" i],
+  [fill="#C5C7D1" i],
+  [fill="#CFCFF3" i],
+  [fill="#C3C3EE" i],
+  [fill="#E6E6F7" i],
+  [fill="#D7DAF5" i],
+  [fill="#C0CCCF" i],
+  [fill="#B0B2E7" i] {
+    fill: #363a62;
+  }
+
+  // Medium strokes → subtle dark borders
+  [stroke="#D3DAE4" i],
+  [stroke="#CDCDF5" i],
+  [stroke="#C8D1F2" i],
+  [stroke="#CBCFF2" i],
+  [stroke="#CECEF5" i],
+  [stroke="#E2E2FE" i],
+  [stroke="#C5C7D1" i] {
+    stroke: #3e4268;
+  }
+
+  // Dark text fills → lighten for contrast on dark bg
+  [fill="#8B8FA2" i] {
+    fill: #b3b6c1;
+  }
 }

@@ -47,7 +47,7 @@ export type IEditCertAuthorityBody =
 
 interface IGetCertsParams extends PaginationParams {
   // not supported: after, order key, order direction, match query, meta (always included)
-  team_id?: number;
+  fleet_id?: number;
 }
 
 export interface IQueryKeyGetCerts extends IGetCertsParams {
@@ -58,6 +58,7 @@ export interface ICertificate {
   name: string;
   certificate_authority_id: number;
   certificate_authority_name: string;
+  subject_alternative_name?: string;
   created_at: string;
 }
 export interface IGetCertsResponse {
@@ -69,6 +70,7 @@ export interface IAddCert {
   name: string;
   certAuthorityId: number;
   subjectName: string;
+  subjectAlternativeName?: string;
   teamId?: number;
 }
 
@@ -108,26 +110,39 @@ export default {
     return sendRequest("GET", CERTIFICATE_AUTHORITY_REQUEST_CERT(id));
   },
   getCerts: ({
-    team_id,
+    fleet_id,
     page,
     per_page,
   }: IGetCertsParams): Promise<IGetCertsResponse> => {
     const { CERTIFICATES } = endpoints;
 
-    const queryString = buildQueryStringFromParams({ team_id, page, per_page });
+    const queryString = buildQueryStringFromParams({
+      fleet_id,
+      page,
+      per_page,
+    });
 
     return sendRequest(
       "GET",
       queryString ? CERTIFICATES.concat(`?${queryString}`) : CERTIFICATES
     );
   },
-  addCert: ({ name, certAuthorityId, subjectName, teamId }: IAddCert) => {
+  addCert: ({
+    name,
+    certAuthorityId,
+    subjectName,
+    subjectAlternativeName,
+    teamId,
+  }: IAddCert) => {
     const { CERTIFICATES } = endpoints;
+    const trimmedSAN = subjectAlternativeName?.trim() ?? "";
     const requestBody = {
       name,
       certificate_authority_id: certAuthorityId,
       subject_name: subjectName,
-      team_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
+      // omit when empty so the server treats it as "no SAN"
+      ...(trimmedSAN !== "" && { subject_alternative_name: trimmedSAN }),
+      fleet_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
     };
     return sendRequest("POST", CERTIFICATES, requestBody);
   },

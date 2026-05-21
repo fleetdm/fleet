@@ -1,7 +1,7 @@
 .tile-action-status {
   display: flex;
   align-items: center;
-  gap: $pad-small;
+  gap: $gap-icon-text;
   font-size: $x-small;
   height: 36px; // Min height of button to keep height the same when switching to active action "Installing..."
 }

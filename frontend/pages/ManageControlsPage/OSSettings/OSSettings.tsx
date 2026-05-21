@@ -4,10 +4,11 @@ import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
+import PageDescription from "components/PageDescription";
 import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
-import OS_SETTINGS_NAV_ITEMS from "./OSSettingsNavItems";
+import getOSSettingsNavItems from "./OSSettingsNavItems";
 import ProfileStatusAggregate from "./ProfileStatusAggregate";
 
 const baseClass = "os-settings";
@@ -52,14 +53,11 @@ const OSSettings = ({
     }
   );
 
+  const isTechnician = !!isTeamTechnician || !!isGlobalTechnician;
+
   const filteredNavItems = useMemo(() => {
-    if (isTeamTechnician || isGlobalTechnician) {
-      return OS_SETTINGS_NAV_ITEMS.filter(
-        (item) => item.title !== "Certificates"
-      );
-    }
-    return OS_SETTINGS_NAV_ITEMS;
-  }, [isTeamTechnician, isGlobalTechnician]);
+    return getOSSettingsNavItems(isTechnician);
+  }, [isTechnician]);
 
   const DEFAULT_SETTINGS_SECTION = filteredNavItems[0];
 
@@ -81,9 +79,10 @@ const OSSettings = ({
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Remotely enforce OS settings on hosts assigned to this fleet.
-      </p>
+      <PageDescription
+        variant="tab-panel"
+        content="Remotely enforce OS settings on hosts assigned to this fleet."
+      />
       <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}
         isError={isErrorAggregateProfileStatus}

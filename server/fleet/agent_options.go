@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -28,7 +29,22 @@ type AgentOptions struct {
 	Extensions json.RawMessage `json:"extensions,omitempty"`
 	// UpdateChannels holds the configured channels for fleetd components.
 	UpdateChannels json.RawMessage `json:"update_channels,omitempty"`
+	// Orbit-agent options. Kept separate from osquery so they bypass the
+	// osquery schema validator.
+	Orbit *OrbitAgentOptions `json:"orbit,omitempty"`
 }
+
+type OrbitAgentOptions struct {
+	// DebugLoggingOnEnrollDuration is the number of seconds (0 to
+	// MaxOrbitDebugLoggingOnEnrollDurationSeconds) that every host enrolling
+	// under this scope is stamped with orbit_debug_until = now() + duration.
+	DebugLoggingOnEnrollDuration int `json:"debug_logging_on_enroll_duration"`
+}
+
+const (
+	MaxOrbitDebugLoggingOnEnrollDurationSeconds = 24 * 60 * 60 // 86400 = 24h
+	MaxOrbitDebugLoggingOnEnrollDuration        = MaxOrbitDebugLoggingOnEnrollDurationSeconds * time.Second
+)
 
 type AgentOptionsOverrides struct {
 	// Platforms is a map from platform name to the config override.
@@ -115,6 +131,17 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		}
 	}
 
+	if opts.Orbit != nil {
+		if s := opts.Orbit.DebugLoggingOnEnrollDuration; s != 0 {
+			if s < 0 {
+				return errors.New("orbit.debug_logging_on_enroll_duration must not be negative")
+			}
+			if s > MaxOrbitDebugLoggingOnEnrollDurationSeconds {
+				return fmt.Errorf("orbit.debug_logging_on_enroll_duration must not exceed %d seconds", MaxOrbitDebugLoggingOnEnrollDurationSeconds)
+			}
+		}
+	}
+
 	if len(opts.Config) > 0 {
 		if err := validateJSONAgentOptionsSet(opts.Config); err != nil {
 			return fmt.Errorf("common config: %w", err)
@@ -179,7 +206,7 @@ func validateJSONAgentOptionsExtensions(ctx context.Context, ds Datastore, optsE
 				// OK
 			case IsNotFound(err):
 				// Label does not exist, fail the request.
-				return fmt.Errorf("Label %q does not exist, or cannot be used on this team", labelName)
+				return fmt.Errorf("Label %q does not exist, or cannot be used on this fleet", labelName)
 			default:
 				return fmt.Errorf("get label by name: %w", err)
 			}
@@ -205,7 +232,7 @@ type osqueryAgentOptions struct {
 	FileAccesses []string            `json:"file_accesses"`
 	// Documentation for the following 2 fields is "hidden" in osquery's FIM page:
 	// https://osquery.readthedocs.io/en/stable/deployment/file-integrity-monitoring/
-	FilePathsQuery map[string][]string `json:"file_paths_query"`
+	FilePathsQuery map[string][]string `json:"file_paths_query"` //nolint:apiparamcheck // osquery FIM field
 	ExcludePaths   map[string][]string `json:"exclude_paths"`
 
 	YARA struct {
@@ -309,8 +336,11 @@ type OsqueryCommandLineFlagsMacOS struct {
 	DisableEndpointsecurityFim bool   `json:"disable_endpointsecurity_fim"`
 	EnableKeyboardEvents       bool   `json:"enable_keyboard_events"`
 	EnableMouseEvents          bool   `json:"enable_mouse_events"`
+	EsFimEnableOpenEvents      bool   `json:"es_fim_enable_open_events"`
 	EsFimMutePathLiteral       string `json:"es_fim_mute_path_literal"`
 	EsFimMutePathPrefix        string `json:"es_fim_mute_path_prefix"`
+	KeychainAccessCache        bool   `json:"keychain_access_cache"`
+	KeychainAccessInterval     uint32 `json:"keychain_access_interval"`
 }
 
 // those osquery flags are not OS-specific, but are also not visible using

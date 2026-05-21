@@ -181,55 +181,23 @@
         <div class="modal-body">
           <div class="form-group">
             <label for="oldPassword">Current password</label>
-            <input class="form-control" type="password" id="oldPassword" :class="[formErrors.oldPassword ? 'is-invalid' : '']" v-model.trim="formData.oldPassword" autocomplete="password">
+            <input class="form-control" type="password" id="oldPassword" :class="[formErrors.oldPassword ? 'is-invalid' : '']" v-model.trim="formData.oldPassword" autocomplete="password" focus-first>
             <div class="invalid-feedback" v-if="formErrors.oldPassword">Please enter your current password.</div>
           </div>
           <div class="form-group">
             <label for="password">New password</label>
             <input class="form-control" type="password" id="password" :class="[formErrors.newPassword ? 'is-invalid' : '']" v-model.trim="formData.newPassword">
             <div class="invalid-feedback" v-if="formErrors.newPassword === 'minLength'">Password too short!</div>
-            <div class="invalid-feedback" v-else-if="formErrors.newPassword">Please enter your new password.</div>
-            <p class="mt-2"> Minimum length is 8 characters</p>
+            <div class="invalid-feedback" v-else-if="formErrors.newPassword === 'maxLength'">Password too long!</div>
+            <div class="invalid-feedback" v-else-if="formErrors.newPassword === 'custom'">New password does not meet requirements.</div>
+            <div class="invalid-feedback" v-else-if="formErrors.newPassword === 'required'">Please enter your new password.</div>
+            <p class="mt-2">Passwords must be 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).</p>
           </div>
           <cloud-error v-if="cloudError === 'badPassword'">Incorrect current password.</cloud-error>
           <cloud-error v-else-if="cloudError"></cloud-error>
         </div>
         <div class="border-0 justify-content-center">
-          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save</ajax-button>
-        </div>
-      </ajax-form>
-    </div>
-  </modal>
-
-  <modal v-if="modal === 'update-billing-card'" data-backdrop="false" @close="closeModal()" v-cloak purpose="modal">
-    <div class="container" purpose="customer-portal-form">
-      <div class="modal-header text-left">
-        <h3 class="modal-title">Edit card?</h3>
-        <p class="muted">Currently using: {{me.billingCardBrand}} ending in {{me.billingCardLast4}}</p>
-      </div>
-      <ajax-form :handle-submitting="handleSubmittingUpdateBillingCard" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedUpdateBillingCard()">
-        <div class="modal-body">
-          <stripe-card-element :stripe-publishable-key="stripePublishableKey" :is-errored.sync="formErrors.newPaymentSource" v-model="formData.newPaymentSource" key="billing-card" ref="billingcardref"></stripe-card-element>
-          <cloud-error v-if="cloudError"></cloud-error>
-        </div>
-        <div class="pt-3">
-          <ajax-button purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save card</ajax-button>
-        </div>
-      </ajax-form>
-    </div>
-  </modal>
-
-  <modal v-if="modal === 'remove-billing-card'" @close="closeModal()" v-cloak>
-    <div class="container">
-      <h3>Remove Card Info?</h3>
-      <ajax-form action="updateBillingCard" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedRemoveCardForm()">
-        <div class="modal-body text-center">
-          <p>Are you sure you want to remove your {{me.billingCardBrand}} ending in <strong>{{me.billingCardLast4}}</strong>?</p>
-          <p class="text-muted mb-0">This may restrict your access to paid features.</p>
-          <cloud-error v-if="cloudError"></cloud-error>
-        </div>
-        <div class="border-0 justify-content-center">
-          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-primary">Remove</ajax-button>
+          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-primary" >Save</ajax-button>
         </div>
       </ajax-form>
     </div>

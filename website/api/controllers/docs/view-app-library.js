@@ -1,0 +1,51 @@
+module.exports = {
+
+
+  friendlyName: 'View app library',
+
+
+  description: 'Display "App library" page.',
+
+
+  exits: {
+
+    success: {
+      viewTemplatePath: 'pages/docs/app-library'
+    },
+    badConfig: { responseType: 'badConfig' },
+  },
+
+
+  fn: async function () {
+
+    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.appLibrary) || !sails.config.builtStaticContent.appLibrary) {
+      throw {badConfig: 'builtStaticContent.appLibrary'};
+    }
+
+    let allApps = sails.config.builtStaticContent.appLibrary;
+
+    let macOsApps = _.filter(allApps, (app)=>{
+      return app.platform === 'darwin';
+    });
+    macOsApps = _.sortBy(macOsApps, (app)=>{
+      return app.name.toLowerCase();
+    });
+
+    let windowsApps = _.filter(allApps, (app)=>{
+      return app.platform === 'windows';
+    });
+    windowsApps = _.sortBy(windowsApps, (app)=>{
+      return app.name.toLowerCase();
+    });
+    // Respond with view.
+    return {
+      allApps,
+      windowsApps,
+      macOsApps,
+      algoliaPublicKey: sails.config.custom.algoliaPublicKey,
+    };
+
+  }
+
+
+};

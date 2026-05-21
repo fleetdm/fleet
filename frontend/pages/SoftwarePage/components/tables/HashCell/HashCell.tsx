@@ -83,7 +83,7 @@ const HashCell = ({
 
   // 2 or more hashes
   return (
-    <Button variant="text-link" onClick={onClickMultipleHashes}>
+    <Button variant="link" onClick={onClickMultipleHashes}>
       {uniqueHashCount.toString()} hashes
     </Button>
   );

@@ -86,7 +86,7 @@ const RunQueryPage = ({
 
   // Reroute users out of live flow when live queries are globally disabled
   if (disabledLiveQuery) {
-    const path = queryId ? PATHS.QUERY_DETAILS(queryId) : PATHS.NEW_QUERY;
+    const path = queryId ? PATHS.REPORT_DETAILS(queryId) : PATHS.NEW_REPORT;
 
     router.push(
       getPathWithQueryParams(path, {
@@ -161,7 +161,7 @@ const RunQueryPage = ({
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(() => {
-    const path = queryId ? PATHS.EDIT_QUERY(queryId) : PATHS.NEW_QUERY;
+    const path = queryId ? PATHS.EDIT_REPORT(queryId) : PATHS.NEW_REPORT;
 
     router.push(getPathWithQueryParams(path, { fleet_id: currentTeamId }));
   }, []);
@@ -183,6 +183,7 @@ const RunQueryPage = ({
       setTargetedTeams,
       setTargetsTotalCount,
       isObserverCanRunQuery: storedQuery?.observer_can_run,
+      queryTeamId: storedQuery?.team_id ?? null,
     };
 
     const step2Props = {

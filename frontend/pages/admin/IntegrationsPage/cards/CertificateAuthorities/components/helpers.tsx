@@ -6,7 +6,7 @@ const CA_LABEL_BY_TYPE: Record<ICertificateAuthorityType, string> = {
   digicert: "DigiCert",
   hydrant: "Hydrant Enrollment Over Secure Transport (EST)",
   ndes_scep_proxy:
-    "Okta CA or Microsoft Network Device Enrollment Service (NDES)",
+    "Dynamic SCEP - Okta CA or Microsoft Network Device Enrollment Service (NDES)",
   smallstep: "Smallstep",
 };
 

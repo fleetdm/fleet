@@ -1,0 +1,12 @@
+# Configuration for Qodo code review tool
+
+[github_app]
+# Do not auto-run anything when a PR is opened
+pr_commands = []
+# Do not auto-run anything on new commits / pushes
+handle_push_trigger = false
+
+# Keep the review tool available for manual comment commands
+[review_agent]
+enabled = true
+publish_output = true

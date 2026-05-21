@@ -12,6 +12,7 @@ export interface ISideNavItem<T> {
   urlSection: string;
   path: string;
   Card: React.ComponentType<T>;
+  exclude?: boolean;
 }
 
 interface ISideNavProps<T> {

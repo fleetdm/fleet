@@ -20,8 +20,18 @@ const (
 	TestUsername              = "root"
 	TestPassword              = "toor"
 	TestReplicaDatabaseSuffix = "_replica"
-	TestReplicaAddress        = "localhost:3310"
 )
+
+var TestReplicaAddress = getTestReplicaAddress()
+
+// getTestReplicaAddress returns the MySQL replica test server address from environment variable
+// FLEET_MYSQL_REPLICA_TEST_PORT or defaults to localhost:3310
+func getTestReplicaAddress() string {
+	if port := os.Getenv("FLEET_MYSQL_REPLICA_TEST_PORT"); port != "" {
+		return "localhost:" + port
+	}
+	return "localhost:3310"
+}
 
 var TestAddress = getTestAddress()
 

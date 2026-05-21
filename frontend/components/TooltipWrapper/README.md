@@ -26,9 +26,9 @@ You can even make the tooltip more dynamic HTML:
 <TooltipWrapper
   tipContent={
     <>
-    The "snapshot" key includes the query's results. 
+    The "snapshot" key includes the report's results. 
     <br />
-    These will be unique to your query.
+    These will be unique to your report.
     </>
   }
 >

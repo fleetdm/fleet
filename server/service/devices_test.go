@@ -620,7 +620,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 			return appConfig, nil
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Disk encryption is not enabled for hosts not assigned to a team.")
+		require.ErrorContains(t, err, "Disk encryption is not enabled for hosts not assigned to a fleet.")
 
 		// valid platform, team, encryption not enabled
 		host.TeamID = ptr.Uint(1)
@@ -630,7 +630,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 			return teamConfig, nil
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Disk encryption is not enabled for this host's team.")
+		require.ErrorContains(t, err, "Disk encryption is not enabled for this host's fleet.")
 
 		// valid platform, team, host disk is not encrypted or unknown encryption state
 		teamConfig = &fleet.TeamMDM{EnableDiskEncryption: true}

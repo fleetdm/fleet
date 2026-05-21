@@ -28,6 +28,7 @@ func TestAndroid(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"NewAndroidHost", testNewAndroidHost},
+		{"NewAndroidHostDedupesOrbitEnrolled", testNewAndroidHostDedupesOrbitEnrolled},
 		{"UpdateAndroidHost", testUpdateAndroidHost},
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
@@ -122,6 +123,145 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	lbls, err = ds.ListLabelsForHost(testCtx(), result.Host.ID)
 	require.NoError(t, err)
 	require.Empty(t, lbls)
+}
+
+// testNewAndroidHostDedupesOrbitEnrolled covers the duplicate-Android-hosts fix.
+// The Fleet Android agent enrolls first via /api/fleet/orbit/enroll,
+// then later the AMAPI pubsub flow delivers a STATUS_REPORT that lands in
+// NewAndroidHost. The dedupe works whether the agent also sends
+// platform="android" (newer agents) or leaves it blank (older agents).
+func testNewAndroidHostDedupesOrbitEnrolled(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
+	cases := []struct {
+		name     string
+		platform string
+	}{
+		{"agent sends no platform", ""},
+		{"agent sends platform=android", "android"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testCtx()
+			enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+
+			orbitHost, err := ds.EnrollOrbit(ctx,
+				fleet.WithEnrollOrbitMDMEnabled(true),
+				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+					HardwareUUID:   enterpriseSpecificID,
+					HardwareSerial: enterpriseSpecificID,
+					Platform:       tc.platform,
+					Hostname:       "Samsung TestDevice",
+					ComputerName:   "Samsung TestDevice",
+					HardwareModel:  "TestModel",
+				}),
+				fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+			)
+			require.NoError(t, err)
+			require.NotZero(t, orbitHost.ID)
+
+			// Orbit enroll alone does not write an android_devices row; AndroidHostLite misses.
+			_, err = ds.AndroidHostLite(ctx, enterpriseSpecificID)
+			require.True(t, fleet.IsNotFound(err),
+				"before AMAPI arrives there is no android_devices row, so AndroidHostLite should miss")
+
+			// Simulate the AMAPI pubsub path calling NewAndroidHost. The fix makes
+			// NewAndroidHost find the existing orbit-enrolled hosts row by uuid and
+			// reuse it instead of inserting a duplicate.
+			newHost := createAndroidHost(enterpriseSpecificID)
+			returned, err := ds.NewAndroidHost(ctx, newHost, false)
+			require.NoError(t, err)
+			require.NotNil(t, returned)
+			require.Equal(t, orbitHost.ID, returned.Host.ID,
+				"NewAndroidHost must reuse the orbit-enrolled hosts row, not insert a duplicate")
+
+			// AndroidHostLite now finds the host via the newly-created android_devices row.
+			androidHost, err := ds.AndroidHostLite(ctx, enterpriseSpecificID)
+			require.NoError(t, err)
+			require.NotNil(t, androidHost)
+			require.Equal(t, orbitHost.ID, androidHost.Host.ID)
+			require.Equal(t, enterpriseSpecificID, androidHost.Host.UUID)
+
+			// Exactly one hosts row and one android_devices row for this device.
+			var hostCount, deviceCount int
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &hostCount,
+				`SELECT COUNT(*) FROM hosts WHERE uuid = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, hostCount)
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &deviceCount,
+				`SELECT COUNT(*) FROM android_devices WHERE enterprise_specific_id = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, deviceCount)
+
+			// Subsequent orbit re-enroll (agent node-key wipe, reinstall) stays idempotent.
+			_, err = ds.EnrollOrbit(ctx,
+				fleet.WithEnrollOrbitMDMEnabled(true),
+				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+					HardwareUUID:   enterpriseSpecificID,
+					HardwareSerial: enterpriseSpecificID,
+					Platform:       tc.platform,
+					Hostname:       "Samsung TestDevice",
+					ComputerName:   "Samsung TestDevice",
+					HardwareModel:  "TestModel",
+				}),
+				fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+			)
+			require.NoError(t, err)
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &hostCount,
+				`SELECT COUNT(*) FROM hosts WHERE uuid = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, hostCount)
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &deviceCount,
+				`SELECT COUNT(*) FROM android_devices WHERE enterprise_specific_id = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, deviceCount)
+		})
+	}
+
+	// Two hosts already exist with the same uuid -- one orbit-enrolled
+	// (node_key=orbitKey) and one Android (node_key=android/<id>). A NewAndroidHost call
+	// with node_key=android/<id> must pick the Android row (not the orbit-enrolled one),
+	// otherwise the UPDATE would try to flip the orbit row's node_key to a value already
+	// held by the Android row and hit idx_host_unique_nodekey.
+	t.Run("Android orphan duplicates, prefers matching node_key", func(t *testing.T) {
+		ctx := testCtx()
+		enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+
+		orbitHost, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   enterpriseSpecificID,
+				HardwareSerial: enterpriseSpecificID,
+				Platform:       "android",
+				Hostname:       "orbit",
+				ComputerName:   "orbit",
+				HardwareModel:  "TestModel",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		// Insert a second hosts row directly, with the same uuid but the Android-derived
+		// node_key, to simulate the duplicate state the dedupe must handle.
+		androidNodeKey := "android/" + enterpriseSpecificID
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO hosts (node_key, uuid, platform, hostname, computer_name, hardware_serial,
+				detail_updated_at, label_updated_at, policy_updated_at)
+			 VALUES (?, ?, 'android', 'android-dup', 'android-dup', 'serial-dup', NOW(), NOW(), NOW())`,
+			androidNodeKey, enterpriseSpecificID,
+		)
+		require.NoError(t, err)
+		androidDupID, err := res.LastInsertId()
+		require.NoError(t, err)
+
+		// NewAndroidHost must pick the existing Android row (not the orbit-enrolled one
+		// with the lower id). Otherwise the UPDATE would hit the UNIQUE node_key index.
+		newHost := createAndroidHost(enterpriseSpecificID)
+		require.Equal(t, androidNodeKey, *newHost.NodeKey,
+			"createAndroidHost is expected to build node_key=android/<uuid>")
+		returned, err := ds.NewAndroidHost(ctx, newHost, false)
+		require.NoError(t, err, "must not violate UNIQUE node_key when duplicate hosts share this uuid")
+		require.EqualValues(t, androidDupID, returned.Host.ID,
+			"NewAndroidHost should pick the row whose node_key matches, leaving the orbit-enrolled row alone")
+		require.NotEqual(t, orbitHost.ID, returned.Host.ID)
+	})
 }
 
 func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
@@ -1473,9 +1613,10 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	// Set the hosts label_updated_at causing p4-p6 to become applicable to host 1
 	hosts[1].LabelUpdatedAt = time.Now().UTC().Add(time.Second) // just to be extra safe in tests
 	hosts[1].PolicyUpdatedAt = time.Now().UTC()
-	hosts[1].TeamID = &tm.ID
 	err = ds.UpdateHost(ctx, hosts[1])
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[1].ID})))
+	hosts[1].TeamID = &tm.ID
 
 	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
@@ -2268,6 +2409,18 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
 	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
 
+	// Insert a certificate template record for this host to verify it gets deleted on unenroll.
+	err = ds.BulkInsertHostCertificateTemplates(testCtx(), []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              res.Host.UUID,
+			CertificateTemplateID: 1,
+			Status:                fleet.CertificateTemplateVerified,
+			OperationType:         fleet.MDMOperationTypeInstall,
+			Name:                  "test-cert",
+		},
+	})
+	require.NoError(t, err)
+
 	// Perform single-host unenroll
 	didUnenroll, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
 	require.NoError(t, err)
@@ -2290,7 +2443,7 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &mdmIDIsNull, `SELECT CASE WHEN mdm_id IS NULL THEN 1 ELSE 0 END FROM host_mdm WHERE host_id = ?`, res.Host.ID)
 	})
-	// validate profile records deleted
+	// Validate profile records deleted
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &profileCountForHost, `SELECT COUNT(*) FROM host_mdm_android_profiles WHERE host_uuid=?`, res.Host.UUID)
 	})
@@ -2298,6 +2451,11 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "", serverURL)
 	assert.Equal(t, 1, mdmIDIsNull)
 	assert.Equal(t, 0, profileCountForHost)
+
+	// Validate certificate template records deleted
+	certRecords, err := ds.GetHostCertificateTemplates(testCtx(), res.Host.UUID)
+	require.NoError(t, err)
+	assert.Empty(t, certRecords)
 }
 
 func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
@@ -2310,6 +2468,7 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
 
 	// Create 5 android hosts
+	var androidHostUUIDs []string
 	for i := 0; i < 5; i++ {
 		esid := "enterprise-" + uuid.NewString()
 		h := createAndroidHost(esid)
@@ -2318,6 +2477,19 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 
 		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
 		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
+
+		// Insert a certificate template record for each host.
+		err = ds.BulkInsertHostCertificateTemplates(testCtx(), []fleet.HostCertificateTemplate{
+			{
+				HostUUID:              res.Host.UUID,
+				CertificateTemplateID: 1,
+				Status:                fleet.CertificateTemplateVerified,
+				OperationType:         fleet.MDMOperationTypeInstall,
+				Name:                  "test-cert",
+			},
+		})
+		require.NoError(t, err)
+		androidHostUUIDs = append(androidHostUUIDs, res.Host.UUID)
 	}
 
 	// Create a macOS host (to verify we don't unenroll non-Android hosts)
@@ -2345,6 +2517,12 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	assert.Equal(t, 10, androidHostProfileCount)
 	require.Equal(t, 6, enrolledCount) // 5 android + 1 macOS
+	// Verify each android host has a certificate template record.
+	for _, hostUUID := range androidHostUUIDs {
+		records, err := ds.GetHostCertificateTemplates(testCtx(), hostUUID)
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+	}
 
 	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
 	require.NoError(t, err)
@@ -2353,11 +2531,18 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	require.Equal(t, 1, enrolledCount)
 
-	// validate profile records deleted
+	// Validate profile records deleted
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &androidHostProfileCount, `SELECT COUNT(*) FROM host_mdm_android_profiles`)
 	})
 	assert.Equal(t, 0, androidHostProfileCount)
+
+	// Validate certificate template records deleted for all android hosts
+	for _, hostUUID := range androidHostUUIDs {
+		records, err := ds.GetHostCertificateTemplates(testCtx(), hostUUID)
+		require.NoError(t, err)
+		assert.Empty(t, records)
+	}
 }
 
 // setupTestApp creates a test Android app in vpp_apps table
@@ -2389,19 +2574,19 @@ func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
 	require.NotNil(t, retrieved)
-	require.JSONEq(t, string(configuration), string(*retrieved))
+	require.JSONEq(t, string(configuration), string(retrieved))
 
 	// test bulk-get configuration
 	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID}, 0)
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
-	require.Equal(t, string(*retrieved), string(configsByAppID[appID]))
+	require.Equal(t, string(retrieved), string(configsByAppID[appID]))
 
 	// bulk-get configuration returns any known app config, ignores others
 	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID, "no-such-app"}, 0)
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
-	require.Equal(t, string(*retrieved), string(configsByAppID[appID]))
+	require.Equal(t, string(retrieved), string(configsByAppID[appID]))
 }
 
 func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
@@ -2420,7 +2605,7 @@ func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	// Verify update
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
-	require.JSONEq(t, string(newConfig), string(*retrieved))
+	require.JSONEq(t, string(newConfig), string(retrieved))
 }
 
 func testDeleteAndroidAppConfiguration(t *testing.T, ds *Datastore) {
@@ -2498,12 +2683,12 @@ func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 	// Verify global configuration
 	retrievedGlobal, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"managedConfiguration": {"env": "global"}}`, string(*retrievedGlobal))
+	require.JSONEq(t, `{"managedConfiguration": {"env": "global"}}`, string(retrievedGlobal))
 
 	// Verify team configuration
 	retrievedTeam, err := ds.GetAndroidAppConfiguration(testCtx(), appID, teamID)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"managedConfiguration": {"env": "team"}}`, string(*retrievedTeam))
+	require.JSONEq(t, `{"managedConfiguration": {"env": "team"}}`, string(retrievedTeam))
 }
 
 func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
@@ -2514,7 +2699,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
-	testConfig := json.RawMessage(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}}`)
+	testConfig := []byte(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}}`)
 	// Create android and VPP apps
 	app1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "android1", BundleIdentifier: "android1",
@@ -2529,7 +2714,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID:      fleet.VPPAppID{AdamID: "adam_vpp_app_forapple_1", Platform: fleet.IOSPlatform},
-			Configuration: json.RawMessage(`{"ManagedConfiguration": {"ios app shouldn't have configuration": true}}`),
+			Configuration: []byte(`<dict><key>FromIOSTest</key><true/></dict>`),
 		},
 	}, &team1.ID)
 	require.NoError(t, err)
@@ -2545,7 +2730,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	require.NotZero(t, meta.VPPAppsTeamsID)
 	require.NotZero(t, meta.Configuration)
 	require.Equal(t, "android1", meta.BundleIdentifier)
-	require.Equal(t, testConfig, meta.Configuration)
+	require.JSONEq(t, string(testConfig), string(meta.Configuration))
 
 	// Get ios app
 	meta2, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, app2.TitleID)
@@ -2553,7 +2738,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	require.NotZero(t, meta2.VPPAppsTeamsID)
 
 	// Edit android app
-	newConfig := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
+	newConfig := []byte(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
 	app1.VPPAppTeam.Configuration = newConfig
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.NoError(t, err)
@@ -2562,10 +2747,10 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
 	require.NoError(t, err)
 	require.NotZero(t, meta.VPPAppsTeamsID)
-	require.Equal(t, newConfig, meta.Configuration)
+	require.JSONEq(t, string(newConfig), string(meta.Configuration))
 
 	// Add invalid configuration
-	badConfig := json.RawMessage(`"-": "-"`)
+	badConfig := []byte(`"-": "-"`)
 	app1.VPPAppTeam.Configuration = badConfig
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.Error(t, err)

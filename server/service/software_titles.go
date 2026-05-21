@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -139,7 +140,6 @@ func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc flee
 
 func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
-		fmt.Println("auth")
 		return nil, err
 	}
 
@@ -152,7 +152,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}
@@ -176,7 +176,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
 			}
 
-			return nil, fleet.NewPermissionError("Error: You don't have permission to view specified software. It is installed on hosts that belong to team you don't have permissions to view.")
+			return nil, fleet.NewPermissionError("Error: You don't have permission to view specified software. It is installed on hosts that belong to a fleet you don't have permissions to view.")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
@@ -203,11 +203,18 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 
 			// Populate FleetMaintainedVersions if this is an FMA
 			if meta != nil && meta.FleetMaintainedAppID != nil {
-				fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id)
+				fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id, false)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
 				}
 				meta.FleetMaintainedVersions = fmaVersions
+
+				// Populate PatchPolicy if there is one
+				patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)
+				if err != nil && !fleet.IsNotFound(err) {
+					return nil, ctxerr.Wrap(ctx, err, "get patch policy")
+				}
+				meta.PatchPolicy = patchPolicy
 			}
 		}
 
@@ -223,6 +230,18 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
 				}
 				meta.Status = summary
+
+				// Wrap iOS / iPadOS plist as a JSON string for the response.
+				if len(meta.Configuration) > 0 {
+					switch meta.Platform {
+					case fleet.IOSPlatform, fleet.IPadOSPlatform:
+						wrapped, err := json.Marshal(string(meta.Configuration))
+						if err != nil {
+							return nil, ctxerr.Wrap(ctx, err, "wrapping VPP configuration for response")
+						}
+						meta.Configuration = wrapped
+					}
+				}
 			}
 			software.AppStoreApp = meta
 		}
@@ -242,6 +261,15 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					Installed:      summary.Installed,
 					PendingInstall: summary.Pending,
 					FailedInstall:  summary.Failed,
+				}
+
+				// Wrap iOS / iPadOS plist as a JSON string for the response.
+				if len(meta.Configuration) > 0 {
+					wrapped, err := json.Marshal(string(meta.Configuration))
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "wrapping in-house app configuration for response")
+					}
+					meta.Configuration = wrapped
 				}
 			}
 			software.SoftwarePackage = meta

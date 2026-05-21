@@ -560,6 +560,19 @@ func testListScripts(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.wantNames, gotNames)
 		})
 	}
+
+	for _, key := range []string{"id", "name", "created_at", "updated_at"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			result, _, err := ds.ListScripts(ctx, nil, fleet.ListOptions{OrderKey: key, PerPage: 10})
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, _, err := ds.ListScripts(ctx, nil, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
 func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
@@ -787,6 +800,11 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 		pending, err = ds.ListPendingHostScriptExecutions(ctx, 43, false)
 		require.NoError(t, err)
 		require.Len(t, pending, 0)
+	})
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.GetHostScriptDetails(ctx, 42, nil, fleet.ListOptions{OrderKey: "h.node_key"}, "darwin")
+		require.Error(t, err)
 	})
 }
 
@@ -1844,7 +1862,7 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	// Hosts all have to be on the same team as the script
 	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostTeam1.ID})
 	require.Empty(t, execID)
-	require.ErrorContains(t, err, "same team")
+	require.ErrorContains(t, err, "same fleet")
 
 	// Actual good execution
 	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
@@ -1950,6 +1968,12 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.Equal(t, *summary.NumErrored, uint(3))
 	require.Equal(t, *summary.NumRan, uint(1))
 	require.Equal(t, *summary.NumCanceled, uint(1))
+
+	// Get summary for nonexistent execution ID
+	summary, err = ds.BatchExecuteSummary(ctx, "fake-bogus-id")
+	require.Nil(t, summary)
+	require.True(t, fleet.IsNotFound(err))
+	require.ErrorContains(t, err, "fake-bogus-id")
 }
 
 func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
@@ -1982,7 +2006,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	// Hosts all have to be on the same team as the script
 	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostTeam1.ID})
 	require.Empty(t, execID)
-	require.ErrorContains(t, err, "same team")
+	require.ErrorContains(t, err, "same fleet")
 
 	// Actual good execution
 	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
@@ -2166,6 +2190,14 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, *summary.NumCanceled, uint(7))
 	require.Equal(t, *summary.NumIncompatible, uint(8))
 	require.Equal(t, *summary.NumTargeted, uint(9))
+
+	// Get summary for nonexistent execution ID
+	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: ptr.String("fake-bogus-id"),
+	})
+	require.Nil(t, summaryList)
+	require.True(t, fleet.IsNotFound(err))
+	require.ErrorContains(t, err, "fake-bogus-id")
 }
 
 func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
@@ -3163,7 +3195,7 @@ func testScriptModificationResetsAttemptNumber(t *testing.T, ds *Datastore) {
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:            "test.sh",
 		TeamID:          &team.ID,
-		ScriptContentID: uint(scriptContentID),
+		ScriptContentID: uint(scriptContentID), //nolint:gosec // dismiss G115
 		ScriptContents:  "echo 'v1'",
 	})
 	require.NoError(t, err)

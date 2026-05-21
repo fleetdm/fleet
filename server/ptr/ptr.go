@@ -8,7 +8,9 @@ import (
 
 // String returns a pointer to the provided string.
 func String(x string) *string {
-	return &x
+	val := new(string)
+	*val = x
+	return val
 }
 
 // Int returns a pointer to the provided int.
@@ -49,7 +51,9 @@ func StringPtr(x string) **string {
 
 // Time returns a pointer to the provided time.Time.
 func Time(x time.Time) *time.Time {
-	return &x
+	val := new(time.Time)
+	*val = x
+	return val
 }
 
 // TimePtr returns a *time.Time Pointer (**time.Time) for the provided time.
@@ -85,6 +89,18 @@ func Duration(x time.Duration) *time.Duration {
 // T is the generic version to get the pointer of any type.
 func T[T any](x T) *T {
 	return &x
+}
+
+// Equal returns true if both pointers are nil, or both are non-nil and
+// point to equal values.
+func Equal[T comparable](a, b *T) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
 }
 
 // ValOrZero returns the value of x if x is not nil, and the zero value

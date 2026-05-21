@@ -51,7 +51,7 @@ func (b b64Data) String() string {
 // TokenUpdate is a representation of a "TokenUpdate" check-in message type.
 // See https://developer.apple.com/documentation/devicemanagement/token_update
 type TokenUpdate struct {
-	Enrollment
+	TokenUpdateEnrollment
 	MessageType
 	Push
 	UnlockToken []byte `plist:",omitempty"`
