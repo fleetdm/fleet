@@ -16,13 +16,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"math/big"
 	mrand "math/rand"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
@@ -33,14 +31,9 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
-	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
-	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/google/uuid"
 	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
-	"github.com/smallstep/scep"
 	"golang.org/x/crypto/acme"
 )
 
@@ -762,133 +755,28 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 }
 
 func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *rsa.PrivateKey, error) {
-	ctx := context.Background()
-
 	var logger *slog.Logger
 	if c.debug {
 		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	} else {
 		logger = slog.New(slog.DiscardHandler)
 	}
-	client, err := newSCEPClient(url, logger)
-	if err != nil {
-		return nil, nil, fmt.Errorf("scep client: %w", err)
-	}
-
-	// (1). Get the CA certificate from the SCEP server.
-	resp, _, err := client.GetCACert(ctx, "")
-	if err != nil {
-		return nil, nil, fmt.Errorf("get CA cert: %w", err)
-	}
-	caCert, err := x509.ParseCertificates(resp)
-	if err != nil {
-		return nil, nil, fmt.Errorf("parse CA cert: %w", err)
-	}
-
-	// (2). Generate RSA key pair.
-	devicePrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, fmt.Errorf("generate RSA private key: %w", err)
-	}
-
-	// (3). Generate CSR.
 	cn := fmt.Sprintf("fleet-testdevice-%s", c.Identifier())
-	csrTemplate := x509util.CertificateRequest{
-		CertificateRequest: x509.CertificateRequest{
-			Subject: pkix.Name{
-				CommonName:   cn,
-				Organization: []string{"fleet-organization"},
-			},
-			SignatureAlgorithm: x509.SHA256WithRSA,
-		},
-		ChallengePassword: challenge,
-	}
-	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, devicePrivateKey)
-	if err != nil {
-		return nil, nil, fmt.Errorf("create CSR: %w", err)
-	}
-	csr, err := x509.ParseCertificateRequest(csrDerBytes)
-	if err != nil {
-		return nil, nil, fmt.Errorf("parse CSR: %w", err)
-	}
-
-	// (4). SCEP requires a certificate for client authentication. We generate a new one
-	// that uses the same CommonName and Key that we are trying to have signed.
-	//
-	// From RFC-8894:
-	// If the client does not have an appropriate existing certificate, then a locally generated
-	// self-signed certificate MUST be used. The keyUsage extension in the certificate MUST indicate that
-	// it is valid for digitalSignature and keyEncipherment (if available). The self-signed certificate
-	// SHOULD use the same subject name and key as in the PKCS #10 request.
-	notBefore := time.Now()
-	notAfter := notBefore.Add(365 * 24 * time.Hour)
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	certSerialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		return nil, nil, fmt.Errorf("generate cert serial number: %w", err)
-	}
-	deviceCertificateTemplate := x509.Certificate{
-		SerialNumber: certSerialNumber,
+	cert, key, err := performSCEPExchange(context.Background(), scepExchangeRequest{
+		URL: url,
 		Subject: pkix.Name{
 			CommonName:   cn,
-			Organization: csr.Subject.Organization,
+			Organization: []string{"fleet-organization"},
 		},
-		NotBefore:             notBefore,
-		NotAfter:              notAfter,
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
-	deviceCertificateDerBytes, err := x509.CreateCertificate(
-		rand.Reader,
-		&deviceCertificateTemplate,
-		&deviceCertificateTemplate,
-		&devicePrivateKey.PublicKey,
-		devicePrivateKey,
-	)
+		Challenge: challenge,
+	}, logger)
 	if err != nil {
-		return nil, nil, fmt.Errorf("create device certificate: %w", err)
+		return nil, nil, err
 	}
-	deviceCertificateForRequest, err := x509.ParseCertificate(deviceCertificateDerBytes)
-	if err != nil {
-		return nil, nil, fmt.Errorf("parse device certificate: %w", err)
-	}
-
-	// (5). Send the PKCSReq message to the SCEP server.
-	pkiMsgReq := &scep.PKIMessage{
-		MessageType: scep.PKCSReq,
-		Recipients:  caCert,
-		SignerKey:   devicePrivateKey,
-		SignerCert:  deviceCertificateForRequest,
-		CSRReqMessage: &scep.CSRReqMessage{
-			ChallengePassword: c.EnrollInfo.SCEPChallenge,
-		},
-	}
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(logger)))
-	if err != nil {
-		return nil, nil, fmt.Errorf("create CSR request: %w", err)
-	}
-	respBytes, err := client.PKIOperation(ctx, msg.Raw)
-	if err != nil {
-		return nil, nil, fmt.Errorf("do CSR request: %w", err)
-	}
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(logger)), scep.WithCACerts(msg.Recipients))
-	if err != nil {
-		return nil, nil, fmt.Errorf("parse PKIMessage response: %w", err)
-	}
-	if pkiMsgResp.PKIStatus != scep.SUCCESS {
-		return nil, nil, fmt.Errorf("PKIMessage CSR request failed with code: %s, fail info: %s", pkiMsgResp.PKIStatus, pkiMsgResp.FailInfo)
-	}
-	if err := pkiMsgResp.DecryptPKIEnvelope(deviceCertificateForRequest, devicePrivateKey); err != nil {
-		return nil, nil, fmt.Errorf("decrypt PKI envelope: %w", err)
-	}
-
 	if c.debug {
 		fmt.Println("SCEP enrollment successful")
 	}
-
-	// (6). return the signed certificate returned from the server as the device certificate and key.
-	return pkiMsgResp.CertRepMessage.Certificate, devicePrivateKey, nil
+	return cert, key, nil
 }
 
 // SCEPEnroll runs the SCEP enroll protocol for the simulated device.
@@ -1568,59 +1456,6 @@ func randStr(n int) string {
 // RandUDID returns a fake random iOS/iPadOS 17+ UDID.
 func RandUDID() string {
 	return fmt.Sprintf("%s-%s", randStr(8), randStr(16))
-}
-
-type scepClient interface {
-	scepserver.Service
-	Supports(capacity string) bool
-}
-
-func newSCEPClient(
-	serverURL string,
-	logger *slog.Logger,
-) (scepClient, error) {
-	endpoints, err := makeClientSCEPEndpoints(serverURL)
-	if err != nil {
-		return nil, err
-	}
-	endpoints.GetEndpoint = scepserver.EndpointLoggingMiddleware(logger)(endpoints.GetEndpoint)
-	endpoints.PostEndpoint = scepserver.EndpointLoggingMiddleware(logger)(endpoints.PostEndpoint)
-	return endpoints, nil
-}
-
-// makeClientSCEPClientEndpoints returns an Endpoints struct where each endpoint invokes
-// the corresponding method on the remote instance, via a transport/http.Client.
-func makeClientSCEPEndpoints(instance string) (*scepserver.Endpoints, error) {
-	if !strings.HasPrefix(instance, "http") {
-		instance = "http://" + instance
-	}
-	tgt, err := url.Parse(instance)
-	if err != nil {
-		return nil, err
-	}
-
-	// #nosec (this client is used for testing only)
-	c := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
-		InsecureSkipVerify: true,
-	}))
-	options := []httptransport.ClientOption{
-		httptransport.SetClient(c),
-	}
-
-	return &scepserver.Endpoints{
-		GetEndpoint: httptransport.NewClient(
-			"GET",
-			tgt,
-			scepserver.EncodeSCEPRequest,
-			scepserver.DecodeSCEPResponse,
-			options...).Endpoint(),
-		PostEndpoint: httptransport.NewClient(
-			"POST",
-			tgt,
-			scepserver.EncodeSCEPRequest,
-			scepserver.DecodeSCEPResponse,
-			options...).Endpoint(),
-	}, nil
 }
 
 // EncodeDeviceInfo is a helper function to provide mock device info for the x-aspen-deviceinfo
