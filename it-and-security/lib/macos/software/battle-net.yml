@@ -1,1 +1,5 @@
 url: https://www.battle.net/download/getInstallerForGame?os=mac&gameProgram=BATTLENET_APP&version=Live
+install_script:
+  path: ../scripts/battle-net-install.sh
+uninstall_script:
+  path: ../scripts/battle-net-uninstall.sh
