@@ -639,7 +639,7 @@ type enterpriseSSEResponse struct {
 	done chan string
 }
 
-func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
+func (r enterpriseSSEResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -655,6 +655,9 @@ func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWr
 
 	for {
 		select {
+		case <-ctx.Done():
+			// Client disconnected; stop holding the response open.
+			return
 		case data, ok := <-r.done:
 			if ok {
 				_, _ = fmt.Fprint(w, data)
@@ -662,9 +665,9 @@ func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWr
 			}
 			return
 		case <-time.After(5 * time.Second):
-			// We send a heartbeat to prevent the load balancer from closing the (otherwise idle) connection.
-			// The leading colon indicates this is a comment, and is ignored by SSE consumers. A blank
-			// line (\n\n) terminates the event per spec.
+			// Heartbeat as an SSE comment (line starting with ":"). Comments are
+			// ignored by SSE consumers but keep the connection alive for proxies.
+			// Blank line (\n\n) terminates the event per spec.
 			// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
 			_, _ = fmt.Fprint(w, ":heartbeat\n\n")
 			w.(http.Flusher).Flush()
@@ -685,7 +688,10 @@ func (svc *Service) EnterpriseSignupSSE(ctx context.Context) (chan string, error
 		return nil, err
 	}
 
-	done := make(chan string)
+	// Buffered so the poller's single send can always complete, even if the
+	// HTTP handler (HijackRender) has already exited due to client disconnect.
+	// Without this, the producer goroutine would leak on an unbuffered channel.
+	done := make(chan string, 1)
 	go func() {
 		if svc.signupSSECheck(ctx, done) {
 			return
@@ -710,7 +716,9 @@ func (svc *Service) signupSSECheck(ctx context.Context, done chan string) bool {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		// SSE error event: distinct event type so a client can branch on it.
-		done <- fmt.Sprintf("event: error\ndata: Error getting app config: %v\n\n", err)
+		// Strip newlines from err so embedded line breaks don't break SSE framing.
+		msg := strings.ReplaceAll(err.Error(), "\n", " ")
+		done <- fmt.Sprintf("event: error\ndata: Error getting app config: %s\n\n", msg)
 		return true
 	}
 	if appConfig.MDM.AndroidEnabledAndConfigured {
