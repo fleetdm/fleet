@@ -35,11 +35,11 @@ func TestUp_20260521205417(t *testing.T) {
 
 	// Confirm both rows are readable.
 	var rows []struct {
-		CommandUUID  string `db:"command_uuid"`
-		HostUUID     string `db:"host_uuid"`
-		CommandType  string `db:"command_type"`
-		Status       string `db:"status"`
-		ErrorCode    *string `db:"error_code"`
+		CommandUUID string  `db:"command_uuid"`
+		HostUUID    string  `db:"host_uuid"`
+		CommandType string  `db:"command_type"`
+		Status      string  `db:"status"`
+		ErrorCode   *string `db:"error_code"`
 	}
 	require.NoError(t, db.Select(&rows,
 		`SELECT command_uuid, host_uuid, command_type, status, error_code
@@ -53,12 +53,33 @@ func TestUp_20260521205417(t *testing.T) {
 	require.NotNil(t, rows[1].ErrorCode)
 	require.Equal(t, "UNSUPPORTED", *rows[1].ErrorCode)
 
-	// Confirm indexes exist (so production lookups by host_uuid + operation_name are fast).
-	var indexNames []string
-	require.NoError(t, db.Select(&indexNames, `
-		SELECT INDEX_NAME FROM information_schema.STATISTICS
+	// Confirm indexes exist (so production lookups by host_uuid + operation_name are fast) and
+	// that operation_name is unique (so Pub/Sub COMMAND lookups can't return ambiguous rows).
+	var indexes []struct {
+		IndexName string `db:"INDEX_NAME"`
+		NonUnique int    `db:"NON_UNIQUE"`
+	}
+	require.NoError(t, db.Select(&indexes, `
+		SELECT INDEX_NAME, MIN(NON_UNIQUE) AS NON_UNIQUE FROM information_schema.STATISTICS
 		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'mdm_android_commands'
 		GROUP BY INDEX_NAME ORDER BY INDEX_NAME`))
-	require.Contains(t, indexNames, "idx_mdm_android_commands_host_uuid")
-	require.Contains(t, indexNames, "idx_mdm_android_commands_operation_name")
+	indexUnique := make(map[string]bool, len(indexes))
+	for _, idx := range indexes {
+		indexUnique[idx.IndexName] = idx.NonUnique == 0
+	}
+	require.Contains(t, indexUnique, "idx_mdm_android_commands_host_uuid")
+	require.Contains(t, indexUnique, "idx_mdm_android_commands_operation_name")
+	require.True(t, indexUnique["idx_mdm_android_commands_operation_name"], "operation_name index must be UNIQUE")
+
+	// Attempting to insert a duplicate operation_name must fail.
+	_, err := db.Exec(`
+		INSERT INTO mdm_android_commands
+			(command_uuid, host_uuid, operation_name, command_type, status)
+		VALUES
+			(?, ?, ?, 'LOCK', 'pending')`,
+		"00000000-0000-0000-0000-000000000003",
+		"NWXZ-4L5T-V6UN-SCHUL-JOEA-RAVB-Z",
+		"enterprises/LC01aeejlw/devices/33d68ef3111852c0/operations/1779311936147")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "Duplicate entry")
 }

@@ -36,7 +36,10 @@ CREATE TABLE mdm_android_commands (
 
 	PRIMARY KEY (command_uuid),
 	INDEX idx_mdm_android_commands_host_uuid (host_uuid),
-	INDEX idx_mdm_android_commands_operation_name (operation_name)
+	-- UNIQUE on operation_name: this column is the correlation key Pub/Sub COMMAND notifications
+	-- use to find the originating Fleet command (GetMDMAndroidCommandByOperationName). Duplicates
+	-- would make the lookup ambiguous and could silently corrupt status updates.
+	UNIQUE INDEX idx_mdm_android_commands_operation_name (operation_name)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
 `)
 	if err != nil {

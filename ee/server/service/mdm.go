@@ -1822,10 +1822,9 @@ func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.Comm
 }
 
 // clearPasscodeAndroid dispatches Clear passcode to the Android Service. The Service writes the
-// mdm_android_commands row and issues the AMAPI RESET_PASSWORD with newPassword=""; the
-// CommandEnqueueResult returned here is the API-facing shape (CommandUUID is informational —
-// callers that need the real row should query GetMDMAndroidCommandByUUID with it, but the UI
-// currently just uses the response as a 200-OK signal).
+// mdm_android_commands row, issues the AMAPI RESET_PASSWORD with newPassword="", and returns the
+// Fleet-generated command_uuid so callers can correlate the API response with the persisted row
+// via GetMDMAndroidCommandByUUID.
 func (svc *Service) clearPasscodeAndroid(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) (*fleet.CommandEnqueueResult, error) {
 	if !appCfg.MDM.AndroidEnabledAndConfigured {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -1833,7 +1832,8 @@ func (svc *Service) clearPasscodeAndroid(ctx context.Context, host *fleet.Host, 
 		})
 	}
 
-	if err := svc.androidModule.ClearAndroidPasscode(ctx, host.ID); err != nil {
+	commandUUID, err := svc.androidModule.ClearAndroidPasscode(ctx, host.ID)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "issuing android clear-passcode")
 	}
 
@@ -1845,7 +1845,7 @@ func (svc *Service) clearPasscodeAndroid(ctx context.Context, host *fleet.Host, 
 	}
 
 	return &fleet.CommandEnqueueResult{
-		CommandUUID: uuid.NewString(),
+		CommandUUID: commandUUID,
 		RequestType: string(android.MDMAndroidCommandTypeResetPassword),
 		Platform:    host.Platform,
 	}, nil

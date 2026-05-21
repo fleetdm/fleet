@@ -142,12 +142,29 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 		return nil
 	}
 
+	// Google long-running Operations use done=false for in-progress states. AMAPI's COMMAND
+	// notifications today only fire when done=true, but guard defensively: if the operation
+	// isn't terminal yet, don't transition state. Ack so Pub/Sub doesn't retry.
+	if !op.Done {
+		svc.logger.DebugContext(ctx, "android pub/sub COMMAND not yet done, skipping state transition",
+			"operation_name", op.Name)
+		return nil
+	}
+
 	cmd, err := svc.fleetDS.GetMDMAndroidCommandByOperationName(ctx, op.Name)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			// Unknown operation: most likely an issue-command call from a previous Fleet instance
-			// (or a manual API call). Ack so Pub/Sub doesn't retry forever.
-			svc.logger.WarnContext(ctx, "android pub/sub COMMAND for unknown operation",
+			// Race: a notification can arrive before our IssueCommand-then-insert sequence has
+			// committed the row. If the operation belongs to our enterprise, return an error so
+			// Pub/Sub retries (default backoff is well past the millisecond-scale race window).
+			// Foreign operations (different enterprise, e.g. a stale notification or a manual
+			// AMAPI use) are acked to avoid an infinite retry loop.
+			if svc.operationNameBelongsToOurEnterprise(ctx, op.Name) {
+				svc.logger.WarnContext(ctx, "android pub/sub COMMAND for unknown ours operation, returning error to trigger retry",
+					"operation_name", op.Name)
+				return ctxerr.Wrap(ctx, err, "android command row not yet persisted, retry")
+			}
+			svc.logger.WarnContext(ctx, "android pub/sub COMMAND for foreign operation, acking",
 				"operation_name", op.Name)
 			return nil
 		}
@@ -182,6 +199,19 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 		"new_status", newStatus,
 	)
 	return nil
+}
+
+// operationNameBelongsToOurEnterprise checks whether an AMAPI operation name
+// (enterprises/{ID}/devices/.../operations/...) refers to the enterprise this Fleet instance
+// manages. Used to bound Pub/Sub retries on NotFound: we want to retry only for ops we may have
+// raced; we want to ack-and-move-on for ops from a different enterprise (a stale notification or
+// a manual AMAPI call). On any datastore error this returns false (safer to ack than retry-forever).
+func (svc *Service) operationNameBelongsToOurEnterprise(ctx context.Context, opName string) bool {
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil || enterprise == nil || enterprise.EnterpriseID == "" {
+		return false
+	}
+	return strings.HasPrefix(opName, "enterprises/"+enterprise.EnterpriseID+"/")
 }
 
 // googleStatusCode renders the int64 status code from googlerpc.Status into a short identifier

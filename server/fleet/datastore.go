@@ -2454,14 +2454,16 @@ type Datastore interface {
 	WipeHostViaWindowsMDM(ctx context.Context, host *Host, cmd *MDMWindowsCommand) error
 
 	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the
-	// lock_ref on host_mdm_actions in a single transaction, mirroring WipeHostViaWindowsMDM.
-	// The caller is expected to have already issued the AMAPI command and populated
-	// cmd.OperationName / cmd.CommandUUID before invoking this method.
+	// lock_ref on host_mdm_actions in a single transaction, mirroring WipeHostViaWindowsMDM. The
+	// caller must populate cmd.OperationName (returned by EnterprisesDevicesIssueCommand); if
+	// cmd.CommandUUID is empty, a fresh UUID is generated and assigned to the input struct so the
+	// caller can correlate the API response with the persisted row.
 	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
 
 	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the
 	// wipe_ref on host_mdm_actions in a single transaction. AMAPI WIPE is COBO-only; the EE
-	// service layer must reject BYO hosts before calling.
+	// service layer must reject BYO hosts before calling. CommandUUID auto-generation matches
+	// LockHostViaAndroidMDM.
 	WipeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
 
 	// UpdateHostLockWipeStatusFromAppleMDMResult updates the host_mdm_actions

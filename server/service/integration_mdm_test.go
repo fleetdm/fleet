@@ -18611,11 +18611,11 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	// Per #41683: BYO unenroll runs an AMAPI WIPE (work-profile only), not EnterprisesDevicesDelete.
 	// COBO unenroll keeps the existing Delete behavior (terminates management without factory reset).
 	var (
-		didCallAMAPIDelete       bool
-		didCallAMAPIIssueWipe    bool
-		issuedCommand            *androidmanagement.Command
-		issuedToDeviceName       string
-		issueOperationName       = "enterprises/ultimate-fake/devices/dev-byo/operations/wipe-byo-1"
+		didCallAMAPIDelete    bool
+		didCallAMAPIIssueWipe bool
+		issuedCommand         *androidmanagement.Command
+		issuedToDeviceName    string
+		issueOperationName    = "enterprises/ultimate-fake/devices/dev-byo/operations/wipe-byo-1"
 	)
 	s.androidAPIClient.EnterprisesDevicesDeleteFunc = func(_ context.Context, _ string) error {
 		didCallAMAPIDelete = true
@@ -18820,6 +18820,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", passHostID), nil, http.StatusOK, &cpResp)
 		require.NotNil(t, cpResp.CommandEnqueueResult)
 		require.Equal(t, string(android.MDMAndroidCommandTypeResetPassword), cpResp.RequestType)
+		require.NotEmpty(t, cpResp.CommandUUID, "clear-passcode response must include the persisted command UUID for lookup")
 
 		cmd, _, opName := lastIssue()
 		require.Equal(t, string(android.MDMAndroidCommandTypeResetPassword), cmd.Type)
@@ -18830,6 +18831,8 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.NoError(t, err)
 		require.Equal(t, string(android.MDMAndroidCommandStatusPending), row.Status)
 		require.Equal(t, string(android.MDMAndroidCommandTypeResetPassword), row.CommandType)
+		require.Equal(t, row.CommandUUID, cpResp.CommandUUID,
+			"the CommandUUID returned to API consumers must match the persisted row (#41683 review fix)")
 
 		// No PendingAction surface for clear-passcode -- it doesn't gate other actions.
 		var getHostResp getHostResponse

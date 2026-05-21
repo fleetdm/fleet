@@ -1022,10 +1022,10 @@ func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
 // ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row.
 // Unlike Lock/Wipe, ClearPasscode is a one-shot action with no UI lock state, so it does NOT
 // touch host_mdm_actions.
-func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) error {
+func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (string, error) {
 	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "clear-passcode")
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	payload, err := json.Marshal(struct {
@@ -1034,7 +1034,7 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) error
 		Duration    string `json:"duration"`
 	}{Type: string(android.MDMAndroidCommandTypeResetPassword), NewPassword: "", Duration: longCommandDuration})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshal android reset-password payload")
+		return "", ctxerr.Wrap(ctx, err, "marshal android reset-password payload")
 	}
 
 	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
@@ -1043,7 +1043,7 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) error
 		Duration:    longCommandDuration,
 	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "amapi issue reset-password command")
+		return "", ctxerr.Wrap(ctx, err, "amapi issue reset-password command")
 	}
 
 	cmd := &android.MDMAndroidCommand{
@@ -1056,12 +1056,12 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) error
 	if err := svc.fleetDS.NewMDMAndroidCommand(ctx, cmd); err != nil {
 		svc.logger.ErrorContext(ctx, "amapi clear-passcode issued but local state write failed",
 			"host_id", host.ID, "operation_name", op.Name, "err", err)
-		return ctxerr.Wrap(ctx, err, "persist android clear-passcode command")
+		return "", ctxerr.Wrap(ctx, err, "persist android clear-passcode command")
 	}
 
 	svc.logger.InfoContext(ctx, "android clear-passcode command issued",
 		"host_id", host.ID, "command_uuid", cmd.CommandUUID, "operation_name", op.Name)
-	return nil
+	return cmd.CommandUUID, nil
 }
 
 // WipeAndroidHost issues an AMAPI WIPE command and persists state. AMAPI requires WipeParams to

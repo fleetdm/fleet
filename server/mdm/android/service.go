@@ -30,8 +30,10 @@ type Service interface {
 	// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD command with newPassword="" — per
 	// product, the work-profile (BYO) or device (COBO) passcode is cleared, not regenerated.
 	// Persists the row in mdm_android_commands but does NOT touch host_mdm_actions (clear
-	// passcode is a one-shot action with no UI lock/wipe state).
-	ClearAndroidPasscode(ctx context.Context, hostID uint) error
+	// passcode is a one-shot action with no UI lock/wipe state). Returns the Fleet-generated
+	// command_uuid so callers can correlate the API response with the persisted row via
+	// GetMDMAndroidCommandByUUID.
+	ClearAndroidPasscode(ctx context.Context, hostID uint) (commandUUID string, err error)
 
 	// WipeAndroidHost issues an AMAPI WIPE command. COBO-only; callers in the EE service layer
 	// reject BYO before reaching here. Persists the row in mdm_android_commands and writes

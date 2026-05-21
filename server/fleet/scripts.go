@@ -632,6 +632,13 @@ type SoftwareInstallerPayload struct {
 	Configuration []byte `json:"configuration,omitempty"`
 }
 
+// AndroidMDMCommandStatusAcknowledged is the canonical "device acknowledged the command" status
+// string written to mdm_android_commands.status by the Pub/Sub COMMAND handler. It is defined in
+// server/fleet because HostLockWipeStatus.IsLocked/IsWiped need it without taking on a
+// server/mdm/android dependency; the android package re-exports the same value as
+// MDMAndroidCommandStatusAcknowledged.
+const AndroidMDMCommandStatusAcknowledged = "acknowledged"
+
 type HostLockWipeStatus struct {
 	// HostFleetPlatform is the fleet-normalized platform of the host, i.e. the
 	// result of host.FleetPlatform().
@@ -771,10 +778,8 @@ func (s HostLockWipeStatus) IsLocked() bool {
 
 	if s.HostFleetPlatform == "android" {
 		// locked if Pub/Sub COMMAND notification reported an Android-side ack.
-		// Status is android.MDMAndroidCommandStatusAcknowledged ("acknowledged"); we use the literal
-		// string here to keep server/fleet free of an android-package dependency.
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
-			s.LockMDMCommandResult.Status == "acknowledged"
+			s.LockMDMCommandResult.Status == AndroidMDMCommandStatusAcknowledged
 	}
 
 	// locked if a script was sent and succeeded
@@ -803,10 +808,9 @@ func (s HostLockWipeStatus) IsWiped() bool {
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
 			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
 	case "android":
-		// wiped if Pub/Sub COMMAND notification reported an Android-side ack
-		// (android.MDMAndroidCommandStatusAcknowledged).
+		// wiped if Pub/Sub COMMAND notification reported an Android-side ack.
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
-			s.WipeMDMCommandResult.Status == "acknowledged"
+			s.WipeMDMCommandResult.Status == AndroidMDMCommandStatusAcknowledged
 	default:
 		return false
 	}

@@ -122,6 +122,12 @@ const (
 	MDMAndroidCommandStatusPending MDMAndroidCommandStatus = "pending"
 	// MDMAndroidCommandStatusAcknowledged — Pub/Sub COMMAND notification arrived and the device
 	// successfully executed the command (no AMAPI error_code).
+	//
+	// MUST match the literal value of fleet.AndroidMDMCommandStatusAcknowledged; the constants
+	// are intentionally duplicated to avoid a server/mdm/android -> server/fleet import (server/fleet
+	// already imports server/mdm/android). A divergence would silently break IsLocked/IsWiped for
+	// android hosts; the assertion in TestAndroidCommandStatusAcknowledgedStringMatches guards
+	// against it.
 	MDMAndroidCommandStatusAcknowledged MDMAndroidCommandStatus = "acknowledged"
 	// MDMAndroidCommandStatusError — Pub/Sub COMMAND notification arrived with a non-empty
 	// AMAPI error_code (e.g. UNSUPPORTED, API_LEVEL, INVALID_VALUE).

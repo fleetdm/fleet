@@ -2017,7 +2017,9 @@ func TestPubSubCommand(t *testing.T) {
 		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
 	})
 
-	t.Run("unknown operation name is acked without error", func(t *testing.T) {
+	t.Run("unknown operation name for foreign enterprise is acked without error", func(t *testing.T) {
+		// No enterprise configured -> operationNameBelongsToOurEnterprise returns false
+		// -> handler acks the unknown op (foreign / not-yet-configured).
 		svc, mockDS := createAndroidService(t)
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
@@ -2026,8 +2028,50 @@ func TestPubSubCommand(t *testing.T) {
 		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(opName)
 		}
+		mockDS.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+			return nil, common_mysql.NotFound("Enterprise")
+		}
 
 		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/E/devices/D/operations/unknown", Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+
+	t.Run("unknown operation name for our enterprise returns error (Pub/Sub retries)", func(t *testing.T) {
+		// Race scenario: AMAPI delivered the notification before our IssueCommand-then-insert
+		// committed the row. Returning an error makes Pub/Sub retry past the race window.
+		svc, mockDS := createAndroidService(t)
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+		}
+
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(opName)
+		}
+		mockDS.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+			return &android.Enterprise{EnterpriseID: "OURS"}, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/OURS/devices/D/operations/racy", Done: true})
+		require.Error(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+
+	t.Run("non-done operation is acked without state transition", func(t *testing.T) {
+		// AMAPI long-running Operations use done=false for in-progress states. The handler must
+		// not transition state on a non-terminal payload.
+		svc, mockDS := createAndroidService(t)
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			t.Fatalf("lookup should be skipped when op.Done is false")
+			return nil, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			t.Fatalf("status update should be skipped when op.Done is false")
+			return nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/E/devices/D/operations/in-flight", Done: false})
 		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
 	})
 
