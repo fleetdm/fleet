@@ -1239,7 +1239,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 
-	// Authorize write access to the source teams of the hosts being transferred.
+	// Authorize transfer access to the source teams of the hosts being transferred.
 	hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "list hosts by IDs for source team authorization (team_id: %v, host_count: %d)", teamID, len(hostIDs))
