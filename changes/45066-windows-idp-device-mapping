@@ -1,0 +1,1 @@
+* Fixed "User email" being unset in GET /api/v1/fleet/hosts for Windows and Linux hosts enrolling with end-user authentication.
