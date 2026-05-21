@@ -319,9 +319,28 @@ const PageOrComponent = (props) => {
 
 ## React context
 
-[React context](https://reactjs.org/docs/context.html) is a state management store. It stores
-data that is desired and allows for retrieval of that data in whatever component is in need.
-View currently working contexts in the [context directory](../context).
+[React context](https://reactjs.org/docs/context.html) is a way to share values across the
+component tree. Use context for app-wide state or derived UI state that multiple components
+need. For server state, use React Query for fetching, caching, and synchronization; some
+server-derived values may still be exposed through context after they are fetched or
+initialized. View currently working contexts in the [context directory](../context).
+
+```typescript
+// Consuming a context — destructure what you need from useContext
+const { renderFlash } = useContext(NotificationContext);
+const { currentUser, isPremiumTier } = useContext(AppContext);
+```
+
+### Context catalog
+
+| Context | Purpose | Use this when |
+|---|---|---|
+| `AppContext` | Global app state: current user, config, team selection, role flags, license info | You need user identity, permissions, feature flags, or the active fleet |
+| `NotificationContext` | Flash message banners (`renderFlash`, `renderMultiFlash`, `hideFlash`) | You need to show success/error/warning notifications after an action |
+| `PolicyContext` | In-progress policy editing state: name, query, resolution, platform, labels | You're on the policy edit/create flow and need to persist form state across steps |
+| `QueryContext` | In-progress report editing state: name, query body, frequency, targets, logging | You're on the report edit/create flow and need to persist form state across steps |
+| `RoutingContext` | Stores a redirect location for post-auth navigation | You need to redirect the user after login (e.g., deep link they hit while logged out) |
+| `TableContext` | Coordinates table row selection resets across components | You need to clear selected rows in a data table after a bulk action |
 
 ## Fleet API calls
 

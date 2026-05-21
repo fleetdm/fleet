@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -168,6 +169,63 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 	return server
 }
 
+// allowedURLPrefixRegexp matches a non-empty slash-prefixed path made of
+// `/segment[/segment...]` where each segment is one or more URL-safe characters.
+var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
+
+// Validate checks server-side private key configuration: private_key and
+// private_key_arn cannot both be set. Called early so a misconfigured server
+// fails before paying for an external Secrets Manager lookup.
+func (s ServerConfig) Validate(initFatal func(err error, msg string)) {
+	if s.PrivateKey != "" && s.PrivateKeySecretArn != "" {
+		initFatal(errors.New("cannot specify both private_key and private_key_arn"),
+			"validate private key configuration")
+	}
+}
+
+// ValidatePrivateKeyLength enforces a 32-byte minimum on the (possibly
+// Secrets-Manager-resolved) private key. Called after Secrets Manager
+// retrieval so an SM-provided short key is also caught.
+func (s ServerConfig) ValidatePrivateKeyLength(initFatal func(err error, msg string)) {
+	if len(s.PrivateKey) > 0 && len(s.PrivateKey) < 32 {
+		initFatal(errors.New("private key must be at least 32 bytes long"),
+			"validate private key")
+	}
+}
+
+// NormalizeURLPrefix trims a trailing slash and ensures a leading slash on
+// the configured URL prefix. Mutates the receiver; safe to call when empty.
+// Call before ValidateURLPrefix.
+//
+// A user-supplied "/" trims down to "" and would otherwise be indistinguishable
+// from "no prefix configured" by ValidateURLPrefix. Restore it to "/" so the
+// regex check rejects it instead of silently accepting a misconfiguration.
+func (s *ServerConfig) NormalizeURLPrefix() {
+	if len(s.URLPrefix) == 0 {
+		return
+	}
+	s.URLPrefix = strings.TrimSuffix(s.URLPrefix, "/")
+	if len(s.URLPrefix) == 0 {
+		s.URLPrefix = "/"
+		return
+	}
+	if !strings.HasPrefix(s.URLPrefix, "/") {
+		s.URLPrefix = "/" + s.URLPrefix
+	}
+}
+
+// ValidateURLPrefix checks the URL prefix against the allowed pattern.
+// Should be called after NormalizeURLPrefix; an empty prefix is allowed.
+func (s ServerConfig) ValidateURLPrefix(initFatal func(err error, msg string)) {
+	if len(s.URLPrefix) == 0 {
+		return
+	}
+	if !allowedURLPrefixRegexp.MatchString(s.URLPrefix) {
+		initFatal(fmt.Errorf("prefix must match regexp %q", allowedURLPrefixRegexp.String()),
+			"setting server URL prefix")
+	}
+}
+
 // AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
 	BcryptCost                  int           `yaml:"bcrypt_cost"`
@@ -246,6 +304,21 @@ type OsqueryConfig struct {
 	AllowBodyAuthFallback bool `yaml:"allow_body_auth_fallback"`
 }
 
+// Validate checks that osquery_host_identifier is one of the supported values.
+// The osquery agent uses this to determine which identifier is reported as the host UUID.
+func (o OsqueryConfig) Validate(initFatal func(err error, msg string)) {
+	allowed := map[string]struct{}{
+		"provided": {},
+		"instance": {},
+		"uuid":     {},
+		"hostname": {},
+	}
+	if _, ok := allowed[o.HostIdentifier]; !ok {
+		initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", o.HostIdentifier),
+			"set host identifier")
+	}
+}
+
 // AsyncTaskName is the type of names that identify tasks supporting
 // asynchronous execution.
 type AsyncTaskName string
@@ -312,6 +385,15 @@ type LoggingConfig struct {
 	OtelLogsEnabled  bool   `yaml:"otel_logs_enabled"`
 	EnableLogTopics  string `yaml:"enable_topics"`
 	DisableLogTopics string `yaml:"disable_topics"`
+}
+
+// Validate checks logging configuration consistency: OTEL log export requires
+// tracing to be enabled so log records carry trace IDs.
+func (l LoggingConfig) Validate(initFatal func(err error, msg string)) {
+	if l.OtelLogsEnabled && !l.TracingEnabled {
+		initFatal(errors.New("logging.otel_logs_enabled requires logging.tracing_enabled to be true"),
+			"OTEL logs require tracing for trace correlation")
+	}
 }
 
 // ActivityConfig defines configs related to activities.
