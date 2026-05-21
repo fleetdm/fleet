@@ -85,6 +85,7 @@ policies:
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
+  - path: ../lib/all/reports/dex-queries.yml
 software:
   packages:
     # Linux apps
