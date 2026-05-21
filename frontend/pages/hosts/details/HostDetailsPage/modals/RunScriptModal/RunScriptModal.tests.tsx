@@ -13,7 +13,10 @@ const baseProps = {
   onClose: jest.fn(),
   page: 0,
   setPage: jest.fn(),
-  hostScriptResponse: { scripts: [], meta: { has_next_results: false } },
+  hostScriptResponse: {
+    scripts: [],
+    meta: { has_next_results: false, has_previous_results: false },
+  },
   isFetchingHostScripts: false,
   isLoadingHostScripts: false,
   isError: false,
@@ -53,6 +56,34 @@ describe("RunScriptModal", () => {
         expect.stringContaining("fleet_id=7")
       );
       expect(screen.getByText(/available to this host/i)).toBeInTheDocument();
+    });
+
+    it("falls back to fleet_id=0 (No team) when the host is unassigned", () => {
+      const adminUser = createMockUser({ global_role: "admin" });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: createMockConfig(),
+            isPremiumTier: true,
+            currentUser: adminUser,
+          },
+        },
+      });
+
+      render(
+        <RunScriptModal
+          {...baseProps}
+          currentUser={adminUser}
+          hostTeamId={null}
+        />
+      );
+
+      const link = screen.getByRole("link", { name: /Add a script/i });
+      expect(link).toHaveAttribute(
+        "href",
+        expect.stringContaining("fleet_id=0")
+      );
     });
 
     it("omits fleet_id from the link on free tier", () => {
@@ -97,6 +128,29 @@ describe("RunScriptModal", () => {
       expect(
         screen.queryByRole("link", { name: /Add a script/i })
       ).not.toBeInTheDocument();
+    });
+
+    it("shows the link for a team maintainer on the host's team", () => {
+      const maintainerUser = createMockUser({
+        global_role: null,
+        teams: [{ id: 7, name: "Some team", role: "maintainer" }],
+      });
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            config: createMockConfig(),
+            isPremiumTier: true,
+            currentUser: maintainerUser,
+          },
+        },
+      });
+
+      render(<RunScriptModal {...baseProps} currentUser={maintainerUser} />);
+
+      expect(
+        screen.getByRole("link", { name: /Add a script/i })
+      ).toBeInTheDocument();
     });
 
     it("hides the link for a team technician on the host's team", () => {
@@ -146,7 +200,7 @@ describe("RunScriptModal", () => {
           currentUser={adminUser}
           hostScriptResponse={{
             scripts: [createMockHostScript({ name: "cleanup.sh" })],
-            meta: { has_next_results: false },
+            meta: { has_next_results: false, has_previous_results: false },
           }}
         />
       );

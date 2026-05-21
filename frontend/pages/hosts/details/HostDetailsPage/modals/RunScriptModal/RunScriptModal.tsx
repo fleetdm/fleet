@@ -5,6 +5,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
 import { IHostScript } from "interfaces/script";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import { IHostScriptsResponse } from "services/entities/scripts";
 
@@ -109,12 +110,14 @@ const RunScriptModal = ({
 
   const tableData = hostScriptResponse?.scripts;
 
-  // Technicians can run scripts but can't upload them — hide the "Add a script"
-  // link for them since it would lead to a page they can't act on.
-  const isTechnician =
+  // Only admins and maintainers (global or on the host's team) can upload scripts,
+  // so the "Add a script" link is hidden for everyone else (e.g. technicians).
+  const canAddScript =
     !!currentUser &&
-    (permissions.isGlobalTechnician(currentUser) ||
-      permissions.isTeamTechnician(currentUser, hostTeamId));
+    (permissions.isGlobalAdmin(currentUser) ||
+      permissions.isGlobalMaintainer(currentUser) ||
+      permissions.isTeamAdmin(currentUser, hostTeamId) ||
+      permissions.isTeamMaintainer(currentUser, hostTeamId));
 
   return (
     <Modal
@@ -135,19 +138,21 @@ const RunScriptModal = ({
               variant="header-list"
               header="No scripts available"
               info={
-                isTechnician ? (
-                  "Ask your admin to add a script for this host."
-                ) : (
+                canAddScript ? (
                   <>
                     <CustomLink
                       url={getPathWithQueryParams(
                         PATHS.CONTROLS_SCRIPTS,
-                        isPremiumTier ? { fleet_id: hostTeamId } : undefined
+                        isPremiumTier
+                          ? { fleet_id: hostTeamId ?? APP_CONTEXT_NO_TEAM_ID }
+                          : undefined
                       )}
                       text="Add a script"
                     />{" "}
                     available to this host.
                   </>
+                ) : (
+                  "Ask your admin to add a script for this host."
                 )
               }
             />
