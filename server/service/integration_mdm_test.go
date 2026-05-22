@@ -18767,7 +18767,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
 		require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
 		require.NotNil(t, getHostResp.Host.MDM.PendingAction)
-		require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+		require.Empty(t, *getHostResp.Host.MDM.PendingAction)
 	})
 
 	t.Run("Wipe BYO is rejected", func(t *testing.T) {
@@ -18782,7 +18782,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.Contains(t, body, "Wipe is not supported for personally-owned Android hosts")
 
 		issueCallsMu.Lock()
-		require.Equal(t, beforeCount, len(issueCalls), "no AMAPI call expected for rejected BYO wipe")
+		require.Len(t, issueCalls, beforeCount, "no AMAPI call expected for rejected BYO wipe")
 		issueCallsMu.Unlock()
 	})
 
@@ -18824,7 +18824,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 
 		cmd, _, opName := lastIssue()
 		require.Equal(t, string(android.MDMAndroidCommandTypeResetPassword), cmd.Type)
-		require.Equal(t, "", cmd.NewPassword, "clear-passcode must send an empty newPassword to actually clear (not regenerate) the passcode")
+		require.Empty(t, cmd.NewPassword, "clear-passcode must send an empty newPassword to actually clear (not regenerate) the passcode")
 		require.Equal(t, "315360000s", cmd.Duration)
 
 		row, err := s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
@@ -18838,7 +18838,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		var getHostResp getHostResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", passHostID), nil, http.StatusOK, &getHostResp)
 		if getHostResp.Host.MDM.PendingAction != nil {
-			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+			require.Empty(t, *getHostResp.Host.MDM.PendingAction)
 		}
 	})
 

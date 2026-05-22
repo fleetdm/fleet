@@ -878,10 +878,10 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 
 	if isBYO {
 		payload, err := json.Marshal(struct {
-			Type       string                 `json:"type"`
-			WipeParams map[string]interface{} `json:"wipeParams"`
-			Duration   string                 `json:"duration"`
-		}{Type: string(android.MDMAndroidCommandTypeWipe), WipeParams: map[string]interface{}{}, Duration: longCommandDuration})
+			Type       string         `json:"type"`
+			WipeParams map[string]any `json:"wipeParams"`
+			Duration   string         `json:"duration"`
+		}{Type: string(android.MDMAndroidCommandTypeWipe), WipeParams: map[string]any{}, Duration: longCommandDuration})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marshal android byo-unenroll wipe payload")
 		}
@@ -1074,10 +1074,10 @@ func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 	}
 
 	payload, err := json.Marshal(struct {
-		Type       string                 `json:"type"`
-		WipeParams map[string]interface{} `json:"wipeParams"`
-		Duration   string                 `json:"duration"`
-	}{Type: string(android.MDMAndroidCommandTypeWipe), WipeParams: map[string]interface{}{}, Duration: longCommandDuration})
+		Type       string         `json:"type"`
+		WipeParams map[string]any `json:"wipeParams"`
+		Duration   string         `json:"duration"`
+	}{Type: string(android.MDMAndroidCommandTypeWipe), WipeParams: map[string]any{}, Duration: longCommandDuration})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshal android wipe payload")
 	}

@@ -1333,7 +1333,7 @@ func TestMDMClearPasscodeCommand(t *testing.T) {
 	macEnrolled := testhost{
 		host: &fleet.Host{
 			ID: 1, UUID: "mac-enrolled-cp", Platform: "darwin",
-			MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
+			MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: new(true)},
 		},
 		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 	}
