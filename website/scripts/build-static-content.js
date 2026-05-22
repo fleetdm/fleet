@@ -1289,6 +1289,64 @@ module.exports = {
         builtStaticContent.testimonials = testimonials;
       },
       async()=>{
+        // Parse docs/glossary.yml (device-management glossary) and bake it into builtStaticContent.glossary.
+        let RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO = 'docs/glossary.yml';
+        let VALID_GLOSSARY_CATEGORIES = ['MDM', 'Security', 'osquery', 'GitOps', 'Apple', 'Windows', 'Linux'];
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find glossary YAML file at "${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}". Was it accidentally moved? Raw error: `+err.message));
+        let glossary = YAML.parse(yaml, {prettyErrors: true});
+        if(!_.isArray(glossary)) {
+          throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. The top-level YAML value must be a list of glossary terms.`);
+        }
+        let seenSlugs = {};
+        for(let term of glossary) {
+          if(!_.isObject(term) || _.isArray(term)) {
+            throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. Every glossary entry must be a mapping. Got: ${util.inspect(term)}`);
+          }
+          if(!term.name || typeof term.name !== 'string') {
+            throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. A glossary entry is missing a string "name". Entry: ${util.inspect(term)}`);
+          }
+          if(!term.slug || typeof term.slug !== 'string' || !term.slug.match(/^[a-z0-9-]+$/)) {
+            throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. A glossary entry has a missing or invalid "slug". Slugs must be lowercase letters, digits, and hyphens. Entry: ${util.inspect(term)}`);
+          }
+          if(seenSlugs[term.slug]) {
+            throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. Duplicate slug "${term.slug}". Each glossary entry must have a unique slug.`);
+          }
+          seenSlugs[term.slug] = true;
+          if(!_.isArray(term.categories) || term.categories.length === 0) {
+            throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. Glossary entry "${term.name}" is missing a non-empty "categories" list.`);
+          }
+          for(let category of term.categories) {
+            if(!_.contains(VALID_GLOSSARY_CATEGORIES, category)) {
+              throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. Glossary entry "${term.name}" has an invalid category "${category}". Valid categories: ${VALID_GLOSSARY_CATEGORIES.join(', ')}.`);
+            }
+          }
+          if(!term.definition || typeof term.definition !== 'string') {
+            throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. Glossary entry "${term.name}" is missing a string "definition".`);
+          }
+          if(!term.fleetNote || typeof term.fleetNote !== 'string') {
+            throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. Glossary entry "${term.name}" is missing a string "fleetNote".`);
+          }
+          if(term.searchKeywords !== undefined && typeof term.searchKeywords !== 'string') {
+            throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. Glossary entry "${term.name}" has a non-string "searchKeywords" value.`);
+          }
+          // Default searchKeywords to an empty string so consumers don't have to guard.
+          term.searchKeywords = term.searchKeywords || '';
+          // Default links to an empty array and validate any entries.
+          if(term.links === undefined) {
+            term.links = [];
+          }
+          if(!_.isArray(term.links)) {
+            throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. Glossary entry "${term.name}" has a non-list "links" value.`);
+          }
+          for(let link of term.links) {
+            if(!_.isObject(link) || typeof link.label !== 'string' || typeof link.url !== 'string') {
+              throw new Error(`Could not build glossary config from ${RELATIVE_PATH_TO_GLOSSARY_YML_IN_FLEET_REPO}. Glossary entry "${term.name}" has an invalid link entry. Each link must be a { label, url } object with string values.`);
+            }
+          }
+        }
+        builtStaticContent.glossary = glossary;
+      },
+      async()=>{
         let rituals = {};
         // Find all the files in the top level /handbook folder and it's sub-folders
         let FILES_IN_HANDBOOK_FOLDER = await sails.helpers.fs.ls.with({
