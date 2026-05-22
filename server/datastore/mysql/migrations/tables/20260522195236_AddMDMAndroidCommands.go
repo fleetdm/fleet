@@ -6,17 +6,17 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260521205417, Down_20260521205417)
+	MigrationClient.AddMigration(Up_20260522195236, Down_20260522195236)
 }
 
-// Up_20260521205417 creates the mdm_android_commands table used to track AMAPI commands issued by
+// Up_20260522195236 creates the mdm_android_commands table used to track AMAPI commands issued by
 // Fleet via EnterprisesDevicesService.IssueCommand (Lock, Wipe, Clear passcode for Android hosts; see #41683).
 //
 // host_mdm_actions.{lock_ref, wipe_ref} stores the Fleet-generated command_uuid for Android hosts,
 // mirroring how those columns point into nano_commands for Apple and mdm_windows_commands for Windows.
 // The operation_name column holds the full AMAPI operation name (enterprises/X/devices/Y/operations/Z, ~70+ chars)
 // which is the key used to correlate Pub/Sub COMMAND notifications back to the originating Fleet command.
-func Up_20260521205417(tx *sql.Tx) error {
+func Up_20260522195236(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE mdm_android_commands (
 	command_uuid     VARCHAR(36)                            NOT NULL,
@@ -51,6 +51,6 @@ CREATE TABLE mdm_android_commands (
 	return nil
 }
 
-func Down_20260521205417(tx *sql.Tx) error {
+func Down_20260522195236(tx *sql.Tx) error {
 	return nil
 }
