@@ -2077,6 +2077,18 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			)
 			continue
 		}
+
+		// On a continuous re-fire (policy still failing), reset prior
+		// attempt_number values for this host/policy to 0 so the new attempt
+		// restarts the retry sequence at 1 instead of inheriting the cap from
+		// the previous sequence. A no-op on pass→fail transitions (those rows
+		// are already at 0 from the prior fail→pass reset).
+		if failingPolicyWithInstaller.ContinuousAutomationsEnabled {
+			if err := svc.ds.ResetPolicyAutomationRetryAttemptsForHost(ctx, hostID, []uint{policyID}); err != nil {
+				return ctxerr.Wrap(ctx, err, "reset policy automation retry attempts for host")
+			}
+		}
+
 		// NOTE(lucas): The user_id set in this software install will be NULL
 		// so this means that when generating the activity for this action
 		// (in SaveHostSoftwareInstallResult) the author will be set to Fleet.
@@ -2336,6 +2348,17 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		if scriptIsAlreadyPending {
 			logger.DebugContext(ctx, "script is already pending on host")
 			continue
+		}
+
+		// On a continuous re-fire (policy still failing), reset prior
+		// attempt_number values for this host/policy to 0 so the new attempt
+		// restarts the retry sequence at 1 instead of inheriting the cap from
+		// the previous sequence. A no-op on pass→fail transitions (those rows
+		// are already at 0 from the prior fail→pass reset).
+		if failingPolicyWithScript.ContinuousAutomationsEnabled {
+			if err := svc.ds.ResetPolicyAutomationRetryAttemptsForHost(ctx, hostID, []uint{policyID}); err != nil {
+				return ctxerr.Wrap(ctx, err, "reset policy automation retry attempts for host")
+			}
 		}
 
 		contents, err := svc.ds.GetScriptContents(ctx, scriptMetadata.ID)

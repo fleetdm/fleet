@@ -425,6 +425,33 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p 
 	)
 }
 
+// ResetPolicyAutomationRetryAttemptsForHost marks all prior script and software
+// install attempts on this host (across the given policies) as "old sequence" by
+// setting attempt_number=0. The retry gate counts attempt_number > 0 OR NULL, so
+// after this reset the next attempt restarts the sequence at 1.
+func (ds *Datastore) ResetPolicyAutomationRetryAttemptsForHost(ctx context.Context, hostID uint, policyIDs []uint) error {
+	if len(policyIDs) == 0 {
+		return nil
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		q, args, err := sqlx.In(resetScriptAttemptsStmt, hostID, policyIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building reset host script attempts query")
+		}
+		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset host script attempts")
+		}
+		q, args, err = sqlx.In(resetInstallAttemptsStmt, hostID, policyIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building reset host install attempts query")
+		}
+		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset host install attempts")
+		}
+		return nil
+	})
+}
+
 // resetPolicyAutomationAttempts resets all attempt numbers for script and software install executions
 // associated with the given policy.
 func resetPolicyAutomationAttempts(ctx context.Context, db sqlx.ExecerContext, policyID uint) error {

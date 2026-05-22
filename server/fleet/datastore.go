@@ -933,6 +933,13 @@ type Datastore interface {
 	// GetPoliciesWithAssociatedVPP returns team policies that have an associated VPP app
 	GetPoliciesWithAssociatedVPP(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyVPPData, error)
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
+	// ResetPolicyAutomationRetryAttemptsForHost marks all prior policy automation
+	// script/install attempts on this host as "old sequence" (attempt_number=0)
+	// for the given policies. Used when continuous_automations_enabled triggers
+	// a new automation run while the policy is still failing, so that the new
+	// attempt restarts the retry sequence at 1 instead of inheriting the cap
+	// from the previous sequence.
+	ResetPolicyAutomationRetryAttemptsForHost(ctx context.Context, hostID uint, policyIDs []uint) error
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error)

@@ -677,6 +677,8 @@ type GetPoliciesWithAssociatedVPPFunc func(ctx context.Context, teamID uint, pol
 
 type GetPoliciesWithAssociatedScriptFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error)
 
+type ResetPolicyAutomationRetryAttemptsForHostFunc func(ctx context.Context, hostID uint, policyIDs []uint) error
+
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
 
 type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint, platform string) ([]uint, error)
@@ -2970,6 +2972,9 @@ type DataStore struct {
 
 	GetPoliciesWithAssociatedScriptFunc        GetPoliciesWithAssociatedScriptFunc
 	GetPoliciesWithAssociatedScriptFuncInvoked bool
+
+	ResetPolicyAutomationRetryAttemptsForHostFunc        ResetPolicyAutomationRetryAttemptsForHostFunc
+	ResetPolicyAutomationRetryAttemptsForHostFuncInvoked bool
 
 	GetCalendarPoliciesFunc        GetCalendarPoliciesFunc
 	GetCalendarPoliciesFuncInvoked bool
@@ -7229,6 +7234,13 @@ func (s *DataStore) GetPoliciesWithAssociatedScript(ctx context.Context, teamID 
 	s.GetPoliciesWithAssociatedScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPoliciesWithAssociatedScriptFunc(ctx, teamID, policyIDs)
+}
+
+func (s *DataStore) ResetPolicyAutomationRetryAttemptsForHost(ctx context.Context, hostID uint, policyIDs []uint) error {
+	s.mu.Lock()
+	s.ResetPolicyAutomationRetryAttemptsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetPolicyAutomationRetryAttemptsForHostFunc(ctx, hostID, policyIDs)
 }
 
 func (s *DataStore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {
