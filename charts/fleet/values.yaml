@@ -4,7 +4,7 @@ hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 revisionHistoryLimit: 10 # Number of old ReplicaSets for Fleet deployment to retain for rollback (set to 0 for unlimited)
 imageRepository: fleetdm/fleet
-imageTag: v4.85.0 # Version of Fleet to deploy
+imageTag: v4.85.1 # Version of Fleet to deploy
 # imagePullPolicy is optional. If unset, Kubernetes defaults to IfNotPresent
 # for tagged images and Always for the :latest tag. Valid values: Always,
 # IfNotPresent, Never.

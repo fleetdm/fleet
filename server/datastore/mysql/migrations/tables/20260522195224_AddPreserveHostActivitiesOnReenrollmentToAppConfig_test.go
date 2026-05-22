@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260427134220_FreshInstall(t *testing.T) {
+func TestUp_20260522195224_FreshInstall(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// No users inserted: this represents a fresh installation.
@@ -28,7 +28,7 @@ func TestUp_20260427134220_FreshInstall(t *testing.T) {
 	require.False(t, v)
 }
 
-func TestUp_20260427134220_UpgradedInstall(t *testing.T) {
+func TestUp_20260522195224_UpgradedInstall(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// At least one user exists: this represents an upgrade.
