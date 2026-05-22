@@ -18870,6 +18870,218 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	require.Equal(t, uint(1), policy1.FailingHostCount)
 }
 
+// TestPolicyAutomationsContinuousVPPApp mirrors
+// TestPolicyAutomationsContinuousSoftwareInstaller but for a VPP app
+// automation: continuous_automations_enabled=true must re-trigger an
+// install on every failing policy result (not only on pass→fail), and
+// passing results must never trigger an install.
+func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
+	t := s.T()
+	ctx := context.Background()
+
+	// VPP token setup.
+	orgName := "Fleet Device Management Inc."
+	token := "mycooltoken"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken",
+		[]byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))),
+		http.StatusAccepted, "", &validToken)
+
+	var resp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+
+	// Team and MDM-enrolled host.
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new(t.Name())}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.awaitRunAppleMDMWorkerSchedule()
+	s.runWorker()
+	checkInstallFleetdCommandSent(t, mdmDevice, true)
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID),
+		patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+	// Pick two macOS VPP apps and add them to the team. Each policy gets its
+	// own VPP app: a queued VPP install blocks further queueing for the same
+	// adam_id (MapAdamIDsPendingInstall gate), so sharing one app between the
+	// two policies would hide the behavior being tested.
+	var appResp getAppStoreAppsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", fmt.Sprint(team.ID))
+	require.NoError(t, appResp.Err)
+	var macOSApps []*fleet.VPPApp
+	for _, app := range appResp.AppStoreApps {
+		if app.Platform == fleet.MacOSPlatform {
+			macOSApps = append(macOSApps, app)
+		}
+	}
+	require.GreaterOrEqual(t, len(macOSApps), 2, "expected at least two macOS VPP apps in the mock catalog")
+	continuousApp, transitionApp := macOSApps[0], macOSApps[1]
+
+	addTitleID := func(app *fleet.VPPApp) uint {
+		var addAppResp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID:     &team.ID,
+			Platform:   app.Platform,
+			AppStoreID: app.AdamID,
+		}, http.StatusOK, &addAppResp)
+		var listSw listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw,
+			"team_id", fmt.Sprint(team.ID),
+			"available_for_install", "true",
+			"query", app.Name,
+		)
+		require.NotEmpty(t, listSw.SoftwareTitles)
+		require.NotNil(t, listSw.SoftwareTitles[0].AppStoreApp)
+		return listSw.SoftwareTitles[0].ID
+	}
+	continuousTitleID := addTitleID(continuousApp)
+	transitionTitleID := addTitleID(transitionApp)
+
+	// Two policies attached to the same VPP app: one continuous, one default.
+	continuousPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                         "continuous",
+		Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform:                     "darwin",
+		ContinuousAutomationsEnabled: true,
+	})
+	require.NoError(t, err)
+	transitionPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:     "transition-only",
+		Query:    "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
+
+	attach := func(policyID, titleID uint) {
+		var mtplr fleet.ModifyTeamPolicyResponse
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policyID), fleet.ModifyTeamPolicyRequest{
+			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+				SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+			},
+		}, http.StatusOK, &mtplr)
+	}
+	attach(continuousPolicy.ID, continuousTitleID)
+	attach(transitionPolicy.ID, transitionTitleID)
+
+	submitPolicyResult := func(policyID uint, passes bool) {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			mdmHost,
+			map[uint]*bool{policyID: new(passes)},
+		), http.StatusOK, &distributedResp)
+	}
+
+	// host_vpp_software_installs grows by one row per queued install; a queued
+	// install also blocks further queueing for the same adam_id until the MDM
+	// install command is acknowledged.
+	countInstallsFor := func(policyID uint) int {
+		var count int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `
+				SELECT COUNT(*) FROM host_vpp_software_installs
+				WHERE host_id = ? AND policy_id = ?
+			`, mdmHost.ID, policyID)
+		})
+		return count
+	}
+
+	completeVPPInstall := func() {
+		s.awaitRunAppleMDMWorkerSchedule()
+		s.runWorker()
+		// First drain: acknowledge the InstallApplication command.
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			switch cmd.Command.RequestType {
+			case "InstallApplication":
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+			case "InstalledApplicationList":
+				cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{
+					{Name: continuousApp.Name, BundleIdentifier: continuousApp.BundleIdentifier, Version: continuousApp.LatestVersion, Installed: true},
+					{Name: transitionApp.Name, BundleIdentifier: transitionApp.BundleIdentifier, Version: transitionApp.LatestVersion, Installed: true},
+				})
+				require.NoError(t, err)
+			default:
+				require.Fail(t, "unexpected command type", cmd.Command.RequestType)
+			}
+		}
+		// Second drain: the post-install InstalledApplicationList verification
+		// command is queued by a worker after the Acknowledge above, so we have
+		// to runWorker again and re-Idle to pick it up.
+		s.runWorker()
+		cmd, err = mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			switch cmd.Command.RequestType {
+			case "InstalledApplicationList":
+				cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{
+					{Name: continuousApp.Name, BundleIdentifier: continuousApp.BundleIdentifier, Version: continuousApp.LatestVersion, Installed: true},
+					{Name: transitionApp.Name, BundleIdentifier: transitionApp.BundleIdentifier, Version: transitionApp.LatestVersion, Installed: true},
+				})
+				require.NoError(t, err)
+			default:
+				require.Fail(t, "unexpected command type", cmd.Command.RequestType)
+			}
+		}
+		s.runWorker()
+	}
+
+	step := func(policyID uint, wantCount int, countFn func() int, msg string) {
+		t.Helper()
+		submitPolicyResult(policyID, false)
+		require.EventuallyWithT(t, func(t *assert.CollectT) {
+			assert.Equal(t, wantCount, countFn(), msg)
+		}, 5*time.Second, 100*time.Millisecond)
+		completeVPPInstall()
+	}
+
+	continuousCount := func() int { return countInstallsFor(continuousPolicy.ID) }
+	transitionCount := func() int { return countInstallsFor(transitionPolicy.ID) }
+
+	// First failing result: pass→fail transition queues an install on both.
+	step(continuousPolicy.ID, 1, continuousCount, "first install for continuous policy")
+	step(transitionPolicy.ID, 1, transitionCount, "first install for transition policy")
+
+	// Second failing result (fail→fail): only the continuous policy re-queues.
+	step(continuousPolicy.ID, 2, continuousCount, "continuous policy must fire on every failing result")
+	submitPolicyResult(transitionPolicy.ID, false)
+	require.Never(t, func() bool {
+		return transitionCount() != 1
+	}, 2*time.Second, 100*time.Millisecond, "default policy must not re-trigger on fail→fail")
+
+	// Third failing result: continuous still re-triggers, default still does not.
+	step(continuousPolicy.ID, 3, continuousCount, "continuous policy must fire on every failing result")
+	submitPolicyResult(transitionPolicy.ID, false)
+	require.Never(t, func() bool {
+		return transitionCount() != 1
+	}, 2*time.Second, 100*time.Millisecond)
+
+	// Final: passing results never trigger an install, regardless of mode.
+	continuousBefore := continuousCount()
+	transitionBefore := transitionCount()
+	submitPolicyResult(continuousPolicy.ID, true)
+	submitPolicyResult(transitionPolicy.ID, true)
+	require.Never(t, func() bool {
+		return continuousCount() != continuousBefore
+	}, 2*time.Second, 100*time.Millisecond, "continuous policy must not trigger install on passing result")
+	require.Never(t, func() bool {
+		return transitionCount() != transitionBefore
+	}, 2*time.Second, 100*time.Millisecond, "transition policy must not trigger install on passing result")
+}
+
 // registerResetVPPProxyData resets the VPP proxy data after tests in `t` complete.
 func (s *integrationMDMTestSuite) registerResetVPPProxyData(t *testing.T) {
 	oldApps := s.appleVPPProxySrvData

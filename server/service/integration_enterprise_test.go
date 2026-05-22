@@ -31019,6 +31019,19 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 	require.Never(t, func() bool {
 		return countInstallsFor(transitionPolicy.ID) != 1
 	}, 2*time.Second, 100*time.Millisecond, "default policy must not re-trigger on fail→fail")
+
+	// Final: both policies pass. Neither should queue an install — passing
+	// results never trigger automations, regardless of continuous mode.
+	continuousBefore := countInstallsFor(continuousPolicy.ID)
+	transitionBefore := countInstallsFor(transitionPolicy.ID)
+	submitPolicyResult(continuousPolicy.ID, true)
+	submitPolicyResult(transitionPolicy.ID, true)
+	require.Never(t, func() bool {
+		return countInstallsFor(continuousPolicy.ID) != continuousBefore
+	}, 2*time.Second, 100*time.Millisecond, "continuous policy must not trigger install on passing result")
+	require.Never(t, func() bool {
+		return countInstallsFor(transitionPolicy.ID) != transitionBefore
+	}, 2*time.Second, 100*time.Millisecond, "transition policy must not trigger install on passing result")
 }
 
 // TestOrbitEnrollWithIdPPopulatesDeviceMapping covers issue #45066: orbit
