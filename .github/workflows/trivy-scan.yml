@@ -150,3 +150,5 @@ jobs:
         with:
           sarif_file: "trivy-results.sarif"
           category: trivy-${{ matrix.branch }}
+          ref: refs/heads/${{ matrix.branch }}
+          checkout_path: ${{ github.workspace }}
