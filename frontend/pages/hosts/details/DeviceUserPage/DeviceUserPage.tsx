@@ -301,10 +301,11 @@ const DeviceUserPage = ({
             const isIOSOrIPadOS =
               responseHost.platform === "ios" ||
               responseHost.platform === "ipados";
-            const skipOfflineBanner =
+            if (
+              responseHost.status === "online" ||
               isIOSOrIPadOS ||
-              isRecentlyEnrolled(responseHost.last_enrolled_at);
-            if (responseHost.status === "online" || skipOfflineBanner) {
+              isRecentlyEnrolled(responseHost.last_enrolled_at)
+            ) {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchDupDetails();
@@ -323,10 +324,11 @@ const DeviceUserPage = ({
               const isIOSOrIPadOS =
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
-              const skipOfflineBanner =
+              if (
+                responseHost.status === "online" ||
                 isIOSOrIPadOS ||
-                isRecentlyEnrolled(responseHost.last_enrolled_at);
-              if (responseHost.status === "online" || skipOfflineBanner) {
+                isRecentlyEnrolled(responseHost.last_enrolled_at)
+              ) {
                 setTimeout(() => {
                   refetchDupDetails();
                   refetchExtensions();
