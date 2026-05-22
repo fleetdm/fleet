@@ -5,22 +5,14 @@ exported unencrypted and imported encrypted; hence, the
 [key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key) used for
 encrypting the assets must be provided.
 
-## Environment Variables
+## Configuration
 
-All configuration can also be set via environment variables (prefix `ASSETS_DB_`). A `.env` file in
-the current directory will also be loaded automatically if present.
+The tool uses Fleet's standard MySQL configuration. Database options can be set with Fleet config
+flags such as `--mysql_address`, `--mysql_username`, and `--mysql_tls_ca`; with `FLEET_MYSQL_*`
+environment variables; or with a Fleet YAML config file passed via `--config`.
 
-| Environment Variable | Flag | Description | Default |
-|---|---|---|---|
-| `ASSETS_DB_USER` | `-db-user` | MySQL username | `fleet` |
-| `ASSETS_DB_PASSWORD` | `-db-password` | MySQL password | `insecure` |
-| `ASSETS_DB_ADDRESS` | `-db-address` | MySQL address | `localhost:3306` |
-| `ASSETS_DB_NAME` | `-db-name` | MySQL database name | `fleet` |
-| `ASSETS_DB_TLS_CONFIG` | `-tls-config` | TLS config name (e.g., `skip-verify`, `custom`) | `skip-verify` |
-| `ASSETS_DB_TLS_CA` | `-tls-ca` | Path to CA certificate file | *(empty)* |
-| `ASSETS_DB_TLS_CERT` | `-tls-cert` | Path to client certificate file | *(empty)* |
-| `ASSETS_DB_TLS_KEY` | `-tls-key` | Path to client key file | *(empty)* |
-| `ASSETS_DB_TLS_SERVER_NAME` | `-tls-server-name` | Server name for TLS verification | *(empty)* |
+The encryption key can be provided with `--key`, or by setting `server.private_key` in the Fleet
+config file.
 
 ## Usage
 
@@ -41,47 +33,33 @@ go run tools/mdm/assets/main.go export -key=E6Ow1t2dbKARxEF6O9GFI3DDQRMROhI8 -di
 Using TLS:
 
 ```
-ASSETS_DB_TLS_CONFIG=skip-verify \
-go run tools/mdm/assets/main.go export -key=... -dir=mdm_assets
+FLEET_MYSQL_TLS_CONFIG=skip-verify \
+go run tools/mdm/assets/main.go export --key=... --dir=mdm_assets
 ```
 
 Or with a custom CA:
 
 ```
-ASSETS_DB_TLS_CA=/path/to/ca.pem \
-ASSETS_DB_TLS_CERT=/path/to/client-cert.pem \
-ASSETS_DB_TLS_KEY=/path/to/client-key.pem \
-go run tools/mdm/assets/main.go export -key=... -dir=mdm_assets
+FLEET_MYSQL_TLS_CA=/path/to/ca.pem \
+FLEET_MYSQL_TLS_CERT=/path/to/client-cert.pem \
+FLEET_MYSQL_TLS_KEY=/path/to/client-key.pem \
+go run tools/mdm/assets/main.go export --key=... --dir=mdm_assets
 ```
 
 Supported flags are:
 
 ```
-  -db-address string
-    	Address used to connect to the MySQL instance (default "localhost:3306")
-  -db-name string
-    	Name of the database with the asset information in the MySQL instance (default "fleet")
-  -db-password string
-    	Password used to connect to the MySQL instance (default "insecure")
-  -db-user string
-    	Username used to connect to the MySQL instance (default "fleet")
-  -dir string
-    	Directory to put the exported assets
-  -key string
-    	Key used to encrypt the assets
-  -name string
-    	Name of the MDM asset to export
-  -tls-ca string
-    	Path to the CA certificate file for MySQL TLS
-  -tls-cert string
-    	Path to the client certificate file for MySQL TLS
-  -tls-config string
-    	TLS configuration for MySQL connection (default "skip-verify")
-  -tls-key string
-    	Path to the client key file for MySQL TLS
-  -tls-server-name string
-    	Server name to use for MySQL TLS certificate verification
+  --config string
+        Path to a Fleet configuration file
+  --dir string
+        Directory to put the exported assets
+  --key string
+        Key used to encrypt the assets
+  --name string
+        Name of the MDM asset to export
 ```
+
+Fleet's standard `--mysql_*` flags are also available.
 
 ### Import
 
@@ -94,28 +72,14 @@ go run tools/mdm/assets/main.go import -key=E6Ow1t2dbKARxEF6O9GFI3DDQRMROhI8 -na
 Supported flags are:
 
 ```
-  -db-address string
-    	Address used to connect to the MySQL instance (default "localhost:3306")
-  -db-name string
-    	Name of the database with the asset information in the MySQL instance (default "fleet")
-  -db-password string
-    	Password used to connect to the MySQL instance (default "insecure")
-  -db-user string
-    	Username used to connect to the MySQL instance (default "fleet")
-  -key string
-    	Key used to encrypt the assets
-  -name string
-    	Name of the MDM asset to import
-  -tls-ca string
-    	Path to the CA certificate file for MySQL TLS
-  -tls-cert string
-    	Path to the client certificate file for MySQL TLS
-  -tls-config string
-    	TLS configuration for MySQL connection (default "skip-verify")
-  -tls-key string
-    	Path to the client key file for MySQL TLS
-  -tls-server-name string
-    	Server name to use for MySQL TLS certificate verification
-  -value string
-    	Value to be set for the asset
+  --config string
+        Path to a Fleet configuration file
+  --key string
+        Key used to encrypt the assets
+  --name string
+        Name of the MDM asset to import
+  --value string
+        Value to be set for the asset
 ```
+
+Fleet's standard `--mysql_*` flags are also available.

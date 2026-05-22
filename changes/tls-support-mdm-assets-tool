@@ -1,1 +1,1 @@
-* Added TLS support to the MDM assets tool, configurable via command-line flags (`-tls-config`, `-tls-ca`, `-tls-cert`, `-tls-key`, `-tls-server-name`), environment variables (`ASSETS_DB_TLS_*`), or a `.env` file.
+* Added support for configuring the MDM assets tool with Fleet's standard MySQL configuration flags, environment variables, and config files, including MySQL TLS settings.
