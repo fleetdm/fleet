@@ -5,7 +5,9 @@ import (
 	"net/http"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -66,18 +68,35 @@ func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}
 // ListHostUpcomingActivities returns a slice of upcoming activities for the
 // specified host.
 func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
-	// First ensure the user has access to list hosts, then check the specific
-	// host once team_id is loaded.
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, nil, err
-	}
-	host, err := svc.ds.HostLite(ctx, hostID)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get host")
-	}
-	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return nil, nil, err
+	// Device-authenticated callers (e.g. the My Device page) have already had
+	// host access verified by the device-token middleware. Skip user-mode authz
+	// in that case and use the host injected into context. Require the caller
+	// to pass the matching host ID so that no caller can ever read another
+	// host's queue under a device token.
+	if svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) ||
+		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) ||
+		svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
+		h, ok := hostctx.FromContext(ctx)
+		if !ok {
+			return nil, nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		}
+		if h.ID != hostID {
+			return nil, nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("device authentication does not match requested host"))
+		}
+	} else {
+		// First ensure the user has access to list hosts, then check the specific
+		// host once team_id is loaded.
+		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+			return nil, nil, err
+		}
+		host, err := svc.ds.HostLite(ctx, hostID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get host")
+		}
+		// Authorize again with team loaded now that we have team_id
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// cursor-based pagination is not supported for upcoming activities
@@ -92,6 +111,53 @@ func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 	opt.IncludeMetadata = true
 
 	return svc.ds.ListHostUpcomingActivities(ctx, hostID, opt)
+}
+
+// ListHostPastActivitiesForDevice returns past activities for the specified
+// host in a device-token-authenticated context. The device-token middleware is
+// expected to have already established access to the host; no further
+// authorization is performed here beyond delegating to the activity bounded
+// context's device variant.
+func (svc *Service) ListHostPastActivitiesForDevice(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceCertificate) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceURL) {
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("device authentication required"))
+	}
+	h, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+	}
+	if h.ID != hostID {
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("device token does not match requested host"))
+	}
+
+	apiDirection := activity_api.OrderAscending
+	if opt.OrderDirection == fleet.OrderDescending {
+		apiDirection = activity_api.OrderDescending
+	}
+	apiOpt := activity_api.ListOptions{
+		Page:           opt.Page,
+		PerPage:        opt.PerPage,
+		After:          opt.After,
+		OrderKey:       opt.OrderKey,
+		OrderDirection: apiDirection,
+		MatchQuery:     opt.MatchQuery,
+	}
+
+	acts, apiMeta, err := svc.activitySvc.ListHostPastActivitiesForDevice(ctx, hostID, apiOpt)
+	if err != nil {
+		return nil, nil, err
+	}
+	var meta *fleet.PaginationMetadata
+	if apiMeta != nil {
+		meta = &fleet.PaginationMetadata{
+			HasNextResults:     apiMeta.HasNextResults,
+			HasPreviousResults: apiMeta.HasPreviousResults,
+			TotalResults:       apiMeta.TotalResults,
+		}
+	}
+	return acts, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

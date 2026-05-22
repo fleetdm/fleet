@@ -1096,3 +1096,86 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 
 	return nil, fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// List Current Device's Past Activities
+////////////////////////////////////////////////////////////////////////////////
+
+type listDeviceHostPastActivitiesRequest struct {
+	Token       string            `url:"token"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+func (r *listDeviceHostPastActivitiesRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type listDeviceHostPastActivitiesResponse struct {
+	Meta       *fleet.PaginationMetadata `json:"meta"`
+	Activities []*fleet.Activity         `json:"activities"`
+	Err        error                     `json:"error,omitempty"`
+}
+
+func (r listDeviceHostPastActivitiesResponse) Error() error { return r.Err }
+
+func listDeviceHostPastActivitiesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return listDeviceHostPastActivitiesResponse{Err: err}, nil
+	}
+
+	req := request.(*listDeviceHostPastActivitiesRequest)
+	acts, meta, err := svc.ListHostPastActivitiesForDevice(ctx, host.ID, req.ListOptions)
+	if err != nil {
+		return listDeviceHostPastActivitiesResponse{Err: err}, nil
+	}
+	if acts == nil {
+		acts = []*fleet.Activity{}
+	}
+	return listDeviceHostPastActivitiesResponse{Meta: meta, Activities: acts}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// List Current Device's Upcoming Activities
+////////////////////////////////////////////////////////////////////////////////
+
+type listDeviceHostUpcomingActivitiesRequest struct {
+	Token       string            `url:"token"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+func (r *listDeviceHostUpcomingActivitiesRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type listDeviceHostUpcomingActivitiesResponse struct {
+	Meta       *fleet.PaginationMetadata `json:"meta"`
+	Activities []*fleet.UpcomingActivity `json:"activities"`
+	Count      uint                      `json:"count"`
+	Err        error                     `json:"error,omitempty"`
+}
+
+func (r listDeviceHostUpcomingActivitiesResponse) Error() error { return r.Err }
+
+func listDeviceHostUpcomingActivitiesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return listDeviceHostUpcomingActivitiesResponse{Err: err}, nil
+	}
+
+	req := request.(*listDeviceHostUpcomingActivitiesRequest)
+	acts, meta, err := svc.ListHostUpcomingActivities(ctx, host.ID, req.ListOptions)
+	if err != nil {
+		return listDeviceHostUpcomingActivitiesResponse{Err: err}, nil
+	}
+	if acts == nil {
+		acts = []*fleet.UpcomingActivity{}
+	}
+	var count uint
+	if meta != nil {
+		count = meta.TotalResults
+	}
+	return listDeviceHostUpcomingActivitiesResponse{Meta: meta, Activities: acts, Count: count}, nil
+}

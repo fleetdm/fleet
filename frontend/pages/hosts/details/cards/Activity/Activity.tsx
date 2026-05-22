@@ -56,6 +56,9 @@ interface IActivityProps {
   canCancelActivities: boolean;
   /** When true, the Upcoming tab is disabled with a tooltip */
   isUpcomingDisabled?: boolean;
+  /** When true, hides the show-info icon on activity items whose details
+   * modal is admin-only (e.g. ran_script). Used by the My Device page. */
+  isMyDevicePage?: boolean;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -78,6 +81,7 @@ const Activity = ({
   upcomingCount,
   canCancelActivities,
   isUpcomingDisabled = false,
+  isMyDevicePage = false,
   onChangeTab,
   onNextPage,
   onPreviousPage,
@@ -153,6 +157,7 @@ const Activity = ({
                 }
                 onShowDetails={onShowDetails}
                 isError={isError}
+                isMyDevicePage={isMyDevicePage}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}
               />
@@ -184,6 +189,7 @@ const Activity = ({
                 onShowDetails={onShowDetails}
                 onCancel={onCancel}
                 isError={isError}
+                isMyDevicePage={isMyDevicePage}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}
                 canCancelActivities={canCancelActivities}

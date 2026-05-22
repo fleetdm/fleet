@@ -64,6 +64,12 @@ export default {
   DEVICE_CERTIFICATES: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/certificates`;
   },
+  DEVICE_HOST_PAST_ACTIVITIES: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/activities`;
+  },
+  DEVICE_HOST_UPCOMING_ACTIVITIES: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/activities/upcoming`;
+  },
   DEVICE_SETUP_EXPERIENCE_STATUSES: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/setup_experience/status`;
   },

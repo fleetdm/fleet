@@ -123,6 +123,24 @@ func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt a
 		return nil, nil, err
 	}
 
+	return s.listHostPastActivities(ctx, hostID, opt, true /* enrich */)
+}
+
+// ListHostPastActivitiesForDevice returns past activities for a specific host
+// in a context where the caller (e.g. a device-token-authenticated request)
+// has already established access to the host. This skips the user-mode
+// authorization checks performed by ListHostPastActivities.
+//
+// Enrichment via the user-lookup ACL is also skipped: enrichment goes through
+// the legacy Fleet user service, which requires a user subject in context and
+// would reject a device-authenticated request. The activity record already
+// stores the actor's email and name at write time, so the only field omitted
+// is the actor's gravatar URL.
+func (s *Service) ListHostPastActivitiesForDevice(ctx context.Context, hostID uint, opt api.ListOptions) ([]*api.Activity, *api.PaginationMetadata, error) {
+	return s.listHostPastActivities(ctx, hostID, opt, false /* enrich */)
+}
+
+func (s *Service) listHostPastActivities(ctx context.Context, hostID uint, opt api.ListOptions, enrich bool) ([]*api.Activity, *api.PaginationMetadata, error) {
 	applyListOptionsDefaults(&opt, "a.created_at")
 	// Convert public options to internal options
 	internalOpt := types.ListOptions{
@@ -135,9 +153,11 @@ func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt a
 		return nil, nil, ctxerr.Wrap(ctx, err, "list host past activities")
 	}
 
-	// Enrich activities with user data via ACL
-	if err := s.enrichWithUserData(ctx, activities); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "enrich activities with user data")
+	if enrich {
+		// Enrich activities with user data via ACL
+		if err := s.enrichWithUserData(ctx, activities); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "enrich activities with user data")
+		}
 	}
 
 	return activities, meta, nil

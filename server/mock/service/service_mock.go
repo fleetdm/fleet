@@ -414,6 +414,8 @@ type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt f
 
 type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) error
 
+type ListHostPastActivitiesForDeviceFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
+
 type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec) error
 
 type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error)
@@ -1519,6 +1521,9 @@ type Service struct {
 
 	CancelHostUpcomingActivityFunc        CancelHostUpcomingActivityFunc
 	CancelHostUpcomingActivityFuncInvoked bool
+
+	ListHostPastActivitiesForDeviceFunc        ListHostPastActivitiesForDeviceFunc
+	ListHostPastActivitiesForDeviceFuncInvoked bool
 
 	ApplyUserRolesSpecsFunc        ApplyUserRolesSpecsFunc
 	ApplyUserRolesSpecsFuncInvoked bool
@@ -3671,6 +3676,13 @@ func (s *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, e
 	s.CancelHostUpcomingActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.CancelHostUpcomingActivityFunc(ctx, hostID, executionID)
+}
+
+func (s *Service) ListHostPastActivitiesForDevice(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostPastActivitiesForDeviceFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostPastActivitiesForDeviceFunc(ctx, hostID, opt)
 }
 
 func (s *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRoleSpec) error {
