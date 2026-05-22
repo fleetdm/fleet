@@ -117,5 +117,5 @@ Query your fleet to check that prevention agents are installed, running, and con
 <meta name="authorFullName" value="Dan Gordon">
 <meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-13">
+<meta name="publishedOn" value="2026-03-06">
 <meta name="description" value="Learn how threat prevention protects device fleets, supports compliance, and keeps controls aligned across platforms.">

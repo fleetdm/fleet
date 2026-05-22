@@ -920,3 +920,124 @@ func TestConditionalAccessConfigValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestLoggingConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("OTEL logs with tracing is valid", func(t *testing.T) {
+		cfg := LoggingConfig{OtelLogsEnabled: true, TracingEnabled: true}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("OTEL logs without tracing is rejected", func(t *testing.T) {
+		cfg := LoggingConfig{OtelLogsEnabled: true, TracingEnabled: false}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestOsqueryConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("uuid is allowed", func(t *testing.T) {
+		cfg := OsqueryConfig{HostIdentifier: "uuid"}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("unknown value is rejected", func(t *testing.T) {
+		cfg := OsqueryConfig{HostIdentifier: "serial"}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("empty value is rejected", func(t *testing.T) {
+		cfg := OsqueryConfig{}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("direct key only is valid", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 32)}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("private_key and private_key_arn both set is rejected", func(t *testing.T) {
+		cfg := ServerConfig{
+			PrivateKey:          strings.Repeat("x", 32),
+			PrivateKeySecretArn: "test-secret-arn-placeholder",
+		}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigValidatePrivateKeyLength(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty key passes (no key configured)", func(t *testing.T) {
+		cfg := ServerConfig{}
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("32-byte key passes", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 32)}
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("under-32-byte key is rejected", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 16)}
+		called := false
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigURLPrefix(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty prefix is normalized to empty and passes validation", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: ""}
+		cfg.NormalizeURLPrefix()
+		require.Empty(t, cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("missing leading slash is normalized and passes", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "fleet"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/fleet", cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("trailing slash is normalized away", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/fleet/"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/fleet", cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("invalid character is rejected after normalization", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/fleet space"}
+		cfg.NormalizeURLPrefix()
+		called := false
+		cfg.ValidateURLPrefix(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("bare slash is rejected (preserved through normalization)", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/", cfg.URLPrefix)
+		called := false
+		cfg.ValidateURLPrefix(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}

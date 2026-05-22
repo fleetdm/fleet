@@ -3,7 +3,7 @@ import {
   IBootstrapPackageMetadata,
   IHostMdmProfile,
   IMdmProfile,
-  IMdmSSOReponse,
+  IMdmSSOResponse,
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
@@ -51,7 +51,7 @@ export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
   return profile.profile_uuid.startsWith("d");
 };
 
-interface IUpdateSetupExperienceBody {
+interface IUpdateSetupExperienceFormData {
   fleet_id?: number;
   enable_end_user_authentication?: boolean;
   lock_end_user_info?: boolean;
@@ -193,7 +193,7 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  initiateMDMAppleSSO: (params: IMDMSSOParams): Promise<IMdmSSOReponse> => {
+  initiateMDMAppleSSO: (params: IMDMSSOParams): Promise<IMdmSSOResponse> => {
     const { MDM_APPLE_SSO } = endpoints;
     return sendRequest("POST", MDM_APPLE_SSO, params);
   },
@@ -276,7 +276,9 @@ const mdmService = {
     });
   },
 
-  updateSetupExperienceSettings: (updateData: IUpdateSetupExperienceBody) => {
+  updateSetupExperienceSettings: (
+    updateData: IUpdateSetupExperienceFormData
+  ) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     const body = {
       ...updateData,
@@ -292,7 +294,7 @@ const mdmService = {
   updateReleaseDeviceSetting: (teamId: number, isEnabled: boolean) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
 
-    const body: IUpdateSetupExperienceBody = {
+    const body: IUpdateSetupExperienceFormData = {
       fleet_id: teamId,
       apple_enable_release_device_manually: isEnabled,
     };

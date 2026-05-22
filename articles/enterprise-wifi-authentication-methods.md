@@ -140,5 +140,5 @@ In practice, you'll want an inventory of device certificates (including expiry) 
 <meta name="authorFullName" value="Dan Gordon">
 <meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-21">
+<meta name="publishedOn" value="2026-03-19">
 <meta name="description" value="Learn how 802.1X enterprise Wi-Fi authentication works, compare EAP-TLS, PEAP, and EAP-TTLS, and deliver certificates via MDM.">
