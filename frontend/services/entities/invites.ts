@@ -22,7 +22,7 @@ interface IInviteSearchOptions {
   sortBy?: ISortOption[];
 }
 
-export interface IValidateInviteResp {
+export interface IValidateInviteResponse {
   invite: IInvite;
 }
 
@@ -46,7 +46,7 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  verify: (token: string): Promise<IValidateInviteResp> => {
+  verify: (token: string): Promise<IValidateInviteResponse> => {
     return sendRequest("GET", endpoints.INVITE_VERIFY(token));
   },
   loadAll: ({ globalFilter = "" }: IInviteSearchOptions) => {

@@ -8328,33 +8328,58 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	// Create windows host and enroll in MDM
 	host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
-	verifyCommands := func(wantProfiles int, status string) {
+	// verifyCommands runs a management session, drives any SCEP CSPs to completion against Fleet's
+	// SCEP proxy, ACKs the rest of the commands with the given status, and asserts the SCEP exchange
+	// succeeded (cert returned, no error). Returns the number of SCEP exchanges performed.
+	verifyCommands := func(wantProfiles int, status string) int {
 		cmds, err := mdmDevice.StartManagementSession()
 		require.NoError(t, err)
 		// profile installs + 2 protocol commands acks
 		require.Len(t, cmds, wantProfiles+2)
 		msgID, err := mdmDevice.GetCurrentMsgID()
 		require.NoError(t, err)
+
+		scepCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		handled, scepResults, _ := mdmDevice.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
+
 		atomicCmds := 0
 		for _, c := range cmds {
 			if c.Verb == "Atomic" {
 				atomicCmds++
 			}
+			if _, ok := handled[c.Cmd.CmdID.Value]; ok {
+				// Already ACKed by AppendSCEPInstallResponses. The status arg is intentionally ignored
+				// for SCEP CSPs - the helper always sends 200, matching real Windows behavior.
+				continue
+			}
+			cmdID := c.Cmd.CmdID.Value
+			verb := c.Verb
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
-				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-				Cmd:     ptr.String(c.Verb),
-				Data:    ptr.String(status),
+				CmdRef:  &cmdID,
+				Cmd:     &verb,
+				Data:    &status,
 				Items:   nil,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
 		}
 		require.Equal(t, wantProfiles, atomicCmds)
+
+		// Drain SCEP results and assert success.
+		scepCount := 0
+		for res := range scepResults {
+			scepCount++
+			require.NoError(t, res.Err, "SCEP exchange for %q failed", res.UniqueID)
+			require.NotNil(t, res.Cert, "SCEP exchange for %q returned no certificate", res.UniqueID)
+		}
+
 		cmds, err = mdmDevice.SendResponse()
 		require.NoError(t, err)
 		// the ack of the message should be the only returned command
 		require.Len(t, cmds, 1)
+		return scepCount
 	}
 
 	// Upload SCEP profile with missing CA
@@ -8408,7 +8433,8 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
 
-	verifyCommands(1, syncml.CmdStatusOK)
+	scepCount := verifyCommands(1, syncml.CmdStatusOK)
+	require.Equal(t, 1, scepCount, "SCEP exchange should have run exactly once")
 
 	// Verify profile status is Verified due to successful response
 	profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
@@ -8431,6 +8457,94 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	body, err := io.ReadAll(scepRes.Body)
 	require.NoError(t, err)
 	assert.Equal(t, scepserver.DefaultCACaps, string(body))
+}
+
+// TestWindowsHardcodedSCEPProfile covers a Windows MDM SCEP profile that uses a hardcoded SCEP
+// server URL and challenge instead of Fleet's Custom SCEP proxy variables. The test client
+// should still drive the SCEP exchange against the literal URL; Fleet's SCEP proxy is not
+// involved on this path.
+func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
+	t := s.T()
+	ctx := t.Context()
+	scepServer := scep_server.StartTestSCEPServer(t)
+	scepServerURL := scepServer.URL + "/scep"
+
+	fixtures := map[string][]byte{
+		"./Device": windowsDeviceSCEPProfileBytes,
+		"./User":   windowsUserSCEPProfileBytes,
+	}
+	for _, locPrefix := range []string{"./Device", "./User"} {
+		t.Run(locPrefix, func(t *testing.T) {
+			host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+			profileName := "HardcodedSCEPProfile" + strings.ReplaceAll(locPrefix, "/", "_")
+			profile := bytes.ReplaceAll(fixtures[locPrefix],
+				[]byte("$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_INTEGRATION"), []byte(scepServerURL))
+			profile = bytes.ReplaceAll(profile,
+				[]byte("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_INTEGRATION"), []byte("any-challenge"))
+			profile = bytes.ReplaceAll(profile,
+				[]byte("$FLEET_VAR_SCEP_RENEWAL_ID"), []byte("hardcoded-renewal"))
+
+			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+				batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+					{Name: profileName, Contents: profile},
+				}},
+				http.StatusNoContent)
+
+			s.awaitTriggerProfileSchedule(t)
+
+			cmds, err := mdmDevice.StartManagementSession()
+			require.NoError(t, err)
+			msgID, err := mdmDevice.GetCurrentMsgID()
+			require.NoError(t, err)
+
+			scepCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+			defer cancel()
+			handled, scepResults, _ := mdmDevice.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
+			for _, c := range cmds {
+				if c.Verb == fleet.CmdStatus {
+					continue
+				}
+				if _, ok := handled[c.Cmd.CmdID.Value]; ok {
+					continue
+				}
+				cmdID := c.Cmd.CmdID.Value
+				verb := c.Verb
+				status := syncml.CmdStatusOK
+				mdmDevice.AppendResponse(fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  &cmdID,
+					Cmd:     &verb,
+					Data:    &status,
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				})
+			}
+
+			scepCount := 0
+			for res := range scepResults {
+				scepCount++
+				require.NoError(t, res.Err, "SCEP exchange failed")
+				require.NotNil(t, res.Cert)
+			}
+			require.Equal(t, 1, scepCount, "expected one SCEP exchange against the hardcoded URL")
+
+			_, err = mdmDevice.SendResponse()
+			require.NoError(t, err)
+
+			profiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+			require.NoError(t, err)
+			var found bool
+			for _, p := range profiles {
+				if p.Name == profileName {
+					found = true
+					require.NotNil(t, p.Status)
+					assert.Equal(t, fleet.MDMDeliveryVerified, *p.Status)
+				}
+			}
+			require.True(t, found, "%s not found for host", profileName)
+		})
+	}
 }
 
 // This test verifies that there is no longer a race condition in apple profile resending

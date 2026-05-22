@@ -128,5 +128,5 @@ Ask to see how the solution handles evidence retention, stale-device reporting, 
 <meta name="authorFullName" value="Dan Gordon">
 <meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-12">
+<meta name="publishedOn" value="2026-03-10">
 <meta name="description" value="Continuous compliance monitoring across macOS, Windows, Linux, iPhone, iPad, Android, and ChromeOS with audit-ready evidence.">
