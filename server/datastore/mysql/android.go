@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -16,6 +17,20 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
+
+// truncateRunes returns s shortened to at most maxRunes characters, preserving the start of the
+// string. utf8mb4 VARCHAR(N) in MySQL counts characters (runes), not bytes, so we slice on runes
+// to align with the column constraint.
+func truncateRunes(s string, maxRunes int) string {
+	if len(s) <= maxRunes {
+		// Fast path: ASCII fits in maxRunes bytes -> maxRunes characters max.
+		return s
+	}
+	if utf8.RuneCountInString(s) <= maxRunes {
+		return s
+	}
+	return string([]rune(s)[:maxRunes])
+}
 
 func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
 	if !host.IsValid() {
@@ -857,9 +872,8 @@ func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestU
 	return &req, nil
 }
 
-// NewMDMAndroidCommand inserts a row into mdm_android_commands at command-issue time. The caller
-// is responsible for generating cmd.CommandUUID (mirroring the Apple/Windows callsites that
-// pre-populate the UUID before invoking the datastore method).
+// NewMDMAndroidCommand inserts a row into mdm_android_commands at command-issue time. The caller is responsible for
+// generating cmd.CommandUUID (mirroring the Apple/Windows callsites that pre-populate the UUID).
 func (ds *Datastore) NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
 	const stmt = `
 		INSERT INTO mdm_android_commands
@@ -954,9 +968,16 @@ func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Hos
 	})
 }
 
-// UpdateMDMAndroidCommandStatus updates the row at command_uuid with a new status (and optional
-// error code / message). NotFound is returned if no row matches command_uuid.
+// mdmAndroidCommandErrorMessageMaxRunes mirrors the VARCHAR(1024) limit on mdm_android_commands.error_message.
+const mdmAndroidCommandErrorMessageMaxRunes = 1024
+
+// UpdateMDMAndroidCommandStatus updates the row at command_uuid with a new status (and optional error code / message).
+// NotFound is returned if no row matches command_uuid.
 func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+	if errorMessage != nil {
+		trimmed := truncateRunes(*errorMessage, mdmAndroidCommandErrorMessageMaxRunes)
+		errorMessage = &trimmed
+	}
 	const stmt = `
 		UPDATE mdm_android_commands
 		SET status = ?, error_code = ?, error_message = ?

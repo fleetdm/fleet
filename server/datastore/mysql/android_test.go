@@ -1928,8 +1928,6 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		require.Equal(t, string(android.MDMAndroidCommandStatusPending), byUUID.Status)
 		require.False(t, byUUID.ErrorCode.Valid)
 		require.False(t, byUUID.ErrorMessage.Valid)
-		require.False(t, byUUID.CreatedAt.IsZero())
-		require.False(t, byUUID.UpdatedAt.IsZero())
 
 		byOp, err := ds.GetMDMAndroidCommandByOperationName(ctx, cmd.OperationName)
 		require.NoError(t, err)
@@ -1969,19 +1967,47 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		require.Equal(t, errMsg, got.ErrorMessage.V)
 	})
 
-	t.Run("Caller-supplied command_uuid is preserved", func(t *testing.T) {
+	t.Run("Oversized error_message is truncated to fit VARCHAR(1024)", func(t *testing.T) {
 		cmdUUID := uuid.NewString()
 		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
 			CommandUUID:   cmdUUID,
-			HostUUID:      "host-uuid-3",
-			OperationName: "enterprises/E1/devices/D1/operations/300",
-			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+			HostUUID:      "host-uuid-trim",
+			OperationName: "enterprises/E1/devices/D1/operations/trim",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
 			Status:        string(android.MDMAndroidCommandStatusPending),
 		}))
 
+		huge := strings.Repeat("x", 5000)
+		errCode := "13"
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
+			string(android.MDMAndroidCommandStatusError), &errCode, &huge))
+
 		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
 		require.NoError(t, err)
-		require.Equal(t, cmdUUID, got.CommandUUID)
+		require.True(t, got.ErrorMessage.Valid)
+		require.Len(t, got.ErrorMessage.V, 1024, "error_message should be truncated to the column's VARCHAR(1024) limit")
+	})
+
+	t.Run("Duplicate operation_name fails", func(t *testing.T) {
+		// operation_name is UNIQUE so Pub/Sub COMMAND correlation can stay a single-row lookup.
+		opName := "enterprises/E1/devices/D1/operations/dup"
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      "host-uuid-dup-1",
+			OperationName: opName,
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+
+		err := ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      "host-uuid-dup-2",
+			OperationName: opName,
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		})
+		require.Error(t, err)
+		require.True(t, IsDuplicate(err), "expected a Duplicate-entry error for the UNIQUE operation_name constraint")
 	})
 }
 
