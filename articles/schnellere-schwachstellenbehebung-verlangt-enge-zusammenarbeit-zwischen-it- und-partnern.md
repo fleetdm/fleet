@@ -51,4 +51,4 @@ McNeil bezeichnete das partnergeführte Wachstum als eine der wichtigsten strate
 <meta name="authorGitHubUsername" value="headmin">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-05-16">
-<meta name="description" value="Fleet kündigt autonome Patching-Funktionen an, die Schwachstellen-Behebungszeiten von Monaten auf Stunden verkürzen – via Partner-First-Modell.Fleet kündigt autonome Patching-Funktionen an, die Schwachstellen-Behebungszeiten von Monaten auf Stunden verkürzen – via Partner-First-Modell.">
+<meta name="description" value="Fleet kündigt autonome Patching-Funktionen an, die Schwachstellen-Behebungszeiten von Monaten auf Stunden verkürzen – via Partner-First-Modell.">
