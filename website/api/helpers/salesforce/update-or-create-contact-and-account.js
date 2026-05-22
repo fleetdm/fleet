@@ -281,35 +281,54 @@ module.exports = {
         } else {
           // Otherwise, we'll check the referer value and attempt to categorize the referer.
           let REFERRER_DOMAINS_FOR_ORGANIC_SEARCH = [
-            'https://www.google.com/',
+            'https://www.google.',      // covers all ~190 country variants (google.com, google.co.uk, google.de, etc.)
             'https://www.bing.com/',
             'https://search.yahoo.com/',
             'https://duckduckgo.com/',
             'https://www.baidu.com/',
             'https://www.ecosia.org/',
+            'https://www.startpage.com/',
+            'https://search.brave.com/',
+            'https://kagi.com/',
             'https://www.ask.com/',
             'https://www.aol.com/',
-            'https://www.startpage.com/',
+            'https://yandex.com/',
+            'https://yandex.ru/',
           ];
 
           let REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL = [
-            'https://www.facebook.com/',
-            'https://l.facebook.com/',
-            'https://www.instagram.com/',
-            'https://t.co/',
-            'https://x.com/',
             'https://www.linkedin.com/',
+            'https://linkedin.com/',
+            'https://lnkd.in/',
             'https://www.reddit.com/',
             'https://old.reddit.com/',
+            'https://news.ycombinator.com/',
+            'https://x.com/',
+            'https://twitter.com/',
+            'https://www.twitter.com/',
+            'https://t.co/',
+            'https://www.facebook.com/',
+            'https://l.facebook.com/',
+            'https://m.facebook.com/',
+            'https://www.instagram.com/',
+            'https://www.threads.net/',
+            'https://bsky.app/',
+            'https://mastodon.social/',
+            'https://fosstodon.org/',
+            'https://www.youtube.com/',
             'https://www.pinterest.com/',
             'https://www.quora.com/',
           ];
 
-          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.includes(marketingAttributionCookie.referrer)) {
+          let referrer = typeof marketingAttributionCookie.referrer === 'string'
+            ? marketingAttributionCookie.referrer
+            : '';
+
+          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.some((domain) => referrer.startsWith(domain))) {
             // If search engine » Organic search
             attributionDetails.sourceChannelDetails = 'Organic search (OS)';
             attributionDetails.campaign = 'Default-OS-Organic';
-          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.includes(marketingAttributionCookie.referrer)) {
+          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.some((domain) => referrer.startsWith(domain))) {
             // If social media » Organic social
             attributionDetails.sourceChannelDetails = 'Organic social (SOC)';
             attributionDetails.campaign = 'Default-SOC-Social';
