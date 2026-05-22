@@ -197,6 +197,7 @@ func TestHosts(t *testing.T) {
 		{"ScimUserAssociationViaHostEmails", testScimUserAssociationViaHostEmails},
 		{"GetHostsLockWipeStatusBatch", testGetHostsLockWipeStatusBatch},
 		{"GetHostLockWipeStatusAndroid", testGetHostLockWipeStatusAndroid},
+		{"GetHostsLockWipeStatusBatchAndroidMultiHost", testGetHostsLockWipeStatusBatchAndroidMultiHost},
 		{"HostTimeZone", testHostTimeZone},
 		{"ListHostsDEPFilters", testListHostsDEPFilters},
 		{"ExtendHostOrbitDebugUntil", testExtendHostOrbitDebugUntil},
@@ -13669,6 +13670,94 @@ func testGetHostLockWipeStatusAndroid(t *testing.T, ds *Datastore) {
 	require.Equal(t, string(android.MDMAndroidCommandStatusError), status.LockMDMCommandResult.Status)
 	require.False(t, status.IsLocked())
 	require.False(t, status.IsPendingLock())
+}
+
+// testGetHostsLockWipeStatusBatchAndroidMultiHost exercises GetHostsLockWipeStatusBatch with
+// multiple android hosts in different command states, so the IN(...) query and the post-query
+// status distribution loop are exercised with N>1 command_uuids -- the case the single-host
+// android tests can't reach.
+func testGetHostsLockWipeStatusBatchAndroidMultiHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	newAndroidHost := func(name string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(uuid.NewString()),
+			UUID:            uuid.NewString(),
+			Hostname:        name,
+			Platform:        "android",
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// Host A: pending lock. Host B: acknowledged lock (locked). Host C: acknowledged wipe (wiped).
+	// Host D: no host_mdm_actions row at all (must come back as zero-state without polluting
+	// other hosts' results).
+	hostA := newAndroidHost("android-batch-A-pending-lock")
+	hostB := newAndroidHost("android-batch-B-locked")
+	hostC := newAndroidHost("android-batch-C-wiped")
+	hostD := newAndroidHost("android-batch-D-no-action")
+
+	lockA := uuid.NewString()
+	require.NoError(t, ds.LockHostViaAndroidMDM(ctx, hostA, &android.MDMAndroidCommand{
+		CommandUUID:   lockA,
+		HostUUID:      hostA.UUID,
+		OperationName: "enterprises/E/devices/" + hostA.UUID + "/operations/lock-a",
+		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}))
+
+	lockB := uuid.NewString()
+	require.NoError(t, ds.LockHostViaAndroidMDM(ctx, hostB, &android.MDMAndroidCommand{
+		CommandUUID:   lockB,
+		HostUUID:      hostB.UUID,
+		OperationName: "enterprises/E/devices/" + hostB.UUID + "/operations/lock-b",
+		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}))
+	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, lockB,
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+
+	wipeC := uuid.NewString()
+	require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, hostC, &android.MDMAndroidCommand{
+		CommandUUID:   wipeC,
+		HostUUID:      hostC.UUID,
+		OperationName: "enterprises/E/devices/" + hostC.UUID + "/operations/wipe-c",
+		CommandType:   string(android.MDMAndroidCommandTypeWipe),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}))
+	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, wipeC,
+		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+
+	statusMap, err := ds.GetHostsLockWipeStatusBatch(ctx, []*fleet.Host{hostA, hostB, hostC, hostD})
+	require.NoError(t, err)
+	require.Len(t, statusMap, 4)
+
+	require.Equal(t, fleet.PendingActionLock, statusMap[hostA.ID].PendingAction(), "host A pending lock")
+	require.Equal(t, fleet.DeviceStatusUnlocked, statusMap[hostA.ID].DeviceStatus())
+
+	require.Equal(t, fleet.PendingActionNone, statusMap[hostB.ID].PendingAction(), "host B acked")
+	require.Equal(t, fleet.DeviceStatusLocked, statusMap[hostB.ID].DeviceStatus(), "host B locked")
+
+	require.Equal(t, fleet.PendingActionNone, statusMap[hostC.ID].PendingAction(), "host C wipe done")
+	require.Equal(t, fleet.DeviceStatusWiped, statusMap[hostC.ID].DeviceStatus(), "host C wiped")
+
+	require.Equal(t, fleet.PendingActionNone, statusMap[hostD.ID].PendingAction(), "host D no action")
+	require.Equal(t, fleet.DeviceStatusUnlocked, statusMap[hostD.ID].DeviceStatus(), "host D zero state")
+	require.Nil(t, statusMap[hostD.ID].LockMDMCommand, "host D must not inherit another host's command")
+	require.Nil(t, statusMap[hostD.ID].WipeMDMCommand)
+
+	// Cross-check: each populated command_uuid landed on the right host.
+	require.NotNil(t, statusMap[hostA.ID].LockMDMCommand)
+	require.Equal(t, lockA, statusMap[hostA.ID].LockMDMCommand.CommandUUID)
+	require.NotNil(t, statusMap[hostB.ID].LockMDMCommand)
+	require.Equal(t, lockB, statusMap[hostB.ID].LockMDMCommand.CommandUUID)
+	require.NotNil(t, statusMap[hostC.ID].WipeMDMCommand)
+	require.Equal(t, wipeC, statusMap[hostC.ID].WipeMDMCommand.CommandUUID)
 }
 
 func testHostTimeZone(t *testing.T, ds *Datastore) {

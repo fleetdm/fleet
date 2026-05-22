@@ -2143,11 +2143,10 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 	return statusMap, nil
 }
 
-// getHostMDMAndroidCommand returns the Fleet-shaped MDMCommand + MDMCommandResult for a
-// host_mdm_actions ref pointing at mdm_android_commands.command_uuid. Mirrors
-// getHostMDMAppleCommand / getHostMDMWindowsCommand so the GetHostLockWipeStatus consumer can
-// stay platform-agnostic. While the command is still pending (no Pub/Sub ack yet), result is nil
-// — matching how a pending Apple command leaves LockMDMCommandResult nil.
+// getHostMDMAndroidCommand returns the Fleet-shaped MDMCommand + MDMCommandResult for a host_mdm_actions ref pointing
+// at mdm_android_commands.command_uuid. Mirrors getHostMDMAppleCommand / getHostMDMWindowsCommand so the
+// GetHostLockWipeStatus consumer can stay platform-agnostic. While the command is still pending (no Pub/Sub ack yet),
+// result is nil, matching how a pending Apple command leaves LockMDMCommandResult nil.
 func (ds *Datastore) getHostMDMAndroidCommand(ctx context.Context, cmdUUID string) (*fleet.MDMCommand, *fleet.MDMCommandResult, error) {
 	cmd, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
 	if err != nil {
