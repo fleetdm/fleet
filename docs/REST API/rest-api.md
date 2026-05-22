@@ -1575,6 +1575,8 @@ None.
     ],
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
+    "allow_byod_wipe": true,
+    "allow_byod_lock": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
     "macos_updates": {
@@ -2540,6 +2542,8 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that are "Unassigned" will have disk encryption enabled if set to true. |
+| allow_byod_wipe                   | boolean | _Available in Fleet Premium._ Hosts that are "Unassigned" and manually enrolled (BYOD) can be wiped if set to true. Already-enrolled devices will have their permissions updated at the next SCEP certificate renewal. |
+| allow_byod_lock                   | boolean | _Available in Fleet Premium._ Hosts that are "Unassigned" and manually enrolled (BYOD) can be locked if set to true. Already-enrolled devices will have their permissions updated at the next SCEP certificate renewal. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
@@ -2682,6 +2686,8 @@ _Available in Fleet Premium._
     "windows_enabled_and_configured": false,
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
+    "allow_byod_wipe": true,
+    "allow_byod_lock": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
     "enable_recovery_lock_password": true,
@@ -12812,6 +12818,8 @@ _Available in Fleet Premium_
     },
     "mdm": {
       "enable_disk_encryption": true,
+      "allow_byod_wipe": true,
+      "allow_byod_lock": true,
       "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
@@ -13209,6 +13217,8 @@ Returned when the requested name only differs from another fleet's name by lette
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_disk_encryption | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin | boolean | End users on Windows hosts that belong to this fleet will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| allow_byod_wipe | boolean | _Available in Fleet Premium._ Manually enrolled (BYOD) Apple hosts that belong to this fleet can be wiped if set to true. Already-enrolled hosts will have their permissions updated at the next SCEP certificate renewal. (default: `true`) |
+| allow_byod_lock | boolean | _Available in Fleet Premium._ Manually enrolled (BYOD) Apple hosts that belong to this fleet can be locked if set to true. Already-enrolled hosts will have their permissions updated at the next SCEP certificate renewal. (default: `true`) |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates2). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates2). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
