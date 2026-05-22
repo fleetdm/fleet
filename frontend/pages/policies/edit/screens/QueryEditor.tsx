@@ -12,7 +12,11 @@ import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 import { getPathWithQueryParams } from "utilities/url";
 import { getErrorReason } from "interfaces/errors";
-import { IPolicyFormData, IPolicy } from "interfaces/policy";
+import {
+  IPolicyFormData,
+  IPolicy,
+  OtherAutomationType,
+} from "interfaces/policy";
 
 import BackButton from "components/BackButton";
 import PolicyForm from "pages/policies/edit/components/PolicyForm";
@@ -34,6 +38,7 @@ interface IQueryEditorProps {
   renderLiveQueryWarning: () => JSX.Element | null;
   teamIdForApi?: number;
   currentAutomatedPolicies?: number[];
+  otherAutomationType?: OtherAutomationType;
 }
 
 const QueryEditor = ({
@@ -52,6 +57,7 @@ const QueryEditor = ({
   renderLiveQueryWarning,
   teamIdForApi,
   currentAutomatedPolicies,
+  otherAutomationType,
 }: IQueryEditorProps): JSX.Element | null => {
   const { currentUser, isPremiumTier, filteredPoliciesPath } = useContext(
     AppContext
@@ -296,6 +302,7 @@ const QueryEditor = ({
         onClickAutofillResolution={onClickAutofillResolution}
         resetAiAutofillData={() => setPolicyAutofillData(null)}
         currentAutomatedPolicies={currentAutomatedPolicies || []}
+        otherAutomationType={otherAutomationType}
         onCancel={
           policyIdForEdit
             ? () =>
