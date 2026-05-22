@@ -30,7 +30,7 @@ Für Managed Service Provider und IT-Dienstleister ist diese Art der Berichterst
 
 Zu den sicherheitsbewussten Unternehmen, die Fleets Plattform einsetzen, um die Geräte der Mitarbeiter auf dem neuesten Stand zu halten, zählen Fastly, Uber, Cursor, Reddit und Stripe.
 
-„Die Einführung von Fleet hat die Art und Weise, wie wir Geräte verwalten, grundlegend verändert und sie in eine reibungslose Disziplin überführt, die unsere DevOps-Kultur widerspiegelt. "Wir haben vollständige, einheitliche Transparenz über Tausende von Mitarbeiter-Geräten gewonnen und erhalten täglich verlässliche Informationen über den Zustand und die Compliance unserer globalen Infrastruktur in Echtzeit", sagte Dan Jackson, Senior Manager Systems Engineering bei Fastly.
+„Die Einführung von Fleet hat die Art und Weise, wie wir Geräte verwalten, grundlegend verändert und sie in eine reibungslose Disziplin überführt, die unsere DevOps-Kultur widerspiegelt. Wir haben vollständige, einheitliche Transparenz über Tausende von Mitarbeiter-Geräten gewonnen und erhalten täglich verlässliche Informationen über den Zustand und die Compliance unserer globalen Infrastruktur in Echtzeit", sagte Dan Jackson, Senior Manager Systems Engineering bei Fastly.
 
 „Wir arbeiten vollständig frei von dem traditionellen Betriebs- und Wartungsaufwand, der uns früher gebremst hat – das Ergebnis ist eine hochsichere, effiziente und zeitgemäße IT-Umgebung", ergänzte Jackson.
 
