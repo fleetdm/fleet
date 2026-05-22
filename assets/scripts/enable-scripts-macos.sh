@@ -1,12 +1,18 @@
 #!/bin/bash
 # Please don't delete. This script is used in the guide here: https://fleetdm.com/guides/scripts
-
+plist_path="/Library/LaunchDaemons/com.fleetdm.orbit.plist"
 if [ "$EUID" -ne 0 ]; then
   echo "This script requires administrator privileges. Please run with sudo."
   exit 1
 fi
-# Enable scrippts in Orbit environment variables (plist)
-/usr/libexec/PlistBuddy -c "set EnvironmentVariables:ORBIT_ENABLE_SCRIPTS true" "/Library/LaunchDaemons/com.fleetdm.orbit.plist"
+# Check if variable currently exists
+/usr/libexec/PlistBuddy -c "Print EnvironmentVariables:ORBIT_ENABLE_SCRIPTS" "/Library/LaunchDaemons/com.fleetdm.orbit.plist" 2>/dev/null
+# Set or add plist environment variable to enable scrippts in Orbit
+if [ $? -eq 0 ]; then
+  /usr/libexec/PlistBuddy -c "set EnvironmentVariables:ORBIT_ENABLE_SCRIPTS true" "/Library/LaunchDaemons/com.fleetdm.orbit.plist"
+else
+  /usr/libexec/PlistBuddy -c "add EnvironmentVariables:ORBIT_ENABLE_SCRIPTS string true" "/Library/LaunchDaemons/com.fleetdm.orbit.plist"
+fi
 # Stop Orbit, wait for stop to complete, and then restart.
 launchctl bootout system/com.fleetdm.orbit
 while pgrep orbit > /dev/null; do sleep 1 ; done
