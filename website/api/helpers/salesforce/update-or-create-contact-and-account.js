@@ -483,6 +483,8 @@ module.exports = {
         contactValuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
         contactValuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
         contactValuesToSet.GCLID__c = attributionDetails.gclid;// eslint-disable-line camelcase
+        contactValuesToSet.Source_referrer_url__c = marketingAttributionCookie.referrer;// eslint-disable-line camelcase
+        contactValuesToSet.Most_recent_referrer_url__c = marketingAttributionCookie.referrer;// eslint-disable-line camelcase
       }
 
 
@@ -612,6 +614,7 @@ module.exports = {
           contactValuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
           contactValuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
         }
+        contactValuesToSet.Most_recent_referrer_url__c = marketingAttributionCookie.referrer;// eslint-disable-line camelcase
       }
 
 
