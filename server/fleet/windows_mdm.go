@@ -251,10 +251,8 @@ func validateLocURIFormat(locURI string) error {
 		strings.HasPrefix(trimmed, "./Vendor/")) {
 		return errors.New("<LocURI> must start with \"./Device/\", \"./User/\", or \"./Vendor/\".")
 	}
-	for _, segment := range strings.Split(strings.TrimPrefix(trimmed, "./"), "/") {
-		if segment == ".." {
-			return errors.New("<LocURI> can't contain \"..\" path traversal segments.")
-		}
+	if slices.Contains(strings.Split(strings.TrimPrefix(trimmed, "./"), "/"), "..") {
+		return errors.New("<LocURI> can't contain \"..\" path traversal segments.")
 	}
 	return nil
 }

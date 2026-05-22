@@ -543,7 +543,7 @@ func TestGetProfilesContents(t *testing.T) {
 	<integer>$FOO</integer>
 </dict>
 </plist>`
-	windowsProfile := syncMLForTest("./some/path")
+	windowsProfile := syncMLForTest("./Device/some/path")
 	windowsProfileWithBarEnv := `<Add>
   <Item>
     <Target>

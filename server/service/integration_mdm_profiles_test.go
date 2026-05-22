@@ -4842,7 +4842,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: "N2", Contents: mobileconfigForTest("N1", "I2")},
-		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N3", Contents: syncMLForTest("./Device/Foo/Bar")},
 		{Name: "N4", Contents: declarationForTest("D1")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
@@ -4851,7 +4851,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 			{Name: p, Contents: mobileconfigForTest(p, p)},
-			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+			{Name: "N3", Contents: syncMLForTest("./Device/Foo/Bar")},
 			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
@@ -4866,7 +4866,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		}
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "N1", Contents: mobileconfigForTestWithContent("N1", "I1", "II1", p, "")},
-			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+			{Name: "N3", Contents: syncMLForTest("./Device/Foo/Bar")},
 			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
@@ -4882,7 +4882,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "N1", Contents: mobileconfigForTestWithContent("N1", "I1", p, "random", "")},
-			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+			{Name: "N3", Contents: syncMLForTest("./Device/Foo/Bar")},
 			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
@@ -4893,7 +4893,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	for dt := range fleet.ForbiddenDeclTypes {
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
-			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+			{Name: "N3", Contents: syncMLForTest("./Device/Foo/Bar")},
 			{Name: "N4", Contents: declarationForTestWithType("D1", dt)},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
@@ -4902,7 +4902,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// and one more for the software update declaration
 	res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
-		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N3", Contents: syncMLForTest("./Device/Foo/Bar")},
 		{Name: "N4", Contents: declarationForTestWithType("D1", "com.apple.configuration.softwareupdate.enforcement.specific")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg := extractServerErrorText(res.Body)
@@ -4911,7 +4911,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// invalid JSON
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
-		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N3", Contents: syncMLForTest("./Device/Foo/Bar")},
 		{Name: "N4", Contents: []byte(`{"foo":}`)},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
@@ -4922,7 +4922,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: syncml.FleetBitLockerTargetLocURI, Contents: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetBitLockerTargetLocURI))},
-		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N3", Contents: syncMLForTest("./Device/Foo/Bar")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
@@ -4931,7 +4931,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 		{Name: syncml.FleetOSUpdateTargetLocURI, Contents: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetOSUpdateTargetLocURI))},
-		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N3", Contents: syncMLForTest("./Device/Foo/Bar")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Custom configuration profiles can't include Windows updates settings. To control these settings, use the mdm.windows_updates option.")
@@ -4953,7 +4953,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// successfully apply windows and macOS a profiles for the team, but it's a dry run
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
-		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N2", Contents: syncMLForTest("./Device/Foo/Bar")},
 		{Name: "N4", Contents: declarationForTest("D1")},
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", false)
@@ -4962,7 +4962,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// successfully apply for a team and verify activities
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
-		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N2", Contents: syncMLForTest("./Device/Foo/Bar")},
 		{Name: "N4", Contents: declarationForTest("D1")},
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", true)
@@ -5008,7 +5008,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// successful batch-set
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), Labels: []string{lbl1.Name, lbl2.Name}},
-		{Name: "N2", Contents: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{lbl1.Name}},
+		{Name: "N2", Contents: syncMLForTest("./Device/Foo/Bar"), LabelsIncludeAll: []string{lbl1.Name}},
 		{Name: "N4", Contents: declarationForTest("D1"), LabelsExcludeAny: []string{lbl2.Name}},
 	}}, http.StatusNoContent)
 
@@ -5036,7 +5036,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// successful batch-set that updates some labels
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), LabelsExcludeAny: []string{lbl1.Name, lbl3.Name}},
-		{Name: "N2", Contents: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{lbl2.Name}},
+		{Name: "N2", Contents: syncMLForTest("./Device/Foo/Bar"), LabelsIncludeAll: []string{lbl2.Name}},
 	}}, http.StatusNoContent)
 
 	listResp = listMDMConfigProfilesResponse{}
@@ -5063,7 +5063,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		"DataAssetReference": "com.fleet.asset.bash"
 	}}`)
 	mcBytes := mobileconfigForTest("N1", "I1")
-	winBytes := syncMLForTest("./Foo/Bar")
+	winBytes := syncMLForTest("./Device/Foo/Bar")
 
 	for _, p := range []struct {
 		payload   []fleet.MDMProfileBatchPayload
@@ -5141,7 +5141,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1")},
 		{DisplayName: "N2", Profile: mobileconfigForTest("N1", "I2")},
-		{DisplayName: "N3", Profile: syncMLForTest("./Foo/Bar")},
+		{DisplayName: "N3", Profile: syncMLForTest("./Device/Foo/Bar")},
 		{DisplayName: "N4", Profile: declarationForTest("D1")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
@@ -5150,7 +5150,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 		res := s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 			{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1")},
 			{DisplayName: p, Profile: mobileconfigForTest(p, p)},
-			{DisplayName: "N3", Profile: syncMLForTest("./Foo/Bar")},
+			{DisplayName: "N3", Profile: syncMLForTest("./Device/Foo/Bar")},
 			{DisplayName: "N4", Profile: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
@@ -5165,7 +5165,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 		}
 		res := s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 			{DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "II1", p, "")},
-			{DisplayName: "N3", Profile: syncMLForTest("./Foo/Bar")},
+			{DisplayName: "N3", Profile: syncMLForTest("./Device/Foo/Bar")},
 			{DisplayName: "N4", Profile: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
@@ -5181,7 +5181,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
 		res := s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 			{DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", p, "random", "")},
-			{DisplayName: "N3", Profile: syncMLForTest("./Foo/Bar")},
+			{DisplayName: "N3", Profile: syncMLForTest("./Device/Foo/Bar")},
 			{DisplayName: "N4", Profile: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
@@ -5192,7 +5192,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	for dt := range fleet.ForbiddenDeclTypes {
 		res := s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 			{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1")},
-			{DisplayName: "N3", Profile: syncMLForTest("./Foo/Bar")},
+			{DisplayName: "N3", Profile: syncMLForTest("./Device/Foo/Bar")},
 			{DisplayName: "N4", Profile: declarationForTestWithType("D1", dt)},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
@@ -5201,7 +5201,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	// and one more for the software update declaration
 	res := s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1")},
-		{DisplayName: "N3", Profile: syncMLForTest("./Foo/Bar")},
+		{DisplayName: "N3", Profile: syncMLForTest("./Device/Foo/Bar")},
 		{DisplayName: "N4", Profile: declarationForTestWithType("D1", "com.apple.configuration.softwareupdate.enforcement.specific")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg := extractServerErrorText(res.Body)
@@ -5210,7 +5210,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	// invalid JSON
 	res = s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1")},
-		{DisplayName: "N3", Profile: syncMLForTest("./Foo/Bar")},
+		{DisplayName: "N3", Profile: syncMLForTest("./Device/Foo/Bar")},
 		{DisplayName: "N4", Profile: []byte(`{"foo":}`)},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
@@ -5221,7 +5221,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	res = s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1")},
 		{DisplayName: syncml.FleetBitLockerTargetLocURI, Profile: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetBitLockerTargetLocURI))},
-		{DisplayName: "N3", Profile: syncMLForTest("./Foo/Bar")},
+		{DisplayName: "N3", Profile: syncMLForTest("./Device/Foo/Bar")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
@@ -5230,7 +5230,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	res = s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1")},
 		{DisplayName: syncml.FleetOSUpdateTargetLocURI, Profile: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetOSUpdateTargetLocURI))},
-		{DisplayName: "N3", Profile: syncMLForTest("./Foo/Bar")},
+		{DisplayName: "N3", Profile: syncMLForTest("./Device/Foo/Bar")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Custom configuration profiles can't include Windows updates settings. To control these settings, use the mdm.windows_updates option.")
@@ -5252,7 +5252,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	// successfully apply windows and macOS a profiles for the team, but it's a dry run
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1")},
-		{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar")},
+		{DisplayName: "N2", Profile: syncMLForTest("./Device/Foo/Bar")},
 		{DisplayName: "N4", Profile: declarationForTest("D1")},
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", false)
@@ -5261,7 +5261,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	// successfully apply for a team and verify activities
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 		{DisplayName: "NotRelevant", Profile: mobileconfigForTest("N1", "I1")}, // Check that we don't care about displayname for mobileconfig profiles
-		{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar")},
+		{DisplayName: "N2", Profile: syncMLForTest("./Device/Foo/Bar")},
 		{DisplayName: "N4", Profile: declarationForTest("D1")},
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", true)
@@ -5307,7 +5307,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	// successful batch-set
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1"), LabelsIncludeAny: []string{lbl1.Name, lbl2.Name}},
-		{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{lbl1.Name}},
+		{DisplayName: "N2", Profile: syncMLForTest("./Device/Foo/Bar"), LabelsIncludeAll: []string{lbl1.Name}},
 		{DisplayName: "N4", Profile: declarationForTest("D1"), LabelsExcludeAny: []string{lbl2.Name}},
 	}}, http.StatusNoContent)
 
@@ -5335,7 +5335,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	// successful batch-set that updates some labels
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1"), LabelsExcludeAny: []string{lbl1.Name, lbl3.Name}},
-		{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{lbl2.Name}},
+		{DisplayName: "N2", Profile: syncMLForTest("./Device/Foo/Bar"), LabelsIncludeAll: []string{lbl2.Name}},
 	}}, http.StatusNoContent)
 
 	listResp = listMDMConfigProfilesResponse{}
@@ -5362,7 +5362,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 		"DataAssetReference": "com.fleet.asset.bash"
 	}}`)
 	mcBytes := mobileconfigForTest("N1", "I1")
-	winBytes := syncMLForTest("./Foo/Bar")
+	winBytes := syncMLForTest("./Device/Foo/Bar")
 
 	for _, p := range []struct {
 		payload   []fleet.BatchModifyMDMConfigProfilePayload
@@ -5449,7 +5449,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 		"N1": mobileconfigForTest("N1", "I1"),
 		"N2": mobileconfigForTest("N1", "I2"),
-		"N3": syncMLForTest("./Foo/Bar"),
+		"N3": syncMLForTest("./Device/Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 
 	// profiles with reserved macOS identifiers
@@ -5457,7 +5457,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 			"N1": mobileconfigForTest("N1", "I1"),
 			p:    mobileconfigForTest(p, p),
-			"N3": syncMLForTest("./Foo/Bar"),
+			"N3": syncMLForTest("./Device/Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
@@ -5471,7 +5471,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		}
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 			"N1": mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
-			"N3": syncMLForTest("./Foo/Bar"),
+			"N3": syncMLForTest("./Device/Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		switch p {
@@ -5486,7 +5486,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 			"N1": mobileconfigForTestWithContent("N1", "I1", p, "random", ""),
-			"N3": syncMLForTest("./Foo/Bar"),
+			"N3": syncMLForTest("./Device/Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
 		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
@@ -5497,7 +5497,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 		"N1":                              mobileconfigForTest("N1", "I1"),
 		syncml.FleetBitLockerTargetLocURI: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetBitLockerTargetLocURI)),
-		"N3":                              syncMLForTest("./Foo/Bar"),
+		"N3":                              syncMLForTest("./Device/Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg := extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
@@ -5506,7 +5506,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 		"N1":                             mobileconfigForTest("N1", "I1"),
 		syncml.FleetOSUpdateTargetLocURI: syncMLForTest(fmt.Sprintf("%s/Foo", syncml.FleetOSUpdateTargetLocURI)),
-		"N3":                             syncMLForTest("./Foo/Bar"),
+		"N3":                             syncMLForTest("./Device/Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Custom configuration profiles can't include Windows updates settings. To control these settings, use the mdm.windows_updates option.")
@@ -5528,7 +5528,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	// successfully apply windows and macOS a profiles for the team, but it's a dry run
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 		"N1": mobileconfigForTest("N1", "I1"),
-		"N2": syncMLForTest("./Foo/Bar"),
+		"N2": syncMLForTest("./Device/Foo/Bar"),
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", false)
 	s.assertWindowsConfigProfilesByName(&tm.ID, "N1", false)
@@ -5536,7 +5536,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	// successfully apply for a team and verify activities
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 		"N1": mobileconfigForTest("N1", "I1"),
-		"N2": syncMLForTest("./Foo/Bar"),
+		"N2": syncMLForTest("./Device/Foo/Bar"),
 	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 	s.assertConfigProfilesByIdentifier(&tm.ID, "I1", true)
 	s.assertWindowsConfigProfilesByName(&tm.ID, "N2", true)
@@ -6049,7 +6049,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	// set an Apple profile and declaration and a Windows profile
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "A1", Contents: mobileconfigForTest("A1", "A1"), LabelsExcludeAny: []string{labels[0].Name, labels[1].Name}},
-		{Name: "W2", Contents: syncMLForTest("./Foo/W2"), LabelsExcludeAny: []string{labels[2].Name, labels[3].Name}},
+		{Name: "W2", Contents: syncMLForTest("./Device/Foo/W2"), LabelsExcludeAny: []string{labels[2].Name, labels[3].Name}},
 		{Name: "D3", Contents: declarationForTest("D3"), LabelsExcludeAny: []string{labels[4].Name}},
 	}}, http.StatusNoContent)
 
@@ -6171,7 +6171,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	// that the host now meets the requirement to install.
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "A1", Contents: mobileconfigForTest("A1", "A1"), LabelsExcludeAny: []string{labels[0].Name, labels[1].Name}},
-		{Name: "W2", Contents: syncMLForTest("./Foo/W2"), LabelsExcludeAny: []string{labels[2].Name}},
+		{Name: "W2", Contents: syncMLForTest("./Device/Foo/W2"), LabelsExcludeAny: []string{labels[2].Name}},
 		{Name: "D3", Contents: declarationForTest("D3"), LabelsExcludeAny: []string{labels[4].Name}},
 	}}, http.StatusNoContent)
 
@@ -6349,7 +6349,7 @@ func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 	// set up some Apple profiles and declarations and Windows profiles
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "A1", Contents: mobileconfigForTest("A1", "A1"), LabelsIncludeAny: []string{labels[0].Name, labels[1].Name}},
-		{Name: "W2", Contents: syncMLForTest("./Foo/W2"), LabelsIncludeAny: []string{labels[2].Name, labels[3].Name}},
+		{Name: "W2", Contents: syncMLForTest("./Device/Foo/W2"), LabelsIncludeAny: []string{labels[2].Name, labels[3].Name}},
 		{Name: "D3", Contents: declarationForTest("D3"), LabelsIncludeAny: []string{labels[4].Name}},
 	}}, http.StatusNoContent)
 
@@ -6871,7 +6871,7 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	// register a couple profiles for Apple and one for Windows
 	profN1 := mobileconfigForTest("N1", "I1")
 	profN2 := mobileconfigForTest("N2", "I2")
-	profN3 := syncMLForTest("./Foo/N3")
+	profN3 := syncMLForTest("./Device/Foo/N3")
 	declN4 := declarationForTest("N4")
 	batchRequest := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: profN1},

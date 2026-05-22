@@ -1777,9 +1777,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
-				{Name: "N1", Contents: syncMLForTest("./foo/bar")},
-				{Name: "N2", Contents: syncMLForTest("./baz")},
-				{Name: "N3", Contents: syncMLForTest("./zab")},
+				{Name: "N1", Contents: syncMLForTest("./Device/foo/bar")},
+				{Name: "N2", Contents: syncMLForTest("./Device/baz")},
+				{Name: "N3", Contents: syncMLForTest("./Device/zab")},
 				{Name: "N4", Contents: mobileconfigForTest("N4", "I1")},
 				{Name: "N5", Contents: mobileconfigForTest("N5", "I2")},
 				{Name: "N6", Contents: mobileconfigForTest("N6", "I3")},
@@ -1796,9 +1796,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
-				{Name: "N1", Contents: syncMLForTest("./foo/bar")},
-				{Name: "N2", Contents: syncMLForTest("./baz")},
-				{Name: "N3", Contents: syncMLForTest("./zab")},
+				{Name: "N1", Contents: syncMLForTest("./Device/foo/bar")},
+				{Name: "N2", Contents: syncMLForTest("./Device/baz")},
+				{Name: "N3", Contents: syncMLForTest("./Device/zab")},
 			},
 			``,
 			false,
@@ -1880,7 +1880,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
-				{Name: "N1", Contents: syncMLForTest("./foo/$FLEET_VAR_BOZO/bar")},
+				{Name: "N1", Contents: syncMLForTest("./Device/foo/$FLEET_VAR_BOZO/bar")},
 			},
 			"Fleet variable",
 			false,
@@ -2624,17 +2624,17 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 		// Windows
 		{
 			Name:             "WIncAll",
-			Contents:         syncMLForTest("./Foo/Bar"),
+			Contents:         syncMLForTest("./Device/Foo/Bar"),
 			LabelsIncludeAll: []string{"a", "b"},
 		},
 		{
 			Name:             "WIncAny",
-			Contents:         syncMLForTest("./Foo/Barz"),
+			Contents:         syncMLForTest("./Device/Foo/Barz"),
 			LabelsIncludeAny: []string{"a", "b"},
 		},
 		{
 			Name:             "WExclAny",
-			Contents:         syncMLForTest("./Foo/Barf"),
+			Contents:         syncMLForTest("./Device/Foo/Barf"),
 			LabelsExcludeAny: []string{"a", "b"},
 		},
 		// Declarative
