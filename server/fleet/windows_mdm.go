@@ -65,6 +65,11 @@ type windowsProfileValidator struct {
 	// contain no supported elements, such as plain text or comment-only files.
 	sawValidTopLevel bool
 
+	// Tracks whether the profile content references a Fleet secret variable.
+	// When true, the body may be a bare placeholder that expands into real
+	// SyncML at apply time, so we skip the top-level structural check.
+	containsServerSecret bool
+
 	// The decoder which is used for reading the XML tokens.
 	decoder *xml.Decoder
 
@@ -107,6 +112,8 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates boo
 	}
 
 	validator := newWindowsProfileValidator(m.SyncML, enableCustomOSUpdates)
+	validator.containsServerSecret = bytes.Contains(m.SyncML, []byte("$"+ServerSecretPrefix)) ||
+		bytes.Contains(m.SyncML, []byte("${"+ServerSecretPrefix))
 	return validator.validate()
 }
 
@@ -138,7 +145,10 @@ func (v *windowsProfileValidator) validate() error {
 		}
 	}
 
-	if !v.sawValidTopLevel {
+	// If the profile references a Fleet secret variable, the body may be
+	// (or contain) a placeholder that expands into the real SyncML at apply
+	// time, so skip the structural top-level element check here.
+	if !v.sawValidTopLevel && !v.containsServerSecret {
 		return errors.New("The file should include valid SyncML XML with at least one supported element.")
 	}
 
@@ -220,21 +230,20 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 
 	locURI := string(el)
 
+	// Surface Fleet-reserved URI errors (BitLocker, Windows updates) before
+	// the generic format check so users get the more specific message.
+	if err := validateFleetProvidedLocURI(locURI, v.enableCustomOSUpdates); err != nil {
+		return err
+	}
+
 	if err := validateLocURIFormat(locURI); err != nil {
 		return err
 	}
 
 	if v.isInExec() {
-		if err := v.scepValidator.validateExecLocURI(locURI); err != nil {
-			return err
-		}
-	} else {
-		if err := v.scepValidator.validateLocURI(locURI); err != nil {
-			return err
-		}
+		return v.scepValidator.validateExecLocURI(locURI)
 	}
-
-	return validateFleetProvidedLocURI(locURI, v.enableCustomOSUpdates)
+	return v.scepValidator.validateLocURI(locURI)
 }
 
 // validateLocURIFormat enforces that a LocURI follows the OMA-DM URI

@@ -880,7 +880,7 @@ func TestValidateUserProvided(t *testing.T) {
 		{
 			name: "LocURI with leading single slash is rejected",
 			profile: MDMWindowsConfigProfile{
-				SyncML: []byte(`<Replace><Target><LocURI>/Vendor/MSFT/BitLocker/Foo</LocURI></Target></Replace>`),
+				SyncML: []byte(`<Replace><Target><LocURI>/Foo/Bar</LocURI></Target></Replace>`),
 			},
 			wantErr: `<LocURI> must start with "./Device/", "./User/", or "./Vendor/".`,
 		},
@@ -931,6 +931,13 @@ func TestValidateUserProvided(t *testing.T) {
 			name: "LocURI with surrounding whitespace is allowed",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`<Replace><Target><LocURI>  ./Device/Custom/URI  </LocURI></Target></Replace>`),
+			},
+			wantErr: "",
+		},
+		{
+			name: "bare FLEET_SECRET reference bypasses top-level element check",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`${FLEET_SECRET_PROFILE}`),
 			},
 			wantErr: "",
 		},
