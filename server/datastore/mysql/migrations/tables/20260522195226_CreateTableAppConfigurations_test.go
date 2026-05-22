@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260429180725(t *testing.T) {
+func TestUp_20260522195226(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seed parent rows: same VPP adam_id on both platforms, and a separate

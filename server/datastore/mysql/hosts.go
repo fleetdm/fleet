@@ -2222,24 +2222,24 @@ type enrolledHostInfo struct {
 // number. Any of those fields can be left empty if not available, and it will
 // use the best match in this order:
 //   - if it matched on osquery_host_id (with osqueryID or uuid), use that host
-//   - otherwise if it matched on serial, use that host
-//   - otherwise if uuid and serial match and an Android host can be found with a matching
-//     uuid, use that host
+//   - otherwise if it is Apple MDM host and matched on serial, use that host
+//   - otherwise if the enrolling host's platform is "android" and an Android host can be found
+//     with a matching uuid, use that host
 //
 // Note that in general, all options should result in a single match anyway.
 // It's just that our DB schema doesn't enforce this (only osquery_host_id has
 // a unique constraint). Also, due to things like VMs, the serial number is not
 // guaranteed to match a single host. For that reason, we only attempt the
-// serial number lookup if Fleet MDM is enabled on the server (as we must be
+// serial number lookup if Apple MDM is enabled on the server (as we must be
 // able to match by serial in this scenario, since this is the only information
-// we get when enrolling hosts via Apple DEP or Android EMM) AND if the matched
-// host is on a supported MDM platform (darwin, ios, ipados, or android).
+// we get when enrolling hosts via Apple DEP) AND if the matched host is on a
+// supported MDM platform (darwin, ios, or ipados).
 func matchHostDuringEnrollment(
 	ctx context.Context,
 	q sqlx.QueryerContext,
 	enrollType enroll,
-	isMDMEnabled bool,
-	osqueryID, uuid, serial string,
+	isAppleMDMEnabled bool,
+	osqueryID, uuid, serial, platform string,
 ) (*enrolledHostInfo, error) {
 	type hostMatch struct {
 		ID             uint
@@ -2274,17 +2274,17 @@ func matchHostDuringEnrollment(
 	// We want to prevent orbit enrolling with an osquery identifier to be matched with the serial number.
 	orbitEnrollingWithOsqueryIdentifier := enrollType == orbitEnroll && osqueryID != ""
 
-	if serial != "" && isMDMEnabled && !orbitEnrollingWithOsqueryIdentifier {
+	// Serial-match path: Apple DEP pre-creates host records with hardware_serial set, so orbit-enroll can find them this way.
+	if serial != "" && isAppleMDMEnabled && !orbitEnrollingWithOsqueryIdentifier && platform != "android" {
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados' OR platform = 'android') ORDER BY id LIMIT 1)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') ORDER BY id LIMIT 1)`, nodeKeyColumn))
 		args = append(args, serial)
 	}
 
-	// special case for android hosts when uuid == serial. This will only work for an exact match on existing Android
-	// host UUID == enrolling device UUID.
-	if uuid != "" && serial == uuid && isMDMEnabled && !orbitEnrollingWithOsqueryIdentifier {
+	// Android-specific UUID match
+	if uuid != "" && platform == "android" && !orbitEnrollingWithOsqueryIdentifier {
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
@@ -2316,7 +2316,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		opt(enrollConfig)
 	}
 
-	isMDMEnabled := enrollConfig.IsMDMEnabled
+	isAppleMDMEnabled := enrollConfig.IsMDMEnabled
 	hostInfo := enrollConfig.HostInfo
 	orbitNodeKey := enrollConfig.OrbitNodeKey
 	teamID := enrollConfig.TeamID
@@ -2343,8 +2343,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 			// For Windows, don't match by serial number to retain legacy functionality.
 			serialToMatch = ""
 		}
-		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier,
-			hostInfo.HardwareUUID, serialToMatch)
+		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
+			hostInfo.HardwareUUID, serialToMatch, hostInfo.Platform)
 
 		// If the osquery identifier that osqueryd will use was not sent by Orbit, then use the hardware UUID as identifier
 		// (using the hardware UUID is Orbit's default behavior).
@@ -2518,7 +2518,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 		opt(enrollConfig)
 	}
 
-	isMDMEnabled := enrollConfig.IsMDMEnabled
+	isAppleMDMEnabled := enrollConfig.IsMDMEnabled
 	osqueryHostID := enrollConfig.OsqueryHostID
 	hardwareUUID := enrollConfig.HardwareUUID
 	hardwareSerial := enrollConfig.HardwareSerial
@@ -2535,7 +2535,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 		zeroTime := common_mysql.GetDefaultNonZeroTime()
 
 		var hostID uint
-		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial)
+		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isAppleMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, "")
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")

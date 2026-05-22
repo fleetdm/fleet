@@ -9,7 +9,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import usersAPI from "services/entities/users";
 import sessionsAPI from "services/entities/sessions";
-import inviteAPI, { IValidateInviteResp } from "services/entities/invites";
+import inviteAPI, { IValidateInviteResponse } from "services/entities/invites";
 import { IInvite } from "interfaces/invite";
 import { getErrorReason } from "interfaces/errors";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -43,12 +43,12 @@ const ConfirmSSOInvitePage = ({
     data: validInvite,
     error: validateInviteError,
     isLoading: isVerifyingInvite,
-  } = useQuery<IValidateInviteResp, AxiosError, IInvite>(
+  } = useQuery<IValidateInviteResponse, AxiosError, IInvite>(
     ["invite", invite_token],
     () => inviteAPI.verify(invite_token),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      select: (resp: IValidateInviteResp) => resp.invite,
+      select: (resp: IValidateInviteResponse) => resp.invite,
     }
   );
 

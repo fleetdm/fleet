@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260512173250(t *testing.T) {
+func TestUp_20260522195233(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seed hosts (the migration joins host_mdm -> hosts.uuid for backfill).
