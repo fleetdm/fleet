@@ -80,5 +80,5 @@ Start with where sensitive work actually happens and how much control you need o
 <meta name="authorFullName" value="Dan Gordon">
 <meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-21">
+<meta name="publishedOn" value="2026-03-31">
 <meta name="description" value="How endpoint DLP works on macOS, Windows, and Linux: controls to deploy, compliance evidence it generates, and rollout without alert overload.">
