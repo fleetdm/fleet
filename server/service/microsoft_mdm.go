@@ -3423,10 +3423,15 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 	// SyncML, which is gone — and the host would be stuck with an
 	// un-removable install. Re-query existence right before the upsert
 	// loops to shrink the race window to just the loop body.
+	// Sort the install profile UUIDs lexicographically so subsequent loops iterate in a deterministic order.
+	// Without this, Go's randomized map iteration delivers commands to the device in non-deterministic
+	// order; for Windows CSP nodes that use LastWrite conflict resolution, the effective setting on the
+	// device can change unpredictably between reconciler runs.
 	installProfileUUIDs := make([]string, 0, len(installTargets))
 	for profUUID := range installTargets {
 		installProfileUUIDs = append(installProfileUUIDs, profUUID)
 	}
+	slices.Sort(installProfileUUIDs)
 	stillExistingInstallProfiles, err := ds.GetExistingMDMWindowsProfileUUIDs(ctx, installProfileUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking Windows profile existence before install upsert")
@@ -3436,7 +3441,8 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 	// Variable profiles and remove commands are not pre-inserted because
 	// they require per-host or per-profile processing.
 	var bulkCommands []*fleet.MDMWindowsCommand
-	for profUUID, target := range installTargets {
+	for _, profUUID := range installProfileUUIDs {
+		target := installTargets[profUUID]
 		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
 			continue
 		}
@@ -3456,7 +3462,8 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		}
 	}
 
-	for profUUID, target := range installTargets {
+	for _, profUUID := range installProfileUUIDs {
+		target := installTargets[profUUID]
 		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
 			logger.InfoContext(ctx, "skipping Windows profile install; profile was deleted after list",
 				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
@@ -3568,7 +3575,14 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 	}
 
 	// Generate and enqueue <Delete> commands for profiles being removed from hosts.
-	for profUUID, target := range removeTargets {
+	// Sort for deterministic delivery order (see installProfileUUIDs comment above).
+	removeProfileUUIDs := make([]string, 0, len(removeTargets))
+	for profUUID := range removeTargets {
+		removeProfileUUIDs = append(removeProfileUUIDs, profUUID)
+	}
+	slices.Sort(removeProfileUUIDs)
+	for _, profUUID := range removeProfileUUIDs {
+		target := removeTargets[profUUID]
 		p, ok := profileContents[profUUID]
 		if !ok {
 			// Profile was deleted between list and fetch. (The deletion path already called cancelWindowsHostInstallsForDeletedMDMProfiles)

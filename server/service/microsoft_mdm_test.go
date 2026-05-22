@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5" //nolint:gosec // Windows MDM Auth uses MD5
 	"crypto/x509"
@@ -813,6 +814,122 @@ func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {
 		}
 	}
 	require.True(t, foundError, "Should have found a failed status update")
+}
+
+// TestReconcileWindowsProfilesDeliversInDeterministicOrder
+// When multiple Windows MDM profiles target the same host, the reconciler must deliver them in a stable, deterministic order so
+// that CSP nodes using LastWrite conflict resolution produce a predictable effective value on the device.
+func TestReconcileWindowsProfilesDeliversInDeterministicOrder(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+
+	const hostUUID = "host-uuid-1"
+	// Profile UUIDs intentionally inserted out of sorted order; the reconciler must
+	// still deliver them in sorted order on every run.
+	insertOrder := []string{"prof-e", "prof-b", "prof-d", "prof-a", "prof-c"}
+	expectedSortedOrder := []string{"prof-a", "prof-b", "prof-c", "prof-d", "prof-e"}
+
+	syncMLByUUID := make(map[string][]byte, len(insertOrder))
+	for _, profUUID := range insertOrder {
+		syncMLByUUID[profUUID] = syncMLForTest("./" + profUUID)
+	}
+
+	// Run the reconciler many times. With Go's randomized map iteration and 5 profiles (120 permutations),
+	// an unsorted implementation fails within the first few runs.
+	const runs = 10
+	var firstOrder []string
+
+	for run := 0; run < runs; run++ {
+		ds := new(mock.Store)
+		ds.GetMDMWindowsReconcileCursorFunc = func(ctx context.Context) (string, error) {
+			return "", nil
+		}
+		ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, cursor string) error {
+			return nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
+		}
+		ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, after string, batchSize int) ([]string, error) {
+			return []string{hostUUID}, nil
+		}
+		ds.ListMDMWindowsProfilesToInstallForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			payloads := make([]*fleet.MDMWindowsProfilePayload, 0, len(insertOrder))
+			for _, profUUID := range insertOrder {
+				payloads = append(payloads, &fleet.MDMWindowsProfilePayload{
+					ProfileUUID:   profUUID,
+					ProfileName:   profUUID,
+					HostUUID:      hostUUID,
+					Status:        &fleet.MDMDeliveryPending,
+					OperationType: fleet.MDMOperationTypeInstall,
+				})
+			}
+			return payloads, nil
+		}
+		ds.ListMDMWindowsProfilesToRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
+			return nil, nil
+		}
+		ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+			out := make(map[string]fleet.MDMWindowsProfileContents, len(profileUUIDs))
+			for _, u := range profileUUIDs {
+				out[u] = fleet.MDMWindowsProfileContents{SyncML: syncMLByUUID[u], Checksum: []byte("test-checksum")}
+			}
+			return out, nil
+		}
+		ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error) {
+			out := make(map[string]struct{}, len(profileUUIDs))
+			for _, u := range profileUUIDs {
+				out[u] = struct{}{}
+			}
+			return out, nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+			return nil
+		}
+		ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+			return nil
+		}
+
+		// Capture the bulk-insert order: this is the order commands land in windows_mdm_commands, which determines per-host delivery
+		// order.
+		var bulkOrder []string
+		ds.MDMWindowsBulkInsertCommandsFunc = func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error {
+			for _, c := range cmds {
+				for _, profUUID := range insertOrder {
+					if bytes.Contains(c.RawCommand, []byte("./"+profUUID)) {
+						bulkOrder = append(bulkOrder, profUUID)
+						break
+					}
+				}
+			}
+			return nil
+		}
+
+		// Capture the per-profile enqueue order.
+		var enqueueOrder []string
+		ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand,
+			payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload,
+		) error {
+			require.NotEmpty(t, payload)
+			enqueueOrder = append(enqueueOrder, payload[0].ProfileUUID)
+			return nil
+		}
+
+		require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+		require.Len(t, bulkOrder, len(insertOrder), "all profiles should be bulk-inserted")
+		require.Len(t, enqueueOrder, len(insertOrder), "all profiles should be enqueued")
+		require.Equal(t, bulkOrder, enqueueOrder, "bulk insert and enqueue must use the same order")
+
+		if run == 0 {
+			firstOrder = append([]string(nil), enqueueOrder...)
+			require.Equal(t, expectedSortedOrder, firstOrder, "delivery order must be sorted by profile UUID")
+		} else {
+			require.Equal(t, firstOrder, enqueueOrder, "delivery order must be deterministic across runs (run %d)", run)
+		}
+	}
 }
 
 func TestReconcileWindowsProfileWithCertificateFailureDoesNotAddManagedCertificate(t *testing.T) {

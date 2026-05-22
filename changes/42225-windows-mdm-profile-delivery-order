@@ -1,0 +1,1 @@
+- Fixed Windows MDM profiles being delivered to hosts in a non-deterministic order, which could cause CSP nodes using `LastWrite` conflict resolution to produce unpredictable effective values across reconciler runs.
