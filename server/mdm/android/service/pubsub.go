@@ -232,16 +232,15 @@ func (svc *Service) ackOrRetryUnknownAndroidOperation(ctx context.Context, opNam
 // Operation names look like `enterprises/X/devices/Y/operations/Z`; we return Y. Returns "" if
 // the format doesn't match.
 func deviceIDFromOperationName(opName string) string {
-	devIdx := strings.Index(opName, "/devices/")
-	if devIdx < 0 {
+	_, rest, ok := strings.Cut(opName, "/devices/")
+	if !ok {
 		return ""
 	}
-	rest := opName[devIdx+len("/devices/"):]
-	opIdx := strings.Index(rest, "/operations/")
-	if opIdx <= 0 {
+	deviceID, _, ok := strings.Cut(rest, "/operations/")
+	if !ok || deviceID == "" {
 		return ""
 	}
-	return rest[:opIdx]
+	return deviceID
 }
 
 // googleStatusCode renders the int64 status code from googlerpc.Status into a short identifier
