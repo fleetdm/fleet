@@ -16,7 +16,7 @@
               <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
             </div>
           </div>
-        </div><%/* landing-page-hero */%>
+        </div>
         <div purpose="top-section">
           <div purpose="page-section">
             <div purpose="section-with-image" class="reverse">
@@ -40,7 +40,6 @@
                   </div>
                 </div>
                 <div>
-                <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
                 </div>
               </div>
               <div purpose="section-image">
@@ -58,7 +57,7 @@
                   <h5>Open source and transparent</h5>
                 </div>
                 <div purpose="feature-text">
-                  <p>Fleet's source code is public. See exactly how devices are managed and how the agent works. End users can see what data Fleet collects from their device directly in <a href="TODO">Fleet Desktop</a>.</p>
+                  <p>Fleet's source code is public. See exactly how devices are managed and how the agent works. End users can see what data Fleet collects from their device directly in <a href="/guides/fleet-desktop">Fleet Desktop</a>.</p>
                 </div>
               </div>
               <div purpose="feature-item">
@@ -67,7 +66,7 @@
                   <h5>Infrastructure as code</h5>
                 </div>
                 <div purpose="feature-text">
-                  <p>Store your Linux device configuration in Git. <a href="TODO">Propose changes with pull requests</a>, require peer review before anything reaches a device, and roll back instantly if needed. Every change is tracked, attributed, and reversible.</p>
+                  <p>Store your Linux device configuration in Git. <a href="/infrastructure-as-code">Propose changes with pull requests</a>, require peer review before anything reaches a device, and roll back instantly if needed. Every change is tracked, attributed, and reversible.</p>
                 </div>
               </div>
               <div purpose="feature-item">
@@ -90,9 +89,10 @@
               </div>
             </div>
           </div>
-        </div><%/* purpose="top-section" 120px gap */%>
-      </div> <%/* purpose="hero-and-top-section" 160px gap */%>
-      <div purpose="page-section">
+        </div>
+      </div>
+
+      <div>
         <div purpose="quote-and-logos">
           <div purpose="section-quote">
             <div purpose="quote-author-image">
@@ -161,6 +161,7 @@
           </div>
         </div>
       </div>
+
       <div purpose="features-section">
         <div purpose="section-heading">
           <h2>Visibility and control</h2>
@@ -233,7 +234,7 @@
             <h3>New ways of working with AI</h3>
             <p>Describe a configuration change in natural language. Fleet's GitOps workflow turns it into a reviewable pull request. A human reviews and approves before anything reaches a device.</p>
             <div purpose="button-row">
-              <a purpose="cta-button" class="btn btn-primary" href="/contact">Manage devices as code</a>
+              <a purpose="cta-button" class="btn btn-primary" href="/infrastructure-as-code">Manage devices as code</a>
             </div>
           </div>
           <div purpose="section-image">
@@ -243,10 +244,11 @@
       </div>
     </div>
   </div>
+
   <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
-      <div purpose="section-heading" class="mx-auto text-center">
-        <h2 class="mb-3">What people are saying</h2>
-      </div>
+    <div purpose="section-heading" class="mx-auto text-center">
+      <h2 class="mb-3">What people are saying</h2>
+    </div>
   </div>
   <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
 
