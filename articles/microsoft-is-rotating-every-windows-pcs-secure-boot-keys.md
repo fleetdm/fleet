@@ -30,7 +30,7 @@ There are also three failure modes that admins need to be able to see at a glanc
 
 - **Secure Boot is disabled.** The rollout cannot run on a device with Secure Boot turned off. Until an admin enables it in UEFI, the device makes no progress.  
 - **The OEM never shipped a PK-signed KEK update.** Some firmware vendors haven't provisioned the slot Windows needs to write the new KEK 2023 into. The device throws Event 1803 and waits for an OEM firmware update that may never arrive.  
-- **A known firmware issue is blocking the update.** Microsoft identifies these as KI_<number> codes and blocks the rollout on affected firmware versions. The device throws Event 1802.
+- **A known firmware issue is blocking the update.** Microsoft identifies these as KI_`number` codes and blocks the rollout on affected firmware versions. The device throws Event 1802.
 
 For a managed fleet, all three of these are conditions that the natural rollout can't resolve on its own. You need to see them, count them, and decide whether to apply the manual AvailableUpdates override or chase the OEM for firmware.
 
@@ -85,7 +85,7 @@ This is by no means an exhaustive list of things you can query with this table. 
 
 Microsoft provides a couple of ways to handle this upgrade. The first is Intune via the **Enable Secure Boot Certificate** Updates settings, which also offers a few other options. You can always go the way of modifying registry keys, especially the **HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecureBoot** key. Set the AvailableUpdates DWORD to 0x5944. You'll want to monitor the UEFICA2023Status and UEFICA2023Error to see that the devices are making progress. (The osquery extension surfaces this information).
 
-Lastly, and the way that I would recommend, is via a CSP. You can find an [example profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/configuration-profiles/secureboot-update.xml) here. Setting the CSP value to ***22852** (decimal for 0x5944) writes **AvailableUpdatesPolicy** in the registry. The next time the **Microsoft\Windows\PI\Secure-Boot-Update** scheduled task runs (every ~12 hours), Windows copies that policy value into the active **AvailableUpdates** and starts applying the stages in order.
+Lastly, and the way that I would recommend, is via a CSP. You can find an [example profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/configuration-profiles/secureboot-update.xml) here. Setting the CSP value to **22852** (decimal for 0x5944) writes **AvailableUpdatesPolicy** in the registry. The next time the **Microsoft\Windows\PI\Secure-Boot-Update** scheduled task runs (every ~12 hours), Windows copies that policy value into the active **AvailableUpdates** and starts applying the stages in order.
 
 ### What's next?
 
