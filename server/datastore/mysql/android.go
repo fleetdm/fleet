@@ -857,12 +857,10 @@ func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestU
 	return &req, nil
 }
 
-// NewMDMAndroidCommand inserts a row into mdm_android_commands at command-issue time. Caller may
-// leave CommandUUID empty to have a fresh UUID generated and written back into the struct.
+// NewMDMAndroidCommand inserts a row into mdm_android_commands at command-issue time. The caller
+// is responsible for generating cmd.CommandUUID (mirroring the Apple/Windows callsites that
+// pre-populate the UUID before invoking the datastore method).
 func (ds *Datastore) NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
-	if cmd.CommandUUID == "" {
-		cmd.CommandUUID = uuid.NewString()
-	}
 	const stmt = `
 		INSERT INTO mdm_android_commands
 			(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message)
@@ -928,11 +926,8 @@ func (ds *Datastore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host
 
 // issueAndroidHostMDMRef performs the two-write transaction shared by LockHostViaAndroidMDM and
 // WipeHostViaAndroidMDM. refColumn is hard-coded by callers (never user input) so the
-// fmt.Sprintf into the SQL stays safe.
+// fmt.Sprintf into the SQL stays safe. The caller is responsible for populating cmd.CommandUUID.
 func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, refColumn string) error {
-	if cmd.CommandUUID == "" {
-		cmd.CommandUUID = uuid.NewString()
-	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertCmdStmt = `
 			INSERT INTO mdm_android_commands

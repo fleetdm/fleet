@@ -1911,6 +1911,7 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 
 	t.Run("Insert, read by both keys, then transition to acknowledged", func(t *testing.T) {
 		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
 			HostUUID:      "host-uuid-1",
 			OperationName: "enterprises/E1/devices/D1/operations/100",
 			CommandType:   string(android.MDMAndroidCommandTypeLock),
@@ -1918,7 +1919,6 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		}
 
 		require.NoError(t, ds.NewMDMAndroidCommand(ctx, cmd))
-		require.NotEmpty(t, cmd.CommandUUID, "NewMDMAndroidCommand should auto-generate command_uuid when empty")
 
 		byUUID, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
 		require.NoError(t, err)
@@ -2002,13 +2002,13 @@ func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
 
 	t.Run("Lock writes both rows atomically and reports pending", func(t *testing.T) {
 		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.UUID,
 			OperationName: "enterprises/E/devices/D/operations/lock-1",
 			CommandType:   string(android.MDMAndroidCommandTypeLock),
 			Status:        string(android.MDMAndroidCommandStatusPending),
 		}
 		require.NoError(t, ds.LockHostViaAndroidMDM(ctx, host, cmd))
-		require.NotEmpty(t, cmd.CommandUUID, "helper must populate command_uuid when missing")
 
 		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
 		require.NoError(t, err)
@@ -2023,6 +2023,7 @@ func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
 
 	t.Run("Wipe overwrites wipe_ref on subsequent calls (re-queue)", func(t *testing.T) {
 		first := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.UUID,
 			OperationName: "enterprises/E/devices/D/operations/wipe-1",
 			CommandType:   string(android.MDMAndroidCommandTypeWipe),
@@ -2031,6 +2032,7 @@ func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, host, first))
 
 		second := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.UUID,
 			OperationName: "enterprises/E/devices/D/operations/wipe-2",
 			CommandType:   string(android.MDMAndroidCommandTypeWipe),

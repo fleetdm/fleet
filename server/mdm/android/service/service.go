@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
 )
@@ -889,6 +890,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		// Persist the row but don't write wipe_ref — BYO unenroll surfaces as the mdm_unenrolled
 		// activity (existing behavior), not as a wipe in the UI.
 		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.UUID,
 			OperationName: op.Name,
 			CommandType:   string(android.MDMAndroidCommandTypeWipe),
@@ -982,6 +984,7 @@ func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
 	}
 
 	cmd := &android.MDMAndroidCommand{
+		CommandUUID:   uuid.NewString(),
 		HostUUID:      host.UUID,
 		OperationName: op.Name,
 		CommandType:   string(android.MDMAndroidCommandTypeLock),
@@ -1019,6 +1022,7 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (stri
 	}
 
 	cmd := &android.MDMAndroidCommand{
+		CommandUUID:   uuid.NewString(),
 		HostUUID:      host.UUID,
 		OperationName: op.Name,
 		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
@@ -1054,6 +1058,7 @@ func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 	}
 
 	cmd := &android.MDMAndroidCommand{
+		CommandUUID:   uuid.NewString(),
 		HostUUID:      host.UUID,
 		OperationName: op.Name,
 		CommandType:   string(android.MDMAndroidCommandTypeWipe),
