@@ -44,12 +44,12 @@ During setup, the end user's local account is created as either an **admin** or 
 
 | Capability | Admin | Standard |
 | --- | --- | --- |
-| Install system-wide software | Yes | No |
-| Change system settings (e.g. network, firewall, date/time) | Yes | No |
-| Create, modify, or delete other user accounts | Yes | No |
-| Access and modify all files on the device | Yes | No |
-| Run applications from their own user space | Yes | Yes |
-| Use peripherals and personal settings | Yes | Yes |
+| Install system-wide software | ✅ |  |
+| Change system settings (e.g. network, firewall, date/time) | ✅ |  |
+| Create, modify, or delete other user accounts | ✅ |  |
+| Access and modify all files on the device | ✅ |  |
+| Run applications from their own user space | ✅ | ✅ |
+| Use peripherals and personal settings | ✅ | ✅ |
 
 These capabilities apply across macOS, Windows, and Linux. On all three platforms, standard accounts are restricted from making system-level changes, while admin accounts have full control over the device.
 
