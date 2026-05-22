@@ -18,8 +18,5 @@
     "diff": "8.0.3",
     "dotenv": "16.6.1",
     "js-yaml": "4.1.1"
-  },
-  "resolutions": {
-    "**/axios": "1.15.2"
   }
 }
