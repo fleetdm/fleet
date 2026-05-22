@@ -24,6 +24,8 @@ export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
     license: createMockLicense(),
     org_logo_url: "",
     org_logo_url_light_background: "",
+    org_logo_url_dark_mode: "",
+    org_logo_url_light_mode: "",
     global_config: {
       mdm: { enabled_and_configured: false },
     },
@@ -38,6 +40,8 @@ export const customDeviceHandler = (overrides?: Partial<IDUPDetails>) =>
         license: createMockLicense(),
         org_logo_url: "",
         org_logo_url_light_background: "",
+        org_logo_url_dark_mode: "",
+        org_logo_url_light_mode: "",
         global_config: {
           mdm: { enabled_and_configured: false },
         },
