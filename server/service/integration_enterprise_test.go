@@ -27924,6 +27924,24 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, name, policy.Name)
 	}
 
+	checkPolicyInstaller := func(policyID uint, version string) {
+		var row struct {
+			Version  string `db:"version"`
+			IsActive bool   `db:"is_active"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT si.version, si.is_active
+				 FROM policies p
+				 JOIN software_installers si ON si.id = p.software_installer_id
+				 WHERE p.id = ?`,
+				policyID,
+			)
+		})
+		require.Equal(t, version, row.Version)
+		require.True(t, row.IsActive)
+	}
+
 	createHostPolicyResults := func(host *fleet.Host, policy *fleet.Policy) {
 		distributedResp := submitDistributedQueryResultsResponse{}
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
@@ -28247,6 +28265,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 		// This is only set if the automation is enable
 		require.Equal(t, title.ID, listPolResp.Policies[0].InstallSoftware.SoftwareTitleID)
+		checkPolicyInstaller(listPolResp.Policies[0].ID, "1.0")
 
 		// Now disable the automation
 		spec = &fleet.PolicySpec{
@@ -28325,6 +28344,38 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
+
+		// Test 4: FMA upgraded again with two versions already cached.
+		spec = &fleet.PolicySpec{
+			Name:                   "team patch policy",
+			Query:                  "SELECT 1",
+			Team:                   team.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "zoom/windows",
+			SoftwareTitleID:        new(title.ID),
+		}
+
+		resetFMAState(states["/zoom/windows.json"], "1.3", []byte("ghi"), "")
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+		applyResp = fleet.ApplyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			fleet.ApplyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+			http.StatusOK, &applyResp,
+		)
+		title = getActiveTitleForTeam(team.ID, "zoom")
+
+		listPolResp = fleet.ListTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		require.Len(t, listPolResp.Policies, 1)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.3", title.ID)
+		checkPolicyInstaller(listPolResp.Policies[0].ID, "1.3")
 	})
 
 	t.Run("override and empty queries behave the same", func(t *testing.T) {
