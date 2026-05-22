@@ -262,7 +262,7 @@ module.exports = {
 
       attributionDetails.initialUrl = marketingAttributionCookie.initialUrl;
 
-      attributionDetails.referrer = marketingAttributionCookie.referrer ? marketingAttributionCookie.referrer : undefined;
+      attributionDetails.referrer = marketingAttributionCookie.referrer;
 
       if(['cpc','ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
         // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
