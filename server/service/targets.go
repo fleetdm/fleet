@@ -218,10 +218,8 @@ func (svc *Service) SearchTargets(ctx context.Context, matchQuery string, queryI
 		return nil, err
 	}
 
-	// Strip secrets and agent options from target search results.
+	// Strip unnecessary info from target search results.
 	// The target picker only needs team ID, name, and host count.
-	// Returning these fields would leak enroll secrets and potentially
-	// credential-bearing agent options to observer-class users.
 	for _, t := range teams {
 		t.Secrets = nil
 		t.Config.AgentOptions = nil
