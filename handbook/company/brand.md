@@ -188,7 +188,7 @@ Use imagery to support messaging and communicate value. Images range from hero i
 
 ### Cloud City
 
-Cloud City is a symbol of openness and transparency. Its innumerable islands float gracefully among the clouds. Each independent yet interoperable as a whole. Cloud City’s beautiful, open vistas can span for miles, and its waterfalls are like no other. Never overcrowded, the small clusters of glass domains spread throughout the islands play host to communities of Fleet users – as well as an extraordinary population of swans.
+Cloud City is a symbol of openness and clarity. Its innumerable islands float gracefully among the clouds. Each independent yet interoperable as a whole. Cloud City’s beautiful, open vistas can span for miles, and its waterfalls are like no other. Never overcrowded, the small clusters of glass domains spread throughout the islands play host to communities of Fleet users – as well as an extraordinary population of swans.
 
 Cloud City scenes often include:
 

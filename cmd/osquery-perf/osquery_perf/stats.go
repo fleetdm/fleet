@@ -15,6 +15,9 @@ type Stats struct {
 	mdmSessions                int
 	distributedWrites          int
 	mdmCommandsReceived        int
+	mdmSCEPRequests            int
+	mdmSCEPSuccess             int
+	mdmSCEPErrors              int
 	distributedReads           int
 	configRequests             int
 	configErrors               int
@@ -120,6 +123,24 @@ func (s *Stats) IncrementMDMErrors() {
 	s.l.Lock()
 	defer s.l.Unlock()
 	s.mdmErrors++
+}
+
+func (s *Stats) IncrementMDMSCEPRequests() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.mdmSCEPRequests++
+}
+
+func (s *Stats) IncrementMDMSCEPSuccess() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.mdmSCEPSuccess++
+}
+
+func (s *Stats) IncrementMDMSCEPErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.mdmSCEPErrors++
 }
 
 func (s *Stats) IncrementDDMTokensErrors() {
@@ -244,7 +265,7 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, ddm tokens success: %d, ddm tokens errors: %d, ddm declaration items success: %d, ddm declaration items errors: %d, ddm activation success: %d, ddm activation errors: %d, ddm configuration success: %d, ddm configuration errors: %d, ddm status success: %d, ddm status errors: %d, buffered logs: %d, script execs (errs): %d (%d), software installs (errs): %d (%d)",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, mdm scep requests: %d, mdm scep success: %d, mdm scep errors: %d, ddm tokens success: %d, ddm tokens errors: %d, ddm declaration items success: %d, ddm declaration items errors: %d, ddm activation success: %d, ddm activation errors: %d, ddm configuration success: %d, ddm configuration errors: %d, ddm status success: %d, ddm status errors: %d, buffered logs: %d, script execs (errs): %d (%d), software installs (errs): %d (%d)",
 		time.Since(s.StartTime).Round(time.Second),
 		float64(s.errors)/float64(s.osqueryEnrollments),
 		s.osqueryEnrollments,
@@ -263,6 +284,9 @@ func (s *Stats) Log() {
 		s.orbitErrors,
 		s.desktopErrors,
 		s.mdmErrors,
+		s.mdmSCEPRequests,
+		s.mdmSCEPSuccess,
+		s.mdmSCEPErrors,
 		s.ddmTokensSuccess,
 		s.ddmTokensErrors,
 		s.ddmDeclarationItemsSuccess,

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.0.0.12322",
+      "version": "7.0.5.12655",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.ZoomPresence';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.ZoomPresence' AND version_compare(bundle_short_version, '7.0.0.12322') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.ZoomPresence' AND version_compare(bundle_short_version, '7.0.5.12655') < 0);"
       },
-      "installer_url": "https://cdn.zoom.us/prod/7.0.0.12322/ZoomRooms.pkg",
+      "installer_url": "https://cdn.zoom.us/prod/7.0.5.12655/ZoomRooms.pkg",
       "install_script_ref": "6eed23df",
       "uninstall_script_ref": "69330f9d",
-      "sha256": "c35229e6066732aec7f26b762d0f2d43ab7b8270e512fbabe5bbb77a9c714bbc",
+      "sha256": "8fb2ab355a5bdd0acdae3c6e0f10d8d41556a3011478f4faf6198dcad96dd0d1",
       "default_categories": [
         "Communication"
       ]
