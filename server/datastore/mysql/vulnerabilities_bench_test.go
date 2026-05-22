@@ -120,8 +120,8 @@ func seedVulnPerfData(tb testing.TB, ds *Datastore, sz benchSize) {
 		"INSERT INTO software (id, name, version, source, title_id, checksum) VALUES ",
 		sz.numSoftware, 6, func(i int) []any {
 			checksum := make([]byte, 16)
-			for j := 0; j < 8; j++ {
-				checksum[j] = byte((i + 1) >> (8 * j))
+			for j := range 8 {
+				checksum[j] = byte(uint(i+1) >> (8 * j))
 			}
 			return []any{
 				i + 1,
@@ -156,7 +156,7 @@ func seedVulnPerfData(tb testing.TB, ds *Datastore, sz benchSize) {
 	seen := make(map[swcve]struct{})
 	for i := 0; i < sz.numSoftware; i++ {
 		n := r.IntN(sz.cvesPerSW + 1)
-		for j := 0; j < n; j++ {
+		for range n {
 			p := swcve{swID: i + 1, cve: fmt.Sprintf("CVE-2024-%07d", r.IntN(sz.numCVEs))}
 			if _, ok := seen[p]; ok {
 				continue
@@ -255,10 +255,7 @@ func batchInsert(
 	const rowsPerStmt = 500
 	placeholder := "(" + strings.Repeat("?,", cols-1) + "?)"
 	for start := 0; start < n; start += rowsPerStmt {
-		end := start + rowsPerStmt
-		if end > n {
-			end = n
-		}
+		end := min(start+rowsPerStmt, n)
 		parts := make([]string, 0, end-start)
 		args := make([]any, 0, (end-start)*cols)
 		for i := start; i < end; i++ {
@@ -335,7 +332,7 @@ func BenchmarkListVulnerabilities(b *testing.B) {
 			name: "team_cvss_score_page0",
 			opt: fleet.VulnListOptions{
 				IsEE:   true,
-				TeamID: ptrUint(benchTeamID),
+				TeamID: new(benchTeamID),
 				ListOptions: fleet.ListOptions{
 					OrderKey:        "cvss_score",
 					OrderDirection:  fleet.OrderDescending,
@@ -348,7 +345,7 @@ func BenchmarkListVulnerabilities(b *testing.B) {
 			name: "team_exploit_page0",
 			opt: fleet.VulnListOptions{
 				IsEE:         true,
-				TeamID:       ptrUint(benchTeamID),
+				TeamID:       new(benchTeamID),
 				KnownExploit: true,
 				ListOptions: fleet.ListOptions{
 					OrderKey:        "cvss_score",
@@ -373,8 +370,6 @@ func BenchmarkListVulnerabilities(b *testing.B) {
 	}
 }
 
-func ptrUint(v uint) *uint { return &v }
-
 func BenchmarkCountVulnerabilities(b *testing.B) {
 	ds := CreateMySQLDS(b)
 	sz := pickBenchSize(b)
@@ -390,8 +385,8 @@ func BenchmarkCountVulnerabilities(b *testing.B) {
 			IsEE:        true,
 			ListOptions: fleet.ListOptions{MatchQuery: "CVE-2024-0001"},
 		}},
-		{"team_no_filter", fleet.VulnListOptions{IsEE: true, TeamID: ptrUint(benchTeamID)}},
-		{"team_exploit", fleet.VulnListOptions{IsEE: true, TeamID: ptrUint(benchTeamID), KnownExploit: true}},
+		{"team_no_filter", fleet.VulnListOptions{IsEE: true, TeamID: new(benchTeamID)}},
+		{"team_exploit", fleet.VulnListOptions{IsEE: true, TeamID: new(benchTeamID), KnownExploit: true}},
 	}
 
 	for _, c := range cases {
@@ -494,7 +489,7 @@ func BenchmarkListSoftwareVersions(b *testing.B) {
 		{
 			name: "team_vulnerable_page0",
 			opt: fleet.SoftwareListOptions{
-				TeamID:           ptrUint(benchTeamID),
+				TeamID:           new(benchTeamID),
 				VulnerableOnly:   true,
 				WithHostCounts:   true,
 				IncludeCVEScores: true,
@@ -511,7 +506,7 @@ func BenchmarkListSoftwareVersions(b *testing.B) {
 			// floor + vulnerable + search.
 			name: "team_full_customer_pattern_page0",
 			opt: fleet.SoftwareListOptions{
-				TeamID:           ptrUint(benchTeamID),
+				TeamID:           new(benchTeamID),
 				VulnerableOnly:   true,
 				KnownExploit:     true,
 				MinimumCVSS:      3,
@@ -559,10 +554,10 @@ func BenchmarkCountSoftware(b *testing.B) {
 			VulnerableOnly: true, MinimumCVSS: 3, IncludeCVEScores: true,
 		}},
 		{"team_vulnerable", fleet.SoftwareListOptions{
-			TeamID: ptrUint(benchTeamID), VulnerableOnly: true,
+			TeamID: new(benchTeamID), VulnerableOnly: true,
 		}},
 		{"team_vulnerable_exploit", fleet.SoftwareListOptions{
-			TeamID: ptrUint(benchTeamID), VulnerableOnly: true,
+			TeamID: new(benchTeamID), VulnerableOnly: true,
 			KnownExploit: true, IncludeCVEScores: true,
 		}},
 	}
