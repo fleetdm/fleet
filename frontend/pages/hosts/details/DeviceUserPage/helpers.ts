@@ -47,6 +47,20 @@ export const isSoftwareScriptSetup = (s: ISetupStep) => {
   return s.source === "sh_packages" || s.source === "ps1_packages";
 };
 
+// Hosts after enrollment during which we suppress the "host is offline" banner.
+// Orbit endpoints do not update host_seen_times, so a freshly enrolled host can appear offline
+// until its first osquery distributed-read check-in (typically within 5-10 minutes).
+const RECENTLY_ENROLLED_THRESHOLD_MS = 10 * 60 * 1000;
+
+export const isRecentlyEnrolled = (
+  lastEnrolledAt: string | undefined
+): boolean => {
+  if (!lastEnrolledAt) return false;
+  const enrolledAt = new Date(lastEnrolledAt).getTime();
+  if (isNaN(enrolledAt)) return false;
+  return Date.now() - enrolledAt < RECENTLY_ENROLLED_THRESHOLD_MS;
+};
+
 // Same solution as defined in /templates/enroll-ota.html (https://github.com/fleetdm/fleet/pull/26592)
 export const isIPhone = (navigator: Navigator) =>
   /iPhone/i.test(navigator.userAgent);

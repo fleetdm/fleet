@@ -67,6 +67,7 @@ import {
   isSoftwareScriptSetup,
   isIPhone,
   isIPad,
+  isRecentlyEnrolled,
 } from "./helpers";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -295,10 +296,15 @@ const DeviceUserPage = ({
           if (!refetchStartTime) {
             // Here and below: iOS/iPadOS refetches use MDM commands which can be slower/less predictable
             // than osquery. Don't show an error, just reset and let the user try again.
+            // Recently enrolled hosts are also exempted: orbit endpoints don't update host_seen_times,
+            // so a fresh host can read as offline until its first osquery distributed-read.
             const isIOSOrIPadOS =
               responseHost.platform === "ios" ||
               responseHost.platform === "ipados";
-            if (responseHost.status === "online" || isIOSOrIPadOS) {
+            const skipOfflineBanner =
+              isIOSOrIPadOS ||
+              isRecentlyEnrolled(responseHost.last_enrolled_at);
+            if (responseHost.status === "online" || skipOfflineBanner) {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchDupDetails();
@@ -317,7 +323,10 @@ const DeviceUserPage = ({
               const isIOSOrIPadOS =
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
-              if (responseHost.status === "online" || isIOSOrIPadOS) {
+              const skipOfflineBanner =
+                isIOSOrIPadOS ||
+                isRecentlyEnrolled(responseHost.last_enrolled_at);
+              if (responseHost.status === "online" || skipOfflineBanner) {
                 setTimeout(() => {
                   refetchDupDetails();
                   refetchExtensions();
