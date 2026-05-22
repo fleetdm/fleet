@@ -111,11 +111,9 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates boo
 	}
 
 	validator := newWindowsProfileValidator(m.SyncML, enableCustomOSUpdates)
-	// Substring match for the secret prefix (matches Apple's check in
-	// server/service/mdm.go). A literal "FLEET_SECRET_" appearing in profile
-	// data with no "$" sigil would also flip this flag, but the only
-	// consequence is skipping the top-level element check on that upload,
-	// which is acceptable.
+	// Substring match for the secret prefix. A literal "FLEET_SECRET_" appearing in profile data with no "$" sigil would
+	// also flip this flag, but the only consequence is skipping the top-level element check on that upload, which is
+	// acceptable.
 	validator.containsServerSecret = bytes.Contains(m.SyncML, []byte(ServerSecretPrefix))
 	return validator.validate()
 }
@@ -221,9 +219,8 @@ func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) error {
 		v.currentTopLevelElement = ""
 	}
 
-	// An empty <LocURI></LocURI> produces no CharData token, so we catch it
-	// here when the close tag fires before any content. Whitespace-only
-	// content is rejected in validateLocURIFormat.
+	// An empty <LocURI></LocURI> produces no CharData token, so we catch it here when the close tag fires before any
+	// content. Whitespace-only content is rejected in validateLocURIFormat.
 	if elementName == "LocURI" && !v.locURIHasContent {
 		v.currentElement = ""
 		return errors.New("<LocURI> can't be empty.")
