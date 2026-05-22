@@ -940,8 +940,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	ctx := context.Background()
 
 	testProfiles := []fleet.MDMProfileBatchPayload{
-		{Name: "N1", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "./L1", Data: "D1"}})},
-		{Name: "N2", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "./L2", Data: "D2"}, {Verb: "Add", LocURI: "./L3", Data: "D3"}})},
+		{Name: "N1", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
+		{Name: "N2", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L2", Data: "D2"}, {Verb: "Add", LocURI: "L3", Data: "D3"}})},
 	}
 
 	h, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1078,7 +1078,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				}
 
 				status := syncml.CmdStatusOK
-				if len(c.Cmd.ReplaceCommands) > 0 && c.Cmd.ReplaceCommands[0].GetTargetURI() == "./L1" {
+				if len(c.Cmd.ReplaceCommands) > 0 && c.Cmd.ReplaceCommands[0].GetTargetURI() == "L1" {
 					status = syncml.CmdStatusAtomicFailed
 				}
 
@@ -1132,7 +1132,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			}
 
 			status := syncml.CmdStatusOK
-			if len(c.Cmd.ReplaceCommands) > 0 && c.Cmd.ReplaceCommands[0].GetTargetURI() == "./L1" {
+			if len(c.Cmd.ReplaceCommands) > 0 && c.Cmd.ReplaceCommands[0].GetTargetURI() == "L1" {
 				status = syncml.CmdStatusAtomicFailed
 			}
 
@@ -1166,8 +1166,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 	ctx := context.Background()
 
 	testProfiles := []fleet.MDMProfileBatchPayload{
-		{Name: "N1", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "./L1", Data: "D1"}})},
-		{Name: "N2", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "./L2", Data: "D2"}, {Verb: "Replace", LocURI: "./L3", Data: "D3"}})},
+		{Name: "N1", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
+		{Name: "N2", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L2", Data: "D2"}, {Verb: "Replace", LocURI: "L3", Data: "D3"}})},
 	}
 
 	h, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1276,7 +1276,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		// Change one profile and upload
 		copiedTestProfiles := make([]fleet.MDMProfileBatchPayload, len(testProfiles))
 		copy(copiedTestProfiles, testProfiles)
-		copiedTestProfiles[0].Contents = syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "./L1", Data: "D1-Modified"}})
+		copiedTestProfiles[0].Contents = syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1-Modified"}})
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: copiedTestProfiles}, http.StatusNoContent)
 
 		// Confirm that one install profile was re-sent with updated content.
@@ -5617,7 +5617,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	checkWinProfs(nil, servermdm.ListFleetReservedWindowsProfileNames()...)
 
 	// batch set only windows profiles doesn't remove the reserved names
-	newWinProfile := syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "./l1", Data: "d1"}})
+	newWinProfile := syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "l1", Data: "d1"}})
 	var testProfiles []fleet.MDMProfileBatchPayload
 	testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 		Name:     "n1",
@@ -7095,11 +7095,11 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 		},
 		{
 			Name:     "W1",
-			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "./W1", Data: "W1"}}),
+			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "W1", Data: "W1"}}),
 		},
 		{
 			Name:     "W2",
-			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "./W2", Data: "W2"}}),
+			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "W2", Data: "W2"}}),
 		},
 	}
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, http.StatusNoContent)

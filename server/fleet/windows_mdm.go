@@ -60,15 +60,17 @@ type windowsProfileValidator struct {
 	// can be empty if not within a top-level element.
 	currentTopLevelElement string
 
-	// Tracks whether we have encountered at least one valid SyncML top-level element
-	// (Replace, Add, Exec, or Atomic). Used to reject inputs that parse as XML but
-	// contain no supported elements, such as plain text or comment-only files.
+	// Tracks whether we have encountered at least one valid SyncML top-level element (Replace, Add, Exec, or Atomic). Used
+	// to reject inputs that parse as XML but contain no supported elements, such as plain text or comment-only files.
 	sawValidTopLevel bool
 
-	// Tracks whether the profile content references a Fleet secret variable.
-	// When true, the body may be a bare placeholder that expands into real
-	// SyncML at apply time, so we skip the top-level structural check.
+	// Tracks whether the profile content references a Fleet secret variable. When true, the body may be a bare placeholder
+	// that expands into real SyncML at apply time, so we skip the top-level structural check.
 	containsServerSecret bool
+
+	// Tracks whether the currently-open <LocURI> element has seen any non-whitespace character data. Reset when the LocURI
+	// close tag fires; used to reject `<LocURI></LocURI>` which a real Windows device returns status 400 for.
+	locURIHasContent bool
 
 	// The decoder which is used for reading the XML tokens.
 	decoder *xml.Decoder
@@ -84,17 +86,14 @@ var validTopLevelElements = map[string]struct{}{
 	"Atomic":  {},
 }
 
-// ValidateUserProvided ensures that the SyncML content in the profile is valid
-// for Windows.
+// ValidateUserProvided ensures that the SyncML content in the profile is valid for Windows.
 //
-// It checks that the file contains at least one supported top-level element
-// (<Replace>, <Add>, <Exec>, or <Atomic>), that each <LocURI> follows the
-// OMA-DM addressing rules (must start with "./" and must not contain "../"
-// path traversal sequences), and that none of the <LocURI> elements within
-// <Target> are reserved Fleet-managed URIs.
+// It checks that the file contains at least one supported top-level element (<Replace>, <Add>, <Exec>, or <Atomic>),
+// that each <LocURI> follows the OMA-DM addressing rules (must start with "./" and must not contain "../" path
+// traversal sequences), and that none of the <LocURI> elements within <Target> are reserved Fleet-managed URIs.
 //
-// It also performs basic checks for XML well-formedness as defined in the [W3C
-// Recommendation section 2.8][1], as required by the [MS-MDM spec][2].
+// It also performs basic checks for XML well-formedness as defined in the [W3C Recommendation section 2.8][1], as
+// required by the [MS-MDM spec][2].
 //
 // Note that we only need to check for well-formedness, but validation is not required.
 //
@@ -112,8 +111,12 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates boo
 	}
 
 	validator := newWindowsProfileValidator(m.SyncML, enableCustomOSUpdates)
-	validator.containsServerSecret = bytes.Contains(m.SyncML, []byte("$"+ServerSecretPrefix)) ||
-		bytes.Contains(m.SyncML, []byte("${"+ServerSecretPrefix))
+	// Substring match for the secret prefix (matches Apple's check in
+	// server/service/mdm.go). A literal "FLEET_SECRET_" appearing in profile
+	// data with no "$" sigil would also flip this flag, but the only
+	// consequence is skipping the top-level element check on that upload,
+	// which is acceptable.
+	validator.containsServerSecret = bytes.Contains(m.SyncML, []byte(ServerSecretPrefix))
 	return validator.validate()
 }
 
@@ -145,9 +148,8 @@ func (v *windowsProfileValidator) validate() error {
 		}
 	}
 
-	// If the profile references a Fleet secret variable, the body may be
-	// (or contain) a placeholder that expands into the real SyncML at apply
-	// time, so skip the structural top-level element check here.
+	// If the profile references a Fleet secret variable, the body may be (or contain) a placeholder that expands into the
+	// real SyncML at apply time, so skip the structural top-level element check here.
 	if !v.sawValidTopLevel && !v.containsServerSecret {
 		return errors.New("The file should include valid SyncML XML with at least one supported element.")
 	}
@@ -166,7 +168,7 @@ func (v *windowsProfileValidator) processToken(tok xml.Token) error {
 	case xml.StartElement:
 		return v.handleStartElement(t)
 	case xml.EndElement:
-		v.handleEndElement(t)
+		return v.handleEndElement(t)
 	case xml.CharData:
 		return v.handleCharData(t)
 
@@ -211,7 +213,7 @@ func (v *windowsProfileValidator) handleStartElement(el xml.StartElement) error 
 	return nil
 }
 
-func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) {
+func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) error {
 	elementName := el.Name.Local
 
 	if elementName == v.currentTopLevelElement {
@@ -219,7 +221,17 @@ func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) {
 		v.currentTopLevelElement = ""
 	}
 
+	// An empty <LocURI></LocURI> produces no CharData token, so we catch it
+	// here when the close tag fires before any content. Whitespace-only
+	// content is rejected in validateLocURIFormat.
+	if elementName == "LocURI" && !v.locURIHasContent {
+		v.currentElement = ""
+		return errors.New("<LocURI> can't be empty.")
+	}
+
 	v.currentElement = ""
+	v.locURIHasContent = false
+	return nil
 }
 
 func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
@@ -229,9 +241,12 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 	}
 
 	locURI := string(el)
+	if strings.TrimSpace(locURI) != "" {
+		v.locURIHasContent = true
+	}
 
-	// Surface Fleet-reserved URI errors (BitLocker, Windows updates) before
-	// the generic format check so users get the more specific message.
+	// Surface Fleet-reserved URI errors (BitLocker, Windows updates) before the generic format check so users get the more
+	// specific message.
 	if err := validateFleetProvidedLocURI(locURI, v.enableCustomOSUpdates); err != nil {
 		return err
 	}
@@ -246,17 +261,23 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 	return v.scepValidator.validateLocURI(locURI)
 }
 
-// validateLocURIFormat enforces the LocURI rules from the Microsoft OMA DM
-// protocol support documentation: the URI must address the OMA-DM root with
-// the "./" prefix and must not contain ".." path traversal segments. Empty
-// LocURIs are not flagged here.
+// validateLocURIFormat rejects LocURI values that real Windows MDM devices reject with status 400 (empirically verified
+// against Windows 11 25H2), plus a defensive ".." segment check:
+//
+//  1. Empty value (no legitimate use in Add/Replace/Atomic/Exec; device returns 400).
+//  2. Leading "/" (Microsoft's OMA DM protocol support page explicitly states "LocURI can't start with /"; device
+//     returns 400).
+//  3. ".." path traversal segment (security; spec-silent, kept on principle).
+//
+// All other forms are accepted, including device-permissive "Device/Vendor/MSFT/..." (no "./") and "./Vendor/MSFT/..."
+// (implicit device-targeted) variants.
 func validateLocURIFormat(locURI string) error {
 	trimmed := strings.TrimSpace(locURI)
 	if trimmed == "" {
-		return nil
+		return errors.New("<LocURI> can't be empty.")
 	}
-	if !strings.HasPrefix(trimmed, "./") {
-		return errors.New("<LocURI> must start with \"./\" (e.g. \"./Device/...\" or \"./User/...\").")
+	if strings.HasPrefix(trimmed, "/") && !strings.HasPrefix(trimmed, "./") {
+		return errors.New("<LocURI> can't start with \"/\".")
 	}
 	if slices.Contains(strings.Split(strings.TrimPrefix(trimmed, "./"), "/"), "..") {
 		return errors.New("<LocURI> can't contain \"..\" path traversal segments.")
