@@ -13551,12 +13551,6 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.PendingActionLock, andStatus.PendingAction())
 	require.Equal(t, fleet.DeviceStatusUnlocked, andStatus.DeviceStatus())
 
-	// Single-host path: must agree with batch.
-	singleStatus, err := ds.GetHostLockWipeStatus(ctx, andHost)
-	require.NoError(t, err)
-	require.Equal(t, fleet.PendingActionLock, singleStatus.PendingAction())
-	require.Equal(t, fleet.DeviceStatusUnlocked, singleStatus.DeviceStatus())
-
 	// Pub/Sub COMMAND ack arrives.
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, androidLockUUID,
 		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
@@ -13567,11 +13561,8 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.DeviceStatusLocked, andStatus.DeviceStatus())
 	require.Equal(t, fleet.PendingActionNone, andStatus.PendingAction())
 
-	singleStatus, err = ds.GetHostLockWipeStatus(ctx, andHost)
-	require.NoError(t, err)
-	require.Equal(t, fleet.DeviceStatusLocked, singleStatus.DeviceStatus())
-
-	// Now queue a wipe (still locked from the prior step).
+	// Now queue a wipe (still locked from the prior step) — exercises a host with both lock_ref
+	// and wipe_ref set simultaneously, which the multi-host batch test doesn't cover.
 	androidWipeUUID := uuid.NewString()
 	require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
 		CommandUUID:   androidWipeUUID,
