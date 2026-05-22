@@ -262,6 +262,8 @@ module.exports = {
 
       attributionDetails.initialUrl = marketingAttributionCookie.initialUrl;
 
+      attributionDetails.referrer = marketingAttributionCookie.referrer;
+
       if(['cpc','ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
         // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
         attributionDetails.campaign = marketingAttributionCookie.campaign;
@@ -502,8 +504,8 @@ module.exports = {
         contactValuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
         contactValuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
         contactValuesToSet.GCLID__c = attributionDetails.gclid;// eslint-disable-line camelcase
-        contactValuesToSet.Source_referrer_url__c = marketingAttributionCookie.referrer;// eslint-disable-line camelcase
-        contactValuesToSet.Most_recent_referrer_url__c = marketingAttributionCookie.referrer;// eslint-disable-line camelcase
+        contactValuesToSet.Source_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
+        contactValuesToSet.Most_recent_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
       }
 
 
@@ -633,7 +635,7 @@ module.exports = {
           contactValuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
           contactValuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
         }
-        contactValuesToSet.Most_recent_referrer_url__c = marketingAttributionCookie.referrer;// eslint-disable-line camelcase
+        contactValuesToSet.Most_recent_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
       }
 
 
