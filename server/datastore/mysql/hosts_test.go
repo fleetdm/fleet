@@ -13541,12 +13541,13 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
 	require.NoError(t, err)
 	andStatus = statusMap[andHost.ID]
-	require.Equal(t, fleet.DeviceStatusLocked, andStatus.DeviceStatus())
+	// After ack, IsLocked() is false for android (we can't detect device-side unlock; see the comment in
+	// HostLockWipeStatus.IsLocked). DeviceStatus reverts to unlocked, pending clears.
+	require.Equal(t, fleet.DeviceStatusUnlocked, andStatus.DeviceStatus())
 	require.Equal(t, fleet.PendingActionNone, andStatus.PendingAction())
 
-	// Now queue a wipe (still locked from the prior step) — exercises a host with both lock_ref
-	// and wipe_ref set simultaneously, which the multi-host batch test doesn't cover. The upsert
-	// inside WipeHostViaAndroidMDM preserves the lock_ref from the previous step.
+	// Now queue a wipe — exercises a host that has both lock_ref and wipe_ref set in host_mdm_actions, which the multi-host batch
+	// test doesn't cover. The upsert inside WipeHostViaAndroidMDM preserves the lock_ref from the previous step.
 	androidWipeUUID := uuid.NewString()
 	require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, andHost, &android.MDMAndroidCommand{
 		CommandUUID:   androidWipeUUID,
@@ -13684,8 +13685,10 @@ func testGetHostsLockWipeStatusBatchAndroidMultiHost(t *testing.T, ds *Datastore
 	require.Equal(t, fleet.PendingActionLock, statusMap[hostA.ID].PendingAction(), "host A pending lock")
 	require.Equal(t, fleet.DeviceStatusUnlocked, statusMap[hostA.ID].DeviceStatus())
 
+	// Host B acked the lock; IsLocked() returns false for android (no device-side unlock signal
+	// from AMAPI), so DeviceStatus reads as unlocked again. See HostLockWipeStatus.IsLocked.
 	require.Equal(t, fleet.PendingActionNone, statusMap[hostB.ID].PendingAction(), "host B acked")
-	require.Equal(t, fleet.DeviceStatusLocked, statusMap[hostB.ID].DeviceStatus(), "host B locked")
+	require.Equal(t, fleet.DeviceStatusUnlocked, statusMap[hostB.ID].DeviceStatus(), "host B acked -> unlocked again")
 
 	require.Equal(t, fleet.PendingActionNone, statusMap[hostC.ID].PendingAction(), "host C wipe done")
 	require.Equal(t, fleet.DeviceStatusWiped, statusMap[hostC.ID].DeviceStatus(), "host C wiped")

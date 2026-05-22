@@ -771,9 +771,9 @@ func (s HostLockWipeStatus) IsLocked() bool {
 	}
 
 	if s.HostFleetPlatform == "android" {
-		// locked if Pub/Sub COMMAND notification reported an Android-side ack.
-		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
-			s.LockMDMCommandResult.Status == string(android.MDMAndroidCommandStatusAcknowledged)
+		// Android device unlock happens locally via the user's PIN; AMAPI does not deliver a "device unlocked" notification, and Fleet
+		// has no UNLOCK command.
+		return false
 	}
 
 	// locked if a script was sent and succeeded

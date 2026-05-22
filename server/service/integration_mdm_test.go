@@ -18777,8 +18777,9 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.NoError(t, err)
 		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), row.Status)
 
-		// Host page now surfaces DeviceStatus=locked with no pending action.
-		assertHostMDMStatus(t, coboHostID, "", "locked")
+		// After ack, the host page surfaces DeviceStatus=unlocked: Fleet can't observe the device-side unlock (no AMAPI signal), so we
+		// never report "locked" -- only "pending lock" during the brief window before the ack. See HostLockWipeStatus.IsLocked.
+		assertHostMDMStatus(t, coboHostID, "", "unlocked")
 	})
 
 	t.Run("Wipe BYO is rejected", func(t *testing.T) {

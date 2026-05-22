@@ -184,6 +184,20 @@ func mdmLockCommand() *cli.Command {
 				return fmt.Errorf("Failed to lock host: %w", err)
 			}
 
+			// Android has no Fleet-side unlock: the user unlocks via their device PIN/passcode,
+			// not a Fleet command. Tailor the help text to platform.
+			if fleet.IsAndroidPlatform(host.Platform) {
+				fmt.Fprintf(c.App.Writer, `
+The host will lock when it comes online. The end user can unlock by entering their device PIN.
+
+Copy and run this command to see lock status:
+
+fleetctl get host %s
+
+`, hostIdent)
+				return nil
+			}
+
 			fmt.Fprintf(c.App.Writer, `
 The host will lock when it comes online.
 
