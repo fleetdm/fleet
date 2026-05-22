@@ -18664,15 +18664,18 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	require.False(t, didCallAMAPIIssueWipe, "COBO unenroll must not call EnterprisesDevicesIssueCommand")
 }
 
-// TestAndroidLockWipeClearPasscode exercises the three #41683 commands end-to-end against the
-// real Fleet HTTP handler stack with a mocked AMAPI client: lock (BYO + COBO), wipe (COBO only,
-// BYO rejected), clear-passcode (both), and the Pub/Sub COMMAND ack that transitions a pending
-// row to acknowledged. Each assertion checks that (1) the mock IssueCommand was called with the
-// right type/duration, (2) the mdm_android_commands row is persisted with the right status, and
-// where applicable (3) host_mdm_actions is updated so the API surfaces PendingAction=lock/wipe.
+// TestAndroidLockWipeClearPasscode exercises the three commands end-to-end against the real Fleet HTTP handler stack with a
+// mocked AMAPI client: lock (BYO + COBO), wipe (COBO only, BYO rejected), clear-passcode (both), and the Pub/Sub COMMAND ack that
+// transitions a pending row to acknowledged. Each assertion checks that (1) the mock IssueCommand was called with the right
+// type/duration, (2) the mdm_android_commands row is persisted with the right status, and where applicable (3) host_mdm_actions
+// is updated so the API surfaces PendingAction=lock/wipe.
 func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 	t := s.T()
 	ctx := t.Context()
+
+	// Long-duration AMAPI command timeout (10 years). Mirrors longCommandDuration in
+	// server/mdm/android/service/service.go (private to that package, so duplicated here).
+	const longCommandDuration = "315360000s"
 
 	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
 	require.NoError(t, err)
@@ -18683,17 +18686,15 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		TopicID:     "yep",
 	}))
 
-	// The Pub/Sub COMMAND handler authenticates against the AndroidPubSubToken asset. The real
-	// signup flow inserts this when AMAPI creates the enterprise; in this test we shortcut the
-	// signup and seed the token directly so the COMMAND notification path can run.
+	// The Pub/Sub COMMAND handler authenticates against the AndroidPubSubToken asset. The real signup flow inserts this when AMAPI
+	// creates the enterprise; in this test we shortcut the signup and seed the token directly so the COMMAND notification path can run.
 	const pubsubToken = "test-android-pubsub-token"
 	require.NoError(t, s.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
 		Name:  fleet.MDMAssetAndroidPubSubToken,
 		Value: []byte(pubsubToken),
 	}))
 
-	// Capture every IssueCommand call so each subtest can assert against the latest invocation
-	// without resetting global state between subtests.
+	// Capture every IssueCommand call so each subtest can assert against the latest invocation without resetting global state between subtests.
 	var (
 		issueCallsMu     sync.Mutex
 		issueCalls       []*androidmanagement.Command
@@ -18713,11 +18714,38 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 	}
 
 	lastIssue := func() (*androidmanagement.Command, string, string) {
+		t.Helper()
 		issueCallsMu.Lock()
 		defer issueCallsMu.Unlock()
 		require.NotEmpty(t, issueCalls, "expected IssueCommand to have been called")
 		i := len(issueCalls) - 1
 		return issueCalls[i], issueDeviceNames[i], issueOpNames[i]
+	}
+
+	// deliverPubSubCommand simulates an AMAPI COMMAND notification arriving at Fleet's Pub/Sub endpoint with the supplied Operation envelope.
+	deliverPubSubCommand := func(t *testing.T, op androidmanagement.Operation) {
+		t.Helper()
+		body, err := json.Marshal(op)
+		require.NoError(t, err)
+		req := android_service.PubSubPushRequest{
+			PubSubMessage: android.PubSubMessage{
+				Attributes: map[string]string{"notificationType": string(android.PubSubCommand)},
+				Data:       base64.StdEncoding.EncodeToString(body),
+			},
+		}
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", pubsubToken)
+	}
+
+	// assertHostMDMStatus fetches /hosts/{id} and asserts DeviceStatus + PendingAction. Both fields are always set to non-nil string
+	// pointers by getHostDetails (zero-value status = pointer to empty string), so the assertion is unconditional.
+	assertHostMDMStatus := func(t *testing.T, hostID uint, wantPendingAction, wantDeviceStatus string) {
+		t.Helper()
+		var resp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.Host.MDM.PendingAction)
+		require.Equal(t, wantPendingAction, *resp.Host.MDM.PendingAction)
+		require.NotNil(t, resp.Host.MDM.DeviceStatus)
+		require.Equal(t, wantDeviceStatus, *resp.Host.MDM.DeviceStatus)
 	}
 
 	coboHostID := createAndroidHostForTest(t, s.ds, nil, true)
@@ -18731,7 +18759,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 
 		cmd, _, opName := lastIssue()
 		require.Equal(t, string(android.MDMAndroidCommandTypeLock), cmd.Type)
-		require.Equal(t, "315360000s", cmd.Duration)
+		require.Equal(t, longCommandDuration, cmd.Duration)
 		require.Nil(t, cmd.WipeParams)
 
 		row, err := s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
@@ -18740,39 +18768,20 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.Equal(t, string(android.MDMAndroidCommandTypeLock), row.CommandType)
 
 		// host_mdm_actions.lock_ref is the link the host page reads to surface PendingAction=lock.
-		var getHostResp getHostResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", coboHostID), nil, http.StatusOK, &getHostResp)
-		require.NotNil(t, getHostResp.Host.MDM.PendingAction)
-		require.Equal(t, "lock", *getHostResp.Host.MDM.PendingAction)
-		require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
-		require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+		assertHostMDMStatus(t, coboHostID, "lock", "unlocked")
 
 		// Simulate the AMAPI Pub/Sub COMMAND notification reporting a successful device ack.
-		ackBody, err := json.Marshal(androidmanagement.Operation{Name: opName, Done: true})
-		require.NoError(t, err)
-		req := android_service.PubSubPushRequest{
-			PubSubMessage: android.PubSubMessage{
-				Attributes: map[string]string{"notificationType": string(android.PubSubCommand)},
-				Data:       base64.StdEncoding.EncodeToString(ackBody),
-			},
-		}
-		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", pubsubToken)
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
 
 		row, err = s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
 		require.NoError(t, err)
 		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), row.Status)
 
 		// Host page now surfaces DeviceStatus=locked with no pending action.
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", coboHostID), nil, http.StatusOK, &getHostResp)
-		require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
-		require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
-		require.NotNil(t, getHostResp.Host.MDM.PendingAction)
-		require.Empty(t, *getHostResp.Host.MDM.PendingAction)
+		assertHostMDMStatus(t, coboHostID, "", "locked")
 	})
 
 	t.Run("Wipe BYO is rejected", func(t *testing.T) {
-		// The EE WipeHost handler rejects BYO before reaching the android service, so no
-		// IssueCommand call should happen. Capture the count before/after to assert that.
 		issueCallsMu.Lock()
 		beforeCount := len(issueCalls)
 		issueCallsMu.Unlock()
@@ -18787,9 +18796,8 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 	})
 
 	t.Run("Wipe COBO uses WIPE with empty WipeParams and long duration", func(t *testing.T) {
-		// COBO host above is already locked; queueing a wipe on a locked host should still be
-		// allowed (wipe takes precedence). Re-create a fresh COBO host to keep the assertion
-		// focused on the wipe-issue path, not on the lock/wipe interaction.
+		// COBO host above is already locked; queueing a wipe on a locked host should still be allowed (wipe takes precedence). Re-create
+		// a fresh COBO host to keep the assertion focused on the wipe-issue path, not on the lock/wipe interaction.
 		wipeHostID := createAndroidHostForTest(t, s.ds, nil, true)
 
 		var wipeResp fleet.WipeHostResponse
@@ -18798,7 +18806,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 
 		cmd, _, opName := lastIssue()
 		require.Equal(t, string(android.MDMAndroidCommandTypeWipe), cmd.Type)
-		require.Equal(t, "315360000s", cmd.Duration)
+		require.Equal(t, longCommandDuration, cmd.Duration)
 		require.NotNil(t, cmd.WipeParams, "AMAPI requires a non-nil WipeParams even when empty")
 
 		row, err := s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
@@ -18806,14 +18814,12 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.Equal(t, string(android.MDMAndroidCommandStatusPending), row.Status)
 		require.Equal(t, string(android.MDMAndroidCommandTypeWipe), row.CommandType)
 
-		var getHostResp getHostResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", wipeHostID), nil, http.StatusOK, &getHostResp)
-		require.NotNil(t, getHostResp.Host.MDM.PendingAction)
-		require.Equal(t, "wipe", *getHostResp.Host.MDM.PendingAction)
+		assertHostMDMStatus(t, wipeHostID, "wipe", "unlocked")
 	})
 
 	t.Run("Clear passcode uses RESET_PASSWORD with empty newPassword and does not touch host_mdm_actions", func(t *testing.T) {
-		// Use a fresh BYO host to keep host_mdm_actions clean for assertion.
+		// Fresh host to keep assertions self-contained; BYO vs COBO doesn't matter for
+		// clear-passcode (no host_mdm_actions write either way).
 		passHostID := createAndroidHostForTest(t, s.ds, nil, false)
 
 		var cpResp fleet.ClearPasscodeResponse
@@ -18825,7 +18831,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		cmd, _, opName := lastIssue()
 		require.Equal(t, string(android.MDMAndroidCommandTypeResetPassword), cmd.Type)
 		require.Empty(t, cmd.NewPassword, "clear-passcode must send an empty newPassword to actually clear (not regenerate) the passcode")
-		require.Equal(t, "315360000s", cmd.Duration)
+		require.Equal(t, longCommandDuration, cmd.Duration)
 
 		row, err := s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
 		require.NoError(t, err)
@@ -18834,12 +18840,9 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.Equal(t, row.CommandUUID, cpResp.CommandUUID,
 			"the CommandUUID returned to API consumers must match the persisted row (#41683 review fix)")
 
-		// No PendingAction surface for clear-passcode -- it doesn't gate other actions.
-		var getHostResp getHostResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", passHostID), nil, http.StatusOK, &getHostResp)
-		if getHostResp.Host.MDM.PendingAction != nil {
-			require.Empty(t, *getHostResp.Host.MDM.PendingAction)
-		}
+		// No PendingAction surface for clear-passcode -- it doesn't gate other actions, so the
+		// host page reports an unlocked, no-pending state.
+		assertHostMDMStatus(t, passHostID, "", "unlocked")
 	})
 
 	t.Run("Pub/Sub COMMAND with op.Error transitions row to error", func(t *testing.T) {
@@ -18850,7 +18853,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		_, _, opName := lastIssue()
 
 		// Deliver an Operation with an Error set -- AMAPI's signal that the device rejected the command.
-		errBody, err := json.Marshal(androidmanagement.Operation{
+		deliverPubSubCommand(t, androidmanagement.Operation{
 			Name: opName,
 			Done: true,
 			Error: &androidmanagement.Status{
@@ -18858,14 +18861,6 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 				Message: "internal error executing command",
 			},
 		})
-		require.NoError(t, err)
-		req := android_service.PubSubPushRequest{
-			PubSubMessage: android.PubSubMessage{
-				Attributes: map[string]string{"notificationType": string(android.PubSubCommand)},
-				Data:       base64.StdEncoding.EncodeToString(errBody),
-			},
-		}
-		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", pubsubToken)
 
 		row, err := s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
 		require.NoError(t, err)

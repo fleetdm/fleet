@@ -275,17 +275,12 @@ func mdmClearPasscodeCommand() *cli.Command {
 				return fmt.Errorf("Failed to clear passcode on host: %w", err)
 			}
 
-			// res.CommandUUID is informative for Apple (a real MDM command UUID that surfaces in
-			// `fleetctl get mdm-command-results`); for Android it's a placeholder the server
-			// returns to keep the shape consistent. Print it either way for symmetry with run-command.
-			fmt.Fprintf(c.App.Writer, `
-The host's passcode will be cleared when it comes online.
-
-Copy and run this command to see results:
-
-fleetctl get host %s
-
-`, hostIdent)
+			// Clear-passcode deliberately does not populate host_mdm_actions, so `fleetctl get host`
+			// shows no clear-passcode-specific state (unlike lock/wipe). Completion surfaces only as
+			// the "cleared_passcode" activity. The CommandUUID is the persisted command identifier:
+			// for Apple it queries against nano_commands via `fleetctl get mdm-command-results`; for
+			// Android it identifies the mdm_android_commands row.
+			fmt.Fprintf(c.App.Writer, "\nThe host's passcode will be cleared when it comes online.\n")
 			if res != nil && res.CommandUUID != "" {
 				fmt.Fprintf(c.App.Writer, "Command UUID: %s\n", res.CommandUUID)
 			}

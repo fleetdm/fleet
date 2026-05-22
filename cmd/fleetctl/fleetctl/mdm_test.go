@@ -1325,10 +1325,9 @@ func writeTmpMobileconfig(t *testing.T, name string) string {
 	return tmpFile.Name()
 }
 
-// TestMDMClearPasscodeCommand exercises the failure paths of `fleetctl mdm clear-passcode`.
-// The happy-path against a real iOS / Android host is covered by integration tests; here we
-// just confirm the subcommand is wired in, the host-required validation works, and the
-// MDM-not-on / unknown-host messages match the existing lock/wipe ergonomics.
+// TestMDMClearPasscodeCommand exercises the failure paths of `fleetctl mdm clear-passcode`. The happy-path against a real iOS /
+// Android host is covered by integration tests; here we just confirm the subcommand is wired in, the host-required validation
+// works, and the MDM-not-on / unknown-host messages match the existing lock/wipe ergonomics.
 func TestMDMClearPasscodeCommand(t *testing.T) {
 	macEnrolled := testhost{
 		host: &fleet.Host{

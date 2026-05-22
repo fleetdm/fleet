@@ -322,9 +322,8 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 		}
 
 	case "android":
-		// Wipe is COBO-only for Android. BYO unenroll already runs an AMAPI WIPE under the hood
-		// (see UnenrollAndroidHost) and surfaces as the mdm_unenrolled activity; routing BYO
-		// hosts through the Wipe flow would be redundant + misleading.
+		// Wipe is COBO-only for Android. BYO unenroll already runs an AMAPI WIPE under the hood (see UnenrollAndroidHost) and surfaces as
+		// the mdm_unenrolled activity; routing BYO hosts through the Wipe flow would be redundant + misleading.
 		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
 			return &fleet.BadRequestError{
 				Message: "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.",
@@ -436,8 +435,6 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 		if err := svc.androidModule.LockAndroidHost(ctx, host.ID); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "enqueuing lock request for android")
 		}
-		// Android has no unlock PIN to surface and the host_locked activity payload's ViewPIN
-		// shouldn't promise one. ViewPIN defaults to false; explicit reset to be unambiguous.
 		activity.ViewPIN = false
 	}
 
@@ -572,7 +569,6 @@ func (svc *Service) enqueueWipeHostRequest(
 		}
 
 	case "android":
-		// COBO-only (BYO rejected in WipeHost above).
 		if err := svc.androidModule.WipeAndroidHost(ctx, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for android")
 		}
