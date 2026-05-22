@@ -132,7 +132,7 @@ Pick one standard, typically UTC, and use it consistently across every system th
 
 The same standard you apply to human admins. Each service account should have its own identity, scoped permissions, and a documented owner. Retained events should show which service account acted, what triggered it (a CI job, a webhook, an integration), what it targeted, and what happened. Fleet records all administrative actions with the same detail regardless of whether they came from a person or a pipeline, and supports dedicated API-only users with a GitOps role so automated pipelines operate under their own named identity with scoped permissions. You can [get a demo](https://fleetdm.com/contact) to see how Fleet handles audit logging for automated workflows.
 
-<meta name="articleTitle" value="Apple MDM Audit Trail Requirements: HIPAA, PCI DSS & SOC 2">
+<meta name="articleTitle" value="Apple MDM Audit Trail Requirements: HIPAA, PCI DSS, and SOC 2">
 <meta name="authorFullName" value="Dan Gordon">
 <meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
