@@ -28352,7 +28352,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 			Team:                   team.Name,
 			Type:                   fleet.PolicyTypePatch,
 			FleetMaintainedAppSlug: "zoom/windows",
-			SoftwareTitleID:        ptr.Uint(title.ID),
+			SoftwareTitleID:        new(title.ID),
 		}
 
 		resetFMAState(states["/zoom/windows.json"], "1.3", []byte("ghi"), "")
