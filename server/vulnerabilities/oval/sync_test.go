@@ -92,4 +92,52 @@ func TestSync(t *testing.T) {
 		require.Contains(t, r, NewPlatform("ubuntu", "Ubuntu 18.4.0"))
 		require.NotContains(t, r, NewPlatform("rhle", "CentOS Linux 8.3.2011"))
 	})
+
+	t.Run("#listUpToDateDefs leaves outdated files in place", func(t *testing.T) {
+		ovalPlatform := NewPlatform("ubuntu", "Ubuntu 20.4.0")
+		today := time.Now()
+		yesterday := today.Add(-24 * time.Hour)
+
+		path := t.TempDir()
+		todayFile := filepath.Join(path, ovalPlatform.ToFilename(today, "json"))
+		yesterdayFile := filepath.Join(path, ovalPlatform.ToFilename(yesterday, "json"))
+
+		require.NoError(t, os.WriteFile(todayFile, []byte("{}"), 0o644))
+		require.NoError(t, os.WriteFile(yesterdayFile, []byte("{}"), 0o644))
+
+		upToDate, err := listUpToDateDefs(today, path)
+		require.NoError(t, err)
+		require.Contains(t, upToDate, filepath.Base(todayFile))
+
+		// Both files must still exist — listing should be read-only.
+		_, err = os.Stat(todayFile)
+		require.NoError(t, err)
+		_, err = os.Stat(yesterdayFile)
+		require.NoError(t, err)
+	})
+
+	// Regression test for https://github.com/fleetdm/fleet/issues/45602:
+	// When Sync fails, yesterday's definition files must remain on disk so the analyzer
+	// can fall back to them instead of deleting every existing vulnerability for the platform.
+	t.Run("#removeOutdatedDefs only runs after successful sync", func(t *testing.T) {
+		ovalPlatform := NewPlatform("ubuntu", "Ubuntu 20.4.0")
+		today := time.Now()
+		yesterday := today.Add(-24 * time.Hour)
+
+		path := t.TempDir()
+		yesterdayFile := filepath.Join(path, ovalPlatform.ToFilename(yesterday, "json"))
+		require.NoError(t, os.WriteFile(yesterdayFile, []byte("{}"), 0o644))
+
+		// listUpToDateDefs alone must not remove yesterday's file.
+		_, err := listUpToDateDefs(today, path)
+		require.NoError(t, err)
+		_, err = os.Stat(yesterdayFile)
+		require.NoError(t, err, "yesterday's file must remain after listUpToDateDefs")
+
+		// removeOutdatedDefs removes yesterday's file only when invoked explicitly
+		// (i.e. after a successful Sync).
+		require.NoError(t, removeOutdatedDefs(today, path))
+		_, err = os.Stat(yesterdayFile)
+		require.True(t, os.IsNotExist(err), "yesterday's file should be removed after removeOutdatedDefs")
+	})
 }

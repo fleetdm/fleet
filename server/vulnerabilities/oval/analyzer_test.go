@@ -382,5 +382,24 @@ func TestOvalAnalyzer(t *testing.T) {
 			_, err := loadDef(platform, "")
 			require.Error(t, err, "invalid vulnerabity path")
 		})
+
+		// Regression test for https://github.com/fleetdm/fleet/issues/45602:
+		// loadDef must refuse a definition file with no rules, otherwise an empty/corrupted
+		// artifact would cause every existing vulnerability for the platform to be deleted.
+		t.Run("rejects empty definition file", func(t *testing.T) {
+			vulnPath := t.TempDir()
+
+			for _, platform := range []Platform{
+				NewPlatform("ubuntu", "Ubuntu 22.04.0"),
+				NewPlatform("rhel", "Red Hat Enterprise Linux 9.0.0"),
+			} {
+				fileName := platform.ToFilename(time.Now(), "json")
+				require.NoError(t, os.WriteFile(filepath.Join(vulnPath, fileName), []byte(`{"Definitions":null}`), 0o644))
+
+				_, err := loadDef(platform, vulnPath)
+				require.Error(t, err, "loadDef should reject %s definition with no rules", platform)
+				require.Contains(t, err.Error(), "no rules")
+			}
+		})
 	})
 }

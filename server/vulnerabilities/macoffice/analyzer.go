@@ -143,6 +143,20 @@ func Analyze(
 		return nil, nil
 	}
 
+	// Refuse to proceed if the loaded release notes contain no valid security updates —
+	// without them every existing MacOffice vulnerability would be marked as remediated.
+	// This usually indicates the bulletin file is corrupted or partially downloaded.
+	hasValid := false
+	for i := range relNotes {
+		if relNotes[i].Valid() {
+			hasValid = true
+			break
+		}
+	}
+	if !hasValid {
+		return nil, fmt.Errorf("MacOffice release notes contain no valid security updates (possible corrupted feed)")
+	}
+
 	queryParams := fleet.SoftwareIterQueryOptions{IncludedSources: []string{"apps"}}
 	iter, err := ds.AllSoftwareIterator(ctx, queryParams)
 	if err != nil {

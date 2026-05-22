@@ -33,6 +33,13 @@ func Analyze(
 		return nil, err
 	}
 
+	// Refuse to proceed if the loaded bulletin contains no vulnerability data — an empty
+	// bulletin would cause every existing MSRC OS vulnerability for this OS to be marked as
+	// remediated. This usually indicates the bulletin file was corrupted during download.
+	if len(bulletin.Vulnerabilities) == 0 {
+		return nil, fmt.Errorf("MSRC bulletin contains no vulnerabilities (possible corrupted feed)")
+	}
+
 	// Find matching products inside the bulletin
 	matchingPIDs := make(map[string]bool)
 	pID, err := bulletin.Products.GetMatchForOS(ctx, os)
