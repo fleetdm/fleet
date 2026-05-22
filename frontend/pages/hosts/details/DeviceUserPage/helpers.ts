@@ -58,7 +58,10 @@ export const isRecentlyEnrolled = (
   if (!lastEnrolledAt) return false;
   const enrolledAt = new Date(lastEnrolledAt).getTime();
   if (isNaN(enrolledAt)) return false;
-  return Date.now() - enrolledAt < RECENTLY_ENROLLED_THRESHOLD_MS;
+  // Require a non-negative delta so a future timestamp (e.g. from client/server clock skew) is not
+  // treated as "recent" and does not hide a real offline state indefinitely.
+  const delta = Date.now() - enrolledAt;
+  return delta >= 0 && delta < RECENTLY_ENROLLED_THRESHOLD_MS;
 };
 
 // Same solution as defined in /templates/enroll-ota.html (https://github.com/fleetdm/fleet/pull/26592)
