@@ -104,9 +104,9 @@ It depends on the asset type. Many teams run extension and app inventories daily
 
 No. MDM provides a useful starting point, but effective discovery doesn't depend on it. On Linux, SQL-based querying through tools like `osquery` is often the primary discovery method since there's no standardized MDM protocol. For macOS and Windows, layering device querying on top of MDM covers the gaps in standard application inventories. Fleet combines device management with `osquery` to provide both. To see how the pieces fit together, [contact us](https://fleetdm.com/contact).
 
-<meta name="articleTitle" value="Shadow IT discovery: Finding unapproved software across your device fleet">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="articleTitle" value="How to discover shadow IT across macOS, Windows, and Linux">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-14">
-<meta name="description" value=" Learn how shadow IT discovery works, why it matters for security and compliance & how to build a discovery program using device inventory and MDM.">
+<meta name="publishedOn" value="2026-04-21">
+<meta name="description" value="Shadow IT creates compliance gaps you can't patch or monitor. Learn how to find unapproved apps, SaaS tools, and extensions with MDM and osquery.">
