@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260427134220, Down_20260427134220)
+	MigrationClient.AddMigration(Up_20260522195224, Down_20260522195224)
 }
 
-func Up_20260427134220(tx *sql.Tx) error {
+func Up_20260522195224(tx *sql.Tx) error {
 	// Defaults to true for upgraded installations (where users already exist) so
 	// that prior behavior is preserved, and false for fresh installations.
 	var usersCount int
@@ -31,6 +31,6 @@ func Up_20260427134220(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260427134220(tx *sql.Tx) error {
+func Down_20260522195224(tx *sql.Tx) error {
 	return nil
 }
