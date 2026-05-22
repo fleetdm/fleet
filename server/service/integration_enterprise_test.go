@@ -30767,11 +30767,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 	orbitKey := setOrbitEnrollment(t, host, s.ds)
 	host.OrbitNodeKey = &orbitKey
 
-	// Use a dedicated script per policy: when two policies share the same
-	// script, the second one's automation is skipped because the script is
-	// already pending on the host (see IsExecutionPendingForHost in
-	// processScriptsForNewlyFailingPolicies). That's correct production
-	// behavior but would mask what this test is trying to verify.
+	// Use a dedicated script per policy.
 	continuousScript, err := s.ds.NewScript(ctx, &fleet.Script{
 		Name:           "continuous.sh",
 		ScriptContents: "echo continuous",
@@ -30884,6 +30880,15 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 	step(continuousPolicy.ID, 3, continuousCount, "continuous policy fires on every failing result")
 	submitPolicyResult(transitionPolicy.ID, false)
 	assertCountStable(1, transitionCount)
+
+	// Final: both policies pass. Neither should queue a script — passing
+	// results never trigger automations, regardless of continuous mode.
+	continuousBefore := continuousCount()
+	transitionBefore := transitionCount()
+	submitPolicyResult(continuousPolicy.ID, true)
+	submitPolicyResult(transitionPolicy.ID, true)
+	assertCountStable(continuousBefore, continuousCount, "continuous policy must not trigger script on passing result")
+	assertCountStable(transitionBefore, transitionCount, "transition policy must not trigger script on passing result")
 }
 
 // TestPolicyAutomationsContinuousSoftwareInstaller verifies that
