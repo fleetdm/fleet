@@ -30767,15 +30767,26 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 	orbitKey := setOrbitEnrollment(t, host, s.ds)
 	host.OrbitNodeKey = &orbitKey
 
-	script, err := s.ds.NewScript(ctx, &fleet.Script{
-		Name:           "ok-script.sh",
-		ScriptContents: "echo ok",
+	// Use a dedicated script per policy: when two policies share the same
+	// script, the second one's automation is skipped because the script is
+	// already pending on the host (see IsExecutionPendingForHost in
+	// processScriptsForNewlyFailingPolicies). That's correct production
+	// behavior but would mask what this test is trying to verify.
+	continuousScript, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "continuous.sh",
+		ScriptContents: "echo continuous",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+	transitionScript, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "transition.sh",
+		ScriptContents: "echo transition",
 		TeamID:         &team.ID,
 	})
 	require.NoError(t, err)
 
 	// Two policies on the same team: one with continuous automations, one
-	// without. Both have the same script attached.
+	// without. Each has its own script attached.
 	continuousPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
 		Name:                         "continuous",
 		Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
@@ -30790,15 +30801,17 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 	})
 	require.NoError(t, err)
 
-	// Attach the script to both policies via the API so the modify path is exercised.
-	for _, p := range []*fleet.Policy{continuousPolicy, transitionPolicy} {
+	// Attach the scripts via the API so the modify path is exercised.
+	attach := func(policyID, scriptID uint) {
 		var resp fleet.ModifyTeamPolicyResponse
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, p.ID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policyID), fleet.ModifyTeamPolicyRequest{
 			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
+				ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: scriptID},
 			},
 		}, http.StatusOK, &resp)
 	}
+	attach(continuousPolicy.ID, continuousScript.ID)
+	attach(transitionPolicy.ID, transitionScript.ID)
 
 	submitPolicyResult := func(policyID uint, passes bool) {
 		var distributedResp submitDistributedQueryResultsResponse
@@ -30819,16 +30832,23 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 				)), http.StatusOK, &orbitPostScriptResp)
 		}
 	}
-	countExecutionsFor := func(policyID uint) int {
+	// countExecutionsFor returns the number of script executions queued for a
+	// given (policy, script) pair on this host. Scripts are activated as soon
+	// as they are queued (NewHostScriptExecutionRequest calls
+	// activateNextUpcomingActivity), so they appear in host_script_results
+	// immediately — no need to also look at upcoming_activities.
+	countExecutionsFor := func(policyID, scriptID uint) int {
 		var count int
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count, `
 				SELECT COUNT(*) FROM host_script_results
 				WHERE host_id = ? AND script_id = ? AND policy_id = ?
-			`, host.ID, script.ID, policyID)
+			`, host.ID, scriptID, policyID)
 		})
 		return count
 	}
+	continuousCount := func() int { return countExecutionsFor(continuousPolicy.ID, continuousScript.ID) }
+	transitionCount := func() int { return countExecutionsFor(transitionPolicy.ID, transitionScript.ID) }
 
 	// assertCountStable polls the count for a window to catch delayed enqueues
 	// that a single point-in-time check would miss.
@@ -30839,34 +30859,31 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 		}, 2*time.Second, 100*time.Millisecond, msgAndArgs...)
 	}
 
-	// First failing result triggers the script for both policies (pass→fail
-	// transition). Complete the scripts so nothing else is pending.
-	submitPolicyResult(continuousPolicy.ID, false)
-	submitPolicyResult(transitionPolicy.ID, false)
-	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 1, countExecutionsFor(continuousPolicy.ID), "first script run for continuous policy")
-		assert.Equal(t, 1, countExecutionsFor(transitionPolicy.ID), "first script run for transition policy")
-	}, 5*time.Second, 100*time.Millisecond)
-	completePendingScripts()
+	// Only one script can be activated at a time per host, so each step
+	// submits one policy result, waits for the script to record, then completes
+	// it before moving on (mirrors TestPolicyAutomationsContinuousSoftwareInstaller).
+	step := func(policyID uint, wantCount int, countFn func() int, msg string) {
+		t.Helper()
+		submitPolicyResult(policyID, false)
+		require.EventuallyWithT(t, func(t *assert.CollectT) {
+			assert.Equal(t, wantCount, countFn(), msg)
+		}, 5*time.Second, 100*time.Millisecond)
+		completePendingScripts()
+	}
 
-	// Second failing result (fail→fail): only the continuous policy re-queues a
-	// script. The transition-only policy stays at 1 execution.
-	submitPolicyResult(continuousPolicy.ID, false)
+	// First failing result: pass→fail transition queues the script on both.
+	step(continuousPolicy.ID, 1, continuousCount, "first script run for continuous policy")
+	step(transitionPolicy.ID, 1, transitionCount, "first script run for transition policy")
+
+	// Second failing result (fail→fail): only the continuous policy re-queues.
+	step(continuousPolicy.ID, 2, continuousCount, "continuous policy fires on every failing result")
 	submitPolicyResult(transitionPolicy.ID, false)
-	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 2, countExecutionsFor(continuousPolicy.ID), "continuous policy fires on every failing result")
-	}, 5*time.Second, 100*time.Millisecond)
-	assertCountStable(1, func() int { return countExecutionsFor(transitionPolicy.ID) },
-		"default policy must not re-trigger on fail→fail")
-	completePendingScripts()
+	assertCountStable(1, transitionCount, "default policy must not re-trigger on fail→fail")
 
 	// Third failing result: continuous still re-triggers, default still does not.
-	submitPolicyResult(continuousPolicy.ID, false)
+	step(continuousPolicy.ID, 3, continuousCount, "continuous policy fires on every failing result")
 	submitPolicyResult(transitionPolicy.ID, false)
-	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 3, countExecutionsFor(continuousPolicy.ID))
-	}, 5*time.Second, 100*time.Millisecond)
-	assertCountStable(1, func() int { return countExecutionsFor(transitionPolicy.ID) })
+	assertCountStable(1, transitionCount)
 }
 
 // TestPolicyAutomationsContinuousSoftwareInstaller verifies that
