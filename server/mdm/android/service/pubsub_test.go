@@ -1916,11 +1916,25 @@ func TestPubSubCommand(t *testing.T) {
 		}
 	}
 
-	t.Run("pending -> acknowledged on op with no error", func(t *testing.T) {
+	// newSvc builds the per-subtest fixture: a service whose mock datastore reports Android MDM as enabled. Subtests override
+	// individual *Func fields on mockDS to shape the specific branch they're exercising.
+	newSvc := func(t *testing.T) (android.Service, *AndroidMockDS) {
 		svc, mockDS := createAndroidService(t)
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
 		}
+		return svc, mockDS
+	}
+	// commandNotFound shapes the "unknown operation" branches: the datastore lookup by operation_name returns NotFound, simulating
+	// either a race (row not yet committed) or an orphan (device deleted from Fleet).
+	commandNotFound := func(mockDS *AndroidMockDS) {
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(opName)
+		}
+	}
+
+	t.Run("pending -> acknowledged on op with no error", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
 
 		stored := &android.MDMAndroidCommand{
 			CommandUUID:   "cmd-uuid-ack",
@@ -1953,10 +1967,7 @@ func TestPubSubCommand(t *testing.T) {
 	})
 
 	t.Run("pending -> error on op.Error set", func(t *testing.T) {
-		svc, mockDS := createAndroidService(t)
-		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
-		}
+		svc, mockDS := newSvc(t)
 
 		stored := &android.MDMAndroidCommand{
 			CommandUUID:   "cmd-uuid-err",
@@ -1993,10 +2004,7 @@ func TestPubSubCommand(t *testing.T) {
 	})
 
 	t.Run("already-terminal status is not re-transitioned", func(t *testing.T) {
-		svc, mockDS := createAndroidService(t)
-		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
-		}
+		svc, mockDS := newSvc(t)
 
 		stored := &android.MDMAndroidCommand{
 			CommandUUID:   "cmd-uuid-ack-already",
@@ -2018,17 +2026,10 @@ func TestPubSubCommand(t *testing.T) {
 	})
 
 	t.Run("unknown operation, host deleted from Fleet -> ack", func(t *testing.T) {
-		// COBO unenroll / manual cleanup: the host is gone from Fleet, the command row is gone
-		// from mdm_android_commands, but Pub/Sub is still trying to deliver the original
-		// notification. We check whether the AMAPI device_id is still in Fleet's DB; a false
-		// return confirms the operation is genuinely orphaned and the handler acks.
-		svc, mockDS := createAndroidService(t)
-		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
-		}
-		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
-			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(opName)
-		}
+		// COBO unenroll / manual cleanup: the host is gone from Fleet, the command row is gone from mdm_android_commands, but Pub/Sub is
+		// still trying to deliver the original notification. A false from AndroidDeviceExistsByDeviceID confirms the orphan; ack.
+		svc, mockDS := newSvc(t)
+		commandNotFound(mockDS)
 		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
 			require.Equal(t, "D", deviceID, "handler should pass the AMAPI device_id parsed from op.Name")
 			return false, nil
@@ -2039,16 +2040,10 @@ func TestPubSubCommand(t *testing.T) {
 	})
 
 	t.Run("unknown operation, host still exists in Fleet -> retry (race window)", func(t *testing.T) {
-		// AMAPI delivered the COMMAND notification before our IssueCommand-then-insert sequence
-		// committed the row. The DB check confirms the device is still in Fleet; returning error
-		// makes Pub/Sub retry until the row commits.
-		svc, mockDS := createAndroidService(t)
-		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
-		}
-		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
-			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(opName)
-		}
+		// AMAPI delivered the COMMAND notification before our IssueCommand-then-insert sequence committed the row. The DB check confirms
+		// the device is still in Fleet; returning error makes Pub/Sub retry until the row commits.
+		svc, mockDS := newSvc(t)
+		commandNotFound(mockDS)
 		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
 			return true, nil
 		}
@@ -2058,15 +2053,9 @@ func TestPubSubCommand(t *testing.T) {
 	})
 
 	t.Run("unknown operation, malformed op.Name (no /devices/ segment) -> ack", func(t *testing.T) {
-		// If we can't parse a device_id from op.Name we can't probe Fleet's DB; ack rather than
-		// retry forever.
-		svc, mockDS := createAndroidService(t)
-		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
-		}
-		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
-			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(opName)
-		}
+		// If we can't parse a device_id from op.Name we can't probe Fleet's DB; ack rather than retry forever.
+		svc, mockDS := newSvc(t)
+		commandNotFound(mockDS)
 		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
 			t.Fatalf("device existence check should not run when op.Name is malformed")
 			return false, nil
@@ -2077,12 +2066,9 @@ func TestPubSubCommand(t *testing.T) {
 	})
 
 	t.Run("non-done operation is acked without state transition", func(t *testing.T) {
-		// AMAPI long-running Operations use done=false for in-progress states. The handler must
-		// not transition state on a non-terminal payload.
-		svc, mockDS := createAndroidService(t)
-		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
-		}
+		// AMAPI long-running Operations use done=false for in-progress states. The handler must not transition state on a non-terminal
+		// payload.
+		svc, mockDS := newSvc(t)
 		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 			t.Fatalf("lookup should be skipped when op.Done is false")
 			return nil, nil
@@ -2097,11 +2083,7 @@ func TestPubSubCommand(t *testing.T) {
 	})
 
 	t.Run("empty op.Name is acked without error", func(t *testing.T) {
-		svc, mockDS := createAndroidService(t)
-		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
-		}
-
+		svc, mockDS := newSvc(t)
 		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 			t.Fatalf("lookup should be skipped when op.Name is empty")
 			return nil, nil
