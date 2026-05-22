@@ -9,7 +9,7 @@ export default PropTypes.shape({
   build_user: PropTypes.string,
 });
 
-export interface IVersionData {
+export interface IVersionResponse {
   version: string;
   branch: string;
   revision: string;
