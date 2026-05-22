@@ -122,13 +122,13 @@
     '@type': 'DefinedTermSet',
     name: 'Fleet device management glossary',
     description: 'Plain-language definitions of MDM, osquery, GitOps, and IT security terms used in modern device management.',
-    url: 'https://fleetdm.com/device-management-glossary',
+    url: 'https://fleetdm.com/lp/device-management-glossary',
     hasDefinedTerm: glossaryTerms.map((term) => ({
       '@type': 'DefinedTerm',
       name: term.name,
       description: term.definition,
-      url: `https://fleetdm.com/device-management-glossary#term-${term.slug}`,
-      inDefinedTermSet: 'https://fleetdm.com/device-management-glossary',
+      url: `https://fleetdm.com/lp/device-management-glossary#term-${term.slug}`,
+      inDefinedTermSet: 'https://fleetdm.com/lp/device-management-glossary',
     })),
   }; %>
   <%/* Structured data for SEO and LLM discoverability */%>

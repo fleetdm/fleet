@@ -10,7 +10,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/device-management-glossary'
+      viewTemplatePath: 'pages/landing-pages/device-management-glossary'
     },
     badConfig: { responseType: 'badConfig' },
 

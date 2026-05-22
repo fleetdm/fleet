@@ -593,18 +593,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /device-management-glossary': {
-    action: 'view-device-management-glossary',
-    locals: {
-      pageTitleForMeta: 'Device management glossary: MDM, osquery, GitOps, and security terms',
-      pageDescriptionForMeta: 'A plain-language glossary of device management, MDM, osquery, GitOps, and IT security terms. Learn what each term means and how Fleet handles it across macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS.',
-    }
-  },
-
-  'GET /glossary': (req, res) => {
-    let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : '';
-    return res.redirect(301, sails.config.custom.baseUrl + '/device-management-glossary' + originalQueryString);
-  },
 
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
@@ -674,6 +662,14 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Replace Jamf with confidence',
       pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
+    }
+  },
+
+  'GET /lp/device-management-glossary': {
+    action: 'landing-pages/view-device-management-glossary',
+    locals: {
+      pageTitleForMeta: 'Device management glossary: MDM, osquery, GitOps, and security terms',
+      pageDescriptionForMeta: 'A plain-language glossary of device management, MDM, osquery, GitOps, and IT security terms. Learn what each term means and how Fleet handles it across macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS.',
     }
   },
 
@@ -1161,6 +1157,8 @@ module.exports.routes = {
   'GET /on-premise': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/on-premise' + originalQueryString); },
   'GET /imagine/apple-mdm': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/apple-mdm' + originalQueryString); },
   'GET /autonomous-endpoint-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/autonomous-endpoint-management' + originalQueryString); },
+  'GET /device-management-glossary': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/device-management-glossary' + originalQueryString); },
+  'GET /glossary': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/device-management-glossary' + originalQueryString); },
   'GET /imagine/open-source': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/open-source' + originalQueryString); },
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
