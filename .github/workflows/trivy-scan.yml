@@ -104,6 +104,10 @@ jobs:
         with:
           ref: ${{ matrix.branch || github.ref }}
 
+      - name: Capture checked-out commit SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
           role-to-assume: ${{env.AWS_IAM_ROLE}}
@@ -151,4 +155,5 @@ jobs:
           sarif_file: "trivy-results.sarif"
           category: trivy-${{ matrix.branch }}
           ref: refs/heads/${{ matrix.branch }}
+          sha: ${{ steps.sha.outputs.sha }}
           checkout_path: ${{ github.workspace }}
