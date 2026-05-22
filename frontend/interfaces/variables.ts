@@ -5,7 +5,7 @@ export interface IVariable {
   updated_at: string;
 }
 
-export interface IVariablePayload {
+export interface IVariableFormData {
   name: string;
   value: string;
 }
