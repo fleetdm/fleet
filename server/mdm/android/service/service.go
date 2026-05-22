@@ -877,15 +877,6 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	isBYO := hostMDM != nil && hostMDM.IsPersonalEnrollment
 
 	if isBYO {
-		payload, err := json.Marshal(struct {
-			Type       string         `json:"type"`
-			WipeParams map[string]any `json:"wipeParams"`
-			Duration   string         `json:"duration"`
-		}{Type: string(android.MDMAndroidCommandTypeWipe), WipeParams: map[string]any{}, Duration: longCommandDuration})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "marshal android byo-unenroll wipe payload")
-		}
-
 		op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
 			Type:       string(android.MDMAndroidCommandTypeWipe),
 			WipeParams: &androidmanagement.WipeParams{},
@@ -898,11 +889,10 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		// Persist the row but don't write wipe_ref — BYO unenroll surfaces as the mdm_unenrolled
 		// activity (existing behavior), not as a wipe in the UI.
 		cmd := &android.MDMAndroidCommand{
-			HostUUID:       host.UUID,
-			OperationName:  op.Name,
-			CommandType:    string(android.MDMAndroidCommandTypeWipe),
-			Status:         string(android.MDMAndroidCommandStatusPending),
-			RequestPayload: payload,
+			HostUUID:      host.UUID,
+			OperationName: op.Name,
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
 		}
 		if err := svc.fleetDS.NewMDMAndroidCommand(ctx, cmd); err != nil {
 			svc.logger.ErrorContext(ctx, "amapi byo-unenroll wipe issued but local persist failed",
@@ -983,14 +973,6 @@ func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
 		return err
 	}
 
-	payload, err := json.Marshal(struct {
-		Type     string `json:"type"`
-		Duration string `json:"duration"`
-	}{Type: string(android.MDMAndroidCommandTypeLock), Duration: longCommandDuration})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshal android lock payload")
-	}
-
 	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
 		Type:     string(android.MDMAndroidCommandTypeLock),
 		Duration: longCommandDuration,
@@ -1000,11 +982,10 @@ func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
 	}
 
 	cmd := &android.MDMAndroidCommand{
-		HostUUID:       host.UUID,
-		OperationName:  op.Name,
-		CommandType:    string(android.MDMAndroidCommandTypeLock),
-		Status:         string(android.MDMAndroidCommandStatusPending),
-		RequestPayload: payload,
+		HostUUID:      host.UUID,
+		OperationName: op.Name,
+		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
 	if err := svc.fleetDS.LockHostViaAndroidMDM(ctx, host, cmd); err != nil {
 		// AMAPI already accepted the command at this point; log the orphan but surface the error
@@ -1028,15 +1009,6 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (stri
 		return "", err
 	}
 
-	payload, err := json.Marshal(struct {
-		Type        string `json:"type"`
-		NewPassword string `json:"newPassword"`
-		Duration    string `json:"duration"`
-	}{Type: string(android.MDMAndroidCommandTypeResetPassword), NewPassword: "", Duration: longCommandDuration})
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "marshal android reset-password payload")
-	}
-
 	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
 		Type:        string(android.MDMAndroidCommandTypeResetPassword),
 		NewPassword: "", // explicit empty: clears the passcode per product spec
@@ -1047,11 +1019,10 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (stri
 	}
 
 	cmd := &android.MDMAndroidCommand{
-		HostUUID:       host.UUID,
-		OperationName:  op.Name,
-		CommandType:    string(android.MDMAndroidCommandTypeResetPassword),
-		Status:         string(android.MDMAndroidCommandStatusPending),
-		RequestPayload: payload,
+		HostUUID:      host.UUID,
+		OperationName: op.Name,
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
 	if err := svc.fleetDS.NewMDMAndroidCommand(ctx, cmd); err != nil {
 		svc.logger.ErrorContext(ctx, "amapi clear-passcode issued but local state write failed",
@@ -1073,15 +1044,6 @@ func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 		return err
 	}
 
-	payload, err := json.Marshal(struct {
-		Type       string         `json:"type"`
-		WipeParams map[string]any `json:"wipeParams"`
-		Duration   string         `json:"duration"`
-	}{Type: string(android.MDMAndroidCommandTypeWipe), WipeParams: map[string]any{}, Duration: longCommandDuration})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshal android wipe payload")
-	}
-
 	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
 		Type:       string(android.MDMAndroidCommandTypeWipe),
 		WipeParams: &androidmanagement.WipeParams{}, // empty struct required by AMAPI
@@ -1092,11 +1054,10 @@ func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 	}
 
 	cmd := &android.MDMAndroidCommand{
-		HostUUID:       host.UUID,
-		OperationName:  op.Name,
-		CommandType:    string(android.MDMAndroidCommandTypeWipe),
-		Status:         string(android.MDMAndroidCommandStatusPending),
-		RequestPayload: payload,
+		HostUUID:      host.UUID,
+		OperationName: op.Name,
+		CommandType:   string(android.MDMAndroidCommandTypeWipe),
+		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
 	if err := svc.fleetDS.WipeHostViaAndroidMDM(ctx, host, cmd); err != nil {
 		svc.logger.ErrorContext(ctx, "amapi wipe issued but local state write failed",

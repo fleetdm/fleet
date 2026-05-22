@@ -90,16 +90,15 @@ const AppStatusAvailable = "AVAILABLE"
 // to for Android hosts; OperationName is the AMAPI-assigned operation name used to correlate
 // Pub/Sub notifications back to the originating command.
 type MDMAndroidCommand struct {
-	CommandUUID    string           `db:"command_uuid"`
-	HostUUID       string           `db:"host_uuid"`
-	OperationName  string           `db:"operation_name"`
-	CommandType    string           `db:"command_type"`
-	Status         string           `db:"status"`
-	ErrorCode      sql.Null[string] `db:"error_code"`
-	ErrorMessage   sql.Null[string] `db:"error_message"`
-	RequestPayload []byte           `db:"request_payload"`
-	CreatedAt      time.Time        `db:"created_at"`
-	UpdatedAt      time.Time        `db:"updated_at"`
+	CommandUUID   string           `db:"command_uuid"`
+	HostUUID      string           `db:"host_uuid"`
+	OperationName string           `db:"operation_name"`
+	CommandType   string           `db:"command_type"`
+	Status        string           `db:"status"`
+	ErrorCode     sql.Null[string] `db:"error_code"`
+	ErrorMessage  sql.Null[string] `db:"error_message"`
+	CreatedAt     time.Time        `db:"created_at"`
+	UpdatedAt     time.Time        `db:"updated_at"`
 }
 
 // MDMAndroidCommandType is the AMAPI command type for an MDMAndroidCommand row. Values are the

@@ -1911,11 +1911,10 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 
 	t.Run("Insert, read by both keys, then transition to acknowledged", func(t *testing.T) {
 		cmd := &android.MDMAndroidCommand{
-			HostUUID:       "host-uuid-1",
-			OperationName:  "enterprises/E1/devices/D1/operations/100",
-			CommandType:    string(android.MDMAndroidCommandTypeLock),
-			Status:         string(android.MDMAndroidCommandStatusPending),
-			RequestPayload: []byte(`{"type":"LOCK","duration":"315360000s"}`),
+			HostUUID:      "host-uuid-1",
+			OperationName: "enterprises/E1/devices/D1/operations/100",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
 		}
 
 		require.NoError(t, ds.NewMDMAndroidCommand(ctx, cmd))
@@ -1927,7 +1926,6 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 		require.Equal(t, cmd.OperationName, byUUID.OperationName)
 		require.Equal(t, string(android.MDMAndroidCommandTypeLock), byUUID.CommandType)
 		require.Equal(t, string(android.MDMAndroidCommandStatusPending), byUUID.Status)
-		require.JSONEq(t, `{"type":"LOCK","duration":"315360000s"}`, string(byUUID.RequestPayload))
 		require.False(t, byUUID.ErrorCode.Valid)
 		require.False(t, byUUID.ErrorMessage.Valid)
 		require.False(t, byUUID.CreatedAt.IsZero())

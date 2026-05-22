@@ -865,9 +865,9 @@ func (ds *Datastore) NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMA
 	}
 	const stmt = `
 		INSERT INTO mdm_android_commands
-			(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message, request_payload)
+			(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message)
 		VALUES
-			(?, ?, ?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
 		cmd.CommandUUID,
@@ -877,7 +877,6 @@ func (ds *Datastore) NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMA
 		cmd.Status,
 		cmd.ErrorCode,
 		cmd.ErrorMessage,
-		cmd.RequestPayload,
 	)
 	return ctxerr.Wrap(ctx, err, "inserting mdm android command")
 }
@@ -900,7 +899,7 @@ func (ds *Datastore) getMDMAndroidCommand(ctx context.Context, column, value str
 	stmt := `
 		SELECT
 			command_uuid, host_uuid, operation_name, command_type, status,
-			error_code, error_message, request_payload, created_at, updated_at
+			error_code, error_message, created_at, updated_at
 		FROM mdm_android_commands
 		WHERE ` + column + ` = ?
 	`
@@ -937,13 +936,13 @@ func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Hos
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertCmdStmt = `
 			INSERT INTO mdm_android_commands
-				(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message, request_payload)
+				(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message)
 			VALUES
-				(?, ?, ?, ?, ?, ?, ?, ?)
+				(?, ?, ?, ?, ?, ?, ?)
 		`
 		if _, err := tx.ExecContext(ctx, insertCmdStmt,
 			cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.Status,
-			cmd.ErrorCode, cmd.ErrorMessage, cmd.RequestPayload,
+			cmd.ErrorCode, cmd.ErrorMessage,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert mdm_android_commands for "+refColumn)
 		}
