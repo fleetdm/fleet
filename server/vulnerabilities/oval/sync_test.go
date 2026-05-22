@@ -83,8 +83,8 @@ func TestSync(t *testing.T) {
 			},
 		}
 
-		existing := map[string]bool{
-			NewPlatform("ubuntu", "Ubuntu 20.4.0").ToFilename(today, "json"): true,
+		existing := map[string]struct{}{
+			NewPlatform("ubuntu", "Ubuntu 20.4.0").ToFilename(today, "json"): {},
 		}
 
 		r := whatToDownload(&osVersions, existing, today)

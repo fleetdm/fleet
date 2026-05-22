@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -52,7 +53,7 @@ func downloadDecompressed(client *http.Client) func(string, string) error {
 	}
 }
 
-func whatToDownload(osVers *fleet.OSVersions, existing map[string]bool, date time.Time) []Platform {
+func whatToDownload(osVers *fleet.OSVersions, existing map[string]struct{}, date time.Time) []Platform {
 	var r []Platform
 	for _, os := range osVers.OSVersions {
 		platform := NewPlatform(os.Platform, os.Name)
@@ -70,14 +71,14 @@ func whatToDownload(osVers *fleet.OSVersions, existing map[string]bool, date tim
 // Prefer listUpToDateDefs + removeOutdatedDefs for the Refresh flow so that outdated files
 // stay on disk when a sync fails (used as a fallback). This combined remove+list is kept
 // for backwards compatibility with existing tests.
-func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
+func removeOldDefs(date time.Time, path string) (map[string]struct{}, error) {
 	dateSuffix := fmt.Sprintf("-%d_%02d_%02d.json", date.Year(), date.Month(), date.Day())
-	upToDate := make(map[string]bool)
+	upToDate := make(map[string]struct{})
 
 	err := filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
 		if strings.HasPrefix(filepath.Base(path), OvalFilePrefix) {
 			if strings.HasSuffix(path, dateSuffix) {
-				upToDate[filepath.Base(path)] = true
+				upToDate[filepath.Base(path)] = struct{}{}
 			} else {
 				err := os.Remove(path)
 				if err != nil {
@@ -97,16 +98,16 @@ func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
 // listUpToDateDefs walks 'path' returning the set of OVAL definition filenames that match
 // 'date'. Unlike removeOldDefs, it does NOT delete outdated files. Use this when the
 // outdated files may still be needed as a fallback (e.g., when a fresh sync might fail).
-func listUpToDateDefs(date time.Time, path string) (map[string]bool, error) {
+func listUpToDateDefs(date time.Time, path string) (map[string]struct{}, error) {
 	dateSuffix := fmt.Sprintf("-%d_%02d_%02d.json", date.Year(), date.Month(), date.Day())
-	upToDate := make(map[string]bool)
+	upToDate := make(map[string]struct{})
 
 	err := filepath.WalkDir(path, func(p string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if strings.HasPrefix(filepath.Base(p), OvalFilePrefix) && strings.HasSuffix(p, dateSuffix) {
-			upToDate[filepath.Base(p)] = true
+			upToDate[filepath.Base(p)] = struct{}{}
 		}
 		return nil
 	})
@@ -123,7 +124,13 @@ func listUpToDateDefs(date time.Time, path string) (map[string]bool, error) {
 func removeOutdatedDefs(date time.Time, path string) error {
 	dateSuffix := fmt.Sprintf("-%d_%02d_%02d.json", date.Year(), date.Month(), date.Day())
 
-	return filepath.WalkDir(path, func(p string, d os.DirEntry, err error) error {
+	root, err := os.OpenRoot(path)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+
+	return fs.WalkDir(root.FS(), ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -133,7 +140,7 @@ func removeOutdatedDefs(date time.Time, path string) error {
 		if strings.HasSuffix(p, dateSuffix) {
 			return nil
 		}
-		return os.Remove(p)
+		return root.Remove(p)
 	})
 }
 
