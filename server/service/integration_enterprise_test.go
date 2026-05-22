@@ -28357,7 +28357,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		resetFMAState(states["/zoom/windows.json"], "1.3", []byte("ghi"), "")
 
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
-			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
 			http.StatusAccepted, &resp,
 			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
 		)
