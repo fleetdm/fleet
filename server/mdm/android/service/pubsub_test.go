@@ -2017,42 +2017,63 @@ func TestPubSubCommand(t *testing.T) {
 		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
 	})
 
-	t.Run("unknown operation name for foreign enterprise is acked without error", func(t *testing.T) {
-		// No enterprise configured -> operationNameBelongsToOurEnterprise returns false
-		// -> handler acks the unknown op (foreign / not-yet-configured).
+	t.Run("unknown operation, host deleted from Fleet -> ack", func(t *testing.T) {
+		// COBO unenroll / manual cleanup: the host is gone from Fleet, the command row is gone
+		// from mdm_android_commands, but Pub/Sub is still trying to deliver the original
+		// notification. We check whether the AMAPI device_id is still in Fleet's DB; a false
+		// return confirms the operation is genuinely orphaned and the handler acks.
 		svc, mockDS := createAndroidService(t)
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
 		}
-
 		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(opName)
 		}
-		mockDS.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
-			return nil, common_mysql.NotFound("Enterprise")
+		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
+			require.Equal(t, "D", deviceID, "handler should pass the AMAPI device_id parsed from op.Name")
+			return false, nil
 		}
 
-		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/E/devices/D/operations/unknown", Done: true})
+		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/E/devices/D/operations/orphan", Done: true})
 		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
 	})
 
-	t.Run("unknown operation name for our enterprise returns error (Pub/Sub retries)", func(t *testing.T) {
-		// Race scenario: AMAPI delivered the notification before our IssueCommand-then-insert
-		// committed the row. Returning an error makes Pub/Sub retry past the race window.
+	t.Run("unknown operation, host still exists in Fleet -> retry (race window)", func(t *testing.T) {
+		// AMAPI delivered the COMMAND notification before our IssueCommand-then-insert sequence
+		// committed the row. The DB check confirms the device is still in Fleet; returning error
+		// makes Pub/Sub retry until the row commits.
 		svc, mockDS := createAndroidService(t)
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
 		}
-
 		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
 			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(opName)
 		}
-		mockDS.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
-			return &android.Enterprise{EnterpriseID: "OURS"}, nil
+		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
+			return true, nil
 		}
 
-		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/OURS/devices/D/operations/racy", Done: true})
+		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/E/devices/D/operations/racy", Done: true})
 		require.Error(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+
+	t.Run("unknown operation, malformed op.Name (no /devices/ segment) -> ack", func(t *testing.T) {
+		// If we can't parse a device_id from op.Name we can't probe Fleet's DB; ack rather than
+		// retry forever.
+		svc, mockDS := createAndroidService(t)
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(opName)
+		}
+		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
+			t.Fatalf("device existence check should not run when op.Name is malformed")
+			return false, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: "not-a-real-operation-name", Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
 	})
 
 	t.Run("non-done operation is acked without state transition", func(t *testing.T) {

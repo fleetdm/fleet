@@ -397,6 +397,17 @@ func (ds *Datastore) AndroidHostLiteByHostUUID(ctx context.Context, hostUUID str
 	return result, nil
 }
 
+// AndroidDeviceExistsByDeviceID reports whether an android_devices row exists for the given AMAPI device_id (the `Y` in
+// `enterprises/X/devices/Y`).
+func (ds *Datastore) AndroidDeviceExistsByDeviceID(ctx context.Context, deviceID string) (bool, error) {
+	const stmt = `SELECT EXISTS(SELECT 1 FROM android_devices WHERE device_id = ?)`
+	var exists bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, stmt, deviceID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking android device exists by device_id")
+	}
+	return exists, nil
+}
+
 func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
 	// Insert the host in the builtin label memberships, adding them to the "All
 	// Hosts" and "Android" labels.

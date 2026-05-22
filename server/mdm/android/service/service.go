@@ -866,7 +866,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
 
-	// Per product (2026-05-20): BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal
+	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal
 	// device only wipes the work profile, leaving the personal side intact) instead of the
 	// EnterprisesDevicesDelete call. The mdm_unenrolled activity is still emitted on the
 	// subsequent Pub/Sub COMMAND notification path. For COBO we keep the existing delete-device
@@ -887,8 +887,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 			return ctxerr.Wrap(ctx, err, "amapi issue byo-unenroll wipe command")
 		}
 
-		// Persist the row but don't write wipe_ref — BYO unenroll surfaces as the mdm_unenrolled
-		// activity (existing behavior), not as a wipe in the UI.
+		// Persist the row but don't write wipe_ref: BYO unenroll surfaces as the mdm_unenrolled activity, not as a wipe in the UI.
 		cmd := &android.MDMAndroidCommand{
 			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.UUID,
@@ -914,17 +913,14 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	return nil
 }
 
-// longCommandDuration is the AMAPI Command.duration we set on every command Fleet issues. AMAPI's
-// default is 600s, after which it silently drops the command (no Pub/Sub on expiry — confirmed
-// during the spike). To match Apple/Windows MDM semantics where commands stay queued at the MDM
-// server until delivered, we set this to 10 years — effectively "pending forever" for any
-// realistic device lifecycle. AMAPI docs explicitly state "There is no maximum duration."
+// longCommandDuration is the AMAPI Command.duration we set on every command Fleet issues. To match Apple/Windows MDM
+// semantics where commands stay queued at the MDM server until delivered, we set this to 10 years — effectively
+// "pending forever" for any realistic device lifecycle. AMAPI docs explicitly state "There is no maximum duration."
 const longCommandDuration = "315360000s" // 10 * 365 * 24 * 3600
 
-// resolveAndroidCommandTarget centralises the host/enterprise/secret lookup shared by all three
-// command-issuing methods (Lock, Wipe, ClearPasscode). Returns the host (for host_mdm_actions
-// writes and audit fields) and the AMAPI deviceName ready to pass to IssueCommand. Authorisation
-// is applied here so the per-command methods stay thin.
+// resolveAndroidCommandTarget centralizes the host/enterprise/secret lookup shared by all three command-issuing methods
+// (Lock, Wipe, ClearPasscode). Returns the host (for host_mdm_actions writes and audit fields) and the AMAPI deviceName
+// ready to pass to IssueCommand. Authorization is applied here so the per-command methods stay thin.
 func (svc *Service) resolveAndroidCommandTarget(ctx context.Context, hostID uint, opLabel string) (*fleet.Host, string, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, "", err
@@ -1003,9 +999,8 @@ func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
 	return nil
 }
 
-// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row.
-// Unlike Lock/Wipe, ClearPasscode is a one-shot action with no UI lock state, so it does NOT
-// touch host_mdm_actions.
+// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row. Unlike Lock/Wipe,
+// ClearPasscode is a one-shot action with no UI lock state, so it does NOT touch host_mdm_actions.
 func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (string, error) {
 	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "clear-passcode")
 	if err != nil {
@@ -1014,7 +1009,7 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (stri
 
 	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
 		Type:        string(android.MDMAndroidCommandTypeResetPassword),
-		NewPassword: "", // explicit empty: clears the passcode per product spec
+		NewPassword: "", // explicit empty: clears the passcode
 		Duration:    longCommandDuration,
 	})
 	if err != nil {
@@ -1039,9 +1034,7 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (stri
 	return cmd.CommandUUID, nil
 }
 
-// WipeAndroidHost issues an AMAPI WIPE command and persists state. AMAPI requires WipeParams to
-// be set (even if empty) — spike confirmed AMAPI rejects WIPE without it, despite the SDK's
-// "Optional" annotation.
+// WipeAndroidHost issues an AMAPI WIPE command and persists state. AMAPI requires WipeParams to be set (even if empty).
 func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
 	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "wipe")
 	if err != nil {
