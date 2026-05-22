@@ -30,6 +30,7 @@ func Up_20260519100000(tx *sql.Tx) error {
 		created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		UNIQUE KEY uk_policy_run (policy_id, host_id),
+		KEY idx_policy_runs_host_id (host_id),
 		CONSTRAINT fk_policy_runs_policy FOREIGN KEY (policy_id) REFERENCES policies (id) ON DELETE CASCADE
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`); err != nil {

@@ -1562,8 +1562,15 @@ type Datastore interface {
 	// Pairs without a matching row are simply absent from the returned slice.
 	GetFailingPolicyRuns(ctx context.Context, policyIDs, hostIDs []uint) ([]PolicyRunRef, error)
 
-	// CreatePolicyAutomationExecutions checks whether the policy_runs associated with the
-	// provided policy_ids were already processed
+	// CreatePolicyAutomationExecutions records a new dispatch batch for the
+	// supplied policy runs. It mints a fresh batch UUID, inserts one row per
+	// PolicyRunRef into policy_runs_to_policy_automation_executions (stamped
+	// with the UUID + automation type), and inserts a single row into
+	// policy_automation_executions with status='pending' for the same
+	// batch_id. Returns (uuid.Nil, nil) on empty input. Each call mints a
+	// fresh batch_id even for the same (policy_run, automation_type) tuple
+	// — the join table PK includes batch_id so retries/re-dispatches
+	// accumulate as separate audit rows.
 	CreatePolicyAutomationExecutions(ctx context.Context, typ PolicyAutomationType, runs []PolicyRunRef) (uuid.UUID, error)
 
 	// UpdatePolicyAutomationExecutions transitions the policy_automation_executions

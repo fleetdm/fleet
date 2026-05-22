@@ -58,43 +58,51 @@ func (ds *Datastore) RecordPolicyTransitions(
 		return nil, nil
 	}
 
-	writer := ds.writer(ctx)
-	for chunkStart := 0; chunkStart < len(pending); chunkStart += policyAutomationBatchSize {
-		chunkEnd := min(chunkStart+policyAutomationBatchSize, len(pending))
-		chunk := pending[chunkStart:chunkEnd]
-
-		placeholders := make([]string, 0, len(chunk))
-		args := make([]any, 0, len(chunk)*4)
-		for _, r := range chunk {
-			placeholders = append(placeholders, "(?, ?, NULL, ?, ?)")
-			args = append(args, r.policyID, hostID, r.newStatus, r.consecutiveFailures)
-		}
-		query := `INSERT INTO policy_runs (policy_id, host_id, old_status, new_status, consecutive_failures)
-		           VALUES ` + strings.Join(placeholders, ",") + `
-		           ON DUPLICATE KEY UPDATE
-		             old_status = CASE
-		                 WHEN new_status = VALUES(new_status) THEN old_status
-		                 ELSE new_status
-		             END,
-		             consecutive_failures = CASE
-		                 WHEN new_status = 0 AND VALUES(new_status) = 0 THEN consecutive_failures + 1
-		                 ELSE VALUES(consecutive_failures)
-		             END,
-		             new_status = VALUES(new_status)`
-		if _, err := writer.ExecContext(ctx, query, args...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "upsert policy_runs")
-		}
-	}
-
 	failingIDs := make(map[uint]uint, len(newFailing))
-	if len(newFailing) > 0 {
-		refs, err := lookupFailingPolicyRunRefs(ctx, writer, newFailing, []uint{hostID})
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "select failing policy_runs ids")
+	// The ODKU chunks + the failing-ID lookup run inside one transaction so a
+	// partial commit can't leave the per-host state inconsistent across chunks.
+	// Concurrent writers for the same (policy, host) still serialize on the
+	// ODKU's row-X lock (see the function godoc).
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		for chunkStart := 0; chunkStart < len(pending); chunkStart += policyAutomationBatchSize {
+			chunkEnd := min(chunkStart+policyAutomationBatchSize, len(pending))
+			chunk := pending[chunkStart:chunkEnd]
+
+			placeholders := make([]string, 0, len(chunk))
+			args := make([]any, 0, len(chunk)*4)
+			for _, r := range chunk {
+				placeholders = append(placeholders, "(?, ?, NULL, ?, ?)")
+				args = append(args, r.policyID, hostID, r.newStatus, r.consecutiveFailures)
+			}
+			query := `INSERT INTO policy_runs (policy_id, host_id, old_status, new_status, consecutive_failures)
+			           VALUES ` + strings.Join(placeholders, ",") + `
+			           ON DUPLICATE KEY UPDATE
+			             old_status = CASE
+			                 WHEN new_status = VALUES(new_status) THEN old_status
+			                 ELSE new_status
+			             END,
+			             consecutive_failures = CASE
+			                 WHEN new_status = 0 AND VALUES(new_status) = 0 THEN consecutive_failures + 1
+			                 ELSE VALUES(consecutive_failures)
+			             END,
+			             new_status = VALUES(new_status)`
+			if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert policy_runs")
+			}
 		}
-		for _, r := range refs {
-			failingIDs[r.PolicyID] = r.RunID
+
+		if len(newFailing) > 0 {
+			refs, err := lookupFailingPolicyRunRefs(ctx, tx, newFailing, []uint{hostID})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "select failing policy_runs ids")
+			}
+			for _, r := range refs {
+				failingIDs[r.PolicyID] = r.RunID
+			}
 		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	return failingIDs, nil
 }
@@ -105,12 +113,11 @@ func (ds *Datastore) RecordPolicyTransitions(
 // pattern) should pass a singleton for the "1" side; pairs without a matching
 // row are simply absent from the result.
 //
-// The query is chunked on the larger of the two sides — the smaller side is
-// inlined verbatim into every per-chunk statement, so the per-statement
-// placeholder count is bounded by policyAutomationBatchSize + len(smaller side).
-// If both sides exceed policyAutomationBatchSize this could approach 2×batch
-// placeholders per statement, which is still well under MySQL's
-// max_prepared_stmt_count default.
+// Both sides are chunked at policyAutomationBatchSize so the per-statement
+// placeholder count stays bounded at ~2×policyAutomationBatchSize regardless
+// of how large either input grows. The outer loop chunks the larger side and
+// the inner loop chunks the smaller side, so realistic 1×N callers issue one
+// query per chunk on the N side and no extra queries on the 1 side.
 func lookupFailingPolicyRunRefs(
 	ctx context.Context,
 	exec sqlx.ExtContext,
@@ -120,56 +127,61 @@ func lookupFailingPolicyRunRefs(
 		return nil, nil
 	}
 
-	var chunkSide, fixedSide []uint
-	var chunkCol, fixedCol string
+	var outerSide, innerSide []uint
+	var outerCol, innerCol string
 	if len(policyIDs) >= len(hostIDs) {
-		chunkSide, chunkCol = policyIDs, "policy_id"
-		fixedSide, fixedCol = hostIDs, "host_id"
+		outerSide, outerCol = policyIDs, "policy_id"
+		innerSide, innerCol = hostIDs, "host_id"
 	} else {
-		chunkSide, chunkCol = hostIDs, "host_id"
-		fixedSide, fixedCol = policyIDs, "policy_id"
+		outerSide, outerCol = hostIDs, "host_id"
+		innerSide, innerCol = policyIDs, "policy_id"
 	}
 
-	fixedPlaceholders := strings.Repeat("?,", len(fixedSide))
-	fixedPlaceholders = fixedPlaceholders[:len(fixedPlaceholders)-1]
-
 	var out []fleet.PolicyRunRef
-	for chunkStart := 0; chunkStart < len(chunkSide); chunkStart += policyAutomationBatchSize {
-		chunkEnd := min(chunkStart+policyAutomationBatchSize, len(chunkSide))
-		chunk := chunkSide[chunkStart:chunkEnd]
+	for outerStart := 0; outerStart < len(outerSide); outerStart += policyAutomationBatchSize {
+		outerEnd := min(outerStart+policyAutomationBatchSize, len(outerSide))
+		outerChunk := outerSide[outerStart:outerEnd]
 
-		chunkPlaceholders := strings.Repeat("?,", len(chunk))
-		chunkPlaceholders = chunkPlaceholders[:len(chunkPlaceholders)-1]
+		outerPlaceholders := strings.Repeat("?,", len(outerChunk))
+		outerPlaceholders = outerPlaceholders[:len(outerPlaceholders)-1]
 
-		args := make([]any, 0, len(chunk)+len(fixedSide))
-		for _, v := range chunk {
-			args = append(args, v)
-		}
-		for _, v := range fixedSide {
-			args = append(args, v)
-		}
+		for innerStart := 0; innerStart < len(innerSide); innerStart += policyAutomationBatchSize {
+			innerEnd := min(innerStart+policyAutomationBatchSize, len(innerSide))
+			innerChunk := innerSide[innerStart:innerEnd]
 
-		query := `SELECT id, policy_id, host_id FROM policy_runs WHERE ` +
-			chunkCol + ` IN (` + chunkPlaceholders + `) AND ` +
-			fixedCol + ` IN (` + fixedPlaceholders + `) AND new_status = false`
+			innerPlaceholders := strings.Repeat("?,", len(innerChunk))
+			innerPlaceholders = innerPlaceholders[:len(innerPlaceholders)-1]
 
-		rows, err := exec.QueryxContext(ctx, query, args...)
-		if err != nil {
-			return nil, err
-		}
-		err = func() error {
-			defer rows.Close()
-			for rows.Next() {
-				var r fleet.PolicyRunRef
-				if err := rows.Scan(&r.RunID, &r.PolicyID, &r.HostID); err != nil {
-					return err
-				}
-				out = append(out, r)
+			args := make([]any, 0, len(outerChunk)+len(innerChunk))
+			for _, v := range outerChunk {
+				args = append(args, v)
 			}
-			return rows.Err()
-		}()
-		if err != nil {
-			return nil, err
+			for _, v := range innerChunk {
+				args = append(args, v)
+			}
+
+			query := `SELECT id, policy_id, host_id FROM policy_runs WHERE ` +
+				outerCol + ` IN (` + outerPlaceholders + `) AND ` +
+				innerCol + ` IN (` + innerPlaceholders + `) AND new_status = false`
+
+			rows, err := exec.QueryxContext(ctx, query, args...)
+			if err != nil {
+				return nil, err
+			}
+			err = func() error {
+				defer rows.Close()
+				for rows.Next() {
+					var r fleet.PolicyRunRef
+					if err := rows.Scan(&r.RunID, &r.PolicyID, &r.HostID); err != nil {
+						return err
+					}
+					out = append(out, r)
+				}
+				return rows.Err()
+			}()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return out, nil

@@ -423,7 +423,6 @@ func processFailingHostExistingCalendarEvent(
 		if batchRecorded {
 			return
 		}
-		batchRecorded = true
 
 		pRuns, err := ds.GetFailingPolicyRuns(ctx, host.FailingPolicyIDList(), []uint{host.HostID})
 		if err != nil {
@@ -437,6 +436,7 @@ func processFailingHostExistingCalendarEvent(
 			return
 		}
 		batchID = recordedBatch
+		batchRecorded = true
 	}
 	// Make sure we 'finalize' each batch.
 	defer func() {
@@ -638,10 +638,13 @@ func processFailingHostCreateCalendarEvent(
 	// is reacting to and create pending policy_automation_executions rows.
 	var batchID uuid.UUID
 
+	// Recording is best-effort. Any lookup or insert failure is logged and
+	// the calendar dispatch proceeds — breaking the user-facing automation
+	// over a recording hiccup is the wrong trade.
 	refs, err := ds.GetFailingPolicyRuns(ctx, host.FailingPolicyIDList(), []uint{host.HostID})
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to look up calendar policy_run IDs", "host_id", host.HostID, "err", err)
-		return nil
+		refs = nil
 	}
 
 	var recErr error
