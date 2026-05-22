@@ -83,12 +83,11 @@ type MDMAndroidPolicyRequest struct {
 
 const AppStatusAvailable = "AVAILABLE"
 
-// MDMAndroidCommand represents a single AMAPI command Fleet issued via
-// EnterprisesDevicesService.IssueCommand (Lock, Wipe, Clear passcode). One row is inserted at
-// issue time and updated by the Pub/Sub COMMAND handler when the device acks or AMAPI rejects.
-// CommandUUID is the Fleet-generated identifier that host_mdm_actions.{lock_ref, wipe_ref} points
-// to for Android hosts; OperationName is the AMAPI-assigned operation name used to correlate
-// Pub/Sub notifications back to the originating command.
+// MDMAndroidCommand represents a single AMAPI command Fleet issued via EnterprisesDevicesService.IssueCommand (Lock,
+// Wipe, Clear passcode). One row is inserted at issue time and updated by the Pub/Sub COMMAND handler when the device
+// acks or AMAPI rejects. CommandUUID is the Fleet-generated identifier that host_mdm_actions.{lock_ref, wipe_ref}
+// points to for Android hosts; OperationName is the AMAPI-assigned operation name used to correlate Pub/Sub
+// notifications back to the originating command.
 type MDMAndroidCommand struct {
 	CommandUUID   string           `db:"command_uuid"`
 	HostUUID      string           `db:"host_uuid"`
@@ -101,9 +100,9 @@ type MDMAndroidCommand struct {
 	UpdatedAt     time.Time        `db:"updated_at"`
 }
 
-// MDMAndroidCommandType is the AMAPI command type for an MDMAndroidCommand row. Values are the
-// strings AMAPI uses on the wire (Command.type), so they double as the value we send in
-// IssueCommand and the value we read back from Pub/Sub COMMAND notifications.
+// MDMAndroidCommandType is the AMAPI command type for an MDMAndroidCommand row. Values are the strings AMAPI uses on
+// the wire (Command.type), so they double as the value we send in IssueCommand and the value we read back from Pub/Sub
+// COMMAND notifications.
 type MDMAndroidCommandType string
 
 const (
@@ -116,19 +115,13 @@ const (
 type MDMAndroidCommandStatus string
 
 const (
-	// MDMAndroidCommandStatusPending — Fleet has called IssueCommand and AMAPI accepted, but the
-	// Pub/Sub COMMAND notification with the device-side result has not yet arrived.
+	// MDMAndroidCommandStatusPending — Fleet has called IssueCommand and AMAPI accepted, but the Pub/Sub COMMAND
+	// notification with the device-side result has not yet arrived.
 	MDMAndroidCommandStatusPending MDMAndroidCommandStatus = "pending"
-	// MDMAndroidCommandStatusAcknowledged — Pub/Sub COMMAND notification arrived and the device
-	// successfully executed the command (no AMAPI error_code).
-	//
-	// MUST match the literal value of fleet.AndroidMDMCommandStatusAcknowledged; the constants
-	// are intentionally duplicated to avoid a server/mdm/android -> server/fleet import (server/fleet
-	// already imports server/mdm/android). A divergence would silently break IsLocked/IsWiped for
-	// android hosts; the assertion in TestAndroidCommandStatusAcknowledgedStringMatches guards
-	// against it.
+	// MDMAndroidCommandStatusAcknowledged — Pub/Sub COMMAND notification arrived and the device successfully executed the
+	// command (no AMAPI error_code). server/fleet imports this constant in HostLockWipeStatus.IsLocked/IsWiped.
 	MDMAndroidCommandStatusAcknowledged MDMAndroidCommandStatus = "acknowledged"
-	// MDMAndroidCommandStatusError — Pub/Sub COMMAND notification arrived with a non-empty
-	// AMAPI error_code (e.g. UNSUPPORTED, API_LEVEL, INVALID_VALUE).
+	// MDMAndroidCommandStatusError — Pub/Sub COMMAND notification arrived with a non-empty AMAPI error_code (e.g.
+	// UNSUPPORTED, API_LEVEL, INVALID_VALUE).
 	MDMAndroidCommandStatusError MDMAndroidCommandStatus = "error"
 )
