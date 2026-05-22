@@ -3322,6 +3322,10 @@ func TestPolicyQueries(t *testing.T) {
 		Platform: "darwin",
 	}
 
+	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (failingRunIDs map[uint]uint, err error) {
+		return nil, nil
+	}
+
 	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
