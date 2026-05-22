@@ -70,7 +70,7 @@ module.exports = {
     let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;
 
     await sails.helpers.flow.build(async ()=>{
-      let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      let recordDetails = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
@@ -83,21 +83,21 @@ module.exports = {
 
       // Add contact to campaign.
       await sails.helpers.salesforce.createCampaignMember.with({
-        salesforceContactId: recordIds.salesforceContactId,
+        salesforceContactId: recordDetails.salesforceContactId,
         salesforceCampaignId: '701UG00000bLCLpYAO',// 2026_01-FE-GitOps_Workshop_Interest Campaign
       });
 
-      if(!recordIds.salesforceAccountId) {
-        throw new Error(`Could not create historical event. The contact record (ID: ${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
+      if(!recordDetails.salesforceAccountId) {
+        throw new Error(`Could not create historical event. The contact record (ID: ${recordDetails.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
       }
       // Create the new historical event record.
       await sails.helpers.salesforce.createHistoricalEvent.with({
-        salesforceAccountId: recordIds.salesforceAccountId,
-        salesforceContactId: recordIds.salesforceContactId,
+        salesforceAccountId: recordDetails.salesforceAccountId,
+        salesforceContactId: recordDetails.salesforceContactId,
         eventType: 'Intent signal',
         intentSignal: 'Submitted the "GitOps workshop request" form',
         eventContent: descriptionForCrmUpdate,
-        relatedCampaign: recordIds.mostRecentCampaign,
+        relatedCampaign: recordDetails.mostRecentCampaign,
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });

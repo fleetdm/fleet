@@ -53,7 +53,7 @@ module.exports = {
     let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;
 
     sails.helpers.flow.build(async()=>{
-      let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      let recordDetails = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: emailAddress,
         contactSource: 'Website - Newsletter',
         description: `Subscribed to the Fleet newsletter`,
@@ -63,11 +63,11 @@ module.exports = {
       });
 
       await sails.helpers.salesforce.createHistoricalEvent.with({
-        salesforceAccountId: recordIds.salesforceAccountId,
-        salesforceContactId: recordIds.salesforceContactId,
+        salesforceAccountId: recordDetails.salesforceAccountId,
+        salesforceContactId: recordDetails.salesforceContactId,
         eventType: 'Intent signal',
         intentSignal: 'Subscribed to the Fleet newsletter',
-        relatedCampaign: recordIds.mostRecentCampaign,
+        relatedCampaign: recordDetails.mostRecentCampaign,
       });
     }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
       if(err) {
