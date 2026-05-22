@@ -246,19 +246,17 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 	return v.scepValidator.validateLocURI(locURI)
 }
 
-// validateLocURIFormat enforces that a LocURI follows the OMA-DM URI
-// addressing rules: it must start with "./Device/", "./User/", or
-// "./Vendor/", and must not contain ".." path traversal segments. Empty
+// validateLocURIFormat enforces the LocURI rules from the Microsoft OMA DM
+// protocol support documentation: the URI must address the OMA-DM root with
+// the "./" prefix and must not contain ".." path traversal segments. Empty
 // LocURIs are not flagged here.
 func validateLocURIFormat(locURI string) error {
 	trimmed := strings.TrimSpace(locURI)
 	if trimmed == "" {
 		return nil
 	}
-	if !(strings.HasPrefix(trimmed, "./Device/") ||
-		strings.HasPrefix(trimmed, "./User/") ||
-		strings.HasPrefix(trimmed, "./Vendor/")) {
-		return errors.New("<LocURI> must start with \"./Device/\", \"./User/\", or \"./Vendor/\".")
+	if !strings.HasPrefix(trimmed, "./") {
+		return errors.New("<LocURI> must start with \"./\" (e.g. \"./Device/...\" or \"./User/...\").")
 	}
 	if slices.Contains(strings.Split(strings.TrimPrefix(trimmed, "./"), "/"), "..") {
 		return errors.New("<LocURI> can't contain \"..\" path traversal segments.")

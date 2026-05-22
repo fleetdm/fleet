@@ -629,7 +629,7 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 		"/api/v1/fleet/mdm/profiles/batch",
 		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
-			{Name: "N2", Contents: syncMLForTest("./Device/Foo/Bar")},
+			{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
 			{Name: "N3", Contents: declarationForTest("D1")},
 		}},
 		http.StatusNoContent,

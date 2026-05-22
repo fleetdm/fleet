@@ -12366,7 +12366,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
-		{Name: "N2", Contents: syncMLForTest("./Device/Foo/Bar")},
+		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
 		{Name: "N4", Contents: declarationForTest("D1")},
 	}}, http.StatusNoContent)
 
@@ -12479,7 +12479,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	// Load new profiles
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
-		{Name: "N2", Contents: syncMLForTest("./Device/Foo/Bar")},
+		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
 	}}, http.StatusNoContent)
 
 	// trigger the reconciliation schedule
@@ -20867,7 +20867,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 		ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 			{DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"), LabelsIncludeAll: []string{l1t1.Name}},
-			{DisplayName: "N2", Profile: syncMLForTest("./Device/Foo/Bar"), LabelsIncludeAll: []string{l1t1.Name}},
+			{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{l1t1.Name}},
 			{DisplayName: "N3", Profile: declarationForTest("D1"), LabelsIncludeAll: []string{l1t1.Name}},
 		},
 	}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
@@ -21255,7 +21255,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
-					DisplayName: "N2", Profile: syncMLForTest("./Device/Foo/Bar"),
+					DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"),
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},

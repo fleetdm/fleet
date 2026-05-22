@@ -22,7 +22,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI</LocURI></Target>
+    <Target><LocURI>./Custom/URI</LocURI></Target>
   </Item>
 </Replace>
 `),
@@ -36,7 +36,7 @@ func TestValidateUserProvided(t *testing.T) {
 <SyncML xmlns="SYNCML:SYNCML1.2">
   <Replace>
     <Item>
-      <Target><LocURI>./Device/Custom/URI</LocURI></Target>
+      <Target><LocURI>./Custom/URI</LocURI></Target>
     </Item>
   </Replace>
 </SyncML>
@@ -50,7 +50,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Add>
   <Item>
-    <Target><LocURI>./Device/Custom/URI</LocURI></Target>
+    <Target><LocURI>./Custom/URI</LocURI></Target>
   </Item>
 </Add>
 `),
@@ -89,12 +89,12 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI1</LocURI></Target>
+    <Target><LocURI>./Custom/URI1</LocURI></Target>
   </Item>
 </Replace>
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI2</LocURI></Target>
+    <Target><LocURI>./Custom/URI2</LocURI></Target>
   </Item>
 </Replace>
 `),
@@ -114,7 +114,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI</LocURI></Target>
+    <Target><LocURI>./Custom/URI</LocURI></Target>
   </Item>
 </Replace>
 <Replace>
@@ -132,12 +132,12 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI</LocURI></Target>
+    <Target><LocURI>./Custom/URI</LocURI></Target>
   </Item>
 </Replace>
 <Add>
   <Item>
-    <Target><LocURI>./Device/Another/URI</LocURI></Target>
+    <Target><LocURI>./Another/URI</LocURI></Target>
   </Item>
 </Add>
 `),
@@ -150,12 +150,12 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
  <Item>
-   <Target><LocURI>./Device/Replace/URI</LocURI></Target>
+   <Target><LocURI>./Replace/URI</LocURI></Target>
  </Item>
 </Replace>
 <Alert>
  <Item>
-   <Target><LocURI>./Device/Alert/URI</LocURI></Target>
+   <Target><LocURI>./Alert/URI</LocURI></Target>
  </Item>
 </Alert>
 `),
@@ -168,12 +168,12 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Replace/URI</LocURI></Target>
+    <Target><LocURI>./Replace/URI</LocURI></Target>
   </Item>
 </Replace>
 <Atomic>
   <Item>
-    <Target><LocURI>./Device/Atomic/URI</LocURI></Target>
+    <Target><LocURI>./Atomic/URI</LocURI></Target>
   </Item>
 </Atomic>
 `),
@@ -186,12 +186,12 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Replace/URI</LocURI></Target>
+    <Target><LocURI>./Replace/URI</LocURI></Target>
   </Item>
 </Replace>
 <Delete>
   <Item>
-    <Target><LocURI>./Device/Delete/URI</LocURI></Target>
+    <Target><LocURI>./Delete/URI</LocURI></Target>
   </Item>
 </Delete>
 `),
@@ -204,12 +204,12 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Replace/URI</LocURI></Target>
+    <Target><LocURI>./Replace/URI</LocURI></Target>
   </Item>
 </Replace>
 <Exec>
   <Item>
-    <Target><LocURI>./Device/Exec/URI</LocURI></Target>
+    <Target><LocURI>./Exec/URI</LocURI></Target>
   </Item>
 </Exec>
 `),
@@ -222,12 +222,12 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Replace/URI</LocURI></Target>
+    <Target><LocURI>./Replace/URI</LocURI></Target>
   </Item>
 </Replace>
 <Get>
   <Item>
-    <Target><LocURI>./Device/Get/URI</LocURI></Target>
+    <Target><LocURI>./Get/URI</LocURI></Target>
   </Item>
 </Get>
 `),
@@ -240,12 +240,12 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Replace/URI</LocURI></Target>
+    <Target><LocURI>./Replace/URI</LocURI></Target>
   </Item>
 </Replace>
 <Results>
   <Item>
-    <Target><LocURI>./Device/Results/URI</LocURI></Target>
+    <Target><LocURI>./Results/URI</LocURI></Target>
   </Item>
 </Results>
 `),
@@ -258,12 +258,12 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Replace/URI</LocURI></Target>
+    <Target><LocURI>./Replace/URI</LocURI></Target>
   </Item>
 </Replace>
 <Status>
   <Item>
-    <Target><LocURI>./Device/Status/URI</LocURI></Target>
+    <Target><LocURI>./Status/URI</LocURI></Target>
   </Item>
 </Status>
 `),
@@ -276,12 +276,12 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI</LocURI></Target>
+    <Target><LocURI>./Custom/URI</LocURI></Target>
   </Item>
 </Replace>
 <Foo>
   <Item>
-    <Target><LocURI>./Device/Another/URI</LocURI></Target>
+    <Target><LocURI>./Another/URI</LocURI></Target>
   </Item>
 </Foo>
 `),
@@ -294,7 +294,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI</LocURI></Target>
+    <Target><LocURI>./Custom/URI</LocURI></Target>
   </Item>
 </Add>
 `),
@@ -307,7 +307,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI</LocURI></Target>
+    <Target><LocURI>./Custom/URI</LocURI></Target>
   </Item>
 `),
 			},
@@ -319,7 +319,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI</LocURI></Target>
+    <Target><LocURI>./Custom/URI</LocURI></Target>
 </Replace>
 `),
 			},
@@ -331,7 +331,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI</Target></LocURI>
+    <Target><LocURI>./Custom/URI</Target></LocURI>
   </Item>
 </Replace>
 `),
@@ -344,7 +344,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI</Target></LocURI>
+    <Target><LocURI>./Custom/URI</Target></LocURI>
     <Data attr="1" attr="2"></Data>
   </Item>
 </Replace>
@@ -358,7 +358,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 <Replace>
   <Item>
-    <Target><LocURI>./Device/Custom/URI</Target></LocURI>
+    <Target><LocURI>./Custom/URI</Target></LocURI>
     <Data>Invalid & Data</Data>
   </Item>
 </Replace>
@@ -405,7 +405,7 @@ func TestValidateUserProvided(t *testing.T) {
 			name: "Valid XML with reserved name",
 			profile: MDMWindowsConfigProfile{
 				Name:   mdm.FleetWindowsOSUpdatesProfileName,
-				SyncML: []byte(`<Replace><Target><LocURI>./Device/Custom/URI</LocURI></Target></Replace>`),
+				SyncML: []byte(`<Replace><Target><LocURI>./Custom/URI</LocURI></Target></Replace>`),
 			},
 			wantErr: `Profile name "Windows OS Updates" is not allowed`,
 		},
@@ -413,7 +413,7 @@ func TestValidateUserProvided(t *testing.T) {
 			name: "Valid XML with reserved name but experimental allow custom OS updates flag enabled is still not allowed",
 			profile: MDMWindowsConfigProfile{
 				Name:   mdm.FleetWindowsOSUpdatesProfileName,
-				SyncML: []byte(`<Replace><Target><LocURI>./Device/Custom/URI</LocURI></Target></Replace>`),
+				SyncML: []byte(`<Replace><Target><LocURI>./Custom/URI</LocURI></Target></Replace>`),
 			},
 			allowCustomOSUpdates: true,
 			wantErr:              `Profile name "Windows OS Updates" is not allowed`,
@@ -463,7 +463,7 @@ func TestValidateUserProvided(t *testing.T) {
 				  <Replace>
 				  <!-- this is a comment inside replace -->
 				    <Target>
-				      <LocURI>./Device/Custom/URI</LocURI>
+				      <LocURI>./Custom/URI</LocURI>
 				    </Target>
 				  </Replace>
 				`),
@@ -477,7 +477,7 @@ func TestValidateUserProvided(t *testing.T) {
 				  <Replace>
 				    <Item>
 				    <Target>
-				      <LocURI>./Device/Custom/URI</LocURI>
+				      <LocURI>./Custom/URI</LocURI>
 				      <Data>
 				        <?xml version="1.0"?>
 					<Foo></Foo>
@@ -497,7 +497,7 @@ func TestValidateUserProvided(t *testing.T) {
 				    <?xml version="1.0"?>
 				    <Item>
 				    <Target>
-				      <LocURI>./Device/Custom/URI</LocURI>
+				      <LocURI>./Custom/URI</LocURI>
 				      <Data>
 					<Foo></Foo>
 				      </Data>
@@ -516,7 +516,7 @@ func TestValidateUserProvided(t *testing.T) {
 				  <Replace>
 				  <Item>
 				    <Target>
-				      <LocURI>./Device/Custom/URI</LocURI>
+				      <LocURI>./Custom/URI</LocURI>
 				      <Data>
 					<Foo></Foo>
 				      </Data>
@@ -534,7 +534,7 @@ func TestValidateUserProvided(t *testing.T) {
 				  <Replace>
 				    <Target>
 				      <?xml version="1.0"?>
-				      <LocURI>./Device/Custom/URI</LocURI>
+				      <LocURI>./Custom/URI</LocURI>
 				      <Data>
 					<Foo></Foo>
 				      </Data>
@@ -550,7 +550,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 				  <Replace>
 				    <Target>
-				      <LocURI>./Device/Custom/URI</LocURI>
+				      <LocURI>./Custom/URI</LocURI>
 				      <Data>
 				      <![CDATA[
 				        <?xml version="1.0"?>
@@ -569,7 +569,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 				  <Replace>
 				    <Target>
-				      <LocURI>./Device/Custom/URI</LocURI>
+				      <LocURI>./Custom/URI</LocURI>
 				      <Data>
 				        &lt;?xml version=&quot;1.0&quot;?&gt;
                                         &lt;name&gt;Wireless Network&lt;/name&gt;
@@ -591,7 +591,7 @@ func TestValidateUserProvided(t *testing.T) {
 				  </Replace>
 				  <Replace>
 				    <Target>
-				      <LocURI>./Device/Custom/URI</LocURI>
+				      <LocURI>./Custom/URI</LocURI>
 				    </Target>
 				  </Replace>
 				  <Exec>
@@ -838,10 +838,10 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 				<Atomic>
 					<Add>
-						<LocURI>./Device/Custom/URI</LocURI>
+						<LocURI>./Custom/URI</LocURI>
 					</Add>
 					<Replace>
-						<LocURI>./Device/Another/URI</LocURI>
+						<LocURI>./Another/URI</LocURI>
 					</Replace>
 				</Atomic>
 				`),
@@ -875,21 +875,14 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: `<LocURI> must start with "./Device/", "./User/", or "./Vendor/".`,
+			wantErr: `<LocURI> must start with "./"`,
 		},
 		{
-			name: "LocURI with leading single slash is rejected",
+			name: "LocURI with leading single slash is rejected (#42224)",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`<Replace><Target><LocURI>/Foo/Bar</LocURI></Target></Replace>`),
 			},
-			wantErr: `<LocURI> must start with "./Device/", "./User/", or "./Vendor/".`,
-		},
-		{
-			name: "LocURI with unknown root is rejected",
-			profile: MDMWindowsConfigProfile{
-				SyncML: []byte(`<Replace><Target><LocURI>./Custom/Foo</LocURI></Target></Replace>`),
-			},
-			wantErr: `<LocURI> must start with "./Device/", "./User/", or "./Vendor/".`,
+			wantErr: `<LocURI> must start with "./"`,
 		},
 		{
 			name: "LocURI with ../ path traversal is rejected (#42224)",
@@ -914,23 +907,9 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: `<LocURI> can't contain ".." path traversal segments.`,
 		},
 		{
-			name: "LocURI with implicit ./Vendor prefix is allowed",
-			profile: MDMWindowsConfigProfile{
-				SyncML: []byte(`<Replace><Target><LocURI>./Vendor/MSFT/Foo/Bar</LocURI></Target></Replace>`),
-			},
-			wantErr: "",
-		},
-		{
-			name: "LocURI with ./User prefix is allowed",
-			profile: MDMWindowsConfigProfile{
-				SyncML: []byte(`<Replace><Target><LocURI>./User/Vendor/MSFT/Foo</LocURI></Target></Replace>`),
-			},
-			wantErr: "",
-		},
-		{
 			name: "LocURI with surrounding whitespace is allowed",
 			profile: MDMWindowsConfigProfile{
-				SyncML: []byte(`<Replace><Target><LocURI>  ./Device/Custom/URI  </LocURI></Target></Replace>`),
+				SyncML: []byte(`<Replace><Target><LocURI>  ./Custom/URI  </LocURI></Target></Replace>`),
 			},
 			wantErr: "",
 		},
