@@ -58,7 +58,7 @@ func TestSearchTargetsStripsSecretsAndAgentOptions(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	// Use an observer role to mirror the vulnerable scenario.
-	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
+	user := &fleet.User{GlobalRole: new(fleet.RoleObserver)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
 	agentOpts := json.RawMessage(`{"config":{"options":{"aws_secret_access_key":"SECRET"}}}`)
@@ -70,14 +70,14 @@ func TestSearchTargetsStripsSecretsAndAgentOptions(t *testing.T) {
 				AgentOptions: &agentOpts,
 			},
 			Secrets: []*fleet.EnrollSecret{
-				{Secret: "super-secret-token", TeamID: ptr.Uint(1)},
+				{Secret: "super-secret-token", TeamID: new(uint(1))},
 			},
 		},
 		{
 			ID:   2,
 			Name: "team2",
 			Secrets: []*fleet.EnrollSecret{
-				{Secret: "another-secret", TeamID: ptr.Uint(2)},
+				{Secret: "another-secret", TeamID: new(uint(2))},
 			},
 		},
 	}
