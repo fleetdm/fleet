@@ -187,6 +187,7 @@ module.exports.custom = {
     'handbook/company/leadership.md': 'mikermcneil',
     'handbook/it/security.md': 'allenhouchins',
     'handbook/company/go-to-market-operations.md': 'sampfluger88',
+    'handbook/company/brand.md': 'mike-j-thomas',
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -297,6 +298,7 @@ module.exports.custom = {
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
     'handbook/ceo': 'mikermcneil',
+    'handbook/company/brand.md': ['mikermcneil', 'mike-j-thomas'],
     'handbook/company/product-maturity-assessment': ['mikermcneil','noahtalerman','allenhouchins'],
     'handbook/company/open-positions.yml': ['sampfluger88', 'mikermcneil', 'ireedy'],
     'handbook/company/communications.md': ['mikermcneil', 'ireedy', 'sampfluger88'],

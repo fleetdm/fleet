@@ -1,0 +1,12 @@
+<Replace>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI
+            >./Device/Vendor/MSFT/Policy/Config/SecureBoot/EnableSecurebootCertificateUpdates</LocURI>
+    </Target>
+      <Data>22852</Data>
+  </Item>
+</Replace>

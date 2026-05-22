@@ -328,6 +328,33 @@ func TestGetSCDDataMixedEncoding(t *testing.T) {
 	assert.Equal(t, 5, pts[0].Value, "union of dense {1,2,3} and roaring {3,4,5} = {1,2,3,4,5}")
 }
 
+// TestGetSCDDataEmptyEntityIDsReturnsZeroBuckets pins the non-nil empty
+// entityIDs contract: a caller signaling "filter requested but resolved to
+// nothing" must get zero-valued buckets across the date range — not an error
+// from `IN ()` and not an empty slice. Rows are seeded that would match if the
+// filter were nil; the empty-slice filter must exclude them.
+func TestGetSCDDataEmptyEntityIDsReturnsZeroBuckets(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+
+	startDate := time.Date(2026, 4, 21, 0, 0, 0, 0, time.UTC)
+	bucketSize := 24 * time.Hour
+	endDate := startDate.Add(3 * bucketSize)
+	validFrom := startDate.Add(-time.Hour)
+
+	tdb.InsertSCDRowWithHostIDs(t, "cve", "CVE-A", []uint{1, 2, 3}, validFrom, scdOpenSentinel)
+	tdb.InsertSCDRowWithHostIDs(t, "cve", "CVE-B", []uint{4, 5}, validFrom, scdOpenSentinel)
+
+	pts, err := ds.GetSCDData(t.Context(), "cve",
+		startDate, endDate, bucketSize,
+		api.SampleStrategySnapshot, nil, []string{})
+	require.NoError(t, err)
+	require.Len(t, pts, 3, "one bucket per slot across the date range, not an empty slice")
+	for i, dp := range pts {
+		assert.Zero(t, dp.Value, "bucket %d must be zero — empty entityIDs filter excludes all rows", i)
+	}
+}
+
 func testScrubOtherDatasetUnaffected(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
 	now := time.Now().UTC()
 

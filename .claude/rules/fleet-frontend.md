@@ -19,10 +19,26 @@ Use the component generator for new components:
 ```
 
 ## React Query
-- Use `useQuery` for data fetching with `[queryKey, dependency]` and `enabled` option
-- Prefer React Query over manual useState/useEffect for API data
+- Prefer `useQuery` over manual `useState`/`useEffect` for API data
 - Use `useMutation` for write operations — invalidate related queries on success
-- Query key pattern: `["resource", id, teamId]` — include all dependencies
+- Use the `enabled` option to defer a query until its dependencies are ready
+
+### Query keys
+
+The `queryKey` must list every parameter that the `queryFn` passes to the API. The `QueryClient` is a singleton shared across the app, so any parameter missing from the key causes cross-entity cache bleed (for example, data fetched for team A being served to team B).
+
+Rules:
+- Always use an array, even when there are no parameters — `useQuery(["me"], ...)`, not `useQuery("me", ...)`.
+- Every argument the `queryFn` forwards to the API must also appear in the key.
+
+Example:
+
+```ts
+useQuery(
+  ["aggregateProfileStatuses", teamId], // teamId is in the key...
+  () => mdmAPI.getProfilesStatusSummary(teamId) // ...because the API call receives it
+);
+```
 
 ## API Services
 - API clients live in `frontend/services/entities/`
@@ -73,6 +89,7 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`
 - Legacy pattern: some files export both PropTypes (default export) and TypeScript interfaces (named export)
 - New code should use TypeScript interfaces only
+- API interface naming: use `*FormData` for form-driven request bodies, `*ApiParams`/`*QueryParams` for request params, `*Response` for API responses, `*QueryKey` when typing a React Query key. Avoid `*Body`, `*PostBody`, `*Payload`, `*Request` for API request bodies. `*PreviewPayload` is fine for outgoing webhook shapes (matches the "Preview payload" UI terminology).
 
 ## Hooks & Context
 - Custom hooks in `frontend/hooks/` — e.g., `useTeamIdParam`, `useCheckboxListStateManagement`

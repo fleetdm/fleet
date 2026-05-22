@@ -314,23 +314,17 @@ async function run({ github, context, core }) {
     }
   }
 
-  const fmt = (list) =>
-    list.length
-      ? list
-          .map(
-            (e) =>
-              `- [#${e.number}](${e.url}) by @${
-                e.author
-              } (idle ${e.idleDays.toFixed(1)}d)`
-          )
-          .join("\n")
-      : "_none_";
-  const fmtErrors = (list) =>
-    list.length
-      ? list.map((e) => `- #${e.number} (${e.phase}): ${e.message}`).join("\n")
-      : "_none_";
+  // Each entry is an HTML <li> so it renders correctly inside <ul>. We use raw <a> tags rather
+  // than markdown links because GitHub Actions summary surrounds list content with HTML blocks
+  // (from addHeading / addList), which suspends markdown parsing for child content — markdown
+  // bullets via addRaw collapse onto one line in that context.
+  const fmtItem = (e) =>
+    `<a href="${e.url}">#${e.number}</a> by @${e.author} (idle ${e.idleDays.toFixed(1)}d)`;
+  const fmtErrorItem = (e) => `#${e.number} (${e.phase}): ${e.message}`;
+  const appendList = (s, items, fn) =>
+    items.length ? s.addList(items.map(fn)) : s.addRaw("_none_").addEOL();
 
-  await core.summary
+  let summary = core.summary
     .addHeading("Fleetie stale-issue closer")
     .addRaw(`Mode: **${dryRun ? "dry-run" : "live"}**`)
     .addBreak()
@@ -347,18 +341,15 @@ async function run({ github, context, core }) {
       `Un-staled this run (activity after label): ${unstaled.length}`,
       `Errors: ${errored.length}`,
     ])
-    .addHeading("Marked stale", 3)
-    .addRaw(fmt(staled))
-    .addBreak()
-    .addHeading("Closed", 3)
-    .addRaw(fmt(closed))
-    .addBreak()
-    .addHeading("Un-staled (activity after label)", 3)
-    .addRaw(fmt(unstaled))
-    .addBreak()
-    .addHeading("Errors", 3)
-    .addRaw(fmtErrors(errored))
-    .write();
+    .addHeading("Marked stale", 3);
+  summary = appendList(summary, staled, fmtItem);
+  summary = summary.addHeading("Closed", 3);
+  summary = appendList(summary, closed, fmtItem);
+  summary = summary.addHeading("Un-staled (activity after label)", 3);
+  summary = appendList(summary, unstaled, fmtItem);
+  summary = summary.addHeading("Errors", 3);
+  summary = appendList(summary, errored, fmtErrorItem);
+  await summary.write();
 
   // Returned for test assertions only. The production caller (the workflow) discards this and
   // reads `core.summary` instead.

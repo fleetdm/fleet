@@ -12,6 +12,7 @@ import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import DruvaInSync from "./DruvaInSync";
+import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
@@ -28,6 +29,7 @@ import OpenvpnConnect from "./OpenvpnConnect";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
+import Secretive from "./Secretive";
 import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
@@ -39,6 +41,7 @@ import Airtame from "./Airtame";
 import AmazonChime from "./AmazonChime";
 import AmazonDCV from "./AmazonDCV";
 import AndroidApp from "./AndroidApp";
+import AndroidOS from "./AndroidOS";
 import AndroidPlayStore from "./AndroidPlayStore";
 import AndroidStudio from "./AndroidStudio";
 import Anka from "./Anka";
@@ -323,6 +326,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  "duo desktop": DuoDesktop,
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
@@ -463,6 +467,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
+  secretive: Secretive,
   "sequel ace": SequelAce,
   shottr: Shottr,
   signal: Signal,
@@ -541,6 +546,7 @@ export const PLATFORM_NAME_TO_ICON_MAP = {
   chrome: ChromeOS,
   ios: iOS,
   ipados: iPadOS,
+  android: AndroidOS,
 } as const;
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined
