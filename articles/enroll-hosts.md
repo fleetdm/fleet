@@ -499,7 +499,7 @@ This variable is read at launch and will require a restart of the Orbit service 
 
 When transferring data with [Apple's Migration Assistant](https://support.apple.com/en-us/102613), uncheck the **Other Files & Folders** option.
 
-![Migration settings with Other Files & Folders unchecked](../assets/images/migration-assistant-caveat.png)
+![Migration settings with Other Files & Folders unchecked](../website/assets/images/articles/migration-assistant-caveat-833x625@2x.png)
 
 Otherwise, the device will continue to communicate with Fleet via the agent and osquery will work, but MDM commands will never be delivered to the new device. To resolve this, devices must be unenrolled and re-enrolled.
 
