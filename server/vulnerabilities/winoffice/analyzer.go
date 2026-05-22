@@ -3,6 +3,7 @@ package winoffice
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -234,7 +235,7 @@ func Analyze(
 		}
 	}
 	if !hasSecurityUpdates {
-		return nil, fmt.Errorf("WinOffice bulletin contains no security updates (possible corrupted feed)")
+		return nil, errors.New("WinOffice bulletin contains no security updates (possible corrupted feed)")
 	}
 
 	// Query for Windows Office software from "programs" source.

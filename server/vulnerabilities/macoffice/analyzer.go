@@ -3,6 +3,7 @@ package macoffice
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -154,7 +155,7 @@ func Analyze(
 		}
 	}
 	if !hasValid {
-		return nil, fmt.Errorf("MacOffice release notes contain no valid security updates (possible corrupted feed)")
+		return nil, errors.New("MacOffice release notes contain no valid security updates (possible corrupted feed)")
 	}
 
 	queryParams := fleet.SoftwareIterQueryOptions{IncludedSources: []string{"apps"}}
