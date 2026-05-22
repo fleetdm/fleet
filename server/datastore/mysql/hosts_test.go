@@ -13512,37 +13512,20 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, emptyStatusMap)
 
-	// Android host: lock and wipe commands tracked in mdm_android_commands. Exercises the
-	// android branch added for #41683 — pending leaves the result nil so DeviceStatus() stays
-	// "unlocked"; acknowledged populates the result with "acknowledged" so the helpers in
-	// HostLockWipeStatus transition correctly.
-	andHost, err := ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("5"),
-		UUID:            "uuid-5-android",
-		Hostname:        "host5.local",
-		Platform:        "android",
-	})
-	require.NoError(t, err)
+	// Android host: lock and wipe commands tracked in mdm_android_commands. Exercises the android branch:
+	// pending leaves the result nil so DeviceStatus() stays "unlocked"; acknowledged populates the result with
+	// "acknowledged" so the helpers in HostLockWipeStatus transition correctly.
+	andHost := createEnrolledAndroidHost(t, ctx, ds, "uuid-5-android", nil)
 	androidHosts := []*fleet.Host{andHost}
 
 	androidLockUUID := uuid.NewString()
-	require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+	require.NoError(t, ds.LockHostViaAndroidMDM(ctx, andHost, &android.MDMAndroidCommand{
 		CommandUUID:   androidLockUUID,
 		HostUUID:      andHost.UUID,
 		OperationName: "enterprises/E/devices/D/operations/lock-pending",
 		CommandType:   string(android.MDMAndroidCommandTypeLock),
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}))
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`INSERT INTO host_mdm_actions (host_id, lock_ref, fleet_platform) VALUES (?, ?, 'android')`,
-			andHost.ID, androidLockUUID)
-		return err
-	})
 
 	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
 	require.NoError(t, err)
@@ -13562,21 +13545,16 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.PendingActionNone, andStatus.PendingAction())
 
 	// Now queue a wipe (still locked from the prior step) — exercises a host with both lock_ref
-	// and wipe_ref set simultaneously, which the multi-host batch test doesn't cover.
+	// and wipe_ref set simultaneously, which the multi-host batch test doesn't cover. The upsert
+	// inside WipeHostViaAndroidMDM preserves the lock_ref from the previous step.
 	androidWipeUUID := uuid.NewString()
-	require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+	require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, andHost, &android.MDMAndroidCommand{
 		CommandUUID:   androidWipeUUID,
 		HostUUID:      andHost.UUID,
 		OperationName: "enterprises/E/devices/D/operations/wipe-pending",
 		CommandType:   string(android.MDMAndroidCommandTypeWipe),
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}))
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`UPDATE host_mdm_actions SET wipe_ref = ? WHERE host_id = ?`,
-			androidWipeUUID, andHost.ID)
-		return err
-	})
 
 	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
 	require.NoError(t, err)
@@ -13597,19 +13575,9 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 // independently (separate test isolates orphan-ref logging, error-status mapping, and the no-row
 // case from the batch fixture above).
 func testGetHostLockWipeStatusAndroid(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(uuid.NewString()),
-		UUID:            uuid.NewString(),
-		Hostname:        "android-lockwipe-test",
-		Platform:        "android",
-	})
-	require.NoError(t, err)
+	host := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
 
 	// No host_mdm_actions row → zero-value status.
 	status, err := ds.GetHostLockWipeStatus(ctx, host)
@@ -13633,7 +13601,7 @@ func testGetHostLockWipeStatusAndroid(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.PendingActionNone, status.PendingAction())
 
 	// AMAPI rejected the command (error status). The result should be populated with status
-	// "error" — IsLocked stays false and PendingAction is none (we're done; it failed).
+	// "error". IsLocked stays false and PendingAction is none (we're done; it failed).
 	cmdUUID := uuid.NewString()
 	require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
 		CommandUUID:   cmdUUID,
@@ -13670,28 +13638,13 @@ func testGetHostLockWipeStatusAndroid(t *testing.T, ds *Datastore) {
 func testGetHostsLockWipeStatusBatchAndroidMultiHost(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	newAndroidHost := func(name string) *fleet.Host {
-		h, err := ds.NewHost(ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			NodeKey:         ptr.String(uuid.NewString()),
-			UUID:            uuid.NewString(),
-			Hostname:        name,
-			Platform:        "android",
-		})
-		require.NoError(t, err)
-		return h
-	}
-
 	// Host A: pending lock. Host B: acknowledged lock (locked). Host C: acknowledged wipe (wiped).
 	// Host D: no host_mdm_actions row at all (must come back as zero-state without polluting
 	// other hosts' results).
-	hostA := newAndroidHost("android-batch-A-pending-lock")
-	hostB := newAndroidHost("android-batch-B-locked")
-	hostC := newAndroidHost("android-batch-C-wiped")
-	hostD := newAndroidHost("android-batch-D-no-action")
+	hostA := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
+	hostB := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
+	hostC := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
+	hostD := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)
 
 	lockA := uuid.NewString()
 	require.NoError(t, ds.LockHostViaAndroidMDM(ctx, hostA, &android.MDMAndroidCommand{
