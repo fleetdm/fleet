@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import { AppContext } from "context/app";
 
-import { IPolicyStats } from "interfaces/policy";
+import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyStateProps } from "interfaces/empty_state";
 import Button from "components/buttons/Button";
@@ -41,6 +41,8 @@ interface IPoliciesTableProps {
   count: number;
   customControl?: () => JSX.Element | null;
   isFiltered?: boolean;
+  otherAutomationType?: OtherAutomationType;
+  onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
 }
 
 const PoliciesTable = ({
@@ -62,6 +64,8 @@ const PoliciesTable = ({
   count,
   customControl,
   isFiltered,
+  otherAutomationType,
+  onOpenManageAutomationsModal,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
@@ -121,6 +125,8 @@ const PoliciesTable = ({
           {
             selectedTeamId: currentTeam?.id,
             hasPermissionAndPoliciesToDelete,
+            otherAutomationType,
+            onOpenManageAutomationsModal,
           },
           isPremiumTier,
           config?.partnerships?.enable_primo
