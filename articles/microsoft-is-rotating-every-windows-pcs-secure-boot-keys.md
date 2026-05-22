@@ -2,9 +2,9 @@
 
 Every Windows PC built since 2012 has the same set of Secure Boot certificates baked into its firmware. They start expiring in June 2026. If you manage a fleet, here's what's quietly happening underneath, and how to see where your devices stand. As we head towards the deadline, it's important to note what will continue to work as usual, per Microsoft's documentation:
 
-* The device continues to start normally.  
-* Windows updates continue to install, except for boot‑related security components that require the updated certificates.  
-* Everyday app use, networking, browsing, and most OS features remain unchanged.
+- The device continues to start normally.  
+- Windows updates continue to install, except for boot‑related security components that require the updated certificates.  
+- Everyday app use, networking, browsing, and most OS features remain unchanged.
 
 But what you lose matters: the ability to receive new signed updates, new boot manager versions, new dbx revocations of vulnerable boot components 💀, and new Defender anti-bootkit lists. This extension can help you understand the state of the (Windows) union.
 
@@ -92,9 +92,8 @@ Lastly, and the way that I would recommend, is via a CSP. You can find an [examp
 If you've never thought about Secure Boot certificate expiration before, welcome to the party. You can easily deploy the extension using this [guide](https://fleetdm.com/articles/deploying-custom-osquery-extensions-in-fleet), then get started querying your devices and understanding where you need to focus your efforts as we march towards June.
 
 <meta name="articleTitle" value="Microsoft is rotating every Windows PC's Secure Boot keys. Is your fleet ready?">
-<meta name="authorFullName" value="Harry	Ravazzolo">
+<meta name="authorFullName" value="Harry Ravazzolo">
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-05-22">
 <meta name="description" value="Microsoft's Secure Boot certs start expiring June 2026. See which Windows devices in your fleet are ready, and which need a nudge.">
-
