@@ -366,6 +366,9 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
 - `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment (default: `false`).
 - `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
+- `allow_byod_wipe` specifies whether or not Fleet can erase all data on manually enrolled (BYOD) Apple hosts in this fleet. Already-enrolled hosts will have their permissions updated at the next SCEP certificate renewal. (default: `true`).
+- `allow_byod_lock` specifies whether or not Fleet can remotely lock manually enrolled (BYOD) Apple hosts in this fleet. Already-enrolled hosts will have their permissions updated at the next SCEP certificate renewal. (default: `true`).
+
 
 #### Example
 
@@ -384,6 +387,8 @@ controls:
   enable_disk_encryption: true # Available in Fleet Premium
   apple_require_hardware_attestation: false # Available in Fleet Premium
   enable_recovery_lock_password: true # Available in Fleet Premium
+  allow_byod_wipe: true # Available in Fleet Premium
+  allow_byod_lock: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
     deadline: "2024-12-31"
     minimum_version: "15.1"
