@@ -121,7 +121,7 @@ func seedVulnPerfData(tb testing.TB, ds *Datastore, sz benchSize) {
 		sz.numSoftware, 6, func(i int) []any {
 			checksum := make([]byte, 16)
 			for j := range 8 {
-				checksum[j] = byte(uint(i+1) >> (8 * j))
+				checksum[j] = byte((i + 1) >> (8 * j) & 0xff)
 			}
 			return []any{
 				i + 1,
