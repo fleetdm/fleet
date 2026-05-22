@@ -3455,6 +3455,30 @@ Currently, Fleet only supports device-scoped declarations. User-scoped declarati
     allow_all_declarations: true
   ```
 
+### mdm.allow_byod_wipe
+
+Whether manually enrolled (BYOD) devices can be wiped via Fleet. When set to `false`, the enrollment profile sent to manually enrolled devices will not include the erase device permission.
+
+- Default value: `true`
+- Environment variable: `FLEET_MDM_ALLOW_BYOD_WIPE`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_byod_wipe: false
+  ```
+
+### mdm.allow_byod_lock
+
+Whether manually enrolled (BYOD) devices can be locked via Fleet. When set to `false`, the enrollment profile sent to manually enrolled devices will not include the device lock permission.
+
+- Default value: `true`
+- Environment variable: `FLEET_MDM_ALLOW_BYOD_LOCK`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_byod_lock: false
+  ```
+
 ### fleet_allow_bootstrap_package_during_migration
 
 When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
