@@ -2798,13 +2798,31 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 	)
 	ctx := context.Background()
 
+	noopActivityFn := func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil }
 	newSvc := func(ds *mock.Store) MDMAppleCheckinAndCommandService {
-		return MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+		return MDMAppleCheckinAndCommandService{
+			ds:            ds,
+			logger:        slog.New(slog.DiscardHandler),
+			newActivityFn: noopActivityFn,
+		}
 	}
 
-	t.Run("already installed bypasses retry and routes to verification", func(t *testing.T) {
+	// withEnrollmentType wires the host-lookup mocks so hostIsPersonalEnrollment
+	// resolves to the requested value without each subtest re-declaring the
+	// boilerplate.
+	withEnrollmentType := func(ds *mock.Store, personal bool) {
+		ds.HostLiteByIdentifierFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1}, nil
+		}
+		ds.GetHostMDMFunc = func(_ context.Context, _ uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{HostID: 1, Enrolled: true, IsPersonalEnrollment: personal}, nil
+		}
+	}
+
+	t.Run("managed host: already installed bypasses retry and routes to verification", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := newSvc(ds)
+		withEnrollmentType(ds, false)
 
 		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, cmd string) (string, error) {
 			require.Equal(t, commandUUID, cmd)
@@ -2838,9 +2856,10 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		require.True(t, ds.IsHostPendingMDMInstallVerificationFuncInvoked)
 	})
 
-	t.Run("already installed via message fallback when code is unknown", func(t *testing.T) {
+	t.Run("managed host: already installed via message fallback when code is unknown", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := newSvc(ds)
+		withEnrollmentType(ds, false)
 
 		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
 			return "InstallApplication", nil
@@ -2865,6 +2884,56 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		require.False(t, ds.GetHostVPPInstallByCommandUUIDFuncInvoked)
 		require.False(t, ds.RetryVPPInstallFuncInvoked)
 		require.True(t, ds.IsHostPendingMDMInstallVerificationFuncInvoked)
+	})
+
+	t.Run("BYOD host: already installed surfaces custom error and skips retry+verification", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc := newSvc(ds)
+		withEnrollmentType(ds, true)
+
+		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
+			return "InstallApplication", nil
+		}
+		// VPP install record returned with low retry count — should still NOT
+		// retry because the BYOD already-installed case is terminal.
+		ds.GetHostVPPInstallByCommandUUIDFunc = func(_ context.Context, _ string) (*fleet.HostVPPSoftwareInstallLite, error) {
+			return &fleet.HostVPPSoftwareInstallLite{HostID: 1, RetryCount: 0}, nil
+		}
+		// Setup-experience update is best-effort; return no-op so the test
+		// stays focused on the install-result path.
+		ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
+			return false, nil
+		}
+		var activityCmdResult *mdm.CommandResults
+		ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, c *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+			activityCmdResult = c
+			return nil, &fleet.ActivityInstalledAppStoreApp{HostID: 1, Status: string(fleet.SoftwareInstallFailed)}, nil
+		}
+
+		cr := &mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Status:      fleet.MDMAppleStatusError,
+			ErrorChain: []mdm.ErrorChain{
+				{ErrorCode: 12042, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The app with iTunes Store ID 546505307 is already installed."},
+			},
+		}
+
+		_, err := svc.CommandAndReportResults(&mdm.Request{Context: ctx}, cr)
+		require.NoError(t, err)
+
+		// Status stays Error — we did NOT promote to success.
+		require.Equal(t, fleet.MDMAppleStatusError, cr.Status)
+		// ErrorChain swapped to the user-facing copy.
+		require.Len(t, cr.ErrorChain, 1)
+		require.Equal(t, apple_mdm.AppAlreadyInstalledBYODUserMessage, cr.ErrorChain[0].USEnglishDescription)
+		// No retry, no verification — failure activity recorded with the swapped chain.
+		require.True(t, ds.GetHostVPPInstallByCommandUUIDFuncInvoked)
+		require.False(t, ds.RetryVPPInstallFuncInvoked)
+		require.False(t, ds.IsHostPendingMDMInstallVerificationFuncInvoked)
+		require.True(t, ds.GetPastActivityDataForVPPAppInstallFuncInvoked)
+		require.NotNil(t, activityCmdResult)
+		require.Equal(t, apple_mdm.AppAlreadyInstalledBYODUserMessage, activityCmdResult.ErrorChain[0].USEnglishDescription)
 	})
 
 	t.Run("unrelated install error still goes through retry path", func(t *testing.T) {

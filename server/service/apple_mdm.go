@@ -4022,6 +4022,28 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 	return nil, nil
 }
 
+// hostIsPersonalEnrollment reports whether the host identified by the MDM
+// enrollment UUID is enrolled via Account-Driven User Enrollment (BYOD).
+// Returns false when the host or its MDM record can't be found — callers
+// fall through to the default (managed) path in that case.
+func (svc *MDMAppleCheckinAndCommandService) hostIsPersonalEnrollment(ctx context.Context, hostUUID string) (bool, error) {
+	host, err := svc.ds.HostLiteByIdentifier(ctx, hostUUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "host lite by identifier")
+	}
+	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "get host mdm")
+	}
+	return hostMDM.IsPersonalEnrollment, nil
+}
+
 func (svc *MDMAppleCheckinAndCommandService) runCommandHandlers(ctx context.Context, cmdName string, result fleet.MDMCommandResults) error {
 	handlers, ok := svc.commandHandlers[cmdName]
 	if ok {
@@ -4223,16 +4245,40 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.Identifier(), status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
 	case "InstallApplication":
-		// "Already installed" is not a real failure: the end user grabbed the
-		// app from the App Store before Fleet's command landed. Treat it as a
-		// successful install and let the verification flow confirm presence —
-		// no retry, no failure activity. Applies to all enrollment types since
-		// Apple's behavior here is the same regardless of enrollment style.
+		// "Already installed" handling depends on enrollment type:
+		//   - Fully managed hosts: treat as a successful install — MDM can take
+		//     over the App Store copy, and verification will confirm presence.
+		//   - BYOD / Account-Driven User Enrollment: Apple won't let MDM claim
+		//     a personally-installed app, and InstalledApplicationList with
+		//     managedAppsOnly=true never reports it. Verification would loop
+		//     forever, so we fail the install with the user-facing message
+		//     from #31138 Figma and skip retries (replays produce the same
+		//     answer from Apple).
+		alreadyInstalledBYOD := false
 		if (cmdResult.Status == fleet.MDMAppleStatusError || cmdResult.Status == fleet.MDMAppleStatusCommandFormatError) &&
 			apple_mdm.IsAppAlreadyInstalledError(cmdResult.ErrorChain) {
-			svc.logger.InfoContext(r.Context, "InstallApplication reported app already installed; treating as success",
-				"host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
-			cmdResult.Status = fleet.MDMAppleStatusAcknowledged
+			isPersonal, err := svc.hostIsPersonalEnrollment(r.Context, cmdResult.Identifier())
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "looking up enrollment type for InstallApplication already-installed result")
+			}
+			if !isPersonal {
+				svc.logger.InfoContext(r.Context, "InstallApplication reported app already installed; treating as success",
+					"host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
+				cmdResult.Status = fleet.MDMAppleStatusAcknowledged
+			} else {
+				alreadyInstalledBYOD = true
+				// Replace Apple's raw "The app with iTunes Store ID <id> is
+				// already installed." with the user-facing copy. Downstream
+				// failure-display callers (FmtErrorChain etc.) will surface
+				// the substituted message.
+				cmdResult.ErrorChain = []mdm.ErrorChain{{
+					ErrorDomain:          "FleetInstallError",
+					ErrorCode:            12042,
+					USEnglishDescription: apple_mdm.AppAlreadyInstalledBYODUserMessage,
+				}}
+				svc.logger.InfoContext(r.Context, "InstallApplication failed on BYOD host: app already installed personally",
+					"host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
+			}
 		}
 
 		// create an activity for installing only if we're in a terminal error state
@@ -4243,11 +4289,13 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			// N.b., VPP uses 0-based retry_count, so this comparison gives
 			// MaxSoftwareInstallAttempts retries (not attempts). This pre-dates
 			// the non-policy retry feature and is intentionally left as-is.
+			// Exception: the BYOD already-installed case is terminal — retrying
+			// would just hit the same wall.
 			vppInstall, err := svc.ds.GetHostVPPInstallByCommandUUID(r.Context, cmdResult.CommandUUID)
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "fetching host vpp install by command uuid")
 			}
-			if vppInstall != nil && vppInstall.RetryCount < fleet.MaxSoftwareInstallAttempts {
+			if !alreadyInstalledBYOD && vppInstall != nil && vppInstall.RetryCount < fleet.MaxSoftwareInstallAttempts {
 				if err := svc.ds.RetryVPPInstall(r.Context, vppInstall); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "retrying VPP install for host")
 				}
