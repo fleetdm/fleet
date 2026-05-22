@@ -1311,7 +1311,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 
 	// MDM is necessarily enabled if this gets called, always pass true for that
 	// parameter.
-	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial)
+	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial, "")
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, fromPersonalEnrollment)
@@ -1454,8 +1454,11 @@ func insertMDMAppleHostDB(
 
 	mdmHost.ID = uint(id)
 
-	if err := upsertHostDisplayNames(ctx, tx, *mdmHost); err != nil {
-		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
+	// Preserve any pre-existing display name (e.g. set by a prior fleetd
+	// enrollment) so that the mdm_enrolled activity uses the most accurate
+	// name and matches the fleet_enrolled activity for the same host.
+	if err := insertHostDisplayNamesIfAbsent(ctx, tx, *mdmHost); err != nil {
+		return ctxerr.Wrap(ctx, err, "ingest mdm apple host insert display names")
 	}
 
 	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, *mdmHost); err != nil {
@@ -1605,8 +1608,11 @@ func createHostFromMDMDB(
 		}
 	}
 
-	if err := upsertHostDisplayNames(ctx, tx, hosts...); err != nil {
-		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
+	// Preserve any pre-existing display name (e.g. set by a prior fleetd
+	// enrollment) so that the mdm_enrolled activity uses the most accurate
+	// name and matches the fleet_enrolled activity for the same host.
+	if err := insertHostDisplayNamesIfAbsent(ctx, tx, hosts...); err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host insert display names")
 	}
 
 	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, hosts...); err != nil {
@@ -1835,6 +1841,36 @@ func upsertHostDisplayNames(ctx context.Context, tx sqlx.ExtContext, hosts ...fl
 		args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "upsert host display names")
+	}
+
+	return nil
+}
+
+// insertHostDisplayNamesIfAbsent inserts host_display_names rows for the given
+// hosts but does NOT overwrite an existing row. This is used by MDM enrollment
+// paths so that a display name previously set by a fleetd enrollment (which is
+// considered the most accurate source) is preserved when the host later
+// enrolls into MDM.
+func insertHostDisplayNamesIfAbsent(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
+	if len(hosts) == 0 {
+		return nil
+	}
+	// Insert a row even when DisplayName() is empty so that downstream
+	// callers (e.g. GetHostMDMCheckinInfo) can scan display_name as a
+	// non-nullable string from a LEFT JOIN on host_display_names.
+	var args []any
+	var parts []string
+	for _, h := range hosts {
+		args = append(args, h.ID, h.DisplayName())
+		parts = append(parts, "(?, ?)")
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(
+		`INSERT IGNORE INTO host_display_names (host_id, display_name) VALUES %s`,
+		strings.Join(parts, ",")),
+		args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert host display names if absent")
 	}
 
 	return nil

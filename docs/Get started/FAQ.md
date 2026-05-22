@@ -84,17 +84,15 @@ Fleet supports the following operating system versions on hosts.
 
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
+### Linux support
 
-### Note
+Fleet Desktop is supported on the GNOME and KDE Plasma desktop environments. Fedora requires a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) to enable system tray support. Other distributions like Ubuntu include this by default.
 
-> - Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information.
->   - If a table is not available for your host, Fleet will generally handle things behind the scenes for you.
-> - On Linux, Fleet Desktop is supported on the GNOME and KDE Plasma desktop environments.
->   - Fedora requires a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) to enable system tray support. Other distributions like Ubuntu include this by default.
-> - On Linux, enforcing [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption#enforce-disk-encryption-on-linux) is only supported on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
-> - Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
-> - The `fleetctl package` command is not supported on DISA-STIG distribution.
+Enforcing [disk encryption](https://fleetdm.com/guides/enforce-disk-encryption#enforce-disk-encryption-on-linux) is only supported on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
 
+Fleet's default install/uninstall scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
+
+The `fleetctl package` command is not supported on DISA-STIG distribution.
 
 ## Is Fleet MIT licensed?
 
@@ -137,6 +135,8 @@ It's common for security products to be falsely flagged as malicious because the
 <!-- For example, osquery v5.23.0 (released as part of the fleetd agent) included a change to prevent keychain corruption when querying the macOS `certificates` table. To safely access keychain data without risking corruption, osquery performs a temporary copy of keychain files to a temporary folder, uses the Apple APIs to read the keychain contents, and removes the temporary files after processing. This type of keychain access pattern can trigger EDR heuristic alerts even though the behavior is legitimate and expected.-->
 
 Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. If you notice a new flag against the orbit binary, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
+
+If your vendor supports excluding by "Publisher", add `Fleet Device Management Inc` as an exclusion rule that will prevent Fleet software from being mistakenly flagged. Additionally, us a recursive path exclusion with `/opt/obit/` for macOS/Linux and `C:\Program Files\Orbit\` for Windows.
 
 ### SLSA provenance attestation 🌶️
 

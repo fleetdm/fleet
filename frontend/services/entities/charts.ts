@@ -24,7 +24,7 @@ export interface IChartResponse {
   data: IChartDataPoint[];
 }
 
-export interface IChartRequestParams {
+export interface IChartApiParams {
   days?: number;
   resolution?: number;
   tz_offset?: number;
@@ -38,11 +38,11 @@ export interface IChartRequestParams {
 export interface IChartQueryKey {
   scope: "chart";
   metric: string;
-  params: IChartRequestParams;
+  params: IChartApiParams;
 }
 
 export default {
-  getChartData: (metric: string, params: IChartRequestParams = {}) => {
+  getChartData: (metric: string, params: IChartApiParams = {}) => {
     const queryString = buildQueryStringFromParams(params);
     const endpoint = endpoints.CHART_DATA(metric);
     const path = queryString ? `${endpoint}?${queryString}` : endpoint;

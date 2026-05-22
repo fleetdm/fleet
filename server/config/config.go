@@ -13,10 +13,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"golang.org/x/net/http2"
@@ -169,6 +169,63 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 	return server
 }
 
+// allowedURLPrefixRegexp matches a non-empty slash-prefixed path made of
+// `/segment[/segment...]` where each segment is one or more URL-safe characters.
+var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
+
+// Validate checks server-side private key configuration: private_key and
+// private_key_arn cannot both be set. Called early so a misconfigured server
+// fails before paying for an external Secrets Manager lookup.
+func (s ServerConfig) Validate(initFatal func(err error, msg string)) {
+	if s.PrivateKey != "" && s.PrivateKeySecretArn != "" {
+		initFatal(errors.New("cannot specify both private_key and private_key_arn"),
+			"validate private key configuration")
+	}
+}
+
+// ValidatePrivateKeyLength enforces a 32-byte minimum on the (possibly
+// Secrets-Manager-resolved) private key. Called after Secrets Manager
+// retrieval so an SM-provided short key is also caught.
+func (s ServerConfig) ValidatePrivateKeyLength(initFatal func(err error, msg string)) {
+	if len(s.PrivateKey) > 0 && len(s.PrivateKey) < 32 {
+		initFatal(errors.New("private key must be at least 32 bytes long"),
+			"validate private key")
+	}
+}
+
+// NormalizeURLPrefix trims a trailing slash and ensures a leading slash on
+// the configured URL prefix. Mutates the receiver; safe to call when empty.
+// Call before ValidateURLPrefix.
+//
+// A user-supplied "/" trims down to "" and would otherwise be indistinguishable
+// from "no prefix configured" by ValidateURLPrefix. Restore it to "/" so the
+// regex check rejects it instead of silently accepting a misconfiguration.
+func (s *ServerConfig) NormalizeURLPrefix() {
+	if len(s.URLPrefix) == 0 {
+		return
+	}
+	s.URLPrefix = strings.TrimSuffix(s.URLPrefix, "/")
+	if len(s.URLPrefix) == 0 {
+		s.URLPrefix = "/"
+		return
+	}
+	if !strings.HasPrefix(s.URLPrefix, "/") {
+		s.URLPrefix = "/" + s.URLPrefix
+	}
+}
+
+// ValidateURLPrefix checks the URL prefix against the allowed pattern.
+// Should be called after NormalizeURLPrefix; an empty prefix is allowed.
+func (s ServerConfig) ValidateURLPrefix(initFatal func(err error, msg string)) {
+	if len(s.URLPrefix) == 0 {
+		return
+	}
+	if !allowedURLPrefixRegexp.MatchString(s.URLPrefix) {
+		initFatal(fmt.Errorf("prefix must match regexp %q", allowedURLPrefixRegexp.String()),
+			"setting server URL prefix")
+	}
+}
+
 // AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
 	BcryptCost                  int           `yaml:"bcrypt_cost"`
@@ -247,6 +304,21 @@ type OsqueryConfig struct {
 	AllowBodyAuthFallback bool `yaml:"allow_body_auth_fallback"`
 }
 
+// Validate checks that osquery_host_identifier is one of the supported values.
+// The osquery agent uses this to determine which identifier is reported as the host UUID.
+func (o OsqueryConfig) Validate(initFatal func(err error, msg string)) {
+	allowed := map[string]struct{}{
+		"provided": {},
+		"instance": {},
+		"uuid":     {},
+		"hostname": {},
+	}
+	if _, ok := allowed[o.HostIdentifier]; !ok {
+		initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", o.HostIdentifier),
+			"set host identifier")
+	}
+}
+
 // AsyncTaskName is the type of names that identify tasks supporting
 // asynchronous execution.
 type AsyncTaskName string
@@ -315,6 +387,15 @@ type LoggingConfig struct {
 	DisableLogTopics string `yaml:"disable_topics"`
 }
 
+// Validate checks logging configuration consistency: OTEL log export requires
+// tracing to be enabled so log records carry trace IDs.
+func (l LoggingConfig) Validate(initFatal func(err error, msg string)) {
+	if l.OtelLogsEnabled && !l.TracingEnabled {
+		initFatal(errors.New("logging.otel_logs_enabled requires logging.tracing_enabled to be true"),
+			"OTEL logs require tracing for trace correlation")
+	}
+}
+
 // ActivityConfig defines configs related to activities.
 type ActivityConfig struct {
 	// EnableAuditLog enables logging for audit activities.
@@ -358,6 +439,7 @@ type SESConfig struct {
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StsExternalID    string `yaml:"sts_external_id"`
 	SourceArn        string `yaml:"source_arn"`
+	SenderDomain     string `yaml:"sender_domain"`
 }
 
 type EmailConfig struct {
@@ -1387,6 +1469,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("ses.sts_assume_role_arn", "", "ARN of role to assume for AWS")
 	man.addConfigString("ses.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigString("ses.source_arn", "", "ARN of the identity that is associated with the sending authorization policy that permits you to send for the email address specified in the Source parameter")
+	man.addConfigString("ses.sender_domain", "", "Optional domain to use in the From address for SES emails. If empty, Fleet uses the hostname from the Fleet Web Address (server_settings.server_url)")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -1863,6 +1946,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("ses.sts_assume_role_arn"),
 			StsExternalID:    man.getConfigString("ses.sts_external_id"),
 			SourceArn:        man.getConfigString("ses.source_arn"),
+			SenderDomain:     man.getConfigString("ses.sender_domain"),
 		},
 		PubSub: PubSubConfig{
 			Project:       man.getConfigString("pubsub.project"),
@@ -2385,12 +2469,20 @@ func TestConfig() FleetConfig {
 	}
 }
 
+// TestingT is the subset of *testing.T that SetTestMDMConfig needs.
+// *testing.T (and testing.TB) satisfy it without an explicit conversion, so
+// callers continue to pass `t` as-is. Defining this interface locally keeps
+// the "testing" package out of this package's production import graph.
+type TestingT interface {
+	Fatal(args ...any)
+}
+
 // SetTestMDMConfig modifies the provided cfg so that MDM is enabled and
 // configured properly. The provided certificate and private key are used for
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
+func SetTestMDMConfig(t TestingT, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
 
 	if wstepCertAndKeyDir == "" {

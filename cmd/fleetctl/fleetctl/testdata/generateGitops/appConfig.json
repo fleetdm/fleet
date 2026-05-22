@@ -56,7 +56,8 @@
     "backend": "ses",
     "config": {
       "region": "",
-      "source_arn": "some-ses-arn"
+      "source_arn": "some-ses-arn",
+      "sender_domain": "mailer.example.com"
     }
   },
   "org_info": {

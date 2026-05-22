@@ -71,6 +71,12 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 							<string>{{.CertificateCN}}</string>
 						</array>
 					</array>
+					<array>
+						<array>
+							<string>OU</string>
+							<string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
+						</array>
+					</array>
 				</array>
 				<key>SubjectAltName</key>
 				<dict>

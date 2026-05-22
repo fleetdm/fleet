@@ -1687,6 +1687,32 @@ WHERE
 	return dest, nil
 }
 
+func (ds *Datastore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (fleet.ProfileACMECommandResult, error) {
+	const stmt = `
+SELECT
+	h.id              AS host_id,
+	h.platform        AS platform,
+	hmap.profile_uuid AS profile_uuid,
+	LOCATE('com.apple.security.acme', mac.mobileconfig) > 0 AS has_acme_payload
+FROM host_mdm_apple_profiles hmap
+	JOIN hosts h
+		ON h.uuid = hmap.host_uuid
+	JOIN mdm_apple_configuration_profiles mac
+		ON mac.profile_uuid = hmap.profile_uuid
+WHERE hmap.command_uuid = ?
+	AND hmap.host_uuid    = ?`
+
+	var dest fleet.ProfileACMECommandResult
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, commandUUID, hostUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return dest, notFound("HostMDMAppleProfile").WithMessage(fmt.Sprintf("command uuid %s not found for host uuid %s", commandUUID, hostUUID))
+		}
+		return dest, ctxerr.Wrap(ctx, err, "probe profile for ACME payload")
+	}
+	return dest, nil
+}
+
 func batchSetProfileLabelAssociationsDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -3051,7 +3077,15 @@ func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUI
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
 func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	totalHostCertsToRenew := 0
+	// Iteration set: every renewable CA type plus a NULL "non-proxied" bucket.
+	// Non-proxied (NULL-type) rows come from cert ingestion (no Fleet-side
+	// proxy step → no known CA type) and need their own renewal pass.
 	hostCertTypesToRenew := fleet.ListCATypesWithRenewalSupport()
+	typeMatchers := make([]sql.NullString, 0, len(hostCertTypesToRenew)+1)
+	for _, t := range hostCertTypesToRenew {
+		typeMatchers = append(typeMatchers, sql.NullString{String: string(t), Valid: true})
+	}
+	typeMatchers = append(typeMatchers, sql.NullString{Valid: false})
 	// Map is used to take advantage of Go map iteration order randomization so that
 	// if a customer is issuing certs across multiple platforms we will not bias renewals
 	// toward a specific platform
@@ -3059,7 +3093,11 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		"apple":   "host_mdm_apple_profiles",
 		"windows": "host_mdm_windows_profiles",
 	}
-	for _, hostCertType := range hostCertTypesToRenew {
+	for _, typeMatcher := range typeMatchers {
+		hostCertType := typeMatcher.String
+		if !typeMatcher.Valid {
+			hostCertType = "non_proxied"
+		}
 		// Limit to 1000 renewals per CA type per run across all platforms
 		limit := 1000
 		for hostPlatform, table := range hostProfileTables {
@@ -3080,12 +3118,14 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 				NotValidAfter  time.Time `db:"not_valid_after"`
 				ValidityPeriod int       `db:"validity_period"`
 			}{}
-			// Fetch all MDM Managed certificates of the given type that aren't already queued for
-			// resend(hmap.status=null) and which
+			// Fetch all MDM Managed certificates of the given type (or NULL for
+			// non-proxied) that aren't already queued for resend (hmap.status=null) and which
 			// * Have a validity period > 30 days and are expiring in the next 30 days
 			// * Have a validity period <= 30 days and are within half the validity period of expiration
 			// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
-			// we don't actually need them for the update logic.
+			// we don't actually need them for the update logic. The `<=>` operator
+			// is null-safe equal: matches non-NULL values like `=` and matches NULL
+			// when both sides are NULL.
 			err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
 	SELECT
 		hmmc.host_uuid,
@@ -3098,12 +3138,12 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		`+table+` hp
 		ON hmmc.host_uuid = hp.host_uuid AND hmmc.profile_uuid = hp.profile_uuid
 	WHERE
-		hmmc.type = ? AND hp.status IS NOT NULL AND hp.operation_type = ?
+		hmmc.type <=> ? AND hp.status IS NOT NULL AND hp.operation_type = ?
 	HAVING
 		validity_period IS NOT NULL AND
 		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
 		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT ?`, hostCertType, fleet.MDMOperationTypeInstall, limit)
+	LIMIT ?`, typeMatcher, fleet.MDMOperationTypeInstall, limit)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 			}

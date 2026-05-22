@@ -19,14 +19,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
 // sha256 of "TestBrand:test-serial". Will need to be updated if our test enrollment message changes
-const testBrandTestSerialHashed = "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfea4f11f31c96c6f052b0"
+var testBrandTestSerialHashed = "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfea4f11f31c96c6f052b0"
 
 func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	androidAPIClient := android_mock.Client{}
@@ -257,6 +256,58 @@ func TestPubSubEnrollment(t *testing.T) {
 			require.Equal(t, expectedHostID, capturedScimHostID)
 		})
 
+		t.Run("populates operating_systems with Android name and version on enrollment", func(t *testing.T) {
+			// Regression test for https://github.com/fleetdm/fleet/issues/45711.
+			// Without this, filtering hosts with `os_name=Android&os_version=<v>`
+			// returns nothing because the operating_systems table is empty for
+			// Android hosts.
+			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+				}, nil
+			}
+
+			expectedHostID := uint(99)
+			mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+				return &fleet.AndroidHost{Host: &fleet.Host{ID: expectedHostID}}, nil
+			}
+			var capturedHostID uint
+			var capturedOS fleet.OperatingSystem
+			mockDS.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+				capturedHostID = hostID
+				capturedOS = hostOS
+				return nil
+			}
+
+			enrollmentToken := enrollmentTokenRequest{EnrollSecret: "global"}
+			enrollTokenData, err := json.Marshal(enrollmentToken)
+			require.NoError(t, err)
+			deviceInfo := androidmanagement.Device{
+				Name:                createAndroidDeviceId("test-android-os"),
+				EnrollmentTokenData: string(enrollTokenData),
+			}
+			enrollmentMessage := createEnrollmentMessage(t, deviceInfo)
+			// createEnrollmentMessage sets AndroidVersion="1"; override to a more
+			// realistic version so we verify it's passed through unchanged.
+			data, err := base64.StdEncoding.DecodeString(enrollmentMessage.Data)
+			require.NoError(t, err)
+			var decoded androidmanagement.Device
+			require.NoError(t, json.Unmarshal(data, &decoded))
+			decoded.SoftwareInfo.AndroidVersion = "16"
+			reEncoded, err := json.Marshal(decoded)
+			require.NoError(t, err)
+			enrollmentMessage.Data = base64.StdEncoding.EncodeToString(reEncoded)
+
+			err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+			require.NoError(t, err)
+
+			require.True(t, mockDS.UpdateHostOperatingSystemFuncInvoked)
+			require.Equal(t, expectedHostID, capturedHostID)
+			require.Equal(t, "Android", capturedOS.Name)
+			require.Equal(t, "16", capturedOS.Version)
+			require.Equal(t, "android", capturedOS.Platform)
+		})
+
 		t.Run("creates device as company-owned if specified in enrollment message", func(t *testing.T) {
 			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{
@@ -321,7 +372,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	}
 
 	t.Run("single install pending profile with empty compliance details", func(t *testing.T) {
-		policyVersion := ptr.Int(1)
+		policyVersion := new(1)
 
 		installPendingProfile := &fleet.MDMAndroidProfilePayload{
 			ProfileUUID:             uuid.NewString(),
@@ -364,7 +415,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	})
 
 	t.Run("compliance details has failure", func(t *testing.T) {
-		policyVersion := ptr.Int(1)
+		policyVersion := new(1)
 
 		policyRequestUUID := uuid.NewString()
 		installPendingProfile1 := &fleet.MDMAndroidProfilePayload{
@@ -461,7 +512,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	})
 
 	t.Run("profile failed due to non-compliance but is reverified", func(t *testing.T) {
-		policyVersion := ptr.Int(1)
+		policyVersion := new(1)
 
 		policyRequestUUID := uuid.NewString()
 		installPendingProfile1 := &fleet.MDMAndroidProfilePayload{
@@ -582,7 +633,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 
 func TestUpdateHostEmptyUUIDGetsPopulated(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
-	const enterpriseSpecificID = "SHOULD-BE-THIS-UUID"
+	enterpriseSpecificID := "SHOULD-BE-THIS-UUID"
 	const deviceName = "test-empty-uuid-bug"
 
 	// Mock AppConfig
@@ -605,7 +656,7 @@ func TestUpdateHostEmptyUUIDGetsPopulated(t *testing.T) {
 		Device: &android.Device{
 			HostID:               200,
 			DeviceID:             "buggy-device",
-			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+			EnterpriseSpecificID: &enterpriseSpecificID,
 		},
 	}
 	existingHostWithEmptyUUID.SetNodeKey(enterpriseSpecificID)
@@ -672,9 +723,80 @@ func TestUpdateHostEmptyUUIDGetsPopulated(t *testing.T) {
 		"Host UUID is properly populated from device.EnterpriseSpecificId")
 }
 
+// TestStatusReportPopulatesOperatingSystem is a regression test for
+// https://github.com/fleetdm/fleet/issues/45711. Status reports for existing
+// Android hosts must populate the operating_systems table so the hosts can be
+// filtered via GET /api/v1/fleet/hosts?os_name=Android&os_version=<v>.
+func TestStatusReportPopulatesOperatingSystem(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+	const enterpriseSpecificID = "ESI-OS-TEST"
+
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+		}, nil
+	}
+	expectedHostID := uint(321)
+	mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+		return &fleet.AndroidHost{
+			Host: &fleet.Host{
+				ID:   expectedHostID,
+				UUID: enterpriseSpecificID,
+			},
+			Device: &android.Device{
+				HostID:               expectedHostID,
+				DeviceID:             "device",
+				EnterpriseSpecificID: new(enterpriseSpecificID),
+			},
+		}, nil
+	}
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+		return nil
+	}
+
+	var capturedHostID uint
+	var capturedOS fleet.OperatingSystem
+	mockDS.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+		capturedHostID = hostID
+		capturedOS = hostOS
+		return nil
+	}
+
+	device := androidmanagement.Device{
+		Name: createAndroidDeviceId("test-android-status-os"),
+		HardwareInfo: &androidmanagement.HardwareInfo{
+			EnterpriseSpecificId: enterpriseSpecificID,
+			Brand:                "Google",
+			Model:                "Pixel 8a",
+		},
+		SoftwareInfo: &androidmanagement.SoftwareInfo{
+			AndroidVersion: "16",
+		},
+		MemoryInfo: &androidmanagement.MemoryInfo{
+			TotalRam: int64(8 * 1024 * 1024 * 1024),
+		},
+		LastStatusReportTime: "2024-01-01T12:00:00Z",
+	}
+	deviceBytes, err := json.Marshal(device)
+	require.NoError(t, err)
+	message := &android.PubSubMessage{
+		Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
+		Data:       base64.StdEncoding.EncodeToString(deviceBytes),
+	}
+
+	err = svc.ProcessPubSubPush(t.Context(), "value", message)
+	require.NoError(t, err)
+
+	require.True(t, mockDS.UpdateHostOperatingSystemFuncInvoked)
+	require.Equal(t, expectedHostID, capturedHostID)
+	require.Equal(t, "Android", capturedOS.Name)
+	require.Equal(t, "16", capturedOS.Version)
+	require.Equal(t, "android", capturedOS.Platform)
+}
+
 func TestHostPayloadUUIDForFrontend(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
-	const enterpriseSpecificID = "ANDROID-DEVICE-UUID-123"
+	enterpriseSpecificID := "ANDROID-DEVICE-UUID-123"
 	const deviceName = "test-frontend-payload"
 
 	// Mock AppConfig
@@ -721,7 +843,7 @@ func TestHostPayloadUUIDForFrontend(t *testing.T) {
 						Device: &android.Device{
 							HostID:               100,
 							DeviceID:             "test-device",
-							EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+							EnterpriseSpecificID: &enterpriseSpecificID,
 						},
 					}, nil
 				}
@@ -775,7 +897,7 @@ func TestHostPayloadUUIDForFrontend(t *testing.T) {
 func TestUpdateHost(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
 
-	const enterpriseSpecificID = "TEST-UUID-12345"
+	enterpriseSpecificID := "TEST-UUID-12345"
 	const deviceName = "test-update-host"
 
 	// Mock AppConfig
@@ -798,7 +920,7 @@ func TestUpdateHost(t *testing.T) {
 		Device: &android.Device{
 			HostID:               1,
 			DeviceID:             "old-device-id",
-			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+			EnterpriseSpecificID: &enterpriseSpecificID,
 		},
 	}
 	existingHost.SetNodeKey(enterpriseSpecificID)
@@ -942,7 +1064,7 @@ func TestUpdateHost(t *testing.T) {
 				Device: &android.Device{
 					HostID:               2,
 					DeviceID:             "device-2",
-					EnterpriseSpecificID: ptr.String(testBrandTestSerialHashed),
+					EnterpriseSpecificID: &testBrandTestSerialHashed,
 				},
 			}, nil
 		}
@@ -1393,7 +1515,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			mockDS.BulkSetVPPInstallsAsFailedFuncInvoked = false
 		})
 
-		policyVersion := ptr.Int(1)
+		policyVersion := new(1)
 
 		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 			return nil, nil
@@ -1440,7 +1562,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := ptr.Int(1)
+		policyVersion := new(1)
 		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, nil)
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
@@ -1478,7 +1600,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := ptr.Int(2)
+		policyVersion := new(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApp.AdamID, State: "INSTALLED"},
 		}, nil)
@@ -1518,7 +1640,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := ptr.Int(2)
+		policyVersion := new(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApp.AdamID, State: "INSTALLED"},
 		}, []*androidmanagement.NonComplianceDetail{
@@ -1560,7 +1682,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := ptr.Int(2)
+		policyVersion := new(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApp.AdamID, State: "APPLICATION_STATE_UNSPECIFIED"},
 		}, []*androidmanagement.NonComplianceDetail{
@@ -1602,7 +1724,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return nil
 		}
 
-		policyVersion := ptr.Int(2)
+		policyVersion := new(2)
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, nil, []*androidmanagement.NonComplianceDetail{
 			{PackageName: pendingApp.AdamID, NonComplianceReason: "PENDING", InstallationFailureReason: "IN_PROGRESS"},
 		})
@@ -1683,7 +1805,7 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 			return &fleet.User{}, &fleet.ActivityInstalledAppStoreApp{CommandUUID: cmdUUID, Status: string(status)}, nil
 		}
 
-		policyVersion := ptr.Int(2)
+		policyVersion := new(2)
 		// app1 and app2 verified, app3 not reported at all so failed, app4 failed with compliance report
 		enrollmentMessage := createStatusAppReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test"), policyVersion, []*androidmanagement.ApplicationReport{
 			{PackageName: pendingApps[0].AdamID, State: "INSTALLED"},
@@ -1761,4 +1883,44 @@ func TestPubSubStatusReportHostDeletedFromFleet(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, mockDS.NewAndroidHostFuncInvoked, "re-enrollment should create the host")
 	require.True(t, mockDS.UpdateAndroidHostFuncInvoked, "status report update should run against the re-enrolled host")
+}
+
+func TestPubSubStatusReport_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+
+	deviceJSON := `{"name":"enterprises/E1/devices/abc123","appliedState":"ACTIVE"}`
+	msg := &android.PubSubMessage{
+		Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
+		Data:       base64.StdEncoding.EncodeToString([]byte(deviceJSON)),
+	}
+
+	require.NotPanics(t, func() {
+		err := svc.ProcessPubSubPush(t.Context(), "value", msg)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing hardware info")
+	})
+}
+
+func TestPubSubEnrollment_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+
+	deviceJSON := `{"name":"enterprises/E1/devices/abc123","appliedState":"DELETED"}`
+	msg := &android.PubSubMessage{
+		Attributes: map[string]string{"notificationType": string(android.PubSubEnrollment)},
+		Data:       base64.StdEncoding.EncodeToString([]byte(deviceJSON)),
+	}
+
+	require.NotPanics(t, func() {
+		err := svc.ProcessPubSubPush(t.Context(), "value", msg)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "missing hardware info")
+	})
 }

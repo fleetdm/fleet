@@ -9300,7 +9300,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		NotValidAfter:  now.Add(365 * 24 * time.Hour),
 		Source:         fleet.SystemHostCertificate,
 		Username:       "test-user",
-	}}))
+	}}, fleet.HostCertificateOriginOsquery))
 
 	// create an android device from this host
 	deviceID := strings.ReplaceAll(uuid.NewString(), "-", "")
@@ -11135,9 +11135,7 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 	//	- fleetd running with host identifier set to instance.
 	//	- orbit and osquery of the two hosts enroll in mixed order.
 	//
-	// For Linux and Windows this scenario behaves as expected. The two hosts are enrolled separately.
-	//
-	// For macOS, iOS, iPadOS, and Android:
+	// For macOS, iOS, and iPadOS:
 	// Somewhat unexpected output of this scenario is that two hosts are enrolled as one
 	// because MDM makes the effort to match by hardware serial.
 	// Using fleetd's `--host-identifier=instance` with Fleet's MDM enabled is not compatible on these platforms.
@@ -11190,11 +11188,12 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
 
-		if platform == "darwin" || platform == "ios" || platform == "ipados" || platform == "android" {
+		if platform == "darwin" || platform == "ios" || platform == "ipados" {
 			// This is a expected output of this scenario because MDM makes
 			// the effort to match by hardware serial for these platforms.
 			require.Equal(t, h1Orbit.ID, h2Orbit.ID)
 		} else {
+			// Linux, Windows, Android: no serial-match-driven merge.
 			require.NotEqual(t, h1Orbit.ID, h2Orbit.ID)
 		}
 	}

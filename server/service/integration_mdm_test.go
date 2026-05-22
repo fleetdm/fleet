@@ -21741,8 +21741,8 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		},
 	}, http.StatusOK, &cur)
 	maintainer := cur.User
-	var carveBeginResp carveBeginResponse
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	var carveBeginResp fleet.CarveBeginResponse
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *h1.NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
@@ -21751,8 +21751,8 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		RequestId:  "r1",
 	}, http.StatusOK, &carveBeginResp)
 	require.NotEmpty(t, carveBeginResp.SessionId)
-	lcr := listCarvesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/carves", listCarvesRequest{}, http.StatusOK, &lcr)
+	lcr := fleet.ListCarvesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/carves", fleet.ListCarvesRequest{}, http.StatusOK, &lcr)
 	require.NotEmpty(t, lcr.Carves)
 	carveID := lcr.Carves[0].ID
 	// Create the global Technician user we'll use in tests.
@@ -21956,11 +21956,17 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to delete hosts, should fail.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", h1.ID), nil, http.StatusForbidden, &deleteHostResponse{})
 
-	// Attempt to transfer host from global to a team, should fail.
+	// Attempt to transfer host from global to a team, should allow.
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
 		TeamID:  &t1.ID,
 		HostIDs: []uint{h1.ID},
-	}, http.StatusForbidden, &addHostsToTeamResponse{})
+	}, http.StatusOK, &addHostsToTeamResponse{})
+	// Move h1 back to "No team" so the rest of the test (and the team
+	// technician section below) uses the original setup.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  nil,
+		HostIDs: []uint{h1.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
 
 	// Attempt to create a global label, should allow.
 	clr := fleet.CreateLabelResponse{}
@@ -22281,10 +22287,10 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	require.Equal(t, fleet.MaskedPassword, tesr.Secrets[0].Secret)
 
 	// Attempt to list carved files, should fail.
-	s.DoJSON("GET", "/api/latest/fleet/carves", listCarvesRequest{}, http.StatusForbidden, &listCarvesResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/carves", fleet.ListCarvesRequest{}, http.StatusForbidden, &fleet.ListCarvesResponse{})
 
 	// Attempt to get a carved file, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", carveID), listCarvesRequest{}, http.StatusForbidden, &listCarvesResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", carveID), fleet.GetCarveRequest{}, http.StatusForbidden, &fleet.GetCarveResponse{})
 
 	// Attempt to search hosts, should allow.
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
@@ -22756,6 +22762,40 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		ScriptID: scriptT1.ID,
 		HostIDs:  []uint{team1MacOSHost.ID},
 	}, http.StatusForbidden, &batchRes)
+
+	// Attempt to transfer a host between teams the technician manages (t1 -> t3),
+	// should allow.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &t3.ID,
+		HostIDs: []uint{team1Host.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
+	// And back from t3 -> t1, should allow. Also leaves team1Host on t1 so the
+	// rest of the test setup remains intact.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &t1.ID,
+		HostIDs: []uint{team1Host.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	// Attempt to transfer a host out of a team the technician manages to a team
+	// they do not manage (t1 -> t2), should fail.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &t2.ID,
+		HostIDs: []uint{team1Host.ID},
+	}, http.StatusForbidden, &addHostsToTeamResponse{})
+
+	// Attempt to transfer a host from a team the technician does not manage to
+	// a team they do manage (no team -> t1), should fail.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &t1.ID,
+		HostIDs: []uint{globalHost.ID},
+	}, http.StatusForbidden, &addHostsToTeamResponse{})
+
+	// Attempt to transfer a host out of a team the technician manages to
+	// "No team" (a team they do not manage), should fail.
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  nil,
+		HostIDs: []uint{team1Host.ID},
+	}, http.StatusForbidden, &addHostsToTeamResponse{})
 }
 
 // TestRecoveryLockPasswordIntegration is a comprehensive test for the recovery lock password feature.

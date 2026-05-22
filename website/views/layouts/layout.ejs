@@ -735,18 +735,17 @@
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Solutions</strong>
               <a href="/device-management">Device management</a>
-              <a href="/orchestration">Orchestration</a>
               <a href="/software-management">Software management</a>
-              <a href="/integrations">Integrations</a>
+              <a href="/support">Support</a>
               <a href="/pricing">Pricing</a>
               <a href="/partners">Partners</a>
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Documentation</strong>
-              <a href="/support">Support</a>
               <a href="/docs">Docs</a>
               <a href="/docs/rest-api">API</a>
               <a href="/releases">Release notes</a>
+              <a href="/download">Downloads</a>
               <a href="/new-license">Get your license</a><!-- «« FUTURE: Personalize this based on whether logged in -->
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
@@ -764,6 +763,7 @@
               <div class="d-flex flex-column">
               <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
+                  <img purpose="iso-27001-badge" src="/images/icon-iso27001-coming-soon-48x48@2x.png" alt="ISO 27001 coming soon">
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
                   <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
                 </div>
@@ -808,6 +808,7 @@
 
               <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
+                  <img purpose="iso-27001-badge" src="/images/icon-iso27001-coming-soon-48x48@2x.png" alt="ISO 27001 coming soon">
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
                   <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
                 </div>
@@ -949,6 +950,7 @@
     <script src="/js/pages/landing-pages/open-source.page.js"></script>
     <script src="/js/pages/landing-pages/patch-faster.page.js"></script>
     <script src="/js/pages/landing-pages/replace-jamf.page.js"></script>
+    <script src="/js/pages/landing-pages/windows-mdm.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
     <script src="/js/pages/linux-management.page.js"></script>
@@ -992,7 +994,7 @@
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
           msedge: '84',//« earliest version to support the gap css property.
-          safari: '14',//« earliest version that suppports the gap css property.
+          safari: '15',//« earliest version that fully supports the gap css property.
           firefox: '103',//« earliest version to support the backdrop filter css property.
           chrome: '84',//« earliest version to support the gap css property.
           opera: '70',//« earliest version to support the gap css property.
