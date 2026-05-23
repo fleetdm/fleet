@@ -33,6 +33,8 @@ var (
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantClearPasscodePersonalHostsMessage        = "Unlock token is not available for this device. Unable to issue ClearPasscode command."
 	CantLockManualIOSIpadOSHostsMessage          = "Couldn't lock. This command isn't available for manually enrolled iOS/iPadOS hosts."
+	WipeNotAllowedForBYODMessage                 = "Couldn't wipe. Wipe is disabled for this host. Either the fleet's BYOD permissions disallow it, or the host enrolled before wipe was enabled and must re-enroll."
+	LockNotAllowedForBYODMessage                 = "Couldn't lock. Lock is disabled for this host. Either the fleet's BYOD permissions disallow it, or the host enrolled before lock was enabled and must re-enroll."
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."

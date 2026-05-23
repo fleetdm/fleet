@@ -43,6 +43,51 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, _ bo
 	return svc.Service.OSVersion(ctx, osID, teamID, true, maxVulnerabilities)
 }
 
+// effectiveAppleAccessRights returns the AccessRights currently effective for
+// a manually-enrolled (BYOD) Apple host: the bitwise AND of the host's stored
+// rights (or MDMAccessRightAll if no row yet) and the owning fleet's BYOD
+// permission ceiling (allow_byod_wipe / allow_byod_lock).
+//
+// Use this to gate operations that depend on the rights Fleet has on the
+// device. ADE-enrolled hosts and non-Apple platforms are out of scope — callers
+// must short-circuit those before calling.
+func (svc *Service) effectiveAppleAccessRights(ctx context.Context, host *fleet.Host) (int, error) {
+	allowWipe := true
+	allowLock := true
+	if host.TeamID == nil {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "load app config")
+		}
+		if ac.MDM.AllowBYODWipe.Valid {
+			allowWipe = ac.MDM.AllowBYODWipe.Value
+		}
+		if ac.MDM.AllowBYODLock.Valid {
+			allowLock = ac.MDM.AllowBYODLock.Value
+		}
+	} else {
+		tm, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "load team MDM config")
+		}
+		allowWipe = tm.AllowBYODWipe
+		allowLock = tm.AllowBYODLock
+	}
+
+	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.ID)
+	switch {
+	case err == nil:
+		return apple_mdm.ComputeAppleEnrollmentAccessRights(allowWipe, allowLock, &perms.AccessRights), nil
+	case fleet.IsNotFound(err):
+		// No stored row yet (host enrolled before this feature, or initial
+		// enrollment hasn't been recorded). Treat as full rights so the fleet
+		// ceiling alone determines the answer.
+		return apple_mdm.AppleEnrollmentAccessRights(allowWipe, allowLock), nil
+	default:
+		return 0, ctxerr.Wrap(ctx, err, "load host MDM Apple enrollment permissions")
+	}
+}
+
 func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error) {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
@@ -73,6 +118,19 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 			(host.FleetPlatform() == "ios" || host.FleetPlatform() == "ipados") {
 			return "", &fleet.BadRequestError{
 				Message: fleet.CantLockManualIOSIpadOSHostsMessage,
+			}
+		}
+		// BYOD permission gate (#23242): for manually-enrolled Apple hosts,
+		// refuse the lock if either the fleet's allow_byod_lock is false OR the
+		// host's currently-delivered AccessRights lack the device-lock bit (e.g.
+		// because the host enrolled when lock was disabled and has not re-enrolled).
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" {
+			rights, err := svc.effectiveAppleAccessRights(ctx, host)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "resolve effective Apple access rights")
+			}
+			if rights&apple_mdm.MDMAccessRightDeviceLock == 0 {
+				return "", &fleet.BadRequestError{Message: fleet.LockNotAllowedForBYODMessage}
 			}
 		}
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -266,6 +324,18 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
 			return &fleet.BadRequestError{
 				Message: fleet.CantWipePersonalHostsMessage,
+			}
+		}
+		// BYOD permission gate (#23242): for manually-enrolled Apple hosts,
+		// refuse the wipe if either the fleet's allow_byod_wipe is false OR
+		// the host's currently-delivered AccessRights lack the device-erase bit.
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" {
+			rights, err := svc.effectiveAppleAccessRights(ctx, host)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "resolve effective Apple access rights")
+			}
+			if rights&apple_mdm.MDMAccessRightDeviceErase == 0 {
+				return &fleet.BadRequestError{Message: fleet.WipeNotAllowedForBYODMessage}
 			}
 		}
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
