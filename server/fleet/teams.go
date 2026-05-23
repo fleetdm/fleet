@@ -329,21 +329,21 @@ func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp
 }
 
 type TeamMDM struct {
-	EnableDiskEncryption       bool                  `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword bool                  `json:"enable_recovery_lock_password"`
-	RequireBitLockerPIN        bool                  `json:"windows_require_bitlocker_pin"`
+	EnableDiskEncryption       bool `json:"enable_disk_encryption"`
+	EnableRecoveryLockPassword bool `json:"enable_recovery_lock_password"`
+	RequireBitLockerPIN        bool `json:"windows_require_bitlocker_pin"`
 	// AllowBYODWipe controls whether Fleet may issue a wipe to manually enrolled
 	// (BYOD) Apple hosts that belong to this team. Default: true.
 	AllowBYODWipe bool `json:"allow_byod_wipe"`
 	// AllowBYODLock controls whether Fleet may issue a lock to manually enrolled
 	// (BYOD) Apple hosts that belong to this team. Default: true.
-	AllowBYODLock              bool                  `json:"allow_byod_lock"`
-	MacOSUpdates               AppleOSUpdateSettings `json:"macos_updates"`
-	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
-	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
-	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
-	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup                 MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
+	AllowBYODLock  bool                  `json:"allow_byod_lock"`
+	MacOSUpdates   AppleOSUpdateSettings `json:"macos_updates"`
+	IOSUpdates     AppleOSUpdateSettings `json:"ios_updates"`
+	IPadOSUpdates  AppleOSUpdateSettings `json:"ipados_updates"`
+	WindowsUpdates WindowsUpdates        `json:"windows_updates"`
+	MacOSSettings  MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup     MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
