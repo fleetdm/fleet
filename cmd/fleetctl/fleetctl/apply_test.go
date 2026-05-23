@@ -358,6 +358,8 @@ spec:
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 	assert.Equal(t, fleet.TeamMDM{
+		AllowBYODWipe: true,
+		AllowBYODLock: true,
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
 			EnableManagedLocalAccount:   optjson.SetBool(false),

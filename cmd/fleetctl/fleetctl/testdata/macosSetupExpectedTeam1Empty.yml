@@ -19,6 +19,8 @@ spec:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
       windows_require_bitlocker_pin: null
+      allow_byod_wipe: false
+      allow_byod_lock: false
       apple_settings:
         configuration_profiles: null
       android_settings:
@@ -77,6 +79,8 @@ spec:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
       windows_require_bitlocker_pin: null
+      allow_byod_wipe: false
+      allow_byod_lock: false
       macos_settings:
         custom_settings: null
       android_settings:

@@ -1,3 +1,5 @@
+allow_byod_lock: true
+allow_byod_wipe: true
 apple_settings:
   configuration_profiles:
     - labels_include_all:

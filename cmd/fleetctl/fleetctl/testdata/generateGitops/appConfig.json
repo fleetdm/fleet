@@ -273,6 +273,8 @@
     },
     "windows_enabled_and_configured": true,
     "enable_disk_encryption": true,
+    "allow_byod_wipe": true,
+    "allow_byod_lock": true,
     "windows_settings": {
       "custom_settings": []
     },

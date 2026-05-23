@@ -1,4 +1,6 @@
 controls:
+  allow_byod_lock: true
+  allow_byod_wipe: true
   android_enabled_and_configured: true
   apple_require_hardware_attestation: false
   enable_disk_encryption: true
