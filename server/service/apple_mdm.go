@@ -2487,6 +2487,58 @@ func (svc *Service) fleetBYODPermissions(ctx context.Context, teamID *uint) (all
 	return tm.AllowBYODWipe, tm.AllowBYODLock, nil
 }
 
+// resolveHostWipeLockAllowed returns whether Fleet can currently issue a wipe
+// or lock command to the host. Used by getHostDetails to populate the
+// wipe_allowed / lock_allowed fields in MDMHostData.
+//
+// The rules mirror the gates that LockHost / WipeHost enforce at the EE
+// service layer (see ee/server/service/hosts.go), so the frontend can
+// pre-disable the action buttons without re-deriving the policy:
+//
+//   - non-Apple platform              → both true (out of scope of #23242;
+//     other checks like script-enabled still apply at the API layer)
+//   - ADE-enrolled Apple host         → both true (BYOD gating doesn't apply)
+//   - "On (personal)" (account-driven user enrollment) → both false
+//   - "On (manual)" BYOD Apple host   → derived from effective AccessRights
+//     (stored AND fleet ceiling); see computeAppleEnrollmentAccessRights.
+//     iOS / iPadOS lock is additionally always false because Apple's MDM
+//     protocol doesn't support locking a manually-enrolled iPhone/iPad
+//   - not enrolled / "Off"            → both false
+func (svc *Service) resolveHostWipeLockAllowed(ctx context.Context, host *fleet.Host) (wipeAllowed, lockAllowed bool, err error) {
+	if !fleet.IsApplePlatform(host.FleetPlatform()) {
+		return true, true, nil
+	}
+
+	status := ""
+	if host.MDM.EnrollmentStatus != nil {
+		status = *host.MDM.EnrollmentStatus
+	}
+	switch status {
+	case "On (automatic)":
+		// ADE-enrolled — BYOD gating doesn't apply.
+		return true, true, nil
+	case "On (personal)":
+		// Account-driven User Enrollment never permits wipe or lock.
+		return false, false, nil
+	case "On (manual)":
+		// BYOD/manual: compute effective rights for this host.
+		rights, err := svc.computeAppleEnrollmentAccessRights(ctx, host.TeamID, host.ID)
+		if err != nil {
+			return false, false, ctxerr.Wrap(ctx, err, "compute effective access rights")
+		}
+		wipeAllowed = rights&apple_mdm.MDMAccessRightDeviceErase != 0
+		lockAllowed = rights&apple_mdm.MDMAccessRightDeviceLock != 0
+		// iOS / iPadOS manually-enrolled hosts cannot be locked at all.
+		if fleet.IsAppleMobilePlatform(host.FleetPlatform()) {
+			lockAllowed = false
+		}
+		return wipeAllowed, lockAllowed, nil
+	default:
+		// Not enrolled / Off / Pending — Fleet cannot issue MDM commands.
+		return false, false, nil
+	}
+}
+
 func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)

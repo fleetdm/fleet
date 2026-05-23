@@ -1851,6 +1851,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.DeviceStatus = ptr.String(string(mdmActions.DeviceStatus()))
 	host.MDM.PendingAction = ptr.String(string(mdmActions.PendingAction()))
 
+	wipeAllowed, lockAllowed, err := svc.resolveHostWipeLockAllowed(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "resolve wipe/lock allowed")
+	}
+	host.MDM.WipeAllowed = &wipeAllowed
+	host.MDM.LockAllowed = &lockAllowed
+
 	host.Policies = policies
 
 	endUsers, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)
