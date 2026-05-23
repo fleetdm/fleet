@@ -4992,6 +4992,112 @@ func TestPersistEnrollmentAccessRights(t *testing.T) {
 	})
 }
 
+func TestResolveHostWipeLockAllowed(t *testing.T) {
+	const hostID = uint(42)
+	statusPtr := func(s string) *string { return &s }
+
+	mkHost := func(platform, status string) *fleet.Host {
+		h := &fleet.Host{ID: hostID, Platform: platform}
+		if status != "" {
+			h.MDM.EnrollmentStatus = statusPtr(status)
+		}
+		return h
+	}
+
+	t.Run("non-Apple host: both true", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("windows", "On (manual)"))
+		require.NoError(t, err)
+		require.True(t, w)
+		require.True(t, l)
+	})
+
+	t.Run("On (automatic) — ADE-enrolled host: both true", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("darwin", "On (automatic)"))
+		require.NoError(t, err)
+		require.True(t, w)
+		require.True(t, l)
+	})
+
+	t.Run("On (personal): both false", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("darwin", "On (personal)"))
+		require.NoError(t, err)
+		require.False(t, w)
+		require.False(t, l)
+	})
+
+	t.Run("Off / not enrolled: both false", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("darwin", "Off"))
+		require.NoError(t, err)
+		require.False(t, w)
+		require.False(t, l)
+	})
+
+	t.Run("On (manual) darwin, full rights: both true", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+		}
+		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("darwin", "On (manual)"))
+		require.NoError(t, err)
+		require.True(t, w)
+		require.True(t, l)
+	})
+
+	t.Run("On (manual) darwin, fleet narrowed wipe: wipe false", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.AllowBYODWipe = optjson.SetBool(false)
+			ac.MDM.AllowBYODLock = optjson.SetBool(true)
+			return ac, nil
+		}
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+		}
+		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("darwin", "On (manual)"))
+		require.NoError(t, err)
+		require.False(t, w, "fleet allow_byod_wipe=false → wipe blocked")
+		require.True(t, l)
+	})
+
+	t.Run("On (manual) darwin, host enrolled without wipe (cannot widen): wipe false", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil } // ceiling = all
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.AppleEnrollmentAccessRights(false, true)}, nil
+		}
+		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("darwin", "On (manual)"))
+		require.NoError(t, err)
+		require.False(t, w, "host enrolled with no wipe — Apple won't widen, so still blocked")
+		require.True(t, l)
+	})
+
+	t.Run("On (manual) iOS: lock always false even when rights have it", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+		}
+		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("ios", "On (manual)"))
+		require.NoError(t, err)
+		require.True(t, w)
+		require.False(t, l, "manual iOS/iPadOS hosts can't be locked via MDM at all")
+	})
+}
+
 func TestEnsureFleetdConfig(t *testing.T) {
 	testError := errors.New("test error")
 	testURL := "https://example.com"
