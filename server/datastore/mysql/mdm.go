@@ -850,10 +850,40 @@ ORDER BY
 	return labels, nil
 }
 
-func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
+// BulkDisableMDMForPlatform marks all hosts of the given platform as
+// unenrolled from MDM and deletes their pending profile rows. This is the
+// global-disable companion to per-host unenrollment (Apple CheckOut,
+// Windows AlertUserUnenrollmentRequest): both paths must mark the host
+// as unenrolled so the profile reconciler does not recreate pending rows.
+//
+// For Apple, nano_enrollments.enabled is the gate consulted by
+// ReconcileAppleProfiles (see listMDMAppleProfilesToInstallTransaction).
+// For Windows, host_mdm.enrolled is the gate added to
+// windowsMDMProfilesDesiredStateQuery and windowsProfilesToRemoveQuery so
+// that previously-enrolled hosts do not get new pending rows when Windows
+// MDM is re-enabled. Both are self-healing on re-enrollment: nanomdm's
+// StoreTokenUpdate flips nano_enrollments.enabled back to 1, and osquery's
+// directIngestMDMWindows flips host_mdm.enrolled back to 1 once the
+// device's registry confirms it is still MDM-managed.
+func (ds *Datastore) BulkDisableMDMForPlatform(ctx context.Context, platform string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		switch platform {
 		case "darwin", "ios", "ipados":
+			// Soft-disable nano enrollments. The reconciler filters on
+			// ne.enabled = 1, so this prevents pending rows from being
+			// recreated when Apple MDM is re-enabled with a new APNS cert.
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE nano_enrollments SET enabled = 0, token_update_tally = 0 WHERE enabled = 1`); err != nil {
+				return ctxerr.Wrap(ctx, err, "disabling nano_enrollments")
+			}
+			// Mark host_mdm as unenrolled for Apple hosts. Osquery will flip
+			// this back to 1 on the next check-in if the device is still
+			// actually MDM-managed at the OS level.
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE host_mdm SET enrolled = 0, server_url = '', mdm_id = NULL
+				WHERE host_id IN (SELECT id FROM hosts WHERE platform IN ('darwin', 'ios', 'ipados'))`); err != nil {
+				return ctxerr.Wrap(ctx, err, "marking Apple hosts unenrolled in host_mdm")
+			}
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_profiles")
 			}
@@ -861,11 +891,22 @@ func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, p
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_declarations")
 			}
 		case "windows":
+			// Mark host_mdm as unenrolled for Windows hosts. The profile
+			// reconciler gates on host_mdm.enrolled = 1, so this prevents
+			// pending rows from being recreated when Windows MDM is
+			// re-enabled. Osquery's directIngestMDMWindows flips this back to
+			// 1 on the next check-in if the device's registry still reports
+			// MDM enrollment.
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE host_mdm SET enrolled = 0, server_url = '', mdm_id = NULL
+				WHERE host_id IN (SELECT id FROM hosts WHERE platform = 'windows')`); err != nil {
+				return ctxerr.Wrap(ctx, err, "marking Windows hosts unenrolled in host_mdm")
+			}
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_windows_profiles")
 			}
 		default:
-			return ctxerr.Errorf(ctx, "unsupported platform %s for MDM profile cleanup", platform)
+			return ctxerr.Errorf(ctx, "unsupported platform %s for MDM disable", platform)
 		}
 		return nil
 	})

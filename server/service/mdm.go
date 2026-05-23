@@ -3428,9 +3428,12 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "saving app config")
 	}
 
-	// Clean up all pending Apple MDM profile rows since hosts can no longer receive MDM commands.
-	if err := svc.ds.CleanupAllHostMDMProfilesForPlatform(ctx, "darwin"); err != nil {
-		return ctxerr.Wrap(ctx, err, "cleaning up Apple host MDM profiles")
+	// Mark Apple hosts as unenrolled and clean up pending profile rows.
+	// Without this, nano_enrollments rows would remain with enabled = 1
+	// and the Apple profile reconciler would recreate pending rows the next
+	// time an APNS cert is uploaded and Apple MDM is re-enabled.
+	if err := svc.ds.BulkDisableMDMForPlatform(ctx, "darwin"); err != nil {
+		return ctxerr.Wrap(ctx, err, "disabling Apple MDM for hosts")
 	}
 
 	// If an install doesn't have a verification_at or verification_failed_at, then

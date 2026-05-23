@@ -50,6 +50,11 @@ func TestReconcileWindowsProfilesAfterTeamAddDeferred(t *testing.T) {
 		HostUUID:               host.UUID,
 	}
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, dev))
+	// Mirror what osquery's directIngestMDMWindows does: mark host_mdm.enrolled = 1
+	// once the device's registry confirms MDM enrollment. The Windows profile
+	// reconciler gates on this since the #42427 fix.
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true,
+		"https://example.com", false, fleet.WellKnownMDMFleet, "", false))
 
 	// Step 1: BulkSet defers Windows reconciliation. Production leaves
 	// updates.WindowsConfigProfile false (the consumer in

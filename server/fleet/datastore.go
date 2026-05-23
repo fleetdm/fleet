@@ -447,9 +447,11 @@ type Datastore interface {
 	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
-	// CleanupAllHostMDMProfilesForPlatform deletes all host MDM profile rows for the given platform.
-	// Used when MDM is toggled off globally to prevent stale pending profiles from persisting.
-	CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error
+	// BulkDisableMDMForPlatform marks all hosts of the given platform as
+	// unenrolled from MDM and deletes their pending profile rows. Used when MDM
+	// is toggled off globally so the profile reconciler does not recreate
+	// pending rows after MDM is turned back on.
+	BulkDisableMDMForPlatform(ctx context.Context, platform string) error
 
 	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
 	// their corresponding nano_command_results entries for the given enrollment ID

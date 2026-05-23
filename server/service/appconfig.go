@@ -1303,9 +1303,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		} else {
 			act = fleet.ActivityTypeDisabledWindowsMDM{}
 
-			// Clean up all pending Windows MDM profile rows since hosts can no longer receive MDM commands.
-			if err := svc.ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows"); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles")
+			// Mark Windows hosts as unenrolled and clean up pending profile rows.
+			// Without this, mdm_windows_enrollments rows would remain and the
+			// Windows profile reconciler would recreate pending rows the next
+			// time Windows MDM is re-enabled.
+			if err := svc.ds.BulkDisableMDMForPlatform(ctx, "windows"); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "disabling Windows MDM for hosts")
 			}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
