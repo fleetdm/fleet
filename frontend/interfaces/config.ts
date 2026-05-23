@@ -50,6 +50,10 @@ export interface IMdmConfig {
   enable_disk_encryption: boolean;
   enable_recovery_lock_password: boolean;
   windows_require_bitlocker_pin: boolean;
+  /** Allow Fleet to wipe manually enrolled (BYOD) Apple hosts. Premium only. Default: true. */
+  allow_byod_wipe: boolean;
+  /** Allow Fleet to lock manually enrolled (BYOD) Apple hosts. Premium only. Default: true. */
+  allow_byod_lock: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
   configured correctly. The naming is slightly confusing but at one point we
   only supported apple mdm, so thats why it's name the way it is. */

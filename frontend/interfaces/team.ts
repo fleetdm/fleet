@@ -50,6 +50,8 @@ export interface ITeam extends ITeamSummary {
     enable_disk_encryption: boolean;
     enable_recovery_lock_password: boolean;
     windows_require_bitlocker_pin: boolean;
+    allow_byod_wipe: boolean;
+    allow_byod_lock: boolean;
     macos_updates: IAppleDeviceUpdates;
     ios_updates: IAppleDeviceUpdates;
     ipados_updates: IAppleDeviceUpdates;
