@@ -1415,6 +1415,13 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
+	// LockHost / WipeHost run the BYOD permission gate from #23242 on
+	// manually-enrolled Apple hosts after the MDM-configured + connected
+	// checks succeed. Return NotFound so the gate falls back to the fleet
+	// ceiling alone (default-true allow_byod_*) — i.e. no restriction.
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMApplePermissions, error) {
+		return nil, &notFoundError{}
+	}
 }
 
 // sets up the various app configs for the tests. These app configs reflect the various
