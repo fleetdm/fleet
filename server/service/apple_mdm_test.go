@@ -8684,6 +8684,14 @@ func TestGetMDMAppleEnrollmentProfileByToken(t *testing.T) {
 		}, nil
 	}
 
+	// resolveEnrollmentAccessRightsForServe looks up the host by UDID to
+	// determine the AccessRights to bake into the served profile. For these
+	// initial-enrollment fixtures the host does not yet exist; return NotFound
+	// so the helper falls back to the global AppConfig.
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+		return nil, &notFoundError{}
+	}
+
 	foundProfileFunc := func(ctx context.Context, token string) (*fleet.MDMAppleEnrollmentProfile, error) {
 		require.Equal(t, "valid-token", token)
 		return &fleet.MDMAppleEnrollmentProfile{
