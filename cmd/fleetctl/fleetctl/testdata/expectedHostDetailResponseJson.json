@@ -47,9 +47,11 @@
       "encryption_key_archived": false,
       "encryption_key_available": false,
       "enrollment_status": null,
+      "lock_allowed": true,
       "name": "",
       "pending_action": "",
-      "server_url": null
+      "server_url": null,
+      "wipe_allowed": true
     },
     "mdm_enrollment_hardware_attested": false,
     "memory": 0,
