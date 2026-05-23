@@ -193,6 +193,7 @@ policies:
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
   - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
   - path: ../lib/all/policies/npm-user-npmrc-min-release-age.yml
+  - path: ../lib/all/policies/laravel-lang-supply-chain-compromised-packages.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
   - path: ../lib/macos/reports/collect-default-browser.yml
