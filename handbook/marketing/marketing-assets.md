@@ -188,6 +188,7 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
+| [Pre-CVE threat response: a Dirty Frag walkthrough with Fleet](https://fleetdm.com/articles/pre-cve-threat-response-with-fleet) | A worked example of using Fleet's osquery, run-script, and policies to scope, mitigate, and verify a Linux kernel privilege escalation across a fleet before a CVE is assigned. | Dhruv Majumdar | 2026-05-22 |
 | [Managing Linux desktops with GitOps](https://fleetdm.com/articles/managing-linux-desktops-with-gitops) | Bring GitOps to Linux desktop management with Fleet. Declarative YAML, CI/CD pipelines, and version control replace slow, error-prone ClickOps. | Anthony Critelli | 2026-05-20 |
 | [Patch management and vulnerability reporting for Linux desktops](https://fleetdm.com/articles/patch-management-and-vulnerability-reporting-for-linux-desktops) | Close the loop on Linux desktop security with cross-distro software inventory, CVE prioritization, and automated patch remediation. | Anthony Critelli | 2026-05-20 |
 | [Which AI model works best for generating configuration profiles?](https://fleetdm.com/articles/which-ai-model-works-best-for-generating-configuration-profiles) | Comparing Claude Opus 4.6, GPT-5, and Gemini 2.5 Pro for generating macOS .mobileconfig and Windows CSP profiles. | Harry Ravazzolo | 2026-05-20 |
