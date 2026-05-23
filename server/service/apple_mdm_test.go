@@ -4992,6 +4992,89 @@ func TestPersistEnrollmentAccessRights(t *testing.T) {
 	})
 }
 
+func TestResolveRenewalAccessRights(t *testing.T) {
+	const hostID = uint(101)
+	const hostUUID = "uuid-a"
+
+	t.Run("host not found: returns MDMAccessRightAll, hostID=0", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			require.Equal(t, hostUUID, identifier)
+			return nil, &notFoundError{}
+		}
+		rights, hID, err := resolveRenewalAccessRights(t.Context(), ds, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.MDMAccessRightAll, rights)
+		require.Zero(t, hID, "unknown host -> hostID=0 so caller skips persistence")
+	})
+
+	t.Run("known host with global config, no stored row → ceiling", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: hostID, TeamID: nil}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.AllowBYODWipe = optjson.SetBool(false)
+			ac.MDM.AllowBYODLock = optjson.SetBool(true)
+			return ac, nil
+		}
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return nil, &notFoundError{}
+		}
+		rights, hID, err := resolveRenewalAccessRights(t.Context(), ds, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, true), rights)
+		require.Equal(t, hostID, hID)
+	})
+
+	t.Run("known host with team config + stored rights → AND", func(t *testing.T) {
+		ds := new(mock.Store)
+		tid := uint(42)
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: hostID, TeamID: &tid}, nil
+		}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			require.Equal(t, tid, teamID)
+			return &fleet.TeamMDM{AllowBYODWipe: false, AllowBYODLock: true}, nil
+		}
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+		}
+		rights, hID, err := resolveRenewalAccessRights(t.Context(), ds, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, true), rights)
+		require.Equal(t, hostID, hID)
+	})
+
+	t.Run("monotonic narrowing: stored already narrower than current ceiling", func(t *testing.T) {
+		// Stored=6655 (host enrolled before either was allowed), fleet now permits both.
+		// Result must stay at 6655 because Apple won't accept a profile that widens.
+		ds := new(mock.Store)
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: hostID, TeamID: nil}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil } // ceiling = all
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.AppleEnrollmentAccessRights(false, false)}, nil
+		}
+		rights, hID, err := resolveRenewalAccessRights(t.Context(), ds, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, false), rights, "cannot widen via renewal")
+		require.Equal(t, hostID, hID)
+	})
+
+	t.Run("DB error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		boom := errors.New("db boom")
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return nil, boom
+		}
+		_, _, err := resolveRenewalAccessRights(t.Context(), ds, hostUUID)
+		require.ErrorIs(t, err, boom)
+	})
+}
+
 func TestResolveHostWipeLockAllowed(t *testing.T) {
 	const hostID = uint(42)
 	const hostUUID = "uuid-42"
