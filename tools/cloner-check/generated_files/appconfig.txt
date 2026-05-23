@@ -182,6 +182,8 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableDiskEncryption	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableRecoveryLockPassword	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	RequireBitLockerPIN	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/MDM	AllowBYODWipe	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/MDM	AllowBYODLock	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsSettings	fleet.WindowsSettings
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	CustomSettings	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Set	bool
