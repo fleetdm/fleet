@@ -113,7 +113,8 @@ module.exports = {
     success: {
       outputType: {
         salesforceAccountId: 'string',
-        salesforceContactId: 'string'
+        salesforceContactId: 'string',
+        mostRecentCampaign: 'string'
       }
     },
 
@@ -130,7 +131,8 @@ module.exports = {
       sails.log.verbose('Skipping Salesforce integration...');
       return {
         salesforceAccountId: undefined,
-        salesforceContactId: undefined
+        salesforceContactId: undefined,
+        mostRecentCampaign: undefined
       };
     }
 
@@ -680,7 +682,8 @@ module.exports = {
 
     return {
       salesforceAccountId,
-      salesforceContactId
+      salesforceContactId,
+      mostRecentCampaign: attributionDetails ? attributionDetails.campaign : undefined
     };
 
   }
