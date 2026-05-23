@@ -116,6 +116,16 @@ interface IHostActionConfigOptions {
   isManagedLocalAccountEnabled: boolean;
   managedAccountStatus: string | null | undefined;
   managedAccountPasswordAvailable: boolean;
+  /**
+   * wipeAllowed and lockAllowed come from GET /hosts/:id (host.mdm.wipe_allowed
+   * / host.mdm.lock_allowed). When false on a BYOD Apple host, the dropdown
+   * shows the option but disables it with a "permissions are disabled"
+   * tooltip. Treat `undefined` (the API didn't populate it) as "no
+   * BYOD-permission gate applies here" — other action-availability checks
+   * still apply.
+   */
+  wipeAllowed?: boolean | null;
+  lockAllowed?: boolean | null;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -534,6 +544,8 @@ const modifyOptions = (
     recoveryLockPasswordAvailable,
     managedAccountStatus,
     managedAccountPasswordAvailable,
+    wipeAllowed,
+    lockAllowed,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -703,6 +715,27 @@ const modifyOptions = (
     clearPasscodeOption.tooltipContent =
       "Clear passcode is unavailable while host is pending wipe.";
   }
+  // BYOD permission gates (#23242): when the API marks wipe_allowed or
+  // lock_allowed false for this host, keep the option visible but disable it
+  // with a tooltip explaining it's blocked. `undefined` means the API didn't
+  // populate the field (older host list endpoints) — leave the option alone.
+  if (wipeAllowed === false) {
+    const wipeOption = options.find((option) => option.value === "wipe");
+    if (wipeOption) {
+      wipeOption.disabled = true;
+      wipeOption.tooltipContent =
+        "Wipe permissions are disabled for this host.";
+    }
+  }
+  if (lockAllowed === false) {
+    const lockOption = options.find((option) => option.value === "lock");
+    if (lockOption) {
+      lockOption.disabled = true;
+      lockOption.tooltipContent =
+        "Lock permissions are disabled for this host.";
+    }
+  }
+
   disableOptions(optionsToDisable);
   formatTurnOffOptionLabel(options, hostPlatform);
   return options;

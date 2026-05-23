@@ -173,6 +173,17 @@ export interface IHostMdmData {
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
   connected_to_fleet?: boolean;
+  /**
+   * wipe_allowed and lock_allowed are populated by GET /hosts/:id (host
+   * details) and indicate whether Fleet may currently issue a wipe or lock
+   * command. For BYOD Apple hosts they reflect the AND of the host's
+   * delivered MDM AccessRights and the owning fleet's allow_byod_wipe /
+   * allow_byod_lock setting. Other host-returning endpoints omit them; the
+   * UI should treat absent/undefined as "no policy gate applies here" and
+   * fall back to the other action-availability checks.
+   */
+  wipe_allowed?: boolean | null;
+  lock_allowed?: boolean | null;
 }
 
 export interface IHostMaintenanceWindow {

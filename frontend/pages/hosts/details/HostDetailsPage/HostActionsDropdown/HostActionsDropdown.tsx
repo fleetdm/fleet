@@ -29,6 +29,12 @@ interface IHostActionsDropdownProps {
   isManagedLocalAccountEnabled?: boolean;
   managedAccountStatus?: string | null;
   managedAccountPasswordAvailable?: boolean;
+  /** From GET /hosts/:id `host.mdm.wipe_allowed`. When `false`, the Wipe action
+   * is shown disabled with a "permissions are disabled" tooltip. `undefined`
+   * means the API didn't populate it — other gates still apply. */
+  wipeAllowed?: boolean | null;
+  /** Same as wipeAllowed but for the Lock action. */
+  lockAllowed?: boolean | null;
 }
 
 const HostActionsDropdown = ({
@@ -48,6 +54,8 @@ const HostActionsDropdown = ({
   isManagedLocalAccountEnabled = false,
   managedAccountStatus,
   managedAccountPasswordAvailable = false,
+  wipeAllowed,
+  lockAllowed,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
@@ -105,6 +113,8 @@ const HostActionsDropdown = ({
     isManagedLocalAccountEnabled,
     managedAccountStatus,
     managedAccountPasswordAvailable,
+    wipeAllowed,
+    lockAllowed,
   });
 
   // No options to render. Exit early
