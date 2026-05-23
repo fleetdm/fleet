@@ -192,7 +192,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 
 			// Emit system activity: mdm_unenrolled. For Android BYOD, InstalledFromDEP is always false.
 			// Use the computed display name from the device payload as lite host may not include it.
-			displayName := svc.getComputerName(&device)
+			displayName := svc.getHardwareModel(&device)
 			_ = svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
 				HostDisplayName:  displayName,
@@ -336,7 +336,7 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 				}
 			}
 
-			displayName := svc.getComputerName(&device)
+			displayName := svc.getHardwareModel(&device)
 			_ = svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
 				HostSerial:       "",
 				HostDisplayName:  displayName,
@@ -465,8 +465,17 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 	host.Device.DeviceID = deviceID
 
-	host.Host.ComputerName = svc.getComputerName(device)
-	host.Host.Hostname = svc.getComputerName(device)
+	var idpFullname string
+	idpAcct, err := svc.fleetDS.GetMDMIdPAccountByHostUUID(ctx, host.Host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "getting IdP account for host")
+	}
+	if idpAcct != nil {
+		idpFullname = idpAcct.Fullname
+	}
+
+	host.Host.ComputerName = svc.getComputerName(device, idpFullname)
+	host.Host.Hostname = svc.getComputerName(device, idpFullname)
 	host.Host.Platform = "android"
 	host.Host.OSVersion = "Android " + device.SoftwareInfo.AndroidVersion
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
@@ -476,7 +485,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
 	host.Host.CPUType = device.HardwareInfo.Hardware
-	host.Host.HardwareModel = svc.getComputerName(device)
+	host.Host.HardwareModel = svc.getHardwareModel(device)
 	host.Host.HardwareVendor = device.HardwareInfo.Brand
 	// Android hosts do not support dynamic labels so we should keep their labelUpdatedAt updated at every
 	// checkin to match platforms that do and make label logic simpler
@@ -599,11 +608,22 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 
 	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable := svc.calculateAndroidStorageMetrics(ctx, device, false)
 
+	var idpFullname string
+	if enrollmentTokenRequest.IdpUUID != "" {
+		idpAcct, err := svc.ds.GetMDMIdPAccountByUUID(ctx, enrollmentTokenRequest.IdpUUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "getting IdP account for new host")
+		}
+		if idpAcct != nil {
+			idpFullname = idpAcct.Fullname
+		}
+	}
+
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			TeamID:                    enrollSecret.GetTeamID(),
-			ComputerName:              svc.getComputerName(device),
-			Hostname:                  svc.getComputerName(device),
+			ComputerName:              svc.getComputerName(device, idpFullname),
+			Hostname:                  svc.getComputerName(device, idpFullname),
 			Platform:                  "android",
 			OSVersion:                 "Android " + device.SoftwareInfo.AndroidVersion,
 			Build:                     device.SoftwareInfo.AndroidBuildNumber,
@@ -613,7 +633,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			PercentDiskSpaceAvailable: percentDiskSpaceAvailable,
 			HardwareSerial:            device.HardwareInfo.SerialNumber,
 			CPUType:                   device.HardwareInfo.Hardware,
-			HardwareModel:             svc.getComputerName(device),
+			HardwareModel:             svc.getHardwareModel(device),
 			HardwareVendor:            device.HardwareInfo.Brand,
 			LabelUpdatedAt:            time.Now(),
 			DetailUpdatedAt:           time.Time{},
@@ -688,9 +708,17 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	return nil
 }
 
-func (svc *Service) getComputerName(device *androidmanagement.Device) string {
-	computerName := cases.Title(language.English, cases.Compact).String(device.HardwareInfo.Brand) + " " + device.HardwareInfo.Model
-	return computerName
+func (svc *Service) getHardwareModel(device *androidmanagement.Device) string {
+	return cases.Title(language.English, cases.Compact).String(device.HardwareInfo.Brand) + " " + device.HardwareInfo.Model
+}
+
+func (svc *Service) getComputerName(device *androidmanagement.Device, idpFullname string) string {
+	hardwareModel := device.HardwareInfo.Model
+	if idpFullname == "" {
+		return svc.getHardwareModel(device)
+	}
+	firstName := strings.SplitN(idpFullname, " ", 2)[0]
+	return firstName + "'s " + hardwareModel
 }
 
 func (svc *Service) getHostIfPresent(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
