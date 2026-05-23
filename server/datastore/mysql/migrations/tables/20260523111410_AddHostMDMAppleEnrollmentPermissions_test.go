@@ -46,8 +46,11 @@ func TestUp_20260523111410(t *testing.T) {
 	require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM host_mdm_apple_enrollment_permissions WHERE host_id = ?`, unenrolledID))
 	require.Equal(t, 0, count)
 
-	// Verify FK cascade: deleting the host removes the permissions row.
-	execNoErr(t, db, `DELETE FROM hosts WHERE id = ?`, manualID)
-	require.NoError(t, db.Get(&count, `SELECT COUNT(*) FROM host_mdm_apple_enrollment_permissions WHERE host_id = ?`, manualID))
-	require.Equal(t, 0, count)
+	// Upsert via INSERT ... ON DUPLICATE KEY UPDATE must update access_rights.
+	execNoErr(t, db, `
+		INSERT INTO host_mdm_apple_enrollment_permissions (host_id, access_rights)
+		VALUES (?, 7167)
+		ON DUPLICATE KEY UPDATE access_rights = VALUES(access_rights)`, manualID)
+	require.NoError(t, db.Get(&rights, `SELECT access_rights FROM host_mdm_apple_enrollment_permissions WHERE host_id = ?`, manualID))
+	require.Equal(t, 7167, rights)
 }
