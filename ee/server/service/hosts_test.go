@@ -19,7 +19,7 @@ import (
 // tests below to simulate a missing host_mdm_apple_enrollment_permissions row).
 type notFoundErr struct{}
 
-func (notFoundErr) Error() string   { return "not found" }
+func (notFoundErr) Error() string    { return "not found" }
 func (notFoundErr) IsNotFound() bool { return true }
 
 func TestEffectiveAppleAccessRights(t *testing.T) {

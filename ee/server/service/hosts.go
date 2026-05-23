@@ -120,19 +120,6 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 				Message: fleet.CantLockManualIOSIpadOSHostsMessage,
 			}
 		}
-		// BYOD permission gate (#23242): for manually-enrolled Apple hosts,
-		// refuse the lock if either the fleet's allow_byod_lock is false OR the
-		// host's currently-delivered AccessRights lack the device-lock bit (e.g.
-		// because the host enrolled when lock was disabled and has not re-enrolled).
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" {
-			rights, err := svc.effectiveAppleAccessRights(ctx, host)
-			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "resolve effective Apple access rights")
-			}
-			if rights&apple_mdm.MDMAccessRightDeviceLock == 0 {
-				return "", &fleet.BadRequestError{Message: fleet.LockNotAllowedForBYODMessage}
-			}
-		}
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			if errors.Is(err, fleet.ErrMDMNotConfigured) {
 				err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
@@ -149,6 +136,22 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 			return "", ctxerr.Wrap(
 				ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
 			)
+		}
+
+		// BYOD permission gate (#23242): for manually-enrolled Apple hosts that
+		// are actually connected to Fleet MDM, refuse the lock if either the
+		// fleet's allow_byod_lock is false OR the host's currently-delivered
+		// AccessRights lack the device-lock bit. This runs after the MDM-
+		// configured / connected checks above so unconnected hosts get the
+		// existing "MDM isn't turned on" errors rather than hitting BYOD lookups.
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" {
+			rights, err := svc.effectiveAppleAccessRights(ctx, host)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "resolve effective Apple access rights")
+			}
+			if rights&apple_mdm.MDMAccessRightDeviceLock == 0 {
+				return "", &fleet.BadRequestError{Message: fleet.LockNotAllowedForBYODMessage}
+			}
 		}
 
 	case "windows", "linux":
@@ -326,18 +329,6 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 				Message: fleet.CantWipePersonalHostsMessage,
 			}
 		}
-		// BYOD permission gate (#23242): for manually-enrolled Apple hosts,
-		// refuse the wipe if either the fleet's allow_byod_wipe is false OR
-		// the host's currently-delivered AccessRights lack the device-erase bit.
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" {
-			rights, err := svc.effectiveAppleAccessRights(ctx, host)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "resolve effective Apple access rights")
-			}
-			if rights&apple_mdm.MDMAccessRightDeviceErase == 0 {
-				return &fleet.BadRequestError{Message: fleet.WipeNotAllowedForBYODMessage}
-			}
-		}
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			if errors.Is(err, fleet.ErrMDMNotConfigured) {
 				err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
@@ -384,6 +375,23 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 		}
 		if !connected {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't wipe the host because it doesn't have MDM turned on."))
+		}
+	}
+
+	// BYOD permission gate (#23242): for manually-enrolled Apple hosts that
+	// are actually connected to Fleet MDM, refuse the wipe if either the
+	// fleet's allow_byod_wipe is false OR the host's currently-delivered
+	// AccessRights lack the device-erase bit. Runs after the MDM-configured
+	// / connected checks above so unconnected hosts get the existing "MDM
+	// isn't turned on" errors rather than hitting BYOD lookups.
+	if fleet.IsApplePlatform(host.FleetPlatform()) &&
+		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" {
+		rights, err := svc.effectiveAppleAccessRights(ctx, host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resolve effective Apple access rights")
+		}
+		if rights&apple_mdm.MDMAccessRightDeviceErase == 0 {
+			return &fleet.BadRequestError{Message: fleet.WipeNotAllowedForBYODMessage}
 		}
 	}
 
