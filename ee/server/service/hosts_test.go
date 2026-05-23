@@ -2,14 +2,121 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/require"
 )
+
+// notFoundErr is a minimal error type that satisfies fleet.IsNotFound (used by
+// tests below to simulate a missing host_mdm_apple_enrollment_permissions row).
+type notFoundErr struct{}
+
+func (notFoundErr) Error() string   { return "not found" }
+func (notFoundErr) IsNotFound() bool { return true }
+
+func TestEffectiveAppleAccessRights(t *testing.T) {
+	const hostID = uint(42)
+	mkHost := func(teamID *uint) *fleet.Host {
+		return &fleet.Host{ID: hostID, TeamID: teamID, Platform: "darwin"}
+	}
+
+	t.Run("global config, all allowed, no stored row -> ceiling = all", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			require.Equal(t, hostID, id)
+			return nil, notFoundErr{}
+		}
+		got, err := s.effectiveAppleAccessRights(t.Context(), mkHost(nil))
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.MDMAccessRightAll, got)
+	})
+
+	t.Run("global config narrows wipe, no stored row -> ceiling = no-wipe", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.AllowBYODWipe = optjson.SetBool(false)
+			ac.MDM.AllowBYODLock = optjson.SetBool(true)
+			return ac, nil
+		}
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return nil, notFoundErr{}
+		}
+		got, err := s.effectiveAppleAccessRights(t.Context(), mkHost(nil))
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, true), got)
+	})
+
+	t.Run("team config + stored rights: returns AND", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		tid := uint(7)
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			require.Equal(t, tid, teamID)
+			return &fleet.TeamMDM{AllowBYODWipe: true, AllowBYODLock: false}, nil // ceiling no-lock
+		}
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+		}
+		got, err := s.effectiveAppleAccessRights(t.Context(), mkHost(&tid))
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(true, false), got, "stored=all AND ceiling=no-lock = no-lock")
+	})
+
+	t.Run("monotonic narrowing: stored already lacks wipe, fleet allows both -> still no-wipe", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.AppleEnrollmentAccessRights(false, true)}, nil
+		}
+		got, err := s.effectiveAppleAccessRights(t.Context(), mkHost(nil))
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, true), got, "stored=no-wipe AND ceiling=all = no-wipe; cannot widen")
+	})
+
+	t.Run("AppConfig error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		boom := errors.New("appconfig boom")
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return nil, boom }
+		_, err := s.effectiveAppleAccessRights(t.Context(), mkHost(nil))
+		require.ErrorIs(t, err, boom)
+	})
+
+	t.Run("TeamMDMConfig error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		tid := uint(7)
+		boom := errors.New("team boom")
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) { return nil, boom }
+		_, err := s.effectiveAppleAccessRights(t.Context(), mkHost(&tid))
+		require.ErrorIs(t, err, boom)
+	})
+
+	t.Run("permissions DB error (not NotFound) propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		boom := errors.New("perms boom")
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return nil, boom
+		}
+		_, err := s.effectiveAppleAccessRights(t.Context(), mkHost(nil))
+		require.ErrorIs(t, err, boom)
+	})
+}
 
 func TestGetHostManagedAccountPasswordAuth(t *testing.T) {
 	t.Parallel()
