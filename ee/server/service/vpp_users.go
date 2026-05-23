@@ -54,6 +54,31 @@ func (svc *Service) ensureVPPClientUser(ctx context.Context, host *fleet.Host, t
 		return existing.ClientUserID, nil
 	}
 
+	// Non-registered row (typically a legacy 'pending' entry from the prior
+	// v2 async flow, or a row left over from a failed registration). Apple
+	// enforces uniqueness on (location, managedAppleId), so blindly calling
+	// registerVPPClientUser with a fresh UUID will collide with any existing
+	// Apple-side user. Ask Apple first; if a user already exists, resync the
+	// local cache to its clientUserId rather than minting a new one.
+	if existing != nil {
+		appleUser, lookupErr := vpp.GetUserByManagedAppleID(ctx, token.Token, managedAppleID)
+		if lookupErr != nil {
+			return "", ctxerr.Wrapf(ctx, lookupErr, "looking up vpp user by managed apple id for token %d", token.ID)
+		}
+		if appleUser != nil {
+			row := &fleet.VPPClientUser{
+				VPPTokenID:     token.ID,
+				ManagedAppleID: managedAppleID,
+				ClientUserID:   appleUser.ClientUserID,
+				Status:         fleet.VPPClientUserStatusRegistered,
+			}
+			if err := svc.ds.InsertVPPClientUser(ctx, row); err != nil {
+				return "", ctxerr.Wrap(ctx, err, "resyncing vpp client user cache from Apple")
+			}
+			return appleUser.ClientUserID, nil
+		}
+	}
+
 	return svc.registerVPPClientUser(ctx, token.ID, managedAppleID, token.Token)
 }
 

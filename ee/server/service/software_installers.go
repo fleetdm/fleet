@@ -1615,7 +1615,6 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 						"original_err", err.Error())
 				}
 
-				clientUserID = recoveredClientUserID
 				req.ClientUserIds = []string{recoveredClientUserID}
 				eventID, err = vpp.AssociateAssets(token, req)
 				if err != nil {

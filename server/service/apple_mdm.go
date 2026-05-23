@@ -4022,12 +4022,15 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 	return nil, nil
 }
 
-// hostIsPersonalEnrollment reports whether the host identified by the MDM
-// enrollment UUID is enrolled via Account-Driven User Enrollment (BYOD).
-// Returns false when the host or its MDM record can't be found — callers
-// fall through to the default (managed) path in that case.
-func (svc *MDMAppleCheckinAndCommandService) hostIsPersonalEnrollment(ctx context.Context, hostUUID string) (bool, error) {
-	host, err := svc.ds.HostLiteByIdentifier(ctx, hostUUID)
+// hostIsPersonalEnrollment reports whether the host identified by the given
+// MDM enrollment identifier is enrolled via Account-Driven User Enrollment
+// (BYOD). The identifier is whatever the MDM command result reports — a UDID
+// for device enrollments, or a User Enrollment EnrollmentID for BYOD —
+// resolved via HostLiteByIdentifier. Returns false when the host or its MDM
+// record can't be found — callers fall through to the default (managed) path
+// in that case.
+func (svc *MDMAppleCheckinAndCommandService) hostIsPersonalEnrollment(ctx context.Context, enrollmentIdentifier string) (bool, error) {
+	host, err := svc.ds.HostLiteByIdentifier(ctx, enrollmentIdentifier)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return false, nil
