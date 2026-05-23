@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -242,7 +243,7 @@ func TestGenerateEnrollmentProfileMobileconfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := GenerateEnrollmentProfileMobileconfig(tt.orgName, tt.fleetURL, tt.scepChallenge, "com.foo.bar")
+			result, err := GenerateEnrollmentProfileMobileconfig(tt.orgName, tt.fleetURL, tt.scepChallenge, "com.foo.bar", MDMAccessRightAll)
 			if tt.expectError {
 				require.Error(t, err)
 			} else {
@@ -269,6 +270,59 @@ func TestGenerateEnrollmentProfileMobileconfig(t *testing.T) {
 					}
 				}
 			}
+		})
+	}
+}
+
+func TestAppleEnrollmentAccessRights(t *testing.T) {
+	cases := []struct {
+		name      string
+		allowWipe bool
+		allowLock bool
+		want      int
+	}{
+		{"both allowed", true, true, 8191},
+		{"no wipe", false, true, 8191 - MDMAccessRightDeviceErase},      // 7167
+		{"no lock", true, false, 8191 - MDMAccessRightDeviceLock},      // 7679
+		{"neither", false, false, 8191 - MDMAccessRightDeviceErase - MDMAccessRightDeviceLock}, // 6655
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, AppleEnrollmentAccessRights(tc.allowWipe, tc.allowLock))
+		})
+	}
+}
+
+func TestGenerateEnrollmentProfileMobileconfig_AccessRights(t *testing.T) {
+	// The SCEP/manual enrollment profile must template the AccessRights bitmask
+	// caller-supplied (rather than hard-coding 8191) so that BYOD permission
+	// changes can narrow what Fleet can do to the device on subsequent renewals.
+	type mdmPayload struct {
+		PayloadType  string
+		AccessRights int
+	}
+	type prof struct {
+		PayloadContent []mdmPayload
+	}
+	for _, rights := range []int{
+		MDMAccessRightAll,
+		AppleEnrollmentAccessRights(false, true),
+		AppleEnrollmentAccessRights(true, false),
+		AppleEnrollmentAccessRights(false, false),
+	} {
+		t.Run(fmt.Sprintf("rights=%d", rights), func(t *testing.T) {
+			out, err := GenerateEnrollmentProfileMobileconfig("Fleet", "https://example.com", "c", "com.foo.bar", rights)
+			require.NoError(t, err)
+			var p prof
+			require.NoError(t, plist.Unmarshal(out, &p))
+			var got int
+			for _, payload := range p.PayloadContent {
+				if payload.PayloadType == "com.apple.mdm" {
+					got = payload.AccessRights
+					break
+				}
+			}
+			require.Equal(t, rights, got, "AccessRights in generated mobileconfig must match the value passed in")
 		})
 	}
 }

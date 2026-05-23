@@ -1108,6 +1108,37 @@ var OTASCEPTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`<?xml
   </dict>
 </plist>`))
 
+// MDM AccessRights bitmask values (per Apple Device Management documentation).
+//
+// The full set Fleet has shipped historically is MDMAccessRightAll. The two
+// bits we currently expose for BYOD permission gating (see #23242) are the
+// device-lock and device-erase rights.
+//
+// Apple rejects an enrollment-profile replacement that grants more rights
+// than the previously-installed profile; rights can only narrow. Callers that
+// renew an existing host's profile must therefore compute the new bitmask as
+// (stored_rights AND current_fleet_max_rights) so they never widen.
+const (
+	MDMAccessRightAll         = 8191 // all 13 bits (2^13 - 1)
+	MDMAccessRightDeviceLock  = 512  // bit 9: Device Lock & Passcode Removal
+	MDMAccessRightDeviceErase = 1024 // bit 10: Device Erase
+)
+
+// AppleEnrollmentAccessRights computes the AccessRights bitmask for the SCEP-
+// or ACME-backed Apple enrollment profile given a fleet's BYOD permission
+// flags. Both arguments default to true (i.e. start from MDMAccessRightAll and
+// strip bits as requested).
+func AppleEnrollmentAccessRights(allowWipe, allowLock bool) int {
+	rights := MDMAccessRightAll
+	if !allowWipe {
+		rights &^= MDMAccessRightDeviceErase
+	}
+	if !allowLock {
+		rights &^= MDMAccessRightDeviceLock
+	}
+	return rights
+}
+
 // enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
 //
 // During a profile replacement, the system updates payloads with the same PayloadIdentifier and
@@ -1149,7 +1180,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 		</dict>
 		<dict>
 			<key>AccessRights</key>
-			<integer>8191</integer>
+			<integer>{{ .AccessRights }}</integer>
 			<key>CheckOutWhenRemoved</key>
 			<true/>
 			<key>IdentityCertificateUUID</key>
@@ -1315,7 +1346,7 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 		</dict>
 		<dict>
 			<key>AccessRights</key>
-			<integer>8191</integer>
+			<integer>{{ .AccessRights }}</integer>
 			<key>CheckOutWhenRemoved</key>
 			<true/>
 			<key>IdentityCertificateUUID</key>
@@ -1356,7 +1387,7 @@ var acmeEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").F
 </dict>
 </plist>`))
 
-func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
+func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string, accessRights int) ([]byte, error) {
 	scepURL, err := ResolveAppleSCEPURL(fleetURL)
 	if err != nil {
 		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
@@ -1373,12 +1404,14 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		SCEPChallenge string
 		Topic         string
 		ServerURL     string
+		AccessRights  int
 	}{
 		Organization:  orgName,
 		SCEPURL:       scepURL,
 		SCEPChallenge: scepChallenge,
 		Topic:         topic,
 		ServerURL:     serverURL,
+		AccessRights:  accessRights,
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
@@ -1431,7 +1464,7 @@ func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
 	return u.String(), nil
 }
 
-func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string) ([]byte, error) {
+func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, deviceSerial, topic string, accessRights int) ([]byte, error) {
 	serverURL, err := ResolveAppleMDMURL(mdmURL)
 	if err != nil {
 		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
@@ -1450,6 +1483,7 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		ServerURL        string
 		ClientIdentifier string
 		SerialTemplate   string
+		AccessRights     int
 	}{
 		Organization:     orgName,
 		DirectoryURL:     acmeURL,
@@ -1457,6 +1491,7 @@ func GenerateACMEEnrollmentProfileMobileconfig(orgName, mdmURL, acmeIdent, devic
 		ServerURL:        serverURL,
 		ClientIdentifier: deviceSerial,
 		SerialTemplate:   `%SerialNumber%`, // Apple replaces this placeholder with the device's serial number during enrollment
+		AccessRights:     accessRights,
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}

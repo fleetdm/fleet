@@ -2333,6 +2333,7 @@ func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardw
 		acmeIdent,
 		hardwareSerial,
 		topic,
+		apple_mdm.MDMAccessRightAll,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleACMEEnrollProfile: generating ACME enrollment profile")
@@ -2354,6 +2355,7 @@ func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgNa
 		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		apple_mdm.MDMAccessRightAll,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: generating enrollment profile")
@@ -6231,6 +6233,7 @@ func RenewSCEPCertificates(
 				appConfig.MDMUrl(),
 				scepChallenge,
 				mdmPushCertTopic,
+				apple_mdm.MDMAccessRightAll,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
@@ -6299,6 +6302,7 @@ func RenewSCEPCertificates(
 			enrollURL,
 			scepChallenge,
 			mdmPushCertTopic,
+			apple_mdm.MDMAccessRightAll,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
@@ -6338,6 +6342,7 @@ func RenewSCEPCertificates(
 			acmeIdent,
 			di.HardwareSerial,
 			mdmPushCertTopic,
+			apple_mdm.MDMAccessRightAll,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts requiring ACME renewal")
@@ -7344,6 +7349,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		apple_mdm.MDMAccessRightAll,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
