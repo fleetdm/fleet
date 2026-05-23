@@ -16,6 +16,15 @@ module.exports = {
       type: 'string',
       required: true,
     },
+    // Captured from the `:deviceId::issueCommand` route. Validated here so requests targeting any
+    // other colon-suffixed action (e.g. `/devices/<id>:somethingElse`) are rejected up front rather
+    // than silently invoking issueCommand. Mirrors how `modify-enterprise-app-policy.js` captures
+    // `googleAction`.
+    issueCommand: {
+      type: 'string',
+      required: true,
+      isIn: ['issueCommand'],
+    },
     // AMAPI Command fields. Inputs are declared explicitly (rather than forwarding req.body) so the
     // proxy's accepted surface is visible. `type` is not constrained via isIn so the Fleet server can
     // issue any AMAPI command type without a proxy change. Adding entirely new Command FIELDS (e.g. a
