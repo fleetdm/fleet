@@ -487,6 +487,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			EnableDiskEncryption:       cmd.AppConfig.MDM.EnableDiskEncryption.Value,
 			EnableRecoveryLockPassword: cmd.AppConfig.MDM.EnableRecoveryLockPassword.Value,
 			RequireBitLockerPIN:        cmd.AppConfig.MDM.RequireBitLockerPIN.Value,
+			AllowBYODWipe:              cmd.AppConfig.MDM.AllowBYODWipe.Value,
+			AllowBYODLock:              cmd.AppConfig.MDM.AllowBYODLock.Value,
 			MacOSUpdates:               cmd.AppConfig.MDM.MacOSUpdates,
 			IOSUpdates:                 cmd.AppConfig.MDM.IOSUpdates,
 			IPadOSUpdates:              cmd.AppConfig.MDM.IPadOSUpdates,
@@ -1381,6 +1383,8 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
 			result[jsonFieldName(mdmT, "EnableRecoveryLockPassword")] = teamMdm.EnableRecoveryLockPassword
 			result[jsonFieldName(mdmT, "RequireBitLockerPIN")] = teamMdm.RequireBitLockerPIN
+			result[jsonFieldName(mdmT, "AllowBYODWipe")] = teamMdm.AllowBYODWipe
+			result[jsonFieldName(mdmT, "AllowBYODLock")] = teamMdm.AllowBYODLock
 			result[jsonFieldName(mdmT, "MacOSUpdates")] = teamMdm.MacOSUpdates
 			result[jsonFieldName(mdmT, "IOSUpdates")] = teamMdm.IOSUpdates
 			result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates

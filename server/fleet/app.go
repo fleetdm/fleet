@@ -257,6 +257,14 @@ type MDM struct {
 
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
+	// AllowBYODWipe controls whether Fleet may issue a wipe to manually enrolled
+	// (BYOD) Apple hosts. ADE-enrolled hosts are unaffected. Default: true.
+	AllowBYODWipe optjson.Bool `json:"allow_byod_wipe"`
+
+	// AllowBYODLock controls whether Fleet may issue a lock to manually enrolled
+	// (BYOD) Apple hosts. ADE-enrolled hosts are unaffected. Default: true.
+	AllowBYODLock optjson.Bool `json:"allow_byod_lock"`
+
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
 	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
@@ -1165,6 +1173,12 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	}
 	if !c.MDM.EnableRecoveryLockPassword.Valid {
 		c.MDM.EnableRecoveryLockPassword = optjson.SetBool(false)
+	}
+	if !c.MDM.AllowBYODWipe.Valid {
+		c.MDM.AllowBYODWipe = optjson.SetBool(true)
+	}
+	if !c.MDM.AllowBYODLock.Valid {
+		c.MDM.AllowBYODLock = optjson.SetBool(true)
 	}
 	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)

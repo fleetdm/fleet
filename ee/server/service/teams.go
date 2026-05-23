@@ -79,6 +79,10 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		Config: fleet.TeamConfig{
 			AgentOptions: globalConfig.AgentOptions,
 			Features:     globalConfig.Features,
+			MDM: fleet.TeamMDM{
+				AllowBYODWipe: true,
+				AllowBYODLock: true,
+			},
 		},
 	}
 
@@ -294,6 +298,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 		if payload.MDM.RequireBitLockerPIN.Valid {
 			team.Config.MDM.RequireBitLockerPIN = payload.MDM.RequireBitLockerPIN.Value
+		}
+
+		if payload.MDM.AllowBYODWipe.Valid {
+			team.Config.MDM.AllowBYODWipe = payload.MDM.AllowBYODWipe.Value
+		}
+
+		if payload.MDM.AllowBYODLock.Valid {
+			team.Config.MDM.AllowBYODLock = payload.MDM.AllowBYODLock.Value
 		}
 
 		if payload.MDM.MacOSSetup != nil {
@@ -1477,6 +1489,8 @@ func (svc *Service) createTeamFromSpec(
 				EnableDiskEncryption:       enableDiskEncryption,
 				EnableRecoveryLockPassword: spec.MDM.EnableRecoveryLockPassword.Value,
 				RequireBitLockerPIN:        spec.MDM.RequireBitLockerPIN.Value,
+				AllowBYODWipe:              !spec.MDM.AllowBYODWipe.Valid || spec.MDM.AllowBYODWipe.Value,
+				AllowBYODLock:              !spec.MDM.AllowBYODLock.Valid || spec.MDM.AllowBYODLock.Value,
 				MacOSUpdates:               spec.MDM.MacOSUpdates,
 				WindowsUpdates:             spec.MDM.WindowsUpdates,
 				MacOSSettings:              macOSSettings,
@@ -1628,6 +1642,14 @@ func (svc *Service) editTeamFromSpec(
 
 	if spec.MDM.RequireBitLockerPIN.Valid {
 		team.Config.MDM.RequireBitLockerPIN = spec.MDM.RequireBitLockerPIN.Value
+	}
+
+	if spec.MDM.AllowBYODWipe.Valid {
+		team.Config.MDM.AllowBYODWipe = spec.MDM.AllowBYODWipe.Value
+	}
+
+	if spec.MDM.AllowBYODLock.Valid {
+		team.Config.MDM.AllowBYODLock = spec.MDM.AllowBYODLock.Value
 	}
 
 	var didUpdateRecoveryLockPassword bool
