@@ -4906,6 +4906,91 @@ func TestComputeAppleEnrollmentAccessRights(t *testing.T) {
 	})
 }
 
+func TestResolveEnrollmentAccessRightsForServe(t *testing.T) {
+	const hostID = uint(101)
+
+	t.Run("nil machineInfo: initial enrollment, global config, no persistence target", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		rights, hID, err := s.resolveEnrollmentAccessRightsForServe(t.Context(), nil)
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.MDMAccessRightAll, rights)
+		require.Zero(t, hID)
+		require.False(t, ds.HostLiteByIdentifierFuncInvoked, "no UDID → no host lookup")
+	})
+
+	t.Run("machineInfo with UDID, host not found: treated as initial enrollment", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			require.Equal(t, "unknown-udid", identifier)
+			return nil, &notFoundError{}
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		rights, hID, err := s.resolveEnrollmentAccessRightsForServe(t.Context(), &fleet.MDMAppleMachineInfo{UDID: "unknown-udid"})
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.MDMAccessRightAll, rights)
+		require.Zero(t, hID, "no host found → hostID = 0 (skip persistence)")
+	})
+
+	t.Run("known host with team: uses team config + host id", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		tid := uint(7)
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			require.Equal(t, "known-udid", identifier)
+			return &fleet.HostLite{ID: hostID, TeamID: &tid}, nil
+		}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			require.Equal(t, tid, teamID)
+			return &fleet.TeamMDM{AllowBYODWipe: false, AllowBYODLock: true}, nil
+		}
+		// Stored rights = all (host enrolled with everything), team narrowed wipe.
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hID uint) (*fleet.HostMDMApplePermissions, error) {
+			require.Equal(t, hostID, hID)
+			return &fleet.HostMDMApplePermissions{HostID: hID, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+		}
+		rights, hID, err := s.resolveEnrollmentAccessRightsForServe(t.Context(), &fleet.MDMAppleMachineInfo{UDID: "known-udid"})
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, true), rights, "team narrowed wipe; AND with stored=8191")
+		require.Equal(t, hostID, hID)
+	})
+
+	t.Run("HostLiteByIdentifier non-notfound error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		boom := errors.New("db boom")
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) { return nil, boom }
+		_, _, err := s.resolveEnrollmentAccessRightsForServe(t.Context(), &fleet.MDMAppleMachineInfo{UDID: "u"})
+		require.ErrorIs(t, err, boom)
+	})
+}
+
+func TestPersistEnrollmentAccessRights(t *testing.T) {
+	t.Run("hostID 0: noop (skip write)", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		require.NoError(t, s.persistEnrollmentAccessRights(t.Context(), 0, 8191))
+		require.False(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
+	})
+	t.Run("hostID non-zero: calls datastore", func(t *testing.T) {
+		ds := new(mock.Store)
+		s := &Service{ds: ds}
+		var gotHostID uint
+		var gotRights int
+		ds.SetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostID uint, accessRights int) error {
+			gotHostID = hostID
+			gotRights = accessRights
+			return nil
+		}
+		require.NoError(t, s.persistEnrollmentAccessRights(t.Context(), 42, 7167))
+		require.True(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
+		require.Equal(t, uint(42), gotHostID)
+		require.Equal(t, 7167, gotRights)
+	})
+}
+
 func TestEnsureFleetdConfig(t *testing.T) {
 	testError := errors.New("test error")
 	testURL := "https://example.com"
