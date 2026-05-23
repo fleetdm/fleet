@@ -1140,6 +1140,26 @@ func AppleEnrollmentAccessRights(allowWipe, allowLock bool) int {
 	return rights
 }
 
+// ComputeAppleEnrollmentAccessRights computes the AccessRights to bake into the
+// next enrollment profile delivered to a host. It applies the monotonic-narrowing
+// rule required by Apple: a profile replacement can remove rights but cannot
+// add them, so the new value is always the bitwise AND of the host's previously
+// delivered rights and the fleet's current permission ceiling.
+//
+//   - storedRights == nil    → initial enrollment, no profile delivered yet;
+//     return the fleet ceiling.
+//   - storedRights != nil    → renewal/replacement; return (stored AND ceiling).
+//
+// The ceiling is computed from the fleet's `allow_byod_wipe` / `allow_byod_lock`
+// flags via AppleEnrollmentAccessRights.
+func ComputeAppleEnrollmentAccessRights(allowWipe, allowLock bool, storedRights *int) int {
+	ceiling := AppleEnrollmentAccessRights(allowWipe, allowLock)
+	if storedRights == nil {
+		return ceiling
+	}
+	return *storedRights & ceiling
+}
+
 // enrollmentProfileMobileconfigTemplate is the template Fleet uses to assemble a .mobileconfig enrollment profile to serve to devices.
 //
 // During a profile replacement, the system updates payloads with the same PayloadIdentifier and

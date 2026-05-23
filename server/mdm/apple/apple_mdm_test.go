@@ -293,6 +293,44 @@ func TestAppleEnrollmentAccessRights(t *testing.T) {
 	}
 }
 
+func TestComputeAppleEnrollmentAccessRights(t *testing.T) {
+	intPtr := func(v int) *int { return &v }
+
+	// Worked examples from the BYOD permissions plan:
+	cases := []struct {
+		name      string
+		allowWipe bool
+		allowLock bool
+		stored    *int
+		want      int
+		summary   string
+	}{
+		{"initial all-allowed", true, true, nil, MDMAccessRightAll,
+			"new host, fleet permits both → all rights"},
+		{"initial wipe disabled", false, true, nil, AppleEnrollmentAccessRights(false, true),
+			"new host, fleet disallows wipe → 7167"},
+		{"initial both disabled", false, false, nil, AppleEnrollmentAccessRights(false, false),
+			"new host, fleet disallows both → 6655"},
+
+		{"renewal narrows wipe (example 1)", false, true, intPtr(MDMAccessRightAll), AppleEnrollmentAccessRights(false, true),
+			"host enrolled with all (8191), admin disabled wipe → next renewal sends 7167"},
+		{"renewal cannot widen (example 2)", true, true, intPtr(AppleEnrollmentAccessRights(false, false)), AppleEnrollmentAccessRights(false, false),
+			"host enrolled with neither (6655), admin re-enabled both → bitwise AND with 8191 still 6655; profile unchanged"},
+		{"renewal further narrows", false, false, intPtr(AppleEnrollmentAccessRights(false, true)), AppleEnrollmentAccessRights(false, false),
+			"host had only-lock (7679), admin disabled lock too → 6655"},
+
+		// Identity check: AND with self yields self.
+		{"renewal unchanged", true, true, intPtr(MDMAccessRightAll), MDMAccessRightAll, ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ComputeAppleEnrollmentAccessRights(tc.allowWipe, tc.allowLock, tc.stored)
+			require.Equal(t, tc.want, got, tc.summary)
+		})
+	}
+}
+
 func TestGenerateEnrollmentProfileMobileconfig_AccessRights(t *testing.T) {
 	// The SCEP/manual enrollment profile must template the AccessRights bitmask
 	// caller-supplied (rather than hard-coding 8191) so that BYOD permission
