@@ -4938,6 +4938,30 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 	return &hmdm, nil
 }
 
+func (ds *Datastore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostID uint) (*fleet.HostMDMApplePermissions, error) {
+	var p fleet.HostMDMApplePermissions
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &p, `
+		SELECT host_id, access_rights
+		FROM host_mdm_apple_enrollment_permissions
+		WHERE host_id = ?`, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostMDMApplePermissions").WithID(hostID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host MDM Apple enrollment permissions")
+	}
+	return &p, nil
+}
+
+func (ds *Datastore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostID uint, accessRights int) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_mdm_apple_enrollment_permissions (host_id, access_rights)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE access_rights = VALUES(access_rights), delivered_at = NOW()`,
+		hostID, accessRights)
+	return ctxerr.Wrap(ctx, err, "set host MDM Apple enrollment permissions")
+}
+
 func (ds *Datastore) GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error) {
 	var maid sql.NullString
 	// Read from the primary: managed_apple_id is set during TokenUpdate and

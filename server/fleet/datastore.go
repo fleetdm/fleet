@@ -418,6 +418,13 @@ type Datastore interface {
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
+	// GetHostMDMAppleEnrollmentPermissions returns the stored AccessRights for the
+	// host's most recently delivered enrollment profile. Returns a NotFound error
+	// when no row exists yet (treat as default 8191).
+	GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostID uint) (*HostMDMApplePermissions, error)
+	// SetHostMDMAppleEnrollmentPermissions upserts the AccessRights for a host,
+	// recording what was baked into the enrollment profile last delivered to it.
+	SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostID uint, accessRights int) error
 	// GetHostManagedAppleID returns the Managed Apple ID stored on host_mdm
 	// for the given host. Returns an empty string when a host_mdm row exists
 	// with a NULL managed_apple_id, and a NotFound error (see fleet.IsNotFound)

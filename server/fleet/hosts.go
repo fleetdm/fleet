@@ -1285,6 +1285,16 @@ func (h *HostMDM) HasJSONProfileAssigned() bool {
 		*h.DEPProfileAssignStatus == string(DEPAssignProfileResponseSuccess)
 }
 
+// HostMDMApplePermissions records the AccessRights integer baked into the most
+// recently delivered Apple enrollment profile for a host. Rights can only
+// narrow over time (Apple rejects profile-replacements that widen rights), so
+// this value serves as the floor when computing the profile to deliver at SCEP
+// or ACME cert renewal.
+type HostMDMApplePermissions struct {
+	HostID       uint `db:"host_id"`
+	AccessRights int  `db:"access_rights"`
+}
+
 // HostMunkiIssue represents a single munki issue for a host.
 type HostMunkiIssue struct {
 	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`

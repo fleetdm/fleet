@@ -319,6 +319,10 @@ type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, erro
 
 type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
 
+type GetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMApplePermissions, error)
+
+type SetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostID uint, accessRights int) error
+
 type GetHostManagedAppleIDFunc func(ctx context.Context, hostID uint) (string, error)
 
 type SetHostManagedAppleIDFunc func(ctx context.Context, hostID uint, managedAppleID string) error
@@ -2433,6 +2437,12 @@ type DataStore struct {
 
 	GetHostMDMCheckinInfoFunc        GetHostMDMCheckinInfoFunc
 	GetHostMDMCheckinInfoFuncInvoked bool
+
+	GetHostMDMAppleEnrollmentPermissionsFunc        GetHostMDMAppleEnrollmentPermissionsFunc
+	GetHostMDMAppleEnrollmentPermissionsFuncInvoked bool
+
+	SetHostMDMAppleEnrollmentPermissionsFunc        SetHostMDMAppleEnrollmentPermissionsFunc
+	SetHostMDMAppleEnrollmentPermissionsFuncInvoked bool
 
 	GetHostManagedAppleIDFunc        GetHostManagedAppleIDFunc
 	GetHostManagedAppleIDFuncInvoked bool
@@ -5976,6 +5986,20 @@ func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) 
 	s.GetHostMDMCheckinInfoFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostID uint) (*fleet.HostMDMApplePermissions, error) {
+	s.mu.Lock()
+	s.GetHostMDMAppleEnrollmentPermissionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMAppleEnrollmentPermissionsFunc(ctx, hostID)
+}
+
+func (s *DataStore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostID uint, accessRights int) error {
+	s.mu.Lock()
+	s.SetHostMDMAppleEnrollmentPermissionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostMDMAppleEnrollmentPermissionsFunc(ctx, hostID, accessRights)
 }
 
 func (s *DataStore) GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error) {
