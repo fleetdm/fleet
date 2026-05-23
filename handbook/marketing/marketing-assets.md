@@ -55,6 +55,8 @@ Downloadable PDFs for lead generation, ABM campaigns, and executive education. A
 
 | Asset | Audience | Use case | Date updated |
 | --- | --- | --- | --- |
+| [Fleet autonomous endpoint management](https://docs.google.com/document/d/1Xv_30iJN3zI5N1B3iq9S2pgCQVRVPZU2QYNZaGpBJpI/edit?tab=t.0) | Fleet sales and channel teams | What Fleet AEM, the catalog, and auto patching do, with the specific numbers reps need. | 2026-05-23 |
+| [Selling Fleet AEM](https://docs.google.com/document/d/1uAukX0P9wxR_6nZHIJJG9isfY7k-bSZn/edit?usp=drive_link&ouid=105837981104785381659&rtpof=true&sd=true) | Fleet sales and channel teams | Sales and partner enablement 2-pager. | 2026-05-23 |
 | [Fleet pain points guide](https://docs.google.com/document/d/1h8N9Icow6g-08EZPQMnbH-bDKDbXoPy-lwlUm9DiPJA/edit) | Fleet sales and channel teams | Typical pain points Fleet solves and how to uncover them. | 2026-03-06 |
 | [Fleet ideal customer profile and persona guide](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit) | Fleet sales and channel teams | Typical Fleet buyer profiles. | 2026-01-18 |
 
