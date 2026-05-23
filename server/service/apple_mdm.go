@@ -2364,6 +2364,67 @@ func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgNa
 	return enrollProf, nil
 }
 
+// computeAppleEnrollmentAccessRights returns the AccessRights bitmask to bake
+// into the next Apple enrollment .mobileconfig delivered to a host.
+//
+// It encapsulates:
+//   - reading the owning fleet's BYOD permission flags (or the global AppConfig
+//     when teamID is nil) to derive the fleet ceiling,
+//   - reading the host's previously-delivered rights from
+//     host_mdm_apple_enrollment_permissions (the floor),
+//   - intersecting the two so the result never widens what Apple has already
+//     installed on the device (Apple rejects profile-replacements that grant
+//     more rights than were previously granted).
+//
+// Pass hostID == 0 for initial enrollment with no host record yet; in that
+// case the result is the fleet ceiling alone.
+//
+// Callers are responsible for short-circuiting non-BYOD cases (ADE-enrolled
+// hosts, non-Apple platforms) before calling this — there, just pass
+// apple_mdm.MDMAccessRightAll directly to the profile generator.
+func (svc *Service) computeAppleEnrollmentAccessRights(ctx context.Context, teamID *uint, hostID uint) (int, error) {
+	allowWipe, allowLock, err := svc.fleetBYODPermissions(ctx, teamID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "load fleet BYOD permissions")
+	}
+
+	if hostID == 0 {
+		return apple_mdm.AppleEnrollmentAccessRights(allowWipe, allowLock), nil
+	}
+
+	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, hostID)
+	var storedPtr *int
+	switch {
+	case err == nil:
+		storedPtr = &perms.AccessRights
+	case fleet.IsNotFound(err):
+		storedPtr = nil
+	default:
+		return 0, ctxerr.Wrap(ctx, err, "load host MDM Apple enrollment permissions")
+	}
+	return apple_mdm.ComputeAppleEnrollmentAccessRights(allowWipe, allowLock, storedPtr), nil
+}
+
+// fleetBYODPermissions returns the (allow_byod_wipe, allow_byod_lock) flags
+// for a team (or the global AppConfig if teamID is nil). Both default to true
+// when the underlying config does not explicitly set them.
+func (svc *Service) fleetBYODPermissions(ctx context.Context, teamID *uint) (allowWipe, allowLock bool, err error) {
+	if teamID == nil {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return false, false, err
+		}
+		allowWipe = !ac.MDM.AllowBYODWipe.Valid || ac.MDM.AllowBYODWipe.Value
+		allowLock = !ac.MDM.AllowBYODLock.Valid || ac.MDM.AllowBYODLock.Value
+		return allowWipe, allowLock, nil
+	}
+	tm, err := svc.ds.TeamMDMConfig(ctx, *teamID)
+	if err != nil {
+		return false, false, err
+	}
+	return tm.AllowBYODWipe, tm.AllowBYODLock, nil
+}
+
 func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
