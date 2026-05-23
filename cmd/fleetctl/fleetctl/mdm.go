@@ -366,8 +366,9 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 		return nil, nil, err
 	}
 
-	// check mdm is on for the host
-	if fleet.MDMSupported(host.Platform) {
+	// check mdm is on for the host. Android isn't in fleet.MDMPlatform.
+	// See eng-init story: https://github.com/fleetdm/fleet/issues/46118
+	if fleet.MDMSupported(host.Platform) || fleet.IsAndroidPlatform(host.Platform) {
 		if host.MDM.ConnectedToFleet == nil || !*host.MDM.ConnectedToFleet {
 			return nil, nil, fmt.Errorf("Can't %s the host because it doesn't have MDM turned on.", actionType)
 		}

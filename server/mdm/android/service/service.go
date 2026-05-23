@@ -878,11 +878,14 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
 
-	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal
-	// device only wipes the work profile, leaving the personal side intact) instead of the
-	// EnterprisesDevicesDelete call. The mdm_unenrolled activity is still emitted on the
-	// subsequent Pub/Sub COMMAND notification path. For COBO we keep the existing delete-device
-	// behavior (terminates management without factory-resetting the device).
+	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work
+	// profile, leaving the personal side intact) instead of the EnterprisesDevicesDelete call.
+	// The mdm_unenrolled activity is emitted later, when the device removes its work profile and
+	// AMAPI sends the resulting STATUS_REPORT (or ENROLLMENT) notification with state=DELETED --
+	// see handlePubSubStatusReport / handlePubSubEnrollment. The COMMAND notification path only
+	// transitions the mdm_android_commands row from pending to acknowledged/error.
+	// For COBO we keep the existing delete-device behavior (terminates management without
+	// factory-resetting the device).
 	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")

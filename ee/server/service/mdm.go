@@ -1829,6 +1829,19 @@ func (svc *Service) clearPasscodeAndroid(ctx context.Context, host *fleet.Host, 
 		})
 	}
 
+	// Per-host MDM-enrollment check, mirroring the android branch of LockHost/WipeHost. Without this,
+	// targeting a not-yet-enrolled (or already unenrolled) Android host surfaces a wrapped AMAPI error
+	// instead of the standardized friendly message.
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Can't clear passcode for the host because it doesn't have MDM turned on.",
+		})
+	}
+
 	commandUUID, err := svc.androidModule.ClearAndroidPasscode(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "issuing android clear-passcode")
