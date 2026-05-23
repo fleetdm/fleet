@@ -282,8 +282,8 @@ func TestAppleEnrollmentAccessRights(t *testing.T) {
 		want      int
 	}{
 		{"both allowed", true, true, 8191},
-		{"no wipe", false, true, 8191 - MDMAccessRightDeviceErase},      // 7167
-		{"no lock", true, false, 8191 - MDMAccessRightDeviceLock},      // 7679
+		{"no wipe", false, true, 8191 - MDMAccessRightDeviceErase},                             // 7167
+		{"no lock", true, false, 8191 - MDMAccessRightDeviceLock},                              // 7679
 		{"neither", false, false, 8191 - MDMAccessRightDeviceErase - MDMAccessRightDeviceLock}, // 6655
 	}
 	for _, tc := range cases {
