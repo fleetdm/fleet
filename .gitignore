@@ -127,3 +127,6 @@ Fleet\ Desktop.app
 # custom golangci-lint executable
 custom-gcl
 /fleet
+
+# dibble (the seed slinger) — binary lives next to source
+tools/dibble/dibble

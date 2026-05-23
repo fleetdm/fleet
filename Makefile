@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help dibble
 
 export GO111MODULE=on
 
@@ -133,6 +133,11 @@ fdm:
 		echo "Linking to /usr/local/bin/fdm..."; \
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
+
+.help-short--dibble:
+	@echo "Builds the dibble test-data seeder (binary lands at tools/dibble/dibble)"
+dibble:
+	cd tools/dibble && go build -o dibble .
 
 .help-short--serve:
 	@echo "Start the fleet server"

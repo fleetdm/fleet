@@ -40,6 +40,9 @@ For detailed usage of specific tools:
 # Start test osqueryd instances
 cd tools/osquery && docker-compose up
 
+# Seed test data (users/teams/policies/profiles/etc.) — see tools/dibble/README.md
+make dibble && ./tools/dibble/dibble
+
 # Serve files locally
 go run ./tools/file-server 8081 ./my-files
 
@@ -251,7 +254,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `mdm/apple/applebmapi/` | Query Apple Business API | `go run ./tools/mdm/apple/applebmapi -mysql localhost:3306 -server-private-key <key> -org-name <org>` |
 | `mdm/apple/appmanifest/` | Generate app manifest XML from .pkg | `go run ./tools/mdm/apple/appmanifest -pkg-file app.pkg -pkg-url https://example.com/app.pkg` |
 | `mdm/apple/apnspush/` | Send APNS push to enrolled devices | `go run ./tools/mdm/apple/apnspush -mysql localhost:3306 -server-private-key <key> <HOST_UUID>` |
-| `mdm/apple/loadtest/` | MDM load testing | `go run ./tools/mdm/apple/loadtest` |
+| `mdm/apple/loadtest/` | MDM load testing (deprecated — see [dibble](dibble/README.md) for seeding teams + profiles) | `go run ./tools/mdm/apple/loadtest` |
 | `mdm/apple/macos-vm-auto-enroll/` | Auto-enroll macOS VMs in MDM | `./tools/mdm/apple/macos-vm-auto-enroll/macos-vm-auto-enroll.sh` |
 | `mdm/apple/setupexperience/` | Test setup experience flows | `go run ./tools/mdm/apple/setupexperience` |
 | `mdm/assets/` | Export/import MDM assets (SCEP, APNS, etc.) | `go run ./tools/mdm/assets export -key=<key> -dir=<dir>` or `import` |
@@ -277,7 +280,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `run-scripts/` | Test Orbit script execution | `go run ./tools/run-scripts -exec-id <id> -content 'echo "Hello"'` |
 | **Packaging & Installers** | | |
 | `bomutils-docker/` | Docker image for BOM utils (macOS pkg) | Docker build for BOM utilities |
-| `team-builder/` | Bulk fleet (formerly "team") creation + installer generation | `./build_teams.sh -s teams.txt -u fleet.example.com` |
+| `team-builder/` | Bulk fleet (formerly "team") creation + installer generation (deprecated for plain seeding — see [dibble](dibble/README.md)) | `./build_teams.sh -s teams.txt -u fleet.example.com` |
 | `wix-docker/` | Docker image for WiX (Windows MSI) | Docker build for WiX toolset |
 | **Release & Distribution** | | |
 | `fleetctl-docker/` | Docker image for fleetctl packaging | `docker run fleetdm/fleetctl package --type=pkg` |
@@ -299,16 +302,17 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `nvd/` | NVD (National Vulnerability Database) tools | See [nvd/nvdvuln/README.md](nvd/nvdvuln/README.md) |
 | `software/icons/` | Software icon management | See [software/icons/README.md](software/icons/README.md) |
 | `software/packages/` | Software package utilities | See [software/packages/README.md](software/packages/README.md) |
-| `software/vulnerabilities/` | Seed vulnerable software for dev | `go run ./tools/software/vulnerabilities/seed_vuln_data.go --ubuntu 1 --macos 1 --windows 1` |
-| `software/vulnerabilities/performance_test/` | Vuln performance testing | See [software/vulnerabilities/performance_test/README.md](software/vulnerabilities/performance_test/README.md) |
+| `software/vulnerabilities/` | Seed vulnerable software for dev (deprecated — use [dibble](dibble/README.md) `vulns`) | `go run ./tools/software/vulnerabilities/seed_vuln_data.go --ubuntu 1 --macos 1 --windows 1` |
+| `software/vulnerabilities/performance_test/` | Vuln performance testing (`seeder/` deprecated — use [dibble](dibble/README.md) `vulns`) | See [software/vulnerabilities/performance_test/README.md](software/vulnerabilities/performance_test/README.md) |
 | `vex-parser/` | Parse OpenVEX documents | `go run ./tools/vex-parser <vex-file>` |
 | **Testing & Load Testing** | | |
 | `desktop-rate-limit/` | Test Fleet Desktop rate limiting | `go run ./tools/desktop-rate-limit -fleet_url https://localhost:8080` |
 | `kubequery/` | Kubequery + Fleet config | `kubectl apply -f kubequery-fleet.yml` |
-| `loadtest/fleetd_labels/` | Apply manual labels for load testing | `go run ./tools/loadtest/fleetd_labels` |
+| `dibble/` | One-stop seeder: users, teams, policies, reports, labels, scripts, profiles, software, enroll-secrets, vulns | `make dibble && ./tools/dibble/dibble` |
+| `loadtest/fleetd_labels/` | Apply manual labels for load testing (deprecated — use [dibble](dibble/README.md) `labels`) | `go run ./tools/loadtest/fleetd_labels` |
 | `loadtest/osquery/` | Load test osquery on macOS/Windows/Linux | See [loadtest/osquery/README.md](loadtest/osquery/README.md) |
-| `loadtest/scripts_and_profiles/` | Load test scripts and profiles | `go run ./tools/loadtest/scripts_and_profiles` |
-| `loadtest/unified_queue/` | Load test unified queue story | See [loadtest/unified_queue/README.md](loadtest/unified_queue/README.md) |
+| `loadtest/scripts_and_profiles/` | Load test scripts and profiles (deprecated — use [dibble](dibble/README.md) `scripts` + `profiles`) | `go run ./tools/loadtest/scripts_and_profiles` |
+| `loadtest/unified_queue/` | Load test unified queue story (see [dibble](dibble/README.md) for seeding the prerequisite software/scripts) | See [loadtest/unified_queue/README.md](loadtest/unified_queue/README.md) |
 | `osquery/` | Containerized osqueryd testing | `docker-compose up` - See [osquery/README.md](osquery/README.md) |
 | `osquery-testing/` | osquery integration tests | `docker-compose up` in directory |
 | `test-certs/` | Fake certificate chain for TLS testing | See [test-certs/README.md](test-certs/README.md) |
