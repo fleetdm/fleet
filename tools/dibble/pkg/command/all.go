@@ -1,6 +1,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -26,20 +27,30 @@ type allCounts struct {
 	// EnrollSecrets is per-team and binary (one per team or none). True to
 	// rotate every team's secret; false to leave them alone.
 	EnrollSecrets bool
+
+	// ActivityBatches drives the direct-MySQL activity seeder. Zero skips
+	// it entirely — activities need a DSN, not just an API token, so we
+	// don't run them by default.
+	ActivityBatches int
+	ActivityDSN     string
+	ActivityHostID  uint
 }
 
 func defaultAllCounts() allCounts {
 	return allCounts{
-		Users:         5,
-		Teams:         3,
-		Policies:      5,
-		Reports:       5,
-		Labels:        5,
-		Scripts:       3,
-		Profiles:      4,
-		Software:      5,
-		CAs:           0,
-		EnrollSecrets: true,
+		Users:           5,
+		Teams:           3,
+		Policies:        5,
+		Reports:         5,
+		Labels:          5,
+		Scripts:         3,
+		Profiles:        4,
+		Software:        5,
+		CAs:             0,
+		EnrollSecrets:   true,
+		ActivityBatches: 0,
+		ActivityDSN:     "fleet:insecure@tcp(localhost:3306)/fleet",
+		ActivityHostID:  1,
 	}
 }
 
@@ -82,6 +93,15 @@ func runAll(c *Client, theme themes.Theme, counts allCounts) error {
 		printf("%s", caRes.Summary())
 	}
 
+	if counts.ActivityBatches > 0 {
+		acRes := seed.Activities(context.Background(), log, seed.ActivitiesOptions{
+			DSN:     counts.ActivityDSN,
+			HostID:  counts.ActivityHostID,
+			Batches: counts.ActivityBatches,
+		})
+		printf("%s", acRes.Summary())
+	}
+
 	elapsed := time.Since(start).Round(time.Millisecond)
 	fmt.Fprintf(stdoutish, "\n🌱  dibble done in %s (theme: %s).\n", elapsed, theme.Name)
 	return nil
@@ -110,10 +130,22 @@ func newAllCmd() *cobra.Command {
 			if v, _ := cmd.Flags().GetInt("teams"); v > 0 {
 				counts.Teams = v
 			}
+			if v, _ := cmd.Flags().GetInt("activity-batches"); v > 0 {
+				counts.ActivityBatches = v
+			}
+			if v, _ := cmd.Flags().GetString("activity-dsn"); v != "" {
+				counts.ActivityDSN = v
+			}
+			if v, _ := cmd.Flags().GetUint("activity-host-id"); v > 0 {
+				counts.ActivityHostID = v
+			}
 			return runAll(c, theme, counts)
 		},
 	}
 	cmd.Flags().Int("users", 0, "Override user count (0 = default)")
 	cmd.Flags().Int("teams", 0, "Override team count (0 = default)")
+	cmd.Flags().Int("activity-batches", 0, "Seed N batches of fake activities via direct MySQL (0 = skip)")
+	cmd.Flags().String("activity-dsn", "", "MySQL DSN for the activity seeder (default fleet:insecure@tcp(localhost:3306)/fleet)")
+	cmd.Flags().Uint("activity-host-id", 0, "host_id used by the activity seeder for host-scoped rows (default 1)")
 	return cmd
 }

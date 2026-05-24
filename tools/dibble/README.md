@@ -1,15 +1,17 @@
 # dibble
 
 ```
-            _.._
-          .'    '-.
-         /          `\____
-        (   o  o    `    `>      🌱  dibble
-         '--'              /          Fleet's seed slinger
-            \  __    __   /            — Dibble the Tapir
-             `~~~~~~~~~~~~~~~
-            /  )    (  \
-           `~~'      `~~'
+⠀⠀⠀⠀⠀⣀⣀⣤⣤⣤⣤⣤⠀⣀⣀⣀⠀⠀⠀⠀⠀⠀⡀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⣠⣴⣿⣿⣿⣿⣿⣿⣿⣿⡆⠸⣿⣿⣿⣷⣶⣤⣄⣾⣷⡄⠀⠀⠀⠀⠀⠀
+⠀⢰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣤⡀⠀⠀⠀
+⠀⣤⣤⣤⣈⡉⠛⢿⣿⣿⣿⣿⣿⡆⢸⣿⣿⣿⣿⣿⣿⣿⣿⣧⣽⣿⣷⣄⠀⠀
+⠀⢿⠿⣿⣿⣿⣷⣤⡈⢻⣿⣿⣿⣇⠈⣿⣿⣿⣿⣿⣿⠿⣿⣿⣿⣿⣿⣿⡄⠀
+⠀⠈⠀⢸⣿⣿⣿⣿⠇⠀⠛⠛⠛⠋⠀⢻⣿⣿⡟⢉⠀⠀⠈⠙⠛⠿⠏⣿⣷⠀
+⠀⠀⢠⣿⣿⡿⠟⢁⡄⠀⠀⠀⠀⠀⠀⠈⣿⣿⡇⣾⡀⠀⠀⠀⠀⠀⠀⠸⠿⠀
+⠀⠀⠸⣿⣿⠀⢸⣿⣇⠀⠀⠀⠀⠀⠀⠀⢹⣿⡇⠸⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠙⠛⠃⠀⠛⠛⠀⠀⠀⠀⠀⠀⠀⠘⠛⠛⠀⠙⠃⠀⠀⠀⠀⠀⠀⠀⠀
+
+🌱  dibble — Fleet's seed slinger — Dibble the Tapir
 ```
 
 > A dibble (n.) is a pointed wooden tool for poking holes in soil and planting
@@ -59,6 +61,7 @@ then plants the seeds.
 | `dibble enroll-secrets` | Per-team enroll secrets — the credential fleetd uses to join a team. Distinct from "Fleet secrets" (secret variables). Global enroll secret is left alone. |
 | `dibble cas`            | Certificate Authorities (placeholder for now)            |
 | `dibble vulns`     | Vulnerable software, written directly to MySQL           |
+| `dibble activities` | Fake activity rows, written directly to MySQL — **non-idempotent**, marked with `*` |
 | `dibble ping`      | Sanity-check `--fleet-url` and `--api-token`             |
 | `dibble version`   | Print version + signature line                           |
 
@@ -150,10 +153,14 @@ Out-of-scope and **not** absorbed (those tools still live in `tools/`):
 ## Design notes & known TODOs
 
 - **API-first.** Most seeders call the Fleet API as a bearer-authed client.
-  The exception is `dibble vulns`, which writes directly to MySQL — Fleet has
-  no "create vulnerability" endpoint by design.
+  The exceptions are `dibble vulns` and `dibble activities`, which write
+  directly to MySQL — Fleet has no "create vulnerability" or "create
+  activity" endpoint by design.
 - **Idempotent.** Re-running `dibble all` against an already-seeded Fleet
-  reports "skipped" rather than failing.
+  reports "skipped" rather than failing. **Exception:** `dibble activities`
+  is intentionally non-idempotent — every run inserts a fresh batch
+  prefixed with `*` and tagged with the current run id, so seeded rows are
+  obvious in the UI and don't conflate across runs.
 - **Custom-package software upload** isn't wired up yet. Today
   `dibble software` only logs intent.
 - **Mock CA creation** also isn't wired up — placeholder until a mock CA

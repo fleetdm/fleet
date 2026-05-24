@@ -119,6 +119,7 @@ func runWizard(root *cobra.Command) error {
 		{"profiles (Apple + Windows MDM)", "profiles", false, false},
 		{"software (titles, no upload)", "software", false, false},
 		{"vulns (direct MySQL, slow)", "vulns", true, false},
+		{"activities (direct MySQL, non-idempotent)", "activities", true, false},
 		{"cas (placeholder)", "cas", false, false},
 	}
 	labels := make([]string, len(entities))
@@ -327,6 +328,11 @@ func runWizardSelection(c *Client, theme themes.Theme, wanted map[string]bool, c
 	}
 	if !wanted["cas"] {
 		counts.CAs = 0
+	}
+	if !wanted["activities"] {
+		counts.ActivityBatches = 0
+	} else if counts.ActivityBatches == 0 {
+		counts.ActivityBatches = 1
 	}
 	counts.EnrollSecrets = wanted["enroll-secrets"]
 	return runAll(c, theme, counts)

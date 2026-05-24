@@ -85,15 +85,15 @@ Hosts are intentionally out of scope — use cmd/osquery-perf for that.`,
 	}
 
 	// Persistent flags (apply to every subcommand).
-	root.PersistentFlags().String("fleet-url", "", "Fleet server URL (env FLEET_URL)")
-	root.PersistentFlags().String("api-token", "", "Fleet API token (env FLEET_API_TOKEN)")
-	root.PersistentFlags().String("config", "", "Config file (default $HOME/.dibble.yaml)")
-	root.PersistentFlags().String("theme", "mix", "Easter-egg theme: mix, hitchhikers, goodplace, parksrec, tng, lotr, dbz, robin_williams, ghibli, cosmere, sailor_moon")
-	root.PersistentFlags().Bool("dry-run", false, "Print actions without calling the Fleet API")
+	root.PersistentFlags().StringP("fleet-url", "u", "", "Fleet server URL (env FLEET_URL)")
+	root.PersistentFlags().StringP("api-token", "a", "", "Fleet API token (env FLEET_API_TOKEN)")
+	root.PersistentFlags().StringP("config", "c", "", "Config file (default $HOME/.dibble.yaml)")
+	root.PersistentFlags().StringP("theme", "t", "mix", "Easter-egg theme: mix, hitchhikers, goodplace, parksrec, tng, lotr, dbz, robin_williams, ghibli, cosmere, sailor_moon")
+	root.PersistentFlags().BoolP("dry-run", "d", false, "Print actions without calling the Fleet API")
 	root.PersistentFlags().BoolP("verbose", "v", false, "Verbose logging")
 	root.PersistentFlags().Bool("no-wizard", false, "Disable the interactive wizard (always error on missing config)")
-	root.PersistentFlags().Bool("insecure", false, "Skip TLS certificate verification (for self-signed dev certs)")
-	root.PersistentFlags().String("suffix", "", `Append to every generated name to avoid collisions on re-run. Use "auto" for a random 4-char suffix per run.`)
+	root.PersistentFlags().BoolP("insecure", "k", false, "Skip TLS certificate verification (for self-signed dev certs)")
+	root.PersistentFlags().StringP("suffix", "s", "", `Append to every generated name to avoid collisions on re-run. Use "auto" for a random 4-char suffix per run.`)
 
 	// Bind to viper so env / config-file values flow through.
 	_ = viper.BindPFlag(keyFleetURL, root.PersistentFlags().Lookup("fleet-url"))
@@ -125,6 +125,7 @@ Hosts are intentionally out of scope — use cmd/osquery-perf for that.`,
 	root.AddCommand(newEnrollSecretsCmd())
 	root.AddCommand(newCAsCmd())
 	root.AddCommand(newVulnsCmd())
+	root.AddCommand(newActivitiesCmd())
 
 	return root
 }
