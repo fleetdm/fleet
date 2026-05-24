@@ -456,6 +456,16 @@ func TestMDMLockCommand(t *testing.T) {
 		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 	}
 
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID:       15,
+			UUID:     "android-not-connected",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Off"), ConnectedToFleet: ptr.Bool(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
+
 	hostByUUID := make(map[string]testhost)
 	hostsByID := make(map[uint]testhost)
 	for _, h := range []testhost{
@@ -471,6 +481,7 @@ func TestMDMLockCommand(t *testing.T) {
 		macEnrolledLP,
 		winEnrolledWP,
 		macEnrolledWP,
+		androidNotConnected,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -613,6 +624,7 @@ fleetctl mdm unlock --host=%s
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.host.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.host.UUID}, "Host has pending wipe request."},
 		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.host.UUID}, "Host has pending wipe request."},
+		{appCfgAllMDM, "valid android but not connected", []string{"--host", androidNotConnected.host.UUID}, `Can't lock the host because it doesn't have MDM turned on.`},
 	}
 
 	runTestCases(t, ds, "lock", successfulOutput, cases)
