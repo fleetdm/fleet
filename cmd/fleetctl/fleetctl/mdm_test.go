@@ -461,7 +461,7 @@ func TestMDMLockCommand(t *testing.T) {
 			ID:       15,
 			UUID:     "android-not-connected",
 			Platform: "android",
-			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Off"), ConnectedToFleet: ptr.Bool(false)},
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
 		},
 		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
 	}
