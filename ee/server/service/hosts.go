@@ -580,6 +580,7 @@ func (svc *Service) enqueueWipeHostRequest(
 		fleet.ActivityTypeWipedHost{
 			HostID:          host.ID,
 			HostDisplayName: host.DisplayName(),
+			HostPlatform:    host.FleetPlatform(),
 		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for wipe host request")
