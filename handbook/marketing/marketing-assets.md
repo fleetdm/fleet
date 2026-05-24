@@ -24,6 +24,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 
 | Asset | Audience | Use case | Date updated |
 | --- | --- | --- | --- |
+| [Fleet AEM 1-pager handout](https://drive.google.com/file/d/1pZkLHmakHYJxAC1xg3k1GsemjrNvjj_O/view) | All | Fleet AEM 1 pager handout, PDF format. | 2026-05-24 |
 |[Conference Handout]() | All | High level overview of Fleet- 2026 messaging.  [Figma](https://www.figma.com/design/G8PruLlNbwrz75wtcR3Zeo/Fleet-Conference-Brochure---2-Page-Handout?node-id=0-1&p=f&t=jHABDmENvR3VUF63-0) |2026-04-15 |
 | [Safe Enough to Switch](https://drive.google.com/drive/folders/1ynAk92_DSxvtOPmreo84fOGUqhrdu_MY) | All | Both sides are in this folder. Overview of Fleet's maturity for organizations switching tools. | 2025-09-15 |
 | [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit) | All | High-level summary of the platform's core capabilities. | 2022-02-14 |
