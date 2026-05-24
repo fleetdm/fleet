@@ -6264,7 +6264,7 @@ func ReconcileAppleProfiles(
 // the next enrollment profile delivered to a host at SCEP / ACME renewal
 // time, applying the BYOD monotonic-narrowing rule:
 //
-//   new_rights = stored_rights AND fleet_ceiling
+//	new_rights = stored_rights AND fleet_ceiling
 //
 // Returns the rights, the host's ID (for persistence via
 // SetHostMDMAppleEnrollmentPermissions), and an error. If the host is
