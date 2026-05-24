@@ -1,4 +1,4 @@
-package main
+package command
 
 import (
 	"crypto/tls"
@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/themes"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/themes"
 )
 
 // runWizard drives the interactive no-arg flow. The cobra root command is

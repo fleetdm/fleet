@@ -1,11 +1,11 @@
-package main
+package command
 
 import (
 	"fmt"
 	"io"
 	"os"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/themes"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/themes"
 )
 
 // stdoutish / stderrish are package-level writers so tests can swap them.

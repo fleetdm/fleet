@@ -1,11 +1,11 @@
-package main
+package command
 
 import (
 	"context"
 
 	"github.com/spf13/cobra"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/seed"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/seed"
 )
 
 func newVulnsCmd() *cobra.Command {

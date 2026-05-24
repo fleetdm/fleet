@@ -1,4 +1,4 @@
-package main
+package command
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/seed"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/seed"
 )
 
 // Client is a thin Fleet API client. Bearer auth, JSON in/out.

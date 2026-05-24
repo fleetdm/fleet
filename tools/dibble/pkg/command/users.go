@@ -1,15 +1,15 @@
-package main
+package command
 
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/seed"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/seed"
 )
 
-func newSoftwareCmd() *cobra.Command {
+func newUsersCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "software",
-		Short: "Seed software titles (custom-package upload is a v1 TODO)",
+		Use:   "users",
+		Short: "Seed Fleet users with themed names and rotating roles",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireConfig(); err != nil {
 				return err
@@ -23,12 +23,21 @@ func newSoftwareCmd() *cobra.Command {
 				return err
 			}
 			count, _ := cmd.Flags().GetInt("count")
-			teams, _ := listExistingTeams(c)
-			res := seed.Software(c, seederLogger{}, theme, teams, count)
+			res := seed.Users(c, seederLogger{}, theme, count)
 			printf("%s", res.Summary())
 			return reportErrors(res.Errors)
 		},
 	}
-	cmd.Flags().Int("count", 5, "How many software titles to seed")
+	cmd.Flags().Int("count", 5, "How many users to seed")
 	return cmd
+}
+
+func reportErrors(errs []error) error {
+	if len(errs) == 0 {
+		return nil
+	}
+	for _, e := range errs {
+		warnf("%v", e)
+	}
+	return errs[0]
 }

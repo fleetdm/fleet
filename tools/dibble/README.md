@@ -163,8 +163,22 @@ Out-of-scope and **not** absorbed (those tools still live in `tools/`):
 
 ## Contributing
 
-- Code lives in this directory plus `seed/` (per-entity logic) and `themes/`
-  (character data).
-- Tests: `go test ./tools/dibble/...`
-- Lint: `make lint-go-incremental` after edits.
-- Architecture write-up: [`dibble-plan.md`](./dibble-plan.md).
+dibble follows the standard Go project layout:
+
+```
+tools/dibble/
+├── cmd/dibble/        # main entry point (just calls command.Execute)
+├── pkg/
+│   ├── command/       # cobra commands, client, wizard, logging
+│   ├── seed/          # per-entity seed logic
+│   └── themes/        # character/media datasets + tapir mascot
+├── go.mod / go.sum    # dibble has its own module
+└── README.md
+```
+
+dibble is a standalone Go module (`github.com/fleetdm/fleet/v4/tools/dibble`)
+so its dependencies don't bleed into the root Fleet `go.mod`.
+
+- Build: `make dibble` from the repo root, or `go build -o dibble ./cmd/dibble` from `tools/dibble`.
+- Tests: `cd tools/dibble && go test ./...`
+- Lint: `cd tools/dibble && golangci-lint run` (the repo-level `make lint-go-incremental` skips this module).

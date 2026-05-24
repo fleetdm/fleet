@@ -1,9 +1,9 @@
-package main
+package command
 
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/seed"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/seed"
 )
 
 func newEnrollSecretsCmd() *cobra.Command {

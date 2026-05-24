@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/themes"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/themes"
 )
 
 // Profiles seeds MDM configuration profiles. The same endpoint

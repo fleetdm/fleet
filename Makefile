@@ -137,7 +137,7 @@ fdm:
 .help-short--dibble:
 	@echo "Builds the dibble test-data seeder (binary lands at tools/dibble/dibble)"
 dibble:
-	cd tools/dibble && go build -o dibble .
+	cd tools/dibble && go build -o dibble ./cmd/dibble
 
 .help-short--serve:
 	@echo "Start the fleet server"

@@ -1,4 +1,4 @@
-package main
+package command
 
 import (
 	cryptorand "crypto/rand"
@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/themes"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/themes"
 )
 
 // Build-time variables (set via -ldflags).
@@ -20,6 +20,38 @@ var (
 	commit  = "none"
 	date    = "unknown"
 )
+
+// Execute is the entry point used by cmd/dibble/main.go. It constructs the
+// root cobra command, routes no-arg invocations through the wizard, and runs
+// whichever path was chosen. Returns a non-nil error on failure.
+func Execute(args []string) error {
+	rootCmd := newRootCmd()
+	if shouldRunWizard(args) {
+		return runWizard(rootCmd)
+	}
+	return rootCmd.Execute()
+}
+
+// shouldRunWizard reports whether `dibble` was invoked with no subcommand,
+// in which case we drop into the interactive wizard. Flags-only invocations
+// (e.g. `dibble --fleet-url X`) still trigger the wizard so it can fill in
+// any missing config.
+func shouldRunWizard(args []string) bool {
+	for _, a := range args {
+		switch a {
+		case "help", "--help", "-h", "completion", "--version":
+			return false
+		}
+		// First non-flag positional → a subcommand was given.
+		if len(a) > 0 && a[0] != '-' {
+			return false
+		}
+		if a == "--no-wizard" {
+			return false
+		}
+	}
+	return true
+}
 
 // Config keys (viper).
 const (

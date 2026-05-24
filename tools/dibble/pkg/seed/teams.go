@@ -1,7 +1,7 @@
 package seed
 
 import (
-	"github.com/fleetdm/fleet/v4/tools/dibble/themes"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/themes"
 )
 
 // Team is the minimal team representation we need to chain seeders. Many

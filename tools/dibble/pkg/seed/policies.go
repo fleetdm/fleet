@@ -3,7 +3,7 @@ package seed
 import (
 	"fmt"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/themes"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/themes"
 )
 
 // Policies creates `count` global policies plus a handful per team.

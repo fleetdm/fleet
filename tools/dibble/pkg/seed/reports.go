@@ -3,7 +3,7 @@ package seed
 import (
 	"fmt"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/themes"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/themes"
 )
 
 // Reports (formerly "queries") are saved SQL queries with an interval. We seed

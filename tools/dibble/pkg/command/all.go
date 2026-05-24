@@ -1,4 +1,4 @@
-package main
+package command
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/seed"
-	"github.com/fleetdm/fleet/v4/tools/dibble/themes"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/seed"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/themes"
 )
 
 // runAll executes every seeder in dependency order with the given counts.

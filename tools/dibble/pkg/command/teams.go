@@ -1,15 +1,16 @@
-package main
+package command
 
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/seed"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/seed"
 )
 
-func newLabelsCmd() *cobra.Command {
+func newTeamsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "labels",
-		Short: "Seed dynamic (query-based) labels",
+		Use:     "teams",
+		Aliases: []string{"fleets"},
+		Short:   "Seed teams (aka fleets)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireConfig(); err != nil {
 				return err
@@ -23,11 +24,11 @@ func newLabelsCmd() *cobra.Command {
 				return err
 			}
 			count, _ := cmd.Flags().GetInt("count")
-			res := seed.Labels(c, seederLogger{}, theme, count)
+			_, res := seed.Teams(c, seederLogger{}, theme, count)
 			printf("%s", res.Summary())
 			return reportErrors(res.Errors)
 		},
 	}
-	cmd.Flags().Int("count", 5, "How many labels to seed")
+	cmd.Flags().Int("count", 3, "How many teams to seed")
 	return cmd
 }

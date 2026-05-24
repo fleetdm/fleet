@@ -1,7 +1,7 @@
 package seed
 
 import (
-	"github.com/fleetdm/fleet/v4/tools/dibble/themes"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/themes"
 )
 
 // SeedUsers creates `count` users on the Fleet server using names drawn from

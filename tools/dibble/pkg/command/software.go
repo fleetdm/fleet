@@ -1,15 +1,15 @@
-package main
+package command
 
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/fleetdm/fleet/v4/tools/dibble/seed"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/seed"
 )
 
-func newProfilesCmd() *cobra.Command {
+func newSoftwareCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "profiles",
-		Short: "Seed MDM configuration profiles (Apple .mobileconfig + Windows .xml)",
+		Use:   "software",
+		Short: "Seed software titles (custom-package upload is a v1 TODO)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := requireConfig(); err != nil {
 				return err
@@ -24,11 +24,11 @@ func newProfilesCmd() *cobra.Command {
 			}
 			count, _ := cmd.Flags().GetInt("count")
 			teams, _ := listExistingTeams(c)
-			res := seed.Profiles(c, seederLogger{}, theme, teams, count)
+			res := seed.Software(c, seederLogger{}, theme, teams, count)
 			printf("%s", res.Summary())
 			return reportErrors(res.Errors)
 		},
 	}
-	cmd.Flags().Int("count", 4, "How many global profiles to seed (plus 2 per team)")
+	cmd.Flags().Int("count", 5, "How many software titles to seed")
 	return cmd
 }

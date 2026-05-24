@@ -1,4 +1,4 @@
-package main
+package command
 
 // seederLogger adapts the package-level printf helper to the seed.Logger
 // interface, so seed/ doesn't need to import this package.

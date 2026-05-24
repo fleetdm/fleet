@@ -1,7 +1,7 @@
 package seed
 
 import (
-	"github.com/fleetdm/fleet/v4/tools/dibble/themes"
+	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/themes"
 )
 
 // Labels seeds dynamic (query-based) labels. Manual labels require live host
