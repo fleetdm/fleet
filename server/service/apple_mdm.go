@@ -7466,13 +7466,22 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
+	// Apply BYOD permission ceiling (#23242). OTA is the canonical BYOD
+	// enrollment flow, so the .mobileconfig must reflect the owning fleet's
+	// allow_byod_wipe / allow_byod_lock at delivery time. The enroll secret
+	// resolves the team, so use team-level narrowing where available.
+	allowWipe, allowLock, err := svc.fleetBYODPermissions(ctx, enrollSecretInfo.TeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load fleet BYOD permissions")
+	}
+
 	// NOTE: we don't offer ACME enrollment via OTA
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appCfg.OrgInfo.OrgName,
 		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
-		apple_mdm.MDMAccessRightAll,
+		apple_mdm.AppleEnrollmentAccessRights(allowWipe, allowLock),
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
