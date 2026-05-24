@@ -6283,6 +6283,26 @@ func resolveRenewalAccessRights(ctx context.Context, ds fleet.Datastore, hostUUI
 		return 0, 0, ctxerr.Wrap(ctx, err, "look up host by UUID")
 	}
 
+	// ADE-enrolled (DEP / Automated Device Enrollment) hosts are supervised by
+	// Apple and are out of scope for the BYOD permission gates. The BYOD
+	// AllowBYODWipe / AllowBYODLock fleet settings explicitly target personal
+	// (BYOD) enrollments — narrowing AccessRights on a supervised, corporate-
+	// owned device would silently strip Wipe and Lock from IT's toolbox the
+	// first time an admin toggled the BYOD setting. Short-circuit with the
+	// full rights bitmask so the renewal profile is identical to today's.
+	hm, err := ds.GetHostMDM(ctx, host.ID)
+	switch {
+	case err == nil:
+		if hm.InstalledFromDep {
+			return apple_mdm.MDMAccessRightAll, host.ID, nil
+		}
+	case fleet.IsNotFound(err):
+		// No host_mdm row yet — treat as not-ADE and fall through to the
+		// normal BYOD narrowing path.
+	default:
+		return 0, 0, ctxerr.Wrap(ctx, err, "look up host_mdm for ADE check")
+	}
+
 	allowWipe, allowLock, err := loadFleetBYODPermissions(ctx, ds, host.TeamID)
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "load fleet BYOD permissions")
