@@ -134,9 +134,9 @@ In practice, UEM solutions do not achieve perfect feature parity across all plat
 
 GitOps stores device configurations as code in version-controlled repositories. Peer review through pull requests catches errors before they reach production devices, and the complete change history simplifies compliance evidence collection. As deployments grow more complex, code-driven configuration becomes more valuable than console-only changes, since every adjustment carries a reviewable diff. Fleet supports [GitOps natively](https://fleetdm.com/fleet-gitops), letting teams manage device configuration through the same workflows engineers use for infrastructure. [Contact us](https://fleetdm.com/contact) to walk through how Fleet's GitOps approach fits your environment.
 
-<meta name="articleTitle" value="End user computing: A complete guide to security, compliance, and governance">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="articleTitle" value="End user computing (EUC): security, compliance, and governance">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-14">
-<meta name="description" value="Manage modern end user computing with layered controls, zero trust posture, and multi-platform governance for distributed teams.">
+<meta name="publishedOn" value="2026-04-07">
+<meta name="description" value="End user computing spans macOS, Windows, Linux, and mobile. Govern distributed teams with zero trust, layered controls, and audit-ready compliance.">
