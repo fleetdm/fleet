@@ -6028,6 +6028,14 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 				return nil
 			}
 
+			// RenewSCEPCertificates now resolves per-host AccessRights for the
+			// renewal profile via resolveRenewalAccessRights (#23242). For these
+			// branch tests the host record isn't seeded — return NotFound so the
+			// helper falls back to MDMAccessRightAll and skips persistence (hostID=0).
+			ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+				return nil, &notFoundError{}
+			}
+
 			appleStorage.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {
 				pushes := make(map[string]*mdm.Push, len(targets))
 				for _, uuid := range targets {
@@ -6333,6 +6341,14 @@ func TestRenewACMECertificatesBranches(t *testing.T) {
 
 			ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
 				return nil
+			}
+
+			// RenewSCEPCertificates now resolves per-host AccessRights for the
+			// renewal profile via resolveRenewalAccessRights (#23242). For these
+			// branch tests the host record isn't seeded — return NotFound so the
+			// helper falls back to MDMAccessRightAll and skips persistence (hostID=0).
+			ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+				return nil, &notFoundError{}
 			}
 
 			appleStorage.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {
