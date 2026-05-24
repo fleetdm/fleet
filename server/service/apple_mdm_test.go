@@ -5013,6 +5013,9 @@ func TestResolveRenewalAccessRights(t *testing.T) {
 		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 			return &fleet.HostLite{ID: hostID, TeamID: nil}, nil
 		}
+		ds.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{HostID: id, InstalledFromDep: false, Enrolled: true}, nil
+		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			ac := &fleet.AppConfig{}
 			ac.MDM.AllowBYODWipe = optjson.SetBool(false)
@@ -5034,6 +5037,9 @@ func TestResolveRenewalAccessRights(t *testing.T) {
 		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 			return &fleet.HostLite{ID: hostID, TeamID: &tid}, nil
 		}
+		ds.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{HostID: id, InstalledFromDep: false, Enrolled: true}, nil
+		}
 		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
 			require.Equal(t, tid, teamID)
 			return &fleet.TeamMDM{AllowBYODWipe: false, AllowBYODLock: true}, nil
@@ -5054,6 +5060,9 @@ func TestResolveRenewalAccessRights(t *testing.T) {
 		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 			return &fleet.HostLite{ID: hostID, TeamID: nil}, nil
 		}
+		ds.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{HostID: id, InstalledFromDep: false, Enrolled: true}, nil
+		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil } // ceiling = all
 		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
 			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.AppleEnrollmentAccessRights(false, false)}, nil
@@ -5062,6 +5071,62 @@ func TestResolveRenewalAccessRights(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, false), rights, "cannot widen via renewal")
 		require.Equal(t, hostID, hID)
+	})
+
+	t.Run("ADE host: short-circuits to full rights, ignores fleet ceiling and stored", func(t *testing.T) {
+		// Supervised / DEP-enrolled hosts must never be narrowed by BYOD
+		// settings — the renewal profile keeps full rights even when the
+		// fleet's BYOD config disallows wipe and lock and the stored row
+		// is narrower.
+		ds := new(mock.Store)
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: hostID, TeamID: nil}, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{HostID: id, InstalledFromDep: true, Enrolled: true}, nil
+		}
+		rights, hID, err := resolveRenewalAccessRights(t.Context(), ds, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.MDMAccessRightAll, rights)
+		require.Equal(t, hostID, hID)
+		require.False(t, ds.AppConfigFuncInvoked, "ADE short-circuit must skip fleet config lookup")
+		require.False(t, ds.TeamMDMConfigFuncInvoked, "ADE short-circuit must skip team config lookup")
+		require.False(t, ds.GetHostMDMAppleEnrollmentPermissionsFuncInvoked, "ADE short-circuit must skip stored rights lookup")
+	})
+
+	t.Run("GetHostMDM not-found falls through to BYOD path", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: hostID, TeamID: nil}, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+			return nil, &notFoundError{}
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.AllowBYODWipe = optjson.SetBool(false)
+			return ac, nil
+		}
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+			return nil, &notFoundError{}
+		}
+		rights, hID, err := resolveRenewalAccessRights(t.Context(), ds, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, true), rights)
+		require.Equal(t, hostID, hID)
+	})
+
+	t.Run("GetHostMDM non-notfound error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		boom := errors.New("hm boom")
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: hostID, TeamID: nil}, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+			return nil, boom
+		}
+		_, _, err := resolveRenewalAccessRights(t.Context(), ds, hostUUID)
+		require.ErrorIs(t, err, boom)
 	})
 
 	t.Run("DB error propagates", func(t *testing.T) {
