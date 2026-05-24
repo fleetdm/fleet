@@ -27,16 +27,24 @@ func Up_20260523111410(tx *sql.Tx) error {
 		return fmt.Errorf("create host_mdm_apple_enrollment_permissions: %w", err)
 	}
 
-	// Backfill existing non-DEP enrolled Apple hosts. Before this feature
+	// Backfill existing manually-enrolled Apple hosts. Before this feature
 	// every enrollment profile was delivered with AccessRights=8191 (all
 	// permissions), so that is the correct starting value for all rows that
 	// existed prior to this migration.
+	//
+	// The host_mdm table is shared across MDM platforms; Windows hosts also
+	// land there with installed_from_dep=0 when enrolled via GPO or the
+	// Settings app (only AAD/Autopilot sets installed_from_dep=1 on Windows).
+	// Restrict the backfill to Apple platforms so this Apple-specific table
+	// doesn't accumulate spurious rows for Windows hosts.
 	_, err = tx.Exec(`
 		INSERT INTO host_mdm_apple_enrollment_permissions (host_id, access_rights)
 		SELECT hm.host_id, 8191
 		FROM host_mdm hm
+		JOIN hosts h ON h.id = hm.host_id
 		WHERE hm.enrolled = 1
 		  AND hm.installed_from_dep = 0
+		  AND h.platform IN ('darwin', 'ios', 'ipados')
 	`)
 	if err != nil {
 		return fmt.Errorf("backfill host_mdm_apple_enrollment_permissions: %w", err)
