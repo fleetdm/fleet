@@ -713,9 +713,9 @@ func (svc *Service) getHardwareModel(device *androidmanagement.Device) string {
 }
 
 func (svc *Service) getComputerName(device *androidmanagement.Device, idpFullname string) string {
-	hardwareModel := device.HardwareInfo.Model
+	hardwareModel := svc.getHardwareModel(device)
 	if idpFullname == "" {
-		return svc.getHardwareModel(device)
+		return hardwareModel
 	}
 	firstName := strings.SplitN(idpFullname, " ", 2)[0]
 	return firstName + "'s " + hardwareModel

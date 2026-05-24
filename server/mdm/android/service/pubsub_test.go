@@ -1140,8 +1140,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 				Brand:                "samsung",
 				Model:                "SM-A176U1",
 			},
-			SoftwareInfo: &androidmanagement.SoftwareInfo{AndroidVersion: "15"},
-			MemoryInfo:   &androidmanagement.MemoryInfo{TotalRam: int64(8 * 1024 * 1024 * 1024)},
+			SoftwareInfo:         &androidmanagement.SoftwareInfo{AndroidVersion: "15"},
+			MemoryInfo:           &androidmanagement.MemoryInfo{TotalRam: int64(8 * 1024 * 1024 * 1024)},
 			LastStatusReportTime: "2024-01-01T12:00:00Z",
 		}
 
@@ -1156,8 +1156,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, capturedHost)
 
-		require.Equal(t, "Konstantin's SM-A176U1", capturedHost.Host.ComputerName)
-		require.Equal(t, "Konstantin's SM-A176U1", capturedHost.Host.Hostname)
+		require.Equal(t, "Konstantin's Samsung SM-A176U1", capturedHost.Host.ComputerName)
+		require.Equal(t, "Konstantin's Samsung SM-A176U1", capturedHost.Host.Hostname)
 		require.Equal(t, "Samsung SM-A176U1", capturedHost.Host.HardwareModel)
 	})
 
@@ -1199,8 +1199,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 				Brand:                "google",
 				Model:                "Pixel 7",
 			},
-			SoftwareInfo: &androidmanagement.SoftwareInfo{AndroidVersion: "14"},
-			MemoryInfo:   &androidmanagement.MemoryInfo{TotalRam: int64(8 * 1024 * 1024 * 1024)},
+			SoftwareInfo:         &androidmanagement.SoftwareInfo{AndroidVersion: "14"},
+			MemoryInfo:           &androidmanagement.MemoryInfo{TotalRam: int64(8 * 1024 * 1024 * 1024)},
 			LastStatusReportTime: "2024-01-01T12:00:00Z",
 		}
 
@@ -1274,8 +1274,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, capturedHost)
 
-		require.Equal(t, "Jane's TestModel", capturedHost.Host.ComputerName)
-		require.Equal(t, "Jane's TestModel", capturedHost.Host.Hostname)
+		require.Equal(t, "Jane's Testbrand TestModel", capturedHost.Host.ComputerName)
+		require.Equal(t, "Jane's Testbrand TestModel", capturedHost.Host.Hostname)
 		require.Equal(t, "Testbrand TestModel", capturedHost.Host.HardwareModel)
 	})
 
