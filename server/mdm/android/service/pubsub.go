@@ -714,10 +714,10 @@ func (svc *Service) getHardwareModel(device *androidmanagement.Device) string {
 
 func (svc *Service) getComputerName(device *androidmanagement.Device, idpFullname string) string {
 	hardwareModel := svc.getHardwareModel(device)
-	if idpFullname == "" {
+	firstName := strings.SplitN(strings.TrimSpace(idpFullname), " ", 2)[0]
+	if firstName == "" {
 		return hardwareModel
 	}
-	firstName := strings.SplitN(idpFullname, " ", 2)[0]
 	return firstName + "'s " + hardwareModel
 }
 
