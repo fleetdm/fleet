@@ -13,9 +13,10 @@
     font-size: $xx-small;
   }
 
-  &__action-button {
-    width: 40px;
-    height: 40px;
+  .list-item__actions {
+    .button--icon {
+      @include bordered-icon-button;
+    }
   }
 
   .list-item__actions-wrap {
