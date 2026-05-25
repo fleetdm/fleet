@@ -94,7 +94,7 @@ The platform-specific inconsistencies described above are a common friction poin
 
 Fleet connects federated identity to device management across macOS, iOS, iPadOS, Windows, Linux, ChromeOS, and Android from a single console. Fleet supports SAML-based SSO with major identity providers and just-in-time account provisioning. Fleet also uses the System for Cross-domain Identity Management (SCIM) protocol to map IdP attributes (username, groups, department) to managed devices, what Fleet calls "foreign vitals." Fleet can also require IdP authentication during [device enrollment](https://fleetdm.com/guides/end-user-authentication).
 
-Fleet ships native conditional access integrations with Microsoft Entra ID and Okta. The Entra integration covers macOS and Windows; the Okta integration is shipped and documented. Both share device compliance state with the IdP, so federated app access is blocked when a device falls out of policy.
+Fleet ships native conditional access integrations with Microsoft Entra ID and Okta. Both integrations support macOS, and the Entra integration adds Windows. Each shares device compliance state with the IdP, so federated app access is blocked when a device falls out of policy.
 
 Fleet Premium also closes the loop on conditional access. When a device fails a compliance check, Fleet's policy automations can install software, run remediation scripts, fire webhooks, or open tickets in Jira, Zendesk, or ServiceNow. Each policy retries up to three times before access stays blocked.
 
@@ -126,5 +126,5 @@ Federated authentication ties user identity to device enrollment and compliance 
 <meta name="authorFullName" value="Ashish Kuthiala">
 <meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-08">
+<meta name="publishedOn" value="2026-05-25">
 <meta name="description" value="Learn how federated authentication works, how it differs from SSO, and how it connects to device management and Zero Trust strategies. ">
