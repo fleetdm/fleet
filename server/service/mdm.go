@@ -3428,7 +3428,8 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "saving app config")
 	}
 
-	// Mark Apple hosts as unenrolled and clean up pending profile rows.
+	// Mark all Apple hosts (darwin/ios/ipados) as unenrolled and delete all
+	// rows from host_mdm_apple_profiles and host_mdm_apple_declarations.
 	// Without this, nano_enrollments rows would remain with enabled = 1
 	// and the Apple profile reconciler would recreate pending rows the next
 	// time an APNS cert is uploaded and Apple MDM is re-enabled.

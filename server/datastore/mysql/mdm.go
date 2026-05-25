@@ -851,10 +851,16 @@ ORDER BY
 }
 
 // BulkDisableMDMForPlatform marks all hosts of the given platform as
-// unenrolled from MDM and deletes their pending profile rows. This is the
+// unenrolled from MDM and deletes every row from their host MDM profile
+// tables (including verified/failed, not just pending). This is the
 // global-disable companion to per-host unenrollment (Apple CheckOut,
 // Windows AlertUserUnenrollmentRequest): both paths must mark the host
 // as unenrolled so the profile reconciler does not recreate pending rows.
+//
+// The platform argument is a platform family. Passing any of "darwin",
+// "ios", or "ipados" disables Apple MDM for ALL three Apple platforms,
+// because Apple MDM is controlled by a single AppConfig.MDM.EnabledAndConfigured
+// flag.
 //
 // For Apple, nano_enrollments.enabled is the gate consulted by
 // ReconcileAppleProfiles (see listMDMAppleProfilesToInstallTransaction).
@@ -865,6 +871,12 @@ ORDER BY
 // StoreTokenUpdate flips nano_enrollments.enabled back to 1, and osquery's
 // directIngestMDMWindows flips host_mdm.enrolled back to 1 once the
 // device's registry confirms it is still MDM-managed.
+//
+// host_mdm.server_url and host_mdm.mdm_id are intentionally preserved.
+// The Apple host_mdm upsert path (upsertMDMAppleHostMDMInfoDB) only
+// updates enrolled on duplicate-key, so clearing those columns here would
+// leave them blank for iOS/iPadOS hosts (which have no osquery to
+// repopulate them) after a re-enable cycle.
 func (ds *Datastore) BulkDisableMDMForPlatform(ctx context.Context, platform string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		switch platform {
@@ -878,9 +890,11 @@ func (ds *Datastore) BulkDisableMDMForPlatform(ctx context.Context, platform str
 			}
 			// Mark host_mdm as unenrolled for Apple hosts. Osquery will flip
 			// this back to 1 on the next check-in if the device is still
-			// actually MDM-managed at the OS level.
+			// actually MDM-managed at the OS level. For iOS/iPadOS (no
+			// osquery), nanomdm's TokenUpdate path flips it back via
+			// upsertMDMAppleHostMDMInfoDB.
 			if _, err := tx.ExecContext(ctx, `
-				UPDATE host_mdm SET enrolled = 0, server_url = '', mdm_id = NULL
+				UPDATE host_mdm SET enrolled = 0
 				WHERE host_id IN (SELECT id FROM hosts WHERE platform IN ('darwin', 'ios', 'ipados'))`); err != nil {
 				return ctxerr.Wrap(ctx, err, "marking Apple hosts unenrolled in host_mdm")
 			}
@@ -898,7 +912,7 @@ func (ds *Datastore) BulkDisableMDMForPlatform(ctx context.Context, platform str
 			// 1 on the next check-in if the device's registry still reports
 			// MDM enrollment.
 			if _, err := tx.ExecContext(ctx, `
-				UPDATE host_mdm SET enrolled = 0, server_url = '', mdm_id = NULL
+				UPDATE host_mdm SET enrolled = 0
 				WHERE host_id IN (SELECT id FROM hosts WHERE platform = 'windows')`); err != nil {
 				return ctxerr.Wrap(ctx, err, "marking Windows hosts unenrolled in host_mdm")
 			}

@@ -448,9 +448,11 @@ type Datastore interface {
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
 	// BulkDisableMDMForPlatform marks all hosts of the given platform as
-	// unenrolled from MDM and deletes their pending profile rows. Used when MDM
-	// is toggled off globally so the profile reconciler does not recreate
-	// pending rows after MDM is turned back on.
+	// unenrolled from MDM and deletes every row from their host MDM profile
+	// tables (not just pending rows). Used when MDM is toggled off globally
+	// so the profile reconciler does not recreate pending rows after MDM is
+	// turned back on. The platform argument is a platform family: passing
+	// any of "darwin", "ios", or "ipados" disables Apple MDM for all three.
 	BulkDisableMDMForPlatform(ctx context.Context, platform string) error
 
 	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
