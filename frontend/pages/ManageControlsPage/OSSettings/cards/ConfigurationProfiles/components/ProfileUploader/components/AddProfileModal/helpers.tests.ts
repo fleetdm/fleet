@@ -1,7 +1,4 @@
-import {
-  listNamesFromSelectedLabels,
-  generateLabelKey,
-} from "./helpers";
+import { listNamesFromSelectedLabels, generateLabelKey } from "./helpers";
 
 describe("listNamesFromSelectedLabels", () => {
   it("returns names of selected labels", () => {
@@ -52,13 +49,7 @@ describe("generateLabelKey", () => {
 
   it("returns both include and exclude keys when both have selections", () => {
     expect(
-      generateLabelKey(
-        "Custom",
-        "any",
-        { foo: true },
-        "all",
-        { bar: true }
-      )
+      generateLabelKey("Custom", "any", { foo: true }, "all", { bar: true })
     ).toEqual({ labelsIncludeAny: ["foo"], labelsExcludeAll: ["bar"] });
   });
 

@@ -22,12 +22,14 @@ export const generateLabelKey = (
   const includeNames = listNamesFromSelectedLabels(includeLabels);
   const excludeNames = listNamesFromSelectedLabels(excludeLabels);
   if (includeNames.length) {
-    result[includeMode === "all" ? "labelsIncludeAll" : "labelsIncludeAny"] =
-      includeNames;
+    result[
+      includeMode === "all" ? "labelsIncludeAll" : "labelsIncludeAny"
+    ] = includeNames;
   }
   if (excludeNames.length) {
-    result[excludeMode === "all" ? "labelsExcludeAll" : "labelsExcludeAny"] =
-      excludeNames;
+    result[
+      excludeMode === "all" ? "labelsExcludeAll" : "labelsExcludeAny"
+    ] = excludeNames;
   }
   return result;
 };

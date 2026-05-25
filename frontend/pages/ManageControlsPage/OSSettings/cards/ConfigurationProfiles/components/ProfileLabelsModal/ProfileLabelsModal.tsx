@@ -24,19 +24,21 @@ const BrokenLabelWarning = () => (
 );
 
 const LabelsList = ({ labels }: { labels: IProfileLabel[] }) => (
-  <ul className={`${baseClass}__labels-list`}>
-    {labels.map((label) => (
-      <li key={label.name} className={`${baseClass}__labels-list--label`}>
-        {label.name}
-        {label.broken && (
-          <span className={`${baseClass}__labels-list--label warning`}>
-            <Icon name="warning" />
-            Label deleted
-          </span>
-        )}
-      </li>
-    ))}
-  </ul>
+  <div className={`${baseClass}__labels-scroll`}>
+    <div className={`${baseClass}__labels-list`}>
+      {labels.map((label) => (
+        <span key={label.name} className={`${baseClass}__label-badge`}>
+          {label.name}
+          {label.broken && (
+            <span className={`${baseClass}__label-badge--broken`}>
+              <Icon name="warning" size="small" />
+              Label deleted
+            </span>
+          )}
+        </span>
+      ))}
+    </div>
+  </div>
 );
 
 interface IProfileLabelsModalProps {
@@ -53,35 +55,20 @@ const ProfileLabelsModal = ({
   }
 
   const {
-    name,
     labels_include_all,
     labels_include_any,
     labels_exclude_any,
   } = profile;
-  const labels = labels_include_all || labels_include_any || labels_exclude_any;
 
-  if (!labels?.length) {
+  const includeLabels = labels_include_all || labels_include_any;
+  const excludeLabels = labels_exclude_any;
+
+  if (!includeLabels?.length && !excludeLabels?.length) {
     // caller ensures this never happens
     return null;
   }
 
-  const renderlabelDescription = () => {
-    let targetTypeText = <></>;
-    if (labels_include_all) {
-      targetTypeText = <b>have all</b>;
-    } else if (labels_include_any) {
-      targetTypeText = <b>have any</b>;
-    } else {
-      targetTypeText = <b>don&apos;t have any</b>;
-    }
-
-    return (
-      <p className={`${baseClass}__description`}>
-        <b>{name}</b> profile only applies to hosts that {targetTypeText} of
-        these labels:
-      </p>
-    );
-  };
+  const allLabels = [...(includeLabels || []), ...(excludeLabels || [])];
 
   return (
     <Modal
@@ -90,9 +77,27 @@ const ProfileLabelsModal = ({
       onExit={() => setModalData(null)}
     >
       <>
-        {labels.some((label) => label.broken) && <BrokenLabelWarning />}
-        <>{renderlabelDescription()}</>
-        <LabelsList labels={labels} />
+        {allLabels.some((label) => label.broken) && <BrokenLabelWarning />}
+        <p className={`${baseClass}__description`}>
+          <b>My includes/excludes </b>profile only applies to hosts that:
+        </p>
+        {!!includeLabels?.length && (
+          <>
+            <p className={`${baseClass}__section-title`}>
+              <b>{labels_include_all ? "Include all" : "Include any"}</b> of
+              these labels
+            </p>
+            <LabelsList labels={includeLabels} />
+          </>
+        )}
+        {!!excludeLabels?.length && (
+          <>
+            <p className={`${baseClass}__section-title`}>
+              <b>Exclude any</b> of these labels
+            </p>
+            <LabelsList labels={excludeLabels} />
+          </>
+        )}
         <div className="modal-cta-wrap">
           <Button onClick={() => setModalData(null)}>Close</Button>
         </div>

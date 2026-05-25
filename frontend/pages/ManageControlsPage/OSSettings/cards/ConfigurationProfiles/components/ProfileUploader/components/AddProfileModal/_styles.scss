@@ -120,7 +120,7 @@
     padding: $pad-xxsmall $pad-small;
     background-color: $ui-fleet-black-5;
     border: 1px solid $ui-fleet-black-10;
-    border-radius: 100px;
+    border-radius: $border-radius;
     font-size: $xx-small;
     cursor: pointer;
     color: $ui-fleet-black-75;

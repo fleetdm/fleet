@@ -35,10 +35,7 @@ import {
   IParseFileResult,
   parseFile,
 } from "../../helpers";
-import {
-  generateLabelKey,
-  listNamesFromSelectedLabels,
-} from "./helpers";
+import { generateLabelKey, listNamesFromSelectedLabels } from "./helpers";
 
 const baseClass = "add-profile-modal";
 
@@ -123,8 +120,12 @@ const AddProfileModal = ({
   const [fileDetails, setFileDetails] = useState<IParseFileResult | null>(null);
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
-  const [selectedIncludeMode, setSelectedIncludeMode] = useState<"any" | "all">("any");
-  const [selectedExcludeMode, setSelectedExcludeMode] = useState<"any" | "all">("any");
+  const [selectedIncludeMode, setSelectedIncludeMode] = useState<"any" | "all">(
+    "any"
+  );
+  const [selectedExcludeMode, setSelectedExcludeMode] = useState<"any" | "all">(
+    "any"
+  );
   const [selectedIncludeLabels, setSelectedIncludeLabels] = useState<
     Record<string, boolean>
   >({});
@@ -308,10 +309,7 @@ const AddProfileModal = ({
 
     return (
       <TabNav secondary>
-        <Tabs
-          selectedIndex={selectedTabIndex}
-          onSelect={setSelectedTabIndex}
-        >
+        <Tabs selectedIndex={selectedTabIndex} onSelect={setSelectedTabIndex}>
           <TabList>
             <Tab>
               <TabText>Include</TabText>
@@ -328,7 +326,9 @@ const AddProfileModal = ({
               checked={selectedIncludeMode === "any"}
               value="any"
               name="include-mode"
-              onChange={(val: string) => setSelectedIncludeMode(val as "any" | "all")}
+              onChange={(val: string) =>
+                setSelectedIncludeMode(val as "any" | "all")
+              }
             />
             <Radio
               className="target-label-selector__radio-input"
@@ -337,14 +337,21 @@ const AddProfileModal = ({
               checked={selectedIncludeMode === "all"}
               value="all"
               name="include-mode"
-              onChange={(val: string) => setSelectedIncludeMode(val as "any" | "all")}
+              onChange={(val: string) =>
+                setSelectedIncludeMode(val as "any" | "all")
+              }
             />
             <SearchField
               placeholder="Search labels"
               onChange={setIncludeSearchQuery}
             />
             {renderSelectedBadges(selectedIncludeLabels, onSelectIncludeLabel)}
-            {renderLabelCheckboxes(filteredIncludeLabels, selectedIncludeLabels, selectedExcludeLabels, onSelectIncludeLabel)}
+            {renderLabelCheckboxes(
+              filteredIncludeLabels,
+              selectedIncludeLabels,
+              selectedExcludeLabels,
+              onSelectIncludeLabel
+            )}
           </TabPanel>
           <TabPanel>
             <Radio
@@ -354,7 +361,9 @@ const AddProfileModal = ({
               checked={selectedExcludeMode === "any"}
               value="any"
               name="exclude-mode"
-              onChange={(val: string) => setSelectedExcludeMode(val as "any" | "all")}
+              onChange={(val: string) =>
+                setSelectedExcludeMode(val as "any" | "all")
+              }
             />
             <Radio
               className="target-label-selector__radio-input"
@@ -363,14 +372,21 @@ const AddProfileModal = ({
               checked={selectedExcludeMode === "all"}
               value="all"
               name="exclude-mode"
-              onChange={(val: string) => setSelectedExcludeMode(val as "any" | "all")}
+              onChange={(val: string) =>
+                setSelectedExcludeMode(val as "any" | "all")
+              }
             />
             <SearchField
               placeholder="Search labels"
               onChange={setExcludeSearchQuery}
             />
             {renderSelectedBadges(selectedExcludeLabels, onSelectExcludeLabel)}
-            {renderLabelCheckboxes(filteredExcludeLabels, selectedExcludeLabels, selectedIncludeLabels, onSelectExcludeLabel)}
+            {renderLabelCheckboxes(
+              filteredExcludeLabels,
+              selectedExcludeLabels,
+              selectedIncludeLabels,
+              onSelectExcludeLabel
+            )}
           </TabPanel>
         </Tabs>
       </TabNav>
