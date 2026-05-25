@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -389,5 +391,266 @@ func (ds *Datastore) GetMDMAppleReconcileCursor(_ context.Context) (string, erro
 // batched Apple MDM reconciliation cron. The bare mysql.Datastore is a
 // no-op; the mysqlredis wrapper backs it with Redis.
 func (ds *Datastore) SetMDMAppleReconcileCursor(_ context.Context, _ string) error {
+	return nil
+}
+
+// ListAppleDeclarationsForReconcile loads every Apple declaration in the
+// system, paired with its label assignments. Mirrors
+// ListAppleProfilesForReconcile so the batched DDM reconciler runs the
+// same label-row processing logic.
+func (ds *Datastore) ListAppleDeclarationsForReconcile(ctx context.Context) ([]*fleet.AppleDeclarationForReconcile, error) {
+	type declRow struct {
+		DeclarationUUID       string             `db:"declaration_uuid"`
+		DeclarationIdentifier string             `db:"identifier"`
+		DeclarationName       string             `db:"name"`
+		TeamID                uint               `db:"team_id"`
+		Token                 []byte             `db:"token"`
+		SecretsUpdatedAt      sql.NullTime       `db:"secrets_updated_at"`
+		Scope                 fleet.PayloadScope `db:"scope"`
+	}
+
+	const declStmt = `
+		SELECT declaration_uuid, identifier, name, team_id, token, secrets_updated_at, scope
+		FROM mdm_apple_declarations
+	`
+
+	var rows []declRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, declStmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list apple declarations for reconcile")
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+
+	byUUID := make(map[string]*fleet.AppleDeclarationForReconcile, len(rows))
+	out := make([]*fleet.AppleDeclarationForReconcile, 0, len(rows))
+	for _, r := range rows {
+		d := &fleet.AppleDeclarationForReconcile{
+			DeclarationUUID:       r.DeclarationUUID,
+			DeclarationIdentifier: r.DeclarationIdentifier,
+			DeclarationName:       r.DeclarationName,
+			TeamID:                r.TeamID,
+			Token:                 r.Token,
+			Scope:                 r.Scope,
+		}
+		if r.SecretsUpdatedAt.Valid {
+			t := r.SecretsUpdatedAt.Time
+			d.SecretsUpdatedAt = &t
+		}
+		byUUID[r.DeclarationUUID] = d
+		out = append(out, d)
+	}
+
+	// Identical label loading semantics as ListAppleProfilesForReconcile,
+	// but joining on apple_declaration_uuid. Reuses the same
+	// AppleProfileLabelRef type so the dispatcher / handlers can see
+	// declarations through the same shape.
+	const labelStmt = `
+		SELECT
+			mcpl.apple_declaration_uuid AS entity_uuid,
+			mcpl.label_id               AS label_id,
+			mcpl.exclude                AS exclude,
+			mcpl.require_all            AS require_all,
+			lbl.created_at              AS label_created_at,
+			COALESCE(lbl.label_membership_type, 0) AS label_membership_type
+		FROM mdm_configuration_profile_labels mcpl
+		LEFT JOIN labels lbl ON lbl.id = mcpl.label_id
+		WHERE mcpl.apple_declaration_uuid IS NOT NULL
+	`
+
+	type labelRow struct {
+		EntityUUID          string        `db:"entity_uuid"`
+		LabelID             sql.NullInt64 `db:"label_id"`
+		Exclude             bool          `db:"exclude"`
+		RequireAll          bool          `db:"require_all"`
+		LabelCreatedAt      sql.NullTime  `db:"label_created_at"`
+		LabelMembershipType int           `db:"label_membership_type"`
+	}
+
+	var labelRows []labelRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelRows, labelStmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list apple declaration labels for reconcile")
+	}
+
+	type includeAccum struct {
+		set   bool
+		mode  fleet.AppleProfileIncludeMode
+		mixed bool
+	}
+	includeModes := make(map[string]*includeAccum, len(byUUID))
+
+	for _, lr := range labelRows {
+		d, ok := byUUID[lr.EntityUUID]
+		if !ok {
+			continue
+		}
+
+		ref := fleet.AppleProfileLabelRef{
+			LabelMembershipType: lr.LabelMembershipType,
+		}
+		if lr.LabelID.Valid {
+			id := uint(lr.LabelID.Int64) //nolint:gosec // dismiss G115: labels.id is int unsigned in MySQL
+			ref.LabelID = &id
+		}
+		if lr.LabelCreatedAt.Valid {
+			ref.CreatedAt = lr.LabelCreatedAt.Time
+		}
+
+		if lr.Exclude {
+			d.ExcludeLabels = append(d.ExcludeLabels, ref)
+			continue
+		}
+
+		d.IncludeLabels = append(d.IncludeLabels, ref)
+
+		var rowMode fleet.AppleProfileIncludeMode
+		if lr.RequireAll {
+			rowMode = fleet.AppleProfileIncludeAll
+		} else {
+			rowMode = fleet.AppleProfileIncludeAny
+		}
+
+		ia := includeModes[lr.EntityUUID]
+		if ia == nil {
+			ia = &includeAccum{}
+			includeModes[lr.EntityUUID] = ia
+		}
+		if !ia.set {
+			ia.mode = rowMode
+			ia.set = true
+		} else if ia.mode != rowMode {
+			ia.mixed = true
+		}
+	}
+
+	for uuid, ia := range includeModes {
+		d := byUUID[uuid]
+		if ia.mixed {
+			d.IncludeLabels = nil
+			d.IncludeMode = fleet.AppleProfileIncludeNone
+			continue
+		}
+		d.IncludeMode = ia.mode
+	}
+
+	return out, nil
+}
+
+// BulkGetHostMDMAppleDeclarationsByUUIDs returns the current
+// host_mdm_apple_declarations rows for the given host UUIDs, grouped by
+// host UUID. Mirrors BulkGetHostMDMAppleProfilesByUUIDs.
+func (ds *Datastore) BulkGetHostMDMAppleDeclarationsByUUIDs(
+	ctx context.Context,
+	hostUUIDs []string,
+) (map[string][]*fleet.MDMAppleHostDeclaration, error) {
+	out := make(map[string][]*fleet.MDMAppleHostDeclaration, len(hostUUIDs))
+	if len(hostUUIDs) == 0 {
+		return out, nil
+	}
+
+	const stmt = `
+		SELECT
+			host_uuid,
+			declaration_uuid,
+			declaration_identifier,
+			declaration_name,
+			status,
+			operation_type,
+			COALESCE(detail, '') AS detail,
+			HEX(token) AS token,
+			secrets_updated_at,
+			variables_updated_at
+		FROM host_mdm_apple_declarations
+		WHERE host_uuid IN (?)
+	`
+
+	const chunk = 5000
+
+	for i := 0; i < len(hostUUIDs); i += chunk {
+		end := min(i+chunk, len(hostUUIDs))
+		batch := hostUUIDs[i:end]
+
+		q, args, err := sqlx.In(stmt, batch)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build host mdm apple declarations query")
+		}
+
+		var rows []*fleet.MDMAppleHostDeclaration
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, q, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select host mdm apple declarations")
+		}
+
+		for _, r := range rows {
+			out[r.HostUUID] = append(out[r.HostUUID], r)
+		}
+	}
+
+	return out, nil
+}
+
+// GetMDMAppleDeclarationReconcileCursor / SetMDMAppleDeclarationReconcileCursor
+// mirror the profile cursor helpers — bare mysql.Datastore is a no-op, the
+// mysqlredis wrapper backs both with Redis under a separate key so the
+// profile and declaration cursors advance independently.
+func (ds *Datastore) GetMDMAppleDeclarationReconcileCursor(_ context.Context) (string, error) {
+	return "", nil
+}
+
+func (ds *Datastore) SetMDMAppleDeclarationReconcileCursor(_ context.Context, _ string) error {
+	return nil
+}
+
+// BulkUpsertMDMAppleHostDeclarations writes the given host declaration
+// rows, setting status / operation_type / token / secrets_updated_at.
+// The Status, OperationType and Token fields on each row are used
+// directly (per-row), unlike the legacy
+// mdmAppleBatchSetPendingHostDeclarationsDB which forces a single
+// status across all rows. Used by the batched DDM reconciler.
+func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
+	ctx context.Context,
+	rows []*fleet.MDMAppleHostDeclaration,
+) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	const baseStmt = `
+		INSERT INTO host_mdm_apple_declarations
+		  (host_uuid, declaration_uuid, declaration_identifier, declaration_name,
+		   status, operation_type, token, secrets_updated_at)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE
+		  status = VALUES(status),
+		  operation_type = VALUES(operation_type),
+		  token = VALUES(token),
+		  declaration_identifier = VALUES(declaration_identifier),
+		  declaration_name = VALUES(declaration_name),
+		  secrets_updated_at = VALUES(secrets_updated_at)
+	`
+
+	const batchSize = 1000
+	for i := 0; i < len(rows); i += batchSize {
+		end := min(i+batchSize, len(rows))
+		batch := rows[i:end]
+
+		valueParts := make([]string, 0, len(batch))
+		args := make([]any, 0, len(batch)*8)
+		for _, r := range batch {
+			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, UNHEX(?), ?)")
+			args = append(args,
+				r.HostUUID, r.DeclarationUUID, r.Identifier, r.Name,
+				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt,
+			)
+		}
+
+		stmt := fmt.Sprintf(baseStmt, strings.Join(valueParts, ","))
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			_, ierr := tx.ExecContext(ctx, stmt, args...)
+			return ierr
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk upsert mdm apple host declarations")
+		}
+	}
 	return nil
 }

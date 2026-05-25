@@ -430,19 +430,24 @@ func computeAppleReconcileDeltas(
 	return toInstall, toRemove
 }
 
-// appleProfileAppliesToHost is the top-level dispatcher. It applies the
-// team and platform gates, then composes whichever include + exclude
-// label handlers the profile carries. A profile may carry both an
-// include set (in one consistent mode) and an exclude set; both gates
-// must pass for the profile to apply.
-func appleProfileAppliesToHost(
-	p *fleet.AppleProfileForReconcile,
+// appleEntityAppliesToHost is the SHARED top-level dispatcher for Apple
+// MDM label-gated entities. It applies team and platform gates, then
+// composes the include + exclude label handlers carried by the entity.
+//
+// Both ReconcileAppleProfilesBatched and ReconcileAppleDeclarationsBatched
+// route through this function. The handlers themselves operate on
+// []AppleProfileLabelRef and are entity-agnostic. This is the
+// single source of truth for "does this Apple MDM entity apply to this
+// host" — there is no parallel implementation for declarations, so the
+// label / team / platform semantics cannot drift between the two
+// reconcilers.
+func appleEntityAppliesToHost(
+	e fleet.AppleLabeledEntity,
 	host *fleet.AppleHostReconcileInfo,
 	hostLabels map[uint]struct{},
 ) bool {
-	// Team gate (already filtered upstream by profilesByTeam, but
-	// double-check so handlers stay composable in isolation).
-	if p.TeamID != host.EffectiveTeamID() {
+	// Team gate.
+	if e.GetTeamID() != host.EffectiveTeamID() {
 		return false
 	}
 
@@ -452,14 +457,14 @@ func appleProfileAppliesToHost(
 		return false
 	}
 
-	// Include gate: only run if the profile has include labels.
-	if p.IncludeMode != fleet.AppleProfileIncludeNone {
+	// Include gate: only run if the entity has include labels.
+	if e.GetIncludeMode() != fleet.AppleProfileIncludeNone {
 		var ok bool
-		switch p.IncludeMode {
+		switch e.GetIncludeMode() {
 		case fleet.AppleProfileIncludeAll:
-			ok = appleProfileHandlerIncludeAll(p.IncludeLabels, hostLabels)
+			ok = appleProfileHandlerIncludeAll(e.GetIncludeLabels(), hostLabels)
 		case fleet.AppleProfileIncludeAny:
-			ok = appleProfileHandlerIncludeAny(p.IncludeLabels, hostLabels)
+			ok = appleProfileHandlerIncludeAny(e.GetIncludeLabels(), hostLabels)
 		default:
 			return false
 		}
@@ -468,14 +473,25 @@ func appleProfileAppliesToHost(
 		}
 	}
 
-	// Exclude gate: only run if the profile has exclude labels.
-	if len(p.ExcludeLabels) > 0 {
-		if !appleProfileHandlerExcludeAny(p.ExcludeLabels, host, hostLabels) {
+	// Exclude gate: only run if the entity has exclude labels.
+	if exc := e.GetExcludeLabels(); len(exc) > 0 {
+		if !appleProfileHandlerExcludeAny(exc, host, hostLabels) {
 			return false
 		}
 	}
 
 	return true
+}
+
+// appleProfileAppliesToHost is a thin compatibility shim. New callers
+// should use appleEntityAppliesToHost directly. The existing profile
+// tests / call sites use this wrapper so they don't need to change.
+func appleProfileAppliesToHost(
+	p *fleet.AppleProfileForReconcile,
+	host *fleet.AppleHostReconcileInfo,
+	hostLabels map[uint]struct{},
+) bool {
+	return appleEntityAppliesToHost(p, host, hostLabels)
 }
 
 func isAppleProfileEligiblePlatform(platform string) bool {
@@ -562,6 +578,20 @@ func isBrokenAppleProfile(profileUUID string, profilesByTeam map[uint][]*fleet.A
 	// Profile not found in catalog at all — the row in host_mdm_apple_profiles
 	// is for a profile that has been deleted from the team or globally. It
 	// is safe to remove (it is NOT a "broken label" case).
+	return false
+}
+
+// isBrokenAppleDeclaration is the DDM equivalent of isBrokenAppleProfile.
+// Shares the same "broken label assignments protect from removal" rule.
+func isBrokenAppleDeclaration(declUUID string, declsByTeam map[uint][]*fleet.AppleDeclarationForReconcile) bool {
+	for _, ds := range declsByTeam {
+		for _, d := range ds {
+			if d.DeclarationUUID != declUUID {
+				continue
+			}
+			return d.HasBrokenLabel()
+		}
+	}
 	return false
 }
 

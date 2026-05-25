@@ -492,6 +492,19 @@ type AppleProfileLabelRef struct {
 	LabelMembershipType int
 }
 
+// AppleLabeledEntity is the minimal view of a label-gated Apple MDM
+// entity (profile or declaration) that the team/platform/label dispatcher
+// and the per-mode handlers need. The same dispatcher and handlers run
+// against both AppleProfileForReconcile and AppleDeclarationForReconcile
+// so the rules cannot drift between the two reconcilers.
+type AppleLabeledEntity interface {
+	GetTeamID() uint
+	GetIncludeMode() AppleProfileIncludeMode
+	GetIncludeLabels() []AppleProfileLabelRef
+	GetExcludeLabels() []AppleProfileLabelRef
+	HasBrokenLabel() bool
+}
+
 // AppleProfileForReconcile is the profile data needed by the batched
 // reconciler to compute desired state per host in memory.
 //
@@ -511,17 +524,53 @@ type AppleProfileForReconcile struct {
 	ExcludeLabels     []AppleProfileLabelRef
 }
 
+// AppleLabeledEntity implementation.
+func (p *AppleProfileForReconcile) GetTeamID() uint                       { return p.TeamID }
+func (p *AppleProfileForReconcile) GetIncludeMode() AppleProfileIncludeMode { return p.IncludeMode }
+func (p *AppleProfileForReconcile) GetIncludeLabels() []AppleProfileLabelRef { return p.IncludeLabels }
+func (p *AppleProfileForReconcile) GetExcludeLabels() []AppleProfileLabelRef { return p.ExcludeLabels }
+
 // HasBrokenLabel reports whether any include or exclude label on the
 // profile references a deleted label. Used to keep broken-label profiles
 // exempt from removal (matches legacy behaviour: a profile with a broken
 // label is never auto-removed from a host that already has it).
 func (p *AppleProfileForReconcile) HasBrokenLabel() bool {
-	for _, l := range p.IncludeLabels {
-		if l.LabelID == nil {
-			return true
-		}
-	}
-	for _, l := range p.ExcludeLabels {
+	return anyAppleLabelBroken(p.IncludeLabels) || anyAppleLabelBroken(p.ExcludeLabels)
+}
+
+// AppleDeclarationForReconcile is the declaration data needed by the
+// batched DDM reconciler. The label-gating fields mirror
+// AppleProfileForReconcile exactly so the same dispatcher and handlers
+// run against both — there is no second copy of the team / platform /
+// label logic to fall out of sync.
+type AppleDeclarationForReconcile struct {
+	DeclarationUUID       string
+	DeclarationIdentifier string
+	DeclarationName       string
+	TeamID                uint // 0 means global
+	Token                 []byte
+	SecretsUpdatedAt      *time.Time
+	Scope                 PayloadScope
+	IncludeMode           AppleProfileIncludeMode
+	IncludeLabels         []AppleProfileLabelRef
+	ExcludeLabels         []AppleProfileLabelRef
+}
+
+// AppleLabeledEntity implementation.
+func (d *AppleDeclarationForReconcile) GetTeamID() uint                       { return d.TeamID }
+func (d *AppleDeclarationForReconcile) GetIncludeMode() AppleProfileIncludeMode { return d.IncludeMode }
+func (d *AppleDeclarationForReconcile) GetIncludeLabels() []AppleProfileLabelRef { return d.IncludeLabels }
+func (d *AppleDeclarationForReconcile) GetExcludeLabels() []AppleProfileLabelRef { return d.ExcludeLabels }
+
+// HasBrokenLabel: see AppleProfileForReconcile.HasBrokenLabel.
+func (d *AppleDeclarationForReconcile) HasBrokenLabel() bool {
+	return anyAppleLabelBroken(d.IncludeLabels) || anyAppleLabelBroken(d.ExcludeLabels)
+}
+
+// anyAppleLabelBroken reports whether any label reference has a nil
+// LabelID (the label was deleted, leaving the assignment "broken").
+func anyAppleLabelBroken(labels []AppleProfileLabelRef) bool {
+	for _, l := range labels {
 		if l.LabelID == nil {
 			return true
 		}

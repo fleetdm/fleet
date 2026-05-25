@@ -2313,6 +2313,30 @@ type Datastore interface {
 	// batched Apple MDM reconciliation cron.
 	SetMDMAppleReconcileCursor(ctx context.Context, cursor string) error
 
+	// ListAppleDeclarationsForReconcile returns every Apple declaration in
+	// the system along with its label assignments. Mirrors
+	// ListAppleProfilesForReconcile; the batched DDM reconciler uses it to
+	// evaluate desired state per host in memory.
+	ListAppleDeclarationsForReconcile(ctx context.Context) ([]*AppleDeclarationForReconcile, error)
+
+	// BulkGetHostMDMAppleDeclarationsByUUIDs returns the current
+	// host_mdm_apple_declarations rows for the given host UUIDs, grouped
+	// by host UUID.
+	BulkGetHostMDMAppleDeclarationsByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMAppleHostDeclaration, error)
+
+	// BulkUpsertMDMAppleHostDeclarations writes the given host declaration
+	// rows directly (per-row Status / OperationType / Token honored),
+	// used by ReconcileAppleDeclarationsBatched.
+	BulkUpsertMDMAppleHostDeclarations(ctx context.Context, rows []*MDMAppleHostDeclaration) error
+
+	// GetMDMAppleDeclarationReconcileCursor / SetMDMAppleDeclarationReconcileCursor
+	// persist the host_uuid cursor used by the batched DDM reconciliation
+	// cron. The bare mysql.Datastore returns "" / no-op; the mysqlredis
+	// wrapper backs them with Redis under a distinct key so the profile
+	// and declaration passes advance independently.
+	GetMDMAppleDeclarationReconcileCursor(ctx context.Context) (string, error)
+	SetMDMAppleDeclarationReconcileCursor(ctx context.Context, cursor string) error
+
 	// BulkUpsertMDMWindowsHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*MDMWindowsBulkUpsertHostProfilePayload) error
