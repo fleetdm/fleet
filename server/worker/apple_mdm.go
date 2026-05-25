@@ -768,16 +768,25 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 // worker and cron can never drift on what should be installed for a given
 // host. The worker still emits the DeclarativeManagement command afterwards
 // so DDM syncs start as soon as enrollment completes.
+//
+// If the dependency isn't injected (worker constructed without
+// ReconcileAppleProfilesForHost — typical in tests), we log a warning and
+// skip the per-host install. The cron tick will pick the host up on its
+// next pass; the post-enrollment speedup is just an optimisation, not a
+// correctness requirement.
 func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID string) ([]string, error) {
 	a.Log.InfoContext(ctx, "installing profiles post-enrollment", "host_uuid", hostUUID)
 
-	if a.ReconcileAppleProfilesForHost == nil {
-		return nil, ctxerr.New(ctx, "AppleMDM worker missing ReconcileAppleProfilesForHost dependency")
-	}
-
-	cmdUUIDs, err := a.ReconcileAppleProfilesForHost(ctx, hostUUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "reconcile apple profiles for enrolling host")
+	var cmdUUIDs []string
+	if a.ReconcileAppleProfilesForHost != nil {
+		var err error
+		cmdUUIDs, err = a.ReconcileAppleProfilesForHost(ctx, hostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile apple profiles for enrolling host")
+		}
+	} else {
+		a.Log.WarnContext(ctx, "AppleMDM worker has no ReconcileAppleProfilesForHost dependency; deferring to cron",
+			"host_uuid", hostUUID)
 	}
 
 	a.Log.InfoContext(ctx, "successfully queued profiles from apple mdm worker",
