@@ -185,10 +185,13 @@ func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schem
 
 func MysqlTestConfig(testName string) *common_mysql.MysqlConfig {
 	return &common_mysql.MysqlConfig{
-		Username: TestUsername,
-		Password: TestPassword,
-		Database: testName,
-		Address:  TestAddress,
+		Username:        TestUsername,
+		Password:        TestPassword,
+		Database:        testName,
+		Address:         TestAddress,
+		MaxIdleConns:    50,
+		MaxOpenConns:    50,
+		ConnMaxLifetime: 0,
 	}
 }
 
