@@ -4,6 +4,14 @@
     flex-direction: row;
     gap: $pad-xsmall;
     color: $ui-fleet-black-75;
+    overflow: hidden;
+    white-space: nowrap;
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
   }
 
   &__list-item-details {
@@ -21,6 +29,35 @@
 
   .list-item__actions-wrap {
     display: flex;
+    flex-shrink: 0;
+    gap: $pad-large;
+  }
+
+  // Stage 1 (≤1185px): hide the profile icon to reclaim horizontal space
+  @include breakpoint(smalldesk) {
+    .list-item__main-content .graphic {
+      display: none;
+    }
+  }
+
+  .list-item__title {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  // Stage 2 (≤1024px): constrain main content so title and details truncate
+  @include breakpoint(tablet) {
+    .list-item__main-content {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .list-item__info {
+      min-width: 0;
+      overflow: hidden;
+    }
   }
 
   .list-item__labels {
