@@ -1413,11 +1413,6 @@ func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, inst
 
 func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) (affectedHostIDs []uint, err error) {
 	if wasMetadataUpdated || wasPackageUpdated { // cancel pending installs/uninstalls
-
-		// TODO(JK): new behaviour we want:
-		// If software install haven't started yet , then install applied edits (e.g. new version)
-		// If software install started , ignore edits.
-
 		// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id IN (
 				SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status = 'pending_uninstall'
@@ -1426,31 +1421,18 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			return nil, ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
 		}
 
-		// TODO(JK):
-		// Currently: if anything in setup exp status results is pending or running we cancel it
-		// ths query gets status from setup_experience_status_results, where execution id is in upcoming_activities or in host_software_installs
-		// Under the new logic we will want to split these two
-		// pending: what does "install applied edits" mean? does the host need to know anything?
-		// running: ignore, let it keep running
-
-		// cancel any pending installs, but not ones currently running
-		_, err = tx.ExecContext(ctx, `UPDATE setup_experience_status_results
-			SET status=? 
-			WHERE status IN (?) 
-			AND host_software_installs_execution_id IN (
+		_, err = tx.ExecContext(ctx, `UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND host_software_installs_execution_id IN (
 			  SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status IN ('pending_install', 'pending_uninstall')
 			UNION
 			  SELECT ua.execution_id FROM upcoming_activities ua INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
 			  WHERE siua.software_installer_id = ? AND activity_type IN ('software_install', 'software_uninstall')
-		)`, fleet.SetupExperienceStatusCancelled, fleet.SetupExperienceStatusPending, installerID, installerID)
+		)`, fleet.SetupExperienceStatusCancelled, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning, installerID, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fail setup experience results dependant on deleted software install")
 		}
 
-		// TODO(JK): do we need to not do this for "running" installers? maybe the query can join on setup_experience_status_results
-		_, err = tx.ExecContext(ctx, `DELETE FROM host_software_installs hsi
-				INNER JOIN setup_experience_status_results sesr ON sesr.host_software_installs_execution_id = hsi.execution_id
-				WHERE hsi.software_installer_id = ? AND hsi.status IN('pending_install', 'pending_uninstall') AND sesr.status = IN('pending', 'cancelled')`, installerID)
+		_, err = tx.ExecContext(ctx, `DELETE FROM host_software_installs
+			   WHERE software_installer_id = ? AND status IN('pending_install', 'pending_uninstall')`, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
 		}
@@ -2152,7 +2134,6 @@ WHERE
 		)
 `
 
-	// TODO(JK): gitops
 	const cancelSetupExperienceStatusForAllDeletedPendingSoftwareInstalls = `
 UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND host_software_installs_execution_id IN (
 	  SELECT execution_id FROM host_software_installs hsi INNER JOIN software_installers si ON hsi.software_installer_id=si.id
