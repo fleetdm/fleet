@@ -525,8 +525,8 @@ type AppleProfileForReconcile struct {
 }
 
 // AppleLabeledEntity implementation.
-func (p *AppleProfileForReconcile) GetTeamID() uint                       { return p.TeamID }
-func (p *AppleProfileForReconcile) GetIncludeMode() AppleProfileIncludeMode { return p.IncludeMode }
+func (p *AppleProfileForReconcile) GetTeamID() uint                          { return p.TeamID }
+func (p *AppleProfileForReconcile) GetIncludeMode() AppleProfileIncludeMode  { return p.IncludeMode }
 func (p *AppleProfileForReconcile) GetIncludeLabels() []AppleProfileLabelRef { return p.IncludeLabels }
 func (p *AppleProfileForReconcile) GetExcludeLabels() []AppleProfileLabelRef { return p.ExcludeLabels }
 
@@ -557,10 +557,14 @@ type AppleDeclarationForReconcile struct {
 }
 
 // AppleLabeledEntity implementation.
-func (d *AppleDeclarationForReconcile) GetTeamID() uint                       { return d.TeamID }
+func (d *AppleDeclarationForReconcile) GetTeamID() uint                         { return d.TeamID }
 func (d *AppleDeclarationForReconcile) GetIncludeMode() AppleProfileIncludeMode { return d.IncludeMode }
-func (d *AppleDeclarationForReconcile) GetIncludeLabels() []AppleProfileLabelRef { return d.IncludeLabels }
-func (d *AppleDeclarationForReconcile) GetExcludeLabels() []AppleProfileLabelRef { return d.ExcludeLabels }
+func (d *AppleDeclarationForReconcile) GetIncludeLabels() []AppleProfileLabelRef {
+	return d.IncludeLabels
+}
+func (d *AppleDeclarationForReconcile) GetExcludeLabels() []AppleProfileLabelRef {
+	return d.ExcludeLabels
+}
 
 // HasBrokenLabel: see AppleProfileForReconcile.HasBrokenLabel.
 func (d *AppleDeclarationForReconcile) HasBrokenLabel() bool {

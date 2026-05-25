@@ -277,7 +277,12 @@ func (ds *Datastore) BulkGetHostLabelMemberships(
 		labelChunk = 1000
 	)
 
-	stmt := `SELECT host_id, label_id FROM label_membership WHERE host_id IN (?) AND label_id IN (?)`
+	const stmt = `SELECT host_id, label_id FROM label_membership WHERE host_id IN (?) AND label_id IN (?)`
+
+	type membershipRow struct {
+		HostID  uint `db:"host_id"`
+		LabelID uint `db:"label_id"`
+	}
 
 	for hi := 0; hi < len(hostIDs); hi += hostChunk {
 		hEnd := min(hi+hostChunk, len(hostIDs))
@@ -292,29 +297,19 @@ func (ds *Datastore) BulkGetHostLabelMemberships(
 				return nil, ctxerr.Wrap(ctx, err, "build label membership query")
 			}
 
-			rows, err := ds.reader(ctx).QueryxContext(ctx, q, args...)
-			if err != nil {
+			var rows []membershipRow
+			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, q, args...); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "query host label memberships")
 			}
 
-			for rows.Next() {
-				var hostID, labelID uint
-				if err := rows.Scan(&hostID, &labelID); err != nil {
-					rows.Close()
-					return nil, ctxerr.Wrap(ctx, err, "scan label membership row")
-				}
-				set, ok := out[hostID]
+			for _, r := range rows {
+				set, ok := out[r.HostID]
 				if !ok {
 					set = make(map[uint]struct{})
-					out[hostID] = set
+					out[r.HostID] = set
 				}
-				set[labelID] = struct{}{}
+				set[r.LabelID] = struct{}{}
 			}
-			if err := rows.Err(); err != nil {
-				rows.Close()
-				return nil, ctxerr.Wrap(ctx, err, "iterate label membership rows")
-			}
-			rows.Close()
 		}
 	}
 

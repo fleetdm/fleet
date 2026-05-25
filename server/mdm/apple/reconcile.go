@@ -442,7 +442,7 @@ func ExecuteReconcileBatch(
 	installTargets, removeTargets := make(map[string]*fleet.CmdTarget), make(map[string]*fleet.CmdTarget)
 
 	for _, p := range toInstall {
-		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok {
+		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok && pp != nil {
 			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
 				hp := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 					ProfileUUID:       p.ProfileUUID,
