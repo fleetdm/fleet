@@ -87,7 +87,12 @@ const PlatformTabs = ({
               <TabText>
                 macOS
                 {isMacOSConfigured && (
-                  <Icon name="check" size="small" color="core-fleet-green" className={`${baseClass}__tab-check`} />
+                  <Icon
+                    name="check"
+                    size="small"
+                    color="core-fleet-green"
+                    className={`${baseClass}__tab-check`}
+                  />
                 )}
               </TabText>
             </Tab>
@@ -96,7 +101,12 @@ const PlatformTabs = ({
                 <TabText>
                   Windows
                   {isWindowsConfigured && (
-                    <Icon name="check" size="small" color="core-fleet-green" className={`${baseClass}__tab-check`} />
+                    <Icon
+                      name="check"
+                      size="small"
+                      color="core-fleet-green"
+                      className={`${baseClass}__tab-check`}
+                    />
                   )}
                 </TabText>
               </Tab>
@@ -105,7 +115,12 @@ const PlatformTabs = ({
               <TabText>
                 iOS
                 {isIOSConfigured && (
-                  <Icon name="check" size="small" color="core-fleet-green" className={`${baseClass}__tab-check`} />
+                  <Icon
+                    name="check"
+                    size="small"
+                    color="core-fleet-green"
+                    className={`${baseClass}__tab-check`}
+                  />
                 )}
               </TabText>
             </Tab>
@@ -113,7 +128,12 @@ const PlatformTabs = ({
               <TabText>
                 iPadOS
                 {isIPadOSConfigured && (
-                  <Icon name="check" size="small" color="core-fleet-green" className={`${baseClass}__tab-check`} />
+                  <Icon
+                    name="check"
+                    size="small"
+                    color="core-fleet-green"
+                    className={`${baseClass}__tab-check`}
+                  />
                 )}
               </TabText>
             </Tab>
