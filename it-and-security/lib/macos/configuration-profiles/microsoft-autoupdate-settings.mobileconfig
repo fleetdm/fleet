@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>com.fleetdm.547B48AB-75CF-4BB2-BA78-76A291F0EC3E</string>
 	<key>PayloadUUID</key>
-	<string>7FF8C479-369A-4857-948F-990934ED290F</string>
+	<string>348EF514-7155-415A-A7CC-EF276614EFE7</string>
 	<key>PayloadDisplayName</key>
 	<string>Microsoft AutoUpdate settings</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.microsoft.autoupdate2.DD5F294A-3B5C-48EA-AA0B-B17C8806667D</string>
 			<key>PayloadUUID</key>
-			<string>1352FE21-07FF-4307-BA4F-2262D97C850C</string>
+			<string>DD5F294A-3B5C-48EA-AA0B-B17C8806667D</string>
 			<key>AcknowledgedDataCollectionPolicy</key>
 			<string>RequiredDataOnly</string>
 			<key>ChannelName</key>

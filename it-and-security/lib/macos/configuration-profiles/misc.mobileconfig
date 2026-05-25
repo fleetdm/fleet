@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>com.github.erikberglund.ProfileCreator.7E6F9053-A8AF-4BD2-B254-8C4E2B8748F0</string>
 	<key>PayloadUUID</key>
-	<string>91486082-E68E-4D9C-889B-FA0BCC69482C</string>
+	<string>7E6F9053-A8AF-4BD2-B254-8C4E2B8748F0</string>
 	<key>PayloadDisplayName</key>
 	<string>Various restriction settings</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.github.erikberglund.ProfileCreator.7E6F9053-A8AF-4BD2-B254-8C4E2B8748F0.com.apple.applicationaccess.722287B0-ADCF-418F-8F8F-F2B5DB977355</string>
 			<key>PayloadUUID</key>
-			<string>218B8DA2-D761-4445-B8E0-60AF8FB6EE0E</string>
+			<string>722287B0-ADCF-418F-8F8F-F2B5DB977355</string>
 			<key>allowCloudReminders</key>
 			<true/>
 			<key>PayloadDisplayName</key>

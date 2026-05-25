@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>com.fleetdm.profile.fleet-desktop-launchagent</string>
 	<key>PayloadUUID</key>
-	<string>56473CDB-534C-4A1F-99FE-A89FEEFF0B45</string>
+	<string>F9E8D7C6-B5A4-4938-8271-605F4E3D2C1B</string>
 	<key>PayloadDisplayName</key>
 	<string>Fleet Desktop.app login item management</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.servicemanagement.fleet-desktop-launchagent</string>
 			<key>PayloadUUID</key>
-			<string>5555D26D-A26C-46DD-B834-E0C9989276EE</string>
+			<string>A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D</string>
 			<key>PayloadDescription</key>
 			<string>Manages the Fleet Desktop.app launch agent so it can run at login without prompting the user.</string>
 			<key>Rules</key>

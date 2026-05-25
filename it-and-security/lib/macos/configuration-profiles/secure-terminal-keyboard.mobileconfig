@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>cis.macOSBenchmark.section2.SecureKeyboard</string>
 	<key>PayloadUUID</key>
-	<string>9D77EB80-1CAC-4772-95C1-F5DAE55E76BB</string>
+	<string>00B46A57-12BF-4FC3-AE79-3E0BEA66A973</string>
 	<key>PayloadDisplayName</key>
 	<string>Turn on secure keyboard entry in Terminal</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.apple.Terminal</string>
 			<key>PayloadUUID</key>
-			<string>25DF37AF-EB5C-455C-A5B8-CF8D2960AA4F</string>
+			<string>1CBE65D6-6E5C-42C3-AA43-0AAAA64BA908</string>
 			<key>SecureKeyboardEntry</key>
 			<true/>
 			<key>PayloadDisplayName</key>

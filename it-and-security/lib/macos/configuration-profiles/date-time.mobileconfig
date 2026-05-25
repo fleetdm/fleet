@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>cis.macOSBenchmark.section2.TimeDate</string>
 	<key>PayloadUUID</key>
-	<string>271B7DA7-0CC9-4928-A9BF-2D1A9BEFD926</string>
+	<string>C352A927-0C49-4AB2-AC98-27CE9F3391D7</string>
 	<key>PayloadDisplayName</key>
 	<string>Turn on set time and date automatically</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.apple.applicationaccess</string>
 			<key>PayloadUUID</key>
-			<string>DF97B6F2-044F-41A7-A1B3-6B838A035A68</string>
+			<string>031F88EC-976F-4599-8532-DDB4809E2573</string>
 			<key>PayloadDisplayName</key>
 			<string>2.2.1 - Ensure Set time and date automatically is Enabled</string>
 			<key>forceAutomaticDateAndTime</key>

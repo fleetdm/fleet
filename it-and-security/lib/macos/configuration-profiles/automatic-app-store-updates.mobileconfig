@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>com.fleetdm.appstore.updates.FDCAEEFA-4FFE-4CFD-8C9D-DD718424BCAA</string>
 	<key>PayloadUUID</key>
-	<string>85373119-015A-4683-A506-26933698B537</string>
+	<string>FDCAEEFA-4FFE-4CFD-8C9D-DD718424BCAA</string>
 	<key>PayloadDisplayName</key>
 	<string>Turn on App Store automatic updates</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.appstore.updates.0BCF86EE-7163-4580-9EA8-2F01EA8CA059</string>
 			<key>PayloadUUID</key>
-			<string>DAE5F4B7-E9DA-47AC-B867-3F8C68FD704A</string>
+			<string>0BCF86EE-7163-4580-9EA8-2F01EA8CA059</string>
 			<key>AutomaticallyInstallAppUpdates</key>
 			<true/>
 			<key>PayloadDescription</key>

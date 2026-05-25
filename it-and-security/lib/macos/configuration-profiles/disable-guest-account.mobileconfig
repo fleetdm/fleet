@@ -23,6 +23,8 @@
 			<string>com.example.myaccountpayload</string>
 			<key>PayloadUUID</key>
 			<string>7D09119D-3019-4A39-A1BC-89B076142B4D</string>
+			<key>PayloadDisplayName</key>
+			<string>Disable Guest Account</string>
 			<key>DisableGuestAccount</key>
 			<true/>
 		</dict>

@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>cis.macOSBenchmark.Section6.SafariSafeFiles</string>
 	<key>PayloadUUID</key>
-	<string>ADCE9EF1-B05D-4D32-9599-8C4B703AAEA8</string>
+	<string>EC6020B6-EAF9-4632-BCD4-FE2A289EFF05</string>
 	<key>PayloadDisplayName</key>
 	<string>Disable Safari Safe Files</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>3589C72C-145C-43D1-85D9-7EECE1201775</string>
 			<key>PayloadUUID</key>
-			<string>2147345D-4DC3-446C-8F16-960063DA685E</string>
+			<string>3589C72C-145C-43D1-85D9-7EECE1201775</string>
 			<key>PayloadEnabled</key>
 			<true/>
 			<key>PayloadContent</key>

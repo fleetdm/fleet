@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>com.fleetdm.screen-lock-inactivity</string>
 	<key>PayloadUUID</key>
-	<string>BE2E4980-67E1-4FD0-89CB-47DB6FFAD4BF</string>
+	<string>AB1372A9-6297-4108-85C7-0CE557A507AE</string>
 	<key>PayloadDisplayName</key>
 	<string>Screen lock after inactivity</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.screen-lock-inactivity.screensaver</string>
 			<key>PayloadUUID</key>
-			<string>85B7D157-0A46-42C3-9F93-3FD704454963</string>
+			<string>0D9BCBE2-DA7A-40CD-9FCD-743F322677C2</string>
 			<!-- Start the screen saver after 15 minutes of inactivity (must be <= 900 to satisfy the policy). -->
 			<key>idleTime</key>
 			<integer>900</integer>

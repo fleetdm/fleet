@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>com.fleetdm.chrome.bookmarks</string>
 	<key>PayloadUUID</key>
-	<string>F48FF6C6-CC0D-4D99-82FE-5DA275441FC7</string>
+	<string>C3EEFE41-1918-484B-9053-568399159951</string>
 	<key>PayloadDisplayName</key>
 	<string>Google Chrome managed bookmarks</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.google.Chrome.Fleet.ManagedBookmarks</string>
 			<key>PayloadUUID</key>
-			<string>62BADA04-5FEC-48AE-B791-660889DBB5E7</string>
+			<string>BCEC63A3-F17A-4F73-8521-6E54927B3537</string>
 			<key>ManagedBookmarks</key>
 			<array>
 				<dict>

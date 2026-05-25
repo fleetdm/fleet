@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>cis.macOSBenchmark.section4.LibraryValidation</string>
 	<key>PayloadUUID</key>
-	<string>3BD11D62-C52E-4D16-B198-C8EE448593E4</string>
+	<string>5D7D35E5-541C-4A1A-9CBB-B1336455803B</string>
 	<key>PayloadDisplayName</key>
 	<string>Turn on Library Validation</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>065655A2-90A6-4ABB-8179-0E2F3E7ADC4F</string>
 			<key>PayloadUUID</key>
-			<string>2D4AEF9B-18A2-43B7-8FE2-92C0ABF9C2E9</string>
+			<string>065655A2-90A6-4ABB-8179-0E2F3E7ADC4F</string>
 			<key>PayloadDescription</key>
 			<string>Disables Library Validation</string>
 			<key>PayloadContent</key>

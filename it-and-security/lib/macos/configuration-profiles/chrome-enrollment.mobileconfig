@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>com.github.erikberglund.ProfileCreator.B6965621-36DF-46F6-839D-0F6591C9CA57</string>
 	<key>PayloadUUID</key>
-	<string>FCC667C4-3766-4E92-941E-4CA911EA6CCD</string>
+	<string>B6965621-36DF-46F6-839D-0F6591C9CA57</string>
 	<key>PayloadDisplayName</key>
 	<string>Enroll in managed Google Chrome</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.github.erikberglund.ProfileCreator.B6965621-36DF-46F6-839D-0F6591C9CA57.com.google.Chrome.3022549B-B3AA-45C2-B980-E63E5CDBBACE</string>
 			<key>PayloadUUID</key>
-			<string>4B6BE5F0-5C5E-4F02-A1AD-677DFEECD751</string>
+			<string>3022549B-B3AA-45C2-B980-E63E5CDBBACE</string>
 			<key>PayloadOrganization</key>
 			<string></string>
 			<key>CloudReportingEnabled</key>

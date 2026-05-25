@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>cis.macOSBenchmark.section2.InternetSharing</string>
 	<key>PayloadUUID</key>
-	<string>61FC4FDA-05D4-41EA-922C-5968C336138F</string>
+	<string>685F2446-2DDD-4840-A219-46703868B12B</string>
 	<key>PayloadDisplayName</key>
 	<string>Disable internet sharing</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>CIS.macOS.internetsharing</string>
 			<key>PayloadUUID</key>
-			<string>FAD5484A-A9AC-4574-B701-067BA5996923</string>
+			<string>CC8EE9F2-3AC3-45CB-8389-1873C9459A29</string>
 			<key>forceInternetSharingOff</key>
 			<true/>
 			<key>PayloadDisplayName</key>

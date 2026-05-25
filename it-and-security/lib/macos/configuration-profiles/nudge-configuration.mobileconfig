@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>com.fleetdm.nudge.managed</string>
 	<key>PayloadUUID</key>
-	<string>2F554729-CAAD-4F5F-A5FC-948D9DF8B443</string>
+	<string>4B4C950F-995A-4567-B0B2-9A34EB4C22AC</string>
 	<key>PayloadDisplayName</key>
 	<string>Nudge settings</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.nudge.preferences</string>
 			<key>PayloadUUID</key>
-			<string>75E35729-7B1B-4B35-8604-F6AFDCB6E443</string>
+			<string>69B22694-8FF8-40A0-AEE6-D5385BBF765D</string>
 			<key>osVersionRequirements</key>
 			<array>
 				<dict>
@@ -166,7 +166,7 @@ If you have any questions or need any assistance, please reach out via #help-it 
 				<key>utilizeSOFAFeed</key>
 				<true/>
 				<key>refreshSOFAFeedTime</key>
-				<string>300</string>
+				<integer>21600</integer>
 			</dict>
 		</dict>
 		<dict>
@@ -177,7 +177,7 @@ If you have any questions or need any assistance, please reach out via #help-it 
 			<key>PayloadIdentifier</key>
 			<string>com.apple.servicemanagement.9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
 			<key>PayloadUUID</key>
-			<string>BF921684-81A8-4429-95EB-79F5BD6F808E</string>
+			<string>9D50FED5-9183-456C-918F-51EBD9E4F95D</string>
 			<key>Rules</key>
 			<array>
 				<dict>

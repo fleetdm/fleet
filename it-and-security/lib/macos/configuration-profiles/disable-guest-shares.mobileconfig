@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>cis.macOSBenchmark.section5.GuestSharing</string>
 	<key>PayloadUUID</key>
-	<string>12079707-D14E-4B25-B468-81B52458A61B</string>
+	<string>86D6058B-C580-484C-A807-2E5EDA29A6DF</string>
 	<key>PayloadDisplayName</key>
 	<string>Disable guest access to shared folders</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>A09998F2-A265-453E-9A80-2FED489F085C</string>
 			<key>PayloadUUID</key>
-			<string>A3EEBB71-CBA4-43BC-8A3F-987947F052FB</string>
+			<string>A09998F2-A265-453E-9A80-2FED489F085C</string>
 			<key>PayloadDisplayName</key>
 			<string>Custom</string>
 			<key>PayloadContent</key>
@@ -54,7 +54,7 @@
 			<key>PayloadIdentifier</key>
 			<string>EEB04D28-6A3F-4D30-9A8D-B05E6002B46B</string>
 			<key>PayloadUUID</key>
-			<string>98810DF4-5E04-4471-9A03-2E63E819DCEA</string>
+			<string>EEB04D28-6A3F-4D30-9A8D-B05E6002B46B</string>
 			<key>PayloadEnabled</key>
 			<true/>
 			<key>PayloadContent</key>

@@ -106,7 +106,7 @@
 			<key>PayloadDescription</key>
 			<string>Identity preference for mTLS endpoints</string>
 			<key>PayloadCertificateUUID</key>
-			<string>478f8ebd-ded5-5808-962d-36da7aa06afe</string>
+			<string>E42B2DBC-DB2A-4DD8-A413-41E432842F2B</string>
 			<key>PayloadDisplayName</key>
 			<string>Fleet mTLS identity preference</string>
 			<key>Name</key>

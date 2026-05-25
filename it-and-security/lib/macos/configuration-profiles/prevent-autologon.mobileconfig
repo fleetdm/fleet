@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>cis.macOSBenchmark.section5.AutoLogin</string>
 	<key>PayloadUUID</key>
-	<string>E0E5DADC-5243-4783-90E4-EBEC6972B7E3</string>
+	<string>60A76297-E69F-4A31-838F-6FCCE793F57B</string>
 	<key>PayloadDisplayName</key>
 	<string>Turn off automatic login</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>CIS.macOS.autologin</string>
 			<key>PayloadUUID</key>
-			<string>348A1761-7CF5-471B-A704-BA886F858BC7</string>
+			<string>8C8382A1-04FF-48BE-8DE5-FF919836E0D4</string>
 			<key>com.apple.login.mcx.DisableAutoLoginClient</key>
 			<true/>
 			<key>PayloadDisplayName</key>

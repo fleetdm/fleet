@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>com.github.erikberglund.ProfileCreator.2C1ED825-A0C3-4274-B0AD-40B80FCA4F71</string>
 	<key>PayloadUUID</key>
-	<string>BBAB45FD-0687-4823-95F9-2F0AD66ADA54</string>
+	<string>2C1ED825-A0C3-4274-B0AD-40B80FCA4F71</string>
 	<key>PayloadDisplayName</key>
 	<string>Turn on full disk access for fleetd</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.github.erikberglund.ProfileCreator.2C1ED825-A0C3-4274-B0AD-40B80FCA4F71.com.apple.TCC.configuration-profile-policy.10C7E72A-C594-43B0-BB45-154848EBAED8</string>
 			<key>PayloadUUID</key>
-			<string>FA1E27E2-F7D7-4732-8FB8-17CB829C1523</string>
+			<string>10C7E72A-C594-43B0-BB45-154848EBAED8</string>
 			<key>PayloadDisplayName</key>
 			<string>Privacy Preferences Policy Control</string>
 			<key>PayloadDescription</key>

@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>cis.macOSBenchmark.section2.ContentCaching</string>
 	<key>PayloadUUID</key>
-	<string>E645FBD3-6BED-4DAF-8FB8-63CB5C310223</string>
+	<string>D1DCE625-F264-4F01-81A0-B091EABC89AF</string>
 	<key>PayloadDisplayName</key>
 	<string>Disable content caching</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.apple.applicationaccess.8647A91D-E292-4149-B6A3-DD87558C86BF</string>
 			<key>PayloadUUID</key>
-			<string>15236DA8-3DBB-430A-A072-65534483B774</string>
+			<string>4A37CAB3-28C4-41EC-892E-0A5B1721BAD0</string>
 			<key>allowContentCaching</key>
 			<false/>
 			<key>PayloadDisplayName</key>

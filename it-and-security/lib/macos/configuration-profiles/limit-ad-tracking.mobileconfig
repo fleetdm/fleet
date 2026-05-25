@@ -9,7 +9,7 @@
 	<key>PayloadIdentifier</key>
 	<string>cis.macOSBenchmark.section2.LimitAdTracking</string>
 	<key>PayloadUUID</key>
-	<string>8223865C-5A6F-455D-B258-67F88A0719B1</string>
+	<string>5C19E95A-31C7-4E0D-BC46-C343A0CB01DF</string>
 	<key>PayloadDisplayName</key>
 	<string>Turn off ad tracking and personalized ads</string>
 	<key>PayloadContent</key>
@@ -22,7 +22,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.apple.AdLib</string>
 			<key>PayloadUUID</key>
-			<string>FD399306-3C57-4C2B-91BC-0FFE613147A5</string>
+			<string>B46A5A38-4BB0-49E6-AC28-F4EB426774E8</string>
 			<key>forceLimitAdTracking</key>
 			<true/>
 			<key>PayloadDisplayName</key>
