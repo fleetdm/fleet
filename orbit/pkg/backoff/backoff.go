@@ -78,7 +78,7 @@ func (t *Tracker) Interval() time.Duration {
 		shift = 16
 	}
 	interval := t.baseInterval << shift
-	if interval > t.maxBackoff {
+	if interval <= 0 || interval > t.maxBackoff {
 		interval = t.maxBackoff
 	}
 
