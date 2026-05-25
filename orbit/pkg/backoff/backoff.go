@@ -93,8 +93,10 @@ func (t *Tracker) Interval() time.Duration {
 
 	shift := min(t.consecutiveFailures, maxShift)
 	interval := t.baseInterval << shift
+	// Shift back to detect overflow: if we don't get the original
+	// value, the left shift overflowed and the result is garbage.
 	if interval>>shift != t.baseInterval {
-		interval = t.maxBackoff // overflow
+		interval = t.maxBackoff
 	}
 	interval = min(interval, t.maxBackoff)
 	interval += jitter(interval)
