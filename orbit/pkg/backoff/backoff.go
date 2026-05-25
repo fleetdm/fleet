@@ -6,12 +6,7 @@
 // can integrate backoff into existing ticker-based loops.
 //
 // Each Tracker instance is independent -- one per communication path --
-// so a failure on one path does not affect another. For example, if
-// /device/{token}/desktop is returning 401s (orbit is quarantined and
-// can't rotate the token) but orbit's config polling is healthy,
-// Desktop's backoff keeps growing while orbit polls normally. Without
-// this isolation a single healthy path would reset all backoff counters
-// and the broken path would keep hammering the server at full rate.
+// so a healthy path cannot reset the backoff of a failing one.
 package backoff
 
 import (
