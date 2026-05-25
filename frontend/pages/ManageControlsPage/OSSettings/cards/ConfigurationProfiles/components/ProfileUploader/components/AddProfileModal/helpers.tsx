@@ -1,43 +1,3 @@
-import React from "react";
-
-import { IDropdownOption } from "interfaces/dropdownOption";
-
-export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
-  {
-    value: "labelsIncludeAll",
-    label: "Include all",
-    helpText: (
-      <>
-        Profile will only be applied to hosts that <b>have all</b> of these
-        labels.
-      </>
-    ),
-    disabled: false,
-  },
-  {
-    value: "labelsIncludeAny",
-    label: "Include any",
-    helpText: (
-      <>
-        Profile will only be applied to hosts that <b>have any</b> of these
-        labels.
-      </>
-    ),
-    disabled: false,
-  },
-  {
-    value: "labelsExcludeAny",
-    label: "Exclude any",
-    helpText: (
-      <>
-        Profile will only be applied to hosts that <b>don&apos;t have any</b> of
-        these labels.
-      </>
-    ),
-    disabled: false,
-  },
-];
-
 export const listNamesFromSelectedLabels = (dict: Record<string, boolean>) => {
   return Object.entries(dict).reduce((acc, [labelName, isSelected]) => {
     if (isSelected) {
@@ -49,14 +9,25 @@ export const listNamesFromSelectedLabels = (dict: Record<string, boolean>) => {
 
 export const generateLabelKey = (
   target: string,
-  customTargetOption: string,
-  selectedLabels: Record<string, boolean>
+  includeMode: "any" | "all",
+  includeLabels: Record<string, boolean>,
+  excludeMode: "any" | "all",
+  excludeLabels: Record<string, boolean>
 ) => {
   if (target !== "Custom") {
     return {};
   }
 
-  return {
-    [customTargetOption]: listNamesFromSelectedLabels(selectedLabels),
-  };
+  const result: Record<string, string[]> = {};
+  const includeNames = listNamesFromSelectedLabels(includeLabels);
+  const excludeNames = listNamesFromSelectedLabels(excludeLabels);
+  if (includeNames.length) {
+    result[includeMode === "all" ? "labelsIncludeAll" : "labelsIncludeAny"] =
+      includeNames;
+  }
+  if (excludeNames.length) {
+    result[excludeMode === "all" ? "labelsExcludeAll" : "labelsExcludeAny"] =
+      excludeNames;
+  }
+  return result;
 };

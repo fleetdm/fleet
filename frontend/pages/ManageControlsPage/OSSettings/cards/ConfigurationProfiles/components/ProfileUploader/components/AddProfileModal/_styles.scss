@@ -77,6 +77,13 @@
 
   &__target {
     margin: $pad-large 0;
+
+    .react-tabs__tab-panel {
+      display: flex;
+      flex-direction: column;
+      gap: $pad-medium;
+      padding-top: 0;
+    }
   }
 
   &__custom-label-chooser {
@@ -97,6 +104,30 @@
 
     span {
       color: $ui-fleet-black-75;
+    }
+  }
+
+  &__selected-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-xsmall;
+  }
+
+  &__selected-badge {
+    display: flex;
+    align-items: center;
+    gap: $pad-xxsmall;
+    padding: $pad-xxsmall $pad-small;
+    background-color: $ui-fleet-black-5;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 100px;
+    font-size: $xx-small;
+    cursor: pointer;
+    color: $ui-fleet-black-75;
+
+    &:hover {
+      background-color: $ui-fleet-black-10;
+      border-color: $ui-fleet-black-25;
     }
   }
 
