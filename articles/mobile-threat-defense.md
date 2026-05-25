@@ -52,7 +52,7 @@ When MTD detects a compromised device, the UEM console receives that risk assess
 
 ### MITRE ATT&CK Mobile framework alignment
 
-The MITRE ATT&CK Mobile Matrix classifies mobile threat techniques across 12 tactics spanning the attack lifecycle. It shares the core lifecycle structure with the Enterprise Matrix, including Initial Access, Persistence, Credential Access, and Command and Control. Techniques are scoped to how adversaries operate against Android and iOS specifically: drive-by compromise, lockscreen bypass, SIM card swap, accessibility feature abuse, and remote device management abuse. Many MTD vendors map their detection capabilities to ATT&CK Mobile techniques to communicate coverage.
+The MITRE ATT&CK Mobile Matrix classifies mobile threat techniques across 14 tactics spanning the attack lifecycle. It shares many tactics with the Enterprise Matrix: Initial Access, Persistence, Defense Evasion, and Command and Control. It also includes two tactics unique to mobile: Network Effects and Remote Service Effects. These cover adversary actions targeting device communications and remote service abuse without requiring local device access. Many MTD vendors map their detection capabilities to ATT&CK Mobile techniques to communicate coverage.
 
 This framework helps you understand what tactics and techniques vendors claim to detect on Android and iOS. Vendor-provided mappings make it possible to compare coverage across products and identify gaps in your detection strategy.
 
@@ -62,7 +62,7 @@ MTD works as a risk assessment layer that plugs into your existing device manage
 
 ## How Fleet complements mobile threat defense
 
-The detection capabilities covered in this guide generate risk signals that need somewhere to land. Fleet ingests MTD risk signals through its REST API and webhook automations, or indirectly through the identity provider's conditional access layer. When risk elevates, Fleet's conditional access integrations with Okta and Microsoft Entra ID can block authentication before a session starts. [Automated remediation](https://fleetdm.com/guides/automations) goes a step further, running scripts or installing software when devices fail compliance checks, alongside configuration profile enforcement. Fleet also handles MTD agent deployment and configuration through standard MDM channels, removing the user-friction barrier that often slows MTD rollouts.
+The detection capabilities covered in this guide generate risk signals that need somewhere to land. In a typical setup, the MTD product feeds risk signals into the identity provider's conditional access layer. When risk elevates, Fleet's conditional access integrations with Okta and Microsoft Entra ID can block authentication before a session starts based on each device's policy status. [Automated remediation](https://fleetdm.com/guides/automations) goes a step further, running scripts or installing software when devices fail compliance checks, alongside configuration profile enforcement. Fleet also handles MTD agent deployment and configuration through standard MDM channels, removing the user-friction barrier that often slows MTD rollouts.
 
 Fleet's [GitOps-native configuration](https://fleetdm.com/releases/fleet-introduces-mdm) management stores device configurations, compliance checks, and remediation workflows in version control. Changes go through code review before deploying, giving security and IT teams an audit trail for every configuration change across macOS, Windows, Linux, iOS, iPadOS, and Android.
 
@@ -86,9 +86,9 @@ Deployment timelines depend on fleet size and existing infrastructure. Organizat
 
 Most enterprise MTD products support both iOS and Android through a single product, though detection capabilities differ based on platform APIs. iOS restrictions limit deep system monitoring but reduce malware risk, while Android provides broader security product access but faces greater application threat exposure. Configure platform-specific policies within your unified MTD product rather than deploying separate products. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet manages iOS, Android, macOS, Windows, and Linux from a single console.
 
-<meta name="articleTitle" value="Mobile Threat Defense: Protect iOS & Android Devices in 2026">
+<meta name="articleTitle" value="Mobile threat defense: What it detects and how it works">
 <meta name="authorFullName" value="Ashish Kuthiala">
 <meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-08">
-<meta name="description" value="Learn how mobile threat defense detects phishing, network attacks, and malicious apps on iOS and Android, plus what to look for in an MTD product.">
+<meta name="publishedOn" value="2026-05-25">
+<meta name="description" value="Learn how mobile threat defense detects phishing, network attacks, and malicious apps on iOS and Android, and how it pairs with device management.">
