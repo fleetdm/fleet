@@ -55,15 +55,7 @@ const AutomationsModal = ({
   onExit,
 }: IAutomationsModalProps): JSX.Element | null => {
   const queryClient = useQueryClient();
-  const {
-    setConfig,
-    isGlobalAdmin,
-    isTeamAdmin,
-    isGlobalMaintainer,
-    isTeamMaintainer,
-  } = useContext(AppContext);
-  const isAdmin = isGlobalAdmin || isTeamAdmin;
-  const isMaintainer = isGlobalMaintainer || isTeamMaintainer;
+  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const otherFormRef = useRef<IOtherWorkflowsModalHandle>(null);
@@ -223,27 +215,25 @@ const AutomationsModal = ({
       isContentDisabled={isUpdating}
     >
       <div className={`${baseClass}__body`}>
-        {isAdmin && (
-          <section className={`${baseClass}__section`}>
-            {!isAllTeamsSelected && (
-              <h2 className={`${baseClass}__section-title`}>
-                Webhooks or tickets
-              </h2>
-            )}
-            <OtherWorkflowsModal
-              ref={otherFormRef}
-              router={router}
-              automationsConfig={automationsConfig}
-              availableIntegrations={availableIntegrations}
-              gitOpsModeEnabled={gitOpsModeEnabled}
-            />
-          </section>
-        )}
+        <section className={`${baseClass}__section`}>
+          {!isAllTeamsSelected && (
+            <h2 className={`${baseClass}__section-title`}>
+              Webhooks or tickets
+            </h2>
+          )}
+          <OtherWorkflowsModal
+            ref={otherFormRef}
+            router={router}
+            automationsConfig={automationsConfig}
+            availableIntegrations={availableIntegrations}
+            gitOpsModeEnabled={gitOpsModeEnabled}
+          />
+        </section>
 
-        {!isAllTeamsSelected && (isAdmin || isMaintainer) && (
+        {!isAllTeamsSelected && (
           <>
-            {isAdmin && <hr className={`${baseClass}__divider`} />}
-            <section className={`${baseClass}__section ${baseClass}__section`}>
+            <hr className={`${baseClass}__divider`} />
+            <section className={`${baseClass}__section`}>
               <div className={`${baseClass}__calendar-events-title-wrapper`}>
                 <h2 className={`${baseClass}__section-title`}>
                   Calendar events
@@ -275,23 +265,19 @@ const AutomationsModal = ({
               />
             </section>
 
-            {isAdmin && (
-              <>
-                <hr className={`${baseClass}__divider`} />
-                <section className={`${baseClass}__section`}>
-                  <h2 className={`${baseClass}__section-title`}>
-                    Conditional access
-                  </h2>
-                  <ConditionalAccessModal
-                    ref={conditionalAccessFormRef}
-                    configured={isCAConfigured}
-                    enabled={isCAEnabled}
-                    gitOpsModeEnabled={gitOpsModeEnabled}
-                    providerText={conditionalAccessProviderText}
-                  />
-                </section>
-              </>
-            )}
+            <hr className={`${baseClass}__divider`} />
+            <section className={`${baseClass}__section`}>
+              <h2 className={`${baseClass}__section-title`}>
+                Conditional access
+              </h2>
+              <ConditionalAccessModal
+                ref={conditionalAccessFormRef}
+                configured={isCAConfigured}
+                enabled={isCAEnabled}
+                gitOpsModeEnabled={gitOpsModeEnabled}
+                providerText={conditionalAccessProviderText}
+              />
+            </section>
           </>
         )}
       </div>

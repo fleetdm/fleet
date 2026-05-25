@@ -6,7 +6,7 @@ import { createCustomRenderer } from "test/test-utils";
 import CalendarEventsModal from "./CalendarEventsModal";
 
 describe("CalendarEventsModal - component", () => {
-  it("renders form fields for admin when configured", () => {
+  it("renders form fields when configured", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -27,25 +27,38 @@ describe("CalendarEventsModal - component", () => {
     expect(screen.queryByText(/Resolution webhook URL/i)).toBeInTheDocument();
   });
 
-  it("hides admin-only fields for team maintainer", () => {
+  it("renders the not-configured placeholder copy for a global admin with a link to Settings", () => {
     const render = createCustomRenderer({
       context: {
         app: {
-          isTeamMaintainer: true,
+          isGlobalAdmin: true,
         },
       },
     });
 
-    render(
-      <CalendarEventsModal
-        configured
-        enabled
-        url="https://server.com/example"
-      />
-    );
+    render(<CalendarEventsModal configured={false} enabled={false} url="" />);
 
     expect(
-      screen.queryByText(/Resolution webhook URL/i)
+      screen.getByRole("link", { name: /Settings.*Integrations.*Calendars/i })
+    ).toBeInTheDocument();
+  });
+
+  it("renders the not-configured placeholder copy without a link for a team admin", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isTeamAdmin: true,
+        },
+      },
+    });
+
+    render(<CalendarEventsModal configured={false} enabled={false} url="" />);
+
+    expect(
+      screen.queryByRole("link", {
+        name: /Settings.*Integrations.*Calendars/i,
+      })
     ).not.toBeInTheDocument();
+    expect(screen.getByText(/Settings/i)).toBeInTheDocument();
   });
 });

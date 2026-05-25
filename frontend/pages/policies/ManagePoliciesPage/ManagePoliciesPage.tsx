@@ -365,12 +365,7 @@ const ManagePolicyPage = ({
   const canAddOrDeletePolicies =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
 
-  // On the "All fleets" view the only available section in AutomationsModal is
-  // Webhooks or tickets, which is admin-only. Hide the button entirely for
-  // maintainers (and below) in that view so they don't open an empty modal.
-  const canManageAutomations = isAllTeamsSelected
-    ? isGlobalAdmin || isTeamAdmin
-    : canAddOrDeletePolicies;
+  const canEditAutomationsSettings = isGlobalAdmin || isTeamAdmin;
 
   const { data: globalConfig, isFetching: isFetchingGlobalConfig } = useQuery<
     IConfig,
@@ -797,7 +792,7 @@ const ManagePolicyPage = ({
           isFiltered={!!automationFilter}
           otherAutomationType={otherAutomationType}
           onOpenManageAutomationsModal={
-            canManageAutomations ? onOpenManageAutomationsModal : undefined
+            canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
           }
         />
       );
@@ -841,7 +836,7 @@ const ManagePolicyPage = ({
           isFiltered={!!automationFilter}
           otherAutomationType={otherAutomationType}
           onOpenManageAutomationsModal={
-            canManageAutomations ? onOpenManageAutomationsModal : undefined
+            canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
           }
         />
       </div>
@@ -849,7 +844,7 @@ const ManagePolicyPage = ({
   };
 
   let automationsButton = null;
-  if (canManageAutomations) {
+  if (canEditAutomationsSettings) {
     automationsButton = (
       <Button
         className={`${baseClass}__automations-button`}

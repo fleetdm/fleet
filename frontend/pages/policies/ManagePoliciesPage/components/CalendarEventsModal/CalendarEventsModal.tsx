@@ -47,14 +47,7 @@ const CalendarEventsModal = forwardRef<
     }: ICalendarEventsModalProps,
     ref
   ) => {
-    const {
-      isGlobalAdmin,
-      isTeamAdmin,
-      isGlobalMaintainer,
-      isTeamMaintainer,
-    } = useContext(AppContext);
-    const isAdmin = isGlobalAdmin || isTeamAdmin;
-    const isMaintainer = isGlobalMaintainer || isTeamMaintainer;
+    const { isGlobalAdmin } = useContext(AppContext);
 
     const [formData, setFormData] = useState<ICalendarEventsModalData>({
       enabled,
@@ -169,7 +162,7 @@ const CalendarEventsModal = forwardRef<
               .
             </InfoBanner>
           )}
-          {configured && isAdmin && (
+          {configured && (
             <>
               <Slider
                 value={formData.enabled}
@@ -205,19 +198,6 @@ const CalendarEventsModal = forwardRef<
                 />
                 {showExamplePayload && renderExamplePayload()}
               </div>
-            </>
-          )}
-          {configured && isMaintainer && (
-            <>
-              <RevealButton
-                isShowing={showExamplePayload}
-                className={`${baseClass}__show-example-payload-toggle`}
-                hideText="Hide example payload"
-                showText="Show example payload"
-                caretPosition="after"
-                onClick={() => setShowExamplePayload(!showExamplePayload)}
-              />
-              {showExamplePayload && renderExamplePayload()}
             </>
           )}
         </div>
