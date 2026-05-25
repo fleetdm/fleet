@@ -569,6 +569,30 @@ func (ds *Datastore) ListAppleDeclarationsForReconcile(ctx context.Context) ([]*
 		d.IncludeMode = ia.mode
 	}
 
+	// Mark declarations that reference Fleet variables. The batched DDM
+	// reconciler uses this to set host_mdm_apple_declarations.variables_updated_at
+	// on install rows, mirroring the legacy setVariablesUpdatedAtForDeclarations.
+	declUUIDs := make([]string, 0, len(byUUID))
+	for u := range byUUID {
+		declUUIDs = append(declUUIDs, u)
+	}
+	if len(declUUIDs) > 0 {
+		const varsStmt = `SELECT DISTINCT apple_declaration_uuid FROM mdm_configuration_profile_variables WHERE apple_declaration_uuid IN (?)`
+		q, args, err := sqlx.In(varsStmt, declUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build apple declaration variables query")
+		}
+		var withVars []string
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &withVars, q, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple declarations with fleet variables")
+		}
+		for _, u := range withVars {
+			if d, ok := byUUID[u]; ok {
+				d.HasFleetVariables = true
+			}
+		}
+	}
+
 	return out, nil
 }
 
@@ -660,7 +684,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 	const baseStmt = `
 		INSERT INTO host_mdm_apple_declarations
 		  (host_uuid, declaration_uuid, declaration_identifier, declaration_name,
-		   status, operation_type, token, secrets_updated_at)
+		   status, operation_type, token, secrets_updated_at, variables_updated_at)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		  status = VALUES(status),
@@ -668,7 +692,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		  token = VALUES(token),
 		  declaration_identifier = VALUES(declaration_identifier),
 		  declaration_name = VALUES(declaration_name),
-		  secrets_updated_at = VALUES(secrets_updated_at)
+		  secrets_updated_at = VALUES(secrets_updated_at),
+		  variables_updated_at = VALUES(variables_updated_at)
 	`
 
 	const batchSize = 1000
@@ -677,12 +702,12 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		batch := rows[i:end]
 
 		valueParts := make([]string, 0, len(batch))
-		args := make([]any, 0, len(batch)*8)
+		args := make([]any, 0, len(batch)*9)
 		for _, r := range batch {
-			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?)")
+			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?)")
 			args = append(args,
 				r.HostUUID, r.DeclarationUUID, r.Identifier, r.Name,
-				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt,
+				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt,
 			)
 		}
 

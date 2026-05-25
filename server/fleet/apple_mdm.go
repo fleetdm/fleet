@@ -557,6 +557,13 @@ type AppleDeclarationForReconcile struct {
 	IncludeMode           AppleProfileIncludeMode
 	IncludeLabels         []AppleProfileLabelRef
 	ExcludeLabels         []AppleProfileLabelRef
+	// HasFleetVariables is true if the declaration references any
+	// $FLEET_VAR_* / FLEET_SECRET_* placeholder. The batched DDM
+	// reconciler sets VariablesUpdatedAt on the host declaration row
+	// when this is true, mirroring the legacy
+	// setVariablesUpdatedAtForDeclarations behavior so the host knows
+	// to re-deliver when variable values change.
+	HasFleetVariables bool
 }
 
 // AppleLabeledEntity implementation.
