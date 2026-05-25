@@ -71,21 +71,15 @@ func (t *Tracker) Interval() time.Duration {
 		return t.baseInterval
 	}
 
-	// Calculate the exponential interval, clamping before overflow.
-	// Once 2^shift * baseInterval exceeds maxBackoff the result is
-	// clamped, so we can stop shifting early.
-	interval := t.maxBackoff
+	// Cap shift at 16 to keep the math simple. With a 10s base,
+	// 2^8 already exceeds a 30min cap, so 16 is more than enough.
 	shift := t.consecutiveFailures
-	if shift <= 62 {
-		candidate := t.baseInterval
-		for range shift {
-			candidate *= 2
-			if candidate >= t.maxBackoff || candidate <= 0 {
-				candidate = t.maxBackoff
-				break
-			}
-		}
-		interval = candidate
+	if shift > 16 {
+		shift = 16
+	}
+	interval := t.baseInterval << shift
+	if interval > t.maxBackoff {
+		interval = t.maxBackoff
 	}
 
 	// Add jitter: uniform random in [0, 10% of interval].
