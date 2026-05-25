@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +22,7 @@ import (
 // exponentially, then resets on recovery.
 func TestManualBackoffAgainstHTTPServer(t *testing.T) {
 	// --- Set up a test server that we can toggle between healthy and error ---
-	var serverStatus int = http.StatusOK
+	var serverStatus = http.StatusOK
 	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(serverStatus)
 		fmt.Fprintf(w, `{"status":%d}`, serverStatus)
@@ -143,12 +144,10 @@ func TestManualBackoffServerDown(t *testing.T) {
 	tracker := New(base, maxB)
 
 	// Point at a port nothing listens on
-	client := &http.Client{
-		Timeout: 100 * time.Millisecond,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // test only
-		},
-	}
+	client := fleethttp.NewClient(
+		fleethttp.WithTimeout(100*time.Millisecond),
+		fleethttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}), //nolint:gosec // test only
+	)
 
 	ticker := time.NewTicker(base)
 	defer ticker.Stop()

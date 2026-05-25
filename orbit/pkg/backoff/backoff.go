@@ -91,7 +91,7 @@ func (t *Tracker) Interval() time.Duration {
 	// Add jitter: uniform random in [0, 10% of interval].
 	tenthInterval := int64(interval / 10)
 	if tenthInterval > 0 {
-		jitter := time.Duration(rand.Int64N(tenthInterval))
+		jitter := time.Duration(rand.Int64N(tenthInterval)) //nolint:gosec // jitter does not need cryptographic randomness
 		interval += jitter
 	}
 
