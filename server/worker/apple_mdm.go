@@ -40,23 +40,20 @@ const (
 )
 
 // AppleMDM is the job processor for the apple_mdm job.
-// ReconcileAppleProfilesForHostFn is the signature implemented by
-// service.ReconcileAppleProfilesForHost. Injected through this field
-// instead of imported directly to avoid an import cycle (the service
-// package already imports the worker package).
-type ReconcileAppleProfilesForHostFn func(
-	ctx context.Context,
-	hostUUID string,
-) ([]string, error)
-
+// CertProfilesLimit is the per-tick CA-profile throttle used by the
+// shared apple_mdm.ReconcileProfilesForHost path. Set by the cron
+// constructor in cmd/fleet/cron.go from the config (defaults to 0 in
+// tests, which disables CA throttling — fine since tests rarely exercise
+// CA profiles and the per-host path bypasses throttling for recently
+// enrolled hosts anyway).
 type AppleMDM struct {
-	Datastore                    fleet.Datastore
-	Log                          *slog.Logger
-	Commander                    *apple_mdm.MDMAppleCommander
-	BootstrapPackageStore        fleet.MDMBootstrapPackageStore
-	VPPInstaller                 fleet.AppleMDMVPPInstaller
-	NewActivityFn                fleet.NewActivityFunc
-	ReconcileAppleProfilesForHost ReconcileAppleProfilesForHostFn
+	Datastore             fleet.Datastore
+	Log                   *slog.Logger
+	Commander             *apple_mdm.MDMAppleCommander
+	BootstrapPackageStore fleet.MDMBootstrapPackageStore
+	VPPInstaller          fleet.AppleMDMVPPInstaller
+	NewActivityFn         fleet.NewActivityFunc
+	CertProfilesLimit     int
 }
 
 // Name returns the name of the job.
@@ -762,31 +759,18 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 // installProfilesForEnrollingHost installs all configuration profiles for the host immediately after enrollment
 // to speed up the setup experience process. This runs before the reconciler cycle.
 //
-// It delegates to the injected ReconcileAppleProfilesForHost (in production,
-// service.ReconcileAppleProfilesForHost), which reuses the same in-memory
-// desired-state / label / diff pipeline that the batched cron uses — so the
-// worker and cron can never drift on what should be installed for a given
-// host. The worker still emits the DeclarativeManagement command afterwards
-// so DDM syncs start as soon as enrollment completes.
-//
-// If the dependency isn't injected (worker constructed without
-// ReconcileAppleProfilesForHost — typical in tests), we log a warning and
-// skip the per-host install. The cron tick will pick the host up on its
-// next pass; the post-enrollment speedup is just an optimisation, not a
-// correctness requirement.
+// It delegates to apple_mdm.ReconcileProfilesForHost, which reuses the
+// same in-memory desired-state / label / diff pipeline that the batched
+// cron uses — so the worker and cron can never drift on what should be
+// installed for a given host. The worker still emits the
+// DeclarativeManagement command afterwards so DDM syncs start as soon
+// as enrollment completes.
 func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID string) ([]string, error) {
 	a.Log.InfoContext(ctx, "installing profiles post-enrollment", "host_uuid", hostUUID)
 
-	var cmdUUIDs []string
-	if a.ReconcileAppleProfilesForHost != nil {
-		var err error
-		cmdUUIDs, err = a.ReconcileAppleProfilesForHost(ctx, hostUUID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "reconcile apple profiles for enrolling host")
-		}
-	} else {
-		a.Log.WarnContext(ctx, "AppleMDM worker has no ReconcileAppleProfilesForHost dependency; deferring to cron",
-			"host_uuid", hostUUID)
+	cmdUUIDs, err := apple_mdm.ReconcileProfilesForHost(ctx, a.Datastore, a.Commander, a.Log, hostUUID, a.CertProfilesLimit)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reconcile apple profiles for enrolling host")
 	}
 
 	a.Log.InfoContext(ctx, "successfully queued profiles from apple mdm worker",

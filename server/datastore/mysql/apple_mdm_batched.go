@@ -548,6 +548,13 @@ func (ds *Datastore) BulkGetHostMDMAppleDeclarationsByUUIDs(
 		return out, nil
 	}
 
+	// host_mdm_apple_declarations.token is binary(16). Selecting it
+	// directly lets the MySQL driver return raw bytes that sqlx scans
+	// into MDMAppleHostDeclaration.Token (string holding raw bytes) —
+	// matching how the legacy DDM code reads the same column. The diff
+	// in computeAppleDeclarationDeltas compares this against
+	// AppleDeclarationForReconcile.Token ([]byte, also raw bytes), so
+	// both sides are the same 16-byte binary content.
 	const stmt = `
 		SELECT
 			host_uuid,
@@ -557,7 +564,7 @@ func (ds *Datastore) BulkGetHostMDMAppleDeclarationsByUUIDs(
 			status,
 			operation_type,
 			COALESCE(detail, '') AS detail,
-			HEX(token) AS token,
+			token,
 			secrets_updated_at,
 			variables_updated_at
 		FROM host_mdm_apple_declarations
@@ -636,7 +643,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		valueParts := make([]string, 0, len(batch))
 		args := make([]any, 0, len(batch)*8)
 		for _, r := range batch {
-			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, UNHEX(?), ?)")
+			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?)")
 			args = append(args,
 				r.HostUUID, r.DeclarationUUID, r.Identifier, r.Name,
 				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt,

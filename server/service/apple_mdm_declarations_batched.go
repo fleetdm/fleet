@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -21,12 +20,12 @@ var reconcileAppleDeclarationsBatchSize = 5000
 // ReconcileAppleProfilesBatched. It pulls one bounded host window per
 // tick, evaluates desired declaration state per host in memory using the
 // SAME label/team/platform dispatcher and handlers as the profile
-// reconciler (appleEntityAppliesToHost), diffs against current
+// reconciler (apple_mdm.EntityAppliesToHost), diffs against current
 // host_mdm_apple_declarations rows, writes the diffed state, and kicks a
 // DeclarativeManagement command on changed hosts so they fetch the new
 // declarations.
 //
-// Sharing the appleEntityAppliesToHost dispatcher is the whole point:
+// Sharing the apple_mdm.EntityAppliesToHost dispatcher is the whole point:
 // profile and declaration label-membership semantics cannot drift because
 // there's only one implementation.
 func ReconcileAppleDeclarationsBatched(
@@ -133,7 +132,7 @@ func ReconcileAppleDeclarationsBatched(
 		return ctxerr.Wrap(ctx, err, "bulk get host mdm apple declarations")
 	}
 
-	changedHostUUIDs, declRowsToWrite := computeAppleDeclarationDeltas(
+	changedHostUUIDs, declRowsToWrite := apple_mdm.ComputeDeclarationDeltas(
 		hosts, hostLabels, currentByHost, declsByTeam,
 	)
 
@@ -144,8 +143,7 @@ func ReconcileAppleDeclarationsBatched(
 		return nil
 	}
 
-	// Persist the pending host_mdm_apple_declarations rows.
-	if err := bulkUpsertHostMDMAppleDeclarations(ctx, ds, declRowsToWrite); err != nil {
+	if err := ds.BulkUpsertMDMAppleHostDeclarations(ctx, declRowsToWrite); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk upsert host mdm apple declarations")
 	}
 
@@ -158,139 +156,4 @@ func ReconcileAppleDeclarationsBatched(
 	}
 
 	return nil
-}
-
-// computeAppleDeclarationDeltas is the DDM equivalent of
-// computeAppleReconcileDeltas. It uses the SHARED
-// appleEntityAppliesToHost dispatcher to decide which declarations apply
-// to each host — same code path the profile reconciler runs against —
-// then diffs against the current host_mdm_apple_declarations rows.
-//
-// Returns:
-//   - changedHostUUIDs: the set of host UUIDs that have at least one
-//     install or remove diff, so the caller can target a single
-//     DeclarativeManagement command per host.
-//   - declRowsToWrite: the upsert payloads for host_mdm_apple_declarations
-//     setting pending status for the diff'd rows.
-func computeAppleDeclarationDeltas(
-	hosts []*fleet.AppleHostReconcileInfo,
-	hostLabels map[uint]map[uint]struct{},
-	currentByHost map[string][]*fleet.MDMAppleHostDeclaration,
-	declsByTeam map[uint][]*fleet.AppleDeclarationForReconcile,
-) (changedHostUUIDs []string, declRowsToWrite []*fleet.MDMAppleHostDeclaration) {
-	pendingStatus := fleet.MDMDeliveryPending
-	changedSet := make(map[string]struct{})
-
-	for _, host := range hosts {
-		teamDecls := declsByTeam[host.EffectiveTeamID()]
-		desired := make(map[string]*fleet.AppleDeclarationForReconcile, len(teamDecls))
-
-		labelsForHost := hostLabels[host.HostID]
-
-		for _, d := range teamDecls {
-			if !appleEntityAppliesToHost(d, host, labelsForHost) {
-				continue
-			}
-			desired[d.DeclarationUUID] = d
-		}
-
-		current := currentByHost[host.UUID]
-		currentByDecl := make(map[string]*fleet.MDMAppleHostDeclaration, len(current))
-		for _, c := range current {
-			currentByDecl[c.DeclarationUUID] = c
-		}
-
-		// INSTALL diffs: desired declarations that aren't in current state,
-		// have a token mismatch, or are flagged for re-install.
-		for declUUID, d := range desired {
-			c, present := currentByDecl[declUUID]
-			needsInstall := false
-			switch {
-			case !present:
-				needsInstall = true
-			case !bytes.Equal([]byte(c.Token), d.Token):
-				needsInstall = true
-			case d.SecretsUpdatedAt != nil && (c.SecretsUpdatedAt == nil || c.SecretsUpdatedAt.Before(*d.SecretsUpdatedAt)):
-				needsInstall = true
-			case c.OperationType == "" || c.OperationType == fleet.MDMOperationTypeRemove:
-				needsInstall = true
-			case c.OperationType == fleet.MDMOperationTypeInstall && c.Status == nil:
-				needsInstall = true
-			}
-			if !needsInstall {
-				continue
-			}
-
-			declRowsToWrite = append(declRowsToWrite, &fleet.MDMAppleHostDeclaration{
-				HostUUID:         host.UUID,
-				DeclarationUUID:  d.DeclarationUUID,
-				Name:             d.DeclarationName,
-				Identifier:       d.DeclarationIdentifier,
-				Status:           &pendingStatus,
-				OperationType:    fleet.MDMOperationTypeInstall,
-				Token:            string(d.Token),
-				SecretsUpdatedAt: d.SecretsUpdatedAt,
-			})
-			changedSet[host.UUID] = struct{}{}
-		}
-
-		// REMOVE diffs: current rows whose declaration is no longer desired,
-		// excluding remove-with-non-NULL-status (already in flight/done) and
-		// broken-label declarations (legacy behavior: never auto-remove).
-		for declUUID, c := range currentByDecl {
-			if _, stillDesired := desired[declUUID]; stillDesired {
-				continue
-			}
-			if c.OperationType == fleet.MDMOperationTypeRemove && c.Status != nil {
-				continue
-			}
-			if isBrokenAppleDeclaration(declUUID, declsByTeam) {
-				continue
-			}
-
-			declRowsToWrite = append(declRowsToWrite, &fleet.MDMAppleHostDeclaration{
-				HostUUID:         host.UUID,
-				DeclarationUUID:  c.DeclarationUUID,
-				Name:             c.Name,
-				Identifier:       c.Identifier,
-				Status:           &pendingStatus,
-				OperationType:    fleet.MDMOperationTypeRemove,
-				Token:            c.Token,
-				SecretsUpdatedAt: c.SecretsUpdatedAt,
-			})
-			changedSet[host.UUID] = struct{}{}
-		}
-	}
-
-	changedHostUUIDs = make([]string, 0, len(changedSet))
-	for u := range changedSet {
-		changedHostUUIDs = append(changedHostUUIDs, u)
-	}
-	return changedHostUUIDs, declRowsToWrite
-}
-
-// bulkUpsertHostMDMAppleDeclarations writes the diff'd
-// host_mdm_apple_declarations rows. Kept as a tiny helper close to the
-// reconciler so the upsert SQL stays beside the code that produces the
-// payloads it expects.
-func bulkUpsertHostMDMAppleDeclarations(
-	ctx context.Context,
-	ds fleet.Datastore,
-	rows []*fleet.MDMAppleHostDeclaration,
-) error {
-	// Reuse the existing datastore helper if it exists; otherwise fall
-	// back to writing through MDMAppleStoreDDMStatusReport-style logic.
-	// For now we route through the existing MDMAppleBatchSetHostDeclarationState
-	// pathway via a thin wrapper. This is deliberately conservative —
-	// the goal of the batched reconciler is the *desired state*
-	// computation, not the upsert mechanics, which already exist.
-	//
-	// Implementation note: to stay symmetric with the profile path and
-	// avoid duplicating SQL, we use the existing
-	// MDMAppleStoreDDMStatusReport... wait, no — that handles incoming
-	// device reports. We need the upsert path used by
-	// mdmAppleBatchSetPendingHostDeclarationsDB.
-	//
-	// Until a clean public helper exists, expose a thin datastore method.
-	return ds.BulkUpsertMDMAppleHostDeclarations(ctx, rows)
 }

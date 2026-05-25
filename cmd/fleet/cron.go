@@ -1223,9 +1223,7 @@ func newAppleMDMWorkerSchedule(
 		BootstrapPackageStore: bootstrapPackageStore,
 		VPPInstaller:          vppInstaller,
 		NewActivityFn:         newActivityFn,
-		ReconcileAppleProfilesForHost: func(ctx context.Context, hostUUID string) ([]string, error) {
-			return service.ReconcileAppleProfilesForHost(ctx, ds, commander, logger, hostUUID, certProfilesLimit)
-		},
+		CertProfilesLimit:     certProfilesLimit,
 	}
 
 	w.Register(appleMDM)
