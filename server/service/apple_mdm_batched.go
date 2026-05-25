@@ -215,9 +215,104 @@ func ReconcileAppleProfilesBatched(
 	// From here on, everything mirrors the legacy ReconcileAppleProfiles
 	// post-listing logic so all downstream behaviour (CA throttle, user-
 	// enrollment fallback, host-being-set-up skip, retry on failed enqueue)
-	// is identical.
-	return executeAppleReconcileBatch(
+	// is identical. The cron path discards the succeeded cmd UUIDs.
+	_, err = executeAppleReconcileBatch(
 		ctx, ds, commander, redisKeyValue, logger,
+		appConfig, certProfilesLimit, toInstall, toRemove,
+	)
+	return err
+}
+
+// ReconcileAppleProfilesForHost runs the same desired-state / diff / enqueue
+// pipeline as ReconcileAppleProfilesBatched but scoped to a single host.
+// It returns the list of successfully enqueued command UUIDs so the caller
+// (the apple_mdm worker, post-enrollment) can wait on them.
+//
+// Differences from the cron path:
+//
+//   - One host instead of a batched window; no cursor.
+//   - The "host being set up" Redis check is skipped (redisKeyValue=nil),
+//     because by construction the host IS being set up and we want the
+//     profiles installed immediately.
+//   - CA throttling still applies through executeAppleReconcileBatch, but
+//     freshly-enrolled hosts bypass it automatically (the existing
+//     `recentlyEnrolled` clause within executeAppleReconcileBatch).
+//
+// Returns (nil, nil) when MDM is disabled, the host isn't enrolled, or there
+// is no work to do.
+func ReconcileAppleProfilesForHost(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger *slog.Logger,
+	hostUUID string,
+	certProfilesLimit int,
+) ([]string, error) {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("reading app config: %w", err)
+	}
+	if !appConfig.MDM.EnabledAndConfigured {
+		return nil, nil
+	}
+
+	host, err := ds.GetAppleMDMHostForReconcile(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get apple mdm host for reconcile")
+	}
+	if host == nil {
+		// Not enrolled, wrong platform, or no nano_devices row yet.
+		return nil, nil
+	}
+
+	allProfiles, err := ds.ListAppleProfilesForReconcile(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing apple profiles for reconcile")
+	}
+
+	profilesByTeam := make(map[uint][]*fleet.AppleProfileForReconcile, 4)
+	labelIDSet := make(map[uint]struct{})
+	for _, p := range allProfiles {
+		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+		for _, lr := range p.IncludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+		for _, lr := range p.ExcludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+	}
+	labelIDs := make([]uint, 0, len(labelIDSet))
+	for id := range labelIDSet {
+		labelIDs = append(labelIDs, id)
+	}
+
+	hostLabels, err := ds.BulkGetHostLabelMemberships(ctx, []uint{host.HostID}, labelIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk get host label memberships")
+	}
+
+	currentByHost, err := ds.BulkGetHostMDMAppleProfilesByUUIDs(ctx, []string{host.UUID})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk get host mdm apple profiles")
+	}
+
+	toInstall, toRemove := computeAppleReconcileDeltas(
+		[]*fleet.AppleHostReconcileInfo{host}, hostLabels, currentByHost, profilesByTeam,
+	)
+	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
+
+	if len(toInstall) == 0 && len(toRemove) == 0 {
+		return nil, nil
+	}
+
+	// nil redisKeyValue → skip the "host being set up" check. By
+	// construction this host IS being set up.
+	return executeAppleReconcileBatch(
+		ctx, ds, commander, nil, logger,
 		appConfig, certProfilesLimit, toInstall, toRemove,
 	)
 }
@@ -474,6 +569,14 @@ func isBrokenAppleProfile(profileUUID string, profilesByTeam map[uint][]*fleet.A
 // in-memory toInstall/toRemove sets produced by the batched listing path.
 // It is intentionally a near-clone of the corresponding section of
 // ReconcileAppleProfiles so that semantic parity is easy to audit.
+//
+// Returns the list of successfully enqueued command UUIDs. Callers that
+// don't care (the cron) can discard them. The per-host enrollment path
+// uses them so the worker can wait on the commands it queued.
+//
+// Pass redisKeyValue == nil to skip the "host being set up" Redis check —
+// the per-host enrollment path passes nil since by construction the host
+// IS being set up and we explicitly want to install the profiles right now.
 func executeAppleReconcileBatch(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -483,7 +586,7 @@ func executeAppleReconcileBatch(
 	appConfig *fleet.AppConfig,
 	certProfilesLimit int,
 	toInstall, toRemove []*fleet.MDMAppleProfilePayload,
-) error {
+) ([]string, error) {
 	userEnrollmentMap := make(map[string]string)
 	userEnrollmentsToHostUUIDsMap := make(map[string]string)
 
@@ -542,7 +645,7 @@ func executeAppleReconcileBatch(
 		var err error
 		prefetchedContents, err = ds.GetMDMAppleProfilesContents(ctx, uuids)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting profile contents for CA classification")
+			return nil, ctxerr.Wrap(ctx, err, "getting profile contents for CA classification")
 		}
 		caProfileUUIDs = make(map[string]struct{}, len(prefetchedContents))
 		for pUUID, content := range prefetchedContents {
@@ -581,7 +684,7 @@ func executeAppleReconcileBatch(
 
 		wait, err := isAwaitingUserEnrollment(p)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if wait {
 			hp := &fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -621,7 +724,7 @@ func executeAppleReconcileBatch(
 		if p.Scope == fleet.PayloadScopeUser {
 			userEnrollmentID, err := getHostUserEnrollmentID(p.HostUUID)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if userEnrollmentID == "" {
 				var errorDetail string
@@ -715,7 +818,7 @@ func executeAppleReconcileBatch(
 		if p.Scope == fleet.PayloadScopeUser {
 			userEnrollmentID, err := getHostUserEnrollmentID(p.HostUUID)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if userEnrollmentID == "" {
 				logger.WarnContext(ctx, "host does not have a user enrollment, cannot remove user scoped profile",
@@ -743,9 +846,12 @@ func executeAppleReconcileBatch(
 		})
 	}
 
-	// Skip hosts currently being set up (Redis MGet).
+	// Skip hosts currently being set up (Redis MGet). Skipped entirely
+	// when redisKeyValue is nil — the per-host enrollment path passes nil
+	// because by construction that host IS being set up and we explicitly
+	// want to install its profiles right now.
 	const isBeingSetupBatchSize = 1000
-	for i := 0; i < len(hostProfiles); i += isBeingSetupBatchSize {
+	for i := 0; redisKeyValue != nil && i < len(hostProfiles); i += isBeingSetupBatchSize {
 		end := min(i+isBeingSetupBatchSize, len(hostProfiles))
 		batch := hostProfiles[i:end]
 		keyedHostUUIDs := make([]string, len(batch))
@@ -757,7 +863,7 @@ func executeAppleReconcileBatch(
 
 		setupHostUUIDs, err := redisKeyValue.MGet(ctx, keyedHostUUIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "filtering hosts being set up")
+			return nil, ctxerr.Wrap(ctx, err, "filtering hosts being set up")
 		}
 		for keyedHostUUID, exists := range setupHostUUIDs {
 			if exists != nil {
@@ -801,11 +907,11 @@ func executeAppleReconcileBatch(
 	}
 	if len(commandUUIDToHostIDsCleanupMap) > 0 {
 		if err := commander.BulkDeleteHostUserCommandsWithoutResults(ctx, commandUUIDToHostIDsCleanupMap); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting nano commands without results")
+			return nil, ctxerr.Wrap(ctx, err, "deleting nano commands without results")
 		}
 	}
 	if err := ds.BulkDeleteMDMAppleHostsConfigProfiles(ctx, hostProfilesToCleanup); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
+		return nil, ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 
 	logger.InfoContext(ctx, "batched reconcile: before bulk upsert",
@@ -815,7 +921,7 @@ func executeAppleReconcileBatch(
 		"cleanup", len(hostProfilesToCleanup))
 
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host profiles")
+		return nil, ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
 
 	enqueueResult, err := apple_mdm.ProcessAndEnqueueProfiles(
@@ -839,9 +945,9 @@ func executeAppleReconcileBatch(
 			}
 		}
 		if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
-			return ctxerr.Wrap(ctx, err, "reverting host profiles after failed enqueue")
+			return nil, ctxerr.Wrap(ctx, err, "reverting host profiles after failed enqueue")
 		}
-		return ctxerr.Wrap(ctx, err, "processing and enqueuing profiles")
+		return nil, ctxerr.Wrap(ctx, err, "processing and enqueuing profiles")
 	}
 
 	if enqueueResult != nil {
@@ -871,8 +977,8 @@ func executeAppleReconcileBatch(
 	}
 
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, failed); err != nil {
-		return ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
+		return nil, ctxerr.Wrap(ctx, err, "reverting status of failed profiles")
 	}
 
-	return nil
+	return enqueueResult.SucceededCmdUUIDs, nil
 }

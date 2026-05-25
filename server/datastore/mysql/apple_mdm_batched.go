@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -50,6 +51,45 @@ func (ds *Datastore) ListAppleMDMHostsForReconcileBatch(
 		return nil, ctxerr.Wrap(ctx, err, "list apple mdm hosts for reconcile batch")
 	}
 	return hosts, nil
+}
+
+// GetAppleMDMHostForReconcile returns the Apple-MDM reconcile info for a
+// single host UUID, or (nil, nil) if the host is not enrolled or not an
+// Apple platform. Uses the same JOIN as ListAppleMDMHostsForReconcileBatch
+// so per-host and per-batch reconcile paths see the same eligibility rules.
+func (ds *Datastore) GetAppleMDMHostForReconcile(
+	ctx context.Context,
+	hostUUID string,
+) (*fleet.AppleHostReconcileInfo, error) {
+	const stmt = `
+		SELECT
+			h.id              AS id,
+			h.uuid            AS uuid,
+			h.team_id         AS team_id,
+			h.platform        AS platform,
+			h.label_updated_at AS label_updated_at,
+			nd.authenticate_at AS device_enrolled_at
+		FROM hosts h
+		JOIN nano_enrollments ne
+			ON ne.device_id = h.uuid
+			AND ne.enabled = 1
+			AND ne.type IN ('Device', 'User Enrollment (Device)')
+		JOIN nano_devices nd
+			ON nd.id = ne.device_id
+		WHERE
+			(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
+			AND h.uuid = ?
+		LIMIT 1
+	`
+
+	var host fleet.AppleHostReconcileInfo
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get apple mdm host for reconcile")
+	}
+	return &host, nil
 }
 
 // ListAppleProfilesForReconcile loads every Apple configuration profile in

@@ -1204,6 +1204,7 @@ func newAppleMDMWorkerSchedule(
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
 	newActivityFn fleet.NewActivityFunc,
+	certProfilesLimit int,
 ) (*schedule.Schedule, error) {
 	const (
 		name             = string(fleet.CronAppleMDMWorker)
@@ -1222,6 +1223,9 @@ func newAppleMDMWorkerSchedule(
 		BootstrapPackageStore: bootstrapPackageStore,
 		VPPInstaller:          vppInstaller,
 		NewActivityFn:         newActivityFn,
+		ReconcileAppleProfilesForHost: func(ctx context.Context, hostUUID string) ([]string, error) {
+			return service.ReconcileAppleProfilesForHost(ctx, ds, commander, logger, hostUUID, certProfilesLimit)
+		},
 	}
 
 	w.Register(appleMDM)
