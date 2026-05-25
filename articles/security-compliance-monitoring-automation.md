@@ -46,7 +46,7 @@ This telemetry can be exported to Security Information and Event Management (SIE
 
 ## Compliance as code
 
-Compliance as code treats security requirements like software: requirements are defined as code, tested before deployment, stored in version control for traceability, and applied automatically across the fleet. The approach catches compliance issues before deployment rather than after systems are running. Most device management solutions don't support this workflow natively, requiring custom glue code between Git and the MDM to connect compliance definitions to deployment pipelines. Fleet supports compliance-as-code natively through its built-in workflow and [GitOps workflows](https://fleetdm.com/docs/configuration/yaml-files).
+Compliance as code treats security requirements like software: requirements are defined as code, tested before deployment, stored in version control for traceability, and applied automatically across the fleet. The approach catches compliance issues before deployment rather than after systems are running. Most device management solutions don't support this workflow natively, requiring custom glue code between Git and the MDM to connect compliance definitions to deployment pipelines. Fleet supports compliance-as-code natively. Teams define desired state in declarative YAML rather than writing imperative scripts against an API, and the fleetctl gitops command applies that configuration as part of a CI/CD pipeline. See Fleet's [GitOps workflows](https://fleetdm.com/docs/configuration/yaml-files) for the full configuration reference.
 
 ## How Fleet handles compliance automation
 
@@ -74,11 +74,11 @@ It depends on fleet size, platform diversity, and existing tooling. Starting wit
 
 ### Can compliance automation replace manual security assessments entirely?
 
-Automated solutions handle known configuration issues and evidence collection well, but they have limits. Novel attack vectors, business logic flaws, and risks that need contextual judgment still benefit from human review. Automation handles routine compliance validation, while manual review covers high-risk changes, exception requests, and assessments that go beyond configuration checking. Teams using Fleet often pair its automated checks with periodic manual reviews focused on the harder questions; [book a walkthrough](https://fleetdm.com/contact) to see how that combination looks in practice.
+Automated solutions handle known configuration issues and evidence collection well, but they have limits. Novel attack vectors, business logic flaws, and risks that need contextual judgment still benefit from human review. Automation handles routine compliance validation, while manual review covers high-risk changes, exception requests, and assessments that go beyond configuration checking. Teams using Fleet often pair its automated checks with periodic manual reviews focused on the harder questions.
 
 <meta name="articleTitle" value="How security compliance automation works for device fleets">
 <meta name="authorFullName" value="Ashish Kuthiala">
 <meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-08">
+<meta name="publishedOn" value="2026-05-25">
 <meta name="description" value="Security compliance automation replaces manual compliance checks. Learn how MDM, compliance-as-code, and GitOps-driven workflows work">
