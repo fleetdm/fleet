@@ -82,11 +82,16 @@ const LockModal = ({
           : "Locking host or will lock when it comes online."
       );
     } catch (e) {
+      // Android: surface the backend error reason when available (e.g. "Android MDM isn't turned
+      // on.", "Host has pending lock request.") and fall back to the Figma copy when the error
+      // has no extractable reason. Other platforms keep their existing getErrorReason behavior.
+      const errorReason = getErrorReason(e);
       renderFlash(
         "error",
         isAndroidHost
-          ? "Couldn't send request to lock this host. Please try again."
-          : getErrorReason(e)
+          ? errorReason ||
+              "Couldn't send request to lock this host. Please try again."
+          : errorReason
       );
     }
     setIsLocking(false);

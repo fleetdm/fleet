@@ -1620,6 +1620,40 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
     });
 
+    it("does NOT show Wipe for an Android host with enrollment status 'On (manual)' (Wipe requires COBO; allow-list, not negative check)", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isAndroidMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="android"
+          hostMdmEnrollmentStatus="On (manual)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      // Lock and Clear passcode are still available for any MDM-on Android host.
+      expect(screen.queryByText("Lock")).toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+      // Wipe must NOT appear — COBO requires "On (automatic)" or "On (company-owned)".
+      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+    });
+
     it("renders only Transfer + Delete when Android MDM is disabled", async () => {
       const render = createCustomRenderer({
         context: {

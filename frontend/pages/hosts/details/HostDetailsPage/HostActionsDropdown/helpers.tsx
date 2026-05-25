@@ -249,14 +249,17 @@ const canWipeHost = ({
     isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
 
   // Android: Wipe is COBO-only. BYO Android shows Unenroll instead (and that flow itself sends
-  // a WIPE command under the hood, per #41683 design). BYO is detected via "On (personal)"
-  // enrollment status — the same string the server-side EE WipeHost validation rejects on.
+  // a WIPE command under the hood, per #41683 design). Use an explicit allow-list of COBO
+  // enrollment statuses — "On (automatic)" is what the API actually returns for AMAPI fully-
+  // managed enrollments today; "On (company-owned)" is the newer display string. Negative checks
+  // against "On (personal)" would also incorrectly match "On (manual)" / "Pending" / "Off".
   const canWipeAndroid =
     isAndroid(hostPlatform) &&
     isAndroidMdmEnabledAndConfigured &&
     isConnectedToFleetMdm &&
     isEnrolledInMdm &&
-    hostMdmEnrollmentStatus !== "On (personal)";
+    (hostMdmEnrollmentStatus === "On (automatic)" ||
+      hostMdmEnrollmentStatus === "On (company-owned)");
 
   return (
     isPremiumTier &&

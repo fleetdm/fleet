@@ -47,11 +47,16 @@ const WipeModal = ({
           : "Wiping host or will wipe when the host comes online."
       );
     } catch (e) {
+      // Android: surface the backend error reason when available (e.g. "Wipe is not supported for
+      // personally-owned Android hosts. Use Unenroll instead.") and fall back to the Figma copy
+      // when the error has no extractable reason. Other platforms keep their existing behavior.
+      const errorReason = getErrorReason(e);
       renderFlash(
         "error",
         isAndroidHost
-          ? "Couldn't send request to wipe this host. Please try again."
-          : getErrorReason(e)
+          ? errorReason ||
+              "Couldn't send request to wipe this host. Please try again."
+          : errorReason
       );
     }
     onClose();
