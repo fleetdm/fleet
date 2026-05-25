@@ -71,13 +71,7 @@ func (t *Tracker) Interval() time.Duration {
 		return t.baseInterval
 	}
 
-	// Cap shift at 16 to keep the math simple. With a 10s base,
-	// 2^8 already exceeds a 30min cap, so 16 is more than enough.
-	shift := t.consecutiveFailures
-	if shift > 16 {
-		shift = 16
-	}
-	interval := t.baseInterval << shift
+	interval := t.baseInterval << t.consecutiveFailures
 	if interval <= 0 || interval > t.maxBackoff {
 		interval = t.maxBackoff
 	}
