@@ -1647,7 +1647,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		if cmd.Command.RequestType == "InstallApplication" {
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
@@ -1657,6 +1658,9 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
+
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
 		}
 	}
 
