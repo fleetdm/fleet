@@ -343,6 +343,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
 	ue.GET("/api/_version_/fleet/policies/{policy_id}/status", getPolicyStatusEndpoint, fleet.GetPolicyStatusRequest{})
+	ue.GET("/api/_version_/fleet/policies/{policy_id}/status-export", exportPolicyStatusEndpoint, exportPolicyStatusRequest{})
 
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies", globalPolicyEndpoint, fleet.GlobalPolicyRequest{})
 	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies", globalPolicyEndpoint, fleet.GlobalPolicyRequest{})

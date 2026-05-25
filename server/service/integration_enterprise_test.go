@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
@@ -31839,6 +31840,15 @@ func (s *integrationEnterpriseTestSuite) TestGetPolicyStatus() {
 		require.Equal(t, hA1.ID, resp.Runs[0].HostID)
 	})
 
+	t.Run("filter automation_error matches by substring", func(t *testing.T) {
+		var resp fleet.GetPolicyStatusResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d/status", policyID), nil, http.StatusOK,
+			&resp, "automation_error", "504")
+		require.Equal(t, 1, resp.Count)
+		require.Len(t, resp.Runs, 1)
+		require.Equal(t, hA1.ID, resp.Runs[0].HostID)
+	})
+
 	t.Run("filter hostname matches a single host", func(t *testing.T) {
 		var resp fleet.GetPolicyStatusResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d/status", policyID), nil, http.StatusOK,
@@ -32068,5 +32078,207 @@ func (s *integrationEnterpriseTestSuite) TestGetPolicyStatus() {
 			}
 		}
 		require.True(t, seenA2, "expected not_in_target row for hA2 (outside label scope)")
+	})
+}
+
+// TestExportPolicyStatus exercises GET /api/latest/fleet/policies/:id/status-export
+// end-to-end: CSV format, all rows returned without pagination, team-scoping, and filters.
+func (s *integrationEnterpriseTestSuite) TestExportPolicyStatus() {
+	t := s.T()
+	ctx := context.Background()
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_teamA"})
+	require.NoError(t, err)
+	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_teamB"})
+	require.NoError(t, err)
+
+	newHost := func(name string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(t.Name() + "-" + name),
+			NodeKey:         ptr.String(t.Name() + "-" + name),
+			UUID:            uuid.New().String(),
+			Hostname:        t.Name() + "-" + name,
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	hA1 := newHost("alpha", &teamA.ID)
+	hA2 := newHost("bravo", &teamA.ID)
+	hB1 := newHost("charlie", &teamB.ID)
+
+	gpResp := fleet.GlobalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:  t.Name() + "_policy",
+		Query: "SELECT 1;",
+	}, http.StatusOK, &gpResp)
+	policyID := gpResp.Policy.ID
+
+	require.NoError(t, s.ds.AsyncBatchInsertPolicyMembership(ctx, []fleet.PolicyMembershipResult{
+		{HostID: hA1.ID, PolicyID: policyID, Passes: new(false)},
+		{HostID: hA2.ID, PolicyID: policyID, Passes: new(false)},
+		{HostID: hB1.ID, PolicyID: policyID, Passes: new(true)},
+	}))
+
+	failingMap := map[uint]*bool{policyID: new(false)}
+	_, err = s.ds.RecordPolicyTransitions(ctx, hA1.ID, failingMap, []uint{policyID}, nil)
+	require.NoError(t, err)
+	runsA1, err := s.ds.GetFailingPolicyRuns(ctx, []uint{policyID}, []uint{hA1.ID})
+	require.NoError(t, err)
+	require.Len(t, runsA1, 1)
+
+	batchA1, err := s.ds.CreatePolicyAutomationExecutions(ctx, fleet.PolicyAutomationWebhook, []fleet.PolicyRunRef{
+		{PolicyID: policyID, HostID: hA1.ID, RunID: runsA1[0].RunID},
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.UpdatePolicyAutomationExecutions(ctx, batchA1, errors.New("integration timeout 504")))
+
+	_, err = s.ds.RecordPolicyTransitions(ctx, hA2.ID, failingMap, []uint{policyID}, nil)
+	require.NoError(t, err)
+	runsA2, err := s.ds.GetFailingPolicyRuns(ctx, []uint{policyID}, []uint{hA2.ID})
+	require.NoError(t, err)
+	require.Len(t, runsA2, 1)
+
+	batchA2, err := s.ds.CreatePolicyAutomationExecutions(ctx, fleet.PolicyAutomationJira, []fleet.PolicyRunRef{
+		{PolicyID: policyID, HostID: hA2.ID, RunID: runsA2[0].RunID},
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.UpdatePolicyAutomationExecutions(ctx, batchA2, nil))
+
+	exportURL := fmt.Sprintf("/api/latest/fleet/policies/%d/status-export", policyID)
+
+	// parseExportCSV is a helper that calls the export endpoint, asserts HTTP 200,
+	// verifies the CSV content-type header, and returns the parsed rows (header row first).
+	parseExportCSV := func(queryParams ...string) [][]string {
+		t.Helper()
+		res := s.DoRaw("GET", exportURL, nil, http.StatusOK, queryParams...)
+		require.Contains(t, res.Header.Get("Content-Type"), "text/csv")
+		require.Contains(t, res.Header.Get("Content-Disposition"), "attachment")
+		rows, err := csv.NewReader(res.Body).ReadAll()
+		require.NoError(t, err)
+		return rows
+	}
+
+	// colIndex maps CSV header names to their column indices for the given row set.
+	colIndex := func(rows [][]string) map[string]int {
+		t.Helper()
+		require.NotEmpty(t, rows)
+		idx := make(map[string]int, len(rows[0]))
+		for i, h := range rows[0] {
+			idx[h] = i
+		}
+		return idx
+	}
+
+	s.token = s.getTestAdminToken()
+
+	t.Run("CSV headers and all hosts present", func(t *testing.T) {
+		rows := parseExportCSV()
+		// header row + hA1 (1 webhook row) + hA2 (1 jira row) + hB1 (1 empty automation row)
+		require.Len(t, rows, 4, "expected header + 3 data rows")
+
+		idx := colIndex(rows)
+		require.Contains(t, idx, "host_id")
+		require.Contains(t, idx, "host_name")
+		require.Contains(t, idx, "status")
+		require.Contains(t, idx, "consecutive_failures")
+		require.Contains(t, idx, "created_at")
+		require.Contains(t, idx, "automation_type")
+		require.Contains(t, idx, "automation_status")
+		require.Contains(t, idx, "automation_error")
+
+		hostIDs := make(map[string]struct{})
+		for _, row := range rows[1:] {
+			hostIDs[row[idx["host_id"]]] = struct{}{}
+		}
+		require.Contains(t, hostIDs, fmt.Sprint(hA1.ID))
+		require.Contains(t, hostIDs, fmt.Sprint(hA2.ID))
+		require.Contains(t, hostIDs, fmt.Sprint(hB1.ID))
+	})
+
+	t.Run("automation details in rows", func(t *testing.T) {
+		rows := parseExportCSV()
+		idx := colIndex(rows)
+
+		var hA1Row, hA2Row, hB1Row []string
+		for _, row := range rows[1:] {
+			switch row[idx["host_id"]] {
+			case fmt.Sprint(hA1.ID):
+				hA1Row = row
+			case fmt.Sprint(hA2.ID):
+				hA2Row = row
+			case fmt.Sprint(hB1.ID):
+				hB1Row = row
+			}
+		}
+
+		require.NotNil(t, hA1Row)
+		require.Equal(t, "failing", hA1Row[idx["status"]])
+		require.Equal(t, "webhook", hA1Row[idx["automation_type"]])
+		require.Equal(t, "failed", hA1Row[idx["automation_status"]])
+		require.Equal(t, "integration timeout 504", hA1Row[idx["automation_error"]])
+
+		require.NotNil(t, hA2Row)
+		require.Equal(t, "failing", hA2Row[idx["status"]])
+		require.Equal(t, "jira", hA2Row[idx["automation_type"]])
+		require.Equal(t, "success", hA2Row[idx["automation_status"]])
+
+		require.NotNil(t, hB1Row)
+		require.Equal(t, "passing", hB1Row[idx["status"]])
+		require.Empty(t, hB1Row[idx["automation_type"]])
+		require.Empty(t, hB1Row[idx["automation_status"]])
+	})
+
+	t.Run("filter run_status=policy_failed returns only failing hosts", func(t *testing.T) {
+		rows := parseExportCSV("run_status", "policy_failed")
+		idx := colIndex(rows)
+		// hA1 + hA2 are failing; hB1 is passing
+		require.Len(t, rows, 3, "expected header + 2 failing host rows")
+		for _, row := range rows[1:] {
+			require.Equal(t, "failing", row[idx["status"]])
+		}
+	})
+
+	t.Run("filter hostname matches a single host", func(t *testing.T) {
+		rows := parseExportCSV("hostname", "charlie")
+		idx := colIndex(rows)
+		require.Len(t, rows, 2, "expected header + 1 row")
+		require.Equal(t, fmt.Sprint(hB1.ID), rows[1][idx["host_id"]])
+	})
+
+	t.Run("filter automation_error isolates hA1", func(t *testing.T) {
+		rows := parseExportCSV("automation_error", "504")
+		idx := colIndex(rows)
+		require.Len(t, rows, 2, "expected header + 1 row")
+		require.Equal(t, fmt.Sprint(hA1.ID), rows[1][idx["host_id"]])
+	})
+
+	t.Run("team observer sees only own team hosts", func(t *testing.T) {
+		teamAObserver := &fleet.User{
+			Name:  "team A observer export",
+			Email: t.Name() + "_teamA_obs_export@example.com",
+			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamA.ID}, Role: fleet.RoleObserver}},
+		}
+		require.NoError(t, teamAObserver.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(ctx, teamAObserver)
+		require.NoError(t, err)
+		s.token = s.getTestToken(teamAObserver.Email, test.GoodPassword)
+		defer func() { s.token = s.getTestAdminToken() }()
+
+		rows := parseExportCSV()
+		idx := colIndex(rows)
+		// teamA observer should see hA1 and hA2 but not hB1
+		require.Len(t, rows, 3, "expected header + 2 teamA rows")
+		for _, row := range rows[1:] {
+			hid := row[idx["host_id"]]
+			require.NotEqual(t, fmt.Sprint(hB1.ID), hid, "teamB host should not appear for teamA observer")
+		}
 	})
 }
