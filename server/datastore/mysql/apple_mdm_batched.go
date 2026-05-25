@@ -476,21 +476,22 @@ func (ds *Datastore) ListAppleDeclarationsForReconcile(ctx context.Context) ([]*
 		out = append(out, d)
 	}
 
-	// Identical label loading semantics as ListAppleProfilesForReconcile,
-	// but joining on apple_declaration_uuid. Reuses the same
-	// AppleProfileLabelRef type so the dispatcher / handlers can see
-	// declarations through the same shape.
+	// Declaration label assignments live in their own table —
+	// mdm_declaration_labels — NOT mdm_configuration_profile_labels.
+	// The two tables have separate schemas and FK relationships:
+	// declaration labels FK to mdm_apple_declarations.declaration_uuid,
+	// profile labels FK to mdm_apple_configuration_profiles.profile_uuid.
+	// Querying the wrong table returns zero rows for declarations.
 	const labelStmt = `
 		SELECT
-			mcpl.apple_profile_uuid AS entity_uuid,
-			mcpl.label_id               AS label_id,
-			mcpl.exclude                AS exclude,
-			mcpl.require_all            AS require_all,
-			lbl.created_at              AS label_created_at,
+			mdl.apple_declaration_uuid AS entity_uuid,
+			mdl.label_id               AS label_id,
+			mdl.exclude                AS exclude,
+			mdl.require_all            AS require_all,
+			lbl.created_at             AS label_created_at,
 			COALESCE(lbl.label_membership_type, 0) AS label_membership_type
-		FROM mdm_configuration_profile_labels mcpl
-		LEFT JOIN labels lbl ON lbl.id = mcpl.label_id
-		WHERE mcpl.apple_profile_uuid IS NOT NULL
+		FROM mdm_declaration_labels mdl
+		LEFT JOIN labels lbl ON lbl.id = mdl.label_id
 	`
 
 	type labelRow struct {
