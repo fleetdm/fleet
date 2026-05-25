@@ -98,7 +98,6 @@ func (t *Tracker) Interval() time.Duration {
 	if interval>>shift != t.baseInterval {
 		interval = t.maxBackoff
 	}
-	interval = min(interval, t.maxBackoff)
 	interval += jitter(interval)
 	interval = min(interval, t.maxBackoff)
 
