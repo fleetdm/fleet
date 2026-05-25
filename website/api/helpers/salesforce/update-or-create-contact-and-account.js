@@ -324,6 +324,38 @@ module.exports = {
             'https://www.quora.com/',
           ];
 
+          let REFERRER_DOMAINS_FOR_ORGANIC_AI = [
+            // === MAJOR GLOBAL AI CHATBOTS ===
+            'https://chat.openai.com/',
+            'https://chatgpt.com/',
+            'https://claude.ai/',
+            'https://claude.com/',
+            'https://gemini.google.com/',
+            'https://bard.google.com/',
+            'https://copilot.microsoft.com/',
+            'https://copilot.cloud.microsoft/',
+            'https://www.bing.com/chat',
+            // === QWEN / ALIBABA ECOSYSTEM ===
+            'https://chat.qwen.ai/',
+            'https://chat.qwenlm.ai/',
+            'https://qwen.ai/',
+            // === AI SEARCH ENGINES ===
+            'https://www.perplexity.ai/',
+            'https://perplexity.ai/',
+            // === META / X / SOCIAL AI ===
+            'https://www.meta.ai/',
+            'https://ai.meta.com/',
+            'https://grok.com/',
+            'https://grok.x.ai/',
+            'https://x.ai/',
+            // === AGGREGATORS & MULTI-MODEL PLATFORMS ===
+            'https://poe.com/',
+            'https://www.poe.com/',
+            'https://huggingface.co/chat/',
+            'https://together.ai/',
+            'https://platform.mistral.ai/chat',
+          ];
+
           let referrer = typeof marketingAttributionCookie.referrer === 'string'
             ? marketingAttributionCookie.referrer
             : '';
@@ -336,6 +368,19 @@ module.exports = {
             // If social media » Organic social
             attributionDetails.sourceChannelDetails = 'Organic social (SOC)';
             attributionDetails.campaign = 'Default-SOC-Social';
+          } else if(REFERRER_DOMAINS_FOR_ORGANIC_AI.some((domain) => referrer.startsWith(domain))) {
+            // If AI/LLM » Organic AI
+            attributionDetails.sourceChannelDetails = 'Organic AI (AI)';
+            // Determine specific campaign based on which AI platform referred the visitor
+            if(['https://chat.openai.com/', 'https://chatgpt.com/'].some((domain) => referrer.startsWith(domain))) {
+              attributionDetails.campaign = 'Default-AI-ChatGPT';
+            } else if(['https://claude.ai/', 'https://claude.com/'].some((domain) => referrer.startsWith(domain))) {
+              attributionDetails.campaign = 'Default-AI-Claude';
+            } else if(['https://gemini.google.com/', 'https://bard.google.com/'].some((domain) => referrer.startsWith(domain))) {
+              attributionDetails.campaign = 'Default-AI-Gemini';
+            } else {
+              attributionDetails.campaign = 'Default-AI-Other';
+            }
           } else {
             // If not either of those » Web referral
             attributionDetails.sourceChannelDetails = 'Web referral (WR)';
