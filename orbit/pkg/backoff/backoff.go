@@ -91,27 +91,16 @@ func (t *Tracker) Interval() time.Duration {
 		return t.baseInterval
 	}
 
-	interval := t.baseInterval << min(t.consecutiveFailures, maxShift)
-	if interval < t.baseInterval {
-		interval = t.maxBackoff // overflow wrapped; treat as max
+	shift := min(t.consecutiveFailures, maxShift)
+	interval := t.baseInterval << shift
+	if interval>>shift != t.baseInterval {
+		interval = t.maxBackoff // overflow
 	}
-	interval = clamp(interval, t.baseInterval, t.maxBackoff)
+	interval = min(interval, t.maxBackoff)
 	interval += jitter(interval)
 	interval = min(interval, t.maxBackoff)
 
 	return interval
-}
-
-// clamp restricts v to [lo, hi]. A non-positive v (overflow) is treated
-// as exceeding hi.
-func clamp(v, lo, hi time.Duration) time.Duration {
-	if v <= 0 || v > hi {
-		return hi
-	}
-	if v < lo {
-		return lo
-	}
-	return v
 }
 
 // jitter returns a random duration in [0, 10% of d).
