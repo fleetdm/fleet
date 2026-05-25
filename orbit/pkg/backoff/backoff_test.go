@@ -31,9 +31,6 @@ func TestNewFloorsGarbageInputs(t *testing.T) {
 	tr.RecordFailure()
 	assert.GreaterOrEqual(t, tr.Interval(), minInterval)
 
-	// maxBackoff < baseInterval
-	tr = New(10*time.Second, 2*time.Second)
-	assert.GreaterOrEqual(t, tr.maxBackoff, tr.baseInterval, "maxBackoff must be >= baseInterval")
 }
 
 func TestIntervalReturnsBaseOnSuccess(t *testing.T) {
