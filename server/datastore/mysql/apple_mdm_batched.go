@@ -482,7 +482,7 @@ func (ds *Datastore) ListAppleDeclarationsForReconcile(ctx context.Context) ([]*
 	// declarations through the same shape.
 	const labelStmt = `
 		SELECT
-			mcpl.apple_declaration_uuid AS entity_uuid,
+			mcpl.apple_profile_uuid AS entity_uuid,
 			mcpl.label_id               AS label_id,
 			mcpl.exclude                AS exclude,
 			mcpl.require_all            AS require_all,
@@ -490,7 +490,7 @@ func (ds *Datastore) ListAppleDeclarationsForReconcile(ctx context.Context) ([]*
 			COALESCE(lbl.label_membership_type, 0) AS label_membership_type
 		FROM mdm_configuration_profile_labels mcpl
 		LEFT JOIN labels lbl ON lbl.id = mcpl.label_id
-		WHERE mcpl.apple_declaration_uuid IS NOT NULL
+		WHERE mcpl.apple_profile_uuid IS NOT NULL
 	`
 
 	type labelRow struct {
