@@ -829,6 +829,16 @@ func ReconcileProfilesForHost(
 	)
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
+	// Match legacy worker semantics: defer user-scoped profile delivery
+	// to the cron. The post-enrollment worker fires before the user
+	// channel typically exists, and we don't want to write Status=NULL
+	// rows for user-scoped profiles here — that would change the
+	// host_mdm_apple_profiles row count observed immediately after
+	// enrollment, breaking tests and any code that polls for state.
+	// The cron's full ReconcileAppleProfilesBatched still picks them up
+	// and routes through the isAwaitingUserEnrollment path.
+	toInstall = fleet.FilterOutUserScopedProfiles(toInstall)
+
 	if len(toInstall) == 0 && len(toRemove) == 0 {
 		return nil, nil
 	}
