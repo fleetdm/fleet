@@ -1214,7 +1214,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		// Handle policy_runs
 		failingPolicyRunIDs := map[uint]uint{}
-		recorded, err := svc.ds.RecordPolicyTransitions(ctx, host.ID, policyResults, newFailing)
+		recorded, err := svc.ds.RecordPolicyTransitions(ctx, host.ID, policyResults, newFailing, newPassing)
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "failed to record policy transitions", "host_id", host.ID, "err", err)
 		} else {

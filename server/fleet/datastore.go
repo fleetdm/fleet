@@ -1555,7 +1555,7 @@ type Datastore interface {
 	// assigned policy_runs.id, so the synchronous downstream consumers
 	// (script/software/CA hot paths) can stamp their result rows. The
 	// passed=true row IDs are not returned — no caller needs them.
-	RecordPolicyTransitions(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (failingRunIDs map[uint]uint, err error)
+	RecordPolicyTransitions(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing, newPassing []uint) (failingRunIDs map[uint]uint, err error)
 
 	// GetFailingPolicyRuns returns the latest failed policy_runs of the pair
 	// found in the cross-product of policyIDs × hostIDs.

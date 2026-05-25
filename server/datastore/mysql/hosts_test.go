@@ -9129,7 +9129,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{policy.ID: new(true)}, time.Now(), false, nil))
 
-	_, err = ds.RecordPolicyTransitions(context.Background(), host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+	_, err = ds.RecordPolicyTransitions(context.Background(), host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 	require.NoError(t, err)
 	// Update host_mdm.
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, "foo.mdm.example.com", false, "", "", false)

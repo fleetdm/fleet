@@ -639,8 +639,7 @@ func processFailingHostCreateCalendarEvent(
 	var batchID uuid.UUID
 
 	// Recording is best-effort. Any lookup or insert failure is logged and
-	// the calendar dispatch proceeds — breaking the user-facing automation
-	// over a recording hiccup is the wrong trade.
+	// the calendar dispatch proceeds.
 	refs, err := ds.GetFailingPolicyRuns(ctx, host.FailingPolicyIDList(), []uint{host.HostID})
 	if err != nil {
 		logger.ErrorContext(ctx, "failed to look up calendar policy_run IDs", "host_id", host.HostID, "err", err)

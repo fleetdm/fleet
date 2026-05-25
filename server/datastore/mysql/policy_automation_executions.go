@@ -21,18 +21,11 @@ const policyAutomationBatchSize = 1000
 //   - Was failing, now passing: update (old_status=false, new_status=true, consecutive_failures=0).
 //   - Was passing, still passing: no-op.
 //   - Was failing, still failing: bump consecutive_failures by 1.
-//
-// All six cases collapse into a single INSERT … ON DUPLICATE KEY UPDATE per
-// chunk. The CASE expressions read old column values because MySQL evaluates
-// ODKU SET clauses left-to-right and only the new_status assignment at the
-// end commits the new value. For the "still passing" case every SET clause
-// resolves to the existing value, so InnoDB detects no change and skips both
-// the row write and the ON UPDATE CURRENT_TIMESTAMP trigger.
 func (ds *Datastore) RecordPolicyTransitions(
 	ctx context.Context,
 	hostID uint,
 	policyResults map[uint]*bool,
-	newFailing []uint,
+	newFailing, newPassing []uint,
 ) (map[uint]uint, error) {
 	if len(policyResults) == 0 {
 		return nil, nil
@@ -44,9 +37,13 @@ func (ds *Datastore) RecordPolicyTransitions(
 		consecutiveFailures uint
 	}
 	pending := make([]pendingRow, 0, len(policyResults))
+	allCurrentlyPassing := true
 	for pid, res := range policyResults {
 		if res == nil {
 			continue
+		}
+		if !*res {
+			allCurrentlyPassing = false
 		}
 		row := pendingRow{policyID: pid, newStatus: *res}
 		if !*res {
@@ -58,11 +55,14 @@ func (ds *Datastore) RecordPolicyTransitions(
 		return nil, nil
 	}
 
+	// Fast path: nothing transitioned (no first-time-failing, no pass→fail,
+	// no fail→pass) and every current result is passing. Every row would
+	// either be a still-passing no-op or a first-time-passing insert;
+	if len(newFailing) == 0 && len(newPassing) == 0 && allCurrentlyPassing {
+		return nil, nil
+	}
+
 	failingIDs := make(map[uint]uint, len(newFailing))
-	// The ODKU chunks + the failing-ID lookup run inside one transaction so a
-	// partial commit can't leave the per-host state inconsistent across chunks.
-	// Concurrent writers for the same (policy, host) still serialize on the
-	// ODKU's row-X lock (see the function godoc).
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		for chunkStart := 0; chunkStart < len(pending); chunkStart += policyAutomationBatchSize {
 			chunkEnd := min(chunkStart+policyAutomationBatchSize, len(pending))

@@ -13,7 +13,7 @@ import (
 )
 
 func StubNoopRecording(ds *mock.Store) {
-	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (map[uint]uint, error) {
+	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing, newPassing []uint) (map[uint]uint, error) {
 		out := make(map[uint]uint, len(newFailing))
 		for i, pid := range newFailing {
 			out[pid] = uint(i + 1)

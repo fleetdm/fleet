@@ -3322,7 +3322,7 @@ func TestPolicyQueries(t *testing.T) {
 		Platform: "darwin",
 	}
 
-	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (failingRunIDs map[uint]uint, err error) {
+	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing, newPassing []uint) (failingRunIDs map[uint]uint, err error) {
 		return nil, nil
 	}
 
@@ -3710,7 +3710,7 @@ func TestPolicyWebhooks(t *testing.T) {
 		flippingIncomingResults = incomingResults
 		return []uint{3}, nil, nil
 	}
-	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (map[uint]uint, error) {
+	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing, newPassing []uint) (map[uint]uint, error) {
 		out := make(map[uint]uint, len(newFailing))
 		for i, pid := range newFailing {
 			out[pid] = uint(i + 1)
@@ -3838,7 +3838,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
-	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (map[uint]uint, error) {
+	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing, newPassing []uint) (map[uint]uint, error) {
 		out := make(map[uint]uint, len(newFailing))
 		for i, pid := range newFailing {
 			out[pid] = uint(i + 1)
@@ -3908,7 +3908,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	) {
 		return []uint{}, []uint{2}, nil
 	}
-	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (map[uint]uint, error) {
+	ds.RecordPolicyTransitionsFunc = func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing, newPassing []uint) (map[uint]uint, error) {
 		return map[uint]uint{}, nil
 	}
 

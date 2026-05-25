@@ -65,7 +65,7 @@ func TestRecordPolicyTransitions(t *testing.T) {
 
 	t.Run("empty policyResults is a no-op", func(t *testing.T) {
 		host := newHost("empty")
-		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, nil, nil)
+		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, nil, nil, nil)
 		require.NoError(t, err)
 		require.Empty(t, runIDs)
 		require.Equal(t, 0, countPolicyRuns(t, ds, ctx, policy.ID, host.ID))
@@ -73,7 +73,7 @@ func TestRecordPolicyTransitions(t *testing.T) {
 
 	t.Run("nil-valued policyResults entry is skipped", func(t *testing.T) {
 		host := newHost("nilvalue")
-		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: nil}, nil)
+		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: nil}, nil, nil)
 		require.NoError(t, err)
 		require.Empty(t, runIDs)
 		require.Equal(t, 0, countPolicyRuns(t, ds, ctx, policy.ID, host.ID))
@@ -82,7 +82,7 @@ func TestRecordPolicyTransitions(t *testing.T) {
 	t.Run("new policy fails first time: INSERT (NULL, false, 1)", func(t *testing.T) {
 		host := newHost("firstFail")
 		results := map[uint]*bool{policy.ID: new(false)}
-		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, results, []uint{policy.ID})
+		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, results, []uint{policy.ID}, nil)
 		require.NoError(t, err)
 		require.Contains(t, runIDs, policy.ID)
 		require.NotZero(t, runIDs[policy.ID])
@@ -94,31 +94,27 @@ func TestRecordPolicyTransitions(t *testing.T) {
 		require.Equal(t, uint(1), row.ConsecutiveFailures)
 	})
 
-	t.Run("new policy passes first time: INSERT (NULL, true, 0)", func(t *testing.T) {
-		host := newHost("firstPass")
-		results := map[uint]*bool{policy.ID: new(true)}
-		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, results, nil)
+	// seedPassingRow creates a policy_runs row with new_status=true by running
+	// the fail→pass flip — the only production path that creates a passing
+	// row under Option A (first-time-passing takes the all-passing fast path).
+	seedPassingRow := func(h *fleet.Host) policyRunRow {
+		t.Helper()
+		_, err := ds.RecordPolicyTransitions(ctx, h.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
-		require.Empty(t, runIDs, "no run IDs returned for non-failing policies")
-
-		row, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
+		_, err = ds.RecordPolicyTransitions(ctx, h.ID, map[uint]*bool{policy.ID: new(true)}, nil, []uint{policy.ID})
+		require.NoError(t, err)
+		row, ok := readPolicyRun(t, ds, ctx, policy.ID, h.ID)
 		require.True(t, ok)
-		require.Nil(t, row.OldStatus, "old_status must be NULL on first-time passing")
 		require.True(t, row.NewStatus)
-		require.Equal(t, uint(0), row.ConsecutiveFailures)
-	})
+		return row
+	}
 
 	t.Run("was passing, now failing: UPDATE (true, false, 1)", func(t *testing.T) {
 		host := newHost("passToFail")
-
-		// Seed with first-time pass.
-		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(true)}, nil)
-		require.NoError(t, err)
-		passingRow, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
-		require.True(t, ok)
+		passingRow := seedPassingRow(host)
 
 		// Flip to failing.
-		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
 		require.Contains(t, runIDs, policy.ID)
 
@@ -136,13 +132,13 @@ func TestRecordPolicyTransitions(t *testing.T) {
 		host := newHost("failToPass")
 
 		// Seed with first-time fail.
-		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
 		failingRow, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
 		require.True(t, ok)
 
-		// Flip to passing.
-		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(true)}, nil)
+		// Flip to passing — newPassing carries the flip, disabling the fast path.
+		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(true)}, nil, []uint{policy.ID})
 		require.NoError(t, err)
 		require.Empty(t, runIDs)
 
@@ -156,31 +152,27 @@ func TestRecordPolicyTransitions(t *testing.T) {
 		require.Equal(t, 1, countPolicyRuns(t, ds, ctx, policy.ID, host.ID))
 	})
 
-	t.Run("was passing, still passing: no-op", func(t *testing.T) {
+	t.Run("was passing, still passing: row untouched (fast path)", func(t *testing.T) {
 		host := newHost("stillPass")
+		first := seedPassingRow(host)
 
-		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(true)}, nil)
-		require.NoError(t, err)
-		first, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
-		require.True(t, ok)
-
-		// Sleep so updated_at would advance if any write occurred.
+		// Sleep so updated_at would visibly advance if any write occurred.
 		time.Sleep(1100 * time.Millisecond)
 
-		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(true)}, nil)
+		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(true)}, nil, nil)
 		require.NoError(t, err)
 		require.Empty(t, runIDs)
 
 		after, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
 		require.True(t, ok)
-		require.True(t, after.UpdatedAt.Equal(first.UpdatedAt), "no-op must not bump updated_at")
+		require.True(t, after.UpdatedAt.Equal(first.UpdatedAt), "fast path must not touch updated_at")
 		require.Equal(t, first.ConsecutiveFailures, after.ConsecutiveFailures)
 	})
 
 	t.Run("was failing, still failing: bump consecutive_failures", func(t *testing.T) {
 		host := newHost("stillFail")
 
-		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
 		first, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
 		require.True(t, ok)
@@ -192,7 +184,7 @@ func TestRecordPolicyTransitions(t *testing.T) {
 		// FlippingPoliciesForHost won't return this as "newFailing" (it's not
 		// a flip), so simulate the hot-path call shape: newFailing empty, only
 		// policyResults carries the still-failing signal.
-		_, err = ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, nil)
+		_, err = ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, nil, nil)
 		require.NoError(t, err)
 
 		after, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
@@ -208,13 +200,14 @@ func TestRecordPolicyTransitions(t *testing.T) {
 		p3 := newTestPolicy(t, ds, user, "p3_return", "darwin", nil)
 
 		// p2 already passing prior; p3 already failing prior — both will flip.
-		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{p2.ID: new(true), p3.ID: new(false)}, nil)
+		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{p2.ID: new(true), p3.ID: new(false)}, nil, nil)
 		require.NoError(t, err)
 
 		// Now flip both: p2 → fail, p3 → pass. policy stays as a fresh first-time fail.
 		results := map[uint]*bool{policy.ID: new(false), p2.ID: new(false), p3.ID: new(true)}
 		newFailing := []uint{policy.ID, p2.ID}
-		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, results, newFailing)
+		newPassing := []uint{p3.ID}
+		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, results, newFailing, newPassing)
 		require.NoError(t, err)
 		require.Contains(t, runIDs, policy.ID)
 		require.Contains(t, runIDs, p2.ID)
@@ -226,13 +219,13 @@ func TestRecordPolicyTransitions(t *testing.T) {
 	t.Run("repeated re-failures keep created_at anchored to the first failure", func(t *testing.T) {
 		host := newHost("createdAnchor")
 
-		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
 		first, _ := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
 
 		time.Sleep(1100 * time.Millisecond)
 		for range 3 {
-			_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, nil)
+			_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, nil, nil)
 			require.NoError(t, err)
 		}
 
@@ -255,7 +248,7 @@ func TestRecordPolicyTransitions(t *testing.T) {
 			pStillFail.ID:  new(false),
 			pFailToPass.ID: new(false),
 			pStillPass.ID:  new(true),
-		}, []uint{pStillFail.ID, pFailToPass.ID})
+		}, []uint{pStillFail.ID, pFailToPass.ID}, nil)
 		require.NoError(t, err)
 
 		// Now apply a check-in that exercises all five active cases at once.
@@ -267,7 +260,7 @@ func TestRecordPolicyTransitions(t *testing.T) {
 			pStillPass.ID:  new(true),  // still passing
 		}
 		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID, results,
-			[]uint{pFirstFail.ID, pPassToFail.ID})
+			[]uint{pFirstFail.ID, pPassToFail.ID}, []uint{pFailToPass.ID})
 		require.NoError(t, err)
 		require.Contains(t, runIDs, pFirstFail.ID)
 		require.Contains(t, runIDs, pPassToFail.ID)
@@ -306,12 +299,53 @@ func TestRecordPolicyTransitions(t *testing.T) {
 	t.Run("hosts are isolated", func(t *testing.T) {
 		hostA := newHost("isoA")
 		hostB := newHost("isoB")
-		_, err := ds.RecordPolicyTransitions(ctx, hostA.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		_, err := ds.RecordPolicyTransitions(ctx, hostA.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
 
 		// Recording for hostA must not affect hostB.
 		_, hasB := readPolicyRun(t, ds, ctx, policy.ID, hostB.ID)
 		require.False(t, hasB)
+	})
+
+	t.Run("fast path: all-passing + no transitions skips the DB write entirely", func(t *testing.T) {
+		// Stable-fleet hot-path optimization: when every observed policy is
+		// currently passing AND no transitions were reported, the function
+		// returns immediately without writing. First-time-passing rows are
+		// intentionally not created — the UI's COALESCE fallback to
+		// policy_membership.created_at covers that case.
+		host := newHost("fastpath")
+		p2 := newTestPolicy(t, ds, user, "fastpath_p2", "darwin", nil)
+
+		runIDs, err := ds.RecordPolicyTransitions(ctx, host.ID,
+			map[uint]*bool{policy.ID: new(true), p2.ID: new(true)},
+			nil, nil)
+		require.NoError(t, err)
+		require.Empty(t, runIDs)
+		require.Equal(t, 0, countPolicyRuns(t, ds, ctx, policy.ID, host.ID),
+			"no row should have been created — the fast path returned before issuing the ODKU")
+		require.Equal(t, 0, countPolicyRuns(t, ds, ctx, p2.ID, host.ID))
+	})
+
+	t.Run("fast path does NOT trigger when any policy is currently failing", func(t *testing.T) {
+		// A single failing policy in policyResults disables the fast path —
+		// otherwise still-failing bumps would silently be lost.
+		host := newHost("fastpath_mixed")
+		// Seed a failing prior so the next call would bump consecutive_failures.
+		_, err := ds.RecordPolicyTransitions(ctx, host.ID,
+			map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
+		require.NoError(t, err)
+		first, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
+		require.True(t, ok)
+		require.Equal(t, uint(1), first.ConsecutiveFailures)
+
+		// Mixed results with one still-failing policy: fast path must NOT
+		// fire, the bump must happen.
+		_, err = ds.RecordPolicyTransitions(ctx, host.ID,
+			map[uint]*bool{policy.ID: new(false)}, nil, nil)
+		require.NoError(t, err)
+		after, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
+		require.True(t, ok)
+		require.Equal(t, uint(2), after.ConsecutiveFailures)
 	})
 
 	t.Run("concurrent callers for the same (host, policy) collapse to one row, no errors, sum of consecutive_failures", func(t *testing.T) {
@@ -330,7 +364,7 @@ func TestRecordPolicyTransitions(t *testing.T) {
 			wg.Go(func() {
 				_, err := ds.RecordPolicyTransitions(ctx, host.ID,
 					map[uint]*bool{policy.ID: new(false)},
-					[]uint{policy.ID})
+					[]uint{policy.ID}, nil)
 				if err != nil {
 					errCh <- err
 				}
@@ -370,9 +404,9 @@ func TestGetFailingPolicyRuns(t *testing.T) {
 		hostB := mkHost("getB")
 		hostNoFail := mkHost("getNoFail")
 
-		_, err := ds.RecordPolicyTransitions(ctx, hostA.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		_, err := ds.RecordPolicyTransitions(ctx, hostA.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
-		_, err = ds.RecordPolicyTransitions(ctx, hostB.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		_, err = ds.RecordPolicyTransitions(ctx, hostB.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
 
 		refs, err := ds.GetFailingPolicyRuns(ctx, []uint{policy.ID}, []uint{hostA.ID, hostB.ID, hostNoFail.ID})
@@ -391,7 +425,7 @@ func TestGetFailingPolicyRuns(t *testing.T) {
 
 	t.Run("passing rows are excluded", func(t *testing.T) {
 		hostPassing := mkHost("getPassOnly")
-		_, err := ds.RecordPolicyTransitions(ctx, hostPassing.ID, map[uint]*bool{policy.ID: new(true)}, nil)
+		_, err := ds.RecordPolicyTransitions(ctx, hostPassing.ID, map[uint]*bool{policy.ID: new(true)}, nil, nil)
 		require.NoError(t, err)
 
 		refs, err := ds.GetFailingPolicyRuns(ctx, []uint{policy.ID}, []uint{hostPassing.ID})
@@ -401,9 +435,10 @@ func TestGetFailingPolicyRuns(t *testing.T) {
 
 	t.Run("a row that recovered from fail to pass is no longer returned", func(t *testing.T) {
 		host := mkHost("getRecovered")
-		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
-		_, err = ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(true)}, nil)
+		// newPassing carries the fail→pass flip — disables the all-passing fast path.
+		_, err = ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(true)}, nil, []uint{policy.ID})
 		require.NoError(t, err)
 
 		refs, err := ds.GetFailingPolicyRuns(ctx, []uint{policy.ID}, []uint{host.ID})
@@ -418,11 +453,11 @@ func TestGetFailingPolicyRuns(t *testing.T) {
 		// hostX fails on policy and policy2; hostY only fails on policy2.
 		_, err := ds.RecordPolicyTransitions(ctx, hostX.ID,
 			map[uint]*bool{policy.ID: new(false), policy2.ID: new(false)},
-			[]uint{policy.ID, policy2.ID})
+			[]uint{policy.ID, policy2.ID}, nil)
 		require.NoError(t, err)
 		_, err = ds.RecordPolicyTransitions(ctx, hostY.ID,
 			map[uint]*bool{policy2.ID: new(false)},
-			[]uint{policy2.ID})
+			[]uint{policy2.ID}, nil)
 		require.NoError(t, err)
 
 		refs, err := ds.GetFailingPolicyRuns(ctx,
@@ -461,7 +496,7 @@ func TestCreatePolicyAutomationExecutions(t *testing.T) {
 
 	mkFailingRun := func(name string) fleet.PolicyRunRef {
 		host := test.NewHost(t, ds, name, name+".ip", "key-"+name, "uuid-"+name, time.Now())
-		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
 		row, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
 		require.True(t, ok)
@@ -558,7 +593,7 @@ func TestUpdatePolicyAutomationExecutions(t *testing.T) {
 
 	mkBatch := func(name string, typ fleet.PolicyAutomationType) uuid.UUID {
 		host := test.NewHost(t, ds, name, name+".ip", "key-"+name, "uuid-"+name, time.Now())
-		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
 		row, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
 		require.True(t, ok)
@@ -693,7 +728,7 @@ func TestPolicyRunsForeignKeyBehavior(t *testing.T) {
 	t.Run("deleting a policy cascades to its policy_runs rows", func(t *testing.T) {
 		policy := newTestPolicy(t, ds, user, "fk_cascade", "darwin", nil)
 		host := test.NewHost(t, ds, "fkCascadeHost", "10.2.0.1", "key-fkc", "uuid-fkc", time.Now())
-		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
 		require.Equal(t, 1, countPolicyRuns(t, ds, ctx, policy.ID, host.ID))
 
@@ -709,7 +744,7 @@ func TestPolicyRunsForeignKeyBehavior(t *testing.T) {
 	t.Run("deleting a policy_runs row sets host_script_results.policy_run_id to NULL", func(t *testing.T) {
 		policy := newTestPolicy(t, ds, user, "fk_setnull", "darwin", nil)
 		host := test.NewHost(t, ds, "fkSetNullHost", "10.2.0.2", "key-fks", "uuid-fks", time.Now())
-		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID})
+		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
 		require.NoError(t, err)
 		runRow, ok := readPolicyRun(t, ds, ctx, policy.ID, host.ID)
 		require.True(t, ok)

@@ -1040,7 +1040,7 @@ type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID ui
 
 type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
 
-type RecordPolicyTransitionsFunc func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (failingRunIDs map[uint]uint, err error)
+type RecordPolicyTransitionsFunc func(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint, newPassing []uint) (failingRunIDs map[uint]uint, err error)
 
 type GetFailingPolicyRunsFunc func(ctx context.Context, policyIDs []uint, hostIDs []uint) ([]fleet.PolicyRunRef, error)
 
@@ -8519,11 +8519,11 @@ func (s *DataStore) OutdatedAutomationBatch(ctx context.Context) ([]fleet.Policy
 	return s.OutdatedAutomationBatchFunc(ctx)
 }
 
-func (s *DataStore) RecordPolicyTransitions(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint) (failingRunIDs map[uint]uint, err error) {
+func (s *DataStore) RecordPolicyTransitions(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing []uint, newPassing []uint) (failingRunIDs map[uint]uint, err error) {
 	s.mu.Lock()
 	s.RecordPolicyTransitionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.RecordPolicyTransitionsFunc(ctx, hostID, policyResults, newFailing)
+	return s.RecordPolicyTransitionsFunc(ctx, hostID, policyResults, newFailing, newPassing)
 }
 
 func (s *DataStore) GetFailingPolicyRuns(ctx context.Context, policyIDs []uint, hostIDs []uint) ([]fleet.PolicyRunRef, error) {
