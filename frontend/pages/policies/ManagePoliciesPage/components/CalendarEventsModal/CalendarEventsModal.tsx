@@ -47,8 +47,14 @@ const CalendarEventsModal = forwardRef<
     }: ICalendarEventsModalProps,
     ref
   ) => {
-    const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
+    const {
+      isGlobalAdmin,
+      isTeamAdmin,
+      isGlobalMaintainer,
+      isTeamMaintainer,
+    } = useContext(AppContext);
     const isAdmin = isGlobalAdmin || isTeamAdmin;
+    const isMaintainer = isGlobalMaintainer || isTeamMaintainer;
 
     const [formData, setFormData] = useState<ICalendarEventsModalData>({
       enabled,
@@ -148,52 +154,70 @@ const CalendarEventsModal = forwardRef<
           {!configured && (
             <InfoBanner className={baseClass}>
               To use calendar automations, connect Fleet to Google Workspace in{" "}
-              <CustomLink
-                url={paths.ADMIN_INTEGRATIONS_CALENDARS}
-                text="Settings &gt; Integrations &gt; Calendars"
-                multiline
-              />
+              {isGlobalAdmin ? (
+                // Only global admins can access the Calendar settings page.
+                <CustomLink
+                  url={paths.ADMIN_INTEGRATIONS_CALENDARS}
+                  text="Settings &gt; Integrations &gt; Calendars"
+                  multiline
+                />
+              ) : (
+                <>
+                  <b>Settings</b> &gt; <b>Integrations</b> &gt; <b>Calendars</b>
+                </>
+              )}
               .
             </InfoBanner>
           )}
-          {configured && (
+          {configured && isAdmin && (
             <>
               <Slider
                 value={formData.enabled}
                 onChange={onFeatureEnabledChange}
                 inactiveText="Disabled"
                 activeText="Enabled"
-                disabled={gitOpsModeEnabled || !isAdmin}
+                disabled={gitOpsModeEnabled}
               />
-              {isAdmin && (
-                <div
-                  className={`form ${
-                    formData.enabled ? "" : "form-fields--disabled"
-                  }`}
-                >
-                  <InputField
-                    placeholder="https://server.com/example"
-                    label="Resolution webhook URL"
-                    onChange={onUrlChange}
-                    name="url"
-                    value={formData.url}
-                    error={formErrors.url}
-                    tooltip="Provide a URL to deliver a webhook request to."
-                    helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
-                    disabled={!formData.enabled || gitOpsModeEnabled}
-                  />
-                  <RevealButton
-                    isShowing={showExamplePayload}
-                    className={`${baseClass}__show-example-payload-toggle`}
-                    hideText="Hide example payload"
-                    showText="Show example payload"
-                    caretPosition="after"
-                    onClick={() => setShowExamplePayload(!showExamplePayload)}
-                    disabled={!formData.enabled || gitOpsModeEnabled}
-                  />
-                  {showExamplePayload && renderExamplePayload()}
-                </div>
-              )}
+              <div
+                className={`form ${
+                  formData.enabled ? "" : "form-fields--disabled"
+                }`}
+              >
+                <InputField
+                  placeholder="https://server.com/example"
+                  label="Resolution webhook URL"
+                  onChange={onUrlChange}
+                  name="url"
+                  value={formData.url}
+                  error={formErrors.url}
+                  tooltip="Provide a URL to deliver a webhook request to."
+                  helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
+                  disabled={!formData.enabled || gitOpsModeEnabled}
+                />
+                <RevealButton
+                  isShowing={showExamplePayload}
+                  className={`${baseClass}__show-example-payload-toggle`}
+                  hideText="Hide example payload"
+                  showText="Show example payload"
+                  caretPosition="after"
+                  onClick={() => setShowExamplePayload(!showExamplePayload)}
+                  disabled={!formData.enabled || gitOpsModeEnabled}
+                />
+                {showExamplePayload && renderExamplePayload()}
+              </div>
+            </>
+          )}
+          {configured && isMaintainer && (
+            <>
+              <RevealButton
+                isShowing={showExamplePayload}
+                className={`${baseClass}__show-example-payload-toggle`}
+                hideText="Hide example payload"
+                showText="Show example payload"
+                caretPosition="after"
+                onClick={() => setShowExamplePayload(!showExamplePayload)}
+              />
+              {showExamplePayload && renderExamplePayload()}
             </>
           )}
         </div>

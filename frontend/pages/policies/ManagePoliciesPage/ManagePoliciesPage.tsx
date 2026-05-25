@@ -364,7 +364,13 @@ const ManagePolicyPage = ({
 
   const canAddOrDeletePolicies =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations = canAddOrDeletePolicies;
+
+  // On the "All fleets" view the only available section in AutomationsModal is
+  // Webhooks or tickets, which is admin-only. Hide the button entirely for
+  // maintainers (and below) in that view so they don't open an empty modal.
+  const canManageAutomations = isAllTeamsSelected
+    ? isGlobalAdmin || isTeamAdmin
+    : canAddOrDeletePolicies;
 
   const { data: globalConfig, isFetching: isFetchingGlobalConfig } = useQuery<
     IConfig,

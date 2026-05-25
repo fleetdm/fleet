@@ -41,8 +41,7 @@ const ConditionalAccessModal = forwardRef<
     }: IConditionalAccessModalProps,
     ref
   ) => {
-    const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
-    const isAdmin = isGlobalAdmin || isTeamAdmin;
+    const { isGlobalAdmin } = useContext(AppContext);
 
     const [formEnabled, setFormEnabled] = useState(enabled);
 
@@ -66,11 +65,19 @@ const ConditionalAccessModal = forwardRef<
           <InfoBanner>
             To use conditional access automations, connect Fleet to{" "}
             {providerText} in{" "}
-            <CustomLink
-              url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
-              text="Settings &gt; Integrations &gt; Conditional access"
-              multiline
-            />
+            {isGlobalAdmin ? (
+              // Only global admins can access the Conditional Access settings page.
+              <CustomLink
+                url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
+                text="Settings &gt; Integrations &gt; Conditional access"
+                multiline
+              />
+            ) : (
+              <>
+                <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
+                <b>Conditional access</b>
+              </>
+            )}
             .
           </InfoBanner>
         )}
@@ -80,7 +87,7 @@ const ConditionalAccessModal = forwardRef<
             onChange={() => setFormEnabled(!formEnabled)}
             inactiveText="Disabled"
             activeText="Enabled"
-            disabled={gitOpsModeEnabled || !isAdmin}
+            disabled={gitOpsModeEnabled}
           />
         )}
       </div>
