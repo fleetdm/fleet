@@ -57,7 +57,7 @@ func ReconcileAppleDeclarationsBatched(
 
 	if len(hosts) == 0 {
 		if cursor != "" {
-			logger.InfoContext(ctx, "apple MDM declaration reconcile pass complete; resetting cursor", "cursor", cursor)
+			logger.DebugContext(ctx, "apple MDM declaration reconcile pass complete; resetting cursor", "cursor", cursor)
 			if cerr := ds.SetMDMAppleDeclarationReconcileCursor(ctx, ""); cerr != nil {
 				logger.WarnContext(ctx, "failed to reset apple MDM declaration reconcile cursor", "err", cerr)
 			}

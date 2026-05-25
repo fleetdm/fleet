@@ -72,7 +72,7 @@ func ReconcileAppleProfilesBatched(
 
 	if len(hosts) == 0 {
 		if cursor != "" {
-			logger.InfoContext(ctx, "apple MDM reconcile pass complete; resetting cursor", "cursor", cursor)
+			logger.DebugContext(ctx, "apple MDM reconcile pass complete; resetting cursor", "cursor", cursor)
 			if cerr := ds.SetMDMAppleReconcileCursor(ctx, ""); cerr != nil {
 				logger.WarnContext(ctx, "failed to reset apple MDM reconcile cursor", "err", cerr)
 			}
@@ -104,7 +104,7 @@ func ReconcileAppleProfilesBatched(
 	}()
 
 	if cursor != "" || nextCursor != "" {
-		logger.InfoContext(ctx, "apple MDM reconcile tick using cursor",
+		logger.DebugContext(ctx, "apple MDM reconcile tick using cursor",
 			"cursor", cursor, "next_cursor", nextCursor,
 			"batch_size", reconcileAppleProfilesBatchSize,
 			"hosts_in_batch", len(hosts),
