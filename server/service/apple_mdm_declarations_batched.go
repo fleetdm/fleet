@@ -52,7 +52,7 @@ func ReconcileAppleDeclarationsBatched(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing apple MDM hosts for ddm reconcile batch")
 	}
-	logger.InfoContext(ctx, "ddm batched reconcile: listed hosts",
+	logger.DebugContext(ctx, "ddm batched reconcile: listed hosts",
 		"cursor", cursor, "hosts_in_batch", len(hosts))
 
 	if len(hosts) == 0 {
@@ -79,11 +79,11 @@ func ReconcileAppleDeclarationsBatched(
 			if cerr := ds.SetMDMAppleDeclarationReconcileCursor(ctx, nextCursor); cerr != nil {
 				logger.WarnContext(ctx, "failed to advance apple MDM declaration reconcile cursor", "err", cerr)
 			} else {
-				logger.InfoContext(ctx, "ddm batched reconcile: cursor advanced",
+				logger.DebugContext(ctx, "ddm batched reconcile: cursor advanced",
 					"cursor", cursor, "next_cursor", nextCursor)
 			}
 		default:
-			logger.InfoContext(ctx, "ddm batched reconcile: tick complete, cursor unchanged",
+			logger.DebugContext(ctx, "ddm batched reconcile: tick complete, cursor unchanged",
 				"cursor", cursor)
 		}
 	}()
@@ -92,7 +92,7 @@ func ReconcileAppleDeclarationsBatched(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing apple declarations for reconcile")
 	}
-	logger.InfoContext(ctx, "ddm batched reconcile: loaded declarations",
+	logger.DebugContext(ctx, "ddm batched reconcile: loaded declarations",
 		"declaration_count", len(allDecls))
 
 	declsByTeam := make(map[uint][]*fleet.AppleDeclarationForReconcile, 4)
@@ -136,7 +136,7 @@ func ReconcileAppleDeclarationsBatched(
 		hosts, hostLabels, currentByHost, declsByTeam,
 	)
 
-	logger.InfoContext(ctx, "ddm batched reconcile: computed deltas",
+	logger.DebugContext(ctx, "ddm batched reconcile: computed deltas",
 		"changed_hosts", len(changedHostUUIDs), "host_decl_rows_to_write", len(declRowsToWrite))
 
 	if len(declRowsToWrite) == 0 {

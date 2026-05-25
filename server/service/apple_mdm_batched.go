@@ -67,7 +67,7 @@ func ReconcileAppleProfilesBatched(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing apple MDM hosts for reconcile batch")
 	}
-	logger.InfoContext(ctx, "batched reconcile: listed hosts",
+	logger.DebugContext(ctx, "batched reconcile: listed hosts",
 		"cursor", cursor, "hosts_in_batch", len(hosts))
 
 	if len(hosts) == 0 {
@@ -94,11 +94,11 @@ func ReconcileAppleProfilesBatched(
 			if cerr := ds.SetMDMAppleReconcileCursor(ctx, nextCursor); cerr != nil {
 				logger.WarnContext(ctx, "failed to advance apple MDM reconcile cursor", "err", cerr)
 			} else {
-				logger.InfoContext(ctx, "batched reconcile: cursor advanced",
+				logger.DebugContext(ctx, "batched reconcile: cursor advanced",
 					"cursor", cursor, "next_cursor", nextCursor)
 			}
 		default:
-			logger.InfoContext(ctx, "batched reconcile: tick complete, cursor unchanged",
+			logger.DebugContext(ctx, "batched reconcile: tick complete, cursor unchanged",
 				"cursor", cursor)
 		}
 	}()
@@ -115,7 +115,7 @@ func ReconcileAppleProfilesBatched(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing apple profiles for reconcile")
 	}
-	logger.InfoContext(ctx, "batched reconcile: loaded profiles",
+	logger.DebugContext(ctx, "batched reconcile: loaded profiles",
 		"profile_count", len(allProfiles))
 
 	profilesByTeam := make(map[uint][]*fleet.AppleProfileForReconcile, 4)
@@ -158,7 +158,7 @@ func ReconcileAppleProfilesBatched(
 	toInstall, toRemove := apple_mdm.ComputeReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam)
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
-	logger.InfoContext(ctx, "batched reconcile: computed deltas",
+	logger.DebugContext(ctx, "batched reconcile: computed deltas",
 		"to_install", len(toInstall), "to_remove", len(toRemove),
 		"host_ids", len(hostIDs), "label_ids", len(labelIDs))
 

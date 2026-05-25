@@ -700,7 +700,7 @@ func ExecuteReconcileBatch(
 		return nil, ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 
-	logger.InfoContext(ctx, "batched reconcile: before bulk upsert",
+	logger.DebugContext(ctx, "batched reconcile: before bulk upsert",
 		"host_profiles", len(hostProfiles),
 		"install_targets", len(installTargets),
 		"remove_targets", len(removeTargets),
