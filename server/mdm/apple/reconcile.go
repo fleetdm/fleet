@@ -760,12 +760,30 @@ func ExecuteReconcileBatch(
 	return enqueueResult.SucceededCmdUUIDs, nil
 }
 
-// ReconcileProfilesForHost is the per-host orchestrator. Both the
-// apple_mdm worker (post-enrollment) and any other caller that wants to
-// reconcile a single host call this directly — no dependency injection,
-// no import cycle. The shared compute/handlers/dispatcher above guarantee
-// the same desired-state semantics as the batched cron reconciler.
-func ReconcileProfilesForHost(
+// ReconcileProfilesForEnrollingHost is the per-host reconciler invoked
+// after enrollment (typically by the apple_mdm worker post-DEP / post-
+// manual-enrollment tasks). It reuses the shared compute/handlers/
+// dispatcher so it can't drift from the batched cron reconciler on
+// "what should be installed."
+//
+// Enrollment-specific differences from the batched cron path:
+//
+//   - User-scoped profiles are filtered out. The user channel typically
+//     doesn't exist yet at this stage, and we don't want to write
+//     Status=NULL rows for them here — the cron's isAwaitingUserEnrollment
+//     path handles user-scoped delivery once the user channel materialises.
+//   - The "host being set up" Redis check in ExecuteReconcileBatch is
+//     skipped (redisKeyValue=nil) because by construction the host IS
+//     being set up and we explicitly want its device-scoped profiles
+//     installed immediately.
+//   - CA throttling still applies through ExecuteReconcileBatch, but
+//     freshly-enrolled hosts bypass it via the existing recentlyEnrolled
+//     check.
+//
+// Returns the list of successfully enqueued command UUIDs so the worker
+// can wait on them. Returns (nil, nil) when MDM is disabled, the host
+// isn't enrolled, or there is no work to do.
+func ReconcileProfilesForEnrollingHost(
 	ctx context.Context,
 	ds fleet.Datastore,
 	commander *MDMAppleCommander,
@@ -829,22 +847,13 @@ func ReconcileProfilesForHost(
 	)
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
-	// Match legacy worker semantics: defer user-scoped profile delivery
-	// to the cron. The post-enrollment worker fires before the user
-	// channel typically exists, and we don't want to write Status=NULL
-	// rows for user-scoped profiles here — that would change the
-	// host_mdm_apple_profiles row count observed immediately after
-	// enrollment, breaking tests and any code that polls for state.
-	// The cron's full ReconcileAppleProfilesBatched still picks them up
-	// and routes through the isAwaitingUserEnrollment path.
+	// Defer user-scoped profile delivery to the cron — see function comment.
 	toInstall = fleet.FilterOutUserScopedProfiles(toInstall)
 
 	if len(toInstall) == 0 && len(toRemove) == 0 {
 		return nil, nil
 	}
 
-	// nil redisKeyValue → skip the "host being set up" check. By
-	// construction this host IS being set up.
 	return ExecuteReconcileBatch(
 		ctx, ds, commander, nil, logger,
 		appConfig, certProfilesLimit, toInstall, toRemove,

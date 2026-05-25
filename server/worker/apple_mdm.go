@@ -41,7 +41,7 @@ const (
 
 // AppleMDM is the job processor for the apple_mdm job.
 // CertProfilesLimit is the per-tick CA-profile throttle used by the
-// shared apple_mdm.ReconcileProfilesForHost path. Set by the cron
+// shared apple_mdm.ReconcileProfilesForEnrollingHost path. Set by the cron
 // constructor in cmd/fleet/cron.go from the config (defaults to 0 in
 // tests, which disables CA throttling — fine since tests rarely exercise
 // CA profiles and the per-host path bypasses throttling for recently
@@ -759,7 +759,7 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 // installProfilesForEnrollingHost installs all configuration profiles for the host immediately after enrollment
 // to speed up the setup experience process. This runs before the reconciler cycle.
 //
-// It delegates to apple_mdm.ReconcileProfilesForHost, which reuses the
+// It delegates to apple_mdm.ReconcileProfilesForEnrollingHost, which reuses the
 // same in-memory desired-state / label / diff pipeline that the batched
 // cron uses — so the worker and cron can never drift on what should be
 // installed for a given host. The worker still emits the
@@ -768,7 +768,7 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID string) ([]string, error) {
 	a.Log.InfoContext(ctx, "installing profiles post-enrollment", "host_uuid", hostUUID)
 
-	cmdUUIDs, err := apple_mdm.ReconcileProfilesForHost(ctx, a.Datastore, a.Commander, a.Log, hostUUID, a.CertProfilesLimit)
+	cmdUUIDs, err := apple_mdm.ReconcileProfilesForEnrollingHost(ctx, a.Datastore, a.Commander, a.Log, hostUUID, a.CertProfilesLimit)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reconcile apple profiles for enrolling host")
 	}

@@ -2278,7 +2278,7 @@ type Datastore interface {
 
 	// GetAppleMDMHostForReconcile returns reconcile info for a single Apple
 	// MDM-enrolled host UUID, or (nil, nil) if the host is not enrolled or
-	// not an Apple platform. Used by ReconcileAppleProfilesForHost (the
+	// not an Apple platform. Used by ReconcileAppleProfilesForEnrollingHost (the
 	// per-host enrollment path that reuses the same in-memory logic as the
 	// batched cron).
 	GetAppleMDMHostForReconcile(ctx context.Context, hostUUID string) (*AppleHostReconcileInfo, error)
