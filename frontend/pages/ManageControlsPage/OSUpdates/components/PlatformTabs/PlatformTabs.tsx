@@ -2,6 +2,7 @@ import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
 import { SUPPORT_LINK } from "utilities/constants";
 
@@ -83,18 +84,38 @@ const PlatformTabs = ({
         >
           <TabList>
             <Tab key="macOS" data-text="macOS">
-              <TabText showDot={isMacOSConfigured}>macOS</TabText>
+              <TabText>
+                macOS
+                {isMacOSConfigured && (
+                  <Icon name="check" size="small" color="core-fleet-green" className={`${baseClass}__tab-check`} />
+                )}
+              </TabText>
             </Tab>
             {isWindowsMdmEnabled && (
               <Tab key="Windows" data-text="Windows">
-                <TabText showDot={isWindowsConfigured}>Windows</TabText>
+                <TabText>
+                  Windows
+                  {isWindowsConfigured && (
+                    <Icon name="check" size="small" color="core-fleet-green" className={`${baseClass}__tab-check`} />
+                  )}
+                </TabText>
               </Tab>
             )}
             <Tab key="iOS" data-text="iOS">
-              <TabText showDot={isIOSConfigured}>iOS</TabText>
+              <TabText>
+                iOS
+                {isIOSConfigured && (
+                  <Icon name="check" size="small" color="core-fleet-green" className={`${baseClass}__tab-check`} />
+                )}
+              </TabText>
             </Tab>
             <Tab key="iPadOS" data-text="iPadOS">
-              <TabText showDot={isIPadOSConfigured}>iPadOS</TabText>
+              <TabText>
+                iPadOS
+                {isIPadOSConfigured && (
+                  <Icon name="check" size="small" color="core-fleet-green" className={`${baseClass}__tab-check`} />
+                )}
+              </TabText>
             </Tab>
             {isAndroidMdmEnabled && (
               <Tab key="Android" data-text="Android">

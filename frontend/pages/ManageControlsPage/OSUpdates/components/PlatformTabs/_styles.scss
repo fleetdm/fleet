@@ -1,4 +1,13 @@
 .platform-tabs {
+  &__tab-check {
+    margin-left: $pad-small;
+    display: inline-flex;
+    align-items: center;
+    transform: scale(0.85);
+    position: relative;
+    top: 3px;
+  }
+
   &__tab-panel {
     display: grid;
     gap: $pad-medium;
