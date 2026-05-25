@@ -71,7 +71,8 @@ func (t *Tracker) Interval() time.Duration {
 		return t.baseInterval
 	}
 
-	interval := t.baseInterval << t.consecutiveFailures
+	shift := min(t.consecutiveFailures, 20)
+	interval := t.baseInterval << shift
 	if interval <= 0 || interval > t.maxBackoff {
 		interval = t.maxBackoff
 	}
