@@ -6,10 +6,6 @@
     padding: 7px $pad-medium;
   }
 
-  &__description {
-    margin: 0;
-  }
-
   &__error {
     color: $ui-error;
   }
@@ -18,9 +14,5 @@
     &__disabled {
       @include disabled;
     }
-  }
-
-  &__no-integrations a {
-    display: block;
   }
 }

@@ -11,8 +11,6 @@ import Slider from "components/forms/fields/Slider";
 import { AppContext } from "context/app";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 
-const baseClass = "conditional-access-modal";
-
 export interface IConditionalAccessModalData {
   enabled: boolean;
 }
@@ -55,8 +53,8 @@ const ConditionalAccessModal = forwardRef<
     }));
 
     return (
-      <div className={`${baseClass} form`}>
-        <p className={`${baseClass}__description`}>
+      <div className="form">
+        <p>
           Block single sign-on for end users failing policies.{" "}
           <CustomLink
             text="Learn more"
@@ -65,7 +63,7 @@ const ConditionalAccessModal = forwardRef<
           />
         </p>
         {!configured && (
-          <InfoBanner className={baseClass}>
+          <InfoBanner>
             To use conditional access automations, connect Fleet to{" "}
             {providerText} in{" "}
             <CustomLink

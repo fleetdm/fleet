@@ -32,7 +32,6 @@ export interface IOtherWorkflowsModalSubmit {
 }
 
 export interface IOtherWorkflowsModalHandle {
-  /** Returns the values to submit, or null when there's nothing to submit. */
   getFormData: () => IOtherWorkflowsModalSubmit | null;
   validate: () => boolean;
   isDirty: () => boolean;
