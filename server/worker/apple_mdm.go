@@ -773,6 +773,12 @@ func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID
 		return nil, ctxerr.Wrap(ctx, err, "reconcile apple profiles for enrolling host")
 	}
 
+	if len(cmdUUIDs) == 0 {
+		// We just skip sending the decl. management as well here even though there might be some, but it's not blocking so doesn't matter as much.
+		a.Log.InfoContext(ctx, "no profiles to install for enrolling host", "host_uuid", hostUUID)
+		return cmdUUIDs, nil
+	}
+
 	a.Log.InfoContext(ctx, "successfully queued profiles from apple mdm worker",
 		"host_uuid", hostUUID, "profiles_sent", len(cmdUUIDs))
 
