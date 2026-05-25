@@ -47,6 +47,9 @@ func New(baseInterval, maxBackoff time.Duration) *Tracker {
 	if baseInterval < minInterval {
 		baseInterval = minInterval
 	}
+	if maxBackoff < minInterval {
+		maxBackoff = minInterval
+	}
 	return &Tracker{
 		baseInterval: baseInterval,
 		maxBackoff:   maxBackoff,
