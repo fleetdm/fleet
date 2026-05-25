@@ -75,6 +75,15 @@
     padding-top: $pad-medium;
   }
 
+  &__tab-check {
+    margin-left: $pad-small;
+    display: inline-flex;
+    align-items: center;
+    transform: scale(0.85);
+    position: relative;
+    top: 3px;
+  }
+
   &__target {
     margin: $pad-large 0;
 
