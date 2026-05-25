@@ -92,6 +92,9 @@ func (t *Tracker) Interval() time.Duration {
 	}
 
 	interval := t.baseInterval << min(t.consecutiveFailures, maxShift)
+	if interval < t.baseInterval {
+		interval = t.maxBackoff // overflow wrapped; treat as max
+	}
 	interval = clamp(interval, t.baseInterval, t.maxBackoff)
 	interval += jitter(interval)
 	interval = min(interval, t.maxBackoff)
