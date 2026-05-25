@@ -15,6 +15,10 @@ import (
 	"time"
 )
 
+// maxShift caps the bit-shift exponent to prevent integer overflow from
+// wrapping into a small positive value that looks like a valid interval.
+const maxShift = 20
+
 // Tracker tracks consecutive failures for a single communication path
 // and computes the next wait interval using exponential backoff with jitter.
 //
@@ -61,8 +65,9 @@ func (t *Tracker) RecordFailure() {
 }
 
 // Interval returns the duration to wait before the next request.
-// On success (consecutiveFailures == 0) this is baseInterval.
-// On failure it is min(baseInterval * 2^consecutiveFailures + jitter, maxBackoff).
+//
+// When consecutiveFailures is 0 it returns baseInterval. Otherwise it
+// returns min(baseInterval * 2^failures + jitter, maxBackoff).
 func (t *Tracker) Interval() time.Duration {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -71,24 +76,33 @@ func (t *Tracker) Interval() time.Duration {
 		return t.baseInterval
 	}
 
-	shift := min(t.consecutiveFailures, 20)
-	interval := t.baseInterval << shift
-	if interval <= 0 || interval > t.maxBackoff {
-		interval = t.maxBackoff
-	}
-
-	// Add jitter: uniform random in [0, 10% of interval].
-	tenthInterval := int64(interval / 10)
-	if tenthInterval > 0 {
-		jitter := time.Duration(rand.Int64N(tenthInterval)) //nolint:gosec // jitter does not need cryptographic randomness
-		interval += jitter
-	}
-
-	if interval > t.maxBackoff {
-		interval = t.maxBackoff
-	}
+	interval := t.baseInterval << min(t.consecutiveFailures, maxShift)
+	interval = clamp(interval, t.baseInterval, t.maxBackoff)
+	interval += jitter(interval)
+	interval = min(interval, t.maxBackoff)
 
 	return interval
+}
+
+// clamp restricts v to [lo, hi]. A non-positive v (overflow) is treated
+// as exceeding hi.
+func clamp(v, lo, hi time.Duration) time.Duration {
+	if v <= 0 || v > hi {
+		return hi
+	}
+	if v < lo {
+		return lo
+	}
+	return v
+}
+
+// jitter returns a random duration in [0, 10% of d).
+func jitter(d time.Duration) time.Duration {
+	tenth := int64(d / 10)
+	if tenth <= 0 {
+		return 0
+	}
+	return time.Duration(rand.Int64N(tenth)) //nolint:gosec // jitter does not need cryptographic randomness
 }
 
 // InBackoff reports whether the tracker is currently in a backoff state
