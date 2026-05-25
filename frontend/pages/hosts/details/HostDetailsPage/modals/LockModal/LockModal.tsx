@@ -6,7 +6,7 @@ import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import hostAPI from "services/entities/hosts";
-import { isIPadOrIPhone } from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -66,14 +66,28 @@ const LockModal = ({
   const [lockChecked, setLockChecked] = React.useState(false);
   const [isLocking, setIsLocking] = React.useState(false);
 
+  const isAndroidHost = isAndroid(platform);
+
   const onLock = async () => {
     setIsLocking(true);
     try {
       await hostAPI.lockHost(id);
       onSuccess();
-      renderFlash("success", "Locking host or will lock when it comes online.");
+      // Android uses the Figma-specified copy; other platforms keep their existing message to
+      // avoid regressing copy they were QA'd against.
+      renderFlash(
+        "success",
+        isAndroidHost
+          ? "Successfully sent request to lock this host."
+          : "Locking host or will lock when it comes online."
+      );
     } catch (e) {
-      renderFlash("error", getErrorReason(e));
+      renderFlash(
+        "error",
+        isAndroidHost
+          ? "Couldn't send request to lock this host. Please try again."
+          : getErrorReason(e)
+      );
     }
     setIsLocking(false);
   };
@@ -103,6 +117,18 @@ const LockModal = ({
             />
           </p>
         </>
+      );
+    }
+
+    if (isAndroid(platform)) {
+      // Per Figma: AMAPI's LOCK targets the work profile on BYO and the device on COBO. There is
+      // no Fleet-side unlock — the user unlocks via their existing password/PIN. Copy is the same
+      // for both ownership modes per the Figma dev note.
+      return (
+        <p>
+          Locking will enforce the host lock screen and require the user to
+          enter their password/PIN to regain access.
+        </p>
       );
     }
 

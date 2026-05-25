@@ -138,4 +138,23 @@ describe("HostHeader", () => {
 
     expect(await screen.findByText(/Host is locked/i)).toBeInTheDocument();
   });
+
+  it("does NOT render the device status tag for Android hosts (#41683 — no host-header badges for Android)", () => {
+    renderWithSetup(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, platform: "android" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        // Even with an explicit "locked" / "wiped" device status, Android suppresses the badge
+        // entirely per product decision captured in
+        // openspec/changes/add-android-mdm-commands/design.md ("No host-header badges for Android").
+        hostMdmDeviceStatus={"wiped" as HostMdmDeviceStatusUIState}
+      />
+    );
+
+    expect(screen.queryByText("Wiped")).not.toBeInTheDocument();
+    expect(screen.queryByText("Locked")).not.toBeInTheDocument();
+    expect(screen.queryByText("Wipe pending")).not.toBeInTheDocument();
+  });
 });

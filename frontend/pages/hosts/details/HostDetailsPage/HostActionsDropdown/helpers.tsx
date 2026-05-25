@@ -136,6 +136,7 @@ const canTransferTeam = (config: IHostActionConfigOptions) => {
 const canTurnOffMdm = (config: IHostActionConfigOptions) => {
   const {
     hostPlatform,
+    hostMdmEnrollmentStatus,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
@@ -145,8 +146,15 @@ const canTurnOffMdm = (config: IHostActionConfigOptions) => {
     isMacMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
   } = config;
+  // Android: Unenroll is BYO-only per Figma (#41683). COBO admins use Wipe or Delete instead.
+  // BYO is detected via the "On (personal)" enrollment status — same string the EE service uses
+  // server-side to gate Wipe.
+  const isAndroidWithUnenroll =
+    isAndroid(hostPlatform) &&
+    isAndroidMdmEnabledAndConfigured &&
+    hostMdmEnrollmentStatus === "On (personal)";
   return (
-    ((isAndroid(hostPlatform) && isAndroidMdmEnabledAndConfigured) ||
+    (isAndroidWithUnenroll ||
       (isAppleDevice(hostPlatform) && isMacMdmEnabledAndConfigured)) &&
     isEnrolledInMdm &&
     isConnectedToFleetMdm &&
@@ -163,6 +171,7 @@ const canLockHost = ({
   isPremiumTier,
   hostPlatform,
   isMacMdmEnabledAndConfigured,
+  isAndroidMdmEnabledAndConfigured,
   isEnrolledInMdm,
   isConnectedToFleetMdm,
   isGlobalAdmin,
@@ -188,14 +197,23 @@ const canLockHost = ({
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
+  // Android hosts (both BYO and COBO) can be locked when MDM is on. AMAPI's LOCK targets the
+  // work profile on BYO and the device on COBO; on BYO it is a no-op without a work-profile PIN
+  // set, but Fleet still allows the action — the device-side gating belongs to the OS, not Fleet.
+  const isLockableAndroidDevice =
+    isAndroid(hostPlatform) &&
+    isAndroidMdmEnabledAndConfigured &&
+    isConnectedToFleetMdm &&
+    isEnrolledInMdm;
+
   return (
     isPremiumTier &&
-    !isAndroid(hostPlatform) &&
     hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
       isLockableMacOSDevice ||
-      isLockableIosOrIpadDevice) &&
+      isLockableIosOrIpadDevice ||
+      isLockableAndroidDevice) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -210,6 +228,7 @@ const canWipeHost = ({
   isEnrolledInMdm,
   isMacMdmEnabledAndConfigured,
   isWindowsMdmEnabledAndConfigured,
+  isAndroidMdmEnabledAndConfigured,
   hostPlatform,
   hostMdmDeviceStatus,
   hostMdmEnrollmentStatus,
@@ -229,12 +248,21 @@ const canWipeHost = ({
     isIPadOrIPhone(hostPlatform) &&
     isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
 
+  // Android: Wipe is COBO-only. BYO Android shows Unenroll instead (and that flow itself sends
+  // a WIPE command under the hood, per #41683 design). BYO is detected via "On (personal)"
+  // enrollment status — the same string the server-side EE WipeHost validation rejects on.
+  const canWipeAndroid =
+    isAndroid(hostPlatform) &&
+    isAndroidMdmEnabledAndConfigured &&
+    isConnectedToFleetMdm &&
+    isEnrolledInMdm &&
+    hostMdmEnrollmentStatus !== "On (personal)";
+
   return (
     isPremiumTier &&
-    !isAndroid(hostPlatform) &&
     !isAccountDrivenEnrolledIosOrIpadosDevice &&
     hostMdmDeviceStatus === "unlocked" &&
-    (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS) &&
+    (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS || canWipeAndroid) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -361,6 +389,28 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
     return false;
   }
 
+  const isAdminOrMaintainer =
+    config.isGlobalAdmin ||
+    config.isGlobalMaintainer ||
+    config.isTeamAdmin ||
+    config.isTeamMaintainer;
+  if (!isAdminOrMaintainer) {
+    return false;
+  }
+
+  // Android: both BYO (clears work-profile passcode) and COBO (clears device passcode) are
+  // supported. v1 shows Clear passcode for any MDM-on Android host; the "only show if work-profile
+  // password is set" refinement from the Figma dev note is tracked as a follow-up open question
+  // (open-product-questions.md Q4) since Fleet does not yet ingest that signal from AMAPI.
+  if (isAndroid(config.hostPlatform)) {
+    return (
+      config.isAndroidMdmEnabledAndConfigured &&
+      config.isEnrolledInMdm &&
+      !!config.isConnectedToFleetMdm
+    );
+  }
+
+  // iOS / iPadOS — existing behavior unchanged.
   if (!isIPadOrIPhone(config.hostPlatform)) {
     return false;
   }
@@ -385,12 +435,7 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
     return false;
   }
 
-  return (
-    config.isGlobalAdmin ||
-    config.isGlobalMaintainer ||
-    config.isTeamAdmin ||
-    config.isTeamMaintainer
-  );
+  return true;
 };
 
 const canRunScript = ({

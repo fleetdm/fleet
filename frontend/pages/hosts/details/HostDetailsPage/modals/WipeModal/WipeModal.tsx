@@ -7,12 +7,14 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import { NotificationContext } from "context/notification";
+import { isAndroid } from "interfaces/platform";
 
 const baseClass = "wipe-modal";
 
 interface IWipeModalProps {
   id: number;
   hostName: string;
+  hostPlatform: string;
   isWindowsHost: boolean;
   onSuccess: () => void;
   onClose: () => void;
@@ -21,6 +23,7 @@ interface IWipeModalProps {
 const WipeModal = ({
   id,
   hostName,
+  hostPlatform,
   isWindowsHost,
   onSuccess,
   onClose,
@@ -28,18 +31,28 @@ const WipeModal = ({
   const { renderFlash } = useContext(NotificationContext);
   const [lockChecked, setLockChecked] = React.useState(false);
   const [isWiping, setIsWiping] = React.useState(false);
+  const isAndroidHost = isAndroid(hostPlatform);
 
   const onWipe = async () => {
     setIsWiping(true);
     try {
       await hostAPI.wipeHost(id);
       onSuccess();
+      // Android uses the Figma-specified copy; other platforms keep their existing message to
+      // avoid regressing copy they were QA'd against.
       renderFlash(
         "success",
-        "Wiping host or will wipe when the host comes online."
+        isAndroidHost
+          ? "Successfully sent request to wipe this host."
+          : "Wiping host or will wipe when the host comes online."
       );
     } catch (e) {
-      renderFlash("error", getErrorReason(e));
+      renderFlash(
+        "error",
+        isAndroidHost
+          ? "Couldn't send request to wipe this host. Please try again."
+          : getErrorReason(e)
+      );
     }
     onClose();
     setIsWiping(false);

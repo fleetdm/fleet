@@ -1538,6 +1538,125 @@ describe("Host Actions Dropdown", () => {
     });
   });
 
+  describe("Android hosts (#41683)", () => {
+    it("renders Transfer + Clear passcode + Unenroll + Lock + Delete for a BYO Android host with MDM on", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isAndroidMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="android"
+          hostMdmEnrollmentStatus="On (personal)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Lock")).toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+      expect(screen.queryByText("Unenroll")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      // BYO Android: Wipe is rejected by both EE service validation and the dropdown helper.
+      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+      // Android has no Fleet-side Unlock concept.
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+    });
+
+    it("renders Transfer + Clear passcode + Lock + Wipe + Delete for a COBO Android host with MDM on", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isAndroidMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="android"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Lock")).toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      // COBO Android: Unenroll is not surfaced; the explicit Wipe option is shown instead.
+      expect(screen.queryByText("Unenroll")).not.toBeInTheDocument();
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+    });
+
+    it("renders only Transfer + Delete when Android MDM is disabled", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isAndroidMdmEnabledAndConfigured: false,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="android"
+          hostMdmEnrollmentStatus="Off"
+          isConnectedToFleetMdm={false}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+      expect(screen.queryByText("Unenroll")).not.toBeInTheDocument();
+    });
+  });
+
   describe("personally enrolled hosts (e.g. enrollment status => On (personal)", () => {
     it("render only the Transfer and Delete options for personally enrolled ios host", async () => {
       const render = createCustomRenderer({

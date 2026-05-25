@@ -160,6 +160,12 @@ const HostHeader = ({
   const renderDeviceStatusTag = () => {
     if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
 
+    // Android: per product decision (2026-05-20, captured in
+    // openspec/changes/add-android-mdm-commands/design.md), Android hosts do not display any
+    // host-header badges — no "Wipe pending", "Wiped", "Lock pending", "Locked". The badge
+    // components remain for iOS / iPadOS / macOS / Windows; only the platform predicate changes.
+    if (isAndroid(platform)) return null;
+
     const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
 
     const classNames = classnames(
