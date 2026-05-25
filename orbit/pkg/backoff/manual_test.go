@@ -33,7 +33,7 @@ func TestManualBackoffAgainstHTTPServer(t *testing.T) {
 
 	base := 50 * time.Millisecond
 	maxB := 500 * time.Millisecond
-	tracker := New(base, maxB)
+	tracker := newForTest(base, maxB)
 
 	ping := func() error {
 		resp, err := client.Get(srv.URL + "/healthz")
@@ -141,7 +141,7 @@ func TestManualBackoffAgainstHTTPServer(t *testing.T) {
 func TestManualBackoffServerDown(t *testing.T) {
 	base := 50 * time.Millisecond
 	maxB := 500 * time.Millisecond
-	tracker := New(base, maxB)
+	tracker := newForTest(base, maxB)
 
 	// Point at a port nothing listens on
 	client := fleethttp.NewClient(
@@ -181,7 +181,7 @@ func TestManualBackoffMaxCapWithRealServer(t *testing.T) {
 
 	base := 20 * time.Millisecond
 	maxB := 200 * time.Millisecond
-	tracker := New(base, maxB)
+	tracker := newForTest(base, maxB)
 
 	ticker := time.NewTicker(base)
 	defer ticker.Stop()

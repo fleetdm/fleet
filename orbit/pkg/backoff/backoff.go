@@ -15,9 +15,17 @@ import (
 	"time"
 )
 
-// maxShift caps the bit-shift exponent to prevent integer overflow from
-// wrapping into a small positive value that looks like a valid interval.
-const maxShift = 20
+const (
+	// maxShift caps the bit-shift exponent to prevent integer overflow
+	// from wrapping into a small positive value that looks like a valid
+	// interval.
+	maxShift = 20
+
+	// minInterval is the absolute floor returned by Interval to
+	// guarantee callers never receive a zero or negative duration
+	// (which would panic time.Ticker).
+	minInterval = 1 * time.Second
+)
 
 // Tracker tracks consecutive failures for a single communication path
 // and computes the next wait interval using exponential backoff with jitter.
@@ -33,8 +41,15 @@ type Tracker struct {
 }
 
 // New creates a Tracker with the given base polling interval and maximum
-// backoff ceiling.
+// backoff ceiling. Both values are floored at minInterval (1s) to
+// guarantee Interval never returns a value that would panic a ticker.
 func New(baseInterval, maxBackoff time.Duration) *Tracker {
+	if baseInterval < minInterval {
+		baseInterval = minInterval
+	}
+	if maxBackoff < baseInterval {
+		maxBackoff = baseInterval
+	}
 	return &Tracker{
 		baseInterval: baseInterval,
 		maxBackoff:   maxBackoff,

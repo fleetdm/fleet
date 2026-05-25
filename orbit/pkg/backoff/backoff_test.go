@@ -17,6 +17,25 @@ func TestNew(t *testing.T) {
 	assert.False(t, tracker.InBackoff())
 }
 
+func TestNewFloorsGarbageInputs(t *testing.T) {
+	// Zero base and max
+	tr := New(0, 0)
+	assert.GreaterOrEqual(t, tr.baseInterval, minInterval)
+	assert.GreaterOrEqual(t, tr.maxBackoff, tr.baseInterval)
+	tr.RecordFailure()
+	assert.GreaterOrEqual(t, tr.Interval(), minInterval, "must never return < 1s")
+
+	// Negative values
+	tr = New(-5*time.Second, -10*time.Second)
+	assert.GreaterOrEqual(t, tr.baseInterval, minInterval)
+	tr.RecordFailure()
+	assert.GreaterOrEqual(t, tr.Interval(), minInterval)
+
+	// maxBackoff < baseInterval
+	tr = New(10*time.Second, 2*time.Second)
+	assert.GreaterOrEqual(t, tr.maxBackoff, tr.baseInterval, "maxBackoff must be >= baseInterval")
+}
+
 func TestIntervalReturnsBaseOnSuccess(t *testing.T) {
 	tracker := New(10*time.Second, 30*time.Minute)
 	assert.Equal(t, 10*time.Second, tracker.Interval())
@@ -231,13 +250,19 @@ func TestConcurrentAccess(t *testing.T) {
 	}
 }
 
+// newForTest creates a Tracker without the minInterval floor so that
+// ticker-based tests can use millisecond durations and stay fast.
+func newForTest(base, maxB time.Duration) *Tracker {
+	return &Tracker{baseInterval: base, maxBackoff: maxB}
+}
+
 // TestTickerIntegration simulates the real Desktop polling loop pattern:
 // a ticker-based loop that adjusts its interval based on backoff state.
 // Uses short durations (milliseconds) to keep the test fast.
 func TestTickerIntegration(t *testing.T) {
 	base := 10 * time.Millisecond
 	maxB := 200 * time.Millisecond
-	tracker := New(base, maxB)
+	tracker := newForTest(base, maxB)
 
 	ticker := time.NewTicker(base)
 	defer ticker.Stop()
@@ -282,7 +307,7 @@ func TestTickerIntegration(t *testing.T) {
 func TestTickerIntegrationMaxCap(t *testing.T) {
 	base := 5 * time.Millisecond
 	maxB := 50 * time.Millisecond
-	tracker := New(base, maxB)
+	tracker := newForTest(base, maxB)
 
 	// Push past the cap: 5ms * 2^4 = 80ms > 50ms cap
 	for range 10 {
@@ -304,8 +329,8 @@ func TestTickerIntegrationMaxCap(t *testing.T) {
 // TestMultipleTrackersWithTickers simulates per-path isolation with real
 // tickers: two paths where one fails and the other succeeds.
 func TestMultipleTrackersWithTickers(t *testing.T) {
-	pingTracker := New(10*time.Millisecond, 200*time.Millisecond)
-	tokenTracker := New(10*time.Millisecond, 200*time.Millisecond)
+	pingTracker := newForTest(10*time.Millisecond, 200*time.Millisecond)
+	tokenTracker := newForTest(10*time.Millisecond, 200*time.Millisecond)
 
 	pingTicker := time.NewTicker(10 * time.Millisecond)
 	tokenTicker := time.NewTicker(10 * time.Millisecond)
