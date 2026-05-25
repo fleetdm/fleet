@@ -151,8 +151,9 @@ func main() {
 	const pingInterval = 10 * time.Second // same value as default distributed/read
 	pingTicker := time.NewTicker(pingInterval)
 
-	// Backoff tracker for the ping/poll loop. Backs off exponentially
-	// on server errors to avoid overwhelming the server (see #44816).
+	// Backoff trackers are per communication path so each can back off
+	// independently -- a healthy path must not reset a failing one's
+	// backoff. See #45553 for the full behavioral contract.
 	const maxPingBackoff = 30 * time.Minute
 	pingBackoff := backoff.New(pingInterval, maxPingBackoff)
 
