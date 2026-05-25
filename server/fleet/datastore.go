@@ -480,6 +480,14 @@ type Datastore interface {
 	// positive risk (one redundant CertificateList per false match).
 	ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (ProfileACMECommandResult, error)
 
+	// OktaCACleanupTargetForInstallCommand returns the host ID and target
+	// macOS short name needed to schedule the Okta conditional access
+	// keychain-cleanup script after a successful InstallProfile ack. The
+	// ok return is false when the command's profile is not the Okta CA
+	// profile, the host's platform is not darwin, or the host has no
+	// per-user MDM enrollment short name on record.
+	OktaCACleanupTargetForInstallCommand(ctx context.Context, hostUUID, commandUUID string) (OktaCACleanupTarget, bool, error)
+
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean
 	// indicating if the enrollment is active.
@@ -2316,6 +2324,12 @@ type Datastore interface {
 	// NewHostScriptExecutionRequest creates a new host script result entry with
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
+	// NewInternalHostScriptExecutionRequest is like NewHostScriptExecutionRequest
+	// but marks the request as internal (fleet-initiated), so it runs even when
+	// scripts are globally disabled and does not appear in the user-facing host
+	// activity feed. Use for server-driven follow-up actions (e.g. cleanup
+	// scripts after MDM events).
+	NewInternalHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// SetHostScriptExecutionResult stores the result of a host script execution
 	// return nil, "", nil. action is populated if this script was an MDM action (lock/unlock/wipe/uninstall).
 	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload, attemptNumber *int) (hsr *HostScriptResult, action string, err error)

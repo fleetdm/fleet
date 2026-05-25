@@ -66,6 +66,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
 		{"TestProfileHasACMEPayloadForCommand", testProfileHasACMEPayloadForCommand},
+		{"TestOktaCACleanupTargetForInstallCommand", testOktaCACleanupTargetForInstallCommand},
 		{"TestRenewMDMManagedCertificatesNullType", testRenewMDMManagedCertificatesNullType},
 	}
 
@@ -10689,6 +10690,88 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		_, err := ds.ProfileHasACMEPayloadForCommand(ctx, "no-such-host", cmdUUID)
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
+	})
+}
+
+func testOktaCACleanupTargetForInstallCommand(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(t *testing.T, suffix, platform string) *fleet.Host {
+		t.Helper()
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String("okta-cleanup-osq-" + suffix),
+			NodeKey:         ptr.String("okta-cleanup-nk-" + suffix),
+			UUID:            "okta-cleanup-host-" + suffix,
+			Hostname:        "okta-cleanup-" + suffix,
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	insertHostProfile := func(t *testing.T, hostUUID, identifier, commandUUID string) {
+		t.Helper()
+		// host_mdm_apple_profiles has no FK to mdm_apple_configuration_profiles,
+		// so we can insert the host-profile row directly with a fresh
+		// profile_uuid per sub-test and avoid the (team_id, identifier)
+		// unique-key conflict that comes from reusing the Okta CA identifier.
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:       uuid.NewString(),
+			ProfileIdentifier: identifier,
+			HostUUID:          hostUUID,
+			Checksum:          []byte("0123456789abcdef"),
+			Scope:             fleet.PayloadScopeUser,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       commandUUID,
+		}}))
+	}
+
+	t.Run("okta CA profile + per-user enrollment present: returns target", func(t *testing.T) {
+		host := newHost(t, "happy", "darwin")
+		nanoEnroll(t, ds, host, true) // creates Device + User enrollment with user_short_name = "alice"
+		cmdUUID := uuid.NewString()
+		insertHostProfile(t, host.UUID, fleet.ConditionalAccessOktaProfileIdentifier, cmdUUID)
+
+		got, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Equal(t, host.ID, got.HostID)
+		require.Equal(t, "alice", got.UserShortName)
+	})
+
+	t.Run("non-Okta profile identifier: ok=false", func(t *testing.T) {
+		host := newHost(t, "wrong-id", "darwin")
+		nanoEnroll(t, ds, host, true)
+		cmdUUID := uuid.NewString()
+		insertHostProfile(t, host.UUID, "com.example.unrelated", cmdUUID)
+
+		_, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+
+	t.Run("okta profile + only device-channel enrollment: ok=false", func(t *testing.T) {
+		host := newHost(t, "no-user-chan", "darwin")
+		nanoEnroll(t, ds, host, false) // Device-only enrollment, no nano_users row
+		cmdUUID := uuid.NewString()
+		insertHostProfile(t, host.UUID, fleet.ConditionalAccessOktaProfileIdentifier, cmdUUID)
+
+		_, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+
+	t.Run("unknown command: ok=false, no error", func(t *testing.T) {
+		host := newHost(t, "no-cmd", "darwin")
+		nanoEnroll(t, ds, host, true)
+
+		_, ok, err := ds.OktaCACleanupTargetForInstallCommand(ctx, host.UUID, "no-such-cmd")
+		require.NoError(t, err)
+		require.False(t, ok)
 	})
 }
 

@@ -1687,6 +1687,45 @@ WHERE
 	return dest, nil
 }
 
+// OktaCACleanupTargetForInstallCommand returns the host ID and target
+// macOS short name needed to schedule the Okta conditional access
+// keychain-cleanup script after a successful InstallProfile ack. The ok
+// return is false when the command's profile is not the Okta CA profile,
+// the host's platform is not darwin, or the host has no per-user MDM
+// enrollment short name on record. All gating is done in a single indexed
+// lookup keyed on (host_uuid, command_uuid).
+func (ds *Datastore) OktaCACleanupTargetForInstallCommand(ctx context.Context, hostUUID, commandUUID string) (fleet.OktaCACleanupTarget, bool, error) {
+	const stmt = `
+SELECT
+	h.id AS host_id,
+	COALESCE((
+		SELECT nu.user_short_name
+		FROM nano_enrollments ne
+		INNER JOIN nano_users nu ON ne.user_id = nu.id
+		WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = h.uuid
+		ORDER BY ne.created_at ASC LIMIT 1
+	), '') AS user_short_name
+FROM host_mdm_apple_profiles hmap
+JOIN hosts h ON h.uuid = hmap.host_uuid
+WHERE hmap.command_uuid = ?
+	AND hmap.host_uuid = ?
+	AND hmap.profile_identifier = ?
+	AND h.platform = 'darwin'`
+
+	var dest fleet.OktaCACleanupTarget
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, commandUUID, hostUUID, fleet.ConditionalAccessOktaProfileIdentifier)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return dest, false, nil
+		}
+		return dest, false, ctxerr.Wrap(ctx, err, "look up Okta CA cleanup target")
+	}
+	if dest.UserShortName == "" {
+		return dest, false, nil
+	}
+	return dest, true, nil
+}
+
 func (ds *Datastore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (fleet.ProfileACMECommandResult, error) {
 	const stmt = `
 SELECT

@@ -4140,6 +4140,15 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				svc.logger.WarnContext(r.Context, "queue CertificateList after ACME profile install",
 					"err", err, "host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
 			}
+			// Okta conditional access bundles a SCEP payload with an Identity
+			// Preference payload, which leaves the previous cert pinned in
+			// the per-user keychain across renewals. After a successful ack,
+			// queue an internal cleanup script that removes the orphaned
+			// duplicate. No-op when the profile isn't the Okta CA one.
+			if err := svc.maybeRunOktaCACleanupScript(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID); err != nil {
+				svc.logger.WarnContext(r.Context, "run Okta CA keychain cleanup after profile install",
+					"err", err, "host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)
+			}
 		}
 		return nil, nil
 	case "RemoveProfile":

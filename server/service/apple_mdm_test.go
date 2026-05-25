@@ -2648,6 +2648,9 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			ds.ProfileHasACMEPayloadForCommandFunc = func(ctx context.Context, hUUID, cmdUUID string) (fleet.ProfileACMECommandResult, error) {
 				return fleet.ProfileACMECommandResult{Platform: "ios"}, nil
 			}
+			ds.OktaCACleanupTargetForInstallCommandFunc = func(ctx context.Context, hUUID, cmdUUID string) (fleet.OktaCACleanupTarget, bool, error) {
+				return fleet.OktaCACleanupTarget{}, false, nil
+			}
 
 			_, err := svc.CommandAndReportResults(
 				&mdm.Request{Context: ctx},
