@@ -190,21 +190,21 @@ func TestMonotonicallyNonDecreasing(t *testing.T) {
 	}
 }
 
-func TestBackoffDuration(t *testing.T) {
+func TestTimeSinceBackoffStarted(t *testing.T) {
 	tracker := New(10*time.Second, 30*time.Minute)
 
 	// Not in backoff
-	assert.Equal(t, time.Duration(0), tracker.BackoffDuration())
+	assert.Equal(t, time.Duration(0), tracker.TimeSinceBackoffStarted())
 
 	// Enter backoff
 	tracker.RecordFailure()
 	time.Sleep(10 * time.Millisecond)
-	dur := tracker.BackoffDuration()
+	dur := tracker.TimeSinceBackoffStarted()
 	assert.Greater(t, dur, time.Duration(0))
 
 	// Exit backoff
 	tracker.RecordSuccess()
-	assert.Equal(t, time.Duration(0), tracker.BackoffDuration())
+	assert.Equal(t, time.Duration(0), tracker.TimeSinceBackoffStarted())
 }
 
 func TestConcurrentAccess(t *testing.T) {
@@ -220,7 +220,7 @@ func TestConcurrentAccess(t *testing.T) {
 				_ = tracker.Interval()
 				_ = tracker.InBackoff()
 				_ = tracker.ConsecutiveFailures()
-				_ = tracker.BackoffDuration()
+				_ = tracker.TimeSinceBackoffStarted()
 				tracker.RecordSuccess()
 			}
 		}()

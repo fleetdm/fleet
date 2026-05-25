@@ -99,7 +99,7 @@ func TestManualBackoffAgainstHTTPServer(t *testing.T) {
 	<-ticker.C
 	err := ping()
 	require.NoError(t, err)
-	backoffDur := tracker.BackoffDuration()
+	backoffDur := tracker.TimeSinceBackoffStarted()
 	tracker.RecordSuccess()
 	ticker.Reset(tracker.Interval())
 	t.Logf("  Recovery: backoff lasted %v, interval reset to %v", backoffDur.Round(time.Millisecond), tracker.Interval())

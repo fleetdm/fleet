@@ -371,7 +371,7 @@ func main() {
 
 				// Successfully connected to Fleet.
 				if pingBackoff.InBackoff() {
-					log.Info().Str("backoff_duration", pingBackoff.BackoffDuration().String()).
+					log.Info().Str("backoff_duration", pingBackoff.TimeSinceBackoffStarted().String()).
 						Msg("ping succeeded, exiting backoff")
 				}
 				pingBackoff.RecordSuccess()

@@ -120,9 +120,9 @@ func (t *Tracker) ConsecutiveFailures() int {
 	return t.consecutiveFailures
 }
 
-// BackoffDuration returns how long the tracker has been in backoff,
+// TimeSinceBackoffStarted returns how long ago the tracker entered backoff,
 // or 0 if not currently in backoff.
-func (t *Tracker) BackoffDuration() time.Duration {
+func (t *Tracker) TimeSinceBackoffStarted() time.Duration {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if !t.inBackoff {
