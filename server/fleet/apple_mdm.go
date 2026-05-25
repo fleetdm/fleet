@@ -452,8 +452,11 @@ type AppleHostReconcileInfo struct {
 	DeviceEnrolledAt *time.Time `db:"device_enrolled_at"`
 }
 
-// EffectiveTeamID returns 0 for hosts not in a team (matching how Apple
-// MDM profiles are stored, where team_id=0 means "no team / global").
+// EffectiveTeamID returns 0 for hosts not in a team. team_id=0 is its own
+// team (the "no team" / global scope), NOT a fallback for teamed hosts:
+// a host with team_id=5 matches profiles with team_id=5 only, it does
+// not also inherit team_id=0 profiles. Equality between EffectiveTeamID
+// and a profile's team_id is the correct match check.
 func (h *AppleHostReconcileInfo) EffectiveTeamID() uint {
 	if h.TeamID == nil {
 		return 0

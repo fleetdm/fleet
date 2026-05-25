@@ -2290,6 +2290,15 @@ type Datastore interface {
 	// host population and are loaded once per tick.
 	ListAppleProfilesForReconcile(ctx context.Context) ([]*AppleProfileForReconcile, error)
 
+	// ListAppleProfilesForReconcileByTeam is the per-host variant: it
+	// returns only profiles whose team_id equals the given teamID.
+	// team_id=0 is its own team (the "no team" scope), so this
+	// intentionally does NOT also include global profiles for a teamed
+	// host — equality is the correct match. Used by
+	// ReconcileProfilesForEnrollingHost so the worker doesn't scan every
+	// profile on every enrollment.
+	ListAppleProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*AppleProfileForReconcile, error)
+
 	// BulkGetHostLabelMemberships returns the subset of (hostID, labelID)
 	// pairs from label_membership that are present, restricted to the
 	// provided host IDs and label IDs. The outer map is keyed by host ID and

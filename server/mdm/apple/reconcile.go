@@ -807,14 +807,20 @@ func ReconcileProfilesForEnrollingHost(
 		return nil, nil
 	}
 
-	allProfiles, err := ds.ListAppleProfilesForReconcile(ctx)
+	// Load only profiles for this host's team (and global team_id=0) so
+	// the per-host worker call doesn't scan every profile in the system.
+	// In suites that accumulate profile rows across sub-tests without
+	// cleanup, the unbounded "all profiles" query holds the connection
+	// open longer and longer — observed as MySQL EOF / "invalid
+	// connection" after many enrollments.
+	teamProfiles, err := ds.ListAppleProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing apple profiles for reconcile")
+		return nil, ctxerr.Wrap(ctx, err, "listing apple profiles for reconcile by team")
 	}
 
-	profilesByTeam := make(map[uint][]*fleet.AppleProfileForReconcile, 4)
+	profilesByTeam := make(map[uint][]*fleet.AppleProfileForReconcile, 2)
 	labelIDSet := make(map[uint]struct{})
-	for _, p := range allProfiles {
+	for _, p := range teamProfiles {
 		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
 		for _, lr := range p.IncludeLabels {
 			if lr.LabelID != nil {

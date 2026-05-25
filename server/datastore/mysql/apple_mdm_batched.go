@@ -104,6 +104,21 @@ func (ds *Datastore) GetAppleMDMHostForReconcile(
 // legacy SQL: broken include-* profiles do not apply, and broken profiles
 // are exempted from removal.
 func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*fleet.AppleProfileForReconcile, error) {
+	return ds.listAppleProfilesForReconcile(ctx, nil)
+}
+
+// ListAppleProfilesForReconcileByTeam is the per-host variant: it loads
+// only profiles for the host's team. team_id=0 is its own team (the
+// "no team" scope); a host with a real team does NOT inherit team_id=0
+// profiles. Used by ReconcileProfilesForEnrollingHost so the worker
+// doesn't scan every profile in the system on each enrollment — a real
+// concern in suites that accumulate profile rows across many sub-tests
+// without cleanup.
+func (ds *Datastore) ListAppleProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
+	return ds.listAppleProfilesForReconcile(ctx, &teamID)
+}
+
+func (ds *Datastore) listAppleProfilesForReconcile(ctx context.Context, teamID *uint) ([]*fleet.AppleProfileForReconcile, error) {
 	type profileRow struct {
 		ProfileUUID       string             `db:"profile_uuid"`
 		ProfileIdentifier string             `db:"identifier"`
@@ -114,13 +129,22 @@ func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*flee
 		Scope             fleet.PayloadScope `db:"scope"`
 	}
 
-	const profStmt = `
+	profStmt := `
 		SELECT profile_uuid, identifier, name, team_id, checksum, secrets_updated_at, scope
 		FROM mdm_apple_configuration_profiles
 	`
+	var profArgs []any
+	if teamID != nil {
+		// team_id=0 is the "no team" / global team — its own scope.
+		// A host with a real team only matches profiles for that team;
+		// it does NOT also inherit team_id=0 profiles. EffectiveTeamID()
+		// on the host already maps nil → 0, so equality is correct.
+		profStmt += ` WHERE team_id = ?`
+		profArgs = append(profArgs, *teamID)
+	}
 
 	var rows []profileRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, profStmt); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, profStmt, profArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple profiles for reconcile")
 	}
 	if len(rows) == 0 {
@@ -129,6 +153,7 @@ func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*flee
 
 	byUUID := make(map[string]*fleet.AppleProfileForReconcile, len(rows))
 	out := make([]*fleet.AppleProfileForReconcile, 0, len(rows))
+	profileUUIDs := make([]string, 0, len(rows))
 	for _, r := range rows {
 		p := &fleet.AppleProfileForReconcile{
 			ProfileUUID:       r.ProfileUUID,
@@ -144,6 +169,7 @@ func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*flee
 		}
 		byUUID[r.ProfileUUID] = p
 		out = append(out, p)
+		profileUUIDs = append(profileUUIDs, r.ProfileUUID)
 	}
 
 	// Load label assignments, joining labels to get membership type and
@@ -154,7 +180,11 @@ func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*flee
 	// which sql.NullTime cannot scan. The exclude-any handler already
 	// treats a zero CreatedAt as "no timing check", which is the natural
 	// outcome of a NULL → invalid NullTime → zero time.Time.
-	const labelStmt = `
+	//
+	// When teamID is set we restrict the label rows to the profile UUIDs
+	// we just loaded — the WHERE IN clause is on the same set so the
+	// query never returns labels for profiles outside our team window.
+	labelStmt := `
 		SELECT
 			mcpl.apple_profile_uuid AS profile_uuid,
 			mcpl.label_id           AS label_id,
@@ -166,6 +196,16 @@ func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*flee
 		LEFT JOIN labels lbl ON lbl.id = mcpl.label_id
 		WHERE mcpl.apple_profile_uuid IS NOT NULL
 	`
+	var labelStmtArgs []any
+	if teamID != nil {
+		labelStmt += ` AND mcpl.apple_profile_uuid IN (?)`
+		q, args, err := sqlx.In(labelStmt, profileUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build apple profile labels query")
+		}
+		labelStmt = q
+		labelStmtArgs = args
+	}
 
 	type labelRow struct {
 		ProfileUUID         string        `db:"profile_uuid"`
@@ -177,7 +217,7 @@ func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*flee
 	}
 
 	var labelRows []labelRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelRows, labelStmt); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelRows, labelStmt, labelStmtArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple profile labels for reconcile")
 	}
 
