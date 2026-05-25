@@ -738,6 +738,10 @@ type Service interface {
 	DeleteTeamScheduledQueries(ctx context.Context, teamID uint, id uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// PolicyStatusService
+	GetPolicyStatus(ctx context.Context, policy *Policy, req GetPolicyStatusRequest) (*GetPolicyStatusResponse, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// GlobalPolicyService
 
 	NewGlobalPolicy(ctx context.Context, p PolicyPayload) (*Policy, error)

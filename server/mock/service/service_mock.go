@@ -452,6 +452,8 @@ type ModifyTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, sched
 
 type DeleteTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, id uint) error
 
+type GetPolicyStatusFunc func(ctx context.Context, policy *fleet.Policy, req fleet.GetPolicyStatusRequest) (*fleet.GetPolicyStatusResponse, error)
+
 type NewGlobalPolicyFunc func(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error)
 
 type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error)
@@ -1576,6 +1578,9 @@ type Service struct {
 
 	DeleteTeamScheduledQueriesFunc        DeleteTeamScheduledQueriesFunc
 	DeleteTeamScheduledQueriesFuncInvoked bool
+
+	GetPolicyStatusFunc        GetPolicyStatusFunc
+	GetPolicyStatusFuncInvoked bool
 
 	NewGlobalPolicyFunc        NewGlobalPolicyFunc
 	NewGlobalPolicyFuncInvoked bool
@@ -3804,6 +3809,13 @@ func (s *Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, i
 	s.DeleteTeamScheduledQueriesFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteTeamScheduledQueriesFunc(ctx, teamID, id)
+}
+
+func (s *Service) GetPolicyStatus(ctx context.Context, policy *fleet.Policy, req fleet.GetPolicyStatusRequest) (*fleet.GetPolicyStatusResponse, error) {
+	s.mu.Lock()
+	s.GetPolicyStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPolicyStatusFunc(ctx, policy, req)
 }
 
 func (s *Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error) {

@@ -1,5 +1,7 @@
 package fleet
 
+import "time"
+
 /////////////////////////////////////////////////////////////////////////////////
 // Global Policy - Add
 /////////////////////////////////////////////////////////////////////////////////
@@ -267,3 +269,66 @@ type ModifyTeamPolicyResponse struct {
 }
 
 func (r ModifyTeamPolicyResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Policy Status - Get
+/////////////////////////////////////////////////////////////////////////////////
+
+type GetPolicyStatusRequest struct {
+	PolicyID uint `url:"policy_id"`
+
+	// HostNameQuery is a case-insensitive substring filter on the host hostname.
+	HostNameQuery string `query:"hostname,optional"`
+
+	// RunStatus, when set, must be one of:
+	//   policy_failed     — host's current pass/fail state is failing
+	//   automation_failed — at least one linked automation (webhook/jira/...
+	//                       script/software) has a failure outcome
+	RunStatus string `query:"run_status,optional"`
+
+	ListOptions ListOptions `url:"list_options"`
+}
+
+type GetPolicyStatusResponse struct {
+	Runs  []GetPolicyStatusPolicyRun `json:"runs,omitempty"`
+	Count int                        `json:"count"`
+	Meta  *PaginationMetadata        `json:"meta"`
+	Err   error                      `json:"error,omitempty"`
+}
+
+func (r GetPolicyStatusResponse) Error() error { return r.Err }
+
+type GetPolicyStatusPolicyRun struct {
+	HostID               uint                                 `json:"host_id" db:"host_id"`
+	HostName             string                               `json:"host_name" db:"host_name"`
+	NewStatus            bool                                 `json:"new_status" db:"new_status"`
+	ConsecutiveFailures  uint                                 `json:"consecutive_failures" db:"consecutive_failures"`
+	CreatedAt            time.Time                            `json:"created_at" db:"created_at"`
+	AutomationExecutions []GetPolicyStatusAutomationExecution `json:"automation_executions,omitempty" db:"-"`
+}
+type GetPolicyStatusAutomationExecution struct {
+	// What type of automation this is:
+	// - webook
+	// - jira
+	// - zendesk
+	// - calendar_event
+	// - software_installation
+	// - script_run
+	// - conditional_access
+	Type string `json:"type"`
+
+	// The status of the automation:
+	// - success
+	// - failed
+	// - queued
+	// - not_compatible: If the automation can't run because
+	// it doesn't match the host's platform for example.
+	// - not_in_target: If the software is scoped via a label
+	//   and the host is not within that scope.
+	Status       string `json:"status"`
+	ErrorMessage string `json:"error"`
+	// Name is the human-readable identifier for the automation resource.
+	// Populated for script_run (script name) and software_installation (software title).
+	// Empty for webhook/jira/zendesk/calendar/conditional_access automations.
+	Name string `json:"name,omitempty"`
+}

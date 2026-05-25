@@ -1578,6 +1578,12 @@ type Datastore interface {
 	// Pairs without a matching row are simply absent from the returned slice.
 	GetFailingPolicyRuns(ctx context.Context, policyIDs, hostIDs []uint) ([]PolicyRunRef, error)
 
+	// GetPolicyStatus returns the policy_runs and associated automation status
+	// for a policy. The filter scopes the visible hosts to those the calling
+	// user is allowed to see — for global policies this prevents a team-scoped
+	// observer from leaking hostnames across teams.
+	GetPolicyStatus(ctx context.Context, policyID uint, filter TeamFilter, req GetPolicyStatusRequest) ([]GetPolicyStatusPolicyRun, int, *PaginationMetadata, error)
+
 	// CreatePolicyAutomationExecutions records a new dispatch batch for the
 	// supplied policy runs. It mints a fresh batch UUID, inserts one row per
 	// PolicyRunRef into host_policy_runs_to_policy_automation_executions (stamped

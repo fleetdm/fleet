@@ -1048,6 +1048,8 @@ type RecordPolicyTransitionsFunc func(ctx context.Context, hostID uint, policyRe
 
 type GetFailingPolicyRunsFunc func(ctx context.Context, policyIDs []uint, hostIDs []uint) ([]fleet.PolicyRunRef, error)
 
+type GetPolicyStatusFunc func(ctx context.Context, policyID uint, filter fleet.TeamFilter, req fleet.GetPolicyStatusRequest) ([]fleet.GetPolicyStatusPolicyRun, int, *fleet.PaginationMetadata, error)
+
 type CreatePolicyAutomationExecutionsFunc func(ctx context.Context, typ fleet.PolicyAutomationType, runs []fleet.PolicyRunRef) (uuid.UUID, error)
 
 type UpdatePolicyAutomationExecutionsFunc func(ctx context.Context, batchID uuid.UUID, outcomeErr error) error
@@ -3552,6 +3554,9 @@ type DataStore struct {
 
 	GetFailingPolicyRunsFunc        GetFailingPolicyRunsFunc
 	GetFailingPolicyRunsFuncInvoked bool
+
+	GetPolicyStatusFunc        GetPolicyStatusFunc
+	GetPolicyStatusFuncInvoked bool
 
 	CreatePolicyAutomationExecutionsFunc        CreatePolicyAutomationExecutionsFunc
 	CreatePolicyAutomationExecutionsFuncInvoked bool
@@ -8590,6 +8595,13 @@ func (s *DataStore) GetFailingPolicyRuns(ctx context.Context, policyIDs []uint, 
 	s.GetFailingPolicyRunsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetFailingPolicyRunsFunc(ctx, policyIDs, hostIDs)
+}
+
+func (s *DataStore) GetPolicyStatus(ctx context.Context, policyID uint, filter fleet.TeamFilter, req fleet.GetPolicyStatusRequest) ([]fleet.GetPolicyStatusPolicyRun, int, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.GetPolicyStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPolicyStatusFunc(ctx, policyID, filter, req)
 }
 
 func (s *DataStore) CreatePolicyAutomationExecutions(ctx context.Context, typ fleet.PolicyAutomationType, runs []fleet.PolicyRunRef) (uuid.UUID, error) {
