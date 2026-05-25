@@ -1045,6 +1045,20 @@ func (m *MDMConfig) IsAppleBMSet() bool {
 	return pair.IsSet() || m.AppleBMServerToken != "" || m.AppleBMServerTokenBytes != ""
 }
 
+// ValidateAppleAPNSAndSCEPPair enforces that Apple APNs and SCEP are
+// configured together — neither half of the pair is usable on its own.
+// Callers should gate this on a precondition that at least one side is set
+// (the outer Apple-MDM init flow handles that today).
+func (m *MDMConfig) ValidateAppleAPNSAndSCEPPair(initFatal func(err error, msg string)) {
+	if !m.IsAppleAPNsSet() {
+		initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"),
+			"validate Apple MDM")
+	} else if !m.IsAppleSCEPSet() {
+		initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"),
+			"validate Apple MDM")
+	}
+}
+
 // AppleAPNs returns the parsed TLS certificate for Apple APNs.
 func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
 	if m.appleAPNs == nil {
