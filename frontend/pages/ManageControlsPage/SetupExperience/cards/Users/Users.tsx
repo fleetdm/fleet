@@ -158,7 +158,8 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
         content={
           <>
             Customize local user accounts. You can automatically create local
-            user accounts using IdP credentials (PSSO).{" "}
+            user accounts using IdP credentials via Platform Single Sign-On
+            (PSSO), an advanced account configuration.{" "}
             <CustomLink
               url={`${LEARN_MORE_ABOUT_BASE_LINK}/psso-local-account`}
               text="Learn how"
