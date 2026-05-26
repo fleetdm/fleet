@@ -1094,6 +1094,13 @@
       "description": "Logi Options+ is software for managing Logitech devices."
     },
     {
+      "name": "Logi Options+",
+      "slug": "logi-options+/windows",
+      "platform": "windows",
+      "unique_identifier": "Logi Options+",
+      "description": "Logi Options+ is software for managing Logitech devices."
+    },
+    {
       "name": "Loom",
       "slug": "loom/darwin",
       "platform": "darwin",
@@ -1336,6 +1343,13 @@
       "slug": "omnissa-horizon-client/darwin",
       "platform": "darwin",
       "unique_identifier": "com.omnissa.horizon.client.mac",
+      "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
+    },
+    {
+      "name": "Omnissa Horizon Client",
+      "slug": "omnissa-horizon-client/windows",
+      "platform": "windows",
+      "unique_identifier": "Omnissa Horizon Client",
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
     },
     {
