@@ -131,7 +131,7 @@ func newRootCmd(opts *options) *cobra.Command {
 	cmd.Flags().StringVarP(&opts.checkout, "checkout", "c", ".", "Path to fleetdm/fleet git checkout")
 	cmd.Flags().StringVarP(&opts.branch, "branch", "b", "", "Branch name")
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "Write SQL to file instead of stdout")
-	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Connect read-only and verify SQL would apply")
+	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Connect to MySQL, simulate the SQL, and verify the final state")
 	cmd.Flags().BoolVar(&opts.apply, "apply", false, "Execute SQL against the database in a transaction")
 	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "Verbose/debug output")
 
@@ -321,13 +321,17 @@ func validateTLSFlags(opts options) error {
 	default:
 		return fmt.Errorf("--tls-mode must be one of skip-verify, verify-ca, verify-identity")
 	}
-	if opts.tlsMode == "verify-ca" || opts.tlsMode == "verify-identity" {
-		if opts.tlsCA == "" {
-			return fmt.Errorf("--tls-ca is required for verify-ca / verify-identity")
+	return nil
+}
+
+func validateEffectiveTLSConfig(conf configpkg.MysqlConfig, tlsMode string) error {
+	if tlsMode == "verify-ca" || tlsMode == "verify-identity" {
+		if conf.TLSCA == "" {
+			return fmt.Errorf("--tls-ca or mysql_tls_ca is required for verify-ca / verify-identity")
 		}
-		if opts.tlsCert == "" || opts.tlsKey == "" {
-			return fmt.Errorf("--tls-cert and --tls-key are required for verify-ca / verify-identity")
-		}
+	}
+	if conf.TLSConfig != "skip-verify" && (conf.TLSCert == "") != (conf.TLSKey == "") {
+		return fmt.Errorf("TLS client certificate and key must be provided together")
 	}
 	return nil
 }
@@ -496,7 +500,7 @@ func buildSQL(tableName string, stmts sqlStatements, renames []migrationRename) 
 	}
 
 	lines = append(lines,
-		fmt.Sprintf("CREATE TEMPORARY TABLE `_fix_dups_%s` (id INT);", tableName),
+		fmt.Sprintf("CREATE TEMPORARY TABLE `_fix_dups_%s` (id BIGINT UNSIGNED);", tableName),
 		fmt.Sprintf("INSERT INTO `_fix_dups_%s` (id) SELECT id FROM `%s` WHERE (version_id, id) NOT IN (SELECT version_id, MIN(id) FROM `%s` GROUP BY version_id);", tableName, tableName, tableName),
 		fmt.Sprintf("DELETE FROM `%s` WHERE id IN (SELECT id FROM `_fix_dups_%s`);", tableName, tableName),
 		fmt.Sprintf("DROP TEMPORARY TABLE `_fix_dups_%s`;", tableName),
@@ -827,10 +831,17 @@ func writerConfig(conf configpkg.MysqlConfig, opts options) (*configpkg.MysqlCon
 	if opts.tlsMode == "skip-verify" {
 		conf.TLSConfig = "skip-verify"
 	}
-	if opts.tlsMode == "verify-ca" || opts.tlsMode == "verify-identity" {
+	if opts.tlsCA != "" {
 		conf.TLSCA = opts.tlsCA
+	}
+	if opts.tlsCert != "" {
 		conf.TLSCert = opts.tlsCert
+	}
+	if opts.tlsKey != "" {
 		conf.TLSKey = opts.tlsKey
+	}
+	if err := validateEffectiveTLSConfig(conf, opts.tlsMode); err != nil {
+		return nil, err
 	}
 	return &conf, nil
 }
@@ -858,7 +869,7 @@ func openWriterDB(conf *configpkg.MysqlConfig) (*sqlx.DB, error) {
 		}
 		conf.Password = strings.TrimSpace(string(contents))
 	}
-	if conf.TLSCA != "" {
+	if conf.TLSCA != "" && conf.TLSConfig != "skip-verify" {
 		tlsConfigName := fmt.Sprintf("migration-cleanup-%d", time.Now().UnixNano())
 		tlsOpts := configpkg.TLS{
 			TLSCert:       conf.TLSCert,
