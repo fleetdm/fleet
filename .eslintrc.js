@@ -64,7 +64,14 @@ module.exports = {
     // note you must disable the base rule as it can report incorrect errors. more info here:
     // https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/no-use-before-define.md
     "no-use-before-define": "off",
-    "@typescript-eslint/no-use-before-define": ["error"],
+    // Allow referencing functions and variables (e.g. React components defined
+    // at the bottom of the file) before they are declared. This supports the
+    // "main component on top, helper sub-components below" pattern documented
+    // in frontend/docs/patterns.md.
+    "@typescript-eslint/no-use-before-define": [
+      "error",
+      { functions: false, variables: false },
+    ],
     // turn off and override to not run this on js and jsx files. More info here:
     // https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/docs/rules/explicit-module-boundary-types.md#configuring-in-a-mixed-jsts-codebase
     "@typescript-eslint/explicit-module-boundary-types": "off",

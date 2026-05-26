@@ -181,6 +181,84 @@ or
 />
 ```
 
+### File-local sub-components (preferred over `render*()` helpers)
+
+When a component's JSX has a branching section that's complex enough to feel
+like its own piece of UI, prefer defining a **file-local sub-component** below
+the main component over a `renderSomething()` helper method on the closure.
+
+**Preferred — sub-component in the same file:**
+
+```tsx
+const ParentComponent = ({ a, b, c }: IParentProps) => {
+  // ...hooks, derived state, etc.
+
+  return (
+    <Modal>
+      <ModalContent a={a} b={b} c={c} />
+    </Modal>
+  );
+};
+
+interface IModalContentProps {
+  a: string;
+  b: number;
+  c: () => void;
+}
+
+const ModalContent = ({ a, b, c }: IModalContentProps) => {
+  if (/* ... */) return <Spinner />;
+  // ...
+  return <SomeUI />;
+};
+
+export default ParentComponent;
+```
+
+**Legacy / acceptable — `renderSomething()` closure helper:**
+
+```tsx
+const ParentComponent = ({ a, b, c }: IParentProps) => {
+  // ...
+
+  const renderModalContent = () => {
+    if (/* ... */) return <Spinner />;
+    // closes over a, b, c implicitly
+    return <SomeUI />;
+  };
+
+  return <Modal>{renderModalContent()}</Modal>;
+};
+```
+
+Why the sub-component form is preferred:
+
+- **Explicit data flow.** Props make every value the sub-component depends on
+  visible at the call site. `render*()` closures pull from the enclosing scope,
+  so a reader has to scan the whole parent to know what the section actually
+  uses.
+- **Stable identity across renders.** `renderFoo` is recreated on every parent
+  render. A top-level sub-component declaration is created once per module.
+- **Easier to extract later.** When the sub-component grows enough to deserve
+  its own file, it already has a defined props interface — moving it is a
+  cut-and-paste, not a refactor.
+- **Lower cognitive load when reading top-down.** The parent reads as a small,
+  declarative tree; details live below where you can skip them unless needed.
+
+Conventions:
+
+- Declare the main exported component at the top of the file (after imports,
+  constants, and interfaces).
+- Place file-local sub-components **below** the main component. This is
+  intentional — the main component is the entry point a reader cares about
+  first, and the sub-components are implementation detail.
+- Keep file-local sub-components specific to the parent. If a sub-component
+  starts being imported elsewhere, promote it to its own 4-file component
+  directory (see the [Fleet Frontend Conventions](../../.claude/rules/fleet-frontend.md)).
+- `render*()` helpers are still acceptable, especially in existing code — don't
+  refactor an entire page just to migrate. New code should prefer the
+  sub-component pattern.
+
 ### Page component pattern
 
 When creating a **top level page** (e.g. dashboard page, hosts page, policies page)

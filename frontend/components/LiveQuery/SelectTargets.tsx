@@ -470,68 +470,6 @@ const SelectTargets = ({
     );
   };
 
-  const renderTargetsCount = (): JSX.Element | null => {
-    if (isFetchingCounts) {
-      return (
-        <>
-          <Spinner
-            size="x-small"
-            includeContainer={false}
-            centered={false}
-            className={`${baseClass}__count-spinner`}
-          />
-          <i style={{ color: "#8b8fa2" }}>Counting hosts</i>
-        </>
-      );
-    }
-
-    if (errorCounts) {
-      return (
-        <b style={{ color: "#d66c7b", margin: 0 }}>
-          There was a problem counting hosts. Please try again later.
-        </b>
-      );
-    }
-
-    if (!counts) {
-      return null;
-    }
-
-    const { targets_count: total, targets_online: online } = counts;
-    const onlinePercentage = () => {
-      if (total === 0 || online === 0) {
-        return 0;
-      }
-      // If at least 1 host is online, displays <1% instead of 0%
-      const roundPercentage =
-        Math.round((online / total) * 100) === 0
-          ? "<1"
-          : Math.round((online / total) * 100);
-      return roundPercentage;
-    };
-
-    return (
-      <>
-        <b>{total.toLocaleString()}</b>&nbsp;host
-        {total > 1 || total === 0 ? `s` : ``} targeted&nbsp; (
-        {onlinePercentage()}
-        %&nbsp;
-        <TooltipWrapper
-          tipContent={
-            <>
-              Hosts are online if they <br />
-              have recently checked <br />
-              into Fleet.
-            </>
-          }
-        >
-          online
-        </TooltipWrapper>
-        ){" "}
-      </>
-    );
-  };
-
   if (errorLabels || errorTeams) {
     return (
       <div className={`${baseClass}__wrapper`}>
@@ -639,10 +577,88 @@ const SelectTargets = ({
           Cancel
         </Button>
         <div className={`${baseClass}__targets-total-count`}>
-          {renderTargetsCount()}
+          <TargetsCount
+            baseClass={baseClass}
+            isFetchingCounts={isFetchingCounts}
+            errorCounts={errorCounts}
+            counts={counts}
+          />
         </div>
       </div>
     </div>
+  );
+};
+
+interface ITargetsCountProps {
+  baseClass: string;
+  isFetchingCounts: boolean;
+  errorCounts: Error | null;
+  counts: ITargetsCountResponse | undefined;
+}
+
+const TargetsCount = ({
+  baseClass,
+  isFetchingCounts,
+  errorCounts,
+  counts,
+}: ITargetsCountProps): JSX.Element | null => {
+  if (isFetchingCounts) {
+    return (
+      <>
+        <Spinner
+          size="x-small"
+          includeContainer={false}
+          centered={false}
+          className={`${baseClass}__count-spinner`}
+        />
+        <i style={{ color: "#8b8fa2" }}>Counting hosts</i>
+      </>
+    );
+  }
+
+  if (errorCounts) {
+    return (
+      <b style={{ color: "#d66c7b", margin: 0 }}>
+        There was a problem counting hosts. Please try again later.
+      </b>
+    );
+  }
+
+  if (!counts) {
+    return null;
+  }
+
+  const { targets_count: total, targets_online: online } = counts;
+  const onlinePercentage = () => {
+    if (total === 0 || online === 0) {
+      return 0;
+    }
+    // If at least 1 host is online, displays <1% instead of 0%
+    const roundPercentage =
+      Math.round((online / total) * 100) === 0
+        ? "<1"
+        : Math.round((online / total) * 100);
+    return roundPercentage;
+  };
+
+  return (
+    <>
+      <b>{total.toLocaleString()}</b>&nbsp;host
+      {total > 1 || total === 0 ? `s` : ``} targeted&nbsp; ({onlinePercentage()}
+      %&nbsp;
+      <TooltipWrapper
+        tipContent={
+          <>
+            Hosts are online if they <br />
+            have recently checked <br />
+            into Fleet.
+          </>
+        }
+      >
+        online
+      </TooltipWrapper>
+      ){" "}
+    </>
   );
 };
 
