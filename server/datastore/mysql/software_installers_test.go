@@ -1888,7 +1888,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 		require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
 	}
 
-	// batch-set ins0's install script; ins0's in-flight SE install must NOT be cancelled
+	// batch-set ins0's install script. ins0's in-flight SE install must not be cancelled.
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:      "install2",
@@ -2001,7 +2001,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
-	// both SE rows still running; ins1 is unchanged because SetHostSoftwareInstallResult doesn't advance the SE row
+	// both SE rows still running. ins1 is unchanged because SetHostSoftwareInstallResult doesn't advance the SE row.
 	ins0Found = false
 	ins1Found = false
 	for _, status := range statuses {
