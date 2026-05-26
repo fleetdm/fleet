@@ -2820,24 +2820,21 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 			displayName = hosts[0].DisplayName()
 			serial = hosts[0].HardwareSerial
 
-			// Flip host_mdm.enrolled = 1 immediately so the Windows profile
-			// reconciler (which gates on host_mdm.enrolled since #42427) does
-			// not have to wait for osquery's directIngestMDMWindows to do it.
-			// This covers fresh enrollment, ESP/OOBE, and the post-disable
-			// re-enable cycle. The values written here are the same shape
-			// directIngestMDMWindows writes: discovery URL as server_url,
-			// fleet.WellKnownMDMFleet as the name. isServer is best-effort
-			// false (osquery corrects it later from installation_type);
-			// installed_from_dep mirrors osquery's "automatic" semantics
-			// (Azure AD + OOBE = automatic). On failure, we log and continue:
+			// Flip host_mdm.enrolled = 1 immediately so the Windows profile reconciler selects this host. This covers
+			// fresh enrollment, ESP/OOBE, and the post-disable re-enable cycle. The values written here are the same
+			// shape directIngestMDMWindows writes: discovery URL as server_url, fleet.WellKnownMDMFleet as the name.
+			// isServer is best-effort false (osquery corrects it later from installation_type); installed_from_dep
+			// mirrors osquery's "automatic" semantics (Azure AD + OOBE = automatic). On failure, we log and continue:
 			// osquery will reconcile the row on the next check-in.
 			appCfg, acErr := svc.ds.AppConfig(ctx)
 			if acErr != nil {
 				svc.logger.WarnContext(ctx, "loading app config for host_mdm sync after Windows MDM enrollment", "err", acErr)
+				ctxerr.Handle(ctx, acErr)
 			} else {
 				discoveryURL, dErr := microsoft_mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
 				if dErr != nil {
 					svc.logger.WarnContext(ctx, "resolving Windows MDM discovery URL after enrollment", "err", dErr)
+					ctxerr.Handle(ctx, dErr)
 				} else {
 					installedFromDep := enrollType == fleet.WindowsMDMEnrollTypeAutomatic && !reqNotInOOBE
 					if err := svc.ds.SetOrUpdateMDMData(ctx, hosts[0].ID,
@@ -2850,6 +2847,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 						false, // is_personal_enrollment: always false for Windows
 					); err != nil {
 						svc.logger.WarnContext(ctx, "updating host_mdm.enrolled after Windows MDM enrollment", "err", err)
+						ctxerr.Handle(ctx, err)
 					}
 				}
 			}

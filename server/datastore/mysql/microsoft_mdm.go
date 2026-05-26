@@ -2248,10 +2248,6 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
-			-- only target hosts confirmed as MDM-enrolled by osquery. This
-			-- gates the reconciler against recreating pending rows for
-			-- hosts that were enrolled before a global Windows MDM
-			-- disable+re-enable cycle. See CleanupAllHostMDMProfilesForPlatform.
 			JOIN host_mdm hmdm
 				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 	WHERE
@@ -2284,10 +2280,6 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
-			-- only target hosts confirmed as MDM-enrolled by osquery. This
-			-- gates the reconciler against recreating pending rows for
-			-- hosts that were enrolled before a global Windows MDM
-			-- disable+re-enable cycle. See CleanupAllHostMDMProfilesForPlatform.
 			JOIN host_mdm hmdm
 				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
@@ -2332,10 +2324,6 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
-			-- only target hosts confirmed as MDM-enrolled by osquery. This
-			-- gates the reconciler against recreating pending rows for
-			-- hosts that were enrolled before a global Windows MDM
-			-- disable+re-enable cycle. See CleanupAllHostMDMProfilesForPlatform.
 			JOIN host_mdm hmdm
 				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
@@ -2374,10 +2362,6 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
-			-- only target hosts confirmed as MDM-enrolled by osquery. This
-			-- gates the reconciler against recreating pending rows for
-			-- hosts that were enrolled before a global Windows MDM
-			-- disable+re-enable cycle. See CleanupAllHostMDMProfilesForPlatform.
 			JOIN host_mdm hmdm
 				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
@@ -2654,9 +2638,7 @@ const windowsProfilesToRemoveQuery = `
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
 		-- only target hosts that still have a valid Windows MDM enrollment
 		-- AND whose host_mdm.enrolled reflects current osquery-confirmed
-		-- enrollment. Profiles for hosts whose enrollment was deleted, or
-		-- whose host_mdm was flipped to enrolled = 0 by osquery
-		-- or osquery, cannot receive MDM commands and must be skipped.
+		-- enrollment. Other hosts cannot receive MDM commands and must be skipped.
 		EXISTS (
 			SELECT 1 FROM mdm_windows_enrollments mwe
 				JOIN hosts h ON h.uuid = mwe.host_uuid

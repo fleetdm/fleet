@@ -864,8 +864,8 @@ func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, p
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		switch platform {
 		case "darwin", "ios", "ipados":
-			// Soft-disable nano enrollments. The Apple reconciler filters on ne.enabled = 1, so this prevents pending
-			// rows from being recreated when Apple MDM is re-enabled with a new APNS cert.
+			// The Apple reconciler filters on nano_enrollments.enabled = 1, so this prevents pending rows from being recreated when
+			// Apple MDM is re-enabled with a new APNS cert.
 			if _, err := tx.ExecContext(ctx,
 				`UPDATE nano_enrollments SET enabled = 0, token_update_tally = 0 WHERE enabled = 1`); err != nil {
 				return ctxerr.Wrap(ctx, err, "disabling nano_enrollments")
@@ -877,16 +877,11 @@ func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, p
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_declarations")
 			}
 		case "windows":
-			// Delete host_mdm_windows_profiles. We do NOT flip host_mdm.enrolled here because that signal also gates
-			// isWindowsHostConnectedToFleetMDM, which orbit uses to decide whether to send the programmatic-unenrollment
-			// notification (see service/orbit.go). Flipping it would silence the unenroll signal and leave devices stuck
-			// enrolled at the OS level. Instead, host_mdm.enrolled is driven by osquery's directIngestMDMWindows and the
-			// SOAP enrollment path (storeWindowsMDMEnrolledDevice).
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_windows_profiles")
 			}
 		default:
-			return ctxerr.Errorf(ctx, "unsupported platform %s for MDM disable", platform)
+			return ctxerr.Errorf(ctx, "unsupported platform %s for MDM profile cleanup", platform)
 		}
 		return nil
 	})
