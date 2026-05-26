@@ -5542,11 +5542,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 
 		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
 		require.NoError(t, err)
+		var echoInstallUUID string
 		for _, r := range results {
 			if r.Name == "EchoApp" {
 				require.Equal(t, fleet.SetupExperienceStatusRunning, r.Status, "precondition: EchoApp should be running")
+				require.NotNil(t, r.HostSoftwareInstallsExecutionID)
+				echoInstallUUID = *r.HostSoftwareInstallsExecutionID
 			}
 		}
+		require.NotEmpty(t, echoInstallUUID)
 
 		// remove EchoApp from SE list so the installer can be deleted
 		var swInstallResp putSetupExperienceSoftwareResponse
@@ -5562,6 +5566,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 		for _, r := range results {
 			require.NotEqual(t, "EchoApp", r.Name, "EchoApp SE row must be removed after installer delete")
 		}
+
+		// hsi row for the running EchoApp install should also be cleaned up,
+		// not left orphaned with software_installer_id=NULL.
+		_, err = s.ds.GetSoftwareInstallResults(ctx, echoInstallUUID)
+		require.Error(t, err, "orphan hsi row remains after installer delete")
 
 		// verify via orbit endpoint
 		statusAfter := pollOrbitSetupStatus(t, host)
