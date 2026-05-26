@@ -205,6 +205,72 @@ func TestProcessFailingHostExistingCalendarEventRecording(t *testing.T) {
 		require.ErrorContains(t, *finalizeErr, "calendar API down")
 	})
 
+	t.Run("event happening now triggers webhook dispatch, deferred finalize records Success", func(t *testing.T) {
+		// Construct a "happening now" event with a non-None webhook status so
+		// shouldReloadCalendarEvent returns false (its eventHappeningNow
+		// trigger only fires for StatusNone). Body tags match too, so the
+		// only calendar-affecting write the function reaches is the webhook
+		// dispatch — that is the code path my fix records.
+		ds := new(mock.Store)
+		automationtest.StubNoopRecording(ds)
+		finalizeErr := captureFinalize(ds)
+		ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+			return &fleet.HostLite{
+				DistributedInterval: 10,
+				ConfigTLSRefresh:    10,
+				SeenTime:            time.Now(),
+			}, nil
+		}
+		var updateWebhookCalled, updateRefetchCalled, stopChannelCalled bool
+		ds.UpdateHostCalendarWebhookStatusFunc = func(ctx context.Context, hostID uint, status fleet.CalendarWebhookStatus) error {
+			updateWebhookCalled = true
+			require.Equal(t, fleet.CalendarWebhookStatusPending, status)
+			return nil
+		}
+		ds.UpdateHostRefetchRequestedFunc = func(ctx context.Context, hostID uint, value bool) error {
+			updateRefetchCalled = true
+			return nil
+		}
+
+		userCal := stubUserCalendar{
+			stopEventChannel: func(*fleet.CalendarEvent) error {
+				stopChannelCalled = true
+				return nil
+			},
+		}
+
+		now := time.Now()
+		happeningNow := &fleet.CalendarEvent{
+			ID:        1,
+			UUID:      "event-uuid",
+			Email:     "user@example.com",
+			StartTime: now.Add(-30 * time.Minute),
+			EndTime:   now.Add(30 * time.Minute),
+		}
+		require.NoError(t, happeningNow.SaveDataItems("body_tag", "tag-B"))
+		happeningNow.UpdatedAt = now
+
+		pendingHostCalEvent := &fleet.HostCalendarEvent{
+			ID:              1,
+			HostID:          42,
+			CalendarEventID: 1,
+			WebhookStatus:   fleet.CalendarWebhookStatusPending,
+		}
+
+		err := processFailingHostExistingCalendarEvent(
+			t.Context(), ds, stubLock{}, userCal, "org",
+			pendingHostCalEvent, happeningNow, recordingCalendarHost(),
+			recordingPolicyMap("tag-B"), &calendar.Config{}, logger,
+		)
+		require.NoError(t, err)
+		require.True(t, updateWebhookCalled, "webhook status update should fire on event-happening-now path")
+		require.True(t, updateRefetchCalled)
+		require.True(t, stopChannelCalled)
+		require.True(t, ds.CreatePolicyAutomationExecutionsFuncInvoked, "ensureRecorded must run before the webhook dispatch")
+		require.True(t, ds.UpdatePolicyAutomationExecutionsFuncInvoked)
+		require.NoError(t, *finalizeErr)
+	})
+
 	t.Run("body-tag matches and no reload needed, recording functions are never called", func(t *testing.T) {
 		ds := new(mock.Store)
 		ds.CreatePolicyAutomationExecutionsFunc = func(ctx context.Context, typ fleet.PolicyAutomationType, runs []fleet.PolicyRunRef) (uuid.UUID, error) {

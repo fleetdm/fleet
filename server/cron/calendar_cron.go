@@ -547,6 +547,11 @@ func processFailingHostExistingCalendarEvent(
 		return nil
 	}
 
+	// Flipping the calendar webhook status to pending is a calendar-affecting
+	// write: this is the path that dispatches the failing-policy webhook to
+	// the host. Record the automation now so the deferred finalize captures
+	// the outcome.
+	ensureRecorded()
 	if err := ds.UpdateHostCalendarWebhookStatus(ctx, host.HostID, fleet.CalendarWebhookStatusPending); err != nil {
 		return fmt.Errorf("update host calendar webhook status: %w", err)
 	}

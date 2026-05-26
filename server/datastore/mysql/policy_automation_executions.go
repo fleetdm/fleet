@@ -62,47 +62,48 @@ func (ds *Datastore) RecordPolicyTransitions(
 		return nil, nil
 	}
 
+	// No transaction wrapper: each ODKU is a single atomic statement, and
+	// when newFailing>0 the follow-up lookup runs on the primary, which
+	// always sees the just-committed rows. Wrapping the hot path in a tx
+	// holds a connection longer and serializes BEGIN/COMMIT round-trips —
+	// noticeable overhead on the per-check-in path.
+	writer := ds.writer(ctx)
+	for chunkStart := 0; chunkStart < len(pending); chunkStart += policyAutomationBatchSize {
+		chunkEnd := min(chunkStart+policyAutomationBatchSize, len(pending))
+		chunk := pending[chunkStart:chunkEnd]
+
+		placeholders := make([]string, 0, len(chunk))
+		args := make([]any, 0, len(chunk)*4)
+		for _, r := range chunk {
+			placeholders = append(placeholders, "(?, ?, NULL, ?, ?)")
+			args = append(args, r.policyID, hostID, r.newStatus, r.consecutiveFailures)
+		}
+		query := `INSERT INTO policy_runs (policy_id, host_id, old_status, new_status, consecutive_failures)
+		           VALUES ` + strings.Join(placeholders, ",") + `
+		           ON DUPLICATE KEY UPDATE
+		             old_status = CASE
+		                 WHEN new_status = VALUES(new_status) THEN old_status
+		                 ELSE new_status
+		             END,
+		             consecutive_failures = CASE
+		                 WHEN new_status = 0 AND VALUES(new_status) = 0 THEN consecutive_failures + 1
+		                 ELSE VALUES(consecutive_failures)
+		             END,
+		             new_status = VALUES(new_status)`
+		if _, err := writer.ExecContext(ctx, query, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "upsert policy_runs")
+		}
+	}
+
 	failingIDs := make(map[uint]uint, len(newFailing))
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		for chunkStart := 0; chunkStart < len(pending); chunkStart += policyAutomationBatchSize {
-			chunkEnd := min(chunkStart+policyAutomationBatchSize, len(pending))
-			chunk := pending[chunkStart:chunkEnd]
-
-			placeholders := make([]string, 0, len(chunk))
-			args := make([]any, 0, len(chunk)*4)
-			for _, r := range chunk {
-				placeholders = append(placeholders, "(?, ?, NULL, ?, ?)")
-				args = append(args, r.policyID, hostID, r.newStatus, r.consecutiveFailures)
-			}
-			query := `INSERT INTO policy_runs (policy_id, host_id, old_status, new_status, consecutive_failures)
-			           VALUES ` + strings.Join(placeholders, ",") + `
-			           ON DUPLICATE KEY UPDATE
-			             old_status = CASE
-			                 WHEN new_status = VALUES(new_status) THEN old_status
-			                 ELSE new_status
-			             END,
-			             consecutive_failures = CASE
-			                 WHEN new_status = 0 AND VALUES(new_status) = 0 THEN consecutive_failures + 1
-			                 ELSE VALUES(consecutive_failures)
-			             END,
-			             new_status = VALUES(new_status)`
-			if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "upsert policy_runs")
-			}
+	if len(newFailing) > 0 {
+		refs, err := lookupFailingPolicyRunRefs(ctx, writer, newFailing, []uint{hostID})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select failing policy_runs ids")
 		}
-
-		if len(newFailing) > 0 {
-			refs, err := lookupFailingPolicyRunRefs(ctx, tx, newFailing, []uint{hostID})
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "select failing policy_runs ids")
-			}
-			for _, r := range refs {
-				failingIDs[r.PolicyID] = r.RunID
-			}
+		for _, r := range refs {
+			failingIDs[r.PolicyID] = r.RunID
 		}
-		return nil
-	}); err != nil {
-		return nil, err
 	}
 	return failingIDs, nil
 }
@@ -120,7 +121,7 @@ func (ds *Datastore) RecordPolicyTransitions(
 // query per chunk on the N side and no extra queries on the 1 side.
 func lookupFailingPolicyRunRefs(
 	ctx context.Context,
-	exec sqlx.ExtContext,
+	exec sqlx.QueryerContext,
 	policyIDs, hostIDs []uint,
 ) ([]fleet.PolicyRunRef, error) {
 	if len(policyIDs) == 0 || len(hostIDs) == 0 {
@@ -188,7 +189,13 @@ func lookupFailingPolicyRunRefs(
 }
 
 func (ds *Datastore) GetFailingPolicyRuns(ctx context.Context, policyIDs, hostIDs []uint) ([]fleet.PolicyRunRef, error) {
-	out, err := lookupFailingPolicyRunRefs(ctx, ds.writer(ctx), policyIDs, hostIDs)
+	// Read-only lookup called from every async dispatch surface (webhook, Jira,
+	// Zendesk, calendar, conditional access). Hits the read replica so the
+	// dispatch path doesn't compete with osquery check-ins for primary
+	// connections; the small staleness window between RecordPolicyTransitions
+	// and dispatch is acceptable — pairs that haven't replicated yet just
+	// don't get a recording, which the spec models as a best-effort contract.
+	out, err := lookupFailingPolicyRunRefs(ctx, ds.reader(ctx), policyIDs, hostIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "query failing policy_run ids")
 	}
