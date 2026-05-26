@@ -7,16 +7,12 @@
   }
 
   &__error {
-    color: $ui-error;
+    color: $core-vibrant-red;
   }
 
   &__policy-automations {
     &__disabled {
       @include disabled;
     }
-  }
-
-  &__no-integrations a {
-    display: block;
   }
 }

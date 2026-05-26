@@ -1,176 +1,100 @@
-import React, { useContext, useRef, useState } from "react";
-
+import React, {
+  forwardRef,
+  useContext,
+  useImperativeHandle,
+  useState,
+} from "react";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import PATHS from "router/paths";
-
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import CriticalPolicyBadge from "components/CriticalPolicyBadge";
 import CustomLink from "components/CustomLink";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
 import { AppContext } from "context/app";
-import { IPaginatedListHandle } from "components/PaginatedList";
-import PoliciesPaginatedList, {
-  IFormPolicy,
-} from "../PoliciesPaginatedList/PoliciesPaginatedList";
+import InfoBanner from "components/InfoBanner/InfoBanner";
 
-const baseClass = "conditional-access-modal";
-
-export interface IConditionalAccessFormData {
+export interface IConditionalAccessModalData {
   enabled: boolean;
-  changedPolicies: IFormPolicy[];
 }
 
-interface IConditionalAccessModal {
-  onExit: () => void;
-  onSubmit: (data: IConditionalAccessFormData) => void;
+export interface IConditionalAccessModalHandle {
+  getFormData: () => IConditionalAccessModalData | null;
+  validate: () => boolean;
+  isDirty: () => boolean;
+}
+
+interface IConditionalAccessModalProps {
   configured: boolean;
   enabled: boolean;
-  isUpdating: boolean;
   gitOpsModeEnabled?: boolean;
-  teamId: number;
   providerText: string;
 }
 
-const ConditionalAccessModal = ({
-  onExit,
-  onSubmit,
-  configured,
-  enabled,
-  isUpdating,
-  gitOpsModeEnabled = false,
-  teamId,
-  providerText,
-}: IConditionalAccessModal) => {
-  const [formData, setFormData] = useState<IConditionalAccessFormData>({
-    enabled,
-    changedPolicies: [],
-  });
+const ConditionalAccessModal = forwardRef<
+  IConditionalAccessModalHandle,
+  IConditionalAccessModalProps
+>(
+  (
+    {
+      configured,
+      enabled,
+      gitOpsModeEnabled = false,
+      providerText,
+    }: IConditionalAccessModalProps,
+    ref
+  ) => {
+    const { isGlobalAdmin } = useContext(AppContext);
 
-  const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
-  const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
-  const isAdmin = isGlobalAdmin || isTeamAdmin;
+    const [formEnabled, setFormEnabled] = useState(enabled);
 
-  const onChangeEnabled = () => {
-    // no validation needed, just a flag
-    setFormData({ ...formData, enabled: !formData.enabled });
-  };
+    useImperativeHandle(ref, () => ({
+      getFormData: () => (configured ? { enabled: formEnabled } : null),
+      validate: () => true,
+      isDirty: () => configured && formEnabled !== enabled,
+    }));
 
-  const handleSubmit = () => {
-    if (paginatedListRef.current) {
-      const changedPolicies = paginatedListRef.current.getDirtyItems();
-      onSubmit({ ...formData, changedPolicies });
-    }
-  };
-
-  const getPolicyDisabled = (policy: IFormPolicy) =>
-    !policy.platform.includes("darwin") && !policy.platform.includes("windows");
-
-  const getPolicyTooltipContent = (policy: IFormPolicy) =>
-    !policy.platform.includes("darwin") && !policy.platform.includes("windows")
-      ? "Policy does not target macOS or Windows"
-      : null;
-
-  const learnMoreLink = (
-    <CustomLink
-      text="Learn more"
-      url={`${LEARN_MORE_ABOUT_BASE_LINK}/conditional-access`}
-      newTab
-    />
-  );
-
-  const renderItemLabel = (policy: IFormPolicy) => (
-    <>
-      <TooltipTruncatedText value={policy.name} />
-      {policy.critical && <CriticalPolicyBadge />}
-    </>
-  );
-
-  const renderConfigured = () => {
     return (
-      <>
-        <div className="form">
-          <span className="header">
-            <Slider
-              value={formData.enabled}
-              onChange={onChangeEnabled}
-              inactiveText="Disabled"
-              activeText="Enabled"
-              disabled={gitOpsModeEnabled || !isAdmin}
-            />
-          </span>
-          <PoliciesPaginatedList
-            ref={paginatedListRef}
-            isSelected="conditional_access_enabled"
-            getPolicyDisabled={getPolicyDisabled}
-            getPolicyTooltipContent={getPolicyTooltipContent}
-            renderItemLabel={renderItemLabel}
-            onToggleItem={(item: IFormPolicy) => {
-              item.conditional_access_enabled = !item.conditional_access_enabled;
-              return item;
-            }}
-            helpText={
-              <>
-                Single sign-on will be blocked for end users whose hosts fail
-                any of these policies.{" "}
-                <CustomLink
-                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/conditional-access`}
-                  text="Learn more"
-                  newTab
-                  disableKeyboardNavigation={!formData.enabled}
-                />
-              </>
-            }
-            isUpdating={isUpdating}
-            onSubmit={handleSubmit}
-            onCancel={onExit}
-            teamId={teamId}
-            disableList={!formData.enabled}
-            renderPlatform
+      <div className="form">
+        <p>
+          Block single sign-on for end users failing policies.{" "}
+          <CustomLink
+            text="Learn more"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/conditional-access`}
+            newTab
           />
-        </div>
-      </>
-    );
-  };
-
-  const renderNotConfigured = () => (
-    <>
-      To block single sign-on from hosts failing policies, you must first
-      connect Fleet to {providerText}.
-      <br />
-      <br />
-      This can be configured in{" "}
-      {isGlobalAdmin ? (
-        <CustomLink
-          url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
-          text="Settings > Integrations > Conditional access"
-        />
-      ) : (
-        <>
-          <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
-          <b>Conditional access</b>
-        </>
-      )}
-      .
-      <br />
-      <br />
-      {learnMoreLink}
-      <div className="modal-cta-wrap">
-        <Button onClick={onExit}>Close</Button>
+        </p>
+        {!configured && (
+          <InfoBanner>
+            To use conditional access automations, connect Fleet to{" "}
+            {providerText} in{" "}
+            {isGlobalAdmin ? (
+              // Only global admins can access the Conditional Access settings page.
+              <CustomLink
+                url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
+                text="Settings &gt; Integrations &gt; Conditional access"
+                multiline
+              />
+            ) : (
+              <>
+                <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
+                <b>Conditional access</b>
+              </>
+            )}
+            .
+          </InfoBanner>
+        )}
+        {configured && (
+          <Slider
+            value={formEnabled}
+            onChange={() => setFormEnabled(!formEnabled)}
+            inactiveText="Disabled"
+            activeText="Enabled"
+            disabled={gitOpsModeEnabled}
+          />
+        )}
       </div>
-    </>
-  );
-  return (
-    <Modal
-      className={baseClass}
-      title="Conditional access"
-      onExit={onExit}
-      width="large"
-    >
-      {configured ? renderConfigured() : renderNotConfigured()}
-    </Modal>
-  );
-};
+    );
+  }
+);
+
+ConditionalAccessModal.displayName = "ConditionalAccessModal";
 
 export default ConditionalAccessModal;

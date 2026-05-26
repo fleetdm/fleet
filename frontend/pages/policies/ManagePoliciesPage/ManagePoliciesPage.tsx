@@ -364,7 +364,8 @@ const ManagePolicyPage = ({
 
   const canAddOrDeletePolicies =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations = canAddOrDeletePolicies;
+
+  const canEditAutomationsSettings = isGlobalAdmin || isTeamAdmin;
 
   const { data: globalConfig, isFetching: isFetchingGlobalConfig } = useQuery<
     IConfig,
@@ -791,7 +792,7 @@ const ManagePolicyPage = ({
           isFiltered={!!automationFilter}
           otherAutomationType={otherAutomationType}
           onOpenManageAutomationsModal={
-            canManageAutomations ? onOpenManageAutomationsModal : undefined
+            canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
           }
         />
       );
@@ -835,7 +836,7 @@ const ManagePolicyPage = ({
           isFiltered={!!automationFilter}
           otherAutomationType={otherAutomationType}
           onOpenManageAutomationsModal={
-            canManageAutomations ? onOpenManageAutomationsModal : undefined
+            canAddOrDeletePolicies ? onOpenManageAutomationsModal : undefined
           }
         />
       </div>
@@ -843,7 +844,7 @@ const ManagePolicyPage = ({
   };
 
   let automationsButton = null;
-  if (canManageAutomations) {
+  if (canEditAutomationsSettings) {
     automationsButton = (
       <Button
         className={`${baseClass}__automations-button`}
@@ -945,7 +946,18 @@ const ManagePolicyPage = ({
           />
         )}
         {showAutomationsModal && (
-          <AutomationsModal onExit={toggleAutomationsModal} />
+          <AutomationsModal
+            router={router}
+            isAllTeamsSelected={isAllTeamsSelected}
+            teamIdForApi={teamIdForApi}
+            globalConfig={globalConfig}
+            teamConfig={teamConfig}
+            gitOpsModeEnabled={
+              globalConfig?.gitops.gitops_mode_enabled ?? false
+            }
+            refetchPolicies={() => refetchPolicies(teamIdForApi)}
+            onExit={toggleAutomationsModal}
+          />
         )}
         {selectedPolicyForAutomations && (
           <ManageAutomationsModal

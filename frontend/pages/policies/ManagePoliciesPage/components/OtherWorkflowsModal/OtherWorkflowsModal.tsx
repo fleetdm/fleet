@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { forwardRef, useImperativeHandle, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { isEmpty, noop, omit } from "lodash";
 
@@ -12,7 +12,6 @@ import {
 import { ITeamAutomationsConfig } from "interfaces/team";
 import PATHS from "router/paths";
 
-import Modal from "components/Modal";
 import Slider from "components/forms/fields/Slider";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -25,213 +24,213 @@ import CustomLink from "components/CustomLink";
 import ExampleTicket from "../ExampleTicket";
 import ExamplePayload from "../ExamplePayload";
 
-import PoliciesPaginatedList, {
-  IFormPolicy,
-} from "../PoliciesPaginatedList/PoliciesPaginatedList";
+const baseClass = "other-workflows-modal";
+
+export interface IOtherWorkflowsModalSubmit {
+  webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
+  integrations: IGlobalIntegrations | ITeamIntegrations;
+}
+
+export interface IOtherWorkflowsModalHandle {
+  getFormData: () => IOtherWorkflowsModalSubmit | null;
+  validate: () => boolean;
+  isDirty: () => boolean;
+}
 
 interface IOtherWorkflowsModalProps {
   router: InjectedRouter;
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
   availableIntegrations: IGlobalIntegrations | ITeamIntegrations;
-  isUpdating: boolean;
-  onExit: () => void;
-  onSubmit: (formData: {
-    webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
-    integrations: IGlobalIntegrations | ITeamIntegrations;
-  }) => void;
-  teamId: number;
   gitOpsModeEnabled?: boolean;
 }
 
 const findEnabledIntegration = ({
   jira,
   zendesk,
-}: IZendeskJiraIntegrations) => {
-  return (
-    jira?.find((j) => j.enable_failing_policies) ||
-    zendesk?.find((z) => z.enable_failing_policies)
-  );
-};
+}: IZendeskJiraIntegrations): IIntegration | undefined =>
+  jira?.find((j) => j.enable_failing_policies) ||
+  zendesk?.find((z) => z.enable_failing_policies);
 
-const getIntegrationType = (integration?: IIntegration) => {
-  return (
-    (!!integration?.group_id && "zendesk") ||
-    (!!integration?.project_key && "jira") ||
-    undefined
-  );
-};
+const getIntegrationType = (integration?: IIntegration) =>
+  (!!integration?.group_id && "zendesk") ||
+  (!!integration?.project_key && "jira") ||
+  undefined;
 
-const baseClass = "other-workflows-modal";
+const OtherWorkflowsModal = forwardRef<
+  IOtherWorkflowsModalHandle,
+  IOtherWorkflowsModalProps
+>(
+  (
+    {
+      router,
+      automationsConfig,
+      availableIntegrations,
+      gitOpsModeEnabled = false,
+    }: IOtherWorkflowsModalProps,
+    ref
+  ) => {
+    const {
+      webhook_settings: { failing_policies_webhook: webhook },
+    } = automationsConfig;
 
-const OtherWorkflowsModal = ({
-  router,
-  automationsConfig,
-  availableIntegrations,
-  isUpdating,
-  onExit,
-  onSubmit,
-  teamId,
-  gitOpsModeEnabled = false,
-}: IOtherWorkflowsModalProps): JSX.Element => {
-  const {
-    webhook_settings: { failing_policies_webhook: webhook },
-  } = automationsConfig;
+    const { jira, zendesk } = availableIntegrations || {};
+    const allIntegrations: IIntegration[] = [];
+    jira && allIntegrations.push(...jira);
+    zendesk && allIntegrations.push(...zendesk);
+    const hasAvailableIntegrations = allIntegrations.length > 0;
 
-  const [newPolicyIds, setNewPolicyIds] = useState(webhook.policy_ids || []);
-
-  const { jira, zendesk } = availableIntegrations || {};
-  const allIntegrations: IIntegration[] = [];
-  jira && allIntegrations.push(...jira);
-  zendesk && allIntegrations.push(...zendesk);
-  const hasAvailableIntegrations = allIntegrations.length > 0;
-
-  const dropdownOptions = allIntegrations.map(
-    ({ group_id, project_key, url }) => ({
-      value: group_id || project_key,
-      label: `${url} - ${group_id || project_key}`,
-    })
-  );
-
-  const serverEnabledIntegration = findEnabledIntegration(
-    automationsConfig.integrations
-  );
-
-  const [isPolicyAutomationsEnabled, setIsPolicyAutomationsEnabled] = useState(
-    !!webhook.enable_failing_policies_webhook || !!serverEnabledIntegration
-  );
-
-  const [isWebhookEnabled, setIsWebhookEnabled] = useState(
-    !isPolicyAutomationsEnabled || webhook.enable_failing_policies_webhook
-  );
-
-  const [destinationUrl, setDestinationUrl] = useState(
-    webhook.destination_url || ""
-  );
-
-  const [selectedIntegration, setSelectedIntegration] = useState<
-    IIntegration | undefined
-  >(serverEnabledIntegration);
-
-  const [showExamplePayload, setShowExamplePayload] = useState(false);
-  const [showExampleTicket, setShowExampleTicket] = useState(false);
-
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-  const onChangeUrl = (value: string) => {
-    setDestinationUrl(value);
-    setErrors((errs) => omit(errs, "url"));
-  };
-
-  const onChangeRadio = (val: string) => {
-    switch (val) {
-      case "webhook":
-        setIsWebhookEnabled(true);
-        setSelectedIntegration(undefined);
-        break;
-      case "ticket":
-        setIsWebhookEnabled(false);
-        break;
-      default:
-        noop();
-    }
-  };
-
-  const onAddIntegration = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS);
-  };
-
-  const onSelectIntegration = (selected: string | number) => {
-    setSelectedIntegration(
-      allIntegrations.find(
-        ({ group_id, project_key }) =>
-          group_id === selected || project_key === selected
-      )
+    const dropdownOptions = allIntegrations.map(
+      ({ group_id, project_key, url }) => ({
+        value: group_id || project_key,
+        label: `${url} - ${group_id || project_key}`,
+      })
     );
-  };
 
-  const onUpdateOtherWorkflows = () => {
-    const newErrors = { ...errors };
+    const serverEnabledIntegration = findEnabledIntegration(
+      automationsConfig.integrations
+    );
 
-    if (isPolicyAutomationsEnabled) {
-      // Ticket workflow validation
-      if (newPolicyIds.length && !isWebhookEnabled && !selectedIntegration) {
-        newErrors.integration = "Please enable at least one integration:";
-      } else {
-        delete newErrors.integration;
-      }
+    const initialIsPolicyAutomationsEnabled =
+      !!webhook.enable_failing_policies_webhook || !!serverEnabledIntegration;
+    const initialIsWebhookEnabled =
+      !initialIsPolicyAutomationsEnabled ||
+      webhook.enable_failing_policies_webhook;
+    const initialDestinationUrl = webhook.destination_url || "";
 
-      // Webhook workflow validation
-      if (isWebhookEnabled) {
-        if (!destinationUrl) {
-          newErrors.url = "Please add a destination URL";
-        } else if (!validUrl({ url: destinationUrl })) {
-          newErrors.url = "Destination URL is not a valid URL";
-        } else {
-          delete newErrors.url;
+    const [
+      isPolicyAutomationsEnabled,
+      setIsPolicyAutomationsEnabled,
+    ] = useState(initialIsPolicyAutomationsEnabled);
+    const [isWebhookEnabled, setIsWebhookEnabled] = useState(
+      initialIsWebhookEnabled
+    );
+    const [destinationUrl, setDestinationUrl] = useState(initialDestinationUrl);
+    const [selectedIntegration, setSelectedIntegration] = useState<
+      IIntegration | undefined
+    >(serverEnabledIntegration);
+    const [showExamplePayload, setShowExamplePayload] = useState(false);
+    const [showExampleTicket, setShowExampleTicket] = useState(false);
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+    const buildSubmitData = (): IOtherWorkflowsModalSubmit => {
+      const newJira =
+        availableIntegrations.jira?.map((j) => ({
+          ...j,
+          enable_failing_policies:
+            isPolicyAutomationsEnabled &&
+            !isWebhookEnabled &&
+            j.project_key === selectedIntegration?.project_key,
+        })) || null;
+
+      const newZendesk =
+        availableIntegrations.zendesk?.map((z) => ({
+          ...z,
+          enable_failing_policies:
+            isPolicyAutomationsEnabled &&
+            !isWebhookEnabled &&
+            z.group_id === selectedIntegration?.group_id,
+        })) || null;
+
+      // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
+      const newWebhook = {
+        failing_policies_webhook: {
+          destination_url: destinationUrl,
+          policy_ids: webhook.policy_ids || [],
+          enable_failing_policies_webhook:
+            isPolicyAutomationsEnabled && isWebhookEnabled,
+        },
+      };
+
+      return {
+        webhook_settings: newWebhook,
+        integrations: {
+          jira: newJira,
+          zendesk: newZendesk,
+          google_calendar: null, // When null, backend does not update google_calendar
+        },
+      };
+    };
+
+    const runValidation = () => {
+      const newErrors: { [key: string]: string } = {};
+
+      if (isPolicyAutomationsEnabled) {
+        if (!isWebhookEnabled && !selectedIntegration) {
+          newErrors.integration = hasAvailableIntegrations
+            ? "Please enable at least one integration:"
+            : "Add an integration to create tickets for policy automations.";
+        }
+        if (isWebhookEnabled) {
+          if (!destinationUrl) {
+            newErrors.url = "Please add a destination URL";
+          } else if (!validUrl({ url: destinationUrl })) {
+            newErrors.url = "Destination URL is not a valid URL";
+          }
         }
       }
-    }
-
-    if (!isEmpty(newErrors)) {
-      setErrors(newErrors);
-      return;
-    }
-
-    const newJira =
-      availableIntegrations.jira?.map((j) => ({
-        ...j,
-        enable_failing_policies:
-          isPolicyAutomationsEnabled &&
-          !isWebhookEnabled &&
-          j.project_key === selectedIntegration?.project_key,
-      })) || null;
-
-    const newZendesk =
-      availableIntegrations.zendesk?.map((z) => ({
-        ...z,
-        enable_failing_policies:
-          isPolicyAutomationsEnabled &&
-          !isWebhookEnabled &&
-          z.group_id === selectedIntegration?.group_id,
-      })) || null;
-
-    // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
-    const newWebhook = {
-      failing_policies_webhook: {
-        destination_url: destinationUrl,
-        policy_ids: newPolicyIds,
-        enable_failing_policies_webhook:
-          isPolicyAutomationsEnabled && isWebhookEnabled,
-      },
+      return newErrors;
     };
 
-    onSubmit({
-      webhook_settings: newWebhook,
-      integrations: {
-        jira: newJira,
-        zendesk: newZendesk,
-        google_calendar: null, // When null, the backend does not update google_calendar
+    useImperativeHandle(ref, () => ({
+      getFormData: () => buildSubmitData(),
+      validate: () => {
+        const newErrors = runValidation();
+        setErrors(newErrors);
+        return isEmpty(newErrors);
       },
-    });
+      isDirty: () => {
+        if (isPolicyAutomationsEnabled !== initialIsPolicyAutomationsEnabled)
+          return true;
+        if (isPolicyAutomationsEnabled) {
+          if (isWebhookEnabled !== !!initialIsWebhookEnabled) return true;
+          if (isWebhookEnabled && destinationUrl !== initialDestinationUrl)
+            return true;
+          if (
+            !isWebhookEnabled &&
+            (selectedIntegration?.project_key !==
+              serverEnabledIntegration?.project_key ||
+              selectedIntegration?.group_id !==
+                serverEnabledIntegration?.group_id)
+          )
+            return true;
+        }
+        return false;
+      },
+    }));
 
-    setErrors(newErrors);
-  };
+    const onChangeUrl = (value: string) => {
+      setDestinationUrl(value);
+      setErrors((errs) => omit(errs, "url"));
+    };
 
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onUpdateOtherWorkflows();
+    const onChangeRadio = (val: string) => {
+      switch (val) {
+        case "webhook":
+          setIsWebhookEnabled(true);
+          setSelectedIntegration(undefined);
+          break;
+        case "ticket":
+          setIsWebhookEnabled(false);
+          break;
+        default:
+          noop();
       }
     };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  });
 
-  const renderWebhook = () => {
-    return (
+    const onAddIntegration = () => {
+      router.push(PATHS.ADMIN_INTEGRATIONS);
+    };
+
+    const onSelectIntegration = (selected: string | number) => {
+      setSelectedIntegration(
+        allIntegrations.find(
+          ({ group_id, project_key }) =>
+            group_id === selected || project_key === selected
+        )
+      );
+    };
+
+    const renderWebhook = () => (
       <>
         <InputField
           inputWrapperClass={`${baseClass}__url-input`}
@@ -241,7 +240,7 @@ const OtherWorkflowsModal = ({
           value={destinationUrl}
           onChange={onChangeUrl}
           error={errors.url}
-          helpText='For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
+          helpText="For configured policies, Fleet will send a JSON payload to this URL with a list of hosts whose statuses changed from pass to fail."
           placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
           disabled={!isPolicyAutomationsEnabled || gitOpsModeEnabled}
@@ -258,79 +257,66 @@ const OtherWorkflowsModal = ({
         {showExamplePayload && <ExamplePayload />}
       </>
     );
-  };
 
-  const renderIntegrations = () => {
-    return hasAvailableIntegrations ? (
-      <>
-        <div className={`${baseClass}__integrations`}>
-          <Dropdown
-            options={dropdownOptions}
-            onChange={onSelectIntegration}
-            placeholder="Select integration"
-            value={
-              selectedIntegration?.group_id || selectedIntegration?.project_key
-            }
-            label="Integration"
-            error={errors.integration}
-            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-            hint={
-              "For each policy, Fleet will create a ticket with a list of the failing hosts."
-            }
+    const renderIntegrations = () =>
+      hasAvailableIntegrations ? (
+        <>
+          <div className={`${baseClass}__integrations`}>
+            <Dropdown
+              options={dropdownOptions}
+              onChange={onSelectIntegration}
+              placeholder="Select integration"
+              value={
+                selectedIntegration?.group_id ||
+                selectedIntegration?.project_key
+              }
+              label="Integration"
+              error={errors.integration}
+              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+              hint="For each policy, Fleet will create a ticket with a list of the failing hosts."
+            />
+          </div>
+          <RevealButton
+            isShowing={showExampleTicket}
+            className={baseClass}
+            hideText="Hide example ticket"
+            showText="Show example ticket"
+            caretPosition="after"
+            onClick={() => setShowExampleTicket(!showExampleTicket)}
           />
+          {showExampleTicket && (
+            <ExampleTicket
+              integrationType={getIntegrationType(selectedIntegration)}
+            />
+          )}
+        </>
+      ) : (
+        <div className={`form-field ${baseClass}__no-integrations`}>
+          <div className="form-field__label">You have no integrations.</div>
+          <div>
+            <Button
+              onClick={onAddIntegration}
+              disabled={gitOpsModeEnabled || !isPolicyAutomationsEnabled}
+            >
+              Add integration
+            </Button>
+          </div>
+          {errors.integration && (
+            <div className={`${baseClass}__error`}>{errors.integration}</div>
+          )}
         </div>
-        <RevealButton
-          isShowing={showExampleTicket}
-          className={baseClass}
-          hideText="Hide example ticket"
-          showText="Show example ticket"
-          caretPosition="after"
-          onClick={() => setShowExampleTicket(!showExampleTicket)}
-        />
-        {showExampleTicket && (
-          <ExampleTicket
-            integrationType={getIntegrationType(selectedIntegration)}
-          />
-        )}
-      </>
-    ) : (
-      <div className={`form-field ${baseClass}__no-integrations`}>
-        <div className="form-field__label">You have no integrations.</div>
-        <div>
-          <Button
-            onClick={onAddIntegration}
-            disabled={gitOpsModeEnabled || !isPolicyAutomationsEnabled} // Not keyboard accessible if modal is disabled
-          >
-            Add integration
-          </Button>
-        </div>
-      </div>
-    );
-  };
+      );
 
-  // Disable saving if ticket workflow is selected but no integration is chosen
-  const disableSave = () => {
-    if (
-      isPolicyAutomationsEnabled &&
-      !isWebhookEnabled &&
-      !hasAvailableIntegrations
-    ) {
-      // Similar error message to no integration selected for vuln automations in ManageSoftwareAutomationModal
-      return "Add an integration to create tickets for policy automations.";
-    }
-
-    return false; // saving is allowed
-  };
-
-  return (
-    <Modal
-      onExit={onExit}
-      title="Other workflows"
-      className={baseClass}
-      width="large"
-      isContentDisabled={isUpdating}
-    >
+    return (
       <div className={`${baseClass} form`}>
+        <p className={`${baseClass}__description`}>
+          Create tickets or fire webhooks when hosts fail policies.{" "}
+          <CustomLink
+            url="https://www.fleetdm.com/learn-more-about/policy-automations"
+            text="Learn more"
+            newTab
+          />
+        </p>
         <Slider
           value={isPolicyAutomationsEnabled}
           onChange={() => {
@@ -339,7 +325,6 @@ const OtherWorkflowsModal = ({
           }}
           inactiveText="Disabled"
           activeText="Enabled"
-          autoFocus
           disabled={gitOpsModeEnabled}
         />
         <div
@@ -372,44 +357,11 @@ const OtherWorkflowsModal = ({
           </div>
           {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
         </div>
-        <div className="form-field">
-          <PoliciesPaginatedList
-            isSelected={(item: IFormPolicy) => {
-              return newPolicyIds?.indexOf(item.id) > -1;
-            }}
-            onToggleItem={(item: IFormPolicy) => {
-              const updatedPolicyIds = newPolicyIds.slice();
-              const index = newPolicyIds?.indexOf(item.id);
-              if (index > -1) {
-                updatedPolicyIds.splice(index, 1);
-              } else {
-                updatedPolicyIds.push(item.id);
-              }
-              setNewPolicyIds(updatedPolicyIds);
-              return item;
-            }}
-            helpText={
-              <>
-                The workflow will be triggered when hosts fail these policies.{" "}
-                <CustomLink
-                  url="https://www.fleetdm.com/learn-more-about/policy-automations"
-                  text="Learn more"
-                  newTab
-                  disableKeyboardNavigation={!isPolicyAutomationsEnabled}
-                />
-              </>
-            }
-            isUpdating={isUpdating}
-            onSubmit={onUpdateOtherWorkflows}
-            onCancel={onExit}
-            teamId={teamId}
-            disableList={!isPolicyAutomationsEnabled}
-            disableSave={disableSave}
-          />
-        </div>
       </div>
-    </Modal>
-  );
-};
+    );
+  }
+);
+
+OtherWorkflowsModal.displayName = "OtherWorkflowsModal";
 
 export default OtherWorkflowsModal;

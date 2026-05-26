@@ -1,6 +1,24 @@
 .custom-link {
   @include link;
-  @include animated-bottom-border($core-fleet-black, $ui-fleet-black-25);
+
+  // Animated bottom border via stacked background gradients. The light bar
+  // (gradient 2) is always visible at full width; the dark bar (gradient 1)
+  // grows in from the left on hover/focus. `box-decoration-break: clone` makes
+  // each wrapped line fragment render its own underline, so this works for
+  // both single-line and multiline links.
+  background-image: linear-gradient($core-fleet-black, $core-fleet-black),
+    linear-gradient($ui-fleet-black-25, $ui-fleet-black-25);
+  background-size: 0 1px, 100% 1px;
+  background-position: 0 100%, 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.2s ease;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+
+  &:hover,
+  &:focus {
+    background-size: 100% 1px, 100% 1px;
+  }
 
   .external-link-icon__outline {
     transition: fill 0.2s;
@@ -19,7 +37,7 @@
     }
   }
 
-  // Changing display will break multiline links
+  // Non-multiline links lay out the icon next to the text on a single line.
   &:not(.custom-link--multiline) {
     display: inline-flex;
     align-items: center;
@@ -45,7 +63,8 @@
     font-size: inherit; // Overrides link default font size with parent tooltip font size
     // Use static (non-themed) colors so the underline and icon stay light on
     // the always-dark tooltip/flash background regardless of light/dark mode.
-    @include animated-bottom-border($static-white, rgba($static-white, 0.4));
+    background-image: linear-gradient($static-white, $static-white),
+      linear-gradient(rgba($static-white, 0.4), rgba($static-white, 0.4));
 
     .external-link-icon__outline {
       stroke: $static-white;
