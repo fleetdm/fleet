@@ -711,13 +711,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 
 		if len(toInsert) > 0 {
-			if !config.MDM.IsAppleAPNsSet() {
-				initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"),
-					"validate Apple MDM")
-			} else if !config.MDM.IsAppleSCEPSet() {
-				initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"),
-					"validate Apple MDM")
-			}
+			config.MDM.ValidateAppleAPNSAndSCEPPair(initFatal)
 
 			// parse the APNs and SCEP assets from the config
 			_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()

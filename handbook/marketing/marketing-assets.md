@@ -24,6 +24,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 
 | Asset | Audience | Use case | Date updated |
 | --- | --- | --- | --- |
+| [Fleet AEM 1-pager handout](https://drive.google.com/file/d/1pZkLHmakHYJxAC1xg3k1GsemjrNvjj_O/view) | All | Fleet AEM 1 pager handout, PDF format. | 2026-05-24 |
 |[Conference Handout]() | All | High level overview of Fleet- 2026 messaging.  [Figma](https://www.figma.com/design/G8PruLlNbwrz75wtcR3Zeo/Fleet-Conference-Brochure---2-Page-Handout?node-id=0-1&p=f&t=jHABDmENvR3VUF63-0) |2026-04-15 |
 | [Safe Enough to Switch](https://drive.google.com/drive/folders/1ynAk92_DSxvtOPmreo84fOGUqhrdu_MY) | All | Both sides are in this folder. Overview of Fleet's maturity for organizations switching tools. | 2025-09-15 |
 | [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit) | All | High-level summary of the platform's core capabilities. | 2022-02-14 |
@@ -55,6 +56,8 @@ Downloadable PDFs for lead generation, ABM campaigns, and executive education. A
 
 | Asset | Audience | Use case | Date updated |
 | --- | --- | --- | --- |
+| [Fleet autonomous endpoint management](https://docs.google.com/document/d/1Xv_30iJN3zI5N1B3iq9S2pgCQVRVPZU2QYNZaGpBJpI/edit?tab=t.0) | Fleet sales and channel teams | What Fleet AEM, the catalog, and auto patching do. | 2026-05-23 |
+| [Selling Fleet AEM](https://docs.google.com/document/d/1uAukX0P9wxR_6nZHIJJG9isfY7k-bSZn/edit?usp=drive_link&ouid=105837981104785381659&rtpof=true&sd=true) | Fleet sales and channel teams | Sales and partner enablement 2-pager. | 2026-05-23 |
 | [Fleet pain points guide](https://docs.google.com/document/d/1h8N9Icow6g-08EZPQMnbH-bDKDbXoPy-lwlUm9DiPJA/edit) | Fleet sales and channel teams | Typical pain points Fleet solves and how to uncover them. | 2026-03-06 |
 | [Fleet ideal customer profile and persona guide](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit) | Fleet sales and channel teams | Typical Fleet buyer profiles. | 2026-01-18 |
 
@@ -188,6 +191,7 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
+| [Pre-CVE threat response: a Dirty Frag walkthrough with Fleet](https://fleetdm.com/articles/pre-cve-threat-response-with-fleet) | A worked example of using Fleet's osquery, run-script, and policies to scope, mitigate, and verify a Linux kernel privilege escalation across a fleet before a CVE is assigned. | Dhruv Majumdar | 2026-05-22 |
 | [Managing Linux desktops with GitOps](https://fleetdm.com/articles/managing-linux-desktops-with-gitops) | Bring GitOps to Linux desktop management with Fleet. Declarative YAML, CI/CD pipelines, and version control replace slow, error-prone ClickOps. | Anthony Critelli | 2026-05-20 |
 | [Patch management and vulnerability reporting for Linux desktops](https://fleetdm.com/articles/patch-management-and-vulnerability-reporting-for-linux-desktops) | Close the loop on Linux desktop security with cross-distro software inventory, CVE prioritization, and automated patch remediation. | Anthony Critelli | 2026-05-20 |
 | [Which AI model works best for generating configuration profiles?](https://fleetdm.com/articles/which-ai-model-works-best-for-generating-configuration-profiles) | Comparing Claude Opus 4.6, GPT-5, and Gemini 2.5 Pro for generating macOS .mobileconfig and Windows CSP profiles. | Harry Ravazzolo | 2026-05-20 |

@@ -2078,7 +2078,6 @@ func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
 		require.NotNil(t, status.WipeMDMCommand)
 		require.Equal(t, second.CommandUUID, status.WipeMDMCommand.CommandUUID)
 	})
-
 	t.Run("ClearPasscode writes the row and reports pending clear-passcode", func(t *testing.T) {
 		cpHost, err := ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
