@@ -2836,7 +2836,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 					svc.logger.WarnContext(ctx, "resolving Windows MDM discovery URL after enrollment", "err", dErr)
 					ctxerr.Handle(ctx, dErr)
 				} else {
-					installedFromDep := enrollType == fleet.WindowsMDMEnrollTypeAutomatic && !reqNotInOOBE
+					installedFromDep := enrollType == fleet.WindowsMDMEnrollTypeAutomatic && isInOOBE
 					if err := svc.ds.SetOrUpdateMDMData(ctx, hosts[0].ID,
 						false, // is_server: osquery corrects later from installation_type
 						true,  // enrolled
