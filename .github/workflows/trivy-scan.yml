@@ -129,14 +129,10 @@ jobs:
           exit-code: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '0' || '1' }}
           severity: "CRITICAL,HIGH,MEDIUM,LOW"
           trivyignores: "./security/code/.trivyignore"
-          # Skip test/dev private keys and placeholder secrets (not production):
-          # - tools/*/*.key, tools/test-certs/**, test/upgrade/fleet.key: dev/test TLS keys
-          # - orbit/pkg/insecure/proxy.go: TLS key for orbit --insecure dev mode
-          # - ee/orbit/pkg/httpsigproxy/httpsigproxy.go: TLS key for osquery-to-orbit local comm
-          # - server/*/testdata/*, pkg/*/testdata/*, client/testdata/*: test fixture keys
-          # - frontend/.../Calendars.tsx: placeholder GCP service-account JSON in UI
-          # - website/ and ee/*/config/*.js: commented-out Stripe test-mode placeholders (Sails templates)
-          # - ee/vulnerability-dashboard/views/pages/homepage.ejs: Stripe placeholder in example snippet
+          # Skip test/dev private keys and placeholder secrets (not production).
+          # Trivy 0.69.3 expanded secret detection; these are all non-production
+          # test keys, dev TLS keys, placeholder Stripe/GCP credentials in Sails
+          # templates and UI components.
           skip-files: |
             tools/osquery/in-a-box/osquery/fleet.key
             tools/osquery/fleet.key
@@ -157,13 +153,21 @@ jobs:
             website/config/custom.js
             website/config/env/production.js
             website/config/env/staging.js
+            website/views/pages/faq.ejs
+            website/assets/js/cloud.setup.js
+            website/api/hooks/custom/index.js
             ee/fleet-agent-downloader/config/custom.js
             ee/fleet-agent-downloader/config/env/production.js
             ee/fleet-agent-downloader/config/env/staging.js
+            ee/fleet-agent-downloader/api/hooks/custom/index.js
             ee/vulnerability-dashboard/config/custom.js
             ee/vulnerability-dashboard/config/env/production.js
             ee/vulnerability-dashboard/config/env/staging.js
             ee/vulnerability-dashboard/views/pages/homepage.ejs
+            ee/vulnerability-dashboard/views/pages/faq.ejs
+            ee/vulnerability-dashboard/assets/js/utilities/open-stripe-checkout.js
+            ee/vulnerability-dashboard/assets/js/components/stripe-card-element.component.js
+            ee/vulnerability-dashboard/api/hooks/custom/index.js
 
       - name: Upload Trivy scan results to GitHub Security tab
         # Only upload on schedule/manual runs. PR/push uploads register
