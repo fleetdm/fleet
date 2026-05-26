@@ -2,19 +2,26 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"database/sql"
+	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 )
 
 const (
@@ -27,6 +34,7 @@ const (
 var (
 	exportCmd       = flag.NewFlagSet("export", flag.ExitOnError)
 	importCmd       = flag.NewFlagSet("import", flag.ExitOnError)
+	rolloverCmd     = flag.NewFlagSet("rollover-ca-cert", flag.ExitOnError)
 	flagKey         string
 	flagDir         string
 	flagDBUser      string
@@ -36,6 +44,7 @@ var (
 	flagImportName  string
 	flagImportValue string
 	flagExportName  string
+	flagExtendYears int
 
 	validNames = map[fleet.MDMAssetName]struct{}{
 		fleet.MDMAssetABMCert:                  {},
@@ -52,7 +61,7 @@ var (
 )
 
 func setupSharedFlags() {
-	for _, fs := range []*flag.FlagSet{exportCmd, importCmd} {
+	for _, fs := range []*flag.FlagSet{exportCmd, importCmd, rolloverCmd} {
 		fs.StringVar(&flagKey, "key", "", "Key used to encrypt the assets")
 		fs.StringVar(&flagDir, "dir", "", "Directory to put the exported assets")
 		fs.StringVar(&flagDBUser, "db-user", testUsername, "Username used to connect to the MySQL instance")
@@ -108,6 +117,7 @@ func main() {
 	importCmd.StringVar(&flagImportName, "name", "", "Name of the asset to import. Valid names are: apns_cert, apns_key, ca_cert, ca_key, abm_key, abm_cert, abm_token, scep_challenge, vpp_token")
 	importCmd.StringVar(&flagImportValue, "value", "", "Value of the asset to import")
 	exportCmd.StringVar(&flagExportName, "name", "", "Name of the asset to export. Valid names are: apns_cert, apns_key, ca_cert, ca_key, abm_key, abm_cert, abm_token, scep_challenge, vpp_token")
+	rolloverCmd.IntVar(&flagExtendYears, "extend-years", 5, "Number of years to extend the Apple MDM CA certificate from now")
 
 	// Execute subcommands
 	switch os.Args[1] {
@@ -230,7 +240,122 @@ export FLEET_MDM_APPLE_BM_SERVER_TOKEN=%[1]s/abm_token
 export FLEET_MDM_APPLE_BM_CERT=%[1]s/abm_cert.crt
 export FLEET_MDM_APPLE_BM_KEY=%[1]s/abm_key.key
 `, flagDir)
+	case "rollover-ca-cert":
+		if err := rolloverCmd.Parse(os.Args[2:]); err != nil {
+			log.Fatal("parsing rollover-ca-cert flags", err)
+		}
+
+		if flagKey == "" {
+			log.Fatal("-key flag is required")
+		}
+		if len(flagKey) > 32 {
+			// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
+			// infra setups generate keys that are longer than 32 bytes.
+			flagKey = flagKey[:32]
+		}
+		if flagExtendYears <= 0 {
+			log.Fatal("-extend-years must be a positive integer")
+		}
+
+		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName)
+		defer ds.Close()
+
+		assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+			fleet.MDMAssetCACert,
+			fleet.MDMAssetCAKey,
+		}, nil)
+		if err != nil {
+			log.Fatal("loading existing apple mdm ca cert and key: ", err) //nolint:gocritic // ignore exitAfterDefer
+		}
+
+		oldCertPEM := assets[fleet.MDMAssetCACert].Value
+		oldKeyPEM := assets[fleet.MDMAssetCAKey].Value
+
+		certBlock, _ := pem.Decode(oldCertPEM)
+		if certBlock == nil || certBlock.Type != "CERTIFICATE" {
+			log.Fatal("decoding existing apple mdm ca certificate PEM")
+		}
+		oldCert, err := x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			log.Fatal("parsing existing apple mdm ca certificate: ", err)
+		}
+
+		privKeyAny, err := cryptoutil.ParsePrivateKey(oldKeyPEM, "Apple MDM CA private key")
+		if err != nil {
+			log.Fatal("parsing existing apple mdm ca key: ", err)
+		}
+		privKey, ok := privKeyAny.(*rsa.PrivateKey)
+		if !ok {
+			log.Fatal("existing apple mdm ca key is not RSA")
+		}
+
+		// Reserve a fresh serial from identity_serials so the new CA cert
+		// cannot collide with any client cert that was (or will be) issued by
+		// this CA. The auto-increment value is guaranteed to be greater than
+		// every historical client serial, and consuming it here prevents
+		// SCEPDepot.Serial() from ever handing it out to a future client cert.
+		// We deliberately do not insert into identity_certificates — the CA
+		// cert itself lives in mdm_config_assets, not the depot's cert table.
+		rawDB, err := sql.Open(
+			"mysql",
+			fmt.Sprintf("%s:%s@tcp(%s)/%s?tls=skip-verify", flagDBUser, flagDBPass, flagDBAddress, flagDBName),
+		)
+		if err != nil {
+			log.Fatal("opening MySQL connection to reserve CA serial: ", err)
+		}
+		defer rawDB.Close()
+		serialRes, err := rawDB.ExecContext(ctx, `INSERT INTO identity_serials () VALUES ();`)
+		if err != nil {
+			log.Fatal("allocating new CA cert serial in identity_serials: ", err)
+		}
+		serialID, err := serialRes.LastInsertId()
+		if err != nil {
+			log.Fatal("retrieving allocated CA cert serial: ", err)
+		}
+
+		// Reuse the existing identity (Subject, SubjectKeyId, key) so that
+		// previously-issued client certs continue to chain to the same issuer
+		// after the rollover. Only the serial number, NotBefore, and NotAfter
+		// change.
+		newSerial := big.NewInt(serialID)
+		notBefore := time.Now().Add(-10 * time.Minute).UTC()
+		notAfter := time.Now().AddDate(flagExtendYears, 0, 0).UTC()
+
+		tmpl := x509.Certificate{
+			Subject:               oldCert.Subject,
+			SerialNumber:          newSerial,
+			NotBefore:             notBefore,
+			NotAfter:              notAfter,
+			KeyUsage:              oldCert.KeyUsage,
+			BasicConstraintsValid: true,
+			IsCA:                  true,
+			MaxPathLen:            oldCert.MaxPathLen,
+			MaxPathLenZero:        oldCert.MaxPathLenZero,
+			SubjectKeyId:          oldCert.SubjectKeyId,
+		}
+
+		newCertDER, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, privKey.Public(), privKey)
+		if err != nil {
+			log.Fatal("creating renewed apple mdm ca certificate: ", err)
+		}
+		newCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: newCertDER})
+
+		// ReplaceMDMConfigAssets soft-deletes the existing ca_cert row (sets
+		// deletion_uuid + deleted_at) and inserts the new cert. The CA private
+		// key is untouched so existing chains stay valid.
+		if err := ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+			{Name: fleet.MDMAssetCACert, Value: newCertPEM},
+		}, nil); err != nil {
+			log.Fatal("writing renewed apple mdm ca cert to db: ", err)
+		}
+
+		log.Printf("Apple MDM CA cert rolled over.")
+		log.Printf("  common name:       %s", oldCert.Subject.CommonName)
+		log.Printf("  previous NotAfter: %s", oldCert.NotAfter.Format(time.RFC3339))
+		log.Printf("  new NotAfter:      %s", notAfter.Format(time.RFC3339))
+		log.Printf("  new serial:        %s", newSerial.String())
+		return
 	default:
-		log.Fatalf("invalid subcommand %s, valid subcommands: import, export", os.Args[1])
+		log.Fatalf("invalid subcommand %s, valid subcommands: import, export, rollover-ca-cert", os.Args[1])
 	}
 }
