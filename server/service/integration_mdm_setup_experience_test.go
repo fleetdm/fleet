@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -5579,5 +5581,108 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 			"orbit endpoint must only show DummyApp after EchoApp's installer is deleted")
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, statusAfter.Results.Software[0].Status,
 			"orbit endpoint must still show DummyApp as successful after EchoApp delete")
+	})
+
+	// covers the GitOps batch endpoint for both an installer edit (#42744 path,
+	// runInstallerUpdateSideEffectsInTransaction with isEdit=true) and a
+	// not-in-list delete (the cancelSetupExperienceStatusForDeletedSoftwareInstalls
+	// + deletePendingSoftwareInstallsNotInListHSI path, unchanged by this PR).
+	tOuter.Run("gitops batch edit then delete via /software/batch", func(t *testing.T) {
+		host, _, _ := enrollHostWithSEInstallers(t, []struct{ Filename, Title string }{
+			{"dummy_installer.pkg", "DummyApp"},
+			{"EchoApp.pkg", "EchoApp"},
+		})
+
+		// drive DummyApp to success, EchoApp to running
+		_ = pollOrbitSetupStatus(t, host)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var dummyInstallUUID string
+		for _, r := range results {
+			if r.Name == "DummyApp" && r.HostSoftwareInstallsExecutionID != nil {
+				dummyInstallUUID = *r.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, dummyInstallUUID)
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": 0, "install_script_output": "ok"}`,
+				*host.OrbitNodeKey, dummyInstallUUID)),
+			http.StatusNoContent)
+		_ = pollOrbitSetupStatus(t, host)
+
+		// snapshot EchoApp's running install execution id
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var echoInstallUUIDBefore string
+		for _, r := range results {
+			if r.Name == "EchoApp" {
+				require.Equal(t, fleet.SetupExperienceStatusRunning, r.Status, "precondition: EchoApp should be running")
+				require.NotNil(t, r.HostSoftwareInstallsExecutionID)
+				echoInstallUUIDBefore = *r.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, echoInstallUUIDBefore)
+
+		// HTTP server to serve the installer files for the batch endpoint
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			file, err := os.Open(filepath.Join("testdata", "software-installers", strings.TrimPrefix(r.URL.Path, "/")))
+			if err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			defer file.Close()
+			_, _ = io.Copy(w, file)
+		}))
+		t.Cleanup(srv.Close)
+
+		teamName := strings.ReplaceAll(t.Name(), "/", "_")
+
+		// === GitOps EDIT: batch with both installers, EchoApp's install script changed ===
+		var batchResp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{
+				Software: []*fleet.SoftwareInstallerPayload{
+					{URL: srv.URL + "/dummy_installer.pkg", InstallScript: "install", InstallDuringSetup: new(true)},
+					{URL: srv.URL + "/EchoApp.pkg", InstallScript: "updated install script for EchoApp", InstallDuringSetup: new(true)},
+				},
+			}, http.StatusAccepted, &batchResp, "team_name", teamName)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResp.RequestUUID)
+
+		// SE row for EchoApp must still be running, hsi row preserved
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var echo *fleet.SetupExperienceStatusResult
+		for _, r := range results {
+			if r.Name == "EchoApp" {
+				echo = r
+			}
+		}
+		require.NotNil(t, echo)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, echo.Status,
+			"#42744 via GitOps: running SE row must not be cancelled by batch-edit")
+		require.NotNil(t, echo.HostSoftwareInstallsExecutionID)
+		require.Equal(t, echoInstallUUIDBefore, *echo.HostSoftwareInstallsExecutionID)
+		hsi, err := s.ds.GetSoftwareInstallResults(ctx, echoInstallUUIDBefore)
+		require.NoError(t, err, "host_software_installs row must survive the batch-edit")
+		require.Equal(t, fleet.SoftwareInstallPending, hsi.Status)
+
+		// === GitOps DELETE: batch with only DummyApp (EchoApp dropped from list) ===
+		batchResp = batchSetSoftwareInstallersResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{
+				Software: []*fleet.SoftwareInstallerPayload{
+					{URL: srv.URL + "/dummy_installer.pkg", InstallScript: "install", InstallDuringSetup: new(true)},
+				},
+			}, http.StatusAccepted, &batchResp, "team_name", teamName)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResp.RequestUUID)
+
+		// EchoApp SE row gone, hsi cleaned up too
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NotEqual(t, "EchoApp", r.Name, "EchoApp SE row must be removed after GitOps delete")
+		}
+		_, err = s.ds.GetSoftwareInstallResults(ctx, echoInstallUUIDBefore)
+		require.Error(t, err, "orphan hsi row remains after GitOps delete")
 	})
 }
