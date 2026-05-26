@@ -10,7 +10,7 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type SearchTargetsRequest struct {
-	// MatchQuery is the query SQL
+	// MatchQuery is the free-text search query used to match hosts, labels, and teams.
 	MatchQuery string `json:"query"`
 	// QueryID is the ID of a saved query to run (used to determine if this is a
 	// query that observers can run).
