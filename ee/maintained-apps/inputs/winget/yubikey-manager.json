@@ -1,0 +1,12 @@
+{
+  "name": "Yubikey Manager",
+  "slug": "yubico-yubikey-manager/windows",
+  "package_identifier": "Yubico.YubikeyManager",
+  "unique_identifier": "YubiKey Manager",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/yubikey_manager_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/yubikey_manager_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}
