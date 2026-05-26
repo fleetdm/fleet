@@ -30,7 +30,6 @@ const LocalAccountSection = ({
   const { localAccountType } = formData;
   const forcedByLocalAccountType =
     localAccountType !== EndUserLocalAccountType.Admin;
-
   return (
     <SettingsSection
       title="Local account"
@@ -61,7 +60,7 @@ const LocalAccountSection = ({
             </span>
           ) : undefined
         }
-        disableTooltip={!!isMacMdmEnabledAndConfigured}
+        disableTooltip={isMacMdmEnabledAndConfigured}
         underline={false}
         position="left"
         showArrow

@@ -2,7 +2,7 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
-import mdmAPI from "services/entities/mdm";
+import mdmAPI, { EndUserLocalAccountType } from "services/entities/mdm";
 
 import UsersForm from "./UsersForm";
 
@@ -35,8 +35,7 @@ describe("UsersForm", () => {
 
   it("renders the end user authentication and managed local account checkboxes", () => {
     render(<UsersForm {...defaultProps} />);
-    expect(screen.getByText("End user authentication")).toBeInTheDocument();
-    expect(screen.getByText("Managed local account")).toBeInTheDocument();
+    expect(screen.getByText("Require IdP authentication")).toBeInTheDocument();
   });
 
   it("renders help text for end user authentication with IdP link", () => {
@@ -45,13 +44,6 @@ describe("UsersForm", () => {
       screen.getByText(/End users are required to authenticate/)
     ).toBeInTheDocument();
     expect(screen.getByText("identity provider (IdP)")).toBeInTheDocument();
-  });
-
-  it("renders help text for managed local account", () => {
-    render(<UsersForm {...defaultProps} />);
-    expect(
-      screen.getByText(/Fleet generates a user \(_fleetadmin\)/)
-    ).toBeInTheDocument();
   });
 
   it("hides lock end user info when end user auth is unchecked", () => {
@@ -70,7 +62,7 @@ describe("UsersForm", () => {
     expect(screen.queryByText("Lock end user info")).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("checkbox", { name: "End user authentication" })
+      screen.getByRole("checkbox", { name: "Require IdP authentication" })
     );
 
     expect(screen.getByText("Lock end user info")).toBeInTheDocument();
@@ -80,7 +72,7 @@ describe("UsersForm", () => {
     const { user } = renderWithMdmEnabled(<UsersForm {...defaultProps} />);
 
     await user.click(
-      screen.getByRole("checkbox", { name: "End user authentication" })
+      screen.getByRole("checkbox", { name: "Require IdP authentication" })
     );
 
     expect(
@@ -92,7 +84,7 @@ describe("UsersForm", () => {
     const { user } = renderWithMdmDisabled(<UsersForm {...defaultProps} />);
 
     await user.click(
-      screen.getByRole("checkbox", { name: "End user authentication" })
+      screen.getByRole("checkbox", { name: "Require IdP authentication" })
     );
 
     expect(
@@ -112,27 +104,13 @@ describe("UsersForm", () => {
     );
 
     const eua = screen.getByRole("checkbox", {
-      name: "End user authentication",
+      name: "Require IdP authentication",
     });
     await user.click(eua); // toggle EUA off
     await user.click(eua); // toggle EUA back on
 
     expect(
       screen.getByRole("checkbox", { name: "Lock end user info" })
-    ).toBeChecked();
-  });
-
-  it("renders managed local account checkbox as unchecked by default", () => {
-    render(<UsersForm {...defaultProps} />);
-    expect(
-      screen.getByRole("checkbox", { name: "Managed local account" })
-    ).not.toBeChecked();
-  });
-
-  it("renders managed local account checkbox as checked when default is true", () => {
-    render(<UsersForm {...defaultProps} defaultEnableManagedLocalAccount />);
-    expect(
-      screen.getByRole("checkbox", { name: "Managed local account" })
     ).toBeChecked();
   });
 
@@ -151,14 +129,14 @@ describe("UsersForm", () => {
     it("disables end user authentication checkbox when IdP is not configured", () => {
       render(<UsersForm {...defaultProps} isIdPConfigured={false} />);
       expect(
-        screen.getByRole("checkbox", { name: "End user authentication" })
+        screen.getByRole("checkbox", { name: "Require IdP authentication" })
       ).toHaveAttribute("aria-disabled", "true");
     });
 
     it("enables end user authentication checkbox when IdP is configured", () => {
       render(<UsersForm {...defaultProps} isIdPConfigured />);
       expect(
-        screen.getByRole("checkbox", { name: "End user authentication" })
+        screen.getByRole("checkbox", { name: "Require IdP authentication" })
       ).toHaveAttribute("aria-disabled", "false");
     });
 
@@ -199,32 +177,7 @@ describe("UsersForm", () => {
       );
 
       const checkbox = screen.getByRole("checkbox", {
-        name: "End user authentication",
-      });
-      await user.click(checkbox);
-
-      expect(checkbox).not.toBeChecked();
-    });
-
-    it("disables managed local account checkbox when Apple MDM is not configured", () => {
-      renderWithMdmDisabled(<UsersForm {...defaultProps} />);
-      expect(
-        screen.getByRole("checkbox", { name: "Managed local account" })
-      ).toHaveAttribute("aria-disabled", "true");
-    });
-
-    it("enables managed local account checkbox when Apple MDM is configured", () => {
-      renderWithMdmEnabled(<UsersForm {...defaultProps} />);
-      expect(
-        screen.getByRole("checkbox", { name: "Managed local account" })
-      ).toHaveAttribute("aria-disabled", "false");
-    });
-
-    it("does not allow toggling managed local account when Apple MDM is not configured", async () => {
-      const { user } = renderWithMdmDisabled(<UsersForm {...defaultProps} />);
-
-      const checkbox = screen.getByRole("checkbox", {
-        name: "Managed local account",
+        name: "Require IdP authentication",
       });
       await user.click(checkbox);
 
@@ -266,6 +219,7 @@ describe("UsersForm", () => {
         enable_end_user_authentication: false,
         lock_end_user_info: false,
         enable_managed_local_account: false,
+        end_user_local_account_type: EndUserLocalAccountType.Admin,
       });
     });
   });
