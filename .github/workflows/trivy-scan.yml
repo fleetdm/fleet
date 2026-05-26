@@ -137,6 +137,7 @@ jobs:
           #   (for injection of HTTP signatures for the TPM-backed feature in Linux).
           # - website/config/custom.js: commented-out Stripe test-mode placeholders shown as example config.
           # - ee/fleet-agent-downloader/config/custom.js: same Sails template, commented-out Stripe test placeholders.
+          # - tools/test-orbit-mtls/client.key: client private key used only by local/test mTLS tooling.
           skip-files: |
             tools/osquery/in-a-box/osquery/fleet.key
             tools/osquery/fleet.key
@@ -144,6 +145,7 @@ jobs:
             ee/orbit/pkg/httpsigproxy/httpsigproxy.go
             website/config/custom.js
             ee/fleet-agent-downloader/config/custom.js
+            tools/test-orbit-mtls/client.key
 
       - name: Upload Trivy scan results to GitHub Security tab
         # Only upload on schedule/manual runs. PR/push uploads register
