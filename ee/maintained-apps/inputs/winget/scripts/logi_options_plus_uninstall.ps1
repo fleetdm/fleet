@@ -1,8 +1,6 @@
 # Locates Logi Options+ from the registry and runs its uninstaller silently.
 
-$softwareNameLike = "*logioptionsplus*"
-
-$uninstallArgs = "/quiet"
+$softwareNameLike = "*Logi Options*"
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -28,35 +26,31 @@ foreach ($key in $uninstallKeys) {
             $key.UninstallString
         }
 
-        # Split the command and args, handling quoted paths
-        $splitArgs = $uninstallCommand.Split('"')
-        if ($splitArgs.Length -gt 1) {
-            if ($splitArgs.Length -eq 3) {
-                $existingArgs = $splitArgs[2].Trim()
-                if ($existingArgs -notmatch '/quiet') {
-                    $uninstallArgs = "$existingArgs /quiet".Trim()
-                } else {
-                    $uninstallArgs = $existingArgs
-                }
-            } elseif ($splitArgs.Length -gt 3) {
-                Throw `
-                    "Uninstall command contains multiple quoted strings. " +
-                        "Please update the uninstall script.`n" +
-                        "Uninstall command: $uninstallCommand"
-            }
-            $uninstallCommand = $splitArgs[1]
+        # Split the uninstall string into exe + args. Handle both quoted and
+        # unquoted exe paths.
+        $exePath = ""
+        $existingArgs = ""
+        if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
+            $exePath = $matches[1]
+            $existingArgs = $matches[2].Trim()
+        } elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
+            $exePath = $matches[1]
+            $existingArgs = $matches[2].Trim()
         } else {
-            if ($uninstallCommand -notmatch '/quiet') {
-                $uninstallArgs = "/quiet"
-            } else {
-                $uninstallArgs = ""
-            }
+            Throw "Could not parse uninstall string: $uninstallCommand"
         }
-        Write-Host "Uninstall command: $uninstallCommand"
+
+        if ($existingArgs -notmatch '/quiet' -and $existingArgs -notmatch '/qn') {
+            $uninstallArgs = ("$existingArgs /quiet").Trim()
+        } else {
+            $uninstallArgs = $existingArgs
+        }
+
+        Write-Host "Uninstall command: $exePath"
         Write-Host "Uninstall args: $uninstallArgs"
 
         $processOptions = @{
-            FilePath = $uninstallCommand
+            FilePath = $exePath
             PassThru = $true
             Wait = $true
         }
@@ -74,11 +68,14 @@ foreach ($key in $uninstallKeys) {
 
 if (-not $foundUninstaller) {
     Write-Host "Uninstall entry not found for $softwareNameLike"
-    Exit 0
+    Exit 1
 }
 
-if ($exitCode -eq 0 -or $exitCode -eq -1978335226) {
-  Exit 0
+# Logitech's installer reports success with exit code 0 or -1978335226
+# (per the winget manifest's InstallerSuccessCodes). msiexec also returns
+# 3010/1641 on reboot-required success.
+if ($exitCode -eq 0 -or $exitCode -eq -1978335226 -or $exitCode -eq 3010 -or $exitCode -eq 1641) {
+    Exit 0
 }
 
 Exit $exitCode

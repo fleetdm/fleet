@@ -2,7 +2,7 @@
   "name": "Logi Options+",
   "slug": "logi-options+/windows",
   "package_identifier": "Logitech.OptionsPlus",
-  "unique_identifier": "logioptionsplus",
+  "unique_identifier": "Logi Options+",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/logi_options_plus_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/logi_options_plus_uninstall.ps1",
   "installer_arch": "x64",
