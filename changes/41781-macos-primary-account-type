@@ -1,1 +1,1 @@
-- Added the feature to set the end user account type to `standard` for a non-admin privileged user or `none` for no end user account creation, both requiring a local admin account.
+- Added support for setting the end user account type to `standard` for a non-admin privileged user or `none` for no end user account creation, both requiring a local admin account.
