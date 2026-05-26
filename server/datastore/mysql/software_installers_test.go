@@ -1888,7 +1888,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 		require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
 	}
 
-	// batch-set change ins0's install script to update it and cancel the pending install
+	// TODO(JK): update comment
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
 		{
 			InstallScript:      "install2",
@@ -1929,7 +1929,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
-	// Verify that ins0's install was cancelled but ins1 is still running
+	// TODO(JK): update comment
 	ins1ExecID := ""
 	ins0Found := false
 	ins1Found := false
@@ -1937,9 +1937,11 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 		if status.Name == ins0 {
 			assert.False(t, ins0Found, "duplicate ins0 found")
 			ins0Found = true
-			require.Equal(t, fleet.SetupExperienceStatusCancelled, status.Status)
+			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
+			require.NotNil(t, status.HostSoftwareInstallsExecutionID)
 		} else {
 			assert.False(t, ins1Found, "duplicate ins1 found")
+			ins1Found = true
 			assert.Equal(t, ins1, status.Name)
 			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
 			require.NotNil(t, status.HostSoftwareInstallsExecutionID)
@@ -2001,17 +2003,17 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	require.NoError(t, err)
 	require.Len(t, statuses, 2)
 
-	// Verify that ins0's install is still cancelled and ins1 is still running(because it hasn't
-	// been updated in the SESR entry yet)
+	// TODO(JK): update comment
 	ins0Found = false
 	ins1Found = false
 	for _, status := range statuses {
 		if status.Name == ins0 {
 			assert.False(t, ins0Found, "duplicate ins0 found")
 			ins0Found = true
-			require.Equal(t, fleet.SetupExperienceStatusCancelled, status.Status)
+			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
 		} else {
 			assert.False(t, ins1Found, "duplicate ins1 found")
+			ins1Found = true
 			assert.Equal(t, ins1, status.Name)
 			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
 		}

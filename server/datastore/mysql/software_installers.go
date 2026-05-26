@@ -1413,6 +1413,8 @@ func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, inst
 
 func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) (affectedHostIDs []uint, err error) {
 	if wasMetadataUpdated || wasPackageUpdated { // cancel pending installs/uninstalls
+		// TODO(JK): update comment
+
 		// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id IN (
 				SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status = 'pending_uninstall'
@@ -1421,41 +1423,41 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			return nil, ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
 		}
 
-		_, err = tx.ExecContext(ctx, `UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND host_software_installs_execution_id IN (
-			  SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status IN ('pending_install', 'pending_uninstall')
-			UNION
-			  SELECT ua.execution_id FROM upcoming_activities ua INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-			  WHERE siua.software_installer_id = ? AND activity_type IN ('software_install', 'software_uninstall')
-		)`, fleet.SetupExperienceStatusCancelled, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning, installerID, installerID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "fail setup experience results dependant on deleted software install")
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM host_software_installs
-			   WHERE software_installer_id = ? AND status IN('pending_install', 'pending_uninstall')`, installerID)
+		_, err = tx.ExecContext(ctx, `DELETE hsi FROM host_software_installs hsi
+			LEFT JOIN setup_experience_status_results sesr
+				ON sesr.host_software_installs_execution_id = hsi.execution_id
+			WHERE hsi.software_installer_id = ?
+				AND hsi.status IN('pending_install', 'pending_uninstall')
+				AND sesr.id IS NULL`, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
 		}
 
+		// TODO(JK): update comment
 		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, `SELECT
-			DISTINCT host_id
+			DISTINCT ua.host_id
 		FROM
 			upcoming_activities ua
 			INNER JOIN software_install_upcoming_activities siua
 				ON ua.id = siua.upcoming_activity_id
+			LEFT JOIN setup_experience_status_results sesr
+				ON sesr.host_software_installs_execution_id = ua.execution_id
 		WHERE
 			siua.software_installer_id = ? AND
 			ua.activated_at IS NOT NULL AND
-			ua.activity_type IN ('software_install', 'software_uninstall')`, installerID); err != nil {
+			ua.activity_type IN ('software_install', 'software_uninstall') AND
+			sesr.id IS NULL`, installerID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "select affected host IDs for software installs/uninstalls")
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
-			USING
-				upcoming_activities
-				INNER JOIN software_install_upcoming_activities siua
-					ON upcoming_activities.id = siua.upcoming_activity_id
-			WHERE siua.software_installer_id = ? AND activity_type IN ('software_install', 'software_uninstall')`, installerID)
+		_, err = tx.ExecContext(ctx, `DELETE ua FROM upcoming_activities ua
+			INNER JOIN software_install_upcoming_activities siua
+				ON ua.id = siua.upcoming_activity_id
+			LEFT JOIN setup_experience_status_results sesr
+				ON sesr.host_software_installs_execution_id = ua.execution_id
+			WHERE siua.software_installer_id = ?
+				AND ua.activity_type IN ('software_install', 'software_uninstall')
+				AND sesr.id IS NULL`, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete upcoming host software installs/uninstalls")
 		}

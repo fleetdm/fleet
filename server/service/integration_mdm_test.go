@@ -18500,7 +18500,8 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 
 		if res.Name == "file1" {
 			softwareFound = true
-			assert.Equal(t, fleet.SetupExperienceStatusFailure, res.Status)
+			// TODO(JK): update comment
+			assert.Equal(t, fleet.SetupExperienceStatusRunning, res.Status)
 		}
 		if res.Name == "vpp_app_1" {
 			vppFound = true
