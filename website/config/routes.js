@@ -689,7 +689,7 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Fleet is open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. Self-hosted or Fleet-hosted.',
     }
   },
- 
+
   'GET /lp/android-mdm': {
     action: 'landing-pages/view-android-mdm',
     locals: {
