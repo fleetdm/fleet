@@ -68,45 +68,55 @@ func TestHandlerExcludeAny(t *testing.T) {
 		LabelUpdatedAt: time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC),
 	}
 
-	t.Run("empty labels -> true (nothing to exclude)", func(t *testing.T) {
-		require.True(t, HandlerExcludeAny(nil, host, map[uint]struct{}{}))
+	t.Run("empty labels -> false (nothing to exclude)", func(t *testing.T) {
+		require.False(t, HandlerExcludeAny(nil, host, map[uint]struct{}{}))
 	})
-	t.Run("broken label -> false (never apply)", func(t *testing.T) {
+	t.Run("broken label -> true (exclude)", func(t *testing.T) {
 		labels := []fleet.AppleProfileLabelRef{{LabelID: nil}}
-		require.False(t, HandlerExcludeAny(labels, host, map[uint]struct{}{}))
+		require.True(t, HandlerExcludeAny(labels, host, map[uint]struct{}{}))
 	})
-	t.Run("host is in an excluded label -> false", func(t *testing.T) {
+	t.Run("host is in an excluded label -> true", func(t *testing.T) {
 		labels := []fleet.AppleProfileLabelRef{
 			{LabelID: new(uint(1)), CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
 		}
-		require.False(t, HandlerExcludeAny(labels, host, map[uint]struct{}{1: {}}))
+		require.True(t, HandlerExcludeAny(labels, host, map[uint]struct{}{1: {}}))
 	})
-	t.Run("host is not in any excluded label -> true", func(t *testing.T) {
+	t.Run("host is not in any excluded label -> false", func(t *testing.T) {
 		labels := []fleet.AppleProfileLabelRef{
 			{LabelID: new(uint(1)), CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
 			{LabelID: new(uint(2)), CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)},
 		}
-		require.True(t, HandlerExcludeAny(labels, host, map[uint]struct{}{99: {}}))
+		require.False(t, HandlerExcludeAny(labels, host, map[uint]struct{}{99: {}}))
 	})
-	t.Run("dynamic label created after host's last scan -> false", func(t *testing.T) {
+	t.Run("dynamic label created after host's last scan -> true (exclude)", func(t *testing.T) {
 		labels := []fleet.AppleProfileLabelRef{
 			{
 				LabelID:             new(uint(1)),
 				CreatedAt:           time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
-				LabelMembershipType: 0,
+				LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
+			},
+		}
+		require.True(t, HandlerExcludeAny(labels, host, map[uint]struct{}{}))
+	})
+	t.Run("host vital label created after host's last scan -> false (include)", func(t *testing.T) {
+		labels := []fleet.AppleProfileLabelRef{
+			{
+				LabelID:             new(uint(1)),
+				CreatedAt:           time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+				LabelMembershipType: int(fleet.LabelMembershipTypeHostVitals),
 			},
 		}
 		require.False(t, HandlerExcludeAny(labels, host, map[uint]struct{}{}))
 	})
-	t.Run("manual label created after host's last scan -> still true", func(t *testing.T) {
+	t.Run("manual label created after host's last scan -> still false (include)", func(t *testing.T) {
 		labels := []fleet.AppleProfileLabelRef{
 			{
 				LabelID:             new(uint(1)),
 				CreatedAt:           time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
-				LabelMembershipType: 1,
+				LabelMembershipType: int(fleet.LabelMembershipTypeManual),
 			},
 		}
-		require.True(t, HandlerExcludeAny(labels, host, map[uint]struct{}{}))
+		require.False(t, HandlerExcludeAny(labels, host, map[uint]struct{}{}))
 	})
 }
 

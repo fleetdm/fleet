@@ -59,7 +59,7 @@ func EntityAppliesToHost(
 	}
 
 	if exc := e.GetExcludeLabels(); len(exc) > 0 {
-		if !HandlerExcludeAny(exc, host, hostLabels) {
+		if HandlerExcludeAny(exc, host, hostLabels) {
 			return false
 		}
 	}
@@ -115,6 +115,9 @@ func HandlerIncludeAny(labels []fleet.AppleProfileLabelRef, hostLabels map[uint]
 //     as "results not yet reported" — also disqualify, so we don't
 //     install a profile that the not-yet-scanned label would exclude.
 //     Manual labels (membership_type=1) skip this timing check.
+//     Host vital labels runs it's own cron to associate, skip the timing check.
+//
+// Returns true if the host should be excluded, false if the host passes the exclude gate.
 func HandlerExcludeAny(
 	labels []fleet.AppleProfileLabelRef,
 	host *fleet.AppleHostReconcileInfo,
@@ -122,16 +125,16 @@ func HandlerExcludeAny(
 ) bool {
 	for _, l := range labels {
 		if l.LabelID == nil {
-			return false
+			return true
 		}
-		if l.LabelMembershipType != 1 && !l.CreatedAt.IsZero() && host.LabelUpdatedAt.Before(l.CreatedAt) {
-			return false
+		if l.LabelMembershipType == int(fleet.LabelMembershipTypeDynamic) && !l.CreatedAt.IsZero() && host.LabelUpdatedAt.Before(l.CreatedAt) {
+			return true
 		}
 		if _, isMember := hostLabels[*l.LabelID]; isMember {
-			return false
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 // ComputeReconcileDeltas evaluates desired profile state for each host in
