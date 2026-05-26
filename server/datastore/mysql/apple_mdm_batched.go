@@ -704,18 +704,22 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 
 		valueParts := make([]string, 0, len(batch))
 		args := make([]any, 0, len(batch)*9)
+		batchByKey := make(map[string]*fleet.MDMAppleHostDeclaration, len(batch))
 		for _, r := range batch {
 			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?)")
 			args = append(args,
 				r.HostUUID, r.DeclarationUUID, r.Identifier, r.Name,
 				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt,
 			)
+			batchByKey[fmt.Sprintf("%s\n%s", r.HostUUID, r.DeclarationUUID)] = r
 		}
 
 		stmt := fmt.Sprintf(baseStmt, strings.Join(valueParts, ","))
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			_, ierr := tx.ExecContext(ctx, stmt, args...)
-			return ierr
+			if _, ierr := tx.ExecContext(ctx, stmt, args...); ierr != nil {
+				return ierr
+			}
+			return cleanUpDuplicateRemoveInstall(ctx, tx, batchByKey)
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk upsert mdm apple host declarations")
