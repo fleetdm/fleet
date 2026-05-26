@@ -289,6 +289,13 @@
       "description": "Blender is a 3D creation suite."
     },
     {
+      "name": "BlueJ",
+      "slug": "bluej/windows",
+      "platform": "windows",
+      "unique_identifier": "BlueJ",
+      "description": "BlueJ is a free Java development environment designed for beginners."
+    },
+    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
