@@ -170,12 +170,21 @@ const HostHeader = ({
 
     // BYO Android Unenroll fires an AMAPI WIPE under the hood (work-profile-only), so the
     // backend tracks it via wipe_ref and surfaces device_status="wiping". The admin clicked
-    // Unenroll, not Wipe, so override the badge label here.
+    // Unenroll, not Wipe, so override both the badge label and the tooltip copy here so they
+    // describe the action the admin actually took.
     const isAndroidBYOWipe =
       isAndroid(platform) &&
       hostMdmDeviceStatus === "wiping" &&
       hostMdmEnrollmentStatus === "On (personal)";
     const title = isAndroidBYOWipe ? "Unenroll pending" : tag.title;
+    const tipContent = isAndroidBYOWipe ? (
+      <>
+        Host will unenroll when it comes online. If the host is online, it will
+        unenroll the next time it checks in to Fleet.
+      </>
+    ) : (
+      tag.generateTooltip(platform)
+    );
 
     const classNames = classnames(
       `${baseClass}__device-status-tag`,
@@ -185,7 +194,7 @@ const HostHeader = ({
     return (
       <>
         <TooltipWrapper
-          tipContent={tag.generateTooltip(platform)}
+          tipContent={tipContent}
           position="top"
           underline={false}
           showArrow

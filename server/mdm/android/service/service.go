@@ -880,10 +880,11 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 
 	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work
 	// profile, leaving the personal side intact) instead of the EnterprisesDevicesDelete call.
-	// The mdm_unenrolled activity is emitted later, when the device removes its work profile and
-	// AMAPI sends the resulting STATUS_REPORT (or ENROLLMENT) notification with state=DELETED --
-	// see handlePubSubStatusReport / handlePubSubEnrollment. The COMMAND notification path only
-	// transitions the mdm_android_commands row from pending to acknowledged/error.
+	// host_mdm_actions.wipe_ref is written so device_status reflects "wiping" while the work-profile
+	// wipe is in flight; the HostHeader badge overrides the label to "Unenroll pending" since the
+	// admin clicked Unenroll, not Wipe. The mdm_unenrolled activity is emitted later, when the
+	// device removes its work profile and AMAPI sends the resulting STATUS_REPORT (or ENROLLMENT)
+	// notification with state=DELETED -- see handlePubSubStatusReport / handlePubSubEnrollment.
 	// For COBO we keep the existing delete-device behavior (terminates management without
 	// factory-resetting the device).
 	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
@@ -902,7 +903,10 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 			return ctxerr.Wrap(ctx, err, "amapi issue byo-unenroll wipe command")
 		}
 
-		// Persist the row but don't write wipe_ref: BYO unenroll surfaces as the mdm_unenrolled activity, not as a wipe in the UI.
+		// Write wipe_ref so device_status flips to "wiping" while the work-profile wipe is in flight.
+		// The host page (and HostActionsDropdown) read that to surface the "Unenroll pending" badge
+		// and to gate Lock / Clear passcode / re-clicking Unenroll. The mdm_unenrolled activity is
+		// still emitted later when AMAPI sends the resulting STATUS_REPORT with state=DELETED.
 		cmd := &android.MDMAndroidCommand{
 			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.UUID,
@@ -910,7 +914,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 			CommandType:   string(android.MDMAndroidCommandTypeWipe),
 			Status:        string(android.MDMAndroidCommandStatusPending),
 		}
-		if err := svc.fleetDS.NewMDMAndroidCommand(ctx, cmd); err != nil {
+		if err := svc.fleetDS.WipeHostViaAndroidMDM(ctx, host, cmd); err != nil {
 			svc.logger.ErrorContext(ctx, "amapi byo-unenroll wipe issued but local persist failed",
 				"host_id", host.ID, "operation_name", op.Name, "err", err)
 			return ctxerr.Wrap(ctx, err, "persist android byo-unenroll wipe command")
