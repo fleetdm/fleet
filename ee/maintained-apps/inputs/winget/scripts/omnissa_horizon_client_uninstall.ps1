@@ -2,12 +2,17 @@
 # silently.
 #
 # Omnissa Horizon Client ships as a WiX Burn bundle that registers two entries
-# with the same DisplayName: the Burn bundle itself (UninstallString points to
-# a .exe in C:\ProgramData\Package Cache and has a BundleVersion property) and
-# the inner MSI (UninstallString is "MsiExec.exe /X{ProductCode}"). Running
-# just the inner MSI leaves the bundle entry behind in Programs and Features,
-# so we prefer the Burn bundle entry — it uninstalls both and doesn't require
-# a reboot.
+# with the same DisplayName: the Burn bundle itself (has a BundleVersion
+# registry value; UninstallString points to a .exe in
+# C:\ProgramData\Package Cache) and the inner MSI (UninstallString is
+# "MsiExec.exe /X{ProductCode}").
+#
+# Running the Burn bundle's uninstaller hangs / times out in CI, so we instead:
+#   1. Run msiexec on the inner MSI (fast, ~15-20s)
+#   2. Delete the Burn bundle's registry key so osquery / Add-Remove no longer
+#      sees the app
+# Both steps are needed: msiexec removes the files and the MSI's own registry
+# entry, but the Burn bundle's wrapper entry persists.
 
 $softwareNameLike = "*Omnissa Horizon Client*"
 
@@ -16,94 +21,72 @@ $paths = @(
   'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 )
 
-$exitCode = 0
-
 try {
 
-[array]$uninstallKeys = Get-ChildItem `
+[array]$uninstallEntries = Get-ChildItem `
     -Path $paths `
     -ErrorAction SilentlyContinue |
-        ForEach-Object { Get-ItemProperty $_.PSPath }
+        ForEach-Object {
+            $props = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
+            if ($props -and $props.DisplayName -like $softwareNameLike) {
+                [PSCustomObject]@{
+                    Props    = $props
+                    KeyPath  = $_.PSPath
+                }
+            }
+        }
 
-# Collect all matching entries, then pick the Burn bundle in preference to
-# the inner MSI.
-$candidates = @()
-foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -like $softwareNameLike) {
-        $candidates += $key
-    }
-}
-
-$bundle = $candidates | Where-Object {
-    $_.BundleVersion -or ($_.UninstallString -and $_.UninstallString -notmatch '^\s*MsiExec\.exe')
-} | Select-Object -First 1
-
-$selected = if ($bundle) { $bundle } else { $candidates | Select-Object -First 1 }
-
-if (-not $selected) {
+if (-not $uninstallEntries -or $uninstallEntries.Count -eq 0) {
     Write-Host "Uninstall entry not found for $softwareNameLike"
     Exit 1
 }
 
-$uninstallCommand = if ($selected.QuietUninstallString) {
-    $selected.QuietUninstallString
+Write-Host "Found $($uninstallEntries.Count) matching uninstall entries"
+
+$msiEntry = $uninstallEntries | Where-Object {
+    $_.Props.UninstallString -match '^\s*MsiExec\.exe'
+} | Select-Object -First 1
+
+$bundleEntry = $uninstallEntries | Where-Object {
+    $_.Props.BundleVersion -or ($_.Props.UninstallString -and $_.Props.UninstallString -notmatch '^\s*MsiExec\.exe')
+} | Select-Object -First 1
+
+# Step 1: run msiexec on the inner MSI (fast).
+$msiExitCode = 0
+if ($msiEntry) {
+    if ($msiEntry.Props.UninstallString -match 'MsiExec\.exe\s+(.*)$') {
+        $msiArgs = $matches[1].Trim()
+    } else {
+        $msiArgs = ""
+    }
+    if ($msiArgs -notmatch '/quiet' -and $msiArgs -notmatch '/qn') {
+        $msiArgs = "$msiArgs /quiet /norestart"
+    }
+    Write-Host "Running: MsiExec.exe $msiArgs"
+    $process = Start-Process -FilePath "MsiExec.exe" -ArgumentList $msiArgs -PassThru -Wait
+    $msiExitCode = $process.ExitCode
+    Write-Host "msiexec exit code: $msiExitCode"
+
+    # msiexec returns 3010 (reboot-required) or 1641 (reboot-initiated) on
+    # successful uninstall when a reboot is needed; treat both as success.
+    if ($msiExitCode -ne 0 -and $msiExitCode -ne 3010 -and $msiExitCode -ne 1641) {
+        Write-Host "msiexec failed; not removing Burn bundle entry"
+        Exit $msiExitCode
+    }
 } else {
-    $selected.UninstallString
+    Write-Host "No inner MSI entry found; skipping msiexec step"
 }
 
-# Split the uninstall string into exe + args. Handle both quoted and unquoted
-# exe paths.
-$exePath = ""
-$existingArgs = ""
-if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
-    $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
-    $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} else {
-    Throw "Could not parse uninstall string: $uninstallCommand"
+# Step 2: delete the leftover Burn bundle registry key, if any. osquery reads
+# the programs table from these uninstall keys, so leaving it behind makes
+# Add-Remove (and Fleet) still see the app.
+if ($bundleEntry) {
+    Write-Host "Removing Burn bundle registry key: $($bundleEntry.KeyPath)"
+    Remove-Item -Path $bundleEntry.KeyPath -Recurse -Force -ErrorAction Stop
+    Write-Host "Burn bundle registry key removed"
 }
 
-# Burn's UninstallString omits the /uninstall verb (UninstallString assumes it,
-# unlike QuietUninstallString which usually includes both). Add it if missing.
-if ($selected.BundleVersion -and $existingArgs -notmatch '/uninstall') {
-    $existingArgs = ("/uninstall $existingArgs").Trim()
-}
-
-if ($existingArgs -notmatch '/quiet' -and $existingArgs -notmatch '/qn') {
-    $uninstallArgs = ("$existingArgs /quiet /norestart").Trim()
-} else {
-    $uninstallArgs = $existingArgs
-}
-
-Write-Host "Selected entry DisplayName: $($selected.DisplayName)"
-Write-Host "BundleVersion: $($selected.BundleVersion)"
-Write-Host "Uninstall command: $exePath"
-Write-Host "Uninstall args: $uninstallArgs"
-
-$processOptions = @{
-    FilePath = $exePath
-    PassThru = $true
-    Wait = $true
-}
-
-if ($uninstallArgs -ne '') {
-    $processOptions.ArgumentList = $uninstallArgs
-}
-
-$process = Start-Process @processOptions
-$exitCode = $process.ExitCode
-Write-Host "Uninstall exit code: $exitCode"
-
-# msiexec returns 3010 (ERROR_SUCCESS_REBOOT_REQUIRED) or 1641
-# (ERROR_SUCCESS_REBOOT_INITIATED) on successful uninstall when a reboot is
-# needed. Treat both as success.
-if ($exitCode -eq 3010 -or $exitCode -eq 1641) {
-    Exit 0
-}
-
-Exit $exitCode
+Exit 0
 
 } catch {
     Write-Host "Error: $_"
