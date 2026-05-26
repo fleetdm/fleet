@@ -1905,6 +1905,195 @@ func TestPubSubStatusReport_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
 	})
 }
 
+func TestPubSubCommand(t *testing.T) {
+	const validToken = "value"
+	makeMessage := func(t *testing.T, op androidmanagement.Operation) *android.PubSubMessage {
+		body, err := json.Marshal(op)
+		require.NoError(t, err)
+		return &android.PubSubMessage{
+			Attributes: map[string]string{"notificationType": string(android.PubSubCommand)},
+			Data:       base64.StdEncoding.EncodeToString(body),
+		}
+	}
+
+	// newSvc builds the per-subtest fixture: a service whose mock datastore reports Android MDM as enabled. Subtests override
+	// individual *Func fields on mockDS to shape the specific branch they're exercising.
+	newSvc := func(t *testing.T) (android.Service, *AndroidMockDS) {
+		svc, mockDS := createAndroidService(t)
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+		}
+		return svc, mockDS
+	}
+	// commandNotFound shapes the "unknown operation" branches: the datastore lookup by operation_name returns NotFound, simulating
+	// either a race (row not yet committed) or an orphan (device deleted from Fleet).
+	commandNotFound := func(mockDS *AndroidMockDS) {
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(opName)
+		}
+	}
+
+	t.Run("pending -> acknowledged on op with no error", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-ack",
+			HostUUID:      "host-uuid",
+			OperationName: "enterprises/E/devices/D/operations/ack-1",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			require.Equal(t, stored.OperationName, opName)
+			return stored, nil
+		}
+		var capturedStatus string
+		var capturedErrCode, capturedErrMsg *string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			require.Equal(t, stored.CommandUUID, commandUUID)
+			capturedStatus = status
+			capturedErrCode = errorCode
+			capturedErrMsg = errorMessage
+			return nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+
+		require.True(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), capturedStatus)
+		require.Nil(t, capturedErrCode)
+		require.Nil(t, capturedErrMsg)
+	})
+
+	t.Run("pending -> error on op.Error set", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-err",
+			HostUUID:      "host-uuid",
+			OperationName: "enterprises/E/devices/D/operations/err-1",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		var capturedStatus, capturedCode, capturedMsg string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			capturedStatus = status
+			if errorCode != nil {
+				capturedCode = *errorCode
+			}
+			if errorMessage != nil {
+				capturedMsg = *errorMessage
+			}
+			return nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{
+			Name:  stored.OperationName,
+			Done:  true,
+			Error: &androidmanagement.Status{Code: 13, Message: "device does not support WIPE"},
+		})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+
+		require.Equal(t, string(android.MDMAndroidCommandStatusError), capturedStatus)
+		require.Equal(t, "13", capturedCode)
+		require.Equal(t, "device does not support WIPE", capturedMsg)
+	})
+
+	t.Run("already-terminal status is not re-transitioned", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-ack-already",
+			OperationName: "enterprises/E/devices/D/operations/redelivered",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusAcknowledged),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			t.Fatalf("UpdateMDMAndroidCommandStatus should not be called for terminal row")
+			return nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+	})
+
+	t.Run("unknown operation, host deleted from Fleet -> ack", func(t *testing.T) {
+		// COBO unenroll / manual cleanup: the host is gone from Fleet, the command row is gone from mdm_android_commands, but Pub/Sub is
+		// still trying to deliver the original notification. A false from AndroidDeviceExistsByDeviceID confirms the orphan; ack.
+		svc, mockDS := newSvc(t)
+		commandNotFound(mockDS)
+		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
+			require.Equal(t, "D", deviceID, "handler should pass the AMAPI device_id parsed from op.Name")
+			return false, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/E/devices/D/operations/orphan", Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+
+	t.Run("unknown operation, host still exists in Fleet -> retry (race window)", func(t *testing.T) {
+		// AMAPI delivered the COMMAND notification before our IssueCommand-then-insert sequence committed the row. The DB check confirms
+		// the device is still in Fleet; returning error makes Pub/Sub retry until the row commits.
+		svc, mockDS := newSvc(t)
+		commandNotFound(mockDS)
+		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
+			return true, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/E/devices/D/operations/racy", Done: true})
+		require.Error(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+
+	t.Run("unknown operation, malformed op.Name (no /devices/ segment) -> ack", func(t *testing.T) {
+		// If we can't parse a device_id from op.Name we can't probe Fleet's DB; ack rather than retry forever.
+		svc, mockDS := newSvc(t)
+		commandNotFound(mockDS)
+		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
+			t.Fatalf("device existence check should not run when op.Name is malformed")
+			return false, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: "not-a-real-operation-name", Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+
+	t.Run("non-done operation is acked without state transition", func(t *testing.T) {
+		// AMAPI long-running Operations use done=false for in-progress states. The handler must not transition state on a non-terminal
+		// payload.
+		svc, mockDS := newSvc(t)
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			t.Fatalf("lookup should be skipped when op.Done is false")
+			return nil, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			t.Fatalf("status update should be skipped when op.Done is false")
+			return nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/E/devices/D/operations/in-flight", Done: false})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+
+	t.Run("empty op.Name is acked without error", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			t.Fatalf("lookup should be skipped when op.Name is empty")
+			return nil, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+}
+
 func TestPubSubEnrollment_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
 

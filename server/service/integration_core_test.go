@@ -15599,6 +15599,12 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 }
 
 func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uint) uint {
+	return createAndroidHostForTest(t, ds, teamID, false)
+}
+
+// createAndroidHostForTest creates an android host. companyOwned=false stores it as BYO
+// (is_personal_enrollment=true); companyOwned=true stores it as COBO.
+func createAndroidHostForTest(t *testing.T, ds *mysql.Datastore, teamID *uint, companyOwned bool) uint {
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			Hostname:                  "android-storage-host",
@@ -15622,7 +15628,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-	ahost, err := ds.NewAndroidHost(context.Background(), host, false)
+	ahost, err := ds.NewAndroidHost(context.Background(), host, companyOwned)
 	require.NoError(t, err)
 	return ahost.Host.ID
 }
