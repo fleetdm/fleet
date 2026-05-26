@@ -107,7 +107,7 @@ func setupDS(privateKey, userName, password, address, name string) *mysql.Datast
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatal("invalid subcommand, expected import or export")
+		log.Fatal("invalid subcommand, expected import, export or rollover-ca-cert") //nolint:gocritic // ignore exitAfterDefer
 	}
 
 	ctx := context.Background()
