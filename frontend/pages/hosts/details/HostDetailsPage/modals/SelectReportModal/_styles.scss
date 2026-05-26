@@ -1,19 +1,29 @@
 // Similar to AddPolicyModal
 .select-report-modal {
+  display: flex;
+  flex-direction: column;
   max-height: 90%;
   overflow: hidden;
 
   .modal__content-wrapper {
-    max-height: 95%;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    // min-height: 0 lets this flex child shrink below its content height so
+    // the inner overflow-y: auto can actually scroll.
+    min-height: 0;
   }
 
   .modal__content {
     @include vertical-modal-layout;
 
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   &__report-selection {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     .children-wrapper {
       width: 680px;
