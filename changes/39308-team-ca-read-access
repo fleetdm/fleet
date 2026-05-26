@@ -1,1 +1,0 @@
-* Fixed team maintainers, admins, and GitOps users being unable to add certificate templates due to missing read access to certificate authorities.

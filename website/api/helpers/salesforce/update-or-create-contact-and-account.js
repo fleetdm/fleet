@@ -58,6 +58,8 @@ module.exports = {
         'Website - Newsletter',
         'Website - Sign up',
         'Website - Swag request',
+        'Website - Gated document',
+        'Webinar',
       ],
     },
     getStartedResponses: {
@@ -111,7 +113,8 @@ module.exports = {
     success: {
       outputType: {
         salesforceAccountId: 'string',
-        salesforceContactId: 'string'
+        salesforceContactId: 'string',
+        mostRecentCampaign: 'string'
       }
     },
 
@@ -128,7 +131,8 @@ module.exports = {
       sails.log.verbose('Skipping Salesforce integration...');
       return {
         salesforceAccountId: undefined,
-        salesforceContactId: undefined
+        salesforceContactId: undefined,
+        mostRecentCampaign: undefined
       };
     }
 
@@ -198,6 +202,18 @@ module.exports = {
 
     let accountValuesToSet = {};
 
+    let formBasedContactSources = [
+      'Website - Contact forms',
+      'Website - Contact forms - Demo - ICP',
+      'Website - Contact forms - Demo',
+      'Website - GitOps',
+      'Webinar',
+      'Website - Gated document',
+    ];
+    if(contactSource && formBasedContactSources.includes(contactSource)) {
+      contactValuesToSet.Most_recent_campaign_member_status__c = 'Registered';// eslint-disable-line camelcase
+    }
+
     if(numberOfHostsDetails){
       accountValuesToSet.Total_macOS_hosts__c = numberOfHostsDetails.macosHosts;// eslint-disable-line camelcase
       accountValuesToSet.Total_Windows_hosts__c = numberOfHostsDetails.windowsHosts;// eslint-disable-line camelcase
@@ -248,6 +264,8 @@ module.exports = {
 
       attributionDetails.initialUrl = marketingAttributionCookie.initialUrl;
 
+      attributionDetails.referrer = marketingAttributionCookie.referrer;
+
       if(['cpc','ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
         // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
         attributionDetails.campaign = marketingAttributionCookie.campaign;
@@ -267,35 +285,54 @@ module.exports = {
         } else {
           // Otherwise, we'll check the referer value and attempt to categorize the referer.
           let REFERRER_DOMAINS_FOR_ORGANIC_SEARCH = [
-            'https://www.google.com/',
+            'https://www.google.',      // covers all ~190 country variants (google.com, google.co.uk, google.de, etc.)
             'https://www.bing.com/',
             'https://search.yahoo.com/',
             'https://duckduckgo.com/',
             'https://www.baidu.com/',
             'https://www.ecosia.org/',
+            'https://www.startpage.com/',
+            'https://search.brave.com/',
+            'https://kagi.com/',
             'https://www.ask.com/',
             'https://www.aol.com/',
-            'https://www.startpage.com/',
+            'https://yandex.com/',
+            'https://yandex.ru/',
           ];
 
           let REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL = [
-            'https://www.facebook.com/',
-            'https://l.facebook.com/',
-            'https://www.instagram.com/',
-            'https://t.co/',
-            'https://x.com/',
             'https://www.linkedin.com/',
+            'https://linkedin.com/',
+            'https://lnkd.in/',
             'https://www.reddit.com/',
             'https://old.reddit.com/',
+            'https://news.ycombinator.com/',
+            'https://x.com/',
+            'https://twitter.com/',
+            'https://www.twitter.com/',
+            'https://t.co/',
+            'https://www.facebook.com/',
+            'https://l.facebook.com/',
+            'https://m.facebook.com/',
+            'https://www.instagram.com/',
+            'https://www.threads.net/',
+            'https://bsky.app/',
+            'https://mastodon.social/',
+            'https://fosstodon.org/',
+            'https://www.youtube.com/',
             'https://www.pinterest.com/',
             'https://www.quora.com/',
           ];
 
-          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.includes(marketingAttributionCookie.referrer)) {
+          let referrer = typeof marketingAttributionCookie.referrer === 'string'
+            ? marketingAttributionCookie.referrer
+            : '';
+
+          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.some((domain) => referrer.startsWith(domain))) {
             // If search engine » Organic search
             attributionDetails.sourceChannelDetails = 'Organic search (OS)';
             attributionDetails.campaign = 'Default-OS-Organic';
-          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.includes(marketingAttributionCookie.referrer)) {
+          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.some((domain) => referrer.startsWith(domain))) {
             // If social media » Organic social
             attributionDetails.sourceChannelDetails = 'Organic social (SOC)';
             attributionDetails.campaign = 'Default-SOC-Social';
@@ -359,6 +396,13 @@ module.exports = {
       }
       if(enrichmentData.person && enrichmentData.person.title){
         contactValuesToSet.Title = enrichmentData.person.title;
+      }
+      // If no firstName/lastName was provided but enrichment matched a name, use it for the new contact record.
+      if(enrichmentData.person && enrichmentData.person.firstName && !firstName) {
+        firstName = enrichmentData.person.firstName;
+      }
+      if(enrichmentData.person && enrichmentData.person.lastName && !lastName) {
+        lastName = enrichmentData.person.lastName;
       }
       let salesforceAccountOwnerId;
       if(!enrichmentData.employer || !enrichmentData.employer.emailDomain || !enrichmentData.employer.organization) {
@@ -462,9 +506,21 @@ module.exports = {
         contactValuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
         contactValuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
         contactValuesToSet.GCLID__c = attributionDetails.gclid;// eslint-disable-line camelcase
+        contactValuesToSet.Source_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
+        contactValuesToSet.Most_recent_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
       }
 
 
+
+      // If we don't have a firstName or lastName (from inputs or enrichment), tell Salesforce to save the
+      // record even if its duplicate rules match — otherwise we'd silently update an unrelated "? ?"
+      // contact instead of creating a new one for this person.
+      let createOptions;
+      if(!firstName && !lastName) {
+        createOptions = {
+          headers: { 'Sforce-Duplicate-Rule-Header': 'allowSave=true' }
+        };
+      }
 
       let duplicateContactWasFound = false;
       let newContactRecord = await sails.helpers.flow.build(async ()=>{
@@ -475,7 +531,7 @@ module.exports = {
           FirstName: firstName ? firstName : '?',
           LastName: lastName ? lastName : '?',
           ...contactValuesToSet,
-        });
+        }, createOptions);
       })// If Salesforce returns a duplicates_detected error message, use the first duplicate record returned in the error.
       .tolerate({errorCode: 'DUPLICATES_DETECTED'}, (err)=>{
         // Get the first matched duplicate record returned in the error returned by Salesforce.
@@ -537,6 +593,14 @@ module.exports = {
     //  ║ ║╠═╝ ║║╠═╣ ║ ║╣   ║╣ ╔╩╦╝║╚═╗ ║ ║║║║║ ╦  ║  ║ ║║║║ ║ ╠═╣║   ║
     //  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝  ╚═╝╩ ╚═╩╚═╝ ╩ ╩╝╚╝╚═╝  ╚═╝╚═╝╝╚╝ ╩ ╩ ╩╚═╝ ╩
     if(existingContactRecord) {
+      // If the existing contact has a placeholder name and we now have
+      // a real firstName/lastName, overwrite the placeholder. Otherwise leave the existing name alone.
+      if(firstName && existingContactRecord.FirstName === '?') {
+        contactValuesToSet.FirstName = firstName;
+      }
+      if(lastName && existingContactRecord.LastName === '?') {
+        contactValuesToSet.LastName = lastName;
+      }
       // If a description was provided and the contact has a description, prepend the new description to it.
       if(description && existingContactRecord.Description) {
         contactValuesToSet.Description += '\n' + existingContactRecord.Description;
@@ -573,6 +637,7 @@ module.exports = {
           contactValuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
           contactValuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
         }
+        contactValuesToSet.Most_recent_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
       }
 
 
@@ -617,7 +682,8 @@ module.exports = {
 
     return {
       salesforceAccountId,
-      salesforceContactId
+      salesforceContactId,
+      mostRecentCampaign: attributionDetails ? attributionDetails.campaign : undefined
     };
 
   }

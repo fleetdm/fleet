@@ -9,17 +9,17 @@ To configure SSO, follow steps for your IdP and then complete [Fleet configurati
 
 ## Okta
 
+> Okta added a built-in Fleet app and Fleet is testing it internally. Keep in mind that adding push groups will create new fleets. Currently, the best practice is to create a SAML app (instructions below).
+
 Create a new SAML app in Okta:
 
 ![Example Okta IdP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
 If you're configuring [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
 
-Once configured, you will need to retrieve the issuer URI from **View Setup Instructions** and metadata URL from the **Identity Provider metadata** link within the application **Sign on** settings. See below for where to find them:
-
 > Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)", but after the app is set up, Okta labels this as "Audience Restriction".
 
-![Where to find SSO links for Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-retrieve-links.png)
+Once configured, you will need to retrieve the Identity Provider metadata URL either from **View Setup Instructions** from the **Identity Provider metadata** link within the application **Sign on** settings, or under the **SAML 2.0** section under **Metadata details**.
 
 > The Provider Sign-on URL within **View Setup Instructions** has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
 
@@ -181,7 +181,7 @@ Fleet can automatically create users using just-in-time (JIT) provisioning. To e
 
 When enabled, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. The new account's email and full name are copied from the user data in the SSO response.
 
-By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions). To assign different roles for accounts created via JIT provisioning, see [customization of user roles](#customization-of-user-roles) below.
+By default, accounts created via JIT provisioning are assigned the [global observer role](https://fleetdm.com/docs/using-fleet/permissions). To assign different roles for accounts created via JIT provisioning, see [customization of user roles](#customization-of-user-roles) below. Fleet will assign role updates everytime a user logs in.
 
 For this to work correctly make sure that:
 
@@ -204,6 +204,7 @@ Fleet will attempt to parse SAML custom attributes with the following format:
 
 Currently supported values for the above attributes are: `admin`, `maintainer`, `observer`, `observer_plus`, `technician` and `null`.
 A role attribute with value `null` will be ignored by Fleet. (This is to support limitations on some IdPs which do not allow you to choose what keys are sent to Fleet when creating a new user.)
+Attribute values that are empty, whitespace-only, or omit the `<saml:AttributeValue>` element entirely are also treated as `null` and ignored.
 SAML supports multi-valued attributes, Fleet will always use the last value.
 
 NOTE: Setting both `FLEET_JIT_USER_ROLE_GLOBAL` and `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>` will cause an error during login as users cannot be both global users and belong to fleets.
@@ -269,6 +270,18 @@ Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in fle
 
 Each IdP will have its own way of setting these SAML custom attributes, here are instructions for how to set it for Okta: https://support.okta.com/help/s/article/How-to-define-and-configure-a-custom-SAML-attribute-statement?language=en_US.
 
+
+## Automatically deprovision Fleet users
+
+When SCIM is configured with your IdP, Fleet automatically deletes a user's Fleet account when the user is deleted or deactivated in the IdP.
+
+Fleet requires the `userName`, `email`, `givenName`, and `familyName` attributes to be mapped from your IdP for Fleet users. In Okta, are typically mapped from `userName`, `user.email`, `user.firstName`, and `user.lastName` respectively.
+
+If the user is later reactivated in the IdP, Fleet will automatically recreate the account on the user’s next SSO login, as long as **Create user and sync permissions on login** in **Settings > Integrations > Single sign-on (SSO)** is enabled.
+
+No manual intervention is required. This applies only to SSO-authenticated users. API-only and password-authenticated users are not affected.
+
+
 ## Email two-factor authentication (2FA)
 
 If you have a "break glass" Fleet user account that's used to login to Fleet when your identify provider (IdP) goes down, you can enable email 2FA, also known as multi-factor authentication (MFA), for this user. For all other users, the best practice is to enable single-sign on (SSO). Then, you can enforce any 2FA method supported by your IdP (i.e. authenticator app, security key, etc.).
@@ -282,3 +295,4 @@ You can't edit the authentication method for your currently logged-in user. To e
 <meta name="title" value="Single sign-on (SSO)">
 <meta name="pageOrderInSection" value="200">
 <meta name="description" value="Learn how to configure single sign-on (SSO)">
+<meta name="keywordsForDocsearch" value="azure ad, just-in-time provisioning, deprovision users">

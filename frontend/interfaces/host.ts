@@ -129,6 +129,12 @@ export interface IOSSettings {
     detail: string;
     password_available: boolean;
   };
+  managed_local_account?: {
+    status: string | null;
+    password_available: boolean;
+    auto_rotate_at?: string;
+    pending_rotation?: boolean;
+  };
   certificates: IHostAndroidCert[];
 }
 
@@ -232,8 +238,12 @@ export interface IHostResponse {
 export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
+  /** @deprecated use `org_logo_url_dark_mode` */
   org_logo_url: string;
+  /** @deprecated use `org_logo_url_light_mode` */
   org_logo_url_light_background: string;
+  org_logo_url_dark_mode?: string;
+  org_logo_url_light_mode?: string;
   org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: HostPlatform;
@@ -255,6 +265,17 @@ export interface IHostRecoveryLockPasswordResponse {
     updated_at: string;
     password: string;
     auto_rotate_at?: string;
+  };
+}
+
+export interface IHostManagedAccountPasswordResponse {
+  host_id: number;
+  managed_account_password: {
+    username: string;
+    password: string;
+    updated_at: string;
+    auto_rotate_at?: string;
+    pending_rotation?: boolean;
   };
 }
 

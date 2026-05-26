@@ -1,1 +1,0 @@
-- Moved Apple MDM worker to a faster cron, and started sending profiles on Post DEP enrollment job, to speed up initial macOS setup.

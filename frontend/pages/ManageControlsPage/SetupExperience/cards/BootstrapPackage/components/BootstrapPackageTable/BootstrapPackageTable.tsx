@@ -6,7 +6,7 @@ import mdmAPI from "services/entities/mdm";
 
 import DataError from "components/DataError";
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import {
   COLUMN_CONFIGS,
@@ -58,7 +58,7 @@ const BootstrapPackageTable = ({
       disableCount
       hideFooter
       emptyComponent={() => (
-        <EmptyTable
+        <EmptyState
           header="No bootstrap package status"
           info="Expecting to status data? Try again in a few seconds as the system
               catches up."

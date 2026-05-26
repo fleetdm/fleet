@@ -9,6 +9,7 @@ import { FLEET_WEBSITE_URL } from "utilities/constants";
 
 import SideNav from "pages/admin/components/SideNav";
 import CustomLink from "components/CustomLink";
+import PageDescription from "components/PageDescription";
 
 import useScriptNavItems from "./ScriptsNavItems";
 
@@ -61,15 +62,20 @@ const Scripts = ({ router, location, params }: IScriptsProps) => {
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Change configuration and remediate issues on macOS, Windows, and Linux
-        hosts.{" "}
-        <CustomLink
-          text="Learn more"
-          url={`${FLEET_WEBSITE_URL}/docs/using-fleet/scripts`}
-          newTab
-        />
-      </p>
+      <PageDescription
+        variant="tab-panel"
+        content={
+          <>
+            Change configuration and remediate issues on macOS, Windows, and
+            Linux hosts.{" "}
+            <CustomLink
+              text="Learn more"
+              url={`${FLEET_WEBSITE_URL}/docs/using-fleet/scripts`}
+              newTab
+            />
+          </>
+        }
+      />
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={SCRIPTS_NAV_ITEMS}

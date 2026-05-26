@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +20,7 @@ func TestSCEPRateLimit(t *testing.T) {
 		cfg.Osquery.EnrollCooldown = cooldown
 	})
 
-	defer mysql.TruncateTables(t, s.BaseSuite.DS, []string{
+	defer mysqltest.TruncateTables(t, s.BaseSuite.DS, []string{
 		"conditional_access_scep_serials", "conditional_access_scep_certificates",
 	}...)
 

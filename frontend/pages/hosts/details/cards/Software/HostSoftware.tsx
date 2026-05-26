@@ -31,7 +31,7 @@ import {
   buildSoftwareVulnFiltersQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
-} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";

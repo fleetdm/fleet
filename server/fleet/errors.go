@@ -531,8 +531,8 @@ const (
 
 // Error message variables
 var (
-	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarSCEPRenewalID)
-	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + string(FleetVarSCEPRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
+	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarCertificateRenewalID)
+	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + string(FleetVarCertificateRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
 )
 
 const (

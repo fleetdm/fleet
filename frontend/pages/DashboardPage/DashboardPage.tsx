@@ -18,7 +18,7 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
-import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
+import { IHostSummary } from "interfaces/host_summary";
 import { ILabelSummary } from "interfaces/label";
 import { IMacadminAggregate } from "interfaces/macadmins";
 import {
@@ -29,6 +29,7 @@ import {
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IConfig } from "interfaces/config";
+import { isHistoricalDataEnabled } from "interfaces/charts";
 
 import { useTeamIdParam } from "hooks/useTeamIdParam";
 
@@ -68,7 +69,6 @@ import {
   PLATFORM_NAME_TO_LABEL_NAME,
 } from "./helpers";
 import useInfoCard from "./components/InfoCard";
-import PlatformHostCounts from "./sections/PlatformHostCounts";
 import MetricsHostCounts from "./sections/MetricsHostCounts";
 import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
@@ -77,6 +77,11 @@ import WelcomeHost from "./cards/WelcomeHost";
 import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
+import ChartCard from "./cards/ChartCard";
+import {
+  HostsEnrolledCard,
+  IHostPlatformCounts,
+} from "./cards/HostsEnrolledCard";
 import AddHostsModal from "../../components/AddHostsModal";
 import MdmSolutionModal from "./components/MdmSolutionModal";
 import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsModal";
@@ -132,13 +137,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setSelectedPlatformLabelId,
   ] = useState<number>();
   const [labels, setLabels] = useState<ILabelSummary[]>();
-  const [macCount, setMacCount] = useState(0);
-  const [windowsCount, setWindowsCount] = useState(0);
-  const [linuxCount, setLinuxCount] = useState(0);
-  const [chromeCount, setChromeCount] = useState(0);
-  const [iosCount, setIosCount] = useState(0);
-  const [ipadosCount, setIpadosCount] = useState(0);
-  const [androidCount, setAndroidCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [abmIssueCount, setAbmIssueCount] = useState(0);
@@ -162,7 +160,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setUpdatingActivityFeedAutomations,
   ] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
-  const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
   const [mdmSolutions, setMdmSolutions] = useState<
     IMdmSummaryMdmSolution[] | null
@@ -226,41 +223,56 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           setLowDiskSpaceCount(data.low_disk_space_count || 0);
           setAbmIssueCount(data.dep_assign_error_count || 0);
         }
-        const macHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
-        ) || { platform: "darwin", hosts_count: 0 };
-
-        const windowsHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "windows"
-        ) || { platform: "windows", hosts_count: 0 };
-
-        const chomeOSHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
-        ) || { platform: "chrome", hosts_count: 0 };
-
-        const iOSHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "ios"
-        ) || { platform: "ios", hosts_count: 0 };
-
-        const iPadOSHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "ipados"
-        ) || { platform: "ipados", hosts_count: 0 };
-
-        const androidHosts = data.platforms?.find(
-          (platform: IHostSummaryPlatforms) => platform.platform === "android"
-        ) || { platform: "android", hosts_count: 0 };
-
-        setMacCount(macHosts.hosts_count);
-        setWindowsCount(windowsHosts.hosts_count);
-        setLinuxCount(data.all_linux_count);
-        setChromeCount(chomeOSHosts.hosts_count);
-        setIosCount(iOSHosts.hosts_count);
-        setIpadosCount(iPadOSHosts.hosts_count);
-        setAndroidCount(androidHosts.hosts_count);
-        setShowHostsUI(true);
       },
     }
   );
+
+  // Separate query to get the total host count per platform regardless of platform filter.
+  // Used by the "hosts enrolled" chart.
+  const { data: hostSummaryTotals } = useQuery<
+    IHostSummary,
+    Error,
+    IHostSummary
+  >(
+    ["host summary totals", teamIdForApi, isPremiumTier],
+    () =>
+      hostSummaryAPI.getSummary({
+        teamId: teamIdForApi,
+        lowDiskSpace: isPremiumTier ? LOW_DISK_SPACE_GB : undefined,
+      }),
+    {
+      enabled: isRouteOk,
+    }
+  );
+
+  const totalCounts = useMemo<IHostPlatformCounts>(() => {
+    const base: IHostPlatformCounts = {
+      darwin: 0,
+      windows: 0,
+      linux: 0,
+      chrome: 0,
+      ios: 0,
+      ipados: 0,
+      android: 0,
+    };
+    if (!hostSummaryTotals?.platforms) {
+      return base;
+    }
+    const counts = hostSummaryTotals.platforms.reduce<IHostPlatformCounts>(
+      (acc, item) => {
+        if (item.platform !== "linux" && item.platform in acc) {
+          acc[item.platform as keyof IHostPlatformCounts] =
+            item.hosts_count || 0;
+        }
+        return acc;
+      },
+      { ...base }
+    );
+    return {
+      ...counts,
+      linux: hostSummaryTotals.all_linux_count || 0,
+    };
+  }, [hostSummaryTotals]);
 
   const { isLoading: isGlobalSecretsLoading, data: globalSecrets } = useQuery<
     IEnrollSecretsResponse,
@@ -293,6 +305,29 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ? teams?.find((t) => t.id === currentTeamId)?.features
     : config?.features;
   const isSoftwareEnabled = !!featuresConfig?.enable_software_inventory;
+
+  const teamHistoricalData = useMemo(
+    () =>
+      isAnyTeamSelected
+        ? teams?.find((t) => t.id === currentTeamId)?.features?.historical_data
+        : undefined,
+    [isAnyTeamSelected, teams, currentTeamId]
+  );
+  const historicalDataEnabled = useMemo(
+    () => ({
+      uptime: isHistoricalDataEnabled(
+        config?.features?.historical_data,
+        teamHistoricalData,
+        "uptime"
+      ),
+      vulnerabilities: isHistoricalDataEnabled(
+        config?.features?.historical_data,
+        teamHistoricalData,
+        "vulnerabilities"
+      ),
+    }),
+    [config?.features?.historical_data, teamHistoricalData]
+  );
   const isViewingVulnerableSoftware = !!softwareNavTabIndex; // we can take the tab index as a boolean to represent the vulnerable flag
 
   const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
@@ -498,11 +533,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const onSoftwareTabChange = (index: number) => {
-    const { SOFTWARE_TITLES } = paths;
+    const { SOFTWARE_INVENTORY } = paths;
     setSoftwareNavTabIndex(index);
     setSoftwareActionUrl &&
       setSoftwareActionUrl(
-        index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
+        index === 1
+          ? `${SOFTWARE_INVENTORY}?vulnerable=true`
+          : SOFTWARE_INVENTORY
       );
     setSoftwarePageIndex(0);
   };
@@ -563,39 +600,20 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <DataError verticalPaddingSize="pad-large" />
     </Card>
   ) : (
-    <>
-      <PlatformHostCounts
-        currentTeamId={teamIdForApi}
-        macCount={macCount}
-        windowsCount={windowsCount}
-        linuxCount={linuxCount}
-        chromeCount={chromeCount}
-        iosCount={iosCount}
-        ipadosCount={ipadosCount}
-        androidCount={androidCount}
-        builtInLabels={labels}
-        selectedPlatform={selectedPlatform}
-        totalHostCount={
-          !isHostSummaryFetching && !errorHosts
-            ? hostSummaryData?.totals_hosts_count
-            : undefined
-        }
-      />
-      <MetricsHostCounts
-        currentTeamId={teamIdForApi}
-        selectedPlatform={selectedPlatform}
-        totalHostCount={
-          !isHostSummaryFetching && !errorHosts
-            ? hostSummaryData?.totals_hosts_count
-            : undefined
-        }
-        isPremiumTier={isPremiumTier}
-        missingCount={missingCount}
-        lowDiskSpaceCount={lowDiskSpaceCount}
-        abmIssueCount={abmIssueCount}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-      />
-    </>
+    <MetricsHostCounts
+      currentTeamId={teamIdForApi}
+      selectedPlatform={selectedPlatform}
+      totalHostCount={
+        !isHostSummaryFetching && !errorHosts
+          ? hostSummaryData?.totals_hosts_count
+          : undefined
+      }
+      isPremiumTier={isPremiumTier}
+      missingCount={missingCount}
+      lowDiskSpaceCount={lowDiskSpaceCount}
+      abmIssueCount={abmIssueCount}
+      selectedPlatformLabelId={selectedPlatformLabelId}
+    />
   );
 
   const WelcomeHostCard = useInfoCard({
@@ -889,6 +907,22 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             </div>
           </div>
         </div>
+        <div className={`${baseClass}__charts-row`}>
+          <Card paddingSize="xlarge" borderRadiusSize="large">
+            <HostsEnrolledCard
+              counts={totalCounts}
+              builtInLabels={labels}
+              currentTeamId={teamIdForApi}
+              router={router}
+            />
+          </Card>
+          <Card paddingSize="xlarge" borderRadiusSize="large">
+            <ChartCard
+              currentTeamId={teamIdForApi}
+              historicalDataEnabled={historicalDataEnabled}
+            />
+          </Card>
+        </div>
         <div className={`${baseClass}__platforms`}>
           <span>Platform:&nbsp;</span>
           <DropdownWrapper
@@ -908,17 +942,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             }}
           />
         </div>
-
         <div className={`${baseClass}__host-sections`}>
-          <>
-            {isHostSummaryFetching ? (
-              <Card paddingSize="medium">
-                <Spinner includeContainer={false} verticalPadding="small" />
-              </Card>
-            ) : (
-              HostCountCards
-            )}
-          </>
+          {isHostSummaryFetching ? (
+            <Card paddingSize="medium">
+              <Spinner includeContainer={false} verticalPadding="small" />
+            </Card>
+          ) : (
+            HostCountCards
+          )}
         </div>
         {renderCards()}
         {showAddHostsModal && renderAddHostsModal()}

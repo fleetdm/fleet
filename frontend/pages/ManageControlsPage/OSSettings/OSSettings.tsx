@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
+import PageDescription from "components/PageDescription";
 import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
@@ -78,9 +79,10 @@ const OSSettings = ({
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Remotely enforce OS settings on hosts assigned to this fleet.
-      </p>
+      <PageDescription
+        variant="tab-panel"
+        content="Remotely enforce OS settings on hosts assigned to this fleet."
+      />
       <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}
         isError={isErrorAggregateProfileStatus}

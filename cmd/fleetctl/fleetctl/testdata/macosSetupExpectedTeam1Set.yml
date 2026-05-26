@@ -5,6 +5,9 @@ spec:
     features:
       enable_host_users: true
       enable_software_inventory: true
+      historical_data:
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
@@ -24,7 +27,9 @@ spec:
         certificates: null
       setup_experience:
         macos_bootstrap_package: %s
+        enable_create_local_admin_account: false
         enable_end_user_authentication: false
+        end_user_local_account_type: "admin"
         lock_end_user_info: false
         apple_setup_assistant: %s
         macos_manual_agent_install: null
@@ -58,6 +63,9 @@ spec:
     features:
       enable_host_users: true
       enable_software_inventory: true
+      historical_data:
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
@@ -78,6 +86,8 @@ spec:
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
+        enable_managed_local_account: false
+        end_user_local_account_type: "admin"
         lock_end_user_info: false
         macos_setup_assistant: %s
         manual_agent_install: null

@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mock"
@@ -34,8 +35,8 @@ import (
 // TestReconcileProfiles uses a real mysql datastore to test Android profile
 // reconciliation scenarios, in a similar pattern to the datastore tests.
 func TestReconcileProfiles(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	mysql.TruncateTables(t, ds)
+	ds := mysqltest.CreateMySQLDS(t)
+	mysqltest.TruncateTables(t, ds)
 
 	setupEnterprise := func(t *testing.T, ds fleet.Datastore) {
 		u := *test.UserAdmin
@@ -85,7 +86,7 @@ func TestReconcileProfiles(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			setupEnterprise(t, ds)
 
 			client := &mock.Client{}
@@ -543,7 +544,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	require.NoError(t, err)
 
 	// manually delete the p1 removal entries, simulating the verification
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_android_profiles WHERE profile_uuid = ?`, p1.ProfileUUID)
 		return err
 	})
@@ -701,7 +702,7 @@ func assertHostProfiles(t *testing.T, ds fleet.Datastore, hostProfiles []*fleet.
 	ctx := t.Context()
 	mds := ds.(*mysql.Datastore)
 	var got []*fleet.MDMAndroidProfilePayload
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &got, `SELECT host_uuid, status, operation_type, detail, profile_uuid, profile_name,
 			policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
 		FROM host_mdm_android_profiles`)
@@ -856,7 +857,7 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	// Add host certificate templates for host 2 with 'delivered' status to exclude it from processing
 	// (only 'pending' status templates are picked up by reconcileCertificateTemplates)
 	var certificateTemplateIDs []uint
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `
 			SELECT id
 			FROM certificate_templates
@@ -932,7 +933,7 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		FleetChallenge        *string `db:"fleet_challenge"`
 		Status                string  `db:"status"`
 	}
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `
 			SELECT host_uuid, certificate_template_id, fleet_challenge, status
 			FROM host_certificate_templates
@@ -961,7 +962,7 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// no duplicate records were created
 	var countHost1 int
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ?`
 		return sqlx.GetContext(ctx, q, &countHost1, query, host1.Host.UUID)
 	})
@@ -1125,7 +1126,7 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 	host := createAndroidHostInTeam(t, ds, 300, &team.ID)
 
 	// Insert certificate templates with various statuses
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		// Verified status
 		_, err := q.ExecContext(ctx,
 			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
@@ -1322,7 +1323,7 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 	})
 
 	// --- Phase 2: transition cert to "verified", ONC should now be applied ---
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
 			fleet.CertificateTemplateVerified, host.UUID, certTemplate.ID,
@@ -1354,14 +1355,14 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 
 	// --- Phase 3: test that ONC is also released on terminal failure ---
 	// Reset cert to pending and profile to need re-delivery
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
 			fleet.CertificateTemplateDelivered, host.UUID, certTemplate.ID,
 		)
 		return err
 	})
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			"UPDATE host_mdm_android_profiles SET status = NULL WHERE host_uuid = ?",
 			host.UUID,
@@ -1383,7 +1384,7 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 	}
 
 	// Now set cert to "failed" (terminal) and re-reconcile
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
 			fleet.CertificateTemplateFailed, host.UUID, certTemplate.ID,

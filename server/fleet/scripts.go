@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
 
 // Script represents a saved script that can be executed on a host.
@@ -600,7 +601,7 @@ type SoftwareInstallerPayload struct {
 	// the path field, this uses "script://filename" to pass the filename; in that
 	// case InstallScript contains the script content directly.
 	URL             string `json:"url"`
-	PreInstallQuery string `json:"pre_install_query"`
+	PreInstallQuery string `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	// InstallScript is the script to run after downloading the installer. For script
 	// packages via "script://" URL, this contains the package content itself.
 	InstallScript      string   `json:"install_script"`
@@ -628,6 +629,8 @@ type SoftwareInstallerPayload struct {
 	IconHash string `json:"-"`
 	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
 	AlwaysDownload bool `json:"always_download"`
+	// Configuration is the managed app configuration as raw XML bytes (iOS / iPadOS in-house apps only).
+	Configuration []byte `json:"configuration,omitempty"`
 }
 
 type HostLockWipeStatus struct {
@@ -720,7 +723,7 @@ func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
 }
 
 func (s *HostLockWipeStatus) IsPendingLock() bool {
-	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" || s.HostFleetPlatform == "android" {
 		// pending lock if an MDM command is queued but no result received yet
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult == nil
 	}
@@ -748,7 +751,7 @@ func (s HostLockWipeStatus) IsPendingWipe() bool {
 		// pending wipe if script execution request is queued but no result yet and not canceled
 		return s.WipeScript != nil && s.WipeScript.ExitCode == nil && !s.WipeScript.Canceled
 	}
-	// pending wipe if an MDM command is queued but no result received yet
+	// pending wipe if an MDM command is queued but no result received yet (Apple, Windows, Android)
 	return s.WipeMDMCommand != nil && s.WipeMDMCommandResult == nil
 }
 
@@ -765,6 +768,12 @@ func (s HostLockWipeStatus) IsLocked() bool {
 	if s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
 			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged && !s.LocationPending
+	}
+
+	if s.HostFleetPlatform == "android" {
+		// Android device unlock happens locally via the user's PIN; AMAPI does not deliver a "device unlocked" notification, and Fleet
+		// has no UNLOCK command.
+		return false
 	}
 
 	// locked if a script was sent and succeeded
@@ -792,6 +801,10 @@ func (s HostLockWipeStatus) IsWiped() bool {
 		// wiped if an MDM command was sent and succeeded
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
 			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	case "android":
+		// wiped if Pub/Sub COMMAND notification reported an Android-side ack.
+		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
+			s.WipeMDMCommandResult.Status == string(android.MDMAndroidCommandStatusAcknowledged)
 	default:
 		return false
 	}

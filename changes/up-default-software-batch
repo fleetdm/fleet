@@ -1,1 +1,0 @@
-- Upped the default limit for the software batch endpoint, from 1MiB to 25MiB

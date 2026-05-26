@@ -28,9 +28,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -87,6 +87,17 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, failOnBlankScript); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
+	}
+
+	// Validate iOS/iPadOS managed app configuration up-front. For non-.ipa extensions, silently drop.
+	if payload.Extension == "ipa" {
+		if len(payload.Configuration) > 0 {
+			if err := fleet.ValidateAppleAppConfiguration(payload.Configuration); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		payload.Configuration = nil
 	}
 
 	// Validate install/post-install/uninstall script contents for non-script
@@ -193,6 +204,14 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		addedInstaller, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, &tmID, titleID)
 		if err != nil {
 			return nil, err
+		}
+		// Wrap iOS / iPadOS plist as a JSON string for the response.
+		if len(addedInstaller.Configuration) > 0 {
+			wrapped, err := json.Marshal(string(addedInstaller.Configuration))
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "wrapping configuration for response")
+			}
+			addedInstaller.Configuration = wrapped
 		}
 		return addedInstaller, nil
 	}
@@ -1334,17 +1353,11 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			}
 			return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
 		}
-	} else {
-		// Get the enrollment type of the mobile apple device.
-		enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting nano mdm enrollment")
-		}
-
-		if enrollment.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String() {
-			return fleet.NewUserMessageError(errors.New(fleet.InstallSoftwarePersonalAppleDeviceErrMsg), http.StatusUnprocessableEntity)
-		}
 	}
+	// User-enrolled (BYOD) iOS/iPadOS hosts are no longer blocked here. The
+	// downstream VPP install path provisions the per-user VPP user (#44003),
+	// associates the asset via clientUserIds (#44004), and emits an
+	// InstallApplication command without ChangeManagementState (#44005).
 
 	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
 	if err != nil {
@@ -1438,22 +1451,59 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	// handle [asyncronous errors][1] on assignment, so before assigning a
 	// device to a license, we need to:
 	//
-	// 1. Check if the app is already assigned to the serial number.
+	// 1. Check if the app is already assigned to the serial number (or
+	//    Managed Apple ID, for User Enrollments).
 	// 2. If it's not assigned yet, check if we have enough licenses.
 	//
 	// A race still might happen, so async error checking needs to be
 	// implemented anyways at some point.
 	//
 	// [1]: https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3729433
-	assignments, err := vpp.GetAssignments(token, &vpp.AssignmentFilter{AdamID: vppApp.AdamID, SerialNumber: host.HardwareSerial})
+
+	// Resolve enrollment style first so the assignment query can address the
+	// right principal — serial for device-scoped licensing, clientUserId for
+	// user-scoped (BYOD) licensing. Without this branch the existing
+	// SerialNumber filter always returns empty for User Enrollments, which
+	// makes Fleet enter the AvailableCount check on every retry and produces
+	// false-positive "no available licenses" errors when the user is just
+	// adding their Nth (≤5) device under one Managed Apple ID.
+	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "looking up host MDM info for VPP install")
+	}
+	isPersonal := hostMDM != nil && hostMDM.IsPersonalEnrollment
+
+	var clientUserID string
+	if isPersonal {
+		// Token-selection policy (per #44009): use the team's default token —
+		// `GetVPPTokenByTeamID` already returns the first token for the team
+		// (existing behavior). Multi-location support is deferred unless a
+		// customer hits the edge case.
+		tokenDB, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "fetching VPP token DB row for user-enrolled install")
+		}
+		clientUserID, err = svc.ensureVPPClientUser(ctx, host, tokenDB)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "ensure VPP client user")
+		}
+	}
+
+	assignmentFilter := &vpp.AssignmentFilter{AdamID: vppApp.AdamID}
+	if isPersonal {
+		assignmentFilter.ClientUserID = clientUserID
+	} else {
+		assignmentFilter.SerialNumber = host.HardwareSerial
+	}
+	assignments, err := vpp.GetAssignments(token, assignmentFilter)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
 	}
 
 	var eventID string
 
-	// this app is not assigned to this device, check if we have licenses
-	// left and assign it.
+	// this app is not assigned to this device (or this user, for BYOD), check
+	// if we have licenses left and assign it.
 	if len(assignments) == 0 {
 		assets, err := vpp.GetAssets(ctx, token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
 		if err != nil {
@@ -1490,8 +1540,24 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 			}
 		}
 
-		eventID, err = vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{Assets: assets, SerialNumbers: []string{host.HardwareSerial}})
+		req := &vpp.AssociateAssetsRequest{Assets: assets}
+		if isPersonal {
+			req.ClientUserIds = []string{clientUserID}
+		} else {
+			req.SerialNumbers = []string{host.HardwareSerial}
+		}
+
+		eventID, err = vpp.AssociateAssets(token, req)
 		if err != nil {
+			// Apple rejects the per-user device cap (≤5 devices per Managed
+			// Apple ID per license). Surface it cleanly so admins can act on
+			// it without having to decode raw VPP error numbers.
+			if vpp.IsMaxDevicesPerUserError(err) {
+				return "", &fleet.BadRequestError{
+					Message:     "Couldn't install. This user has reached the maximum number of devices for this app license.",
+					InternalErr: ctxerr.WrapWithData(ctx, err, "associate asset rejected by Apple per-user device cap", map[string]any{"host_id": host.ID, "team_id": host.TeamID, "adam_id": vppApp.AdamID}),
+				}
+			}
 			return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
 	}
@@ -1510,6 +1576,12 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	cmdUUID := uuid.NewString()
 	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, opts)
 	if err != nil {
+		if errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar) {
+			return "", &fleet.BadRequestError{
+				Message:     "Couldn't install. The managed app configuration references Fleet variables that can't be resolved for this host.",
+				InternalErr: err,
+			}
+		}
 		return "", ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
 	}
 
@@ -2088,6 +2160,16 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		return "", ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
+	// Same pattern as the dry-run + team-not-found short-circuit above. Empty payload
+	// + dry-run has nothing to validate or stage, so skip the async round-trip.
+	// The client handles an empty UUID response gracefully.
+	if dryRun && len(payloads) == 0 {
+		svc.logger.DebugContext(ctx, "software batch dry-run skipped: empty payload",
+			"team_id", teamID,
+		)
+		return "", nil
+	}
+
 	var allScripts []string
 
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
@@ -2495,6 +2577,7 @@ func (svc *Service) softwareBatchUpload(
 				DisplayName:        p.DisplayName,
 				RollbackVersion:    p.RollbackVersion,
 				AlwaysDownload:     p.AlwaysDownload,
+				Configuration:      p.Configuration,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
@@ -2539,10 +2622,14 @@ func (svc *Service) softwareBatchUpload(
 				// make a copy of the installer without filled fields in case we add
 				// extra installers
 				extraInstallerBase := *installer
-				fillSoftwareInstallerPayloadFromExisting(installer, foundInstaller, p.SHA256)
+				if err := svc.fillSoftwareInstallerPayloadFromExisting(ctx, installer, foundInstaller, p.SHA256); err != nil {
+					return err
+				}
 				for _, extraInstaller := range foundInstallers[1:] {
 					extraPayload := extraInstallerBase
-					fillSoftwareInstallerPayloadFromExisting(&extraPayload, extraInstaller, p.SHA256)
+					if err := svc.fillSoftwareInstallerPayloadFromExisting(ctx, &extraPayload, extraInstaller, p.SHA256); err != nil {
+						return err
+					}
 					extraInstallers = append(extraInstallers, &extraPayload)
 				}
 
@@ -2583,10 +2670,14 @@ func (svc *Service) softwareBatchUpload(
 					// make a copy of the installer without filled fields in case we add
 					// extra installers
 					extraInstallerBase := *installer
-					fillSoftwareInstallerPayloadFromExisting(installer, teamInstaller, p.SHA256)
+					if err := svc.fillSoftwareInstallerPayloadFromExisting(ctx, installer, teamInstaller, p.SHA256); err != nil {
+						return err
+					}
 					for _, extraInstaller := range teamInstallers[1:] {
 						extraPayload := extraInstallerBase
-						fillSoftwareInstallerPayloadFromExisting(&extraPayload, extraInstaller, p.SHA256)
+						if err := svc.fillSoftwareInstallerPayloadFromExisting(ctx, &extraPayload, extraInstaller, p.SHA256); err != nil {
+							return err
+						}
 						extraInstallers = append(extraInstallers, &extraPayload)
 					}
 
@@ -2654,10 +2745,18 @@ func (svc *Service) softwareBatchUpload(
 					var existingForCache *fleet.ExistingSoftwareInstaller
 					var ifNoneMatch string
 					if !p.AlwaysDownload && p.SHA256 == "" && p.URL != "" {
-						existing, lookupErr := svc.ds.GetInstallerByTeamAndURL(ctx, tmID, p.URL)
+						// First try same-team lookup, then fall back to any team.
+						existing, lookupErr := svc.ds.GetInstallerByTeamAndURL(ctx, &tmID, p.URL)
 						if lookupErr != nil {
 							svc.logger.WarnContext(ctx, "conditional download lookup failed, will download normally", "url", p.URL, "err", lookupErr)
-						} else if existing != nil && existing.StorageID != "" &&
+						} else if existing == nil {
+							// Cross-team fallback: another team may already have this URL cached.
+							existing, lookupErr = svc.ds.GetInstallerByTeamAndURL(ctx, nil, p.URL)
+							if lookupErr != nil {
+								svc.logger.WarnContext(ctx, "cross-team conditional download lookup failed, will download normally", "url", p.URL, "err", lookupErr)
+							}
+						}
+						if lookupErr == nil && existing != nil && existing.StorageID != "" &&
 							existing.HTTPETag != nil && *existing.HTTPETag != "" &&
 							existing.Extension != "ipa" && // skip conditional download for .ipa (multi-platform extraInstallers)
 							validETag(*existing.HTTPETag) { // re-validate before use as defense-in-depth
@@ -2682,7 +2781,9 @@ func (svc *Service) softwareBatchUpload(
 					if resp != nil && resp.StatusCode == http.StatusNotModified && existingForCache != nil {
 						bytesExist, existErr := svc.softwareInstallStore.Exists(ctx, existingForCache.StorageID)
 						if existErr == nil && bytesExist {
-							fillSoftwareInstallerPayloadFromExisting(installer, existingForCache, existingForCache.StorageID)
+							if err := svc.fillSoftwareInstallerPayloadFromExisting(ctx, installer, existingForCache, existingForCache.StorageID); err != nil {
+								return err
+							}
 							installer.HTTPETag = existingForCache.HTTPETag
 							// Propagate the existing hash so FMA hydration below
 							// doesn't try to recompute it from the (nil) file
@@ -2821,6 +2922,11 @@ func (svc *Service) softwareBatchUpload(
 					// this isn't the specified installer, so return an error
 					return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
 				}
+			}
+
+			// Managed app configuration is only supported for iOS / iPadOS in-house apps.
+			if installer.Extension != "ipa" {
+				installer.Configuration = nil
 			}
 
 			// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
@@ -2967,7 +3073,7 @@ func (svc *Service) softwareBatchUpload(
 	// anymore, so that's intentionally skipped.
 }
 
-func fillSoftwareInstallerPayloadFromExisting(payload *fleet.UploadSoftwareInstallerPayload, existing *fleet.ExistingSoftwareInstaller, sha256Hash string) {
+func (svc *Service) fillSoftwareInstallerPayloadFromExisting(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload, existing *fleet.ExistingSoftwareInstaller, sha256Hash string) error {
 	payload.Extension = existing.Extension
 	payload.Filename = existing.Filename
 	payload.Version = existing.Version
@@ -2979,6 +3085,16 @@ func fillSoftwareInstallerPayloadFromExisting(payload *fleet.UploadSoftwareInsta
 	payload.Title = existing.Title
 	payload.StorageID = sha256Hash
 	payload.PackageIDs = existing.PackageIDs
+
+	if fleet.IsScriptPackage(existing.Extension) {
+		contents, err := svc.ds.GetAnyScriptContents(ctx, existing.InstallScriptContentID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fetch install script for hash-matched script package")
+		}
+		payload.InstallScript = string(contents)
+	}
+
+	return nil
 }
 
 // validETag checks if an ETag value is a strong ETag per RFC 7232
@@ -3073,11 +3189,10 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
-	if fleet.IsAppleMobilePlatform(host.Platform) &&
-		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == string(fleet.MDMEnrollStatusPersonal) {
-		return fleet.NewUserMessageError(errors.New(fleet.InstallSoftwarePersonalAppleDeviceErrMsg), http.StatusUnprocessableEntity)
-	}
-
+	// User-enrolled (BYOD) iOS/iPadOS hosts are no longer blocked from
+	// self-service. The downstream VPP install flow handles user-scoped
+	// licensing via clientUserIds. End-to-end success still depends on the
+	// main install-gate removal landing (#31138 subtask 01).
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 	if err != nil {
 		if !fleet.IsNotFound(err) {

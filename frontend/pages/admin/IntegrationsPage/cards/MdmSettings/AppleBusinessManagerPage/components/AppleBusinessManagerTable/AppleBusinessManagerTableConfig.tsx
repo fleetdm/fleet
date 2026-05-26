@@ -10,7 +10,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import RenewDateCell from "../../../components/RenewDateCell";
 import OrgNameCell from "./OrgNameCell";
@@ -28,8 +28,27 @@ const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "delete", label: "Delete", disabled: false },
 ];
 
-const generateActions = () => {
-  return DEFAULT_ACTION_OPTIONS;
+const generateActions = (gitopsModeEnabled: boolean, repoURL?: string) => {
+  if (!gitopsModeEnabled) {
+    return DEFAULT_ACTION_OPTIONS;
+  }
+
+  return DEFAULT_ACTION_OPTIONS.map((option) => {
+    if (option.value !== "editTeams") {
+      return option;
+    }
+
+    return {
+      ...option,
+      disabled: true,
+      ...(repoURL
+        ? {
+            tooltip: true,
+            tooltipContent: getGitOpsModeTipContent(repoURL),
+          }
+        : {}),
+    };
+  });
 };
 
 const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
@@ -52,7 +71,9 @@ const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
 };
 
 export const generateTableConfig = (
-  actionSelectHandler: (value: string, team: IMdmAbmToken) => void
+  actionSelectHandler: (value: string, team: IMdmAbmToken) => void,
+  gitopsModeEnabled: boolean,
+  repoURL?: string
 ): IAbmTableConfig[] => {
   return [
     {
@@ -171,28 +192,17 @@ export const generateTableConfig = (
       // but we don't use it.
       accessor: "id",
       Cell: (cellProps) => (
-        <GitOpsModeTooltipWrapper
-          position="left"
-          renderChildren={(disableChildren) => (
-            <div
-              className={
-                disableChildren
-                  ? "disabled-by-gitops-mode abm-actions-wrapper"
-                  : "abm-actions-wrapper"
-              }
-            >
-              <ActionsDropdown
-                options={generateActions()}
-                onChange={(value: string) =>
-                  actionSelectHandler(value, cellProps.row.original)
-                }
-                placeholder="Actions"
-                disabled={disableChildren}
-                variant="small-button"
-              />
-            </div>
-          )}
-        />
+        <div className="abm-actions-wrapper">
+          <ActionsDropdown
+            options={generateActions(gitopsModeEnabled, repoURL)}
+            onChange={(value: string) =>
+              actionSelectHandler(value, cellProps.row.original)
+            }
+            placeholder="Actions"
+            disabled={false}
+            variant="small-button"
+          />
+        </div>
       ),
     },
   ];

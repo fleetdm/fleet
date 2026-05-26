@@ -11,7 +11,7 @@ How to upgrade to 4.74.0:
 
 ## Overview
 
-This script automates the migration of software configuration keys from individual software packages to team-level configurations. It processes YAML files in the `it-and-security/teams/` directory and moves the following keys from referenced software files to the team files:
+This script automates the migration of software configuration keys from individual software packages to fleet-level configurations. It processes YAML files in the `it-and-security/fleets/` directory and moves the following keys from referenced software files to the fleet files:
 
 - `self_service`
 - `categories` 
@@ -38,21 +38,21 @@ sudo snap install yq
 ### Basic usage
 
 ```bash
-./tools/gitops-migrate/migrate.sh <teams_directory_path>
+./tools/gitops-migrate/migrate.sh <fleets_directory_path>
 ```
 
 The script will:
-1. Automatically discover all `.yml` files in the specified teams directory
-2. For each team file, process all packages listed in `software.packages[]`
+1. Automatically discover all `.yml` files in the specified fleets directory
+2. For each fleet file, process all packages listed in `software.packages[]`
 3. Extract the target keys from each referenced software file (Pass 1)
-4. Move those keys to the corresponding package entry in the team file (Pass 1)
-5. Remove the keys from the original software files after all teams are processed (Pass 2)
+4. Move those keys to the corresponding package entry in the fleet file (Pass 1)
+5. Remove the keys from the original software files after all fleets are processed (Pass 2)
 
 ### What the script does
 
 #### Before running the script
 
-**Team file (`it-and-security/teams/example.yml`):**
+**Team file (`it-and-security/fleets/example.yml`):**
 ```yaml
 name: Example Team
 software:
@@ -75,7 +75,7 @@ labels_exclude_any:
 
 #### After running the script
 
-**Team file (`it-and-security/teams/example.yml`):**
+**Team file (`it-and-security/fleets/example.yml`):**
 ```yaml
 name: Example Team
 software:
@@ -99,8 +99,8 @@ url: https://download.mozilla.org/...
 Example output:
 ```
 GitOps Migration Tool
-Moving keys from software files to team files
-Teams directory: it-and-security/teams
+Moving keys from software files to fleet files
+Teams directory: it-and-security/fleets
 
 Finding team files...
 Found 3 team files
@@ -144,7 +144,7 @@ Packages processed: 8
    - Ensure you're running from the correct location
 
 4. **"Software file not found"**
-   - Check that the `path` in the team file is correct relative to the team file location
+   - Check that the `path` in the fleet file is correct relative to the fleet file location
 
 ### Debug mode
 

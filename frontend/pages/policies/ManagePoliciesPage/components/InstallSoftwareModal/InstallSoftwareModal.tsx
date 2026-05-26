@@ -23,6 +23,7 @@ import Modal from "components/Modal";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import {
   INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   InstallableSoftwareSource,
@@ -268,19 +269,26 @@ const InstallSoftwareModal = ({
     }
     if (!titlesAvailableForInstall?.length) {
       return (
-        <div className={`${baseClass}__no-software`}>
-          <b>No software available for install</b>
-          <div>
-            Go to{" "}
-            <CustomLink
-              url={getPathWithQueryParams(paths.SOFTWARE_TITLES, {
-                fleet_id: teamId,
-              })}
-              text="Software"
-            />{" "}
-            to add software to this fleet.
-          </div>
-        </div>
+        <EmptyState
+          variant="header-list"
+          width="small"
+          header="No software available for install"
+          info={
+            <>
+              Go to{" "}
+              <CustomLink
+                url={getPathWithQueryParams(
+                  paths.SOFTWARE_ADD_FLEET_MAINTAINED,
+                  {
+                    fleet_id: teamId,
+                  }
+                )}
+                text="Software"
+              />{" "}
+              to add software to this fleet.
+            </>
+          }
+        />
       );
     }
 

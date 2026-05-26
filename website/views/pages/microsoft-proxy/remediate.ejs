@@ -5,9 +5,13 @@
       <h1>Secure your device</h1>
       <p>Your organization has blocked sign-in because your computer is failing some security checks. Follow the steps below to restore access.</p>
       <ol purpose="remediation-steps">
-        <li>
+        <li v-if="!isWindowsUser">
           <p>Click the Fleet icon in your menu bar, and select <strong>My device</strong>:</p>
           <img alt="The Fleet Desktop menu" src="/images/remediate-step-1-456x170@2x.png">
+        </li>
+        <li v-else>
+          <p>Click the Fleet icon in your system tray to open the <strong>My device</strong> page:</p>
+          <img alt="The Fleet icon in the system tray opening the My device page" src="/images/remediate-step-1-windows-456x170@2x.png">
         </li>
         <li>
           <p>Navigate to the <strong>Policies</strong> tab:</p>

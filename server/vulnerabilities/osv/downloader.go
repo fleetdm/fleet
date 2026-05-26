@@ -83,7 +83,8 @@ func getLatestRelease(ctx context.Context) (*ReleaseInfo, error) {
 
 	assets := make(map[string]*AssetInfo)
 	for _, asset := range release.Assets {
-		if strings.HasPrefix(asset.Name, OSVFilePrefix) && !strings.Contains(asset.Name, "delta") {
+		isOSVAsset := strings.HasPrefix(asset.Name, OSVFilePrefix) || strings.HasPrefix(asset.Name, OSVRHELFilePrefix)
+		if isOSVAsset && !strings.Contains(asset.Name, "delta") {
 			assets[asset.Name] = &AssetInfo{
 				Name:   asset.Name,
 				ID:     asset.ID,
@@ -189,12 +190,14 @@ type SyncResult struct {
 type downloadFunc func(ctx context.Context, assetID int64, dstPath string) error
 
 // SyncOSV downloads OSV artifacts for the specified Ubuntu versions
-func SyncOSV(ctx context.Context, dstDir string, ubuntuVersions []string, date time.Time, release *ReleaseInfo) (*SyncResult, error) {
-	return syncOSVWithDownloader(ctx, dstDir, ubuntuVersions, date, release, downloadOSVArtifact)
+func SyncOSV(ctx context.Context, dstDir string, versions []string, date time.Time, release *ReleaseInfo) (*SyncResult, error) {
+	return syncOSVWithDownloader(ctx, dstDir, versions, date, release, downloadOSVArtifact, osvFilename)
 }
 
+type filenameFn func(version string, date time.Time) string
+
 // syncOSVWithDownloader is the internal implementation that accepts a custom download function for testing
-func syncOSVWithDownloader(ctx context.Context, dstDir string, ubuntuVersions []string, date time.Time, release *ReleaseInfo, download downloadFunc) (*SyncResult, error) {
+func syncOSVWithDownloader(ctx context.Context, dstDir string, versions []string, date time.Time, release *ReleaseInfo, download downloadFunc, nameFn filenameFn) (*SyncResult, error) {
 	result := &SyncResult{
 		Downloaded:   make([]string, 0),
 		Skipped:      make([]string, 0),
@@ -202,13 +205,13 @@ func syncOSVWithDownloader(ctx context.Context, dstDir string, ubuntuVersions []
 		Failed:       make([]string, 0),
 	}
 
-	for _, ubuntuVersion := range ubuntuVersions {
-		filename := osvFilename(ubuntuVersion, date)
+	for _, version := range versions {
+		filename := nameFn(version, date)
 		dstPath := filepath.Join(dstDir, filename)
 
 		assetInfo, ok := release.Assets[filename]
 		if !ok {
-			result.NotInRelease = append(result.NotInRelease, ubuntuVersion)
+			result.NotInRelease = append(result.NotInRelease, version)
 			continue
 		}
 
@@ -221,7 +224,7 @@ func syncOSVWithDownloader(ctx context.Context, dstDir string, ubuntuVersions []
 				if err == nil && localDigest == assetInfo.Digest {
 					// Checksums match, skip download
 					needsDownload = false
-					result.Skipped = append(result.Skipped, ubuntuVersion)
+					result.Skipped = append(result.Skipped, version)
 				}
 			}
 		}
@@ -231,7 +234,7 @@ func syncOSVWithDownloader(ctx context.Context, dstDir string, ubuntuVersions []
 			if err != nil {
 				// Download failed, skip
 				os.Remove(dstPath)
-				result.Failed = append(result.Failed, ubuntuVersion)
+				result.Failed = append(result.Failed, version)
 				continue
 			}
 
@@ -240,19 +243,19 @@ func syncOSVWithDownloader(ctx context.Context, dstDir string, ubuntuVersions []
 				if err != nil {
 					// Failed to compute digest, clean up and mark failed
 					os.Remove(dstPath)
-					result.Failed = append(result.Failed, ubuntuVersion)
+					result.Failed = append(result.Failed, version)
 					continue
 				}
 
 				if downloadedDigest != assetInfo.Digest {
 					// Checksum mismatch - corrupted download, clean up and mark failed
 					os.Remove(dstPath)
-					result.Failed = append(result.Failed, ubuntuVersion)
+					result.Failed = append(result.Failed, version)
 					continue
 				}
 			}
 
-			result.Downloaded = append(result.Downloaded, ubuntuVersion)
+			result.Downloaded = append(result.Downloaded, version)
 		}
 	}
 

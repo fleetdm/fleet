@@ -1,0 +1,66 @@
+.hosts-enrolled-card {
+  &__title {
+    font-weight: $bold;
+    margin: 0 0 $pad-medium !important;
+    line-height: 1;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+  }
+
+  // The bar chart's plot height is set inline to match the checkerboard's
+  // cell-grid height (see CHART_HEIGHT_* in HostsEnrolledCard.tsx).
+  &__chart-container {
+    min-height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  // Theme-aware axis tick text. CSS fill overrides the inline fill attribute
+  // recharts adds to its default <text> elements. Font size stays inline
+  // (recharts measures it via getComputedStyle to lay out the axis).
+  // Note: recharts portals tick labels out of .recharts-cartesian-axis into a
+  // .recharts-zIndex-layer_* group, so we target via .recharts-wrapper.
+  .recharts-wrapper text {
+    fill: $ui-fleet-black-50;
+  }
+
+  // Pointer cursor only on rows with hosts. The component adds these classes
+  // to the y-axis <text> and <Cell> elements when count > 0.
+  &__tick--clickable,
+  &__bar--clickable {
+    cursor: pointer;
+  }
+
+  &__tooltip {
+    background: $core-fleet-black;
+    color: $core-fleet-white;
+    padding: $pad-small $pad-medium;
+    border-radius: $border-radius;
+    font-size: $xx-small;
+    box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+    white-space: nowrap;
+  }
+
+  &__tooltip-label {
+    margin-bottom: $pad-xsmall;
+    opacity: 0.8;
+  }
+
+  &__tooltip-value {
+    font-weight: $bold;
+  }
+
+  // Suppress browser focus/click outlines on the chart wrapper, SVG surface,
+  // and individual bar rectangles. Recharts wraps each bar in a focusable
+  // <rect> and the chart surface itself is focusable when interactive.
+  .recharts-wrapper,
+  .recharts-surface,
+  .recharts-bar-rectangle,
+  .recharts-rectangle,
+  .recharts-wrapper *:focus,
+  .recharts-wrapper *:focus-visible {
+    outline: none !important;
+  }
+}

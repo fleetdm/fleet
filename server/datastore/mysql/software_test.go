@@ -69,6 +69,8 @@ func TestSoftware(t *testing.T) {
 		{"InsertSoftwareVulnerabilities", testInsertSoftwareVulnerabilities},
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
+		{"ListSoftwareForVulnDetectionByOSVersion", testListSoftwareForVulnDetectionByOSVersion},
+		{"ListSoftwareVulnerabilitiesBySoftwareIDs", testListSoftwareVulnerabilitiesBySoftwareIDs},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
 		{"AllSoftwareIteratorForCustomLinuxImages", testSoftwareIteratorForLinuxKernelCustomImages},
 		{"UpsertSoftwareCPEs", testUpsertSoftwareCPEs},
@@ -4262,6 +4264,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			require.True(t, ok, "unexpected software %s%s", g.Name, g.Source)
 			require.Equal(t, e.Name, g.Name)
 			require.Equal(t, e.Source, g.Source)
+			require.Equal(t, e.BundleIdentifier, g.BundleIdentifier)
 			if e.SoftwarePackage != nil {
 				require.Equal(t, e.SoftwarePackage.SelfService, g.SoftwarePackage.SelfService)
 				require.Equal(t, e.SoftwarePackage.AppStoreID, g.SoftwarePackage.AppStoreID)
@@ -4962,22 +4965,25 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults(expected, sw, true, i1.Name+i1.Source, i3.Name+i3.Source, i2.Name+i2.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source) // i3 is for team, i2 is available (excluded)
 
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp1",
-		Source:      "apps",
-		Status:      expectStatus(fleet.SoftwareInstalled),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+		Name:             "vpp1",
+		Source:           "apps",
+		BundleIdentifier: "com.app.vpp1",
+		Status:           expectStatus(fleet.SoftwareInstalled),
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "darwin", SelfService: new(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp2",
-		Source:      "apps",
-		Status:      expectStatus(fleet.SoftwareInstallPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		Name:             "vpp2",
+		Source:           "apps",
+		BundleIdentifier: "com.app.vpp2",
+		Status:           expectStatus(fleet.SoftwareInstallPending),
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "darwin", SelfService: new(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 	expected["vpp3apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp3",
-		Source:      "apps",
-		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, Platform: "darwin", SelfService: ptr.Bool(true)},
+		Name:             "vpp3",
+		Source:           "apps",
+		BundleIdentifier: "com.app.vpp3",
+		Status:           nil,
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, Platform: "darwin", SelfService: new(true)},
 	}
 
 	expectedAvailableOnly["vpp1apps"] = expected["vpp1apps"]
@@ -5025,9 +5031,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults(map[string]fleet.HostSoftwareWithInstaller{
 		i3.Name + i3.Source: expected[i3.Name+i3.Source],
 		"vpp1apps": {
-			Name:   "vpp1",
-			Source: "apps",
-			Status: expectStatus(fleet.SoftwareInstallPending),
+			Name:             "vpp1",
+			Source:           "apps",
+			BundleIdentifier: "com.app.vpp1",
+			Status:           expectStatus(fleet.SoftwareInstallPending),
 			AppStoreApp: &fleet.SoftwarePackageOrApp{
 				AppStoreID:  vpp1,
 				Platform:    "darwin",
@@ -5417,6 +5424,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 	}
 	require.False(t, found, "Expected not find software %s in the list", softwareAlreadyInstalled.Name)
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+		})
+		require.Error(t, err)
+	})
 }
 
 func testListLinuxHostSoftware(t *testing.T, ds *Datastore) {
@@ -5622,6 +5636,7 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 			require.True(t, ok, "unexpected software name:%s source:%s", g.Name, g.Source)
 			require.Equal(t, e.Name, g.Name)
 			require.Equal(t, e.Source, g.Source)
+			require.Equal(t, e.BundleIdentifier, g.BundleIdentifier)
 			if e.SoftwarePackage != nil {
 				require.Equal(t, e.SoftwarePackage.SelfService, g.SoftwarePackage.SelfService)
 				require.Equal(t, e.SoftwarePackage.AppStoreID, g.SoftwarePackage.AppStoreID)
@@ -5764,28 +5779,32 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults(expected, sw, true) // i3 is for team, i2 is available (excluded)
 
 	expected["vpp1ios_apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp1",
-		Source:      "ios_apps",
-		Status:      expectStatus(fleet.SoftwareInstalled),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "ios", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+		Name:             "vpp1",
+		Source:           "ios_apps",
+		BundleIdentifier: "com.app.vpp1",
+		Status:           expectStatus(fleet.SoftwareInstalled),
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "ios", SelfService: new(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2ios_apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp2",
-		Source:      "ios_apps",
-		Status:      expectStatus(fleet.SoftwareInstallPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "ios", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		Name:             "vpp2",
+		Source:           "ios_apps",
+		BundleIdentifier: "com.app.vpp2",
+		Status:           expectStatus(fleet.SoftwareInstallPending),
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "ios", SelfService: new(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 	expected["vpp3ios_apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp3",
-		Source:      "ios_apps",
-		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, Platform: "ios", SelfService: ptr.Bool(false)},
+		Name:             "vpp3",
+		Source:           "ios_apps",
+		BundleIdentifier: "com.app.vpp3",
+		Status:           nil,
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, Platform: "ios", SelfService: new(false)},
 	}
 	expected["vpp4ios_apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp4",
-		Source:      "ios_apps",
-		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp4, Platform: "ios", SelfService: ptr.Bool(false)},
+		Name:             "vpp4",
+		Source:           "ios_apps",
+		BundleIdentifier: "com.app.vpp4",
+		Status:           nil,
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp4, Platform: "ios", SelfService: new(false)},
 	}
 	expectedAvailableOnly := map[string]fleet.HostSoftwareWithInstaller{}
 	expectedAvailableOnly["vpp1ios_apps"] = expected["vpp1ios_apps"]
@@ -5940,6 +5959,8 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "1.2.3", sw[0].InstalledVersions[0].Version)
 	assert.Equal(t, "apps", sw[0].InstalledVersions[0].Source)
 	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].InstalledVersions[0].BundleIdentifier)
+	// top-level bundle_identifier comes from software_titles.bundle_identifier
+	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].BundleIdentifier)
 
 	// The vpp app is installed by fleet, and also has been inventoried by osquery
 	// Ensure we don't lose the version for the vpp app
@@ -5975,6 +5996,7 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, vPPApp.Name, sw[0].Name)
 	assert.Equal(t, vPPApp.AdamID, sw[0].AppStoreApp.AppStoreID)
 	assert.Equal(t, "0.1.0", sw[0].InstalledVersions[0].Version)
+	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].BundleIdentifier)
 	assert.Nil(t, sw[0].Status)
 
 	// insert an icon
@@ -12010,4 +12032,144 @@ func testSoftwareLiteByID(t *testing.T, ds *Datastore) {
 	_, err = ds.SoftwareLiteByID(ctx, 999999)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+}
+
+func testListSoftwareForVulnDetectionByOSVersion(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create two hosts with the same OS version and overlapping software.
+	host1 := test.NewHost(t, ds, "osv-host1", "", "osv-host1key", "osv-host1uuid", time.Now())
+	host1.Platform = "ubuntu"
+	host1.OSVersion = "Ubuntu 22.04.1 LTS"
+	require.NoError(t, ds.UpdateHost(ctx, host1))
+
+	host2 := test.NewHost(t, ds, "osv-host2", "", "osv-host2key", "osv-host2uuid", time.Now())
+	host2.Platform = "ubuntu"
+	host2.OSVersion = "Ubuntu 22.04.1 LTS"
+	require.NoError(t, ds.UpdateHost(ctx, host2))
+
+	// Create a host with a different OS version.
+	host3 := test.NewHost(t, ds, "osv-host3", "", "osv-host3key", "osv-host3uuid", time.Now())
+	host3.Platform = "ubuntu"
+	host3.OSVersion = "Ubuntu 20.04.1 LTS"
+	require.NoError(t, ds.UpdateHost(ctx, host3))
+
+	sharedSoftware := []fleet.Software{
+		{Name: "libfoo", Version: "1.2.3", Source: "deb_packages"},
+		{Name: "libbar", Version: "4.5.6", Source: "deb_packages"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, sharedSoftware)
+	require.NoError(t, err)
+
+	host2Software := []fleet.Software{
+		{Name: "libfoo", Version: "1.2.3", Source: "deb_packages"}, // shared with host1
+		{Name: "libbaz", Version: "7.8.9", Source: "deb_packages"}, // unique to host2
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, host2Software)
+	require.NoError(t, err)
+
+	host3Software := []fleet.Software{
+		{Name: "libother", Version: "0.0.1", Source: "deb_packages"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, host3Software)
+	require.NoError(t, err)
+
+	// Query for Ubuntu 22.04.1 LTS — should return 3 distinct software items.
+	result, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, fleet.OSVersion{
+		Platform: "ubuntu",
+		Name:     "Ubuntu 22.04.1 LTS",
+	})
+	require.NoError(t, err)
+
+	names := make([]string, len(result))
+	for i, sw := range result {
+		names[i] = sw.Name
+	}
+	sort.Strings(names)
+	require.Equal(t, []string{"libbar", "libbaz", "libfoo"}, names)
+
+	// Verify no duplicates (libfoo exists on both hosts but should appear once).
+	require.Len(t, result, 3)
+
+	// Query for Ubuntu 20.04.1 LTS — should return only host3's software.
+	result, err = ds.ListSoftwareForVulnDetectionByOSVersion(ctx, fleet.OSVersion{
+		Platform: "ubuntu",
+		Name:     "Ubuntu 20.04.1 LTS",
+	})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.Equal(t, "libother", result[0].Name)
+
+	// Query for nonexistent OS — should return nil.
+	result, err = ds.ListSoftwareForVulnDetectionByOSVersion(ctx, fleet.OSVersion{
+		Platform: "ubuntu",
+		Name:     "Ubuntu 99.99 LTS",
+	})
+	require.NoError(t, err)
+	require.Nil(t, result)
+}
+
+func testListSoftwareVulnerabilitiesBySoftwareIDs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create some software.
+	host := test.NewHost(t, ds, "vuln-sw-host", "", "vuln-sw-hostkey", "vuln-sw-hostuuid", time.Now())
+	software := []fleet.Software{
+		{Name: "pkg-a", Version: "1.0", Source: "deb_packages"},
+		{Name: "pkg-b", Version: "2.0", Source: "deb_packages"},
+		{Name: "pkg-c", Version: "3.0", Source: "deb_packages"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	// Look up software by name to avoid depending on unstable ordering.
+	swByName := make(map[string]fleet.HostSoftwareEntry, len(host.Software))
+	for _, sw := range host.Software {
+		swByName[sw.Name] = sw
+	}
+	swA := swByName["pkg-a"]
+	swB := swByName["pkg-b"]
+	swC := swByName["pkg-c"]
+
+	// Insert vulns with different sources.
+	_, err = ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
+		{SoftwareID: swA.ID, CVE: "CVE-2024-0001"},
+		{SoftwareID: swA.ID, CVE: "CVE-2024-0002"},
+		{SoftwareID: swB.ID, CVE: "CVE-2024-0003"},
+	}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+
+	_, err = ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
+		{SoftwareID: swA.ID, CVE: "CVE-2024-9999"},
+		{SoftwareID: swC.ID, CVE: "CVE-2024-8888"},
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// Query OSV source for swA and swB — should return 3 vulns (2 for swA, 1 for swB).
+	result, err := ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, []uint{swA.ID, swB.ID}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+	require.Len(t, result, 3)
+
+	cves := make([]string, len(result))
+	for i, v := range result {
+		cves[i] = v.CVE
+	}
+	sort.Strings(cves)
+	require.Equal(t, []string{"CVE-2024-0001", "CVE-2024-0002", "CVE-2024-0003"}, cves)
+
+	// Query OSV source for swC — should return empty (swC's vulns are NVD source).
+	result, err = ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, []uint{swC.ID}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+	require.Empty(t, result)
+
+	// Query NVD source for swA and swC — should return 2 vulns.
+	result, err = ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, []uint{swA.ID, swC.ID}, fleet.NVDSource)
+	require.NoError(t, err)
+	require.Len(t, result, 2)
+
+	// Empty software IDs — should return nil.
+	result, err = ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, []uint{}, fleet.UbuntuOSVSource)
+	require.NoError(t, err)
+	require.Nil(t, result)
 }

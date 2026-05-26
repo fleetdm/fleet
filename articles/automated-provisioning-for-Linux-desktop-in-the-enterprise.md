@@ -7,7 +7,7 @@
 - Part 3: [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux)
 - Part 4: [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates)
 - Part 5: [Protecting the Linux device: remote wipe, USB and sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo)
-- Part 6: [Data and Endpoint Sovereignty: Owning Your Destiny](https://fleetdm.com/articles/data-and-endpoint-sovereignty-owning-your-destiny)
+- Part 6: [Software and data sovereignty for Linux management](https://fleetdm.com/articles/data-and-endpoint-sovereignty-owning-your-destiny)
 
 -----
 
@@ -57,7 +57,7 @@ Third, automated device provisioning establishes the connection between **end us
 
 ## Best practices for automated provisioning on Linux deployments
 
-If your organization is purchasing computers directly from a large manufacturer like Dell or Lenovo, or from a 3rd party reseller like CDW or SHI, they all offer computers preinstalled with Linux. This is often the simplest and best way to start with enterprise Linux deployments. There is no MDM specification / protocol for Linux and there is no central registry for Linux computers like [Apple Business Manager (ABM)](https://support.apple.com/guide/apple-business-manager/sign-up-axm402206497/web) or [Microsoft Entra](https://learn.microsoft.com/en-us/entra/fundamentals/what-is-entra).
+If your organization is purchasing computers directly from a large manufacturer like Dell or Lenovo, or from a 3rd party reseller like CDW or SHI, they all offer computers preinstalled with Linux. This is often the simplest and best way to start with enterprise Linux deployments. There is no MDM specification / protocol for Linux and there is no central registry for Linux computers like [Apple Business (AB)](https://support.apple.com/guide/apple-business-manager/sign-up-axm402206497/web) or [Microsoft Entra](https://learn.microsoft.com/en-us/entra/fundamentals/what-is-entra).
 
 Typically, orchestration approaches are used for managing Linux devices at scale.
 

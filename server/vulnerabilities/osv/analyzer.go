@@ -24,9 +24,10 @@ const (
 
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
 
-// IsPlatformSupported returns true if the given platform is supported by OSV
+// IsPlatformSupported returns true if the given platform is supported by OSV.
 func IsPlatformSupported(platform string) bool {
-	return strings.ToLower(platform) == "ubuntu"
+	p := strings.ToLower(platform)
+	return p == "ubuntu" || p == "rhel"
 }
 
 // OSVArtifact represents the processed OSV data for a specific Ubuntu version
@@ -50,6 +51,128 @@ type OSVVulnerability struct {
 	Versions   []string  `json:"versions,omitempty"`
 }
 
+type softwareMatcher func(software []fleet.Software) []fleet.SoftwareVulnerability
+
+const softwareBatchSize = 5000
+
+func analyzeOSV(
+	ctx context.Context,
+	ds fleet.Datastore,
+	ver fleet.OSVersion,
+	source fleet.VulnerabilitySource,
+	matcher softwareMatcher,
+	collectVulns bool,
+	logger *slog.Logger,
+) ([]fleet.SoftwareVulnerability, error) {
+	// Get distinct software for this OS version (replaces per-host ListSoftwareForVulnDetection).
+	softwareStart := time.Now().UTC()
+	software, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, ver)
+	if err != nil {
+		return nil, fmt.Errorf("listing software for OS version: %w", err)
+	}
+	softwareTime := time.Since(softwareStart)
+
+	if len(software) == 0 {
+		logger.DebugContext(ctx, "no software found for os version",
+			"platform", ver.Platform, "version", ver.Version)
+		return nil, nil
+	}
+
+	var (
+		totalFound    int
+		totalExisting int
+		totalInsert   int
+		totalDelete   int
+		matchTime     time.Duration
+		existingTime  time.Duration
+		allNewVulns   []fleet.SoftwareVulnerability
+	)
+
+	for i := 0; i < len(software); i += softwareBatchSize {
+		end := min(i+softwareBatchSize, len(software))
+		chunk := software[i:end]
+
+		// Match this chunk against the artifact.
+		matchStart := time.Now().UTC()
+		found := matcher(chunk)
+		matchTime += time.Since(matchStart)
+
+		// Collect software IDs for this chunk.
+		chunkIDs := make([]uint, len(chunk))
+		for j, sw := range chunk {
+			chunkIDs[j] = sw.ID
+		}
+
+		// Get existing vulns scoped to this chunk's software IDs.
+		existingStart := time.Now().UTC()
+		existing, err := ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, chunkIDs, source)
+		if err != nil {
+			return nil, fmt.Errorf("listing existing vulnerabilities: %w", err)
+		}
+		existingTime += time.Since(existingStart)
+
+		// Compute delta for this chunk.
+		toInsert, toDelete := utils.VulnsDelta(found, existing)
+
+		totalFound += len(found)
+		totalExisting += len(existing)
+		totalInsert += len(toInsert)
+		totalDelete += len(toDelete)
+
+		// Delete stale vulnerabilities for this chunk.
+		if len(toDelete) > 0 {
+			toDeleteMap := make(map[string]fleet.SoftwareVulnerability, len(toDelete))
+			for _, v := range toDelete {
+				toDeleteMap[v.Key()] = v
+			}
+			if err := utils.BatchProcess(toDeleteMap, func(v []fleet.SoftwareVulnerability) error {
+				return ds.DeleteSoftwareVulnerabilities(ctx, v)
+			}, vulnBatchSize); err != nil {
+				return nil, fmt.Errorf("deleting stale vulnerabilities: %w", err)
+			}
+		}
+
+		// Deduplicate and insert new vulnerabilities for this chunk.
+		if len(toInsert) > 0 {
+			seen := make(map[string]struct{}, len(toInsert))
+			dedupedInsert := make([]fleet.SoftwareVulnerability, 0, len(toInsert))
+			for _, v := range toInsert {
+				if _, ok := seen[v.Key()]; !ok {
+					seen[v.Key()] = struct{}{}
+					dedupedInsert = append(dedupedInsert, v)
+				}
+			}
+
+			newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, dedupedInsert, source)
+			if err != nil {
+				return nil, fmt.Errorf("inserting software vulnerabilities: %w", err)
+			}
+			if collectVulns {
+				allNewVulns = append(allNewVulns, newVulns...)
+			}
+		}
+	}
+
+	logger.DebugContext(ctx, "osv analysis completed",
+		"platform", ver.Platform,
+		"version", ver.Version,
+		"distinct_software", len(software),
+		"software_query_time", softwareTime,
+		"match_time", matchTime,
+		"existing_query_time", existingTime,
+		"found_vulns", totalFound,
+		"existing_vulns", totalExisting,
+		"to_insert", totalInsert,
+		"to_delete", totalDelete,
+	)
+
+	if !collectVulns {
+		return nil, nil
+	}
+
+	return allNewVulns, nil
+}
+
 // Analyze scans all hosts for vulnerabilities based on the OSV artifacts for their platform
 func Analyze(
 	ctx context.Context,
@@ -60,7 +183,7 @@ func Analyze(
 	logger *slog.Logger,
 	date time.Time,
 ) ([]fleet.SoftwareVulnerability, error) {
-	if !IsPlatformSupported(ver.Platform) {
+	if strings.ToLower(ver.Platform) != "ubuntu" {
 		return nil, ErrUnsupportedPlatform
 	}
 
@@ -69,85 +192,9 @@ func Analyze(
 		return nil, fmt.Errorf("loading OSV artifact: %w", err)
 	}
 
-	source := fleet.UbuntuOSVSource
-	toInsertSet := make(map[string]fleet.SoftwareVulnerability)
-	toDeleteSet := make(map[string]fleet.SoftwareVulnerability)
-	totalHosts := 0
-
-	// Paginate through all hosts with this OS version
-	var offset int
-	for {
-		hostIDs, err := ds.HostIDsByOSVersion(ctx, ver, offset, hostsBatchSize)
-		if err != nil {
-			return nil, fmt.Errorf("getting host IDs: %w", err)
-		}
-
-		if len(hostIDs) == 0 {
-			break
-		}
-
-		totalHosts += len(hostIDs)
-		offset += hostsBatchSize
-
-		foundInBatch := make(map[uint][]fleet.SoftwareVulnerability)
-		for _, hostID := range hostIDs {
-			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{
-				HostID: &hostID,
-			})
-			if err != nil {
-				return nil, fmt.Errorf("listing software for host %d: %w", hostID, err)
-			}
-
-			foundInBatch[hostID] = matchSoftwareToOSV(software, artifact)
-		}
-
-		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)
-		if err != nil {
-			return nil, fmt.Errorf("listing existing vulnerabilities: %w", err)
-		}
-
-		for _, hostID := range hostIDs {
-			insrt, del := utils.VulnsDelta(foundInBatch[hostID], existingInBatch[hostID])
-			for _, i := range insrt {
-				toInsertSet[i.Key()] = i
-			}
-			for _, d := range del {
-				toDeleteSet[d.Key()] = d
-			}
-		}
-	}
-
-	if totalHosts == 0 {
-		logger.DebugContext(ctx, "no hosts found for os version", "platform", ver.Platform, "version", ver.Version)
-		return nil, nil
-	}
-
-	logger.DebugContext(ctx, "processed hosts for osv analysis", "platform", ver.Platform, "version", ver.Version, "host_count", totalHosts)
-
-	// Delete stale vulnerabilities
-	err = utils.BatchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
-		return ds.DeleteSoftwareVulnerabilities(ctx, v)
-	}, vulnBatchSize)
-	if err != nil {
-		return nil, fmt.Errorf("deleting stale vulnerabilities: %w", err)
-	}
-
-	// Insert new vulnerabilities
-	allVulns := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
-	for _, v := range toInsertSet {
-		allVulns = append(allVulns, v)
-	}
-
-	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source)
-	if err != nil {
-		return nil, fmt.Errorf("inserting software vulnerabilities: %w", err)
-	}
-
-	if !collectVulns {
-		return nil, nil
-	}
-
-	return newVulns, nil
+	return analyzeOSV(ctx, ds, ver, fleet.UbuntuOSVSource, func(sw []fleet.Software) []fleet.SoftwareVulnerability {
+		return matchSoftwareToOSV(sw, artifact)
+	}, collectVulns, logger)
 }
 
 // findLatestOSVArtifactForVersion finds the most recent OSV artifact for a specific Ubuntu version
@@ -379,4 +426,233 @@ func isVulnerable(softwareVersion string, vuln OSVVulnerability, isKernelPackage
 	}
 
 	return true
+}
+
+// --- RHEL OSV support ---
+
+// RHELOSVArtifact represents the processed OSV data for a specific RHEL major version.
+type RHELOSVArtifact struct {
+	SchemaVersion   string                        `json:"schema_version"`
+	RHELVersion     string                        `json:"rhel_version"`
+	Generated       time.Time                     `json:"generated"`
+	TotalCVEs       int                           `json:"total_cves"`
+	TotalPackages   int                           `json:"total_packages"`
+	Vulnerabilities map[string][]OSVVulnerability `json:"vulnerabilities"`
+}
+
+// extractRHELMajorVersion extracts the major RHEL version from an OSVersion.Version string.
+// Uses Version (e.g., "9.4.0") rather than Name (e.g., "Red Hat Enterprise Linux Server 8.2.0")
+// because Name varies inconsistently (the "Server" suffix appears only on some versions).
+//
+// Examples:
+//
+//	"9.4.0"  → "9"
+//	"8.10.0" → "8"
+//	"7.9.0"  → "7"
+func extractRHELMajorVersion(version string) string {
+	version = strings.TrimSpace(version)
+	parts := strings.Split(version, ".")
+	if len(parts) < 1 || parts[0] == "" {
+		return ""
+	}
+	return parts[0]
+}
+
+// rhelKernelPackages maps installed kernel package variants to the "kernel" package name
+// used in OSV artifacts. OSV lists vulnerabilities under "kernel", but hosts may have
+// kernel-core, kernel-modules, etc. installed.
+var rhelKernelPackages = map[string]struct{}{
+	"kernel":                     {},
+	"kernel-core":                {},
+	"kernel-modules":             {},
+	"kernel-modules-core":        {},
+	"kernel-modules-extra":       {},
+	"kernel-debug":               {},
+	"kernel-debug-core":          {},
+	"kernel-debug-modules":       {},
+	"kernel-debug-modules-extra": {},
+	"kernel-devel":               {},
+	"kernel-debug-devel":         {},
+	"kernel-tools":               {},
+	"kernel-tools-libs":          {},
+	"kernel-headers":             {},
+}
+
+// matchSoftwareToRHELOSV matches RPM software against RHEL OSV vulnerabilities.
+func matchSoftwareToRHELOSV(software []fleet.Software, artifact *RHELOSVArtifact) []fleet.SoftwareVulnerability {
+	var result []fleet.SoftwareVulnerability
+
+	for _, sw := range software {
+		packageName := sw.Name
+
+		// Map kernel variants to "kernel"
+		if _, isKernel := rhelKernelPackages[sw.Name]; isKernel {
+			packageName = "kernel"
+		}
+
+		vulns, ok := artifact.Vulnerabilities[packageName]
+		if !ok {
+			continue
+		}
+
+		for _, vuln := range vulns {
+			if isVulnerableRPM(sw.Version, sw.Release, vuln) {
+				var resolvedIn *string
+				if vuln.Fixed != "" {
+					fixed := vuln.Fixed
+					resolvedIn = &fixed
+				}
+				result = append(result, fleet.SoftwareVulnerability{
+					SoftwareID:        sw.ID,
+					CVE:               vuln.CVE,
+					ResolvedInVersion: resolvedIn,
+				})
+			}
+		}
+	}
+
+	return result
+}
+
+// isVulnerableRPM checks if an RPM software version is vulnerable based on OSV data.
+// Uses Rpmvercmp for RPM epoch:version-release comparison.
+func isVulnerableRPM(softwareVersion, softwareRelease string, vuln OSVVulnerability) bool {
+	// Build current version string: "version-release"
+	current := softwareVersion
+	if softwareRelease != "" {
+		current = softwareVersion + "-" + softwareRelease
+	}
+
+	introduced := vuln.Introduced
+	if introduced == "" {
+		introduced = "0"
+	}
+
+	if introduced != "0" {
+		if utils.Rpmvercmp(current, introduced) < 0 {
+			return false
+		}
+	}
+
+	if vuln.Fixed != "" {
+		return utils.Rpmvercmp(current, vuln.Fixed) < 0
+	}
+
+	// No fixed version — still vulnerable if introduced
+	return true
+}
+
+// AnalyzeRHEL scans all hosts for RHEL vulnerabilities based on OSV artifacts.
+func AnalyzeRHEL(
+	ctx context.Context,
+	ds fleet.Datastore,
+	ver fleet.OSVersion,
+	vulnPath string,
+	collectVulns bool,
+	logger *slog.Logger,
+	date time.Time,
+) ([]fleet.SoftwareVulnerability, error) {
+	if strings.ToLower(ver.Platform) != "rhel" {
+		return nil, ErrUnsupportedPlatform
+	}
+
+	// Fedora reports platform "rhel" but Red Hat OSV data does not cover Fedora.
+	if strings.Contains(ver.Name, "Fedora") {
+		return nil, ErrUnsupportedPlatform
+	}
+
+	artifact, err := loadRHELOSVArtifact(ctx, ver, vulnPath, logger, date)
+	if err != nil {
+		return nil, fmt.Errorf("loading RHEL OSV artifact: %w", err)
+	}
+
+	return analyzeOSV(ctx, ds, ver, fleet.RHELOSVSource, func(sw []fleet.Software) []fleet.SoftwareVulnerability {
+		return matchSoftwareToRHELOSV(sw, artifact)
+	}, collectVulns, logger)
+}
+
+// findLatestRHELOSVArtifactForVersion finds the most recent RHEL OSV artifact for a major version.
+func findLatestRHELOSVArtifactForVersion(vulnPath string, rhelVersion string) (string, error) {
+	files, err := os.ReadDir(vulnPath)
+	if err != nil {
+		return "", fmt.Errorf("reading vulnerability path: %w", err)
+	}
+
+	prefix := fmt.Sprintf("osv-rhel-%s-", rhelVersion)
+	suffix := ".json.gz"
+
+	var latestFile os.DirEntry
+	var latestModTime time.Time
+
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+
+		name := f.Name()
+		if strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix) && !strings.Contains(name, "delta") {
+			info, err := f.Info()
+			if err != nil {
+				continue
+			}
+
+			if latestFile == nil || info.ModTime().After(latestModTime) {
+				latestFile = f
+				latestModTime = info.ModTime()
+			}
+		}
+	}
+
+	if latestFile == nil {
+		return "", fmt.Errorf("no RHEL OSV artifact found for RHEL %s", rhelVersion)
+	}
+
+	return filepath.Join(vulnPath, latestFile.Name()), nil
+}
+
+// loadRHELOSVArtifact loads the RHEL OSV artifact for the given OS version.
+func loadRHELOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, logger *slog.Logger, date time.Time) (*RHELOSVArtifact, error) {
+	rhelVer := extractRHELMajorVersion(ver.Version)
+	if rhelVer == "" {
+		return nil, fmt.Errorf("could not extract RHEL version from %s", ver.Name)
+	}
+
+	fileName := rhelOSVFilename(rhelVer, date)
+	artifactFile := filepath.Join(vulnPath, fileName)
+
+	if _, err := os.Stat(artifactFile); err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("checking RHEL OSV artifact %s: %w", artifactFile, err)
+		}
+
+		artifactFile, err = findLatestRHELOSVArtifactForVersion(vulnPath, rhelVer)
+		if err != nil {
+			return nil, fmt.Errorf("finding RHEL OSV artifact for RHEL %s: %w", rhelVer, err)
+		}
+	}
+
+	f, err := os.Open(artifactFile)
+	if err != nil {
+		return nil, fmt.Errorf("opening RHEL OSV artifact: %w", err)
+	}
+	defer f.Close()
+
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return nil, fmt.Errorf("creating gzip reader: %w", err)
+	}
+	defer gz.Close()
+
+	var artifact RHELOSVArtifact
+	if err := json.NewDecoder(gz).Decode(&artifact); err != nil {
+		return nil, fmt.Errorf("decoding RHEL OSV artifact: %w", err)
+	}
+
+	logger.DebugContext(ctx, "loaded rhel osv artifact",
+		"file", filepath.Base(artifactFile),
+		"rhel_version", artifact.RHELVersion,
+		"total_packages", artifact.TotalPackages,
+		"total_cves", artifact.TotalCVEs)
+
+	return &artifact, nil
 }

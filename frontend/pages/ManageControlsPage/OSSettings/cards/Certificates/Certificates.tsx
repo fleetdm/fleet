@@ -20,7 +20,7 @@ import DataError from "components/DataError";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import {
@@ -110,12 +110,15 @@ const Certificates = ({
     }
     if (!androidMdmEnabled) {
       return (
-        <GenericMsgWithNavButton
+        <EmptyState
+          variant="header-list"
           header="Additional configuration required"
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
           info="Android MDM must be turned on to add certificates."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       );
     }

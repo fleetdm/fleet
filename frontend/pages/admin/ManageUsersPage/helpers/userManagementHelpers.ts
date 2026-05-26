@@ -1,0 +1,97 @@
+import { isEqual } from "lodash";
+
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import { IInvite } from "interfaces/invite";
+import { IUser, IUpdateUserFormData } from "interfaces/user";
+import { IUserFormData } from "../components/UserForm/UserForm";
+
+type ICurrentUserData = Pick<
+  IUser,
+  "global_role" | "teams" | "name" | "email" | "sso_enabled" | "mfa_enabled"
+>;
+
+export interface IRoleOptionsParams {
+  isPremiumTier?: boolean;
+  isApiOnly?: boolean;
+}
+
+/**
+ * Helper function that will compare the current user with data from the editing
+ * form and return an object with the difference between the two. This can be
+ * be used for PATCH updates when updating a user.
+ * @param currentUserData
+ * @param formData
+ */
+const generateUpdateData = (
+  currentUserData: IUser | IInvite,
+  formData: IUserFormData
+): IUpdateUserFormData => {
+  const updatableFields = [
+    "global_role",
+    "teams",
+    "name",
+    "email",
+    "sso_enabled",
+    "mfa_enabled",
+  ];
+  return Object.keys(formData).reduce<IUpdateUserFormData>(
+    (updatedAttributes, attr) => {
+      const key = attr as keyof ICurrentUserData;
+      // attribute can be updated and is different from the current value.
+      if (
+        updatableFields.includes(attr) &&
+        !isEqual(formData[key], currentUserData[key])
+      ) {
+        (updatedAttributes as Record<string, unknown>)[attr] = formData[key];
+      }
+      return updatedAttributes;
+    },
+    {}
+  );
+};
+
+export const roleOptions = ({
+  isPremiumTier,
+  isApiOnly,
+}: IRoleOptionsParams): CustomOptionType[] => {
+  const roles: CustomOptionType[] = [
+    {
+      label: "Observer",
+      value: "observer",
+    },
+    {
+      label: "Maintainer",
+      value: "maintainer",
+    },
+    {
+      label: "Admin",
+      value: "admin",
+    },
+  ];
+
+  if (isPremiumTier) {
+    roles.splice(1, 0, {
+      label: "Observer+",
+      value: "observer_plus",
+    });
+
+    roles.splice(2, 0, {
+      label: "Technician",
+      value: "technician",
+    });
+
+    if (isApiOnly) {
+      roles.splice(3, 0, {
+        label: "GitOps",
+        value: "gitops",
+      });
+    }
+  }
+
+  return roles;
+};
+
+export default {
+  generateUpdateData,
+  roleOptions,
+};

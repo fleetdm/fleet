@@ -14,6 +14,11 @@ module.exports = {
       example: 'rydahl@example.com',
       type: 'string',
       required: true
+    },
+
+    websiteUrl: {
+      type: 'string',
+      description: 'Honeypot field. If filled, the submission is silently discarded.'
     }
 
   },
@@ -28,7 +33,9 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress}) {
+  fn: async function ({emailAddress, websiteUrl}) {
+
+    if (websiteUrl) { return; }// Honeypot input provided — return a success response
 
     // Find the record for this user.
     // (Even if no such user exists, pretend it worked to discourage sniffing.)

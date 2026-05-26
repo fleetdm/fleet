@@ -35,7 +35,7 @@ The ambition of Fleet's product roadmap is to reach [product maturity](http://fl
 
 ## Security 
 
-Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/it/security#human-resources-security-policy), [carry Yubikeys](https://fleetdm.com/handbook/it/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/it/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/it/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/it/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
+Security policies are best when they're alive, in context of how an organization operates.  Fleeties [follow onboarding and offboarding SLAs](https://fleetdm.com/handbook/it/security#human-resources-security-policy), [use Okta Verify with FastPass](https://fleetdm.com/handbook/it/security#hardware-security-keys), use a password manager (even for [personal devices](https://fleetdm.com/handbook/it/security#personal-mobile-devices)), implement change control of [policies](https://fleetdm.com/handbook/it/security#security-policies), [recover their accounts via strict processes](https://fleetdm.com/handbook/it/security#account-recovery-process), and access control is driven primarily through GitOps and SSO. 
 
 
 ### Trust
@@ -89,8 +89,8 @@ Fleet is successful because of our customers and community, and those relationsh
 | What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
-| Fleet-maintained apps                  | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it#team)_</sup></sub>
-
+| Fleet-maintained apps                | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it#team)_</sup></sub>
+| Apple Enterprise integrations        | <sup><sub>_[George Karr](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 
 
 ## Meetings
@@ -240,7 +240,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company. 
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
-- **"¶":** _(E-group - Direct reports the the CEO)_
+- **"¶":** _(E-group - Direct reports to the CEO)_
 - **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and GTM Systems Architect)_
 
 
@@ -380,6 +380,8 @@ Before committing anything to code, we create wireframes (referred to as ["draft
 
 The [Product Design](https://fleetdm.com/handbook/product-design#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
+> Temporary landing pages follow a different process. See [temporary landing pages](https://fleetdm.com/handbook/company/writing#temporary-landing-pages).
+
 
 ## Design at Fleet
 
@@ -483,6 +485,7 @@ When posting about a personal or philosophical topic that potential Fleet custom
 - Record at 1920x1080, 30 fps. Save as `.mp4` (h.264/AAC) or `.mov`. Don't use `.webm`.
 - Add a few seconds of silence at the start and end of each recording.
 - Name files: `[release number]-[issue #]-demo-[YYYY-MM-DD].[extension]`
+- Make sure videos are shared as downloadable
 
 #### Best practices
 **Browser and terminal:**
@@ -501,7 +504,7 @@ When posting about a personal or philosophical topic that potential Fleet custom
 - Don't show or say customer names, codenames, or real email addresses.
 
 **Playback:**
-- Don't enable closed captions during recording (they're added later if needed).
+- Don't enable closed captions during sprint demo recording (they're added later if needed).
 
 
 ## Feedback
@@ -709,6 +712,13 @@ Either way, it's up to you to make sure that your responsibilities are covered a
 In this section, you can find information about Fleet's benefit strategies and decisions.
 
 
+### Health coverage
+
+**US-based team members:** Fleet offers premium US benefits that includes health, dental, and life insurance, with 66%+ coverage for dependents.
+
+**International team members:** Fleet provides premium health benefits for international employees via our employer of record [Remote](https://remote.com).
+
+
 ### Paid time off
 
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
@@ -730,7 +740,7 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 
 ### Wellness budget 
 
-Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. This is a "use-it-or-lose-it" monthly budget that cannot be carried over to future months. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
 
 
 ### Compensation

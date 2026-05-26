@@ -1,1 +1,0 @@
-* Fixed fleetd installation failure on macOS when installing it through Host details page > Software > Library as a Custom package.

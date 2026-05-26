@@ -1,0 +1,49 @@
+name: Test fleet-mcp
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/fleet-mcp/**'
+      - '.github/workflows/test-fleet-mcp.yml'
+  pull_request:
+    paths:
+      - 'tools/fleet-mcp/**'
+      - '.github/workflows/test-fleet-mcp.yml'
+  workflow_dispatch: # Manual
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Install Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: 'tools/fleet-mcp/go.mod'
+
+      - name: Run tests
+        working-directory: tools/fleet-mcp
+        run: go test -race -count=1 ./...

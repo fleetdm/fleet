@@ -14,23 +14,6 @@
         overflow-y: auto;
       }
     }
-    &__no-software {
-      display: flex;
-      height: 178px;
-      flex-direction: column;
-      align-items: center;
-      gap: $pad-small;
-      justify-content: center;
-      font-size: $small;
-
-      div {
-        color: $ui-fleet-black-75;
-        font-size: $xx-small;
-        a {
-          font-size: inherit;
-        }
-      }
-    }
     .data-error {
       padding: 78px;
     }

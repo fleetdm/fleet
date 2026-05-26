@@ -49,7 +49,7 @@ E218D7A7B0DFED79B20573BA79CB14B1FEEAD27B
 * Your SCEP challenge should be plain text
 * Avoid special characters that can break XML or transport
 * **Recommended**: letters, numbers only
-* If your challenge contains `! @ # $ % ^ & * ( ) _`, rotate to a simpler value
+* If your challenge contains `! @ # $ % ^ & * , ( ) _`, rotate to a simpler value
 
 ## Quick checklist
 

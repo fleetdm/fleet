@@ -149,6 +149,19 @@ describe("RunScriptBatchModal", () => {
     });
   });
 
+  it("renders empty state with Add a script link when no scripts exist", async () => {
+    mockServer.use(
+      http.get(baseUrl("/scripts"), () => {
+        return HttpResponse.json({ scripts: [] });
+      })
+    );
+    render(<RunScriptBatchModal {...defaultProps} />);
+
+    expect(await screen.findByText("No scripts available")).toBeInTheDocument();
+    expect(screen.getByText("Add a script")).toBeInTheDocument();
+    expect(screen.getByText(/to this fleet/)).toBeInTheDocument();
+  });
+
   describe("after clicking run script", () => {
     it("shows the correct heading for linux/macos scripts", async () => {
       const { user } = render(<RunScriptBatchModal {...defaultProps} />);

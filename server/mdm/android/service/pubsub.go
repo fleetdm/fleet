@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -66,6 +67,8 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 		return svc.handlePubSubEnrollment(ctx, token, rawData)
 	case android.PubSubStatusReport:
 		return svc.handlePubSubStatusReport(ctx, token, rawData)
+	case android.PubSubCommand:
+		return svc.handlePubSubCommand(ctx, token, rawData)
 	default:
 		// Ignore unknown notification types
 		svc.logger.DebugContext(ctx, "Ignoring PubSub notification type", "notification", notificationType)
@@ -115,6 +118,138 @@ func (svc *Service) getClientAuthenticationSecret(ctx context.Context) (string, 
 	return string(assets[fleet.MDMAssetAndroidFleetServerSecret].Value), nil
 }
 
+// handlePubSubCommand processes an AMAPI COMMAND notification, which AMAPI delivers as an Operation envelope whose Name
+// is the operation_name we recorded at IssueCommand time. The envelope's Error field, when populated, indicates AMAPI
+// rejected the command (or the device rejected it); otherwise the device executed it successfully. We correlate the
+// notification to the Fleet row via operation_name and transition the mdm_android_commands row from pending to
+// acknowledged or error. host_mdm_actions does not need updating: HostLockWipeStatus reads the row status string
+// directly.
+func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawData []byte) error {
+	if err := svc.authenticatePubSub(ctx, token); err != nil {
+		return err
+	}
+
+	var op androidmanagement.Operation
+	if err := json.Unmarshal(rawData, &op); err != nil {
+		return ctxerr.Wrap(ctx, err, "decode android pub/sub COMMAND payload")
+	}
+	if op.Name == "" {
+		// AMAPI promises Name on every notification we issue, so an empty name means the payload is malformed (or possibly a
+		// different shape we don't recognize). Log and ack to avoid Pub/Sub retry loops.
+		svc.logger.WarnContext(ctx, "android pub/sub COMMAND missing operation name", "raw_size", len(rawData))
+		return nil
+	}
+
+	// Google long-running Operations use done=false for in-progress states. AMAPI's COMMAND notifications today only fire
+	// when done=true, but guard defensively: if the operation isn't terminal yet, don't transition state. Ack so Pub/Sub
+	// doesn't retry.
+	if !op.Done {
+		svc.logger.DebugContext(ctx, "android pub/sub COMMAND not yet done, skipping state transition",
+			"operation_name", op.Name)
+		return nil
+	}
+
+	cmd, err := svc.fleetDS.GetMDMAndroidCommandByOperationName(ctx, op.Name)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Two cases to distinguish:
+			//   1. Race: AMAPI delivered the notification before our IssueCommand-then-insert
+			//      transaction committed. The row will exist on retry.
+			//   2. Device (and its command rows) are gone -- COBO unenroll deleted the device from
+			//      AMAPI, manual cleanup removed the row, etc. Retrying forever is wasteful.
+			// We disambiguate by asking AMAPI whether the device still exists. If AMAPI returns
+			// NotFound, the command is genuinely orphaned -- ack. Otherwise return error so
+			// Pub/Sub retries (race window will resolve, transient errors will recover).
+			return svc.ackOrRetryUnknownAndroidOperation(ctx, op.Name, err)
+		}
+		return ctxerr.Wrap(ctx, err, "lookup android command by operation name")
+	}
+
+	// Already-terminal rows: don't re-transition. AMAPI may redeliver a notification at-least-once.
+	if cmd.Status != string(android.MDMAndroidCommandStatusPending) {
+		svc.logger.InfoContext(ctx, "android pub/sub COMMAND already terminal, ignoring",
+			"operation_name", op.Name, "command_uuid", cmd.CommandUUID, "current_status", cmd.Status)
+		return nil
+	}
+
+	newStatus := string(android.MDMAndroidCommandStatusAcknowledged)
+	var errCode, errMsg *string
+	if op.Error != nil {
+		newStatus = string(android.MDMAndroidCommandStatusError)
+		code := googleStatusCode(op.Error.Code)
+		message := op.Error.Message
+		errCode = &code
+		errMsg = &message
+	}
+
+	if err := svc.fleetDS.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID, newStatus, errCode, errMsg); err != nil {
+		return ctxerr.Wrap(ctx, err, "update android command status from pub/sub")
+	}
+
+	svc.logger.InfoContext(ctx, "android pub/sub COMMAND processed",
+		"operation_name", op.Name,
+		"command_uuid", cmd.CommandUUID,
+		"command_type", cmd.CommandType,
+		"new_status", newStatus,
+	)
+	return nil
+}
+
+// ackOrRetryUnknownAndroidOperation is the NotFound branch of handlePubSubCommand. It looks up
+// the host associated with the AMAPI device referenced by opName in Fleet's DB to distinguish
+// "race window, row will arrive" (host still exists -> retry) from "host was deleted, row is
+// genuinely orphaned" (host NotFound -> ack). lookupErr is the original NotFound from the
+// command row lookup, returned wrapped when we choose to retry. On any non-NotFound DB error we
+// retry (transient errors will recover).
+func (svc *Service) ackOrRetryUnknownAndroidOperation(ctx context.Context, opName string, lookupErr error) error {
+	deviceID := deviceIDFromOperationName(opName)
+	if deviceID == "" {
+		svc.logger.WarnContext(ctx, "android pub/sub COMMAND with malformed operation name, acking",
+			"operation_name", opName)
+		return nil
+	}
+
+	exists, err := svc.fleetDS.AndroidDeviceExistsByDeviceID(ctx, deviceID)
+	if err != nil {
+		// DB lookup failed (transient) -- retry; the next attempt will likely succeed.
+		svc.logger.WarnContext(ctx, "android pub/sub COMMAND device existence check failed, retrying",
+			"operation_name", opName, "device_id", deviceID, "err", err)
+		return ctxerr.Wrap(ctx, lookupErr, "android command row not yet persisted, retry")
+	}
+	if !exists {
+		svc.logger.WarnContext(ctx, "android pub/sub COMMAND for unknown device (deleted from Fleet), acking",
+			"operation_name", opName, "device_id", deviceID)
+		return nil
+	}
+
+	// Host exists in Fleet but the command row doesn't (yet) -- most likely the race window.
+	svc.logger.WarnContext(ctx, "android pub/sub COMMAND row not yet persisted for live host, retrying",
+		"operation_name", opName, "device_id", deviceID)
+	return ctxerr.Wrap(ctx, lookupErr, "android command row not yet persisted, retry")
+}
+
+// deviceIDFromOperationName extracts the AMAPI device_id from an AMAPI operation name.
+// Operation names look like `enterprises/X/devices/Y/operations/Z`; we return Y. Returns "" if
+// the format doesn't match.
+func deviceIDFromOperationName(opName string) string {
+	_, rest, ok := strings.Cut(opName, "/devices/")
+	if !ok {
+		return ""
+	}
+	deviceID, _, ok := strings.Cut(rest, "/operations/")
+	if !ok || deviceID == "" {
+		return ""
+	}
+	return deviceID
+}
+
+// googleStatusCode renders the int64 status code from googlerpc.Status into a short identifier
+// for storage in mdm_android_commands.error_code. We keep the int representation because the
+// google.rpc.Code enum is stable and round-trippable through the AMAPI REST surface.
+func googleStatusCode(code int64) string {
+	return fmt.Sprintf("%d", code)
+}
+
 func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, rawData []byte) error {
 	err := svc.authenticatePubSub(ctx, token)
 	if err != nil {
@@ -125,6 +260,11 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 	err = json.Unmarshal(rawData, &device)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
+	}
+
+	// Validate the device payload up front.
+	if err := svc.validateDevice(ctx, &device); err != nil {
+		return err
 	}
 
 	// NOTE: uncomment as needed, can be useful for debugging as the pubsub report
@@ -210,6 +350,17 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			svc.logger.DebugContext(ctx, "Error re-enrolling Android host", "data", rawData)
 			return ctxerr.Wrap(ctx, err, "re-enrolling deleted Android host")
 		}
+		// Re-fetch the host so the subsequent updateHost/updateHostSoftware calls have a
+		// non-nil host. Force primary: enrollHost just INSERTed the host on the writer,
+		// and the default reader can be on a replica that hasn't caught up yet.
+		host, err = svc.getExistingHost(ctxdb.RequirePrimary(ctx, true), &device)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting re-enrolled Android host")
+		}
+		if host == nil {
+			return ctxerr.Errorf(ctx, "re-enrolled Android host not found: enterpriseSpecificId=%s",
+				device.HardwareInfo.EnterpriseSpecificId)
+		}
 	}
 	err = svc.updateHost(ctx, &device, host, false)
 	if err != nil {
@@ -272,6 +423,12 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 	err = json.Unmarshal(rawData, &device)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal Android enrollment message")
+	}
+
+	// Validate up front so the DELETED branch below (getExistingHost/getComputerName)
+	// cannot dereference a nil *HardwareInfo before enrollHost's own validateDevice runs.
+	if err := svc.validateDevice(ctx, &device); err != nil {
+		return err
 	}
 
 	// Some deployments may report work profile removal under ENROLLMENT notifications.
@@ -384,14 +541,31 @@ func (svc *Service) getExistingHost(ctx context.Context, device *androidmanageme
 }
 
 func (svc *Service) validateDevice(ctx context.Context, device *androidmanagement.Device) error {
+	// Validation errors are returned with HTTP 200 so Pub/Sub acks the delivery
+	// instead of retrying. The missing field is either a permanent payload shape
+	// issue or a policy setting (e.g. softwareInfoEnabled) — retrying the same
+	// message will not change either.
 	if device.HardwareInfo == nil {
-		return ctxerr.Errorf(ctx, "missing hardware info for Android device %s", device.Name)
+		svc.logger.WarnContext(ctx, "Android device payload missing hardwareInfo",
+			"device.name", device.Name,
+			"device.appliedState", device.AppliedState,
+			"device.state", device.State,
+		)
+		return fleet.NewInvalidArgumentError("device", fmt.Sprintf("missing hardware info for Android device %s", device.Name)).WithStatus(http.StatusOK)
 	}
 	if device.SoftwareInfo == nil {
-		return ctxerr.Errorf(ctx, "missing software info for Android device %s. Are policy statusReportingSettings set correctly?", device.Name)
+		svc.logger.WarnContext(ctx, "Android device payload missing softwareInfo",
+			"device.name", device.Name,
+			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId,
+		)
+		return fleet.NewInvalidArgumentError("device", fmt.Sprintf("missing software info for Android device %s. Are policy statusReportingSettings set correctly?", device.Name)).WithStatus(http.StatusOK)
 	}
 	if device.MemoryInfo == nil {
-		return ctxerr.Errorf(ctx, "missing memory info for Android device %s", device.Name)
+		svc.logger.WarnContext(ctx, "Android device payload missing memoryInfo",
+			"device.name", device.Name,
+			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId,
+		)
+		return fleet.NewInvalidArgumentError("device", fmt.Sprintf("missing memory info for Android device %s", device.Name)).WithStatus(http.StatusOK)
 	}
 	return nil
 }
@@ -457,6 +631,13 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
 
+	// Populate the operating_systems table so the host can be filtered via
+	// `GET /api/v1/fleet/hosts?os_name=Android&os_version=<version>` and show
+	// up in the /os_versions aggregation alongside other platforms.
+	if err := svc.updateHostOperatingSystem(ctx, host.Host.ID, device); err != nil {
+		return err
+	}
+
 	if fromEnroll {
 		// Delete any existing certificate template records for this host. The device has
 		// lost all certificates on re-enrollment (work profile removed and re-installed, or
@@ -490,6 +671,24 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	// Enrollment activities are intentionally not emitted for Android at this time.
+	return nil
+}
+
+// updateHostOperatingSystem upserts the host's OS into the operating_systems
+// and host_operating_system tables. Without this, Android hosts cannot be
+// filtered via the os_name/os_version host list parameters and do not appear
+// in the /os_versions aggregation.
+func (svc *Service) updateHostOperatingSystem(ctx context.Context, hostID uint, device *androidmanagement.Device) error {
+	if device.SoftwareInfo == nil || device.SoftwareInfo.AndroidVersion == "" {
+		return nil
+	}
+	if err := svc.fleetDS.UpdateHostOperatingSystem(ctx, hostID, fleet.OperatingSystem{
+		Name:     "Android",
+		Version:  device.SoftwareInfo.AndroidVersion,
+		Platform: "android",
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "update Android host operating system")
+	}
 	return nil
 }
 
@@ -578,6 +777,13 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	fleetHost, err := svc.ds.NewAndroidHost(ctx, host, companyOwned)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
+	}
+
+	// Populate the operating_systems table so the host can be filtered via
+	// `GET /api/v1/fleet/hosts?os_name=Android&os_version=<version>` and show
+	// up in the /os_versions aggregation alongside other platforms.
+	if err := svc.updateHostOperatingSystem(ctx, fleetHost.Host.ID, device); err != nil {
+		return err
 	}
 
 	if enrollmentTokenRequest.IdpUUID != "" {

@@ -1,14 +1,21 @@
 import React, { useCallback, useContext, useMemo } from "react";
 
+import PATHS from "router/paths";
+
 import { AppContext } from "context/app";
 
 import { IHostScript } from "interfaces/script";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
 import { IHostScriptsResponse } from "services/entities/scripts";
 
+import permissions from "utilities/permissions";
+import { getPathWithQueryParams } from "utilities/url";
+
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import DataError from "components/DataError/DataError";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner/Spinner";
 
@@ -55,7 +62,7 @@ const RunScriptModal = ({
   isRunningScript,
   isHidden = false,
 }: IRunScriptModalProps) => {
-  const { config } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
 
   const onSelectAction = useCallback(
     async (action: string, script: IHostScript) => {
@@ -103,6 +110,15 @@ const RunScriptModal = ({
 
   const tableData = hostScriptResponse?.scripts;
 
+  // Only admins and maintainers (global or on the host's team) can upload scripts,
+  // so the "Add a script" link is hidden for everyone else (e.g. technicians).
+  const canAddScript =
+    !!currentUser &&
+    (permissions.isGlobalAdmin(currentUser) ||
+      permissions.isGlobalMaintainer(currentUser) ||
+      permissions.isTeamAdmin(currentUser, hostTeamId) ||
+      permissions.isTeamMaintainer(currentUser, hostTeamId));
+
   return (
     <Modal
       title="Run script"
@@ -118,9 +134,27 @@ const RunScriptModal = ({
         {!isLoadingHostScripts &&
           !isError &&
           (!tableData || tableData.length === 0) && (
-            <EmptyTable
-              header="No scripts available for this host"
-              info="Expecting to see scripts? Close this modal and try again."
+            <EmptyState
+              variant="header-list"
+              header="No scripts available"
+              info={
+                canAddScript ? (
+                  <>
+                    <CustomLink
+                      url={getPathWithQueryParams(
+                        PATHS.CONTROLS_SCRIPTS,
+                        isPremiumTier
+                          ? { fleet_id: hostTeamId ?? APP_CONTEXT_NO_TEAM_ID }
+                          : undefined
+                      )}
+                      text="Add a script"
+                    />{" "}
+                    available to this host.
+                  </>
+                ) : (
+                  "Ask your admin to add a script for this host."
+                )
+              }
             />
           )}
         {!isLoadingHostScripts &&

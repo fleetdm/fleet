@@ -1,1 +1,0 @@
-- Fixed bug where adding a patch policy for a new installer in the UI caused gitops runs that didn't include that installer to fail.

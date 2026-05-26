@@ -336,7 +336,7 @@ func TestMDMRunCommand(t *testing.T) {
 						return c.appCfg, nil
 					}
 
-					buf, err := RunAppNoChecks(append([]string{"mdm", "run-command"}, c.flags...))
+					buf, err := runAppNoChecks(append([]string{"mdm", "run-command"}, c.flags...))
 					if c.wantErr != "" {
 						require.Error(t, err)
 						require.ErrorContains(t, err, c.wantErr)
@@ -456,6 +456,16 @@ func TestMDMLockCommand(t *testing.T) {
 		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 	}
 
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID:       15,
+			UUID:     "android-not-connected",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
+
 	hostByUUID := make(map[string]testhost)
 	hostsByID := make(map[uint]testhost)
 	for _, h := range []testhost{
@@ -471,6 +481,7 @@ func TestMDMLockCommand(t *testing.T) {
 		macEnrolledLP,
 		winEnrolledWP,
 		macEnrolledWP,
+		androidNotConnected,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -613,6 +624,7 @@ fleetctl mdm unlock --host=%s
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.host.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.host.UUID}, "Host has pending wipe request."},
 		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.host.UUID}, "Host has pending wipe request."},
+		{appCfgAllMDM, "valid android but not connected", []string{"--host", androidNotConnected.host.UUID}, `Can't lock the host because it doesn't have MDM turned on.`},
 	}
 
 	runTestCases(t, ds, "lock", successfulOutput, cases)
@@ -1325,6 +1337,64 @@ func writeTmpMobileconfig(t *testing.T, name string) string {
 	return tmpFile.Name()
 }
 
+// TestMDMClearPasscodeCommand exercises the failure paths of `fleetctl mdm clear-passcode`. The happy-path against a real iOS /
+// Android host is covered by integration tests; here we just confirm the subcommand is wired in, the host-required validation
+// works, and the MDM-not-on / unknown-host messages match the existing lock/wipe ergonomics.
+func TestMDMClearPasscodeCommand(t *testing.T) {
+	macEnrolled := testhost{
+		host: &fleet.Host{
+			ID: 1, UUID: "mac-enrolled-cp", Platform: "darwin",
+			MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: new(true)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+	}
+	macNotEnrolled := testhost{
+		host: &fleet.Host{ID: 2, UUID: "mac-not-enrolled-cp", Platform: "darwin"},
+	}
+
+	hostByUUID := map[string]testhost{
+		macEnrolled.host.UUID:    macEnrolled,
+		macNotEnrolled.host.UUID: macNotEnrolled,
+	}
+	hostsByID := map[uint]testhost{
+		macEnrolled.host.ID:    macEnrolled,
+		macNotEnrolled.host.ID: macNotEnrolled,
+	}
+
+	ds := setupTestServer(t)
+	setupDSMocks(ds, hostByUUID, hostsByID)
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		mdmInfo := hostsByID[host.ID].mdmInfo
+		return mdmInfo != nil && mdmInfo.Enrolled && mdmInfo.Name == fleet.WellKnownMDMFleet, nil
+	}
+	// Stubs required by the host-details endpoint that fleetctl hits via HostByIdentifier.
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{HostFleetPlatform: host.FleetPlatform()}, nil
+	}
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
+	appCfgAllMDM, _, _, _ := setupAppConigs()
+	cases := []struct {
+		appCfg  *fleet.AppConfig
+		desc    string
+		flags   []string
+		wantErr string
+	}{
+		{appCfgAllMDM, "no flags", nil, `Required flag "host" not set`},
+		{appCfgAllMDM, "empty host", []string{"--host", ""}, `No host targeted. Please provide --host.`},
+		{appCfgAllMDM, "unknown host", []string{"--host", "doesnotexist"}, fleet.HostNotFoundErrMsg},
+		{appCfgAllMDM, "darwin not enrolled", []string{"--host", macNotEnrolled.host.UUID}, "Can't clear passcode for the host because it doesn't have MDM turned on."},
+	}
+	for _, c := range cases {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return c.appCfg, nil }
+		_, err := runAppNoChecks(append([]string{"mdm", "clear-passcode"}, c.flags...))
+		require.Error(t, err, c.desc)
+		require.ErrorContains(t, err, c.wantErr, c.desc)
+	}
+}
+
 // sets up the test server with the mock datastore and returns the mock datastore
 func setupTestServer(t *testing.T) *mock.Store {
 	enqueuer := new(mdmmock.MDMAppleStore)
@@ -1439,7 +1509,7 @@ func runTestCases(t *testing.T, ds *mock.Store, actionType string, successfulOut
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return c.appCfg, nil
 		}
-		buf, err := RunAppNoChecks(append([]string{"mdm", actionType}, c.flags...))
+		buf, err := runAppNoChecks(append([]string{"mdm", actionType}, c.flags...))
 		if c.wantErr != "" {
 			require.Error(t, err, c.desc)
 			require.ErrorContains(t, err, c.wantErr, c.desc)

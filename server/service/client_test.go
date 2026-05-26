@@ -1174,3 +1174,54 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 		})
 	}
 }
+
+func TestEnsureHistoricalDataDefaults(t *testing.T) {
+	cases := []struct {
+		name      string
+		features  map[string]any
+		wantErr   string
+		wantValue map[string]any
+	}{
+		{
+			name:      "missing key gets defaults",
+			features:  map[string]any{},
+			wantValue: map[string]any{"uptime": true, "vulnerabilities": true},
+		},
+		{
+			name:      "nil value gets defaults",
+			features:  map[string]any{"historical_data": nil},
+			wantValue: map[string]any{"uptime": true, "vulnerabilities": true},
+		},
+		{
+			name:      "partial map fills missing sub-keys",
+			features:  map[string]any{"historical_data": map[string]any{"uptime": false}},
+			wantValue: map[string]any{"uptime": false, "vulnerabilities": true},
+		},
+		{
+			name:      "explicit values are preserved",
+			features:  map[string]any{"historical_data": map[string]any{"uptime": false, "vulnerabilities": false}},
+			wantValue: map[string]any{"uptime": false, "vulnerabilities": false},
+		},
+		{
+			name:     "scalar value is rejected",
+			features: map[string]any{"historical_data": true},
+			wantErr:  "features.historical_data must be a map, got bool",
+		},
+		{
+			name:     "list value is rejected",
+			features: map[string]any{"historical_data": []any{"uptime"}},
+			wantErr:  "features.historical_data must be a map, got []interface {}",
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ensureHistoricalDataDefaults(tt.features)
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantValue, tt.features["historical_data"])
+		})
+	}
+}

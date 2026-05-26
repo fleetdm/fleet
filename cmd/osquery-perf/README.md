@@ -54,7 +54,11 @@ By default, all hosts will simulate macOS hosts (specifically, macOS 10.14). To 
 go run agent.go --enroll_secret hgh4hk3434l2jjf --os_templates ubuntu_22.04,windows_11 --host_count 6
 ```
 
-would start 3 Ubuntu hosts and 3 Windows hosts. See the `os_templates` flag description in `go run agent.go --help` for the list of supported template names.
+would start 3 Ubuntu hosts and 3 Windows hosts.
+
+Supported Linux templates: `ubuntu_22.04`, `rhel_8`, `rhel_9`, `rhel_10`. RHEL templates report `platform=rhel`, RPM-style kernels (e.g., `kernel-core 5.14.0-503.26.1.el9_5`), and (when `--software_db_path` points at a populated database) additional RPM packages from the software library. See the `os_templates` flag description in `go run agent.go --help` for the full list of supported template names.
+
+The software database (`cmd/osquery-perf/software-library/software.db`) is optional — macOS, Windows, and Ubuntu have embedded fallback fixtures, and RHEL kernels are embedded too. The DB only adds non-kernel software variety. If the DB isn't present at `--software_db_path`, osquery-perf logs a warning and falls back to the embedded fixtures.
 
 ## Controlling Agent Behavior From the Fleet UI
 

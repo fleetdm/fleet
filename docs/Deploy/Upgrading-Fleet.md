@@ -89,3 +89,4 @@ In each of these cases, breaking changes are clearly communicated in the version
 
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to upgrade your Fleet instance to the latest version.">
+<meta name="keywordsForDocsearch" value="upgrade fleet, database migration, version upgrade, terraform upgrade, aws upgrade, prepare database">

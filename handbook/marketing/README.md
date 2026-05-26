@@ -36,14 +36,16 @@ In the Marketing department, we're using the following issue labels to organize 
 
 | Label | Color | Hex Code | Definition (When to use it) |
 | :---- | :---- | :---- | :---- |
+| **:mktg-ar** | Teal | \#0F766E | For tasks related to analyst relations \- briefing, responding to reports, inquiries, etc. |
 | **:mktg-campaign** | Purple | \#6B4FBB | For tasks related to a specific, multi-touch marketing initiative (e.g., a product launch, awareness campaign, Q4 demand-gen). |
 | **:mktg-content** | Blue | \#0052CC | For creating or updating any marketing asset: blog posts, case studies, website copy, videos, white papers, etc. |
-| **:mktg-social** | Pink | \#E11D48 | For tasks related to managing organic social media channels or creating social posts. |
-| **:mktg-ops** | Green | \#10B981 | For internal "infrastructure" work: tooling (e.g., "Fix email automation"), analytics, reporting, list management, and process improvements. |
-| **:mktg-ar** | Teal | \#0F766E | For tasks related to analyst relations \- briefing, responding to reports, inquiries, etc. |
-| **:mktg-pr** | Gray | \#6B7280 | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
 | **:mktg-enablement** | Gold | \#D97706 | All work associated with designing, developing, and delivering enablement content for sales, partners, etc. |
 | **:mktg-event** | Orange | \#F97316 | For tasks related to any event, virtual or in-person (e.g., webinars, conference logistics, booth design, talk submissions). |
+| **:mktg-ops** | Green | \#10B981 | For internal "infrastructure" work: tooling (e.g., "Fix email automation"), analytics, reporting, list management, and process improvements. |
+| **:mktg-pr** | Gray | \#6B7280 | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
+| **:mktg-web** | Purple | \#2b27d0 | Tasks to update the website. |
+| **:mktg-ritual** | Red | \#9d2455 | Tasks created through automated rituals. |
+| **:mktg-social** | Pink | \#E11D48 | For tasks related to managing organic social media channels or creating social posts. |
 
 Note: for event execution, additional labels are used to manage the process and track specific events.
 
@@ -194,17 +196,6 @@ Here are some links that filter relevant conversations on each platform:
 4. If a post is helpful to our audience, reshare it.
 
 
-### Monitor and respond to LinkedIn comments
-
-The marketing team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are also surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel.
-
-To monitor and respond to LinkedIn comments:
-1. Check LinkedIn mentions and comments once per workday.
-2. Like mentions and respond to comments where appropriate.
-3. Repost content related to GitOps certification or from Fleeties.
-4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
-5. All interactions are cataloged in Hootsuite for future review.
-
 ### Process to send out GitOps workshop certifications
 After every GitOps workshop, Fleet issues a certificate to all participants who passed via email.
 
@@ -322,8 +313,16 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 Fleet regularly uploads a variety of content to YouTube such as podcast episodes, sprint demos, educational updates, design reviews, and more.
 
 - Login to the Fleet YouTube channel, click the create button and then upload the video.
-- Fill out relevant information such as title, description, thumbnail, playlists, audience, and [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing).
-- Create a new video thumbnail within Figma in the [YouTube covers board](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) with the video title.
+- Fill out relevant information such as:
+    * title - make sure it is SEO friendly
+    * description - Give enough to entice someone to view the video. Add a CTA/link to website at the end
+    * thumbnail - a good thumbnail gets viewers. "First frame of video" or auto-generate is usually not compelling. See below on creating one.
+    * playlists - Add to approrpiate one(s)
+    * audience - not "made for kids"
+    * video details - allow auto chapters, no featured places or automatic concepts
+    * [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) (needs to be updated)
+    * end screen - set these!! Subscribe logo and at least one video of "next interest" (pick one using your judgement).
+- Create a new video thumbnail within Figma using the [YouTube covers board](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media--logos--covers--banners-?node-id=1148-57414&p=f&t=cDvD2NcWwN6NaTKv-0) with the video title. Upload it.
 - Set the visibility to "Public".
 - Share video link on social media.
 

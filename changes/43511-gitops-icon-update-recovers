@@ -1,0 +1,1 @@
+- Fixed `fleetctl gitops` failing with HTTP 500 on subsequent runs when a custom software icon's bytes were missing or had failed integrity in the icon store. The server now returns a 409 Conflict from the metadata-only icon update path, and the gitops client falls back to a full upload to recover the bytes automatically.

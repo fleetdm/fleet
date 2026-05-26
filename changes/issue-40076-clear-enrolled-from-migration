@@ -1,1 +1,0 @@
-- Fixed an issue where silent migration status would persist even after re-enrolling the device normally, causing SCEP renewal to fail.

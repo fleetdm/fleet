@@ -14,7 +14,7 @@ import (
 func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sb := newScriptBuilder()
 
-	sb.AddVariable("TMPDIR", `$(dirname "$(realpath $INSTALLER_PATH)")`)
+	sb.AddVariable("TMPDIR", `$(dirname "$(realpath "$INSTALLER_PATH")")`)
 	sb.AddVariable("APPDIR", `"/Applications/"`)
 
 	sb.Extract(app.InstallerFormat)
@@ -437,7 +437,7 @@ func (s *scriptBuilder) Symlink(source, target string) {
 // correct order.
 func (s *scriptBuilder) String() string {
 	var script strings.Builder
-	script.WriteString("#!/bin/sh\n\n")
+	script.WriteString("#!/bin/bash\n\n")
 
 	if len(s.variables) > 0 {
 		// write variables, order them alphabetically to produce deterministic
@@ -543,7 +543,7 @@ const quitApplicationFunc = `quit_application() {
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     return
   fi
@@ -587,7 +587,7 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     eval "export $var_name=0"
     return
@@ -621,6 +621,11 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 
 // relaunchApplicationFunc relaunches an application if it was running before installation.
 // Checks the APP_WAS_RUNNING_<bundle_id> environment variable set by quitAndTrackApplicationFunc.
+// The install script runs as root, but GUI apps must be launched in the logged-in
+// user's session (not root's) to appear in the user's Dock/GUI. We therefore use
+// 'sudo -u "$console_user" open' rather than 'osascript ... to activate', since
+// the latter fails when launching an app that isn't already running from a root
+// context.
 const relaunchApplicationFunc = `relaunch_application() {
   local bundle_id="$1"
   local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
@@ -634,15 +639,28 @@ const relaunchApplicationFunc = `relaunch_application() {
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping relaunching application ID '$bundle_id'."
     return
   fi
 
   echo "Relaunching application '$bundle_id'..."
 
-  # Try to launch the application
-  if osascript -e "tell application id \"$bundle_id\" to activate" >/dev/null 2>&1; then
+  # Launch the app in the logged-in user's GUI session. Apps launched by root
+  # won't register with the user's Dock/GUI, so run 'open' as the console user.
+  # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
+  # and GUI session — 'sudo -u' alone doesn't do this, which can cause
+  # LSOpenURLsWithRole() failures even when 'open' exits 0.
+  local open_status=0
+  if [[ $EUID -eq 0 ]]; then
+    local console_uid
+    console_uid=$(id -u "$console_user")
+    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  else
+    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  fi
+
+  if [[ $open_status -eq 0 ]]; then
     echo "Application '$bundle_id' relaunched successfully."
   else
     echo "Failed to relaunch application '$bundle_id'."

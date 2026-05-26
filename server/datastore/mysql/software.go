@@ -3309,6 +3309,88 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 	return result, nil
 }
 
+const softwareVulnDetectionBatchSize = 10000
+
+func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
+	ctx context.Context,
+	osVer fleet.OSVersion,
+) ([]fleet.Software, error) {
+	var softwareIDs []uint
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareIDs, `
+		SELECT DISTINCT hs.software_id
+		FROM host_software hs
+		JOIN hosts h ON hs.host_id = h.id
+		WHERE h.platform = ? AND h.os_version = ?
+	`, osVer.Platform, osVer.Name)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing distinct software IDs for OS version")
+	}
+
+	if len(softwareIDs) == 0 {
+		return nil, nil
+	}
+
+	var result []fleet.Software
+	if err := common_mysql.BatchProcessSimple(softwareIDs, softwareVulnDetectionBatchSize, func(batch []uint) error {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
+		query := fmt.Sprintf(`
+			SELECT s.id, s.name, s.version, s.release, s.arch, COALESCE(cpe.cpe, '') AS generated_cpe
+			FROM software s
+			LEFT JOIN software_cpe cpe ON s.id = cpe.software_id
+			WHERE s.id IN (%s)
+		`, placeholders)
+		args := make([]any, len(batch))
+		for i, id := range batch {
+			args[i] = id
+		}
+		var batchResult []fleet.Software
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchResult, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching software details for vulnerability detection")
+		}
+		result = append(result, batchResult...)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (ds *Datastore) ListSoftwareVulnerabilitiesBySoftwareIDs(
+	ctx context.Context,
+	softwareIDs []uint,
+	source fleet.VulnerabilitySource,
+) ([]fleet.SoftwareVulnerability, error) {
+	if len(softwareIDs) == 0 {
+		return nil, nil
+	}
+
+	var result []fleet.SoftwareVulnerability
+	if err := common_mysql.BatchProcessSimple(softwareIDs, softwareVulnDetectionBatchSize, func(batch []uint) error {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
+		query := fmt.Sprintf(`
+			SELECT software_id, cve, resolved_in_version
+			FROM software_cve
+			WHERE source = ? AND software_id IN (%s)
+		`, placeholders)
+		args := make([]any, 0, len(batch)+1)
+		args = append(args, source)
+		for _, id := range batch {
+			args = append(args, id)
+		}
+		var batchResult []fleet.SoftwareVulnerability
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchResult, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching software vulnerabilities by software IDs")
+		}
+		result = append(result, batchResult...)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // ListCVEs returns all cve_meta rows published after 'maxAge'
 func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 	var result []fleet.CVEMeta
@@ -3348,6 +3430,7 @@ type hostSoftware struct {
 	ExitCode              *int       `db:"exit_code"`
 	LastOpenedAt          *time.Time `db:"last_opened_at"`
 	BundleIdentifier      *string    `db:"bundle_identifier"`
+	TitleBundleIdentifier *string    `db:"title_bundle_identifier"`
 	Version               *string    `db:"version"`
 	SoftwareID            *uint      `db:"software_id"`
 	SoftwareSource        *string    `db:"software_source"`
@@ -4173,7 +4256,12 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				hvsi.host_id = :host_id AND
 				hvsi.removed = 0 AND
 				hvsi.canceled = 0 AND
-				(hvsi.platform != 'android' OR ncr.id IS NULL) AND
+				-- Android installs never produce nano_command_results (they use Google's
+				-- Android Management API instead of nanoMDM), so ncr is always NULL for
+				-- Android rows. No NCR filter is applied here — all statuses (pending,
+				-- failed, installed) are shown, which is intentional for the host software
+				-- list. Compare with vpp.go / software_installers.go which filter by NCR
+				-- for per-app aggregate counts, different semantics.
 				hvsi2.id IS NULL AND
 				NOT EXISTS (
 					SELECT 1
@@ -4508,6 +4596,13 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 	}
 }
 
+// hostSoftwareAllowedOrderKeys is minimal: the service layer pins OrderKey to "name".
+// "source" is included for test determinism (used as the secondary order key in tests).
+var hostSoftwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":   "name",
+	"source": "source",
+}
+
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	if !opts.VulnerableOnly && (opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit) {
 		return nil, nil, fleet.NewInvalidArgumentError(
@@ -4817,6 +4912,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				st.source,
 				st.extension_for,
 				st.upgrade_code,
+				st.bundle_identifier as title_bundle_identifier,
 				si.id as installer_id,
 				si.self_service as package_self_service,
 				si.filename as package_name,
@@ -5847,6 +5943,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
 					software_titles.upgrade_code AS upgrade_code, -- should be empty or non-empty string for "programs" sourced software, null otherwise
+					software_titles.bundle_identifier AS title_bundle_identifier,
 					software_installers.id AS installer_id,
 					software_installers.self_service AS package_self_service,
 					software_installers.filename AS package_name,
@@ -5875,6 +5972,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source,
 					software_titles.extension_for,
 					software_titles.upgrade_code,
+					software_titles.bundle_identifier,
 					software_installers.id,
 					software_installers.self_service,
 					software_installers.filename,
@@ -5892,6 +5990,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
 					software_titles.upgrade_code AS upgrade_code, -- should always be null for vpp (mac) apps
+					software_titles.bundle_identifier AS title_bundle_identifier,
 					NULL AS installer_id,
 					NULL AS package_self_service,
 					NULL AS package_name,
@@ -5919,7 +6018,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.name,
 					software_titles.source,
 					software_titles.extension_for,
-					software_titles.upgrade_code
+					software_titles.upgrade_code,
+					software_titles.bundle_identifier
 			`)
 		}
 
@@ -5933,6 +6033,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
 					software_titles.upgrade_code AS upgrade_code,
+					software_titles.bundle_identifier AS title_bundle_identifier,
 					NULL AS installer_id,
 					NULL AS package_self_service,
 					NULL AS package_name,
@@ -5960,12 +6061,16 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.name,
 					software_titles.source,
 					software_titles.extension_for,
-					software_titles.upgrade_code
+					software_titles.upgrade_code,
+					software_titles.bundle_identifier
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
 		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
-		stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
+		stmt, _, err = appendListOptionsToSQLSecure(stmt, &opts.ListOptions, hostSoftwareAllowedOrderKeys)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+		}
 
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
@@ -6357,6 +6462,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	software := make([]*fleet.HostSoftwareWithInstaller, 0, len(hostSoftwareList))
 	for _, hs := range hostSoftwareList {
+		// Populate top-level bundle_identifier from the software_titles table
+		// (available even when installed_versions is empty), falling back to
+		// the first installed version for backwards compatibility.
+		switch {
+		case hs.TitleBundleIdentifier != nil && *hs.TitleBundleIdentifier != "":
+			hs.HostSoftwareWithInstaller.BundleIdentifier = *hs.TitleBundleIdentifier
+		case len(hs.InstalledVersions) > 0 && hs.InstalledVersions[0].BundleIdentifier != "":
+			hs.HostSoftwareWithInstaller.BundleIdentifier = hs.InstalledVersions[0].BundleIdentifier
+		}
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 

@@ -1,0 +1,1 @@
+- Fixed gitops `--dry-run` so it now rejects label specs with invalid `platform` values.

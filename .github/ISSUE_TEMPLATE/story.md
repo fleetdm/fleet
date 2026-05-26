@@ -68,7 +68,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 <!-- The following sections can be removed if they are inapplicable for this User Story -->
 
 #### Core flow
-<!-- Product TODO -->
+<!-- Product TO DO -->
 - TODO
 - TODO
 - TODO
@@ -79,6 +79,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 #### API
 - [ ] Test all API endpoints added or modified in the **API changes** section of this issue
+- [ ] Verify any new API endpoints appear in the list when adding an API-only user. The API endpoints display name, method, and path is the same as listed in the API reference docs
 - [ ] Verify error handling for invalid inputs where applicable
 
 #### GitOps (generate + run)
@@ -96,7 +97,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 #### Edge cases
 
-<!-- QA TODO: Replace the TODO below with relevant edge cases or remove this section if not applicable -->
+<!-- QA TO DO: Replace the TO DO below with relevant edge cases or remove this section if not applicable -->
 
 <!-- Edge case examples:
 1. Invalid or unexpected input values
@@ -121,3 +122,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 1. [ ] Engineer: Added comment to user story confirming successful completion of test plan (include any special setup, test data, or configuration used during development/testing if applicable).
 2. [ ] QA: Added comment to user story confirming successful completion of test plan.
+3. [ ] QA: Determined whether this story needs Playwright automation.
+   - Needs automation: Yes / No
+   - If yes, filed a follow-up issue in the :help-qa project with status "Needs automation": TODO <!-- link -->
+

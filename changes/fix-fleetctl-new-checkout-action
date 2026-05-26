@@ -1,0 +1,1 @@
+- Updated the version of the checkout action in the `fleetctl new` template to avoid Node warnings.

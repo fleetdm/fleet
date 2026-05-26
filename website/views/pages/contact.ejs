@@ -68,6 +68,10 @@
             <textarea class="form-control" id="message" name="message" :class="[formErrors.message ? 'is-invalid' : '']" v-model.trim="formData.message" autocomplete="none"></textarea>
             <div class="invalid-feedback" v-if="formErrors.message">Message cannot be empty.</div>
           </div>
+          <div purpose="hp-input" aria-hidden="true">
+            <label>Website</label>
+            <input name="website-url" type="text" tabindex="-1" autocomplete="off" v-model.trim="formData.websiteUrl">
+          </div>
           <cloud-error v-if="cloudError && cloudError !== 'invalidEmailDomain'"></cloud-error>
           <div class="form-group btn-container">
             <ajax-button purpose="submit-button" type="submit" :syncing="syncing" class="btn btn-primary">Send</ajax-button>
@@ -110,6 +114,11 @@
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Device management (MDM)
             </label>
+            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'it-misc' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="it-misc">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Auto-patching
+            </label>
             <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'it-gap-filler-mdm' ? 'selected' : '']">
               <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="it-gap-filler-mdm">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
@@ -137,7 +146,7 @@
          </cloud-error>
           <cloud-error v-if="cloudError && cloudError !== 'invalidEmailDomain'"></cloud-error>
           <div class="form-group btn-container">
-            <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Schedule a call</ajax-button>
+            <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Talk to an engineer</ajax-button>
           </div>
         </ajax-form>
       </div>
@@ -338,7 +347,6 @@
         </div>
       </div>
       <div purpose="quote" v-else-if="primaryBuyingSituation === 'security-misc'">
-        <div purpose="logo" class="mb-4"><img height="32" alt="Deloitte logo" src="/images/social-proof-logo-deloitte-130x32@2x.png"></div>
         <p purpose="quote-text">
           Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
         </p>

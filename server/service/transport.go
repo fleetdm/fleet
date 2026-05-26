@@ -330,12 +330,33 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		}
 		hopt.DisableIssues = boolVal
 	}
-	if hopt.DisableIssues && r.URL.Query().Get("order_key") == "issues" {
-		return hopt, ctxerr.Wrap(
-			r.Context(), badRequest(
-				"Invalid order_key (issues cannot be ordered when they are disabled)",
-			),
-		)
+	if hopt.DisableIssues {
+		switch {
+		case r.URL.Query().Get("order_key") == "issues":
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Invalid order_key (issues cannot be ordered when they are disabled)",
+				),
+			)
+		case r.URL.Query().Get("order_key") == "failing_policies_count":
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Invalid order_key (failing_policies_count cannot be ordered when they are disabled)",
+				),
+			)
+		case r.URL.Query().Get("order_key") == "critical_vulnerabilities_count":
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Invalid order_key (critical_vulnerabilities_count cannot be ordered when they are disabled)",
+				),
+			)
+		case r.URL.Query().Get("order_key") == "total_issues_count":
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Invalid order_key (total_issues_count cannot be ordered when they are disabled)",
+				),
+			)
+		}
 	}
 
 	deviceMapping := r.URL.Query().Get("device_mapping")
@@ -345,6 +366,14 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid device_mapping: %s", deviceMapping)))
 		}
 		hopt.DeviceMapping = boolVal
+	}
+
+	if !hopt.DeviceMapping && r.URL.Query().Get("order_key") == "device_mapping" {
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(
+				"Invalid order_key (device_mapping cannot be ordered when they are disabled)",
+			),
+		)
 	}
 
 	mdmID := r.URL.Query().Get("mdm_id")
@@ -633,6 +662,27 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	}
 
 	return hopt, nil
+}
+
+func labelListOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return fleet.ListOptions{}, err
+	}
+
+	includeHostCountsStr := r.URL.Query().Get("include_host_counts")
+	if includeHostCountsStr != "" && opt.OrderKey == "host_count" {
+		includeHostCounts, parseErr := strconv.ParseBool(includeHostCountsStr)
+		if parseErr == nil && !includeHostCounts {
+			return fleet.ListOptions{}, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Invalid order_key (host_count cannot be ordered when they are disabled)",
+				),
+			)
+		}
+	}
+
+	return opt, nil
 }
 
 func carveListOptionsFromRequest(r *http.Request) (fleet.CarveListOptions, error) {

@@ -1,1 +1,0 @@
-* Added Flatcar Container Linux and CoreOS to the list of recognized Linux platforms, fixing host detail queries (IP address, disk space, etc.) not being sent to hosts running these distributions.

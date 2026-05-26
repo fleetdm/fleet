@@ -1,0 +1,21 @@
+- name: Collect default browser on macOS
+  automations_enabled: false
+  description: Collects the default browser setting for local users on macOS hosts.
+  discard_data: false
+  interval: 604800
+  logging: snapshot
+  observer_can_run: true
+  platform: "darwin"
+  query: |
+    SELECT
+      u.username,
+      b.value AS default_browser
+    FROM users u
+    JOIN plist a
+      ON a.path = u.directory || '/Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist'
+    JOIN plist b
+      ON b.path = a.path
+      AND b.rowid = a.rowid + 1
+    WHERE a.subkey = 'LSHandlerContentType'
+      AND a.value = 'com.apple.default-app.web-browser'
+      AND b.subkey = 'LSHandlerRoleAll';

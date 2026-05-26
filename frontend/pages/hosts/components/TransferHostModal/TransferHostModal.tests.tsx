@@ -2,11 +2,12 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import paths from "router/paths";
+
+import { ITeam } from "interfaces/team";
 
 import TransferHostModal from "./TransferHostModal";
 
-const teams = [
+const teams: ITeam[] = [
   { id: 1, name: "Team Alpha" },
   { id: 2, name: "Team Beta" },
 ];
@@ -22,7 +23,7 @@ const setup = (
   render(
     <TransferHostModal
       isGlobalAdmin={false}
-      teams={teams as any}
+      teams={teams}
       onSubmit={onSubmit}
       onCancel={onCancel}
       isUpdating={false}

@@ -1,0 +1,79 @@
+{
+  "token": "fleet-desktop",
+  "old_tokens": [],
+  "name": [
+    "Fleet Desktop"
+  ],
+  "desc": "End-user client for Fleet device management",
+  "homepage": "https://github.com/allenhouchins/fleet-desktop",
+  "url": "https://github.com/allenhouchins/fleet-desktop/releases/download/v1.3.0/fleet_desktop-v1.3.0.pkg",
+  "url_specs": {},
+  "version": "1.3.0",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "sha256": "9f3205fee95f406976adf12d71b046d7d49efa4548e2f0f40628fc5cb1a3bfd7",
+  "artifacts": [
+    {
+      "uninstall": [
+        {
+          "quit": "com.fleetdm.fleet-desktop",
+          "pkgutil": "com.fleetdm.fleet-desktop"
+        }
+      ]
+    },
+    {
+      "pkg": [
+        "fleet_desktop-v1.3.0.pkg"
+      ]
+    },
+    {
+      "zap": [
+        {
+          "trash": [
+            "~/Library/Caches/com.fleetdm.fleet-desktop",
+            "~/Library/HTTPStorages/com.fleetdm.fleet-desktop",
+            "~/Library/HTTPStorages/com.fleetdm.fleet-desktop.binarycookies",
+            "~/Library/Preferences/com.fleetdm.fleet-desktop.plist",
+            "~/Library/Saved Application State/com.fleetdm.fleet-desktop.savedState",
+            "~/Library/WebKit/com.fleetdm.fleet-desktop"
+          ]
+        }
+      ]
+    }
+  ],
+  "caveats": "Fleet Desktop requires the Mac to be enrolled in MDM with the\ncom.fleetdm.fleetd.config managed preferences profile. The installer\nwill fail with \"Installation Failed\" otherwise.\n",
+  "caveats_rosetta": null,
+  "depends_on": {
+    "macos": {
+      ">=": [
+        "13"
+      ]
+    }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": null,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "languages": [],
+  "ruby_source_path": "Casks/fleet-desktop.rb",
+  "ruby_source_checksum": {
+    "sha256": "f6b8d1f7db32b762e9a46e9aa023f15e34eb5a2f42a96e1176180ad376e689dc"
+  }
+}

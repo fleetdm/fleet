@@ -11,7 +11,7 @@ import { NotificationContext } from "context/notification";
 import classNames from "classnames";
 
 import deviceUserAPI, {
-  IGetDeviceCertsRequestParams,
+  IGetDeviceCertsApiParams,
   IGetDeviceCertificatesResponse,
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
@@ -45,6 +45,7 @@ import FlashMessage from "components/FlashMessage";
 import CustomLink from "components/CustomLink";
 
 import { normalizeEmptyValues } from "utilities/helpers";
+import { isDarkMode } from "utilities/theme";
 import PATHS from "router/paths";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -66,6 +67,7 @@ import {
   isSoftwareScriptSetup,
   isIPhone,
   isIPad,
+  isRecentlyEnrolled,
 } from "./helpers";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -177,6 +179,17 @@ const DeviceUserPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
 
+  const [darkMode, setDarkMode] = useState(() => isDarkMode());
+
+  useEffect(() => {
+    const onThemeChange = (e: Event) => {
+      setDarkMode((e as CustomEvent).detail.dark);
+    };
+    window.addEventListener("fleet-theme-change", onThemeChange);
+    return () =>
+      window.removeEventListener("fleet-theme-change", onThemeChange);
+  }, []);
+
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
@@ -199,7 +212,7 @@ const DeviceUserPage = ({
     IGetDeviceCertificatesResponse,
     Error,
     IGetDeviceCertificatesResponse,
-    Array<IGetDeviceCertsRequestParams & { scope: "device-certificates" }>
+    Array<IGetDeviceCertsApiParams & { scope: "device-certificates" }>
   >(
     [
       {
@@ -283,10 +296,16 @@ const DeviceUserPage = ({
           if (!refetchStartTime) {
             // Here and below: iOS/iPadOS refetches use MDM commands which can be slower/less predictable
             // than osquery. Don't show an error, just reset and let the user try again.
+            // Recently enrolled hosts are also exempted: orbit endpoints don't update host_seen_times,
+            // so a fresh host can read as offline until its first osquery distributed-read.
             const isIOSOrIPadOS =
               responseHost.platform === "ios" ||
               responseHost.platform === "ipados";
-            if (responseHost.status === "online" || isIOSOrIPadOS) {
+            if (
+              responseHost.status === "online" ||
+              isIOSOrIPadOS ||
+              isRecentlyEnrolled(responseHost.last_enrolled_at)
+            ) {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchDupDetails();
@@ -305,7 +324,11 @@ const DeviceUserPage = ({
               const isIOSOrIPadOS =
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
-              if (responseHost.status === "online" || isIOSOrIPadOS) {
+              if (
+                responseHost.status === "online" ||
+                isIOSOrIPadOS ||
+                isRecentlyEnrolled(responseHost.last_enrolled_at)
+              ) {
                 setTimeout(() => {
                   refetchDupDetails();
                   refetchExtensions();
@@ -345,11 +368,17 @@ const DeviceUserPage = ({
   const {
     host,
     license,
-    org_logo_url_light_background: orgLogoURL = "",
+    org_logo_url: orgLogoUrl = "",
+    org_logo_url_light_background: orgLogoUrlLightBackground = "",
+    org_logo_url_dark_mode: orgLogoUrlDarkMode = "",
+    org_logo_url_light_mode: orgLogoUrlLightMode = "",
     org_contact_url: orgContactURL = "",
     global_config: globalConfig = null as IDeviceGlobalConfig | null,
     self_service: hasSelfService = false,
   } = dupDetails || {};
+  const darkLogoURL = orgLogoUrlDarkMode || orgLogoUrl;
+  const lightLogoURL = orgLogoUrlLightMode || orgLogoUrlLightBackground;
+  const orgLogoURL = darkMode ? darkLogoURL : lightLogoURL;
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
@@ -476,9 +505,9 @@ const DeviceUserPage = ({
   }, [showOSSettingsModal, setShowOSSettingsModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
-    setShowPolicyDetailsModal(!showPolicyDetailsModal);
+    setShowPolicyDetailsModal(false);
     setSelectedPolicy(null);
-  }, [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]);
+  }, [setShowPolicyDetailsModal, setSelectedPolicy]);
 
   // User-initiated refetch always starts a new timer!
   const onRefetchHost = useCallback(async () => {
@@ -522,10 +551,13 @@ const DeviceUserPage = ({
     }
   };
 
+  const idpFullName = host?.end_users?.[0]?.idp_full_name;
+  const pageHeader = idpFullName ? `${idpFullName}'s device` : "My device";
+
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    document.title = `My device | ${DOCUMENT_TITLE_SUFFIX}`;
-  }, [location.pathname, host]);
+    document.title = `${pageHeader} | ${DOCUMENT_TITLE_SUFFIX}`;
+  }, [location.pathname, host, pageHeader]);
 
   const renderActionButtons = () => {
     return (
@@ -715,6 +747,7 @@ const DeviceUserPage = ({
             onRefetchHost={onRefetchHost}
             renderActionsDropdown={renderActionButtons}
             deviceUser
+            deviceUserHeader={pageHeader}
           />
           <TabNav className={`${baseClass}__tab-nav`}>
             <Tabs
@@ -825,6 +858,7 @@ const DeviceUserPage = ({
                     isLoading={isLoadingDupDetails}
                     deviceUser
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    closePolicyDetailsModal={onCancelPolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
                     conditionalAccessEnabled={
                       globalConfig?.features?.enable_conditional_access
@@ -850,6 +884,7 @@ const DeviceUserPage = ({
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
+            isDeviceUser
             onResolveLater={
               globalConfig?.features?.enable_conditional_access &&
               globalConfig.features?.enable_conditional_access_bypass &&

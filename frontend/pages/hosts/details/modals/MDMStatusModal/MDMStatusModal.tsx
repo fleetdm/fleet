@@ -97,7 +97,7 @@ const getProfileStatusUI = (raw?: string | null) => {
   return PROFILE_STATUS_UI_MAP[label] ?? PROFILE_STATUS_UI_MAP[""];
 };
 
-const getThrottleCopy = (responseUpdatedAt?: string | null) => {
+export const getThrottleCopy = (responseUpdatedAt?: string | null) => {
   if (!responseUpdatedAt) {
     return "when available.";
   }
@@ -306,9 +306,12 @@ const MDMStatusModal = ({
     }
 
     if (
+      // Only show the error if there is a DEP assignment error OR if the data contains the host_dep_assignment(meaning we
+      // expect the host to be in DEP) but there's no dep_device(meaning Apple returned nothing). If host_dep_assignment is
+      // not present the device isn't expected to be in DEP
       isDepAssignmentError ||
-      !depAssignmentData?.host_dep_assignment ||
-      !depAssignmentData?.dep_device
+      !depAssignmentData ||
+      (depAssignmentData?.host_dep_assignment && !depAssignmentData?.dep_device)
     ) {
       return (
         <DataError
@@ -471,7 +474,16 @@ const MDMStatusModal = ({
   return (
     <Modal title="MDM status" className={baseClass} onExit={onExit}>
       {renderMDMStatus()}
-      {isPremiumTier && isAppleDevice && renderProfileAssignment()}
+      {isPremiumTier &&
+        isAppleDevice &&
+        // Only render the profile assignment section if this host has an actual
+        // host_dep_assignment entry, in which case we expect there to be data to
+        // render. While loading or on query error, keep the section visible so
+        // renderProfileAssignmentList can show its spinner or DataError.
+        (isLoadingDepAssignment ||
+          isDepAssignmentError ||
+          depAssignmentData?.host_dep_assignment) &&
+        renderProfileAssignment()}
       {renderFooter()}
     </Modal>
   );

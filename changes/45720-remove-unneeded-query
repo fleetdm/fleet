@@ -1,0 +1,1 @@
+- Remove unneeded call to get tracked CVEs when reading CVE chart data

@@ -869,6 +869,22 @@ func (e MDMWindowsEnrolledDevice) AuthzType() string {
 	return "mdm_windows"
 }
 
+// MDMWindowsSaveResponseResult contains information about significant events
+// detected while processing a Windows MDM response. The service layer uses
+// this to create activities and fire webhooks.
+type MDMWindowsSaveResponseResult struct {
+	// WipeFailed is non-nil when a wipe command was processed and the status
+	// code indicates failure (not 2xx).
+	WipeFailed *MDMWindowsWipeResult
+	// WipeSucceeded is non-nil when a wipe command was processed and the
+	// status code indicates success (2xx).
+	WipeSucceeded *MDMWindowsWipeResult
+}
+
+type MDMWindowsWipeResult struct {
+	HostUUID string
+}
+
 ///////////////////////////////////////////////////////////////
 // Microsoft MS-MDM message
 // MS-MDM is a client-to-server protocol that consists of a SOAP-based Web service.

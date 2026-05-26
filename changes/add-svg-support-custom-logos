@@ -1,0 +1,1 @@
+* Added SVG support for custom organization logos, with strict server-side sanitization to reject scripts and other unsafe SVG content.

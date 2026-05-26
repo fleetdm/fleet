@@ -1,6 +1,7 @@
 .section-header {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
 
   &__left-header {
     display: flex;
@@ -20,7 +21,7 @@
   }
 
   h2 {
-    font-size: $medium;
+    font-size: $small;
     width: 100%;
   }
 

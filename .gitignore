@@ -41,7 +41,7 @@ mysqldata/
 
 # test helm charts
 helm-temp
-charts/fleet/charts
+charts/fleet/charts/*.tgz
 
 #editors
 .idea
@@ -111,6 +111,9 @@ tools/test_extensions/hello_world/linux-arm64
 tools/test_extensions/hello_world/windows
 tools/test_extensions/hello_world/windows-arm64
 
+# typical screencap output dir
+tools/screencap/screenshots
+
 # Residual files when building fleet_tables extension.
 fleet_tables_*.ext
 
@@ -126,3 +129,4 @@ Fleet\ Desktop.app
 
 # custom golangci-lint executable
 custom-gcl
+/fleet
