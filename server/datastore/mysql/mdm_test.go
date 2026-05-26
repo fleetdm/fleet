@@ -10124,12 +10124,13 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
 
-	// Verify BulkDisableMDMForPlatform removes all remaining profile rows AND
-	// marks enrollments as disabled when MDM is toggled off globally. At this
-	// point hosts still have pending remove profiles.
+	// Verify CleanupAllHostMDMProfilesForPlatform removes all remaining
+	// profile rows AND (for Apple) marks nano_enrollments as disabled when
+	// MDM is toggled off globally. At this point hosts still have pending
+	// remove profiles.
 
 	// Windows hosts have pending removes; cleanup should wipe them.
-	err = ds.BulkDisableMDMForPlatform(ctx, "windows")
+	err = ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows")
 	require.NoError(t, err)
 	assertHostProfileOpStatus(t, ds, host3.UUID)
 	assertHostProfileOpStatus(t, ds, host4.UUID)
@@ -10165,7 +10166,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEmpty(t, appleProfsHost2)
 
-	err = ds.BulkDisableMDMForPlatform(ctx, "darwin")
+	err = ds.CleanupAllHostMDMProfilesForPlatform(ctx, "darwin")
 	require.NoError(t, err)
 	assertHostProfileOpStatus(t, ds, host1.UUID)
 	assertHostProfileOpStatus(t, ds, host2.UUID)

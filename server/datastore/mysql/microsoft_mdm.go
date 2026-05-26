@@ -2251,7 +2251,7 @@ const windowsMDMProfilesDesiredStateQuery = `
 			-- only target hosts confirmed as MDM-enrolled by osquery. This
 			-- gates the reconciler against recreating pending rows for
 			-- hosts that were enrolled before a global Windows MDM
-			-- disable+re-enable cycle. See BulkDisableMDMForPlatform.
+			-- disable+re-enable cycle. See CleanupAllHostMDMProfilesForPlatform.
 			JOIN host_mdm hmdm
 				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 	WHERE
@@ -2287,7 +2287,7 @@ const windowsMDMProfilesDesiredStateQuery = `
 			-- only target hosts confirmed as MDM-enrolled by osquery. This
 			-- gates the reconciler against recreating pending rows for
 			-- hosts that were enrolled before a global Windows MDM
-			-- disable+re-enable cycle. See BulkDisableMDMForPlatform.
+			-- disable+re-enable cycle. See CleanupAllHostMDMProfilesForPlatform.
 			JOIN host_mdm hmdm
 				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
@@ -2335,7 +2335,7 @@ const windowsMDMProfilesDesiredStateQuery = `
 			-- only target hosts confirmed as MDM-enrolled by osquery. This
 			-- gates the reconciler against recreating pending rows for
 			-- hosts that were enrolled before a global Windows MDM
-			-- disable+re-enable cycle. See BulkDisableMDMForPlatform.
+			-- disable+re-enable cycle. See CleanupAllHostMDMProfilesForPlatform.
 			JOIN host_mdm hmdm
 				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
@@ -2377,7 +2377,7 @@ const windowsMDMProfilesDesiredStateQuery = `
 			-- only target hosts confirmed as MDM-enrolled by osquery. This
 			-- gates the reconciler against recreating pending rows for
 			-- hosts that were enrolled before a global Windows MDM
-			-- disable+re-enable cycle. See BulkDisableMDMForPlatform.
+			-- disable+re-enable cycle. See CleanupAllHostMDMProfilesForPlatform.
 			JOIN host_mdm hmdm
 				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
@@ -2655,7 +2655,7 @@ const windowsProfilesToRemoveQuery = `
 		-- only target hosts that still have a valid Windows MDM enrollment
 		-- AND whose host_mdm.enrolled reflects current osquery-confirmed
 		-- enrollment. Profiles for hosts whose enrollment was deleted, or
-		-- whose host_mdm was flipped to enrolled = 0 by BulkDisableMDMForPlatform
+		-- whose host_mdm was flipped to enrolled = 0 by osquery
 		-- or osquery, cannot receive MDM commands and must be skipped.
 		EXISTS (
 			SELECT 1 FROM mdm_windows_enrollments mwe

@@ -447,19 +447,19 @@ type Datastore interface {
 	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
-	// BulkDisableMDMForPlatform soft-disables MDM enrollment state for all
-	// hosts of the given platform and deletes every row from the
-	// corresponding host MDM profile tables (not just pending rows). Used
-	// when MDM is toggled off globally so the profile reconciler does not
-	// recreate pending rows after MDM is turned back on. For Apple, this
-	// flips nano_enrollments.enabled to 0 (the Apple reconciler gate). For
-	// Windows, this does not touch host_mdm.enrolled (orbit's
-	// programmatic-unenrollment notification depends on it); the Windows
+	// CleanupAllHostMDMProfilesForPlatform deletes every row from the host
+	// MDM profile tables for the given platform (not just pending rows) and,
+	// for Apple, also soft-disables nano_enrollments. Used when MDM is
+	// toggled off globally so the profile reconciler does not recreate
+	// pending rows after MDM is turned back on. For Apple this flips
+	// nano_enrollments.enabled to 0 (the Apple reconciler gate). For Windows
+	// this does NOT touch host_mdm.enrolled because orbit's
+	// programmatic-unenrollment notification depends on it; the Windows
 	// reconciler still gates on host_mdm.enrolled = 1, which osquery and
 	// the SOAP enrollment path maintain organically. The platform argument
 	// is a platform family: passing any of "darwin", "ios", or "ipados"
-	// disables Apple MDM for all three.
-	BulkDisableMDMForPlatform(ctx context.Context, platform string) error
+	// cleans up all three Apple platforms.
+	CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error
 
 	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
 	// their corresponding nano_command_results entries for the given enrollment ID

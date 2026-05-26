@@ -339,7 +339,7 @@ type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
 type CleanupWindowsMDMCommandQueueFunc func(ctx context.Context) error
 
-type BulkDisableMDMForPlatformFunc func(ctx context.Context, platform string) error
+type CleanupAllHostMDMProfilesForPlatformFunc func(ctx context.Context, platform string) error
 
 type CleanupStaleNanoRefetchCommandsFunc func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
 
@@ -2464,8 +2464,8 @@ type DataStore struct {
 	CleanupWindowsMDMCommandQueueFunc        CleanupWindowsMDMCommandQueueFunc
 	CleanupWindowsMDMCommandQueueFuncInvoked bool
 
-	BulkDisableMDMForPlatformFunc        BulkDisableMDMForPlatformFunc
-	BulkDisableMDMForPlatformFuncInvoked bool
+	CleanupAllHostMDMProfilesForPlatformFunc        CleanupAllHostMDMProfilesForPlatformFunc
+	CleanupAllHostMDMProfilesForPlatformFuncInvoked bool
 
 	CleanupStaleNanoRefetchCommandsFunc        CleanupStaleNanoRefetchCommandsFunc
 	CleanupStaleNanoRefetchCommandsFuncInvoked bool
@@ -6048,11 +6048,11 @@ func (s *DataStore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
 	return s.CleanupWindowsMDMCommandQueueFunc(ctx)
 }
 
-func (s *DataStore) BulkDisableMDMForPlatform(ctx context.Context, platform string) error {
+func (s *DataStore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
 	s.mu.Lock()
-	s.BulkDisableMDMForPlatformFuncInvoked = true
+	s.CleanupAllHostMDMProfilesForPlatformFuncInvoked = true
 	s.mu.Unlock()
-	return s.BulkDisableMDMForPlatformFunc(ctx, platform)
+	return s.CleanupAllHostMDMProfilesForPlatformFunc(ctx, platform)
 }
 
 func (s *DataStore) CleanupStaleNanoRefetchCommands(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {

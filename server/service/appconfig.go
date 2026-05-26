@@ -1309,8 +1309,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			// (added in #42427) then ensures that hosts that quietly fell off
 			// MDM while it was disabled don't get new pending rows once
 			// Windows MDM is turned back on.
-			if err := svc.ds.BulkDisableMDMForPlatform(ctx, "windows"); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "disabling Windows MDM for hosts")
+			if err := svc.ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows"); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles")
 			}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {

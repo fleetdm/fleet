@@ -850,49 +850,22 @@ ORDER BY
 	return labels, nil
 }
 
-// BulkDisableMDMForPlatform soft-disables MDM enrollment state for all hosts
-// of the given platform and deletes every row from the corresponding host MDM
-// profile tables (including verified/failed, not just pending). This is the
-// global-disable companion to per-host unenrollment (Apple CheckOut, Windows
-// AlertUserUnenrollmentRequest) and is what prevents the profile reconciler
-// from recreating stale pending rows when MDM is re-enabled.
+// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
+// (including verified/failed, not just pending) and, for Apple, soft-disables nano_enrollments so the Apple profile
+// reconciler does not recreate pending rows after MDM is re-enabled. Called when MDM is toggled off globally.
 //
-// The platform argument is a platform family. Passing any of "darwin",
-// "ios", or "ipados" disables Apple MDM for ALL three Apple platforms,
-// because Apple MDM is controlled by a single AppConfig.MDM.EnabledAndConfigured
-// flag.
+// The platform argument is a platform family. Passing any of "darwin", "ios", or "ipados" cleans up all three Apple
+// platforms, because Apple MDM is controlled by a single AppConfig.MDM.EnabledAndConfigured flag.
 //
-// Reconciler gating differs by platform:
-//
-//   - Apple: nano_enrollments.enabled is the gate consulted by
-//     ReconcileAppleProfiles (see listMDMAppleProfilesToInstallTransaction).
-//     We flip it to 0 here. On re-enrollment, nanomdm's StoreTokenUpdate
-//     upserts it back to 1.
-//
-//   - Windows: host_mdm.enrolled is the gate joined into
-//     windowsMDMProfilesDesiredStateQuery and windowsProfilesToRemoveQuery.
-//     We do NOT flip host_mdm.enrolled here because that signal is also
-//     consumed by isWindowsHostConnectedToFleetMDM, which gates orbit's
-//     programmatic-unenrollment notification (see service/orbit.go around
-//     IsEligibleForWindowsMDMUnenrollment): flipping it would silence the
-//     unenroll signal and leave devices stuck enrolled at the OS level.
-//     Instead, host_mdm.enrolled is updated by the natural sources:
-//     osquery's directIngestMDMWindows (after the device unenrolls) and
-//     the SOAP enrollment path (storeWindowsMDMEnrolledDevice) on
-//     re-enrollment.
-//
-// host_mdm.server_url and host_mdm.mdm_id are intentionally preserved. The
-// Apple host_mdm upsert path (upsertMDMAppleHostMDMInfoDB) only updates
-// enrolled on duplicate-key, so clearing those columns here would leave
-// them blank for iOS/iPadOS hosts (which have no osquery to repopulate
-// them) after a re-enable cycle.
-func (ds *Datastore) BulkDisableMDMForPlatform(ctx context.Context, platform string) error {
+// host_mdm.server_url and host_mdm.mdm_id are intentionally preserved. The Apple host_mdm upsert path
+// (upsertMDMAppleHostMDMInfoDB) only updates enrolled on duplicate-key, so clearing those columns here would leave them
+// blank for iOS/iPadOS hosts (which have no osquery to repopulate them) after a re-enable cycle.
+func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		switch platform {
 		case "darwin", "ios", "ipados":
-			// Soft-disable nano enrollments. The Apple reconciler filters
-			// on ne.enabled = 1, so this prevents pending rows from being
-			// recreated when Apple MDM is re-enabled with a new APNS cert.
+			// Soft-disable nano enrollments. The Apple reconciler filters on ne.enabled = 1, so this prevents pending
+			// rows from being recreated when Apple MDM is re-enabled with a new APNS cert.
 			if _, err := tx.ExecContext(ctx,
 				`UPDATE nano_enrollments SET enabled = 0, token_update_tally = 0 WHERE enabled = 1`); err != nil {
 				return ctxerr.Wrap(ctx, err, "disabling nano_enrollments")
@@ -904,15 +877,11 @@ func (ds *Datastore) BulkDisableMDMForPlatform(ctx context.Context, platform str
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_declarations")
 			}
 		case "windows":
-			// Only delete host_mdm_windows_profiles. host_mdm.enrolled must
-			// stay at its current (osquery-driven) value so orbit can still
-			// issue the programmatic-unenrollment notification to hosts
-			// whose MDM enrollment in Fleet has been turned off. The
-			// reconciler join on host_mdm.enrolled = 1 then keeps the bug
-			// fix intact: as devices unenroll and osquery reports it,
-			// host_mdm.enrolled flips to 0 organically and the reconciler
-			// stops recreating rows for them after Windows MDM is
-			// re-enabled.
+			// Delete host_mdm_windows_profiles. We do NOT flip host_mdm.enrolled here because that signal also gates
+			// isWindowsHostConnectedToFleetMDM, which orbit uses to decide whether to send the programmatic-unenrollment
+			// notification (see service/orbit.go). Flipping it would silence the unenroll signal and leave devices stuck
+			// enrolled at the OS level. Instead, host_mdm.enrolled is driven by osquery's directIngestMDMWindows and the
+			// SOAP enrollment path (storeWindowsMDMEnrolledDevice).
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_windows_profiles")
 			}
