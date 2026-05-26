@@ -190,6 +190,8 @@ type GitOpsControls struct {
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`
+	AllowBYODWipe              any              `json:"allow_byod_wipe,omitempty"`
+	AllowBYODLock              any              `json:"allow_byod_lock,omitempty"`
 	Scripts                    []fleet.BaseItem `json:"scripts"`
 
 	Defined bool
@@ -203,7 +205,8 @@ func (c GitOpsControls) Set() bool {
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
 		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
-		c.WindowsEntraTenantIDs != nil || c.RequireBitLockerPIN != nil
+		c.WindowsEntraTenantIDs != nil || c.RequireBitLockerPIN != nil ||
+		c.AllowBYODWipe != nil || c.AllowBYODLock != nil
 }
 
 type Policy struct {

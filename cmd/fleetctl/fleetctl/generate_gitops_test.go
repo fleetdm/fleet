@@ -1496,6 +1496,8 @@ func TestGenerateControls(t *testing.T) {
 	// so we'll JSON marshal and unmarshal to a map for comparison.
 	mdmConfig := fleet.TeamMDM{
 		EnableDiskEncryption: appConfig.MDM.EnableDiskEncryption.Value,
+		AllowBYODWipe:        appConfig.MDM.AllowBYODWipe.Value,
+		AllowBYODLock:        appConfig.MDM.AllowBYODLock.Value,
 		MacOSUpdates:         appConfig.MDM.MacOSUpdates,
 		IOSUpdates:           appConfig.MDM.IOSUpdates,
 		IPadOSUpdates:        appConfig.MDM.IPadOSUpdates,

@@ -19,6 +19,8 @@ spec:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
       windows_require_bitlocker_pin: null
+      allow_byod_wipe: true
+      allow_byod_lock: true
       macos_updates:
         update_new_hosts: null
         minimum_version: null
@@ -77,6 +79,8 @@ spec:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
       windows_require_bitlocker_pin: null
+      allow_byod_wipe: true
+      allow_byod_lock: true
       macos_updates:
         update_new_hosts: null
         minimum_version: null
@@ -148,6 +152,8 @@ spec:
       enable_disk_encryption: false
       enable_recovery_lock_password: true
       windows_require_bitlocker_pin: null
+      allow_byod_wipe: true
+      allow_byod_lock: true
       ios_updates:
         minimum_version: "17.5"
         deadline: "2022-11-15"
@@ -207,6 +213,8 @@ spec:
       enable_disk_encryption: false
       enable_recovery_lock_password: true
       windows_require_bitlocker_pin: null
+      allow_byod_wipe: true
+      allow_byod_lock: true
       ios_updates:
         minimum_version: "17.5"
         deadline: "2022-11-15"

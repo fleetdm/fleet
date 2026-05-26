@@ -17,6 +17,8 @@ agent_options:
     orbit: edge
     osqueryd: edge
 controls:
+  allow_byod_lock: true
+  allow_byod_wipe: true
   android_enabled_and_configured: true
   android_settings:
     certificates:

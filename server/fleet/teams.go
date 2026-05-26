@@ -87,6 +87,13 @@ type TeamPayloadMDM struct {
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
 
+	// AllowBYODWipe controls whether Fleet may issue a wipe to manually enrolled
+	// (BYOD) Apple hosts that belong to this team. Default: true.
+	AllowBYODWipe optjson.Bool `json:"allow_byod_wipe"`
+	// AllowBYODLock controls whether Fleet may issue a lock to manually enrolled
+	// (BYOD) Apple hosts that belong to this team. Default: true.
+	AllowBYODLock optjson.Bool `json:"allow_byod_lock"`
+
 	// MacOSUpdates defines the OS update settings for macOS devices.
 	MacOSUpdates *AppleOSUpdateSettings `json:"macos_updates"`
 	// IOSUpdates defines the OS update settings for iOS devices.
@@ -322,15 +329,21 @@ func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp
 }
 
 type TeamMDM struct {
-	EnableDiskEncryption       bool                  `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword bool                  `json:"enable_recovery_lock_password"`
-	RequireBitLockerPIN        bool                  `json:"windows_require_bitlocker_pin"`
-	MacOSUpdates               AppleOSUpdateSettings `json:"macos_updates"`
-	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
-	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
-	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
-	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup                 MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
+	EnableDiskEncryption       bool `json:"enable_disk_encryption"`
+	EnableRecoveryLockPassword bool `json:"enable_recovery_lock_password"`
+	RequireBitLockerPIN        bool `json:"windows_require_bitlocker_pin"`
+	// AllowBYODWipe controls whether Fleet may issue a wipe to manually enrolled
+	// (BYOD) Apple hosts that belong to this team. Default: true.
+	AllowBYODWipe bool `json:"allow_byod_wipe"`
+	// AllowBYODLock controls whether Fleet may issue a lock to manually enrolled
+	// (BYOD) Apple hosts that belong to this team. Default: true.
+	AllowBYODLock  bool                  `json:"allow_byod_lock"`
+	MacOSUpdates   AppleOSUpdateSettings `json:"macos_updates"`
+	IOSUpdates     AppleOSUpdateSettings `json:"ios_updates"`
+	IPadOSUpdates  AppleOSUpdateSettings `json:"ipados_updates"`
+	WindowsUpdates WindowsUpdates        `json:"windows_updates"`
+	MacOSSettings  MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup     MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -400,6 +413,13 @@ type TeamSpecMDM struct {
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
+
+	// AllowBYODWipe controls whether Fleet may issue a wipe to manually enrolled
+	// (BYOD) Apple hosts that belong to this team. Default: true.
+	AllowBYODWipe optjson.Bool `json:"allow_byod_wipe"`
+	// AllowBYODLock controls whether Fleet may issue a lock to manually enrolled
+	// (BYOD) Apple hosts that belong to this team. Default: true.
+	AllowBYODLock optjson.Bool `json:"allow_byod_lock"`
 
 	// MacOSUpdates defines the OS update settings for macOS devices.
 	MacOSUpdates AppleOSUpdateSettings `json:"macos_updates"`
@@ -749,6 +769,8 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
+	mdmSpec.AllowBYODWipe = optjson.SetBool(t.Config.MDM.AllowBYODWipe)
+	mdmSpec.AllowBYODLock = optjson.SetBool(t.Config.MDM.AllowBYODLock)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
 

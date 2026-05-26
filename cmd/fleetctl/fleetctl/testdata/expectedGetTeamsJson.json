@@ -26,6 +26,8 @@
         "zendesk": null
       },
       "mdm": {
+        "allow_byod_lock": true,
+        "allow_byod_wipe": true,
         "android_settings": {
           "certificates": null,
           "configuration_profiles": null
@@ -110,6 +112,8 @@
         "zendesk": null
       },
       "mdm": {
+        "allow_byod_lock": true,
+        "allow_byod_wipe": true,
         "android_settings": {
           "certificates": null,
           "custom_settings": null
@@ -215,6 +219,8 @@
         "zendesk": null
       },
       "mdm": {
+        "allow_byod_lock": true,
+        "allow_byod_wipe": true,
         "android_settings": {
           "certificates": null,
           "configuration_profiles": null
@@ -314,6 +320,8 @@
         "zendesk": null
       },
       "mdm": {
+        "allow_byod_lock": true,
+        "allow_byod_wipe": true,
         "android_settings": {
           "certificates": null,
           "custom_settings": null

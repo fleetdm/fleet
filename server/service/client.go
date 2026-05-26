@@ -2449,6 +2449,9 @@ func (c *Client) DoGitOps(
 		enableDiskEncryption := false
 		enableRecoveryLockPassword := false
 		requireBitLockerPIN := false
+		// BYOD permissions default to true if not specified in GitOps.
+		allowBYODWipe := true
+		allowBYODLock := true
 		if incoming.Controls.EnableDiskEncryption != nil {
 			enableDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
 		}
@@ -2458,6 +2461,12 @@ func (c *Client) DoGitOps(
 		if incoming.Controls.RequireBitLockerPIN != nil {
 			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
 		}
+		if incoming.Controls.AllowBYODWipe != nil {
+			allowBYODWipe = incoming.Controls.AllowBYODWipe.(bool)
+		}
+		if incoming.Controls.AllowBYODLock != nil {
+			allowBYODLock = incoming.Controls.AllowBYODLock.(bool)
+		}
 		if !enableDiskEncryption && requireBitLockerPIN {
 			return nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
 		}
@@ -2465,6 +2474,8 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
 		mdmAppConfig["enable_recovery_lock_password"] = enableRecoveryLockPassword
 		mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
+		mdmAppConfig["allow_byod_wipe"] = allowBYODWipe
+		mdmAppConfig["allow_byod_lock"] = allowBYODLock
 
 		if incoming.TeamName != nil {
 			team["gitops_filename"] = filename

@@ -981,6 +981,8 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				AllowBYODWipe:              optjson.Bool{Set: true},
+				AllowBYODLock:              optjson.Bool{Set: true},
 			},
 		},
 		{
@@ -1036,6 +1038,8 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				AllowBYODWipe:              optjson.Bool{Set: true},
+				AllowBYODLock:              optjson.Bool{Set: true},
 			},
 		},
 		{
@@ -1073,6 +1077,8 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				AllowBYODWipe:              optjson.Bool{Set: true},
+				AllowBYODLock:              optjson.Bool{Set: true},
 			},
 		},
 		{
@@ -1117,6 +1123,8 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				AllowBYODWipe:              optjson.Bool{Set: true},
+				AllowBYODLock:              optjson.Bool{Set: true},
 			},
 		},
 		{
@@ -1161,6 +1169,8 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				AllowBYODWipe:              optjson.Bool{Set: true},
+				AllowBYODLock:              optjson.Bool{Set: true},
 			},
 		},
 		{
@@ -1205,6 +1215,8 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				AllowBYODWipe:              optjson.Bool{Set: true},
+				AllowBYODLock:              optjson.Bool{Set: true},
 			},
 		},
 		{
@@ -1274,6 +1286,8 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				AllowBYODWipe:              optjson.Bool{Set: true},
+				AllowBYODLock:              optjson.Bool{Set: true},
 			},
 		},
 		{

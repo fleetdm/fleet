@@ -205,6 +205,10 @@ func TestGetTeams(t *testing.T) {
 									Vulnerabilities: true,
 								},
 							},
+							MDM: fleet.TeamMDM{
+								AllowBYODWipe: true,
+								AllowBYODLock: true,
+							},
 						},
 					},
 					{
@@ -228,6 +232,8 @@ func TestGetTeams(t *testing.T) {
 								HostExpiryWindow:  15,
 							},
 							MDM: fleet.TeamMDM{
+								AllowBYODWipe:              true,
+								AllowBYODLock:              true,
 								EnableRecoveryLockPassword: true,
 								MacOSUpdates: fleet.AppleOSUpdateSettings{
 									MinimumVersion: optjson.SetString("12.3.1"),
@@ -2666,6 +2672,10 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 				EnableHostUsers:         true,
 				EnableSoftwareInventory: true,
 			},
+			MDM: fleet.TeamMDM{
+				AllowBYODWipe: true,
+				AllowBYODLock: true,
+			},
 		},
 	}
 	team2 := &fleet.Team{
@@ -2680,6 +2690,8 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 				AdditionalQueries: &additionalQueries,
 			},
 			MDM: fleet.TeamMDM{
+				AllowBYODWipe: true,
+				AllowBYODLock: true,
 				MacOSUpdates: fleet.AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("12.3.1"),
 					Deadline:       optjson.SetString("2021-12-14"),

@@ -108,6 +108,8 @@
         }
     },
     "mdm": {
+        "allow_byod_wipe": true,
+        "allow_byod_lock": true,
         "enable_disk_encryption": true,
         "macos_updates": {
             "minimum_version": "95.1",
