@@ -51,6 +51,12 @@ export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
   return profile.profile_uuid.startsWith("d");
 };
 
+export enum EndUserLocalAccountType {
+  Admin = "admin",
+  Standard = "standard",
+  None = "none",
+}
+
 interface IUpdateSetupExperienceFormData {
   fleet_id?: number;
   enable_end_user_authentication?: boolean;
@@ -58,6 +64,7 @@ interface IUpdateSetupExperienceFormData {
   apple_enable_release_device_manually?: boolean;
   macos_manual_agent_install?: boolean;
   enable_managed_local_account?: boolean;
+  end_user_local_account_type?: EndUserLocalAccountType;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {

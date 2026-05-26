@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import { EndUserLocalAccountType } from "services/entities/mdm";
 import {
   IAppleDeviceUpdates,
   IConfigFeatures,
@@ -67,6 +68,7 @@ export interface ITeam extends ITeamSummary {
       require_all_software_windows: boolean | null;
       lock_end_user_info: boolean | null;
       enable_create_local_admin_account?: boolean;
+      end_user_local_account_type?: EndUserLocalAccountType;
     };
     macos_setup?: {
       enable_managed_local_account?: boolean;
