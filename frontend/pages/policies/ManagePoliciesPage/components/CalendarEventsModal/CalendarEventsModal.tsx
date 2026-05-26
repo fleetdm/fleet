@@ -4,6 +4,7 @@ import React, {
   useImperativeHandle,
   useState,
 } from "react";
+
 import { AppContext } from "context/app";
 import { syntaxHighlight } from "utilities/helpers";
 import validURL from "components/forms/validators/valid_url";
@@ -93,8 +94,11 @@ const CalendarEventsModal = forwardRef<
         const errors = validateForm(newFormData);
         if (errors.url) {
           newFormData.url = "";
-          delete formErrors.url;
-          setFormErrors(formErrors);
+          setFormErrors((prev) => {
+            const next = { ...prev };
+            delete next.url;
+            return next;
+          });
         }
       }
 
