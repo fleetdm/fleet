@@ -331,9 +331,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				vppToken = teamTokenInfo.Secret
 			}
 
-			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
+			var validatedLabels *fleet.LabelIdentsWithScope
+			if !dryRun {
+				validatedLabels, err = ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
+				}
 			}
 
 			payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)

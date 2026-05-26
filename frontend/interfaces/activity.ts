@@ -47,6 +47,7 @@ export enum ActivityType {
   EnabledMacosUpdateNewHosts = "enabled_macos_update_new_hosts",
   DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
+  RetrievedHostMyDeviceURL = "retrieved_host_my_device_url",
   ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
   SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
   RotatedHostRecoveryLockPassword = "rotated_host_recovery_lock_password",
@@ -189,6 +190,7 @@ export type IHostPastActivityType =
   | ActivityType.WipedHost
   | ActivityType.FailedWipe
   | ActivityType.ReadHostDiskEncryptionKey
+  | ActivityType.RetrievedHostMyDeviceURL
   | ActivityType.ViewedHostRecoveryLockPassword
   | ActivityType.SetHostRecoveryLockPassword
   | ActivityType.RotatedHostRecoveryLockPassword
@@ -440,6 +442,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   scheduled_script_batch: "Scheduled script batch",
   canceled_script_batch: "Canceled script batch",
   read_host_disk_encryption_key: "Viewed disk encryption key",
+  retrieved_host_my_device_url: "Retrieved My device URL",
   viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
   rotated_host_recovery_lock_password:

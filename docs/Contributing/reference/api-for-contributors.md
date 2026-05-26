@@ -1491,8 +1491,21 @@ This endpoint is used to get server-sent events (SSE) messages, so that UI know 
 
 `Status: 200`
 
+The response is a stream of [Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events). The connection is held open while signup is in progress; the server emits SSE comment heartbeats (e.g. `:heartbeat`) periodically and a single terminating event when the outcome is known.
+
+On success:
+
 ```
-Android Enterprise successfully connected
+data: Android Enterprise successfully connected
+
+```
+
+If signup fails on the server side (e.g. an internal error retrieving app config) the server emits an error event instead:
+
+```
+event: error
+data: Error getting app config: <message>
+
 ```
 
 ### Android Enterprise PubSub push endpoint
