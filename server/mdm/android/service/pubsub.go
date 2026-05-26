@@ -397,6 +397,12 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		}
 		host.TeamID = enrollSecret.GetTeamID()
 
+		if enrollmentTokenRequest.IdpUUID != "" {
+			if err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.Host.UUID, enrollmentTokenRequest.IdpUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating IdP account on re-enrollment")
+			}
+		}
+
 		return svc.updateHost(ctx, device, host, true)
 	}
 

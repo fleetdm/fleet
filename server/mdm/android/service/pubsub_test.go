@@ -344,6 +344,65 @@ func TestPubSubEnrollment(t *testing.T) {
 			require.True(t, mockDS.NewAndroidHostFuncInvoked)
 		})
 	})
+
+	t.Run("re-enrollment updates IdP association", func(t *testing.T) {
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		const existingHostUUID = "EXISTING-HOST-UUID"
+		// Return an existing host so enrollHost takes the re-enrollment path
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{
+					ID:   10,
+					UUID: existingHostUUID,
+				},
+				Device: &android.Device{
+					HostID:               10,
+					DeviceID:             "existing-device",
+					EnterpriseSpecificID: new(existingHostUUID),
+				},
+			}, nil
+		}
+
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			return nil
+		}
+		mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
+			return nil
+		}
+
+		var capturedHostUUID, capturedIdpUUID string
+		mockDS.AssociateHostMDMIdPAccountFuncInvoked = false
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			capturedHostUUID = hostUUID
+			capturedIdpUUID = accountUUID
+			return nil
+		}
+
+		enrollmentToken := enrollmentTokenRequest{
+			EnrollSecret: "global",
+			IdpUUID:      "new-user-idp-uuid",
+		}
+		enrollTokenData, err := json.Marshal(enrollmentToken)
+		require.NoError(t, err)
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("test-re-enroll"),
+			EnrollmentTokenData: string(enrollTokenData),
+		})
+
+		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
+		require.Equal(t, existingHostUUID, capturedHostUUID)
+		require.Equal(t, "new-user-idp-uuid", capturedIdpUUID)
+		// Should NOT have called NewAndroidHost (re-enrollment updates, not creates)
+		mockDS.NewAndroidHostFuncInvoked = false
+	})
 }
 
 func TestStatusReportPolicyValidation(t *testing.T) {
