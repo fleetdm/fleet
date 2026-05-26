@@ -1925,6 +1925,14 @@ const HostDetailsPage = ({
             hostPlatform={host.platform}
             hostMdmEnrollmentStatus={host.mdm.enrollment_status}
             onExit={toggleClearPasscodeModal}
+            onSuccess={() => {
+              // Android: flip device_status to "clearing_passcode" so the badge appears and the
+              // dropdown hides Lock / Unenroll / Wipe / Clear passcode while the AMAPI command is
+              // in flight. iOS / iPadOS has no equivalent device-level pending state.
+              if (isAndroid(host.platform)) {
+                setHostMdmDeviceState("clearing_passcode");
+              }
+            }}
           />
         )}
       </>

@@ -139,22 +139,77 @@ describe("HostHeader", () => {
     expect(await screen.findByText(/Host is locked/i)).toBeInTheDocument();
   });
 
-  it("does NOT render the device status tag for Android hosts (#41683 — no host-header badges for Android)", () => {
-    renderWithSetup(
+  it("does NOT render the 'Locked' badge for Android hosts but DOES render Wipe pending / Wiped / Lock pending (#41683)", () => {
+    // AMAPI does not deliver a "device-is-still-locked" notification — the user unlocks locally
+    // with their PIN with no signal back to Fleet — so a "Locked" badge for Android would be
+    // unreliable. Pending lock/wipe and Wiped are all derived from server-tracked Pub/Sub COMMAND
+    // acks and are safe to display.
+    const { rerender } = renderWithSetup(
       <HostHeader
         summaryData={{ ...defaultSummaryData, platform: "android" }}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
-        // Even with an explicit "locked" / "wiped" device status, Android suppresses the badge
-        // entirely per product decision captured in
-        // openspec/changes/add-android-mdm-commands/design.md ("No host-header badges for Android").
+        hostMdmDeviceStatus={"locked" as HostMdmDeviceStatusUIState}
+      />
+    );
+    expect(screen.queryByText("Locked")).not.toBeInTheDocument();
+
+    rerender(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, platform: "android" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
         hostMdmDeviceStatus={"wiped" as HostMdmDeviceStatusUIState}
       />
     );
+    expect(screen.getByText("Wiped")).toBeInTheDocument();
+  });
 
-    expect(screen.queryByText("Wiped")).not.toBeInTheDocument();
-    expect(screen.queryByText("Locked")).not.toBeInTheDocument();
+  it("renders 'Unenroll pending' (not 'Wipe pending') for BYO Android during pending wipe (#41683)", () => {
+    // BYO Android Unenroll fires an AMAPI WIPE under the hood, so the backend surfaces this as
+    // hostMdmDeviceStatus="wiping". The label is overridden in HostHeader for BYO so the badge
+    // matches the action the admin took (Unenroll), not the underlying mechanism.
+    render(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, platform: "android" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmDeviceStatus={"wiping" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus="On (personal)"
+      />
+    );
+    expect(screen.getByText("Unenroll pending")).toBeInTheDocument();
     expect(screen.queryByText("Wipe pending")).not.toBeInTheDocument();
+  });
+
+  it("renders 'Wipe pending' for COBO Android during pending wipe (#41683)", () => {
+    render(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, platform: "android" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmDeviceStatus={"wiping" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus="On (automatic)"
+      />
+    );
+    expect(screen.getByText("Wipe pending")).toBeInTheDocument();
+    expect(screen.queryByText("Unenroll pending")).not.toBeInTheDocument();
+  });
+
+  it("renders 'Clear passcode pending' badge for Android (#41683)", () => {
+    render(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, platform: "android" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmDeviceStatus={"clearing_passcode" as HostMdmDeviceStatusUIState}
+      />
+    );
+    expect(screen.getByText("Clear passcode pending")).toBeInTheDocument();
   });
 });

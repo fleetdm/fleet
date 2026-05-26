@@ -1447,11 +1447,12 @@ ON DUPLICATE KEY UPDATE
 }
 
 type hostMDMActions struct {
-	LockRef       *string `db:"lock_ref"`
-	WipeRef       *string `db:"wipe_ref"`
-	UnlockRef     *string `db:"unlock_ref"`
-	UnlockPIN     *string `db:"unlock_pin"`
-	FleetPlatform string  `db:"fleet_platform"`
+	LockRef          *string `db:"lock_ref"`
+	WipeRef          *string `db:"wipe_ref"`
+	UnlockRef        *string `db:"unlock_ref"`
+	UnlockPIN        *string `db:"unlock_pin"`
+	ClearPasscodeRef *string `db:"clear_passcode_ref"`
+	FleetPlatform    string  `db:"fleet_platform"`
 }
 
 func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
@@ -1461,6 +1462,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 			wipe_ref,
 			unlock_ref,
 			unlock_pin,
+			clear_passcode_ref,
 			fleet_platform
 		FROM
 			host_mdm_actions
@@ -1584,6 +1586,17 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 			status.WipeMDMCommand = cmd
 			status.WipeMDMCommandResult = cmdRes
 		}
+		if mdmActions.ClearPasscodeRef != nil {
+			cmd, cmdRes, err := ds.getHostMDMAndroidCommand(ctx, *mdmActions.ClearPasscodeRef)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get android clear-passcode reference")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan android clear-passcode command reference", "host_id", host.ID, "command_uuid", *mdmActions.ClearPasscodeRef)
+			}
+			status.ClearPasscodeMDMCommand = cmd
+			status.ClearPasscodeMDMCommandResult = cmdRes
+		}
 
 	case "windows", "linux":
 		// lock and unlock references are scripts
@@ -1656,6 +1669,7 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 			wipe_ref,
 			unlock_ref,
 			unlock_pin,
+			clear_passcode_ref,
 			fleet_platform
 		FROM
 			host_mdm_actions
@@ -1695,11 +1709,12 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 
 	for _, row := range mdmActionsRows {
 		mdmActionsMap[row.HostID] = &hostMDMActions{
-			LockRef:       row.LockRef,
-			WipeRef:       row.WipeRef,
-			UnlockRef:     row.UnlockRef,
-			UnlockPIN:     row.UnlockPIN,
-			FleetPlatform: row.FleetPlatform,
+			LockRef:          row.LockRef,
+			WipeRef:          row.WipeRef,
+			UnlockRef:        row.UnlockRef,
+			UnlockPIN:        row.UnlockPIN,
+			ClearPasscodeRef: row.ClearPasscodeRef,
+			FleetPlatform:    row.FleetPlatform,
 		}
 	}
 
@@ -1791,7 +1806,7 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 			}
 
 		case "android":
-			// Android lock/wipe are AMAPI commands in mdm_android_commands (no unlock_ref).
+			// Android lock/wipe/clear-passcode are AMAPI commands in mdm_android_commands (no unlock_ref).
 			if mdmActions.LockRef != nil {
 				androidCommandRefs = append(androidCommandRefs, refKey{
 					uuid:     *mdmActions.LockRef,
@@ -1806,6 +1821,14 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 					hostUUID: host.UUID,
 					hostID:   host.ID,
 					refType:  "wipe",
+				})
+			}
+			if mdmActions.ClearPasscodeRef != nil {
+				androidCommandRefs = append(androidCommandRefs, refKey{
+					uuid:     *mdmActions.ClearPasscodeRef,
+					hostUUID: host.UUID,
+					hostID:   host.ID,
+					refType:  "clear_passcode",
 				})
 			}
 
@@ -2076,6 +2099,9 @@ func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*f
 				case "wipe":
 					status.WipeMDMCommand = cmd
 					status.WipeMDMCommandResult = cmdRes
+				case "clear_passcode":
+					status.ClearPasscodeMDMCommand = cmd
+					status.ClearPasscodeMDMCommandResult = cmdRes
 				}
 			}
 		}

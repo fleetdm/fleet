@@ -151,7 +151,13 @@ interface IMdmMacOsSetup {
 }
 
 export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
-export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "location" | "";
+export type HostMdmPendingAction =
+  | "unlock"
+  | "lock"
+  | "wipe"
+  | "clear_passcode"
+  | "location"
+  | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;

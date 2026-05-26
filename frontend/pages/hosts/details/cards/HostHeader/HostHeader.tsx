@@ -160,13 +160,22 @@ const HostHeader = ({
   const renderDeviceStatusTag = () => {
     if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
 
-    // Android: per product decision (2026-05-20, captured in
-    // openspec/changes/add-android-mdm-commands/design.md), Android hosts do not display any
-    // host-header badges — no "Wipe pending", "Wiped", "Lock pending", "Locked". The badge
-    // components remain for iOS / iPadOS / macOS / Windows; only the platform predicate changes.
-    if (isAndroid(platform)) return null;
+    // Android: per #41683 product direction, show pending/done badges (Lock pending, Wipe pending,
+    // Unenroll pending, Clear passcode pending, Wiped) but NOT the "Locked" badge. AMAPI delivers
+    // no "device-is-still-locked" signal: the device unlocks locally via the user's PIN with no
+    // notification back to Fleet, so a "Locked" badge would be unreliable.
+    if (isAndroid(platform) && hostMdmDeviceStatus === "locked") return null;
 
     const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
+
+    // BYO Android Unenroll fires an AMAPI WIPE under the hood (work-profile-only), so the
+    // backend tracks it via wipe_ref and surfaces device_status="wiping". The admin clicked
+    // Unenroll, not Wipe, so override the badge label here.
+    const isAndroidBYOWipe =
+      isAndroid(platform) &&
+      hostMdmDeviceStatus === "wiping" &&
+      hostMdmEnrollmentStatus === "On (personal)";
+    const title = isAndroidBYOWipe ? "Unenroll pending" : tag.title;
 
     const classNames = classnames(
       `${baseClass}__device-status-tag`,
@@ -182,7 +191,7 @@ const HostHeader = ({
           showArrow
           className={`${baseClass}__device-status-tag-wrapper`}
         >
-          <span className={classNames}>{tag.title}</span>
+          <span className={classNames}>{title}</span>
         </TooltipWrapper>
       </>
     );

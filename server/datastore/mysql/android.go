@@ -949,9 +949,28 @@ func (ds *Datastore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host
 	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "wipe_ref")
 }
 
-// issueAndroidHostMDMRef performs the two-write transaction shared by LockHostViaAndroidMDM and
-// WipeHostViaAndroidMDM. refColumn is hard-coded by callers (never user input) so the
-// fmt.Sprintf into the SQL stays safe. The caller is responsible for populating cmd.CommandUUID.
+// ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and
+// upserts host_mdm_actions.clear_passcode_ref in a single transaction. The ref is what
+// HostLockWipeStatus.IsPendingClearPasscode reads to flip device_status to "clearing passcode"
+// while the AMAPI command is in flight.
+func (ds *Datastore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "clear_passcode_ref")
+}
+
+// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Used by the Android
+// pub/sub re-enrollment path to drop stale lock/wipe/clear-passcode refs from a previous enrollment
+// cycle so the re-enrolled device starts in the "unlocked" device status with no badges.
+func (ds *Datastore) ClearHostMDMActions(ctx context.Context, hostID uint) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_actions WHERE host_id = ?`, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear host_mdm_actions")
+	}
+	return nil
+}
+
+// issueAndroidHostMDMRef performs the two-write transaction shared by LockHostViaAndroidMDM,
+// WipeHostViaAndroidMDM, and ClearPasscodeHostViaAndroidMDM. refColumn is hard-coded by callers
+// (never user input) so the fmt.Sprintf into the SQL stays safe. The caller is responsible for
+// populating cmd.CommandUUID.
 func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, refColumn string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertCmdStmt = `

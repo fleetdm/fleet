@@ -1014,8 +1014,9 @@ func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
 	return nil
 }
 
-// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row. Unlike Lock/Wipe,
-// ClearPasscode is a one-shot action with no UI lock state, so it does NOT touch host_mdm_actions.
+// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row plus
+// host_mdm_actions.clear_passcode_ref. The ref flips device_status to "clearing passcode" while the
+// AMAPI command is in flight; HostLockWipeStatus.IsPendingClearPasscode reads it.
 func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (string, error) {
 	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "clear-passcode")
 	if err != nil {
@@ -1038,7 +1039,7 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (stri
 		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
-	if err := svc.fleetDS.NewMDMAndroidCommand(ctx, cmd); err != nil {
+	if err := svc.fleetDS.ClearPasscodeHostViaAndroidMDM(ctx, host, cmd); err != nil {
 		svc.logger.ErrorContext(ctx, "amapi clear-passcode issued but local state write failed",
 			"host_id", host.ID, "operation_name", op.Name, "err", err)
 		return "", ctxerr.Wrap(ctx, err, "persist android clear-passcode command")

@@ -3267,12 +3267,23 @@ type AndroidDatastore interface {
 	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
 
 	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the wipe_ref on host_mdm_actions in a
-	// single transaction. This method is for COBO Wipe specifically (the host page surfaces it as PendingAction=wipe ->
-	// DeviceStatus=wiped); the service layer must reject BYO hosts before calling. BYO unenroll also issues an AMAPI WIPE
-	// (work-profile-only) but persists via NewMDMAndroidCommand without touching host_mdm_actions, because BYO unenroll
-	// surfaces as the mdm_unenrolled activity, not as a wipe. The caller must populate cmd.CommandUUID and cmd.OperationName
-	// before invoking.
+	// single transaction. Used by COBO Wipe (which surfaces as PendingAction=wipe -> DeviceStatus=wiped) and by BYO Unenroll
+	// (which sends an AMAPI WIPE work-profile-only; the wipe_ref is what HostLockWipeStatus.IsPendingWipe reads to flip
+	// device_status to "wiping"). The frontend overrides the badge label to "Unenroll pending" for BYO Android based on
+	// enrollment status. The caller must populate cmd.CommandUUID and cmd.OperationName before invoking.
 	WipeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
+	// ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and writes the
+	// clear_passcode_ref on host_mdm_actions in a single transaction. The ref is what
+	// HostLockWipeStatus.IsPendingClearPasscode reads to flip device_status to "clearing passcode" while the AMAPI
+	// command is in flight. The caller must populate cmd.CommandUUID and cmd.OperationName before invoking.
+	ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
+	// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Called on re-enrollment
+	// so stale lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed into the
+	// new one. The orbit-enroll path (hosts.go) and Apple/Windows MDM cleanup paths already do this
+	// inline; this method is the Android equivalent surfaced for the AMAPI pub/sub re-enrollment.
+	ClearHostMDMActions(ctx context.Context, hostID uint) error
 
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`

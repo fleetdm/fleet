@@ -17,6 +17,7 @@ interface IClearPasscodeModalProps {
   hostPlatform: string;
   hostMdmEnrollmentStatus?: MdmEnrollmentStatus | null;
   onExit: () => void;
+  onSuccess?: () => void;
 }
 
 const ClearPasscodeModal = ({
@@ -25,6 +26,7 @@ const ClearPasscodeModal = ({
   hostPlatform,
   hostMdmEnrollmentStatus,
   onExit,
+  onSuccess,
 }: IClearPasscodeModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isClearingPasscode, setIsClearingPasscode] = React.useState(false);
@@ -47,6 +49,7 @@ const ClearPasscodeModal = ({
           ? "Successfully sent request to clear the passcode for this host."
           : "Successfully sent request to clear passcode on this host."
       );
+      onSuccess?.();
     } catch (e) {
       renderFlash(
         "error",

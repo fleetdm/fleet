@@ -2113,3 +2113,68 @@ func TestPubSubEnrollment_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
 		require.Contains(t, err.Error(), "missing hardware info")
 	})
 }
+
+// TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll verifies the re-enrollment cleanup added
+// for #41683: when an enrollment message arrives for a host that already exists in Fleet (typical
+// re-enrollment cycle: factory reset -> re-enroll on the same physical device), updateHost is
+// invoked with fromEnroll=true and must clear host_mdm_actions so stale Lock/Wipe/Clear-passcode
+// refs from the previous enrollment do not bleed into the new one.
+func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+
+	const enterpriseSpecificID = "ESI-REENROLL"
+	const existingHostID uint = 42
+
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+	mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{Secret: "global"}, nil
+	}
+	// Existing host: AndroidHostLite returns a real host so enrollHost falls into the updateHost
+	// (fromEnroll=true) branch instead of NewAndroidHost.
+	mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+		return &fleet.AndroidHost{
+			Host: &fleet.Host{
+				ID:   existingHostID,
+				UUID: enterpriseSpecificID,
+			},
+			Device: &android.Device{
+				HostID:               existingHostID,
+				DeviceID:             "device-reenroll",
+				EnterpriseSpecificID: new(enterpriseSpecificID),
+			},
+		}, nil
+	}
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+		require.True(t, fromEnroll, "re-enrollment must invoke updateHost with fromEnroll=true")
+		return nil
+	}
+	mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+		require.Equal(t, existingHostID, hostID)
+		return nil
+	}
+	mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
+		return nil
+	}
+
+	enrollmentToken := enrollmentTokenRequest{EnrollSecret: "global"}
+	enrollTokenData, err := json.Marshal(enrollmentToken)
+	require.NoError(t, err)
+	msg := createEnrollmentMessage(t, androidmanagement.Device{
+		Name:                createAndroidDeviceId("reenroll"),
+		EnrollmentTokenData: string(enrollTokenData),
+		Ownership:           DeviceOwnershipCompanyOwned,
+		HardwareInfo: &androidmanagement.HardwareInfo{
+			EnterpriseSpecificId: enterpriseSpecificID,
+			Brand:                "TestBrand",
+			Model:                "TestModel",
+			SerialNumber:         "test-serial",
+			Hardware:             "test-hardware",
+		},
+	})
+
+	require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", msg))
+	require.True(t, mockDS.ClearHostMDMActionsFuncInvoked,
+		"ClearHostMDMActions must be called on Android re-enrollment to drop stale lock/wipe/clear-passcode refs")
+}

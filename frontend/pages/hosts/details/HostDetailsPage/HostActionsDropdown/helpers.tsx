@@ -136,6 +136,7 @@ const canTransferTeam = (config: IHostActionConfigOptions) => {
 const canTurnOffMdm = (config: IHostActionConfigOptions) => {
   const {
     hostPlatform,
+    hostMdmDeviceStatus,
     hostMdmEnrollmentStatus,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -153,6 +154,17 @@ const canTurnOffMdm = (config: IHostActionConfigOptions) => {
     isAndroid(hostPlatform) &&
     isAndroidMdmEnabledAndConfigured &&
     hostMdmEnrollmentStatus === "On (personal)";
+
+  // Per Figma dev note (#41683): hide Unenroll for Android while any of Lock / Unenroll / Wipe /
+  // Clear passcode is pending. Apple Unenroll continues to ignore device_status as it does today.
+  if (
+    isAndroidWithUnenroll &&
+    hostMdmDeviceStatus &&
+    hostMdmDeviceStatus !== "unlocked"
+  ) {
+    return false;
+  }
+
   return (
     (isAndroidWithUnenroll ||
       (isAppleDevice(hostPlatform) && isMacMdmEnabledAndConfigured)) &&
@@ -398,6 +410,18 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
     config.isTeamAdmin ||
     config.isTeamMaintainer;
   if (!isAdminOrMaintainer) {
+    return false;
+  }
+
+  // Android: per Figma dev note (#41683) hide Clear passcode whenever any of Lock / Unenroll /
+  // Wipe / Clear passcode is pending. Lock pending -> "locking", Wipe + BYO unenroll -> "wiping",
+  // Clear passcode pending -> "clearing_passcode". iOS / iPadOS keep the existing "show as disabled
+  // with tooltip" pattern handled later in modifyOptions, so we only short-circuit for Android.
+  if (
+    isAndroid(config.hostPlatform) &&
+    config.hostMdmDeviceStatus &&
+    config.hostMdmDeviceStatus !== "unlocked"
+  ) {
     return false;
   }
 
@@ -751,6 +775,7 @@ const modifyOptions = (
     clearPasscodeOption.tooltipContent =
       "Clear passcode is unavailable while host is pending wipe.";
   }
+
   disableOptions(optionsToDisable);
   formatTurnOffOptionLabel(options, hostPlatform);
   return options;

@@ -639,6 +639,14 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	if fromEnroll {
+		// Drop stale host_mdm_actions from a previous enrollment cycle so the re-enrolled device
+		// starts in "unlocked" device status with no Lock/Wipe/Clear-passcode pending or Wiped
+		// badges. Apple/Windows clear this row inline during their own re-enrollment paths
+		// (hosts.go:2406, microsoft_mdm.go:291); this is the Android equivalent.
+		if err := svc.fleetDS.ClearHostMDMActions(ctx, host.Host.ID); err != nil {
+			svc.logger.ErrorContext(ctx, "failed to clear host_mdm_actions on android re-enrollment", "host_id", host.Host.ID, "err", err)
+			return ctxerr.Wrap(ctx, err, "clear host_mdm_actions on android re-enrollment")
+		}
 		// Delete any existing certificate template records for this host. The device has
 		// lost all certificates on re-enrollment (work profile removed and re-installed, or
 		// unenrolled/re-enrolled). This also clears stale rows from a previous team if the
