@@ -1,0 +1,10 @@
+{
+  "name": "Amazon Corretto 25",
+  "slug": "amazon-corretto-25/windows",
+  "package_identifier": "Amazon.Corretto.25.JDK",
+  "unique_identifier": "Amazon Corretto 25",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}
