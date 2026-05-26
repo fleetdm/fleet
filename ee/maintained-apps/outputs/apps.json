@@ -1094,6 +1094,13 @@
       "description": "Logi Options+ is software for managing Logitech devices."
     },
     {
+      "name": "Logi Options+",
+      "slug": "logi-options+/windows",
+      "platform": "windows",
+      "unique_identifier": "logioptionsplus",
+      "description": "Logi Options+ is software for managing Logitech devices."
+    },
+    {
       "name": "Loom",
       "slug": "loom/darwin",
       "platform": "darwin",
