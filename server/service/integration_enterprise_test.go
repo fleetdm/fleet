@@ -1114,7 +1114,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabels() {
 
 	/////// TEAM MANUAL LABELS RESTRICTIONS
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a global host for testing restrictions
 	globalHost, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -1392,7 +1392,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 
 func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftware() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a team
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -1478,7 +1478,7 @@ func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftw
 
 func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	//
 	// Test a global admin can read and write "No team" policies.
@@ -1733,7 +1733,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 
 func (s *integrationEnterpriseTestSuite) TestModifyTeamHistoricalData() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a fleet — features.historical_data should default to true/true.
 	teamName := t.Name() + "historicalDataFleet"
@@ -4221,7 +4221,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// set the logo via the modify appconfig endpoint, so that the cache is
 	// properly updated.
@@ -5491,7 +5491,7 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.Nil(t, summaryResp.LowDiskSpaceCount)
 
 	// Add a failing policy
-	ctx := context.Background()
+	ctx := t.Context()
 	qr, err := s.ds.NewQuery(
 		ctx, &fleet.Query{
 			Name:           "TestQueryEnterpriseTestListHosts",
@@ -5634,7 +5634,7 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferentTeam() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// create 2 teams
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
@@ -6441,7 +6441,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
@@ -6602,7 +6602,7 @@ func createDeviceTokenForHost(t *testing.T, ds *mysql.Datastore, hostID uint, to
 func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	t := s.T()
 	now := time.Now().UTC().Truncate(time.Second)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	host, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -6845,7 +6845,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 // TestGitOpsUserActions tests the (non-MDM) permissions listed in ../../docs/Using\ Fleet/manage-access.md
 func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	s.lq.SetQueryResultsCountOverride = func(queryID uint, count int) error {
 		return nil
@@ -7653,7 +7653,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	testRunScriptWaitForResult = 2 * time.Second
 	defer func() { testRunScriptWaitForResult = 0 }()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
 	otherHost := createOrbitEnrolledHost(t, "linux", "other", s.ds)
@@ -8001,7 +8001,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name: "Team 1",
@@ -8235,7 +8235,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	host1 := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
 	host2 := createOrbitEnrolledHost(t, "linux", "host2", s.ds)
@@ -8313,7 +8313,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	testRunScriptWaitForResult = 2 * time.Second
 	defer func() { testRunScriptWaitForResult = 0 }()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
@@ -8607,7 +8607,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 
 func (s *integrationEnterpriseTestSuite) TestEnqueueSameScriptTwice() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
 	script, err := s.ds.NewScript(ctx, &fleet.Script{
@@ -8634,7 +8634,7 @@ func (s *integrationEnterpriseTestSuite) TestEnqueueSameScriptTwice() {
 
 func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	appCfg, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
@@ -8816,7 +8816,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 
 func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// create a saved script for no team
 	var newScriptResp fleet.CreateScriptResponse
@@ -9014,7 +9014,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 func (s *integrationEnterpriseTestSuite) TestListSavedScripts() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// create some teams
 	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -9127,7 +9127,7 @@ func (s *integrationEnterpriseTestSuite) TestListSavedScripts() {
 
 func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 	now := time.Now().UTC().Truncate(time.Second)
 
 	// create some teams
@@ -9743,7 +9743,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsScriptsConfig() {
 
 func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	saveAndCheckScripts := func(team *fleet.Team, scripts []fleet.ScriptPayload) {
 		var teamID *uint
@@ -9855,7 +9855,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() {
-	ctx := context.Background()
+	ctx := t.Context()
 	t := s.T()
 
 	teamName := t.Name() + "team1"
@@ -9945,7 +9945,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 
 func (s *integrationEnterpriseTestSuite) TestTeamConfigHistoricalDataGitOps() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create the fleet via the team-spec apply path so it goes through the
 	// same plumbing GitOps uses.
@@ -9985,7 +9985,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigHistoricalDataGitOps() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
-	ctx := context.Background()
+	ctx := t.Context()
 	t := s.T()
 
 	softwareTitleListResultsMatch := func(want, got []fleet.SoftwareTitleListResult) {
@@ -10978,7 +10978,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
-	ctx := context.Background()
+	ctx := t.Context()
 	t := s.T()
 
 	// create a Windows and a Linux hosts
@@ -11071,7 +11071,7 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
 // profile if wantSettings is nil). It returns the profile_uuid if it exists,
 // empty string otherwise.
 func checkWindowsOSUpdatesProfile(t *testing.T, ds *mysql.Datastore, teamID *uint, wantSettings *fleet.WindowsUpdates) string {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var prof fleet.MDMWindowsConfigProfile
 	mysqltest.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
@@ -11125,7 +11125,7 @@ func (s *integrationEnterpriseTestSuite) createHosts(t *testing.T, platforms ...
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 	// create two hosts, one belongs to team1 and one has no team
 	host, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -11511,7 +11511,7 @@ func genDistributedReqWithPolicyResults(host *fleet.Host, policyResults map[uint
 }
 
 func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
-	ctx := context.Background()
+	ctx := t.Context()
 	t := s.T()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
@@ -11921,7 +11921,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
-	ctx := context.Background()
+	ctx := t.Context()
 	t := s.T()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
@@ -12079,7 +12079,7 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 	defer func() { s.token = s.getTestAdminToken() }()
 
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	hosts := s.createHosts(t, "debian", "linux", "fedora", "darwin", "darwin")
 	tm1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -12239,7 +12239,7 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
-	ctx := context.Background()
+	ctx := t.Context()
 	t := s.T()
 
 	token := "good_token"
@@ -13652,7 +13652,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
@@ -13953,7 +13953,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// non-existent team
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusNotFound, "team_name", "foo")
@@ -14970,7 +14970,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPoliciesAssociated() {
-	ctx := context.Background()
+	ctx := t.Context()
 	t := s.T()
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -15152,7 +15152,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 		// TODO(roberto): we need real binaries for exe, msi and pkg to
 		// perform the API calls.
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			ctx := context.Background()
+			ctx := t.Context()
 			installScript := fmt.Sprintf(`echo '%s'`, kind)
 			res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
 			if err != nil {
@@ -15985,7 +15985,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
-	ctx := context.Background()
+	ctx := t.Context()
 	t := s.T()
 
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
@@ -16191,7 +16191,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 
 func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// create a host and request a script execution
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "host_soft_delete_team"})
@@ -16494,7 +16494,7 @@ func (s *integrationEnterpriseTestSuite) TestAutofillPoliciesAuthTeamUser() {
 // 3. reconciler runs, doesn't create a new title
 func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
@@ -16612,7 +16612,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 
 func (s *integrationEnterpriseTestSuite) TestPKGNoVersion() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
@@ -16639,7 +16639,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoVersion() {
 
 func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
@@ -16654,7 +16654,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
 
 func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
@@ -16718,7 +16718,7 @@ func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 
 func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
@@ -16831,7 +16831,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 // 3. installer is uploaded, creates a new software title
 func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
@@ -16919,7 +16919,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 // 3. reconciler runs, no changes
 func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
@@ -16998,7 +16998,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
-	ctx := context.Background()
+	ctx := t.Context()
 	t := s.T()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
@@ -17493,7 +17493,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
-	ctx := context.Background()
+	ctx := t.Context()
 	t := s.T()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
@@ -17797,7 +17797,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 
 func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create host
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
@@ -17845,7 +17845,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 	test.CreateInsertGlobalVPPToken(t, s.ds)
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
@@ -18545,7 +18545,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetries() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a team
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
@@ -18873,7 +18873,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 
 func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
@@ -19114,7 +19114,7 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallersLabelScoping() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -19465,7 +19465,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigger() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -19674,7 +19674,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
@@ -20106,7 +20106,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a team
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
@@ -20405,7 +20405,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIdentifier() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a host without a team
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -20505,7 +20505,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 
 func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	installerBytes := []byte("abc")
 
@@ -21092,7 +21092,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	// Maintained Apps, see `TestMaintainedApps`
 
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	warpUpgradeCode := "{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}"
 
@@ -21367,7 +21367,7 @@ func (s *integrationEnterpriseTestSuite) TestDeleteLabels() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() {
-	ctx := context.Background()
+	ctx := t.Context()
 	t := s.T()
 
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
@@ -21494,7 +21494,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 
 func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
@@ -21812,7 +21812,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	t := s.T()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// create a team
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -22189,7 +22189,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOIdPInitiatedLogin() {
 func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategories() {
 	t := s.T()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// create a team
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -22618,7 +22618,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	}, http.StatusOK, &pr)
 	p3 := pr.Policy
 
-	ctx := context.Background()
+	ctx := t.Context()
 	newHost := func(name string, teamID *uint, platform string, osVersion string) *fleet.Host {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -23110,7 +23110,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 	}, http.StatusOK, &pr)
 	cp2 := pr.Policy
 
-	ctx := context.Background()
+	ctx := t.Context()
 	newHost := func(name string, teamID *uint) *fleet.Host {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -23248,7 +23248,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitSetupExperienceStatusChecksAut
 
 func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
@@ -23990,7 +23990,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 
 func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWithoutDesktop() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
@@ -24171,7 +24171,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWit
 
 func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
@@ -24680,7 +24680,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware(
 
 func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareWithoutDesktop() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 	require.NoError(t, err)
@@ -24874,7 +24874,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareW
 // This test verifies the fix for https://github.com/fleetdm/fleet/issues/34818
 func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWithRetries() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a team for setup experience
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
@@ -25038,7 +25038,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 
 func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	hosts := s.createHosts(t, "darwin")
 	host := hosts[0]
@@ -25990,7 +25990,7 @@ func generateTestCertForDeviceAuth(t *testing.T, certSerial uint64, deviceUUID s
 
 func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create an iOS host enrolled in MDM
 	iosHost, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -26252,7 +26252,7 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 
 func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("upload update delete in-house app", func(t *testing.T) {
 		var createTeamResp teamResponse
@@ -26707,7 +26707,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsDistributedReadWrite() {
 
 func (s *integrationEnterpriseTestSuite) TestDeleteTeamCertificateTemplates() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a test team
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestDeleteTeamCertificateTemplates Team"})
@@ -26908,7 +26908,7 @@ func (s *integrationEnterpriseTestSuite) TestDeleteTeamCertificateTemplates() {
 
 func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a test team
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestUpdateSoftwareAutoUpdateConfig Team"})
@@ -26977,7 +26977,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 
 func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// --- Shared per-FMA state for mock servers ---
 	// Each FMA (warp, zoom) has independently mutable version/bytes/sha so the
@@ -27890,7 +27890,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// team tests and no team tests
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Team 1" + t.Name()})
@@ -29562,7 +29562,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyUserEndpointMiddleware() {
 // Regression test for fleet#43659.
 func (s *integrationEnterpriseTestSuite) TestBatchSetInstallersScriptByHash() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Description: "desc"})
 	require.NoError(t, err)
@@ -29735,7 +29735,7 @@ func (s *integrationEnterpriseTestSuite) TestAPIOnlyGitOpsUserWithEndpointRestri
 // at every API entry point and end-to-end host targeting.
 func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Two labels.
 	var lblResp fleet.CreateLabelResponse
@@ -29852,7 +29852,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 // so the 2-way mutex (include_any vs include_all) is exercised here.
 func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var lblResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
@@ -29946,7 +29946,7 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 
 func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// findCertID returns the ID of the cert with the given name, or fails the test. Using
 	// name-based lookup instead of list-position keeps the test robust against any order
@@ -30477,7 +30477,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostReportsIncludeAllPremium() 
 
 func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	var lblResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
@@ -30555,7 +30555,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() 
 // enroll secret than the one originally used to onboard it.
 func (s *integrationEnterpriseTestSuite) TestOrbitOsqueryReEnrollDoesNotChangeTeam() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	teamASecret := "team-a-reenroll-secret" //nolint:gosec // G101: test value only
 	teamBSecret := "team-b-reenroll-secret" //nolint:gosec // G101: test value only
@@ -30678,7 +30678,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitOsqueryReEnrollDoesNotChangeTe
 // policies, ensuring the value round-trips through every entry point.
 func (s *integrationEnterpriseTestSuite) TestTeamPolicyContinuousAutomationsCRUD() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
@@ -30797,7 +30797,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyContinuousAutomationsCRUD
 // transition (the default behavior).
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
@@ -30950,7 +30950,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 // the cap and no retries would ever fire again.
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScriptRetryReset() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
@@ -31104,7 +31104,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScriptRe
 // fire on every failing policy result, not just on pass→fail transitions.
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftwareInstaller() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
@@ -31249,7 +31249,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 // re-fire resets the attempt counter so a fresh retry sequence is available.
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftwareInstallerRetryReset() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
