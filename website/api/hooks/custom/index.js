@@ -360,7 +360,7 @@ will be disabled and/or hidden in the UI.
                     }
                     let attributionCookieOrUndefined = req.cookies.marketingAttribution;// Will be undefined if this is not set.
 
-                    let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+                    let recordDetails = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
                       emailAddress: sanitizedUser.emailAddress,
                       firstName: sanitizedUser.firstName,
                       lastName: sanitizedUser.lastName,
@@ -377,11 +377,12 @@ will be disabled and/or hidden in the UI.
                     }
                     // Create the new Fleet website page view record.
                     await sails.helpers.salesforce.createHistoricalEvent.with({
-                      salesforceContactId: recordIds.salesforceContactId,
-                      salesforceAccountId: recordIds.salesforceAccountId,
+                      salesforceContactId: recordDetails.salesforceContactId,
+                      salesforceAccountId: recordDetails.salesforceAccountId,
                       fleetWebsitePageUrl: `https://fleetdm.com${req.url}`,
                       eventType: 'Website page view',
-                      websiteVisitReason: websiteVisitReason
+                      websiteVisitReason: websiteVisitReason,
+                      relatedCampaign: recordDetails.mostRecentCampaign,
                     }).intercept((err)=>{
                       return new Error(`Could not create new Fleet website page view record. Error: ${err}`);
                     });

@@ -67,6 +67,8 @@ func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message
 		return svc.handlePubSubEnrollment(ctx, token, rawData)
 	case android.PubSubStatusReport:
 		return svc.handlePubSubStatusReport(ctx, token, rawData)
+	case android.PubSubCommand:
+		return svc.handlePubSubCommand(ctx, token, rawData)
 	default:
 		// Ignore unknown notification types
 		svc.logger.DebugContext(ctx, "Ignoring PubSub notification type", "notification", notificationType)
@@ -114,6 +116,138 @@ func (svc *Service) getClientAuthenticationSecret(ctx context.Context) (string, 
 		return "", ctxerr.Wrap(ctx, err, "getting Android authentication secret")
 	}
 	return string(assets[fleet.MDMAssetAndroidFleetServerSecret].Value), nil
+}
+
+// handlePubSubCommand processes an AMAPI COMMAND notification, which AMAPI delivers as an Operation envelope whose Name
+// is the operation_name we recorded at IssueCommand time. The envelope's Error field, when populated, indicates AMAPI
+// rejected the command (or the device rejected it); otherwise the device executed it successfully. We correlate the
+// notification to the Fleet row via operation_name and transition the mdm_android_commands row from pending to
+// acknowledged or error. host_mdm_actions does not need updating: HostLockWipeStatus reads the row status string
+// directly.
+func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawData []byte) error {
+	if err := svc.authenticatePubSub(ctx, token); err != nil {
+		return err
+	}
+
+	var op androidmanagement.Operation
+	if err := json.Unmarshal(rawData, &op); err != nil {
+		return ctxerr.Wrap(ctx, err, "decode android pub/sub COMMAND payload")
+	}
+	if op.Name == "" {
+		// AMAPI promises Name on every notification we issue, so an empty name means the payload is malformed (or possibly a
+		// different shape we don't recognize). Log and ack to avoid Pub/Sub retry loops.
+		svc.logger.WarnContext(ctx, "android pub/sub COMMAND missing operation name", "raw_size", len(rawData))
+		return nil
+	}
+
+	// Google long-running Operations use done=false for in-progress states. AMAPI's COMMAND notifications today only fire
+	// when done=true, but guard defensively: if the operation isn't terminal yet, don't transition state. Ack so Pub/Sub
+	// doesn't retry.
+	if !op.Done {
+		svc.logger.DebugContext(ctx, "android pub/sub COMMAND not yet done, skipping state transition",
+			"operation_name", op.Name)
+		return nil
+	}
+
+	cmd, err := svc.fleetDS.GetMDMAndroidCommandByOperationName(ctx, op.Name)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Two cases to distinguish:
+			//   1. Race: AMAPI delivered the notification before our IssueCommand-then-insert
+			//      transaction committed. The row will exist on retry.
+			//   2. Device (and its command rows) are gone -- COBO unenroll deleted the device from
+			//      AMAPI, manual cleanup removed the row, etc. Retrying forever is wasteful.
+			// We disambiguate by asking AMAPI whether the device still exists. If AMAPI returns
+			// NotFound, the command is genuinely orphaned -- ack. Otherwise return error so
+			// Pub/Sub retries (race window will resolve, transient errors will recover).
+			return svc.ackOrRetryUnknownAndroidOperation(ctx, op.Name, err)
+		}
+		return ctxerr.Wrap(ctx, err, "lookup android command by operation name")
+	}
+
+	// Already-terminal rows: don't re-transition. AMAPI may redeliver a notification at-least-once.
+	if cmd.Status != string(android.MDMAndroidCommandStatusPending) {
+		svc.logger.InfoContext(ctx, "android pub/sub COMMAND already terminal, ignoring",
+			"operation_name", op.Name, "command_uuid", cmd.CommandUUID, "current_status", cmd.Status)
+		return nil
+	}
+
+	newStatus := string(android.MDMAndroidCommandStatusAcknowledged)
+	var errCode, errMsg *string
+	if op.Error != nil {
+		newStatus = string(android.MDMAndroidCommandStatusError)
+		code := googleStatusCode(op.Error.Code)
+		message := op.Error.Message
+		errCode = &code
+		errMsg = &message
+	}
+
+	if err := svc.fleetDS.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID, newStatus, errCode, errMsg); err != nil {
+		return ctxerr.Wrap(ctx, err, "update android command status from pub/sub")
+	}
+
+	svc.logger.InfoContext(ctx, "android pub/sub COMMAND processed",
+		"operation_name", op.Name,
+		"command_uuid", cmd.CommandUUID,
+		"command_type", cmd.CommandType,
+		"new_status", newStatus,
+	)
+	return nil
+}
+
+// ackOrRetryUnknownAndroidOperation is the NotFound branch of handlePubSubCommand. It looks up
+// the host associated with the AMAPI device referenced by opName in Fleet's DB to distinguish
+// "race window, row will arrive" (host still exists -> retry) from "host was deleted, row is
+// genuinely orphaned" (host NotFound -> ack). lookupErr is the original NotFound from the
+// command row lookup, returned wrapped when we choose to retry. On any non-NotFound DB error we
+// retry (transient errors will recover).
+func (svc *Service) ackOrRetryUnknownAndroidOperation(ctx context.Context, opName string, lookupErr error) error {
+	deviceID := deviceIDFromOperationName(opName)
+	if deviceID == "" {
+		svc.logger.WarnContext(ctx, "android pub/sub COMMAND with malformed operation name, acking",
+			"operation_name", opName)
+		return nil
+	}
+
+	exists, err := svc.fleetDS.AndroidDeviceExistsByDeviceID(ctx, deviceID)
+	if err != nil {
+		// DB lookup failed (transient) -- retry; the next attempt will likely succeed.
+		svc.logger.WarnContext(ctx, "android pub/sub COMMAND device existence check failed, retrying",
+			"operation_name", opName, "device_id", deviceID, "err", err)
+		return ctxerr.Wrap(ctx, lookupErr, "android command row not yet persisted, retry")
+	}
+	if !exists {
+		svc.logger.WarnContext(ctx, "android pub/sub COMMAND for unknown device (deleted from Fleet), acking",
+			"operation_name", opName, "device_id", deviceID)
+		return nil
+	}
+
+	// Host exists in Fleet but the command row doesn't (yet) -- most likely the race window.
+	svc.logger.WarnContext(ctx, "android pub/sub COMMAND row not yet persisted for live host, retrying",
+		"operation_name", opName, "device_id", deviceID)
+	return ctxerr.Wrap(ctx, lookupErr, "android command row not yet persisted, retry")
+}
+
+// deviceIDFromOperationName extracts the AMAPI device_id from an AMAPI operation name.
+// Operation names look like `enterprises/X/devices/Y/operations/Z`; we return Y. Returns "" if
+// the format doesn't match.
+func deviceIDFromOperationName(opName string) string {
+	_, rest, ok := strings.Cut(opName, "/devices/")
+	if !ok {
+		return ""
+	}
+	deviceID, _, ok := strings.Cut(rest, "/operations/")
+	if !ok || deviceID == "" {
+		return ""
+	}
+	return deviceID
+}
+
+// googleStatusCode renders the int64 status code from googlerpc.Status into a short identifier
+// for storage in mdm_android_commands.error_code. We keep the int representation because the
+// google.rpc.Code enum is stable and round-trippable through the AMAPI REST surface.
+func googleStatusCode(code int64) string {
+	return fmt.Sprintf("%d", code)
 }
 
 func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, rawData []byte) error {

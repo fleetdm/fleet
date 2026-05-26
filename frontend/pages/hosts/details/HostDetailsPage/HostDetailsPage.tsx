@@ -1074,8 +1074,11 @@ const HostDetailsPage = ({
     if (!host) return;
     try {
       const { device_url } = await hostAPI.getDeviceURL(host.id);
-      // window.open returns null when the browser blocks the popup, so an
-      // explicit check is needed — the promise will not reject.
+      // TODO: this sometimes flashes the "please allow pop-ups" error even when
+      // the popup successfully opens — `window.open` is returning null in cases
+      // where the new tab actually appears. Investigate (likely the async gap
+      // between the click and window.open is treated as non-user-initiated by
+      // some browsers, or the returned WindowProxy is filtered by noopener).
       const opened = window.open(device_url, "_blank", "noopener,noreferrer");
       if (!opened) {
         renderFlash(
