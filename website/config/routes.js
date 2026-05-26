@@ -680,6 +680,16 @@ module.exports.routes = {
     }
   },
 
+  'GET /lp/apple-mdm-a': {
+    action: 'landing-pages/view-apple-mdm-a',
+    locals: {
+      hideHeaderLinks: true,
+      disableChatbotAndIndexing: true,
+      pageTitleForMeta: 'Apple MDM: open source Mac device management at enterprise scale',
+      pageDescriptionForMeta: 'Fleet is open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. Self-hosted or Fleet-hosted.',
+    }
+  },
+
   'GET /lp/windows-mdm': {
     action: 'landing-pages/view-windows-mdm',
     locals: {
