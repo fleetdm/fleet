@@ -131,9 +131,10 @@ jobs:
           trivyignores: "./security/code/.trivyignore"
           # Skip test/dev private keys and placeholder secrets (not production).
           # Trivy 0.69.3 expanded secret detection; these are all non-production
-          # test keys, dev TLS keys, placeholder Stripe/GCP credentials in Sails
-          # templates and UI components.
+          # test keys, dev TLS keys, hardcoded dev license JWTs, placeholder
+          # Stripe/GCP credentials in Sails templates and UI components.
           skip-files: |
+            cmd/fleet/serve.go
             tools/osquery/in-a-box/osquery/fleet.key
             tools/osquery/fleet.key
             tools/smtp4dev/fleet.key
