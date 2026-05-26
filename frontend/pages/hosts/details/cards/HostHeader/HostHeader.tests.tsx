@@ -139,11 +139,12 @@ describe("HostHeader", () => {
     expect(await screen.findByText(/Host is locked/i)).toBeInTheDocument();
   });
 
-  it("does NOT render the 'Locked' badge for Android hosts but DOES render Wipe pending / Wiped / Lock pending (#41683)", () => {
+  it("does NOT render the 'Locked' badge for Android hosts but DOES render 'Lock pending' and 'Wiped' (#41683)", () => {
     // AMAPI does not deliver a "device-is-still-locked" notification — the user unlocks locally
     // with their PIN with no signal back to Fleet — so a "Locked" badge for Android would be
-    // unreliable. Pending lock/wipe and Wiped are all derived from server-tracked Pub/Sub COMMAND
-    // acks and are safe to display.
+    // unreliable. Pending lock and Wiped are derived from server-tracked Pub/Sub COMMAND acks and
+    // are safe to display. (Wipe pending and Unenroll pending are covered by their own tests
+    // below.)
     const { rerender } = renderWithSetup(
       <HostHeader
         summaryData={{ ...defaultSummaryData, platform: "android" }}
@@ -154,6 +155,17 @@ describe("HostHeader", () => {
       />
     );
     expect(screen.queryByText("Locked")).not.toBeInTheDocument();
+
+    rerender(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, platform: "android" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmDeviceStatus={"locking" as HostMdmDeviceStatusUIState}
+      />
+    );
+    expect(screen.getByText("Lock pending")).toBeInTheDocument();
 
     rerender(
       <HostHeader

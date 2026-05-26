@@ -2122,7 +2122,10 @@ func TestPubSubEnrollment_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
 func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
 
-	const enterpriseSpecificID = "ESI-REENROLL"
+	// COBO enrollment with no EnterpriseSpecificId in HardwareInfo. getAndroidHostKey falls back to
+	// sha256(brand:serial) (matching testBrandTestSerialHashed, since createEnrollmentMessage sets
+	// brand=TestBrand and serial=test-serial for company-owned devices). AndroidHostLite is invoked
+	// with that hash, and its assertion below catches any regression in the lookup-key generation.
 	const existingHostID uint = 42
 
 	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -2134,15 +2137,17 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 	// Existing host: AndroidHostLite returns a real host so enrollHost falls into the updateHost
 	// (fromEnroll=true) branch instead of NewAndroidHost.
 	mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+		require.Equal(t, testBrandTestSerialHashed, esID,
+			"AndroidHostLite must be called with the brand:serial hash for COBO re-enrollment")
 		return &fleet.AndroidHost{
 			Host: &fleet.Host{
 				ID:   existingHostID,
-				UUID: enterpriseSpecificID,
+				UUID: testBrandTestSerialHashed,
 			},
 			Device: &android.Device{
 				HostID:               existingHostID,
 				DeviceID:             "device-reenroll",
-				EnterpriseSpecificID: new(enterpriseSpecificID),
+				EnterpriseSpecificID: new(testBrandTestSerialHashed),
 			},
 		}, nil
 	}
@@ -2161,20 +2166,18 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 	enrollmentToken := enrollmentTokenRequest{EnrollSecret: "global"}
 	enrollTokenData, err := json.Marshal(enrollmentToken)
 	require.NoError(t, err)
+	// createEnrollmentMessage unconditionally overwrites HardwareInfo (brand/model/hardware) and, for
+	// COBO ownership, adds serial="test-serial" without EnterpriseSpecificId — so the lookup key
+	// produced by getAndroidHostKey is sha256("TestBrand:test-serial") = testBrandTestSerialHashed.
 	msg := createEnrollmentMessage(t, androidmanagement.Device{
 		Name:                createAndroidDeviceId("reenroll"),
 		EnrollmentTokenData: string(enrollTokenData),
 		Ownership:           DeviceOwnershipCompanyOwned,
-		HardwareInfo: &androidmanagement.HardwareInfo{
-			EnterpriseSpecificId: enterpriseSpecificID,
-			Brand:                "TestBrand",
-			Model:                "TestModel",
-			SerialNumber:         "test-serial",
-			Hardware:             "test-hardware",
-		},
 	})
 
 	require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", msg))
+	require.True(t, mockDS.AndroidHostLiteFuncInvoked,
+		"AndroidHostLite must be invoked to detect existing host on re-enroll")
 	require.True(t, mockDS.ClearHostMDMActionsFuncInvoked,
 		"ClearHostMDMActions must be called on Android re-enrollment to drop stale lock/wipe/clear-passcode refs")
 }

@@ -1620,6 +1620,48 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
     });
 
+    // canWipeAndroid allow-lists BOTH "On (automatic)" and "On (company-owned)" as COBO. The case
+    // above covers "On (automatic)"; this case guards the other allow-listed value against a
+    // regression in the allow-list.
+    it("renders Transfer + Clear passcode + Lock + Wipe + Delete for an Android host with enrollment status 'On (company-owned)'", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isAndroidMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="android"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Lock")).toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      expect(screen.queryByText("Unenroll")).not.toBeInTheDocument();
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+    });
+
     it("does NOT show Wipe for an Android host with enrollment status 'On (manual)' (Wipe requires COBO; allow-list, not negative check)", async () => {
       const render = createCustomRenderer({
         context: {
