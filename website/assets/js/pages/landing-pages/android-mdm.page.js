@@ -3,7 +3,7 @@ parasails.registerPage('android-mdm', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    modal: '',
+    //…
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -20,11 +20,6 @@ parasails.registerPage('android-mdm', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    clickOpenVideoModal: function(modalName) {
-      this.modal = modalName;
-    },
-    closeModal: function() {
-      this.modal = undefined;
-    },
+    //…
   }
 });
