@@ -52,11 +52,21 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 
 	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
 	query := `
-		SELECT name, install_location, version 
+		SELECT name, install_location, version
 		FROM programs
 		WHERE
 		LOWER(name) LIKE LOWER('%` + appName + `%')
 	`
+	// The catalog name can differ from the registry DisplayName (e.g. catalog
+	// "Amazon Corretto 25" vs DisplayName "Amazon Corretto (x64)"). The
+	// unique_identifier is the value that should match programs.name, so search
+	// on it as well.
+	if uniqueIdentifier != "" && uniqueIdentifier != appName {
+		if err := validateSqlInput(uniqueIdentifier); err != nil {
+			return false, fmt.Errorf("Invalid character found in uniqueIdentifier: '%w'. Not executing query...", err)
+		}
+		query += `	OR LOWER(name) LIKE LOWER('%` + uniqueIdentifier + `%')`
+	}
 	if appPath != "" {
 		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
 	}

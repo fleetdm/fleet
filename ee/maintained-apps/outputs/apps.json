@@ -145,7 +145,7 @@
       "name": "Amazon Corretto 25",
       "slug": "amazon-corretto-25/windows",
       "platform": "windows",
-      "unique_identifier": "Amazon Corretto 25",
+      "unique_identifier": "Amazon Corretto (x64)",
       "description": "Amazon Corretto 25 is a no-cost, multiplatform, production-ready distribution of OpenJDK 25."
     },
     {
