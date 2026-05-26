@@ -533,7 +533,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 	require.Empty(t, resp.Profiles)
 
 	// Add secrets to server
-	req := createSecretVariablesRequest{
+	req := fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_BASH",
@@ -545,7 +545,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 			},
 		},
 	}
-	secretResp := createSecretVariablesResponse{}
+	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// Now real run
@@ -662,7 +662,7 @@ WHERE name = ?`
 
 	// Change the secrets.
 	myBash = "my.new.bash"
-	req = createSecretVariablesRequest{
+	req = fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_BASH",

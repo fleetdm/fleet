@@ -9539,8 +9539,8 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Len(t, lblMap, len(builtinNames))
 
 	// no search criteria
-	var searchResp searchTargetsResponse
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{}, http.StatusOK, &searchResp)
+	var searchResp fleet.SearchTargetsResponse
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
 	require.Len(t, searchResp.Targets.Labels, len(lblMap))
@@ -9551,22 +9551,22 @@ func (s *integrationTestSuite) TestSearchTargets() {
 		lblIDs = append(lblIDs, labelID)
 	}
 
-	searchResp = searchTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
+	searchResp = fleet.SearchTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // no omitted host id
 	require.Len(t, searchResp.Targets.Labels, 0)         // All built-in labels have been omitted (pre-selected)
 	require.Len(t, searchResp.Targets.Teams, 0)
 
-	searchResp = searchTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &searchResp)
+	searchResp = fleet.SearchTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(1), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1) // one omitted host id
 	require.Len(t, searchResp.Targets.Labels, len(lblMap)) // labels have not been omitted
 	require.Len(t, searchResp.Targets.Teams, 0)
 
-	searchResp = searchTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
+	searchResp = fleet.SearchTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, 1)
 	require.Len(t, searchResp.Targets.Labels, 1) // with a match query, only matching label names and "All Hosts" can be returned (here, only all hosts)
@@ -9672,12 +9672,12 @@ func (s *integrationTestSuite) TestCountTargets() {
 	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(ptr.Uint(team.ID), []uint{hostIDs[0]}))
 	require.NoError(t, err)
 
-	var countResp countTargetsResponse
+	var countResp fleet.CountTargetsResponse
 	// sleep to reduce flake in last seen time so that online/offline counts can be tested
 	time.Sleep(1 * time.Second)
 
 	// none selected
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{}, http.StatusOK, &countResp)
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{}, http.StatusOK, &countResp)
 	require.Equal(t, uint(0), countResp.TargetsCount)
 	require.Equal(t, uint(0), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
@@ -9687,23 +9687,23 @@ func (s *integrationTestSuite) TestCountTargets() {
 		lblIDs = append(lblIDs, labelID)
 	}
 	// all hosts label selected
-	countResp = countTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &countResp)
+	countResp = fleet.CountTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &countResp)
 	require.Equal(t, uint(3), countResp.TargetsCount)
 	require.Equal(t, uint(1), countResp.TargetsOnline)
 	require.Equal(t, uint(2), countResp.TargetsOffline)
 
 	// team selected
-	countResp = countTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{team.ID}}}, http.StatusOK, &countResp)
+	countResp = fleet.CountTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{team.ID}}}, http.StatusOK, &countResp)
 	require.Equal(t, uint(1), countResp.TargetsCount)
 	require.Equal(t, uint(1), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
 
 	// 'No team' selected
-	countResp = countTargetsResponse{}
+	countResp = fleet.CountTargetsResponse{}
 	s.DoJSON(
-		"POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{0}}},
+		"POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{0}}},
 		http.StatusOK, &countResp,
 	)
 	assert.Equal(t, uint(2), countResp.TargetsCount)
@@ -9711,8 +9711,8 @@ func (s *integrationTestSuite) TestCountTargets() {
 	assert.Equal(t, uint(2), countResp.TargetsOffline)
 
 	// host id selected
-	countResp = countTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &countResp)
+	countResp = fleet.CountTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &countResp)
 	require.Equal(t, uint(1), countResp.TargetsCount)
 	require.Equal(t, uint(0), countResp.TargetsOnline)
 	require.Equal(t, uint(1), countResp.TargetsOffline)
@@ -15074,12 +15074,12 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	s.setTokenForTest(t, "gitops1@example.com", test.GoodPassword)
 
 	// Empty request
-	req := createSecretVariablesRequest{}
-	var resp createSecretVariablesResponse
+	req := fleet.CreateSecretVariablesRequest{}
+	var resp fleet.CreateSecretVariablesResponse
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 
 	// Secret variable name too long
-	req = createSecretVariablesRequest{
+	req = fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  strings.Repeat("a", 256),
@@ -15091,7 +15091,7 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	assertBodyContains(t, httpResp, "secret variable name is too long")
 
 	// Secret variable name empty
-	req = createSecretVariablesRequest{
+	req = fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "  ",
@@ -15103,7 +15103,7 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	assertBodyContains(t, httpResp, "secret variable name cannot be empty")
 
 	validName := strings.Repeat("G", 255)
-	req = createSecretVariablesRequest{
+	req = fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_" + validName,
@@ -15133,8 +15133,8 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	ctx := context.Background()
 
 	// Create a single secret variable.
-	var csvr createSecretVariableResponse
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	var csvr fleet.CreateSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME1",
 		Value: "value1",
 	}, http.StatusOK, &csvr)
@@ -15142,8 +15142,8 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NotZero(t, firstVariableID)
 
 	// List (no-filtering).
-	var lsvr listSecretVariablesResponse
-	s.DoJSON("GET", "/api/latest/fleet/custom_variables", listSecretVariablesRequest{}, http.StatusOK, &lsvr)
+	var lsvr fleet.ListSecretVariablesResponse
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", fleet.ListSecretVariablesRequest{}, http.StatusOK, &lsvr)
 	require.Equal(t, lsvr.Count, 1)
 	require.Len(t, lsvr.CustomVariables, 1)
 	require.NotZero(t, lsvr.CustomVariables[0].ID)
@@ -15159,21 +15159,21 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NotZero(t, secretVariables[0].UpdatedAt)
 
 	// Creating the same variable should fail with conflict.
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME1",
 		Value: "value1",
 	}, http.StatusConflict, &csvr)
 
 	// Creating a variable with invalid name should fail with 422.
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "lowercase",
 		Value: "foobar",
 	}, http.StatusUnprocessableEntity, &csvr)
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "",
 		Value: "foobar",
 	}, http.StatusUnprocessableEntity, &csvr)
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  strings.Repeat("HA ", 255/3+1),
 		Value: "foobar",
 	}, http.StatusUnprocessableEntity, &csvr)
@@ -15182,7 +15182,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	defer func() {
 		testSetEmptyPrivateKey = false
 	}()
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME2",
 		Value: "foobar",
 	}, http.StatusBadRequest, &csvr)
@@ -15190,13 +15190,13 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	testSetEmptyPrivateKey = false
 
 	// Creating a variable with empty value should fail with 422.
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "ANOTHER_NAME",
 		Value: "",
 	}, http.StatusUnprocessableEntity, &csvr)
 
 	// Creating a second variable.
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "ANOTHER_NAME",
 		Value: "value2",
 	}, http.StatusOK, &csvr)
@@ -15204,7 +15204,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NotZero(t, secondVariableID)
 
 	// List (no-filtering) with pagination (first page).
-	lsvr = listSecretVariablesResponse{}
+	lsvr = fleet.ListSecretVariablesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "1", "page", "0")
 	require.Equal(t, 2, lsvr.Count)
 	require.NotNil(t, lsvr.Meta)
@@ -15215,7 +15215,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.Equal(t, "ANOTHER_NAME", lsvr.CustomVariables[0].Name)
 	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
 	// List (no-filtering) with pagination (second page).
-	lsvr = listSecretVariablesResponse{}
+	lsvr = fleet.ListSecretVariablesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "1", "page", "1")
 	require.Equal(t, 2, lsvr.Count)
 	require.NotNil(t, lsvr.Meta)
@@ -15227,7 +15227,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
 	// List (no-filtering) with pagination (one page, two secrets).
 	// Must be ordered alphabetically.
-	lsvr = listSecretVariablesResponse{}
+	lsvr = fleet.ListSecretVariablesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "20", "page", "0")
 	require.Equal(t, 2, lsvr.Count)
 	require.NotNil(t, lsvr.Meta)
@@ -15242,14 +15242,14 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NotZero(t, lsvr.CustomVariables[1].UpdatedAt)
 
 	// Test deletion of non-existent ID
-	var dsvr deleteSecretVariableResponse
+	var dsvr fleet.DeleteSecretVariableResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/custom_variables/999", nil, http.StatusNotFound, &dsvr)
 
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusOK, &dsvr)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", secondVariableID), nil, http.StatusOK, &dsvr)
 
 	// List after deletions should be empty.
-	lsvr = listSecretVariablesResponse{}
+	lsvr = fleet.ListSecretVariablesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr)
 	require.Equal(t, 0, lsvr.Count)
 	require.Empty(t, lsvr.CustomVariables)
@@ -15265,8 +15265,8 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 	require.NoError(t, err)
 
 	// Create a single secret variable.
-	var csvr createSecretVariableResponse
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	var csvr fleet.CreateSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME1",
 		Value: "value1",
 	}, http.StatusOK, &csvr)
@@ -15349,7 +15349,7 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 	require.NoError(t, err)
 
 	// Finally, delete now should work.
-	var dsvr deleteSecretVariableResponse
+	var dsvr fleet.DeleteSecretVariableResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusOK, &dsvr)
 }
 
@@ -15358,8 +15358,8 @@ func (s *integrationTestSuite) TestSecretVariablesPermissions() {
 	ctx := context.Background()
 
 	// Create a single secret variable.
-	var csvr createSecretVariableResponse
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	var csvr fleet.CreateSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME1",
 		Value: "foobar",
 	}, http.StatusOK, &csvr)
@@ -15375,14 +15375,14 @@ func (s *integrationTestSuite) TestSecretVariablesPermissions() {
 	require.NoError(t, err)
 	s.setTokenForTest(t, "observer@example.com", test.GoodPassword)
 
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME1",
 		Value: "foobar",
 	}, http.StatusForbidden, &csvr)
 
 	// List (no-filtering) should work for non-admins.
-	var lsvr listSecretVariablesResponse
-	s.DoJSON("GET", "/api/latest/fleet/custom_variables", listSecretVariablesRequest{}, http.StatusOK, &lsvr)
+	var lsvr fleet.ListSecretVariablesResponse
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", fleet.ListSecretVariablesRequest{}, http.StatusOK, &lsvr)
 	require.Equal(t, lsvr.Count, 1)
 	require.Len(t, lsvr.CustomVariables, 1)
 	require.NotZero(t, lsvr.CustomVariables[0].ID)
