@@ -147,6 +147,29 @@ func ReconcileAppleDeclarationsBatched(
 		return ctxerr.Wrap(ctx, err, "bulk upsert host mdm apple declarations")
 	}
 
+	// Find any hosts that requested a resync. This is used to cover special cases where we're not
+	// 100% certain of the declarations on the device.
+	// This should be a simple and often no-op, so we are good to still call this each cron run.
+	resyncHosts, err := ds.MDMAppleHostDeclarationsGetAndClearResync(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting and clearing resync hosts")
+	}
+	if len(resyncHosts) > 0 {
+		changedHostUUIDs = append(changedHostUUIDs, resyncHosts...)
+		// Deduplicate changedHosts
+		uniqueHosts := make(map[string]struct{})
+		deduplicatedHosts := make([]string, 0, len(changedHostUUIDs))
+		for _, id := range changedHostUUIDs {
+			if _, exists := uniqueHosts[id]; !exists {
+				uniqueHosts[id] = struct{}{}
+				deduplicatedHosts = append(deduplicatedHosts, id)
+			}
+		}
+		changedHostUUIDs = deduplicatedHosts
+	}
+
+	// TODO: Consider a similar approach to profiles where if failed to send the command for the host, reset the status so we resent it again.
+	// now it will just end up in a state where it never retries to send the DeclarativeManagement command.
 	if len(changedHostUUIDs) > 0 {
 		if err := commander.DeclarativeManagement(ctx, changedHostUUIDs, uuid.NewString()); err != nil {
 			return ctxerr.Wrap(ctx, err, "issuing DeclarativeManagement command")
