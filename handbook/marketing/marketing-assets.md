@@ -191,6 +191,7 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
+| [ClickFix copy/paste social engineering: threat brief and Fleet detection pack](https://fleetdm.com/securing/clickfix-copy-paste-fleet-detection-pack) | Threat brief and Fleet/osquery detection guide for the ClickFix copy/paste social-engineering technique on Windows and macOS. | Dhruv Majumdar | 2026-05-26 |
 | [Pre-CVE threat response: a Dirty Frag walkthrough with Fleet](https://fleetdm.com/securing/pre-cve-threat-response-with-fleet) | A worked example of using Fleet's osquery, run-script, and policies to scope, mitigate, and verify a Linux kernel privilege escalation across a fleet before a CVE is assigned. | Dhruv Majumdar | 2026-05-22 |
 | [Patch management vs vulnerability management: why this distinction now decides whether you survive the AI vulnerability storm](https://fleetdm.com/securing/patch-management-vs-vulnerability-management) | Vulnerability management finds risk; patch management deploys updates. With AI collapsing exploit windows to hours in 2026, conflating them is fatal. | Ashish Kuthiala | 2026-05-22 |
 | [Managing Linux desktops with GitOps](https://fleetdm.com/articles/managing-linux-desktops-with-gitops) | Bring GitOps to Linux desktop management with Fleet. Declarative YAML, CI/CD pipelines, and version control replace slow, error-prone ClickOps. | Anthony Critelli | 2026-05-20 |
