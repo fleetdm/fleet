@@ -224,7 +224,7 @@ func testNewAndroidHostDedupesOrbitEnrolled(t *testing.T, ds *Datastore) {
 	// disabled, matchHostDuringEnrollment must still find the AMAPI-created host by UUID
 	// so orbit updates the existing row instead of inserting a duplicate.
 	for _, mdmEnabled := range []bool{true, false} {
-		name := "AMAPI first then orbit, MDM enabled"
+		name := "AMAPI first then orbit, Apple MDM enabled"
 		if !mdmEnabled {
 			name = "AMAPI first then orbit, Apple MDM disabled"
 		}
