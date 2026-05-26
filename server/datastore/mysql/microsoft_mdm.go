@@ -2636,9 +2636,7 @@ const windowsProfilesToRemoveQuery = `
 	WHERE
 		-- profiles that are in B but not in A
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
-		-- only target hosts that still have a valid Windows MDM enrollment
-		-- AND whose host_mdm.enrolled reflects current osquery-confirmed
-		-- enrollment. Other hosts cannot receive MDM commands and must be skipped.
+		-- skip hosts not confirmed enrolled in Fleet's Windows MDM
 		EXISTS (
 			SELECT 1 FROM mdm_windows_enrollments mwe
 				JOIN hosts h ON h.uuid = mwe.host_uuid

@@ -5284,7 +5284,7 @@ func testMDMWindowsUnenrollCleansUpProfiles(t *testing.T, ds *Datastore) {
 
 // testWindowsMDMGlobalDisableBlocksReconciler exercises Windows fix for issue #42427:
 // The reconciler's host_mdm.enrolled = 1 join ensures that once a host genuinely unenrolls (via the orbit-driven flow,
-// or because osquery reports the registry has no MDM), the reconciler skips it, reventing stale pending rows from
+// or because osquery reports the registry has no MDM), the reconciler skips it, preventing stale pending rows from
 // being recreated after Windows MDM is re-enabled.
 func testWindowsMDMGlobalDisableBlocksReconciler(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
