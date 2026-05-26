@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -34,6 +35,10 @@ type TeamSearchResult struct {
 }
 
 func (t TeamSearchResult) MarshalJSON() ([]byte, error) {
+	if t.Team == nil {
+		return nil, errors.New("team search result: nil team")
+	}
+
 	x := struct {
 		ID          uint      `json:"id"`
 		CreatedAt   time.Time `json:"created_at"`
