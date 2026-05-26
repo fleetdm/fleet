@@ -30942,6 +30942,163 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 	assertCountStable(transitionBefore, transitionCount, "transition policy must not trigger script on passing result")
 }
 
+// TestPolicyAutomationsContinuousScriptRetryReset verifies that when a
+// continuous-automation policy is still failing after its retry sequence has
+// been exhausted (MaxPolicyAutomationRetries attempts), the next continuous
+// re-fire resets the attempt counter so a fresh sequence of retries is
+// available. Without the reset, attempt_number would just keep climbing past
+// the cap and no retries would ever fire again.
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScriptRetryReset() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "fail.sh",
+		ScriptContents: "exit 1",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                         "continuous-retry-reset",
+		Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform:                     "darwin",
+		ContinuousAutomationsEnabled: true,
+	})
+	require.NoError(t, err)
+
+	var mtplr fleet.ModifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	submitPolicyResult := func(passes bool) {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			host,
+			map[uint]*bool{policy.ID: new(passes)},
+		), http.StatusOK, &distributedResp)
+	}
+
+	getPendingScript := func() *fleet.HostScriptResult {
+		t.Helper()
+		var pending *fleet.HostScriptResult
+		require.EventuallyWithT(t, func(t *assert.CollectT) {
+			scripts, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+			assert.NoError(t, err)
+			assert.NotEmpty(t, scripts)
+			if len(scripts) > 0 {
+				pending = scripts[0]
+			}
+		}, 5*time.Second, 100*time.Millisecond)
+		return pending
+	}
+
+	submitScriptFailure := func(executionID string) {
+		s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+			json.RawMessage(fmt.Sprintf(
+				`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 1, "output": "fail"}`,
+				*host.OrbitNodeKey, executionID,
+			)), http.StatusOK, &fleet.OrbitPostScriptResultResponse{})
+	}
+
+	type row struct {
+		ExecutionID   string `db:"execution_id"`
+		ExitCode      *int64 `db:"exit_code"`
+		AttemptNumber *int   `db:"attempt_number"`
+	}
+	listAttempts := func() []row {
+		var rows []row
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `
+				SELECT execution_id, exit_code, attempt_number
+				FROM host_script_results
+				WHERE host_id = ? AND script_id = ? AND policy_id = ?
+				ORDER BY id ASC
+			`, host.ID, script.ID, policy.ID)
+		})
+		return rows
+	}
+
+	// Phase 1: pass→fail starts a sequence. Drive it to the cap by failing
+	// every attempt. fleet.MaxPolicyAutomationRetries is 3, so the host
+	// should see exactly 3 attempts: the initial run plus 2 auto-retries.
+	submitPolicyResult(false)
+	for i := 1; i <= fleet.MaxPolicyAutomationRetries; i++ {
+		pending := getPendingScript()
+		require.NotNil(t, pending)
+		submitScriptFailure(pending.ExecutionID)
+	}
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		rows := listAttempts()
+		if !assert.Len(t, rows, fleet.MaxPolicyAutomationRetries) {
+			return
+		}
+		// All rows should be completed (exit_code recorded) and form a
+		// 1..MaxPolicyAutomationRetries attempt sequence.
+		for i, r := range rows {
+			if assert.NotNil(t, r.AttemptNumber) {
+				assert.Equal(t, i+1, *r.AttemptNumber, "row %d attempt_number", i)
+			}
+			assert.NotNil(t, r.ExitCode, "row %d should have a recorded exit_code", i)
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// No further retry is queued once the cap is hit — without continuous
+	// re-fire, the host_script_results count stays at MaxPolicyAutomationRetries.
+	require.Never(t, func() bool {
+		return len(listAttempts()) != fleet.MaxPolicyAutomationRetries
+	}, 1*time.Second, 100*time.Millisecond, "no extra attempts queued after retry cap is hit")
+
+	// Phase 2: the policy is still failing. A continuous re-fire must reset
+	// the attempt counter — the new attempt should start at 1 and remain
+	// retry-eligible, NOT inherit the previous sequence's cap.
+	submitPolicyResult(false)
+	pending := getPendingScript()
+	require.NotNil(t, pending)
+	submitScriptFailure(pending.ExecutionID)
+
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		rows := listAttempts()
+		// 3 old (reset to 0) + 1 new completed (attempt 1) + 1 new queued retry (NULL)
+		if !assert.Len(t, rows, fleet.MaxPolicyAutomationRetries+2) {
+			return
+		}
+		// Old sequence is marked attempt_number=0.
+		for i := range fleet.MaxPolicyAutomationRetries {
+			if assert.NotNil(t, rows[i].AttemptNumber) {
+				assert.Equal(t, 0, *rows[i].AttemptNumber, "old row %d should be reset", i)
+			}
+		}
+		// New sequence starts at 1, and a retry has been queued (attempt_number NULL until completed).
+		if assert.NotNil(t, rows[fleet.MaxPolicyAutomationRetries].AttemptNumber) {
+			assert.Equal(t, 1, *rows[fleet.MaxPolicyAutomationRetries].AttemptNumber, "new sequence first attempt")
+		}
+		assert.Nil(t, rows[fleet.MaxPolicyAutomationRetries+1].AttemptNumber, "retry should be queued (NULL) after fresh sequence")
+	}, 5*time.Second, 100*time.Millisecond)
+}
+
 // TestPolicyAutomationsContinuousSoftwareInstaller verifies that
 // continuous_automations_enabled=true causes a software install automation to
 // fire on every failing policy result, not just on pass→fail transitions.
@@ -31083,6 +31240,176 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 	require.Never(t, func() bool {
 		return countInstallsFor(transitionPolicy.ID) != transitionBefore
 	}, 2*time.Second, 100*time.Millisecond, "transition policy must not trigger install on passing result")
+}
+
+// TestPolicyAutomationsContinuousSoftwareInstallerRetryReset is the software
+// install analog of TestPolicyAutomationsContinuousScriptRetryReset: it
+// verifies that when a continuous-automation policy is still failing after its
+// software-install retry sequence has been exhausted, the next continuous
+// re-fire resets the attempt counter so a fresh retry sequence is available.
+func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftwareInstallerRetryReset() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", t.Name()),
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// Upload a macOS installer to the team.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "exit 1",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}, http.StatusOK, "")
+
+	titlesResp := listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &titlesResp,
+		"query", "DummyApp", "team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+	titleID := titlesResp.SoftwareTitles[0].ID
+
+	var installerID uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID,
+			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
+			team.ID, "dummy_installer.pkg",
+		)
+	})
+	require.NotZero(t, installerID)
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                         "continuous-retry-reset-installer",
+		Query:                        "SELECT 1 FROM osquery_info WHERE start_time < 0;",
+		Platform:                     "darwin",
+		ContinuousAutomationsEnabled: true,
+	})
+	require.NoError(t, err)
+
+	var mtplr fleet.ModifyTeamPolicyResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+		},
+	}, http.StatusOK, &mtplr)
+
+	submitPolicyResult := func(passes bool) {
+		var distributedResp submitDistributedQueryResultsResponse
+		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+			host,
+			map[uint]*bool{policy.ID: new(passes)},
+		), http.StatusOK, &distributedResp)
+	}
+
+	getPendingInstall := func() *fleet.HostLastInstallData {
+		t.Helper()
+		var pending *fleet.HostLastInstallData
+		require.EventuallyWithT(t, func(t *assert.CollectT) {
+			last, err := s.ds.GetHostLastInstallData(ctx, host.ID, installerID)
+			assert.NoError(t, err)
+			if !assert.NotNil(t, last) || !assert.NotNil(t, last.Status) {
+				return
+			}
+			assert.Equal(t, fleet.SoftwareInstallPending, *last.Status)
+			pending = last
+		}, 5*time.Second, 100*time.Millisecond)
+		return pending
+	}
+
+	submitInstallFailure := func(installUUID string) {
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{
+				"orbit_node_key": %q,
+				"install_uuid": %q,
+				"install_script_exit_code": 1,
+				"install_script_output": "fail"
+			}`, *host.OrbitNodeKey, installUUID)),
+			http.StatusNoContent)
+	}
+
+	type row struct {
+		ExecutionID   string `db:"execution_id"`
+		ExitCode      *int64 `db:"install_script_exit_code"`
+		AttemptNumber *int   `db:"attempt_number"`
+	}
+	listAttempts := func() []row {
+		var rows []row
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `
+				SELECT execution_id, install_script_exit_code, attempt_number
+				FROM host_software_installs
+				WHERE host_id = ? AND software_installer_id = ? AND policy_id = ?
+				ORDER BY id ASC
+			`, host.ID, installerID, policy.ID)
+		})
+		return rows
+	}
+
+	// Phase 1: pass→fail starts a sequence. Drive it to the cap by failing
+	// every attempt. fleet.MaxPolicyAutomationRetries is 3, so the host
+	// should see exactly 3 attempts: the initial run plus 2 auto-retries.
+	submitPolicyResult(false)
+	for i := 1; i <= fleet.MaxPolicyAutomationRetries; i++ {
+		pending := getPendingInstall()
+		require.NotNil(t, pending)
+		submitInstallFailure(pending.ExecutionID)
+	}
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		rows := listAttempts()
+		if !assert.Len(t, rows, fleet.MaxPolicyAutomationRetries) {
+			return
+		}
+		for i, r := range rows {
+			if assert.NotNil(t, r.AttemptNumber) {
+				assert.Equal(t, i+1, *r.AttemptNumber, "row %d attempt_number", i)
+			}
+			assert.NotNil(t, r.ExitCode, "row %d should have a recorded exit_code", i)
+		}
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// No further retry is queued once the cap is hit.
+	require.Never(t, func() bool {
+		return len(listAttempts()) != fleet.MaxPolicyAutomationRetries
+	}, 1*time.Second, 100*time.Millisecond, "no extra install attempts after retry cap is hit")
+
+	// Phase 2: continuous re-fire after the cap is reached must reset the
+	// attempt counter so the new attempt starts at 1 and remains retry-eligible.
+	submitPolicyResult(false)
+	pending := getPendingInstall()
+	require.NotNil(t, pending)
+	submitInstallFailure(pending.ExecutionID)
+
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		rows := listAttempts()
+		// 3 old (reset to 0) + 1 new completed (attempt 1) + 1 new queued retry (NULL)
+		if !assert.Len(t, rows, fleet.MaxPolicyAutomationRetries+2) {
+			return
+		}
+		for i := range fleet.MaxPolicyAutomationRetries {
+			if assert.NotNil(t, rows[i].AttemptNumber) {
+				assert.Equal(t, 0, *rows[i].AttemptNumber, "old row %d should be reset", i)
+			}
+		}
+		if assert.NotNil(t, rows[fleet.MaxPolicyAutomationRetries].AttemptNumber) {
+			assert.Equal(t, 1, *rows[fleet.MaxPolicyAutomationRetries].AttemptNumber, "new sequence first attempt")
+		}
+		assert.Nil(t, rows[fleet.MaxPolicyAutomationRetries+1].AttemptNumber, "retry should be queued (NULL) after fresh sequence")
+	}, 5*time.Second, 100*time.Millisecond)
 }
 
 // TestOrbitEnrollWithIdPPopulatesDeviceMapping covers issue #45066: orbit
