@@ -1303,10 +1303,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		} else {
 			act = fleet.ActivityTypeDisabledWindowsMDM{}
 
-			// Mark Windows hosts as unenrolled in host_mdm and delete all rows
-			// from host_mdm_windows_profiles. Without this, mdm_windows_enrollments
-			// rows would remain and the Windows profile reconciler would recreate
-			// pending rows the next time Windows MDM is re-enabled.
+			// Delete all rows from host_mdm_windows_profiles so the profile
+			// reconciler doesn't have stale state to reissue when Windows MDM
+			// is re-enabled. The reconciler's host_mdm.enrolled = 1 gate
+			// (added in #42427) then ensures that hosts that quietly fell off
+			// MDM while it was disabled don't get new pending rows once
+			// Windows MDM is turned back on.
 			if err := svc.ds.BulkDisableMDMForPlatform(ctx, "windows"); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "disabling Windows MDM for hosts")
 			}

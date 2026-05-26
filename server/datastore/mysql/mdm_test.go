@@ -10134,26 +10134,27 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	assertHostProfileOpStatus(t, ds, host3.UUID)
 	assertHostProfileOpStatus(t, ds, host4.UUID)
 
-	// Windows hosts must be FLIPPED to enrolled = 0 in host_mdm (not deleted).
-	// We assert both that pre-existing rows survive and that they all show
-	// enrolled = 0, so this test catches a regression that drops rows instead
-	// of flipping the flag.
+	// Windows host_mdm rows must NOT be touched by global disable. Orbit's
+	// programmatic-unenrollment notification depends on host_mdm.enrolled = 1
+	// to be able to tell the device to unenroll. The reconciler's own
+	// host_mdm.enrolled = 1 gate handles the bug fix; we don't flip it here.
 	var winHostMDM struct {
-		Total      int `db:"total"`
-		Unenrolled int `db:"unenrolled"`
+		Total    int `db:"total"`
+		Enrolled int `db:"enrolled"`
 	}
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &winHostMDM,
 			`SELECT
 				COUNT(*) AS total,
-				COALESCE(SUM(CASE WHEN hmdm.enrolled = 0 THEN 1 ELSE 0 END), 0) AS unenrolled
+				COALESCE(SUM(CASE WHEN hmdm.enrolled = 1 THEN 1 ELSE 0 END), 0) AS enrolled
 			 FROM host_mdm hmdm
 			 JOIN hosts h ON h.id = hmdm.host_id
 			 WHERE h.uuid IN (?, ?) AND h.platform = 'windows'`,
 			host3.UUID, host4.UUID)
 	})
-	require.Equal(t, 2, winHostMDM.Total, "Windows host_mdm rows must survive global disable, not be deleted")
-	require.Equal(t, 2, winHostMDM.Unenrolled, "Windows host_mdm rows must be flipped to enrolled = 0")
+	require.Equal(t, 2, winHostMDM.Total, "Windows host_mdm rows must survive global disable")
+	require.Equal(t, 2, winHostMDM.Enrolled,
+		"Windows host_mdm.enrolled must be preserved so orbit can still send unenroll notifications")
 
 	// Apple hosts still have pending removes; verify they survived the Windows cleanup, then disable Apple MDM too.
 	appleProfsHost1, err := ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
@@ -10186,26 +10187,8 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 			 WHERE id IN (?, ?)`,
 			host1.UUID, host2.UUID)
 	})
-	require.Greater(t, appleEnrollments.Total, 0, "nano_enrollments rows must survive global disable, not be deleted")
+	require.Positive(t, appleEnrollments.Total, "nano_enrollments rows must survive global disable, not be deleted")
 	require.Equal(t, appleEnrollments.Total, appleEnrollments.Disabled, "nano_enrollments rows must be flipped to enabled = 0")
-
-	// Apple host_mdm rows must also be flipped to enrolled = 0 (not deleted).
-	var appleHostMDM struct {
-		Total      int `db:"total"`
-		Unenrolled int `db:"unenrolled"`
-	}
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &appleHostMDM,
-			`SELECT
-				COUNT(*) AS total,
-				COALESCE(SUM(CASE WHEN hmdm.enrolled = 0 THEN 1 ELSE 0 END), 0) AS unenrolled
-			 FROM host_mdm hmdm
-			 JOIN hosts h ON h.id = hmdm.host_id
-			 WHERE h.uuid IN (?, ?) AND h.platform IN ('darwin', 'ios', 'ipados')`,
-			host1.UUID, host2.UUID)
-	})
-	require.Equal(t, 2, appleHostMDM.Total, "Apple host_mdm rows must survive global disable, not be deleted")
-	require.Equal(t, 2, appleHostMDM.Unenrolled, "Apple host_mdm rows must be flipped to enrolled = 0")
 }
 
 // testDeleteTeamCancelsWindowsProfileInstalls verifies that when a team is

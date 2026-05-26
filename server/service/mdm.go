@@ -3428,11 +3428,11 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "saving app config")
 	}
 
-	// Mark all Apple hosts (darwin/ios/ipados) as unenrolled and delete all
-	// rows from host_mdm_apple_profiles and host_mdm_apple_declarations.
-	// Without this, nano_enrollments rows would remain with enabled = 1
-	// and the Apple profile reconciler would recreate pending rows the next
-	// time an APNS cert is uploaded and Apple MDM is re-enabled.
+	// Soft-disable nano_enrollments and delete all rows from
+	// host_mdm_apple_profiles and host_mdm_apple_declarations. Without this,
+	// nano_enrollments rows would remain with enabled = 1 and the Apple
+	// profile reconciler would recreate pending rows the next time an APNS
+	// cert is uploaded and Apple MDM is re-enabled.
 	if err := svc.ds.BulkDisableMDMForPlatform(ctx, "darwin"); err != nil {
 		return ctxerr.Wrap(ctx, err, "disabling Apple MDM for hosts")
 	}

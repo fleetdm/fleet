@@ -5285,15 +5285,19 @@ func testMDMWindowsUnenrollCleansUpProfiles(t *testing.T, ds *Datastore) {
 	require.Empty(t, winProfs)
 }
 
-// testBulkDisableMDMWindowsBlocksReconciler verifies that after a global
-// Windows MDM disable via BulkDisableMDMForPlatform, the profile reconciler
-// does NOT pick up previously-enrolled hosts even though their
-// mdm_windows_enrollments rows persist (issue #42427, scenario A).
+// testBulkDisableMDMWindowsBlocksReconciler exercises the two-part Windows
+// fix for issue #42427:
 //
-// Repro: enroll a Windows host, assign a profile, observe it shows up in
-// ListMDMWindowsProfilesToInstall. Disable globally. The reconciler must
-// stop seeing the host until osquery's directIngestMDMWindows flips
-// host_mdm.enrolled back to 1.
+//  1. BulkDisableMDMForPlatform clears host_mdm_windows_profiles rows but
+//     leaves host_mdm.enrolled alone (orbit's programmatic-unenrollment
+//     notification depends on host_mdm.enrolled = 1 to be able to tell the
+//     device to unenroll).
+//
+//  2. The reconciler's host_mdm.enrolled = 1 join ensures that once a host
+//     genuinely unenrolls (via the orbit-driven flow, or because osquery
+//     reports the registry has no MDM), the reconciler skips it - preventing
+//     stale pending rows from being recreated after Windows MDM is
+//     re-enabled.
 func testBulkDisableMDMWindowsBlocksReconciler(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -5319,42 +5323,54 @@ func testBulkDisableMDMWindowsBlocksReconciler(t *testing.T, ds *Datastore) {
 	// Globally disable Windows MDM.
 	require.NoError(t, ds.BulkDisableMDMForPlatform(ctx, "windows"))
 
-	// The mdm_windows_enrollments row should still exist (the device is still
-	// enrolled at the OS level until it sends an unenrollment alert).
+	// mdm_windows_enrollments row must remain - the device is still
+	// enrolled at the OS level until it processes an unenrollment alert,
+	// and isWindowsHostConnectedToFleetMDM needs this row + host_mdm.enrolled
+	// = 1 for orbit to be able to send the programmatic-unenrollment
+	// notification.
 	var enrollmentCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &enrollmentCount,
 			`SELECT COUNT(*) FROM mdm_windows_enrollments WHERE host_uuid = ?`, host.UUID)
 	})
-	require.Equal(t, 1, enrollmentCount, "mdm_windows_enrollments row should remain after global disable")
+	require.Equal(t, 1, enrollmentCount, "mdm_windows_enrollments row must remain after global disable")
 
-	// host_mdm.enrolled should be 0.
+	// host_mdm.enrolled must NOT be touched by BulkDisableMDMForPlatform.
+	// Flipping it would break orbit's programmatic-unenrollment notification.
 	var hostMDMEnrolled bool
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &hostMDMEnrolled,
 			`SELECT enrolled FROM host_mdm WHERE host_id = ?`, host.ID)
 	})
-	require.False(t, hostMDMEnrolled, "host_mdm.enrolled must be 0 after global disable")
+	require.True(t, hostMDMEnrolled,
+		"host_mdm.enrolled must be preserved so orbit can issue the programmatic-unenrollment notification")
 
-	// The host_mdm_windows_profiles rows must be gone.
+	// The host_mdm_windows_profiles rows must be gone (the visible part of the fix).
 	winProfs, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Empty(t, winProfs, "host_mdm_windows_profiles must be empty after global disable")
 
-	// Reconciler must NOT pick up this host anymore. This is the regression
-	// guard for #42427: previously the reconciler would recreate pending rows
-	// because the mdm_windows_enrollments row was still present.
+	// Simulate the orbit-driven unenroll completing: osquery reports the
+	// registry no longer has MDM, so host_mdm.enrolled flips to 0. From this
+	// point on the reconciler must skip the host - this is the regression
+	// guard for #42427.
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID,
+		false, // is_server
+		false, // enrolled - device has unenrolled
+		"", false, "", "", false))
+
 	toInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
 	require.NoError(t, err)
 	for _, p := range toInstall {
 		if p.HostUUID == host.UUID {
-			t.Fatalf("reconciler must not return host %s after global Windows MDM disable, got profile %s",
+			t.Fatalf("reconciler must not return host %s after device unenrolled, got profile %s",
 				host.UUID, p.ProfileUUID)
 		}
 	}
 
-	// Simulate osquery reporting the device still has MDM registered. Once
-	// host_mdm.enrolled flips back to 1, the reconciler resumes.
+	// If osquery later reports the device IS back on Fleet MDM (e.g., it
+	// re-enrolled after Windows MDM was turned back on), the reconciler must
+	// resume for that host.
 	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true,
 		"https://example.com", false, fleet.WellKnownMDMFleet, "", false))
 
@@ -5367,7 +5383,7 @@ func testBulkDisableMDMWindowsBlocksReconciler(t *testing.T, ds *Datastore) {
 			break
 		}
 	}
-	require.True(t, foundAfter, "reconciler must resume for host after osquery flips host_mdm.enrolled back to 1")
+	require.True(t, foundAfter, "reconciler must resume for host after osquery confirms it is enrolled again")
 }
 
 // testMDMWindowsProfilesToRemoveSkipsOrphanedHosts verifies that
