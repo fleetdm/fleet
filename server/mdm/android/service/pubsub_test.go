@@ -1182,7 +1182,7 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 		mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
 			return &fleet.MDMIdPAccount{
 				UUID:     "idp-acct-uuid",
-				Fullname: "Konstantin Sykulev",
+				Fullname: "John Smith",
 				Email:    "ksykulev@test.com",
 			}, nil
 		}
@@ -1216,8 +1216,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, capturedHost)
 
-		require.Equal(t, "Konstantin's Samsung SM-A176U1", capturedHost.Host.ComputerName)
-		require.Equal(t, "Konstantin's Samsung SM-A176U1", capturedHost.Host.Hostname)
+		require.Equal(t, "John Smith's Samsung SM-A176U1", capturedHost.Host.ComputerName)
+		require.Equal(t, "John Smith's Samsung SM-A176U1", capturedHost.Host.Hostname)
 		require.Equal(t, "Samsung SM-A176U1", capturedHost.Host.HardwareModel)
 	})
 
@@ -1334,8 +1334,8 @@ func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, capturedHost)
 
-		require.Equal(t, "Jane's Testbrand TestModel", capturedHost.Host.ComputerName)
-		require.Equal(t, "Jane's Testbrand TestModel", capturedHost.Host.Hostname)
+		require.Equal(t, "Jane Doe's Testbrand TestModel", capturedHost.Host.ComputerName)
+		require.Equal(t, "Jane Doe's Testbrand TestModel", capturedHost.Host.Hostname)
 		require.Equal(t, "Testbrand TestModel", capturedHost.Host.HardwareModel)
 	})
 

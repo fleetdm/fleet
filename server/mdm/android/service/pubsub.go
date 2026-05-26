@@ -727,13 +727,11 @@ func getHardwareModel(device *androidmanagement.Device) string {
 
 func getComputerName(device *androidmanagement.Device, idpFullname string) string {
 	hardwareModel := getHardwareModel(device)
-	parts := strings.Fields(idpFullname)
-	if len(parts) == 0 {
+	name := strings.TrimSpace(idpFullname)
+	if name == "" {
 		return hardwareModel
 	}
-	// Drop the last name; for single names, use as-is.
-	firstName := strings.Join(parts[:max(1, len(parts)-1)], " ")
-	return firstName + "'s " + hardwareModel
+	return name + "'s " + hardwareModel
 }
 
 func (svc *Service) getHostIfPresent(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
