@@ -123,9 +123,6 @@ const AddProfileModal = ({
   const [selectedIncludeMode, setSelectedIncludeMode] = useState<"any" | "all">(
     "any"
   );
-  const [selectedExcludeMode, setSelectedExcludeMode] = useState<"any" | "all">(
-    "any"
-  );
   const [selectedIncludeLabels, setSelectedIncludeLabels] = useState<
     Record<string, boolean>
   >({});
@@ -179,7 +176,7 @@ const AddProfileModal = ({
         selectedTargetType,
         selectedIncludeMode,
         selectedIncludeLabels,
-        selectedExcludeMode,
+        "any",
         selectedExcludeLabels
       );
       await mdmAPI.uploadProfile({
@@ -376,28 +373,6 @@ const AddProfileModal = ({
             )}
           </TabPanel>
           <TabPanel>
-            <Radio
-              className="target-label-selector__radio-input"
-              label="Any"
-              id="exclude-any-radio"
-              checked={selectedExcludeMode === "any"}
-              value="any"
-              name="exclude-mode"
-              onChange={(val: string) =>
-                setSelectedExcludeMode(val as "any" | "all")
-              }
-            />
-            <Radio
-              className="target-label-selector__radio-input"
-              label="All"
-              id="exclude-all-radio"
-              checked={selectedExcludeMode === "all"}
-              value="all"
-              name="exclude-mode"
-              onChange={(val: string) =>
-                setSelectedExcludeMode(val as "any" | "all")
-              }
-            />
             <SearchField
               placeholder="Search labels"
               onChange={setExcludeSearchQuery}
