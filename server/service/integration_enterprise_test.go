@@ -6441,6 +6441,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
+	t := s.T()
 	ctx := t.Context()
 
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -9855,8 +9856,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchApplyScriptsEndpoints() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() {
-	ctx := t.Context()
 	t := s.T()
+	ctx := t.Context()
 
 	teamName := t.Name() + "team1"
 	team := &fleet.Team{
@@ -9985,8 +9986,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigHistoricalDataGitOps() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
-	ctx := t.Context()
 	t := s.T()
+	ctx := t.Context()
 
 	softwareTitleListResultsMatch := func(want, got []fleet.SoftwareTitleListResult) {
 		// compare only the fields we care about
@@ -10978,8 +10979,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
-	ctx := t.Context()
 	t := s.T()
+	ctx := t.Context()
 
 	// create a Windows and a Linux hosts
 	winHost := createOrbitEnrolledHost(t, "windows", "win_lock_unlock", s.ds)
@@ -11511,8 +11512,8 @@ func genDistributedReqWithPolicyResults(host *fleet.Host, policyResults map[uint
 }
 
 func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
-	ctx := t.Context()
 	t := s.T()
+	ctx := t.Context()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
 		calendar.ClearMockChannels()
@@ -11921,8 +11922,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
-	ctx := t.Context()
 	t := s.T()
+	ctx := t.Context()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
 		calendar.ClearMockChannels()
@@ -12239,8 +12240,8 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
-	ctx := t.Context()
 	t := s.T()
+	ctx := t.Context()
 
 	token := "good_token"
 	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
@@ -14970,8 +14971,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersCondition
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPoliciesAssociated() {
-	ctx := t.Context()
 	t := s.T()
+	ctx := t.Context()
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -15985,8 +15986,8 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
-	ctx := t.Context()
 	t := s.T()
+	ctx := t.Context()
 
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
 
@@ -16998,8 +16999,8 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
-	ctx := t.Context()
 	t := s.T()
+	ctx := t.Context()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
 		calendar.ClearMockChannels()
@@ -17493,8 +17494,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
-	ctx := t.Context()
 	t := s.T()
+	ctx := t.Context()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
 		calendar.ClearMockChannels()
@@ -21367,8 +21368,8 @@ func (s *integrationEnterpriseTestSuite) TestDeleteLabels() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() {
-	ctx := t.Context()
 	t := s.T()
+	ctx := t.Context()
 
 	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
 
