@@ -295,6 +295,7 @@ func TestComputeReconcileDeltas(t *testing.T) {
 				Status:        new(fleet.MDMDeliveryVerified),
 			}},
 		}
+		profilesWithBrokenLabel := map[string]struct{}{"aBrokenLabel": {}}
 		toInstall, toRemove := ComputeReconcileDeltas(
 			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, profByTeam, profilesWithBrokenLabel,
 		)

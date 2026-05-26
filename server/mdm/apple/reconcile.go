@@ -656,11 +656,14 @@ func ExecuteReconcileBatch(
 					hp.CommandUUID = ""
 					hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hp.HostUUID, ProfileUUID: hp.ProfileUUID}] = hp
 
+					// Also remove this host from installTargets to prevent sending MDM commands for this host.
+					// Note: user-scoped profiles use user enrollment IDs (not host UUIDs) in EnrollmentIDs, so
+					// the removal below is a no-op for those profiles, which is acceptable, since they are not enqueued via the worker.
 					if hp.OperationType == fleet.MDMOperationTypeInstall {
 						if target, ok := installTargets[hp.ProfileUUID]; ok {
 							var newEnrollmentIDs []string
 							for _, id := range target.EnrollmentIDs {
-								if id != hp.HostUUID && userEnrollmentsToHostUUIDsMap[id] != hp.HostUUID {
+								if id != hp.HostUUID {
 									newEnrollmentIDs = append(newEnrollmentIDs, id)
 								}
 							}
