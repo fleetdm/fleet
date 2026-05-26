@@ -1623,6 +1623,23 @@ CREATE TABLE `locks` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mdm_android_commands` (
+  `command_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `operation_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `command_type` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('pending','acknowledged','error') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `error_code` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `error_message` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`command_uuid`),
+  UNIQUE KEY `idx_mdm_android_commands_operation_name` (`operation_name`),
+  KEY `idx_mdm_android_commands_host_uuid` (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `mdm_android_configuration_profiles` (
   `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `team_id` int unsigned NOT NULL DEFAULT '0',

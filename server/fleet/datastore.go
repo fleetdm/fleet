@@ -3222,6 +3222,9 @@ type AndroidDatastore interface {
 	android.Datastore
 	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 	AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*AndroidHost, error)
+	// AndroidDeviceExistsByDeviceID reports whether an android_devices row exists for the given AMAPI device_id (the `Y` in
+	// `enterprises/X/devices/Y`).
+	AndroidDeviceExistsByDeviceID(ctx context.Context, deviceID string) (bool, error)
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error)
@@ -3247,6 +3250,37 @@ type AndroidDatastore interface {
 	// ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion returns a list of all android profiles that are pending or failed install, and where version is less than or equals to the policyVersion.
 	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
 	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
+
+	// NewMDMAndroidCommand inserts a row into mdm_android_commands at the moment Fleet issues an AMAPI command (Lock, Wipe,
+	// Clear passcode) via EnterprisesDevicesService.IssueCommand. The caller must populate cmd.CommandUUID before invoking.
+	NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error
+
+	// GetMDMAndroidCommandByUUID looks up a row by its Fleet-generated command_uuid. This is the identifier
+	// host_mdm_actions.{lock_ref, wipe_ref} points to for Android hosts.
+	GetMDMAndroidCommandByUUID(ctx context.Context, commandUUID string) (*android.MDMAndroidCommand, error)
+
+	// GetMDMAndroidCommandByOperationName looks up a row by its AMAPI operation name
+	// (enterprises/X/devices/Y/operations/Z). Used by the Pub/Sub COMMAND handler to correlate an incoming notification
+	// back to the originating Fleet command.
+	GetMDMAndroidCommandByOperationName(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
+
+	// UpdateMDMAndroidCommandStatus updates the status (and optional error_code/error_message) of
+	// a previously-issued command. Called by the Pub/Sub COMMAND handler on ack/error.
+	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error
+
+	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the lock_ref on host_mdm_actions in a
+	// single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate cmd.CommandUUID and cmd.OperationName
+	// (returned by EnterprisesDevicesIssueCommand) before invoking.
+	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
+	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the wipe_ref on host_mdm_actions in a
+	// single transaction. This method is for COBO Wipe specifically (the host page surfaces it as PendingAction=wipe ->
+	// DeviceStatus=wiped); the service layer must reject BYO hosts before calling. BYO unenroll also issues an AMAPI WIPE
+	// (work-profile-only) but persists via NewMDMAndroidCommand without touching host_mdm_actions, because BYO unenroll
+	// surfaces as the mdm_unenrolled activity, not as a wipe. The caller must populate cmd.CommandUUID and cmd.OperationName
+	// before invoking.
+	WipeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
 	// slice, updating existing entries and inserting new entries.

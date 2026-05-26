@@ -44,6 +44,8 @@ func TestAndroid(t *testing.T) {
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles3},
 		{"GetHostMDMAndroidProfiles", testGetHostMDMAndroidProfiles},
 		{"GetAndroidPolicyRequestByUUID", testGetAndroidPolicyRequestByUUID},
+		{"MDMAndroidCommandCRUD", testMDMAndroidCommandCRUD},
+		{"LockWipeHostViaAndroidMDM", testLockWipeHostViaAndroidMDM},
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
 		{"BatchSetMDMAndroidProfiles_Associations", testBatchSetMDMAndroidProfiles_Associations},
@@ -1888,6 +1890,193 @@ func testGetAndroidPolicyRequestByUUID(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NotNil(t, policyRequest)
 		require.Equal(t, policyRequestUUID, policyRequest.RequestUUID)
+	})
+}
+
+func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("Not found returns typed NotFound error for both lookups", func(t *testing.T) {
+		_, err := ds.GetMDMAndroidCommandByUUID(ctx, "missing-uuid")
+		require.Contains(t, err.Error(), common_mysql.NotFound("MDMAndroidCommand").WithName("missing-uuid").Error())
+
+		_, err = ds.GetMDMAndroidCommandByOperationName(ctx, "missing-op")
+		require.Contains(t, err.Error(), common_mysql.NotFound("MDMAndroidCommand").WithName("missing-op").Error())
+	})
+
+	t.Run("Update on missing row returns NotFound", func(t *testing.T) {
+		err := ds.UpdateMDMAndroidCommandStatus(ctx, "missing-uuid", string(android.MDMAndroidCommandStatusAcknowledged), nil, nil)
+		require.Contains(t, err.Error(), common_mysql.NotFound("MDMAndroidCommand").WithName("missing-uuid").Error())
+	})
+
+	t.Run("Insert, read by both keys, then transition to acknowledged", func(t *testing.T) {
+		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      "host-uuid-1",
+			OperationName: "enterprises/E1/devices/D1/operations/100",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, cmd))
+
+		byUUID, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, cmd.HostUUID, byUUID.HostUUID)
+		require.Equal(t, cmd.OperationName, byUUID.OperationName)
+		require.Equal(t, string(android.MDMAndroidCommandTypeLock), byUUID.CommandType)
+		require.Equal(t, string(android.MDMAndroidCommandStatusPending), byUUID.Status)
+		require.False(t, byUUID.ErrorCode.Valid)
+		require.False(t, byUUID.ErrorMessage.Valid)
+
+		byOp, err := ds.GetMDMAndroidCommandByOperationName(ctx, cmd.OperationName)
+		require.NoError(t, err)
+		require.Equal(t, cmd.CommandUUID, byOp.CommandUUID)
+
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID,
+			string(android.MDMAndroidCommandStatusAcknowledged), nil, nil))
+
+		acked, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), acked.Status)
+		require.False(t, acked.ErrorCode.Valid)
+		require.False(t, acked.ErrorMessage.Valid)
+	})
+
+	t.Run("Update writes error_code and error_message when provided", func(t *testing.T) {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   cmdUUID,
+			HostUUID:      "host-uuid-2",
+			OperationName: "enterprises/E1/devices/D1/operations/200",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+
+		errCode := "UNSUPPORTED"
+		errMsg := "device does not support WIPE"
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
+			string(android.MDMAndroidCommandStatusError), &errCode, &errMsg))
+
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandStatusError), got.Status)
+		require.True(t, got.ErrorCode.Valid)
+		require.Equal(t, errCode, got.ErrorCode.V)
+		require.True(t, got.ErrorMessage.Valid)
+		require.Equal(t, errMsg, got.ErrorMessage.V)
+	})
+
+	t.Run("Oversized error_message is truncated to fit VARCHAR(1024)", func(t *testing.T) {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   cmdUUID,
+			HostUUID:      "host-uuid-trim",
+			OperationName: "enterprises/E1/devices/D1/operations/trim",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+
+		huge := strings.Repeat("x", 5000)
+		errCode := "13"
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
+			string(android.MDMAndroidCommandStatusError), &errCode, &huge))
+
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+		require.NoError(t, err)
+		require.True(t, got.ErrorMessage.Valid)
+		require.Len(t, got.ErrorMessage.V, 1024, "error_message should be truncated to the column's VARCHAR(1024) limit")
+	})
+
+	t.Run("Duplicate operation_name fails", func(t *testing.T) {
+		// operation_name is UNIQUE so Pub/Sub COMMAND correlation can stay a single-row lookup.
+		opName := "enterprises/E1/devices/D1/operations/dup"
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      "host-uuid-dup-1",
+			OperationName: opName,
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+
+		err := ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      "host-uuid-dup-2",
+			OperationName: opName,
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		})
+		require.Error(t, err)
+		require.True(t, IsDuplicate(err), "expected a Duplicate-entry error for the UNIQUE operation_name constraint")
+	})
+}
+
+func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(uuid.NewString()),
+		UUID:            uuid.NewString(),
+		Hostname:        "android-lockwipe-helper-test",
+		Platform:        "android",
+	})
+	require.NoError(t, err)
+
+	t.Run("Lock writes both rows atomically and reports pending", func(t *testing.T) {
+		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      host.UUID,
+			OperationName: "enterprises/E/devices/D/operations/lock-1",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.LockHostViaAndroidMDM(ctx, host, cmd))
+
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandTypeLock), got.CommandType)
+		require.Equal(t, string(android.MDMAndroidCommandStatusPending), got.Status)
+
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		require.Equal(t, fleet.PendingActionLock, status.PendingAction())
+		require.Equal(t, "android", status.HostFleetPlatform)
+	})
+
+	t.Run("Wipe overwrites wipe_ref on subsequent calls (re-queue)", func(t *testing.T) {
+		first := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      host.UUID,
+			OperationName: "enterprises/E/devices/D/operations/wipe-1",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, host, first))
+
+		second := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      host.UUID,
+			OperationName: "enterprises/E/devices/D/operations/wipe-2",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, host, second))
+
+		// Both command rows persist (audit trail).
+		_, err := ds.GetMDMAndroidCommandByUUID(ctx, first.CommandUUID)
+		require.NoError(t, err)
+		_, err = ds.GetMDMAndroidCommandByUUID(ctx, second.CommandUUID)
+		require.NoError(t, err)
+
+		// host_mdm_actions.wipe_ref points at the latest one.
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		require.NotNil(t, status.WipeMDMCommand)
+		require.Equal(t, second.CommandUUID, status.WipeMDMCommand.CommandUUID)
 	})
 }
 
