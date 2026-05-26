@@ -117,10 +117,14 @@ func ReconcileAppleProfilesBatched(
 	logger.DebugContext(ctx, "batched reconcile: loaded profiles",
 		"profile_count", len(allProfiles))
 
+	profilesWithBrokenLabel := make(map[string]struct{})
 	profilesByTeam := make(map[uint][]*fleet.AppleProfileForReconcile, 4)
 	labelIDSet := make(map[uint]struct{})
 	for _, p := range allProfiles {
 		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+		if p.HasBrokenLabel() {
+			profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
+		}
 		for _, lr := range p.IncludeLabels {
 			if lr.LabelID != nil {
 				labelIDSet[*lr.LabelID] = struct{}{}
@@ -154,7 +158,7 @@ func ReconcileAppleProfilesBatched(
 		return ctxerr.Wrap(ctx, err, "bulk get host mdm apple profiles")
 	}
 
-	toInstall, toRemove := apple_mdm.ComputeReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam)
+	toInstall, toRemove := apple_mdm.ComputeReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
 	logger.DebugContext(ctx, "batched reconcile: computed deltas",

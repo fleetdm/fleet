@@ -215,10 +215,11 @@ func TestComputeReconcileDeltas(t *testing.T) {
 		IncludeMode:       fleet.AppleProfileIncludeNone,
 	}
 	profilesByTeam := map[uint][]*fleet.AppleProfileForReconcile{0: {pGlobal}, 7: {pTeam7}}
+	profilesWithBrokenLabel := map[string]struct{}{}
 
 	t.Run("desired but not present -> install", func(t *testing.T) {
 		toInstall, toRemove := ComputeReconcileDeltas(
-			[]*fleet.AppleHostReconcileInfo{hostA, hostB}, nil, nil, profilesByTeam,
+			[]*fleet.AppleHostReconcileInfo{hostA, hostB}, nil, nil, profilesByTeam, profilesWithBrokenLabel,
 		)
 		require.Empty(t, toRemove)
 		require.Len(t, toInstall, 2)
@@ -241,7 +242,7 @@ func TestComputeReconcileDeltas(t *testing.T) {
 			}},
 		}
 		toInstall, toRemove := ComputeReconcileDeltas(
-			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, profilesByTeam,
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, profilesByTeam, profilesWithBrokenLabel,
 		)
 		require.Empty(t, toRemove)
 		require.Len(t, toInstall, 1)
@@ -260,7 +261,7 @@ func TestComputeReconcileDeltas(t *testing.T) {
 			}},
 		}
 		toInstall, toRemove := ComputeReconcileDeltas(
-			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, profilesByTeam,
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, profilesByTeam, profilesWithBrokenLabel,
 		)
 		require.Len(t, toInstall, 1)
 		require.Len(t, toRemove, 1)
@@ -285,7 +286,7 @@ func TestComputeReconcileDeltas(t *testing.T) {
 			}},
 		}
 		toInstall, toRemove := ComputeReconcileDeltas(
-			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, profByTeam,
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, profByTeam, profilesWithBrokenLabel,
 		)
 		require.Len(t, toInstall, 1) // pGlobal still installs
 		require.Empty(t, toRemove)
@@ -306,10 +307,11 @@ func TestComputeDeclarationDeltas(t *testing.T) {
 		IncludeMode:           fleet.AppleProfileIncludeNone,
 	}
 	declsByTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {dGlobal}}
+	declsWithBrokenLabel := map[string]struct{}{}
 
 	t.Run("desired but not present -> install diff", func(t *testing.T) {
 		changed, rows := ComputeDeclarationDeltas(
-			[]*fleet.AppleHostReconcileInfo{hostA}, nil, nil, declsByTeam,
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, nil, declsByTeam, declsWithBrokenLabel,
 		)
 		require.ElementsMatch(t, []string{"uuid-A"}, changed)
 		require.Len(t, rows, 1)
@@ -328,7 +330,7 @@ func TestComputeDeclarationDeltas(t *testing.T) {
 			}},
 		}
 		changed, rows := ComputeDeclarationDeltas(
-			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, declsByTeam,
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, declsByTeam, declsWithBrokenLabel,
 		)
 		require.Empty(t, changed)
 		require.Empty(t, rows)
@@ -345,44 +347,10 @@ func TestComputeDeclarationDeltas(t *testing.T) {
 			}},
 		}
 		changed, rows := ComputeDeclarationDeltas(
-			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, declsByTeam,
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, declsByTeam, declsWithBrokenLabel,
 		)
 		require.ElementsMatch(t, []string{"uuid-A"}, changed)
 		require.Len(t, rows, 1)
 		require.Equal(t, "tok1", rows[0].Token)
 	})
-}
-
-func TestIsBrokenProfile(t *testing.T) {
-	good := &fleet.AppleProfileForReconcile{
-		ProfileUUID:   "good",
-		IncludeMode:   fleet.AppleProfileIncludeAll,
-		IncludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(1))}},
-	}
-	broken := &fleet.AppleProfileForReconcile{
-		ProfileUUID:   "broken",
-		IncludeMode:   fleet.AppleProfileIncludeAll,
-		IncludeLabels: []fleet.AppleProfileLabelRef{{LabelID: nil}},
-	}
-	byTeam := map[uint][]*fleet.AppleProfileForReconcile{0: {good, broken}}
-	require.False(t, IsBrokenProfile("good", byTeam))
-	require.True(t, IsBrokenProfile("broken", byTeam))
-	require.False(t, IsBrokenProfile("missing", byTeam))
-}
-
-func TestIsBrokenDeclaration(t *testing.T) {
-	good := &fleet.AppleDeclarationForReconcile{
-		DeclarationUUID: "good",
-		IncludeMode:     fleet.AppleProfileIncludeAll,
-		IncludeLabels:   []fleet.AppleProfileLabelRef{{LabelID: new(uint(1))}},
-	}
-	broken := &fleet.AppleDeclarationForReconcile{
-		DeclarationUUID: "broken",
-		IncludeMode:     fleet.AppleProfileIncludeAll,
-		IncludeLabels:   []fleet.AppleProfileLabelRef{{LabelID: nil}},
-	}
-	byTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {good, broken}}
-	require.False(t, IsBrokenDeclaration("good", byTeam))
-	require.True(t, IsBrokenDeclaration("broken", byTeam))
-	require.False(t, IsBrokenDeclaration("missing", byTeam))
 }

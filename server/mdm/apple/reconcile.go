@@ -142,6 +142,7 @@ func ComputeReconcileDeltas(
 	hostLabels map[uint]map[uint]struct{},
 	currentByHost map[string][]*fleet.MDMAppleProfilePayload,
 	profilesByTeam map[uint][]*fleet.AppleProfileForReconcile,
+	profilesWithBrokenLabels map[string]struct{},
 ) (toInstall, toRemove []*fleet.MDMAppleProfilePayload) {
 	for _, host := range hosts {
 		teamProfiles := profilesByTeam[host.EffectiveTeamID()]
@@ -201,7 +202,7 @@ func ComputeReconcileDeltas(
 			if c.OperationType == fleet.MDMOperationTypeRemove && c.Status != nil {
 				continue
 			}
-			if IsBrokenProfile(profUUID, profilesByTeam) {
+			if IsBrokenProfile(profUUID, profilesWithBrokenLabels) {
 				continue
 			}
 
@@ -229,29 +230,15 @@ func ComputeReconcileDeltas(
 // IsBrokenProfile returns true if any label assignment on the profile
 // references a deleted label. Used to skip removal of broken profiles
 // (matches legacy behavior).
-func IsBrokenProfile(profileUUID string, profilesByTeam map[uint][]*fleet.AppleProfileForReconcile) bool {
-	for _, ps := range profilesByTeam {
-		for _, p := range ps {
-			if p.ProfileUUID != profileUUID {
-				continue
-			}
-			return p.HasBrokenLabel()
-		}
-	}
-	return false
+func IsBrokenProfile(profileUUID string, profilesWithBrokenLabel map[string]struct{}) bool {
+	_, broken := profilesWithBrokenLabel[profileUUID]
+	return broken
 }
 
 // IsBrokenDeclaration is the DDM equivalent of IsBrokenProfile.
-func IsBrokenDeclaration(declUUID string, declsByTeam map[uint][]*fleet.AppleDeclarationForReconcile) bool {
-	for _, ds := range declsByTeam {
-		for _, d := range ds {
-			if d.DeclarationUUID != declUUID {
-				continue
-			}
-			return d.HasBrokenLabel()
-		}
-	}
-	return false
+func IsBrokenDeclaration(declUUID string, declsWithBrokenLabel map[string]struct{}) bool {
+	_, broken := declsWithBrokenLabel[declUUID]
+	return broken
 }
 
 // ComputeDeclarationDeltas is the DDM equivalent of ComputeReconcileDeltas.
@@ -262,6 +249,7 @@ func ComputeDeclarationDeltas(
 	hostLabels map[uint]map[uint]struct{},
 	currentByHost map[string][]*fleet.MDMAppleHostDeclaration,
 	declsByTeam map[uint][]*fleet.AppleDeclarationForReconcile,
+	declsWithBrokenLabel map[string]struct{},
 ) (changedHostUUIDs []string, declRowsToWrite []*fleet.MDMAppleHostDeclaration) {
 	pendingStatus := fleet.MDMDeliveryPending
 	changedSet := make(map[string]struct{})
@@ -333,7 +321,7 @@ func ComputeDeclarationDeltas(
 			if c.OperationType == fleet.MDMOperationTypeRemove && c.Status != nil {
 				continue
 			}
-			if IsBrokenDeclaration(declUUID, declsByTeam) {
+			if IsBrokenDeclaration(declUUID, declsWithBrokenLabel) {
 				continue
 			}
 
@@ -827,10 +815,16 @@ func ReconcileProfilesForEnrollingHost(
 		return nil, ctxerr.Wrap(ctx, err, "listing apple profiles for reconcile by team")
 	}
 
+	profilesWithBrokenLabel := make(map[string]struct{})
 	profilesByTeam := make(map[uint][]*fleet.AppleProfileForReconcile, 2)
 	labelIDSet := make(map[uint]struct{})
 	for _, p := range teamProfiles {
 		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+
+		if p.HasBrokenLabel() {
+			profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
+		}
+
 		for _, lr := range p.IncludeLabels {
 			if lr.LabelID != nil {
 				labelIDSet[*lr.LabelID] = struct{}{}
@@ -858,7 +852,7 @@ func ReconcileProfilesForEnrollingHost(
 	}
 
 	toInstall, toRemove := ComputeReconcileDeltas(
-		[]*fleet.AppleHostReconcileInfo{host}, hostLabels, currentByHost, profilesByTeam,
+		[]*fleet.AppleHostReconcileInfo{host}, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel,
 	)
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 

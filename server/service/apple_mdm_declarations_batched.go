@@ -95,10 +95,16 @@ func ReconcileAppleDeclarationsBatched(
 	logger.DebugContext(ctx, "ddm batched reconcile: loaded declarations",
 		"declaration_count", len(allDecls))
 
+	declsWithBrokenLabel := make(map[string]struct{})
 	declsByTeam := make(map[uint][]*fleet.AppleDeclarationForReconcile, 4)
 	labelIDSet := make(map[uint]struct{})
 	for _, d := range allDecls {
 		declsByTeam[d.TeamID] = append(declsByTeam[d.TeamID], d)
+
+		if d.HasBrokenLabel() {
+			declsWithBrokenLabel[d.DeclarationUUID] = struct{}{}
+		}
+
 		for _, lr := range d.IncludeLabels {
 			if lr.LabelID != nil {
 				labelIDSet[*lr.LabelID] = struct{}{}
@@ -133,7 +139,7 @@ func ReconcileAppleDeclarationsBatched(
 	}
 
 	changedHostUUIDs, declRowsToWrite := apple_mdm.ComputeDeclarationDeltas(
-		hosts, hostLabels, currentByHost, declsByTeam,
+		hosts, hostLabels, currentByHost, declsByTeam, declsWithBrokenLabel,
 	)
 
 	logger.DebugContext(ctx, "ddm batched reconcile: computed deltas",

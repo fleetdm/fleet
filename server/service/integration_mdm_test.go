@@ -4472,12 +4472,6 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		require.NoError(t, err)
 		gotBootstrapPackage := false
 		for cmd != nil {
-			if cmd.Command.RequestType == "DeclarativeManagement" {
-				cmd, err = d.device.Acknowledge(cmd.CommandUUID)
-				require.NoError(t, err)
-				continue // SKip decl. management commands
-			}
-
 			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
