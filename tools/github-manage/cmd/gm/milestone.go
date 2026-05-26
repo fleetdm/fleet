@@ -157,8 +157,9 @@ var milestoneReportCmd = &cobra.Command{
 				projects = filtered
 			}
 		}
-		headers := make([]string, 0, len(projects)+2)
+		headers := make([]string, 0, len(projects)+3)
 		headers = append(headers, "Number")
+		headers = append(headers, "Assignees")
 		for _, p := range projects {
 			if p.Title != "" {
 				title := p.Title
@@ -211,7 +212,7 @@ var milestoneReportCmd = &cobra.Command{
 				pids = append(pids, p.ID)
 			}
 			statuses, _ := ghapi.GetIssueProjectStatuses(num, pids)
-			row := []string{fmt.Sprintf("%d", num)}
+			row := []string{fmt.Sprintf("%d", num), fmt.Sprintf("%d", len(mi.Assignees))}
 			for _, pid := range pids {
 				ps, ok := statuses[pid]
 				if !ok || !ps.Present {

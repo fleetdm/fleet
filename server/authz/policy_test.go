@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/activity"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
@@ -1216,6 +1217,76 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamTechnician, object: hostTeam2, action: write, allow: false},
 		{user: teamTechnician, object: hostTeam2, action: cancelHostActivity, allow: false},
 		{user: teamTechnician, object: hostTeam2, action: transferHost, allow: false},
+	})
+}
+
+// TestAuthorizeActivityHost verifies that the bounded-context activity.Host
+// type is serialized with the json field names the OPA policy expects
+// (object.team_id, object.id). Without those tags, team-scoped users get a
+// 403 when listing host past activities (issue #46009).
+func TestAuthorizeActivityHost(t *testing.T) {
+	t.Parallel()
+
+	teamAdmin := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+		},
+	}
+	teamMaintainer := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer},
+		},
+	}
+	teamObserver := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+		},
+	}
+	teamTechnician := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician},
+		},
+	}
+	teamGitOps := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps},
+		},
+	}
+
+	globalHost := &activity.Host{}
+	hostTeam1 := &activity.Host{ID: 10, TeamID: new(uint(1))}
+	hostTeam2 := &activity.Host{ID: 11, TeamID: new(uint(2))}
+
+	runTestCases(t, []authTestCase{
+		// Global admin can read any host.
+		{user: test.UserAdmin, object: globalHost, action: list, allow: true},
+		{user: test.UserAdmin, object: hostTeam1, action: read, allow: true},
+		{user: test.UserAdmin, object: hostTeam2, action: read, allow: true},
+
+		// Team admin can read hosts on their team but not other teams.
+		{user: teamAdmin, object: globalHost, action: list, allow: true},
+		{user: teamAdmin, object: hostTeam1, action: read, allow: true},
+		{user: teamAdmin, object: hostTeam2, action: read, allow: false},
+
+		// Team maintainer / observer can also read hosts on their team.
+		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},
+		{user: teamMaintainer, object: hostTeam2, action: read, allow: false},
+		{user: teamObserver, object: hostTeam1, action: read, allow: true},
+		{user: teamObserver, object: hostTeam2, action: read, allow: false},
+
+		// Team technician can also read hosts on their team.
+		{user: teamTechnician, object: globalHost, action: list, allow: true},
+		{user: teamTechnician, object: hostTeam1, action: read, allow: true},
+		{user: teamTechnician, object: hostTeam2, action: read, allow: false},
+
+		// Team gitops cannot list or read hosts (only selective variants).
+		{user: teamGitOps, object: globalHost, action: list, allow: false},
+		{user: teamGitOps, object: hostTeam1, action: read, allow: false},
+		{user: teamGitOps, object: hostTeam2, action: read, allow: false},
+
+		// Users with no roles or no user cannot read.
+		{user: nil, object: hostTeam1, action: read, allow: false},
+		{user: test.UserNoRoles, object: hostTeam1, action: read, allow: false},
 	})
 }
 

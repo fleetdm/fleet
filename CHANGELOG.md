@@ -1,3 +1,12 @@
+## Fleet 4.85.1 (May 22, 2026)
+
+### Bug fixes
+
+- Fixed `fleetctl gitops` rejecting Android or Windows configuration profiles when editing an existing team, even when the corresponding MDM platform was configured.
+- Implemented roaring bitmaps in historical data collection for improved performance.
+- Fixed dynamic SCEP certificate issuance failing with an "Invalid NDES admin credentials" error when the NDES Admin URL is fronted by Okta or another gateway that uses HTTP Basic auth instead of NTLM.
+- Removed unneeded call to get tracked CVEs when reading CVE chart data.
+
 ## Fleet 4.85.0 (May 13, 2026)
 
 ### IT Admins

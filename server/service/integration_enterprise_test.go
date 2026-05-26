@@ -58,6 +58,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps/maintainedappstest"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -115,6 +116,13 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	s.softwareTitleIconStore = softwareTitleIconStore
 
+	// Configure Windows WSTEP cert/key paths so the server initializes a
+	// wstepCertManager and can validate Windows MSI EUA tokens sent via
+	// /api/fleet/orbit/enroll. Required by TestOrbitEnrollWithEUAToken.
+	fleetCfg := config.TestConfig()
+	fleetCfg.MDM.WindowsWSTEPIdentityCert = "testdata/server.pem"
+	fleetCfg.MDM.WindowsWSTEPIdentityKey = "testdata/server.key"
+
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
@@ -145,6 +153,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 		SoftwareTitleIconStore:          softwareTitleIconStore,
 		ConditionalAccessMicrosoftProxy: mockedConditionalAccessMicrosoftProxyInstance,
 		DBConns:                         s.dbConns,
+		FleetConfig:                     &fleetCfg,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		config.Logger = slog.New(slog.DiscardHandler)
@@ -27915,6 +27924,24 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, name, policy.Name)
 	}
 
+	checkPolicyInstaller := func(policyID uint, version string) {
+		var row struct {
+			Version  string `db:"version"`
+			IsActive bool   `db:"is_active"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT si.version, si.is_active
+				 FROM policies p
+				 JOIN software_installers si ON si.id = p.software_installer_id
+				 WHERE p.id = ?`,
+				policyID,
+			)
+		})
+		require.Equal(t, version, row.Version)
+		require.True(t, row.IsActive)
+	}
+
 	createHostPolicyResults := func(host *fleet.Host, policy *fleet.Policy) {
 		distributedResp := submitDistributedQueryResultsResponse{}
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
@@ -28238,6 +28265,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
 		// This is only set if the automation is enable
 		require.Equal(t, title.ID, listPolResp.Policies[0].InstallSoftware.SoftwareTitleID)
+		checkPolicyInstaller(listPolResp.Policies[0].ID, "1.0")
 
 		// Now disable the automation
 		spec = &fleet.PolicySpec{
@@ -28316,6 +28344,38 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 		require.Len(t, listPolResp.Policies, 1)
 		checkPolicy(listPolResp.Policies[0], spec.Name, "1.0", title.ID)
+
+		// Test 4: FMA upgraded again with two versions already cached.
+		spec = &fleet.PolicySpec{
+			Name:                   "team patch policy",
+			Query:                  "SELECT 1",
+			Team:                   team.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "zoom/windows",
+			SoftwareTitleID:        new(title.ID),
+		}
+
+		resetFMAState(states["/zoom/windows.json"], "1.3", []byte("ghi"), "")
+
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
+			http.StatusAccepted, &resp,
+			"team_name", team.Name, "team_id", fmt.Sprint(team.ID),
+		)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+		applyResp = fleet.ApplyPolicySpecsResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies",
+			fleet.ApplyPolicySpecsRequest{Specs: []*fleet.PolicySpec{spec}},
+			http.StatusOK, &applyResp,
+		)
+		title = getActiveTitleForTeam(team.ID, "zoom")
+
+		listPolResp = fleet.ListTeamPoliciesResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
+		require.Len(t, listPolResp.Policies, 1)
+		checkPolicy(listPolResp.Policies[0], spec.Name, "1.3", title.ID)
+		checkPolicyInstaller(listPolResp.Policies[0].ID, "1.3")
 	})
 
 	t.Run("override and empty queries behave the same", func(t *testing.T) {
@@ -30612,4 +30672,281 @@ func (s *integrationEnterpriseTestSuite) TestOrbitOsqueryReEnrollDoesNotChangeTe
 		require.NotNil(t, hostLite.TeamID)
 		require.Equal(t, teamA.ID, *hostLite.TeamID)
 	})
+}
+
+// TestOrbitEnrollWithIdPPopulatesDeviceMapping covers issue #45066: orbit
+// enrolling a Linux or Windows host through the End User Authentication flow
+// must populate host_emails so the hosts list endpoint returns
+// device_mapping. The flow being exercised is:
+//
+//  1. Orbit calls /api/fleet/orbit/enroll. End User Auth is required, there
+//     is no IdP association for this host UUID yet, so the server returns
+//     END_USER_AUTH_REQUIRED.
+//  2. Orbit opens a browser, the user authenticates, and the SSO callback
+//     in ee/server/service/mdm.go writes the mdm_idp_accounts +
+//     host_mdm_idp_accounts rows via the bare AssociateHostMDMIdPAccountDB
+//     (the hosts row does not exist yet at this point — only the IdP-side
+//     tables are populated). We simulate that callback by inserting the
+//     same rows directly.
+//  3. Orbit retries /api/fleet/orbit/enroll. EnrollOrbit creates the hosts
+//     row, and the post-EnrollOrbit reconcile in server/service/orbit.go
+//     calls AssociateHostMDMIdPAccount to populate host_emails.
+//
+// Pre-fix behavior: host_emails stayed empty, so ListHostDeviceMapping
+// returned nothing and the hosts list endpoint returned device_mapping=null
+// even though the single-host endpoint showed the IdP user via SCIM.
+func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMapping() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Create a team with End User Authentication enabled, then use that
+	// team's enroll secret. We use a team-level flag rather than the
+	// app-config level because the enterprise suite enables EnableCachedDS,
+	// and writes via s.ds bypass the running server's cached AppConfig
+	// wrapper. Team config is read via TeamLite (not in the cached layer),
+	// so a direct s.ds write is visible to the server immediately.
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: t.Name(),
+		Config: fleet.TeamConfig{
+			MDM: fleet.TeamMDM{
+				MacOSSetup: fleet.MacOSSetup{
+					EnableEndUserAuthentication: true,
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		// Use a fresh background context — t.Context() has already been
+		// cancelled by the time cleanup runs, and DeleteTeam opens its own
+		// transaction.
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID))
+	})
+
+	enrollSecret := t.Name() + "-secret"
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}}))
+
+	// Orbit client capabilities — Linux and Windows orbit builds advertise
+	// CapabilityEndUserAuth. Without this header the EnrollOrbit handler
+	// short-circuits past the EUA gating (with a logged warning) and the bug
+	// would not be exercised.
+	var caps fleet.CapabilityMap
+	caps.PopulateFromString(string(fleet.CapabilityEndUserAuth))
+	capsHeaders := map[string]string{fleet.CapabilitiesHeader: caps.String()}
+
+	runFlow := func(t *testing.T, platform, platformLike string) {
+		hostUUID := uuid.New().String()
+		hostSerial := uuid.New().String()
+		hostName := strings.ReplaceAll(t.Name(), "/", "-") + ".local"
+		idpEmail := strings.ReplaceAll(uuid.NewString(), "-", "") + "@example.com"
+
+		enrollBody, err := json.Marshal(fleet.EnrollOrbitRequest{
+			EnrollSecret:   enrollSecret,
+			HardwareUUID:   hostUUID,
+			HardwareSerial: hostSerial,
+			Hostname:       hostName,
+			Platform:       platform,
+			PlatformLike:   platformLike,
+			HardwareModel:  "TestModel",
+		})
+		require.NoError(t, err)
+
+		// Step 1: First orbit enrollment attempt — no IdP linked yet, so the
+		// server returns END_USER_AUTH_REQUIRED (HTTP 401).
+		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusUnauthorized, capsHeaders)
+		respBody, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		require.NoError(t, err)
+		require.Contains(t, string(respBody), "END_USER_AUTH_REQUIRED",
+			"expected EUA gating to block enrollment when no IdP is linked")
+
+		// The hosts row must not exist yet — the orbit enroll path returned
+		// before reaching EnrollOrbit.
+		_, err = s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+
+		// Step 2: Simulate the Orbit Setup Experience SSO callback writing the
+		// IdP account and linking it to the host UUID. This matches what
+		// ee/server/service/mdm.go's mdmSSOHandleCallbackAuth does after the
+		// browser-based SSO completes (the user authenticates against the IdP,
+		// the SAML response lands at /api/v1/fleet/mdm/sso/callback, and the
+		// initiator is SSOInitiatorOrbitSetupExperience).
+		require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+			Username: idpEmail,
+			Fullname: "Test User",
+			Email:    idpEmail,
+		}))
+		idpAcct, err := s.ds.GetMDMIdPAccountByEmail(ctx, idpEmail)
+		require.NoError(t, err)
+		require.NotNil(t, idpAcct)
+		// Use the bare DB variant — this is the function the SSO callback
+		// uses, and the hosts row does not exist yet so the reconciling
+		// variant would error on the host-id lookup.
+		require.NoError(t, s.ds.AssociateHostMDMIdPAccountDB(ctx, hostUUID, idpAcct.UUID))
+
+		// host_mdm_idp_accounts is now populated, but host_emails is not.
+		var preCount int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &preCount,
+				`SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?`, hostUUID)
+		})
+		require.Equal(t, 1, preCount)
+
+		// Step 3: Orbit retries the enrollment — EnrollOrbit creates the hosts
+		// row and the post-EnrollOrbit reconcile in orbit.go calls
+		// AssociateHostMDMIdPAccount, which populates host_emails.
+		res = s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusOK, capsHeaders)
+		var orbitResp enrollOrbitResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
+		res.Body.Close()
+		require.NotEmpty(t, orbitResp.OrbitNodeKey)
+
+		// Step 4: Verify host_emails got populated — this is what fixes the
+		// hosts list endpoint returning device_mapping=null (issue #45066).
+		hostLite, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotZero(t, hostLite.ID)
+
+		dms, err := s.ds.ListHostDeviceMapping(ctx, hostLite.ID)
+		require.NoError(t, err)
+		require.Len(t, dms, 1,
+			"host_emails must be populated after the post-EnrollOrbit reconcile (issue #45066)")
+		require.Equal(t, idpEmail, dms[0].Email)
+		require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dms[0].Source)
+	}
+
+	t.Run("linux", func(t *testing.T) {
+		runFlow(t, "ubuntu", "debian")
+	})
+
+	t.Run("windows", func(t *testing.T) {
+		runFlow(t, "windows", "")
+	})
+}
+
+// TestOrbitEnrollWithEUAToken covers the Windows MSI EUA-token branch in
+// EnrollOrbit (the `case platform == "windows" && euaToken != ""` arm of the
+// End User Auth switch in server/service/orbit.go). This is the flow Fleet
+// uses when it enqueues a fleetd MSI install command on a Windows host that
+// already enrolled in Windows MDM with an Azure UPN: the MSI carries a
+// Fleet-signed EUA JWT so orbit can finish enrollment without prompting the
+// user for SSO again.
+//
+// The test exercises the full server-side flow:
+//
+//  1. An mdm_windows_enrollments row exists for some MDM device, with a
+//     valid Azure UPN captured during MDM enrollment.
+//  2. The orbit request to /api/fleet/orbit/enroll carries a Fleet-signed
+//     EUA token (issued in production by svc.generateWindowsEUAToken).
+//  3. processWindowsEUAToken validates the JWT and resolves the mdm IdP
+//     account for the UPN (creating one if needed).
+//  4. EnrollOrbit creates the hosts row, then the post-EnrollOrbit reconcile
+//     in orbit.go calls AssociateHostMDMIdPAccount with that IdP account
+//     UUID, populating host_emails so the hosts list endpoint returns
+//     device_mapping (issue #45066).
+func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithEUAToken() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Build our own wstepCertManager using the same cert/key the test server
+	// was configured with (SetupSuite points WindowsWSTEPIdentityCert/Key at
+	// testdata/server.pem and server.key). The server's wstepCertManager
+	// validates the token; ours signs it.
+	certPEM, err := os.ReadFile("testdata/server.pem")
+	require.NoError(t, err)
+	keyPEM, err := os.ReadFile("testdata/server.key")
+	require.NoError(t, err)
+	certManager, err := microsoft_mdm.NewCertManager(nil, certPEM, keyPEM)
+	require.NoError(t, err)
+
+	// Team with End User Authentication enabled so the orbit handler reaches
+	// the EUA switch. Team config is read via TeamLite which is not in the
+	// caching layer, so direct s.ds writes are visible to the server.
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: t.Name(),
+		Config: fleet.TeamConfig{
+			MDM: fleet.TeamMDM{
+				MacOSSetup: fleet.MacOSSetup{
+					EnableEndUserAuthentication: true,
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID))
+	})
+
+	enrollSecret := t.Name() + "-secret"
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}}))
+
+	// Pre-create the Windows MDM enrollment that the EUA token will reference.
+	// In production this row is written when the device enrolls in Windows
+	// MDM (Autopilot/Azure-joined). processWindowsEUAToken looks it up by
+	// mdm_device_id to verify the token came from a real enrolled device.
+	hostUUID := uuid.New().String()
+	hostSerial := uuid.New().String()
+	mdmDeviceID := uuid.New().String()
+	idpEmail := strings.ReplaceAll(uuid.NewString(), "-", "") + "@example.com"
+	require.NoError(t, s.ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            mdmDeviceID,
+		MDMHardwareID:          uuid.New().String(),
+		MDMDeviceState:         "enrolled",
+		MDMDeviceType:          "Windows",
+		MDMDeviceName:          "win-eua-test",
+		MDMEnrollType:          "DeviceEnrollmentManager",
+		MDMEnrollUserID:        idpEmail,
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045",
+		MDMNotInOOBE:           true,
+		HostUUID:               "",
+	}))
+
+	// Sign an EUA token the same way svc.generateWindowsEUAToken would.
+	euaToken, err := certManager.NewEUAToken(idpEmail, mdmDeviceID)
+	require.NoError(t, err)
+	require.NotEmpty(t, euaToken)
+
+	// Capabilities header — the EUA branch requires the orbit client to
+	// advertise CapabilityEndUserAuth, otherwise the switch falls through
+	// with a logged warning and enrollment is allowed without EUA.
+	var caps fleet.CapabilityMap
+	caps.PopulateFromString(string(fleet.CapabilityEndUserAuth))
+	capsHeaders := map[string]string{fleet.CapabilitiesHeader: caps.String()}
+
+	enrollBody, err := json.Marshal(fleet.EnrollOrbitRequest{
+		EnrollSecret:   enrollSecret,
+		HardwareUUID:   hostUUID,
+		HardwareSerial: hostSerial,
+		Hostname:       strings.ReplaceAll(t.Name(), "/", "-") + ".win.local",
+		Platform:       "windows",
+		HardwareModel:  "TestModel",
+		EUAToken:       euaToken,
+	})
+	require.NoError(t, err)
+
+	// Single orbit enroll call — the EUA token authenticates the user, so
+	// no second retry is required (unlike the browser-SSO flow).
+	res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusOK, capsHeaders)
+	var orbitResp enrollOrbitResponse
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
+	res.Body.Close()
+	require.NotEmpty(t, orbitResp.OrbitNodeKey)
+
+	// host_emails must be populated — issue #45066. Without the
+	// post-EnrollOrbit reconcile, processWindowsEUAToken's write would have
+	// landed in host_mdm_idp_accounts but never made it into host_emails,
+	// so the hosts list endpoint would still return device_mapping=null.
+	hostLite, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotZero(t, hostLite.ID)
+
+	dms, err := s.ds.ListHostDeviceMapping(ctx, hostLite.ID)
+	require.NoError(t, err)
+	require.Len(t, dms, 1, "host_emails must be populated after EUA-token orbit enrollment (issue #45066)")
+	require.Equal(t, idpEmail, dms[0].Email)
+	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dms[0].Source)
 }

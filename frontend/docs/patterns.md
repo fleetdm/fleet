@@ -94,22 +94,39 @@ const functionWithTableName = (tableName: string)=> {
 
 ```typescript
 // API interfaces should live in the relevant entities file.
-// Their names should be named to clarify what they are used for when interacting
-// with the API
+// Their names should clarify what they are used for when interacting with the
+// API. In service functions, prefer `formData` as the variable name for request
+// bodies to stay consistent with the *FormData interface naming convention.
 
 // should be defined in service/entities/hosts.ts
-interface IHostDetailsReponse {
+interface IHostDetailsResponse {
   ...
 }
 interface IGetHostsQueryParams {
   ...
 }
 
-// should be defined in service/entities/fleets.ts
-interface ICreateFleetPostBody {
+// should be defined in service/entities/users.ts
+interface IUpdateUserFormData {
   ...
 }
 
+// should be defined in service/entities/software.ts
+interface IGetSoftwareApiParams {
+  ...
+}
+interface ISoftwareCountResponse {
+  ...
+}
+
+// Use *FormData for form-driven bodies, *ApiParams/*QueryParams for request
+// params, *Response for responses, *QueryKey when typing a React Query key.
+// Avoid *Body, *PostBody, *Payload, *Request for API request bodies — use
+// *FormData instead, even for programmatic request bodies (e.g.
+// IDeleteQueriesFormData). One consistent suffix is easier to follow than
+// asking each dev to judge "is this form-driven enough?"
+// *PreviewPayload is fine for outgoing webhook shapes (matches the
+// "Preview payload" UI terminology).
 ```
 
 ## Utilities

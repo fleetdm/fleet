@@ -1731,6 +1731,8 @@ type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) 
 
 type AndroidHostLiteByHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error)
 
+type AndroidDeviceExistsByDeviceIDFunc func(ctx context.Context, deviceID string) (bool, error)
+
 type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
 
 type SetAndroidHostUnenrolledFunc func(ctx context.Context, hostID uint) (bool, error)
@@ -1748,6 +1750,18 @@ type BulkDeleteMDMAndroidHostProfilesFunc func(ctx context.Context, hostUUID str
 type ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
 
 type GetAndroidPolicyRequestByUUIDFunc func(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
+
+type NewMDMAndroidCommandFunc func(ctx context.Context, cmd *android.MDMAndroidCommand) error
+
+type GetMDMAndroidCommandByUUIDFunc func(ctx context.Context, commandUUID string) (*android.MDMAndroidCommand, error)
+
+type GetMDMAndroidCommandByOperationNameFunc func(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
+
+type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error
+
+type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
+
+type WipeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
 type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error)
 
@@ -4552,6 +4566,9 @@ type DataStore struct {
 	AndroidHostLiteByHostUUIDFunc        AndroidHostLiteByHostUUIDFunc
 	AndroidHostLiteByHostUUIDFuncInvoked bool
 
+	AndroidDeviceExistsByDeviceIDFunc        AndroidDeviceExistsByDeviceIDFunc
+	AndroidDeviceExistsByDeviceIDFuncInvoked bool
+
 	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
 	BulkSetAndroidHostsUnenrolledFuncInvoked bool
 
@@ -4578,6 +4595,24 @@ type DataStore struct {
 
 	GetAndroidPolicyRequestByUUIDFunc        GetAndroidPolicyRequestByUUIDFunc
 	GetAndroidPolicyRequestByUUIDFuncInvoked bool
+
+	NewMDMAndroidCommandFunc        NewMDMAndroidCommandFunc
+	NewMDMAndroidCommandFuncInvoked bool
+
+	GetMDMAndroidCommandByUUIDFunc        GetMDMAndroidCommandByUUIDFunc
+	GetMDMAndroidCommandByUUIDFuncInvoked bool
+
+	GetMDMAndroidCommandByOperationNameFunc        GetMDMAndroidCommandByOperationNameFunc
+	GetMDMAndroidCommandByOperationNameFuncInvoked bool
+
+	UpdateMDMAndroidCommandStatusFunc        UpdateMDMAndroidCommandStatusFunc
+	UpdateMDMAndroidCommandStatusFuncInvoked bool
+
+	LockHostViaAndroidMDMFunc        LockHostViaAndroidMDMFunc
+	LockHostViaAndroidMDMFuncInvoked bool
+
+	WipeHostViaAndroidMDMFunc        WipeHostViaAndroidMDMFunc
+	WipeHostViaAndroidMDMFuncInvoked bool
 
 	GetLatestAppleMDMCommandOfTypeFunc        GetLatestAppleMDMCommandOfTypeFunc
 	GetLatestAppleMDMCommandOfTypeFuncInvoked bool
@@ -10920,6 +10955,13 @@ func (s *DataStore) AndroidHostLiteByHostUUID(ctx context.Context, hostUUID stri
 	return s.AndroidHostLiteByHostUUIDFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) AndroidDeviceExistsByDeviceID(ctx context.Context, deviceID string) (bool, error) {
+	s.mu.Lock()
+	s.AndroidDeviceExistsByDeviceIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.AndroidDeviceExistsByDeviceIDFunc(ctx, deviceID)
+}
+
 func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
 	s.mu.Lock()
 	s.BulkSetAndroidHostsUnenrolledFuncInvoked = true
@@ -10981,6 +11023,48 @@ func (s *DataStore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUU
 	s.GetAndroidPolicyRequestByUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAndroidPolicyRequestByUUIDFunc(ctx, requestUUID)
+}
+
+func (s *DataStore) NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.NewMDMAndroidCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMDMAndroidCommandFunc(ctx, cmd)
+}
+
+func (s *DataStore) GetMDMAndroidCommandByUUID(ctx context.Context, commandUUID string) (*android.MDMAndroidCommand, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidCommandByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidCommandByUUIDFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) GetMDMAndroidCommandByOperationName(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidCommandByOperationNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidCommandByOperationNameFunc(ctx, operationName)
+}
+
+func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error {
+	s.mu.Lock()
+	s.UpdateMDMAndroidCommandStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage)
+}
+
+func (s *DataStore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.LockHostViaAndroidMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.LockHostViaAndroidMDMFunc(ctx, host, cmd)
+}
+
+func (s *DataStore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.WipeHostViaAndroidMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.WipeHostViaAndroidMDMFunc(ctx, host, cmd)
 }
 
 func (s *DataStore) GetLatestAppleMDMCommandOfType(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error) {
