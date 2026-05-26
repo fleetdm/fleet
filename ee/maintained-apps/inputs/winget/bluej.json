@@ -1,0 +1,12 @@
+{
+  "name": "BlueJ",
+  "slug": "bluej/windows",
+  "package_identifier": "BlueJTeam.BlueJ",
+  "unique_identifier": "BlueJ",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/bluej_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/bluej_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "user",
+  "default_categories": ["Developer tools"]
+}

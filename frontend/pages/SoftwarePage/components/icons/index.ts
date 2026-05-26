@@ -8,6 +8,7 @@ import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 import AmazonCorretto25 from "./AmazonCorretto25";
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
+import Bluej from "./Bluej";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
@@ -305,6 +306,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
   blender: Blender,
+  bluej: Bluej,
   box: Box,
   brave: Brave,
   bruno: Bruno,
