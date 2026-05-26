@@ -12,6 +12,7 @@ import { browserHistory } from "react-router";
 import { AppContext } from "context/app";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 import { isDarkMode, setThemeMode } from "utilities/theme";
 import paths from "router/paths";
 
@@ -31,9 +32,7 @@ const CommandPalette = (): JSX.Element | null => {
   const [page, setPage] = useState<Page>("root");
   const [search, setSearch] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [fleetDropdownOpen, setFleetDropdownOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const fleetSwitcherRef = useRef<HTMLDivElement>(null);
 
   const {
     availableTeams,
@@ -45,6 +44,8 @@ const CommandPalette = (): JSX.Element | null => {
     isAnyTeamMaintainer,
     isGlobalTechnician,
     isAnyTeamTechnician,
+    isObserverPlus,
+    isAnyTeamObserverPlus,
     isPremiumTier,
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
@@ -69,6 +70,10 @@ const CommandPalette = (): JSX.Element | null => {
     isAnyTeamAdmin ||
     isAnyTeamMaintainer ||
     isTechnician;
+
+  // Observer+ users can run live queries even though they can't write.
+  const canRunLiveReport =
+    canWrite || !!isObserverPlus || !!isAnyTeamObserverPlus;
 
   // Policy automations: same as canAddOrDeletePolicies in ManagePoliciesPage
   const canManagePolicyAutomations =
@@ -105,21 +110,35 @@ const CommandPalette = (): JSX.Element | null => {
       setPage("root");
       setSearch("");
       setExpandedItems(new Set());
-      setFleetDropdownOpen(false);
     }
   }, [open]);
 
-  // Toggle open on Cmd+K / Ctrl+K
+  const canSwitchFleet =
+    isPremiumTier && !!availableTeams && availableTeams.length > 1;
+
+  // Toggle open on Cmd+K / Ctrl+K; jump to switch-fleet on Cmd+Shift+F.
+  // Focus is handled by the [open, page] effect below — don't rAF here, the
+  // input ref isn't set until Radix's portal mounts.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key === "k") {
         e.preventDefault();
         setOpen((prev) => !prev);
+      } else if (
+        e.shiftKey &&
+        (e.key === "f" || e.key === "F") &&
+        canSwitchFleet
+      ) {
+        e.preventDefault();
+        setOpen(true);
+        setSearch("");
+        setPage("switch-fleet");
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [canSwitchFleet]);
 
   const navigate = useCallback((path: string) => {
     setOpen(false);
@@ -129,16 +148,23 @@ const CommandPalette = (): JSX.Element | null => {
   const goToPage = useCallback((newPage: Page) => {
     setSearch("");
     setPage(newPage);
-    requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
 
   const goBack = useCallback(() => {
     setSearch("");
     setPage("root");
-    requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
 
-  // Backspace on empty input returns to root page
+  // Focus the input whenever the dialog is open or the page changes. Runs
+  // after the portal has mounted the input, unlike rAF in event handlers
+  // (which fires before Radix's first commit when opening from closed).
+  useEffect(() => {
+    if (open) {
+      inputRef.current?.focus();
+    }
+  }, [open, page]);
+
+  // Backspace on empty input returns to root from a sub-page.
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (page !== "root" && e.key === "Backspace" && !search) {
@@ -149,6 +175,42 @@ const CommandPalette = (): JSX.Element | null => {
     [page, search, goBack]
   );
 
+  // Intercept dialog close: Escape on a sub-page goes back to root, but
+  // click-outside still closes the palette outright. cmdk 1.1.1's
+  // Command.Dialog does not forward props (e.g., onEscapeKeyDown) to the
+  // underlying Radix Dialog.Content, and onOpenChange alone can't tell us
+  // why the dialog is closing. So we flag Escape via a capture-phase
+  // document listener and consume the flag in handleOpenChange.
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  const closeViaEscapeRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+    const onDocKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeViaEscapeRef.current = true;
+      }
+    };
+    document.addEventListener("keydown", onDocKey, true);
+    return () => document.removeEventListener("keydown", onDocKey, true);
+  }, [open]);
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      const viaEscape = closeViaEscapeRef.current;
+      closeViaEscapeRef.current = false;
+      if (!nextOpen && viaEscape && pageRef.current !== "root") {
+        goBack();
+        return;
+      }
+      setOpen(nextOpen);
+    },
+    [goBack]
+  );
+
   const handleSwitchFleet = useCallback(
     (fleetId: number) => {
       const selected = availableTeams?.find((t) => t.id === fleetId);
@@ -156,20 +218,38 @@ const CommandPalette = (): JSX.Element | null => {
         setCurrentTeam(selected);
       }
 
-      setFleetDropdownOpen(false);
+      const { pathname, search: currentSearch } = window.location;
+      const isAll = fleetId === APP_CONTEXT_ALL_TEAMS_ID;
+      const isUnassignedTarget = fleetId === 0;
 
-      if (fleetId === APP_CONTEXT_ALL_TEAMS_ID || fleetId === 0) {
-        // Some pages are team-scoped and don't support "All fleets"
-        // or "Unassigned", so redirect to the hosts page.
+      // Pages that require a specific fleet — can't render "All fleets" or
+      // (with some overlap) "Unassigned". When switching to those contexts
+      // from one of these pages, fall back to Hosts which supports both.
+      const teamRequiredPrefixes = [
+        paths.CONTROLS,
+        paths.SOFTWARE_LIBRARY,
+        paths.NEW_REPORT,
+      ];
+      const isOnTeamRequiredPage = teamRequiredPrefixes.some((p) =>
+        pathname.startsWith(p)
+      );
+
+      if ((isAll || isUnassignedTarget) && isOnTeamRequiredPage) {
         browserHistory.push(paths.MANAGE_HOSTS);
       } else {
-        // Update the current URL's fleet_id param to reflect the switch
-        const { pathname, search: currentSearch } = window.location;
         const params = new URLSearchParams(currentSearch);
-        params.set("fleet_id", String(fleetId));
+        if (isAll) {
+          params.delete("fleet_id");
+        } else {
+          params.set("fleet_id", String(fleetId));
+        }
         const qs = params.toString();
         browserHistory.push(qs ? `${pathname}?${qs}` : pathname);
       }
+
+      // Return to root so the palette stays open on the main view.
+      setSearch("");
+      setPage("root");
     },
     [availableTeams, setCurrentTeam]
   );
@@ -197,6 +277,7 @@ const CommandPalette = (): JSX.Element | null => {
     config,
     canAccessControls,
     canWrite,
+    canRunLiveReport,
     canAccessSettings,
     canManagePolicyAutomations,
     canManageSoftwareAutomations,
@@ -243,8 +324,9 @@ const CommandPalette = (): JSX.Element | null => {
       if (item.subItems?.length) {
         map.set(getItemValue(item).toLowerCase().trim(), item.id);
         item.subItems.forEach((sub) => {
-          const subValue =
-            `${sub.label} ${sub.keywords?.join(" ") ?? ""}`.toLowerCase().trim();
+          const subValue = `${sub.label} ${sub.keywords?.join(" ") ?? ""}`
+            .toLowerCase()
+            .trim();
           map.set(subValue, item.id);
         });
       }
@@ -394,23 +476,37 @@ const CommandPalette = (): JSX.Element | null => {
           </Command.Group>
         );
       })}
-      {/* Sign out at the bottom */}
-      <Command.Group heading="Navigate" className={`${baseClass}__group`}>
-        <Command.Item
-          value="Sign out logout log out"
-          onSelect={() => navigate(paths.LOGOUT)}
-          className={`${baseClass}__item`}
-        >
-          <span className={`${baseClass}__item-label`}>Sign out</span>
-        </Command.Item>
-      </Command.Group>
     </>
+  );
+
+  const renderSwitchFleetPage = () => (
+    <Command.Group className={`${baseClass}__group`}>
+      {availableTeams?.map((fleet) => {
+        const isSelected = fleet.id === currentTeam?.id;
+        return (
+          <Command.Item
+            key={`fleet-${fleet.id}`}
+            value={fleet.name}
+            onSelect={() => handleSwitchFleet(fleet.id)}
+            className={`${baseClass}__item`}
+          >
+            <span
+              className={`${baseClass}__item-label${
+                isSelected ? ` ${baseClass}__item-label--selected` : ""
+              }`}
+            >
+              {fleet.name}
+            </span>
+          </Command.Item>
+        );
+      })}
+    </Command.Group>
   );
 
   return (
     <Command.Dialog
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={handleOpenChange}
       onValueChange={handleHighlightChange}
       label="Command palette"
       className={baseClass}
@@ -429,59 +525,58 @@ const CommandPalette = (): JSX.Element | null => {
       }}
     >
       <div className={`${baseClass}__input-wrapper`}>
-        <Icon
-          name="search"
-          color="ui-fleet-black-75"
-          className={`${baseClass}__input-icon`}
-        />
+        {page !== "root" && (
+          <button
+            type="button"
+            aria-label="Back"
+            className={`${baseClass}__back-button`}
+            onClick={goBack}
+          >
+            <Icon name="arrow-left" color="ui-fleet-black-75" />
+          </button>
+        )}
         <Command.Input
           ref={inputRef}
           className={`${baseClass}__input`}
-          placeholder="Search pages or actions"
+          placeholder={
+            page === "switch-fleet"
+              ? "Search a fleet..."
+              : "Search for a page or command..."
+          }
           value={search}
           onValueChange={setSearch}
           onKeyDown={onKeyDown}
         />
-      </div>
-      {isPremiumTier && availableTeams && availableTeams.length > 1 && (
-        <div ref={fleetSwitcherRef} className={`${baseClass}__fleet-switcher-wrapper`}>
-          <button
-            type="button"
-            className={`${baseClass}__fleet-switcher`}
-            onClick={() => setFleetDropdownOpen((prev) => !prev)}
+        {page === "root" && canSwitchFleet && (
+          <TooltipWrapper
+            tipContent="Use ⌘ + Shift + F to select a fleet."
+            position="bottom-end"
+            tipOffset={2}
+            underline={false}
+            className={`${baseClass}__fleet-switcher-tooltip`}
           >
-            {currentTeam?.name || "All fleets"}
-            <Icon
-              name="chevron-down"
-              color="ui-fleet-black-75"
-              className={`${baseClass}__fleet-switcher-caret${
-                fleetDropdownOpen ? " rotated" : ""
-              }`}
-            />
-          </button>
-          {fleetDropdownOpen && (
-            <div className={`${baseClass}__fleet-dropdown`}>
-              {availableTeams
-                .filter((fleet) => fleet.id !== currentTeam?.id)
-                .map((fleet) => (
-                  <button
-                    key={`fleet-${fleet.id}`}
-                    type="button"
-                    className={`${baseClass}__fleet-dropdown-item`}
-                    onClick={() => handleSwitchFleet(fleet.id)}
-                  >
-                    {fleet.name}
-                  </button>
-                ))}
-            </div>
-          )}
-        </div>
-      )}
+            <button
+              type="button"
+              className={`${baseClass}__fleet-switcher`}
+              onClick={() => goToPage("switch-fleet")}
+            >
+              {currentTeam?.name || "All fleets"}
+              <Icon
+                name="chevron-down"
+                color="ui-fleet-black-75"
+                className={`${baseClass}__fleet-switcher-caret`}
+              />
+            </button>
+          </TooltipWrapper>
+        )}
+        {page !== "root" && <kbd className={`${baseClass}__esc-hint`}>ESC</kbd>}
+      </div>
       <Command.List className={`${baseClass}__list`}>
         <Command.Empty className={`${baseClass}__empty`}>
           No results found.
         </Command.Empty>
         {page === "root" && renderRootPage()}
+        {page === "switch-fleet" && renderSwitchFleetPage()}
       </Command.List>
     </Command.Dialog>
   );

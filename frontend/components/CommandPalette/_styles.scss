@@ -27,7 +27,7 @@
   &[cmdk-root] {
     background-color: $core-fleet-white;
     border: 1px solid $ui-fleet-black-10;
-    border-radius: 8px; // Match modal border radius
+    border-radius: $border-radius-large; // Match modal border radius
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     overflow: hidden;
   }
@@ -36,22 +36,39 @@
     position: relative;
     display: flex;
     align-items: center;
+    padding: 0 $pad-small;
     border-bottom: 1px solid $ui-fleet-black-10;
   }
 
-  &__input-icon {
-    position: absolute;
-    left: $pad-medium;
-    pointer-events: none;
+  &__back-button {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: $border-radius;
+    cursor: pointer;
+
+    &:hover {
+      background-color: $ui-fleet-black-5;
+    }
+
+    &:focus-visible {
+      outline: 1px solid $core-focused-outline;
+      outline-offset: 1px;
+    }
   }
 
   &__input {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     box-sizing: border-box;
     height: 44px;
-    padding: $pad-small $pad-medium $pad-small $pad-xxlarge;
+    padding: $pad-small;
     font-size: $x-small;
     color: $core-fleet-black;
     background-color: $core-fleet-white;
@@ -63,84 +80,53 @@
     }
   }
 
-  &__fleet-switcher-wrapper {
-    position: relative;
-    z-index: 10;
-    padding: $pad-xsmall $pad-small;
-    border-bottom: 1px solid $ui-fleet-black-10;
+  &__esc-hint {
+    flex-shrink: 0;
+    display: flex;
+    height: 20px;
+    min-width: 20px;
+    padding: 0 $pad-xsmall;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: $pad-small;
+    font-family: inherit;
+    font-size: $xxx-small;
+    font-weight: $bold;
+    color: $ui-fleet-black-75;
+    background-color: $ui-fleet-black-5;
+    border: 1px solid $ui-fleet-black-25;
+    border-radius: $border-radius;
+    letter-spacing: 0.5px;
   }
 
   &__fleet-switcher {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: $pad-medium;
     padding: $pad-xsmall $pad-small;
-    border: none;
-    background: none;
+    border: 1px solid $ui-fleet-black-25;
+    background: $core-fleet-white;
     font-size: $x-small;
-    font-weight: $bold;
-    color: $ui-fleet-black-75;
+    color: $core-fleet-black;
     cursor: pointer;
     white-space: nowrap;
     border-radius: $border-radius;
 
+    // In dark mode $core-fleet-white equals the dialog bg, so the outlined
+    // button visually merges with the surface. Bump it one tier up.
+    body.dark-mode & {
+      background: $ui-fleet-black-5;
+    }
+
     &:hover {
-      background-color: $ui-fleet-black-5;
+      border-color: $ui-fleet-black-50;
     }
 
     &:focus-visible {
-      outline: 1px solid $ui-fleet-black-75;
-      outline-offset: -1px;
-    }
-  }
-
-  &__fleet-switcher-caret {
-    transition: transform 150ms ease;
-
-    &.rotated {
-      transform: rotate(180deg);
-    }
-  }
-
-  &__fleet-dropdown {
-    position: absolute;
-    top: 100%;
-    left: $pad-small;
-    z-index: 10;
-    min-width: 300px;
-    max-height: 200px;
-    overflow-y: auto;
-    background-color: $core-fleet-white;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    padding: $pad-xsmall;
-
-    &::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: $ui-fleet-black-25;
-      border-radius: 3px;
-    }
-  }
-
-  &__fleet-dropdown-item {
-    display: block;
-    width: 100%;
-    padding: $pad-small $pad-medium;
-    border: none;
-    background: none;
-    font-size: $x-small;
-    color: $core-fleet-black;
-    text-align: left;
-    cursor: pointer;
-    border-radius: $border-radius;
-    white-space: nowrap;
-
-    &:hover {
-      background-color: $ui-fleet-black-5;
+      outline: 1px solid $core-focused-outline;
+      outline-offset: 1px;
     }
   }
 
@@ -172,7 +158,7 @@
   &__group {
     [cmdk-group-heading] {
       padding: 10px $pad-small;
-      font-size: $x-small;
+      font-size: $xx-small;
       font-weight: $bold;
       color: $core-fleet-black;
       pointer-events: none;
@@ -187,7 +173,7 @@
   }
 
   &__item {
-    padding: 10px $pad-medium;
+    padding: 10px $pad-small;
     font-size: $x-small;
     color: $core-fleet-black;
     background-color: transparent;
@@ -221,6 +207,10 @@
 
   &__item-label {
     min-width: 0;
+
+    &--selected {
+      font-weight: $bold;
+    }
   }
 
   &__item-more {

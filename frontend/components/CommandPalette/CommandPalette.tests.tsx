@@ -148,20 +148,7 @@ describe("CommandPalette", () => {
       await openPalette(user);
 
       expect(screen.getByText("Pages")).toBeInTheDocument();
-      expect(screen.getByText("Actions")).toBeInTheDocument();
-      expect(screen.getByText("Navigate")).toBeInTheDocument();
-    });
-
-    it("shows search icon in the input", async () => {
-      const { user } = adminRender(<CommandPalette />);
-      await openPalette(user);
-
-      expect(
-        screen
-          .getByPlaceholderText(/search/i)
-          .closest(`.command-palette__input-wrapper`)
-          ?.querySelector(`.command-palette__input-icon`)
-      ).toBeInTheDocument();
+      expect(screen.getByText("Commands")).toBeInTheDocument();
     });
 
     it("shows team name on team-scoped actions", async () => {
@@ -178,22 +165,34 @@ describe("CommandPalette", () => {
     it.todo("shows 'No results found.' for unmatched search");
   });
 
-  describe("Navigate group", () => {
-    it("shows Switch fleet and Sign out", async () => {
+  describe("Fleet switcher header", () => {
+    it("shows the current fleet on the header switcher button", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
-      expect(screen.getByText("Switch fleet...")).toBeInTheDocument();
-      expect(screen.getByText("Sign out")).toBeInTheDocument();
+      const switcher = screen.getByRole("button", { name: /Engineering/ });
+      expect(switcher).toBeInTheDocument();
     });
 
-    it("shows current team name next to Switch fleet", async () => {
+    it("navigates to the switch-fleet page when the header button is clicked", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
-      // "Engineering" should appear next to Switch fleet as the current team
-      const switchItem = screen.getByText("Switch fleet...").closest("div");
-      expect(switchItem?.parentElement).toHaveTextContent("Engineering");
+      const switcher = screen.getByRole("button", { name: /Engineering/ });
+      await user.click(switcher);
+
+      expect(
+        screen.getByPlaceholderText("Search a fleet...")
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("Sign out", () => {
+    it("renders Sign out under the Commands group", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      expect(screen.getByText("Sign out")).toBeInTheDocument();
     });
   });
 

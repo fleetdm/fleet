@@ -8,6 +8,7 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   config: createMockConfig(),
   canAccessControls: true,
   canWrite: true,
+  canRunLiveReport: true,
   canAccessSettings: true,
   canManagePolicyAutomations: true,
   canManageSoftwareAutomations: true,
@@ -33,7 +34,7 @@ describe("CommandPalette helpers", () => {
         "Settings",
         "MDM",
         "Automations",
-        "Actions",
+        "Commands",
       ]);
     });
   });
@@ -381,6 +382,7 @@ describe("CommandPalette helpers", () => {
       const items = buildCommandItems({
         ...BASE_CONTEXT,
         canWrite: false,
+        canRunLiveReport: false,
         canAccessControls: false,
         canAccessSettings: false,
         canManagePolicyAutomations: false,

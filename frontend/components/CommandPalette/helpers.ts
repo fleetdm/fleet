@@ -31,6 +31,7 @@ export interface ICommandPaletteContext {
   config: IConfig | null;
   canAccessControls?: boolean;
   canWrite?: boolean;
+  canRunLiveReport?: boolean;
   canAccessSettings?: boolean;
   canManagePolicyAutomations?: boolean;
   canManageSoftwareAutomations?: boolean;
@@ -52,7 +53,7 @@ export const GROUPS = [
   "Settings",
   "MDM",
   "Automations",
-  "Actions",
+  "Commands",
 ] as const;
 
 export const buildCommandItems = (
@@ -65,6 +66,7 @@ export const buildCommandItems = (
     config,
     canAccessControls,
     canWrite,
+    canRunLiveReport,
     canAccessSettings,
     canManagePolicyAutomations,
     canManageSoftwareAutomations,
@@ -104,6 +106,20 @@ export const buildCommandItems = (
   };
   const switchesFromAllFleets = getDefaultTeamName();
 
+  // Destination team label for commands that always operate against a team.
+  // "All fleets" → defaults to Unassigned; Unassigned → stays Unassigned;
+  // a real team → shows the team's name.
+  const teamRequiredDestination = hasTeamSelected
+    ? currentTeam?.name
+    : "Unassigned";
+
+  // Destination team label for commands that operate at the fleet level
+  // (e.g., reports, software automations). "All fleets" / Unassigned both
+  // land on the All fleets context; a real team shows that team's name.
+  const defaultDestination = hasTeamSelected
+    ? currentTeam?.name
+    : "All fleets";
+
   return [
     // Pages — always visible
     {
@@ -121,7 +137,7 @@ export const buildCommandItems = (
       path: withTeamId(paths.MANAGE_HOSTS),
       keywords: ["devices", "hostname", "serial number", "manage"],
     },
-    ...(canAccessControls
+    ...(canAccessControls && hasTeamOrUnassigned
       ? [
           {
             id: "controls-page",
@@ -218,7 +234,7 @@ export const buildCommandItems = (
           {
             id: "new-pack",
             label: "Create new pack",
-            group: "Actions",
+            group: "Commands",
             path: paths.NEW_PACK,
             keywords: ["packs", "add new pack", "create new pack"],
           },
@@ -646,28 +662,50 @@ export const buildCommandItems = (
         ]
       : []),
 
+    // Run live report — Observer+ users can also run live queries.
+    ...(canRunLiveReport
+      ? [
+          {
+            id: "run-live-report",
+            label: "Run live report",
+            group: "Commands" as const,
+            path: withTeamId(paths.NEW_REPORT),
+            keywords: [
+              "osquery",
+              "sql",
+              "live",
+              "ad hoc",
+              "query",
+              "run report",
+            ],
+            teamName: switchesFromUnassigned,
+          },
+        ]
+      : []),
+
     // Actions — users who can write
     ...(canWrite
       ? [
           {
             id: "add-hosts",
             label: "Add hosts",
-            group: "Actions",
+            group: "Commands",
             path: withTeamId(`${paths.MANAGE_HOSTS}?add_hosts=1`),
             keywords: ["enroll", "install", "fleetd", "device"],
+            teamName: teamRequiredDestination,
           },
           {
             id: "add-report",
             label: "Add report",
-            group: "Actions",
+            group: "Commands",
             path: withTeamId(paths.NEW_REPORT),
             keywords: ["create report", "new report", "sql"],
-            teamName: switchesFromUnassigned,
+            teamName: defaultDestination,
           },
           {
             id: "add-policy",
             label: "Add policy",
-            group: "Actions",
+            group: "Commands",
             path: withTeamId(paths.NEW_POLICY),
             keywords: [
               "create policy",
@@ -682,7 +720,7 @@ export const buildCommandItems = (
                 {
                   id: "add-fleet-maintained-app",
                   label: "Add Fleet-maintained app",
-                  group: "Actions",
+                  group: "Commands",
                   path: withTeamId(paths.SOFTWARE_ADD_FLEET_MAINTAINED),
                   keywords: [
                     "install",
@@ -695,7 +733,7 @@ export const buildCommandItems = (
                 {
                   id: "add-vpp-app",
                   label: "Add VPP app",
-                  group: "Actions",
+                  group: "Commands",
                   path: withTeamId(
                     `${paths.SOFTWARE_ADD_APP_STORE}?platform=apple`
                   ),
@@ -712,7 +750,7 @@ export const buildCommandItems = (
                 {
                   id: "add-android-app-store-app",
                   label: "Add Android app store app",
-                  group: "Actions",
+                  group: "Commands",
                   path: withTeamId(
                     `${paths.SOFTWARE_ADD_APP_STORE}?platform=android`
                   ),
@@ -721,7 +759,7 @@ export const buildCommandItems = (
                 {
                   id: "add-custom-package",
                   label: "Add custom package",
-                  group: "Actions",
+                  group: "Commands",
                   path: withTeamId(paths.SOFTWARE_ADD_PACKAGE),
                   keywords: [
                     "install",
@@ -748,7 +786,7 @@ export const buildCommandItems = (
                 {
                   id: "add-script",
                   label: "Add script",
-                  group: "Actions",
+                  group: "Commands",
                   path: withTeamId(paths.CONTROLS_SCRIPTS_LIBRARY),
                   keywords: [
                     "upload script",
@@ -761,7 +799,7 @@ export const buildCommandItems = (
                 {
                   id: "add-custom-variable",
                   label: "Add custom variable",
-                  group: "Actions",
+                  group: "Commands",
                   path: withTeamId(
                     `${paths.CONTROLS_VARIABLES}?add_variable=1`
                   ),
@@ -778,36 +816,22 @@ export const buildCommandItems = (
           {
             id: "manage-enroll-secrets",
             label: "Manage enroll secrets",
-            group: "Actions",
+            group: "Commands",
             path: withTeamId(`${paths.MANAGE_HOSTS}?manage_enroll_secrets=1`),
             keywords: ["enrollment", "token", "fleetd", "enroll secret"],
-          },
-          {
-            id: "run-live-report",
-            label: "Run live report",
-            group: "Actions",
-            path: withTeamId(paths.NEW_REPORT),
-            keywords: [
-              "osquery",
-              "sql",
-              "live",
-              "ad hoc",
-              "query",
-              "run report",
-            ],
-            teamName: switchesFromUnassigned,
+            teamName: teamRequiredDestination,
           },
           {
             id: "run-live-policy",
             label: "Run live policy",
-            group: "Actions",
+            group: "Commands",
             path: withTeamId(paths.NEW_POLICY),
             keywords: ["check", "compliance", "live", "ad hoc", "run policy"],
           },
           {
             id: "add-label",
             label: "Add label",
-            group: "Actions",
+            group: "Commands",
             path: paths.NEW_LABEL,
             keywords: [
               "create label",
@@ -823,7 +847,7 @@ export const buildCommandItems = (
                 {
                   id: "add-user",
                   label: "Add user",
-                  group: "Actions",
+                  group: "Commands",
                   path: paths.ADMIN_USERS_NEW_HUMAN,
                   keywords: [
                     "new user",
@@ -836,7 +860,7 @@ export const buildCommandItems = (
                 {
                   id: "add-api-only-user",
                   label: "Add API-only user",
-                  group: "Actions",
+                  group: "Commands",
                   path: paths.ADMIN_USERS_NEW_API,
                   keywords: [
                     "api user",
@@ -851,8 +875,8 @@ export const buildCommandItems = (
                 {
                   id: "create-fleet",
                   label: "Create fleet",
-                  group: "Actions",
-                  path: paths.ADMIN_FLEETS,
+                  group: "Commands",
+                  path: `${paths.ADMIN_FLEETS}?create_fleet=1`,
                   keywords: ["new fleet", "add fleet", "team"],
                 },
               ]
@@ -862,7 +886,7 @@ export const buildCommandItems = (
             label: isDarkMode()
               ? "Switch to light mode"
               : "Switch to dark mode",
-            group: "Actions",
+            group: "Commands",
             keywords: [
               "dark mode",
               "light mode",
@@ -975,6 +999,7 @@ export const buildCommandItems = (
             group: "Automations",
             path: `${paths.SOFTWARE_INVENTORY}?manage_automations=1`,
             keywords: ["vulnerability", "webhook", "jira", "zendesk"],
+            teamName: "All fleets",
           },
         ]
       : []),
@@ -1067,5 +1092,14 @@ export const buildCommandItems = (
           },
         ]
       : []),
+
+    // Sign out — always available
+    {
+      id: "sign-out",
+      label: "Sign out",
+      path: paths.LOGOUT,
+      group: "Commands",
+      keywords: ["logout", "log out", "sign out"],
+    },
   ];
 };
