@@ -10124,21 +10124,14 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
 
-	// Verify CleanupAllHostMDMProfilesForPlatform removes all remaining
-	// profile rows AND (for Apple) marks nano_enrollments as disabled when
-	// MDM is toggled off globally. At this point hosts still have pending
-	// remove profiles.
-
 	// Windows hosts have pending removes; cleanup should wipe them.
 	err = ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows")
 	require.NoError(t, err)
 	assertHostProfileOpStatus(t, ds, host3.UUID)
 	assertHostProfileOpStatus(t, ds, host4.UUID)
 
-	// Windows host_mdm rows must NOT be touched by global disable. Orbit's
-	// programmatic-unenrollment notification depends on host_mdm.enrolled = 1
-	// to be able to tell the device to unenroll. The reconciler's own
-	// host_mdm.enrolled = 1 gate handles the bug fix; we don't flip it here.
+	// Windows host_mdm rows must NOT be touched by global disable. Orbit's programmatic-unenrollment notification
+	// depends on host_mdm.enrolled = 1 to be able to tell the device to unenroll.
 	var winHostMDM struct {
 		Total    int `db:"total"`
 		Enrolled int `db:"enrolled"`
@@ -10171,10 +10164,8 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	assertHostProfileOpStatus(t, ds, host1.UUID)
 	assertHostProfileOpStatus(t, ds, host2.UUID)
 
-	// Apple nano_enrollments must be soft-disabled (rows survive, enabled = 0)
-	// so the reconciler does not recreate pending rows when a new APNS cert is
-	// uploaded. Asserting total > 0 AND total == disabled catches a regression
-	// that deletes rows instead of flipping the flag.
+	// Apple nano_enrollments must be soft-disabled (rows survive, enabled = 0) so the reconciler does not recreate
+	// pending rows when a new APNS cert is uploaded.
 	var appleEnrollments struct {
 		Total    int `db:"total"`
 		Disabled int `db:"disabled"`
