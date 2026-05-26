@@ -1270,6 +1270,33 @@ const (
 // feature is enabled.
 const ManagedLocalAccountUsername = "_fleetadmin"
 
+// PrimiaryAccountType represents the type of the primary account for MacOS going through setup experience.
+// Documented at https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary
+// if `SetPrimarySetupAccountAsRegularUser` or `SkipPrimarySetupAccountCreation` is true, you must configure a local admin account.
+type PrimaryAccountType string
+
+const (
+	// The end user account will be created as an admin
+	PrimaryAccountTypeAdmin PrimaryAccountType = "admin"
+	// The end user account will be created as a standard user, but requires a local admin account to be configured.
+	PrimaryAccountTypeStandard PrimaryAccountType = "standard"
+	// The screen to setup a primary account will be skipped, and a local admin account must be configured.
+	PrimaryAccountTypeNone PrimaryAccountType = "none"
+)
+
+func IsValidPrimaryAccountType(accountType string) bool {
+	switch PrimaryAccountType(accountType) {
+	case PrimaryAccountTypeAdmin, PrimaryAccountTypeStandard, PrimaryAccountTypeNone:
+		return true
+	default:
+		return false
+	}
+}
+
+func (t PrimaryAccountType) RequiresLocalAdminAccount() bool {
+	return t == PrimaryAccountTypeStandard || t == PrimaryAccountTypeNone
+}
+
 type HostLocationData struct {
 	HostID    uint    `db:"host_id"`
 	Latitude  float64 `db:"latitude"`

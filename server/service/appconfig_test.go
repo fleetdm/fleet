@@ -1378,6 +1378,28 @@ func TestMDMConfig(t *testing.T) {
 			},
 			expectedError: "mdmAppleServerURL must include a host",
 		},
+		{
+			name:        "end user account type standard with disabled managed local account",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					EndUserLocalAccountType:   optjson.SetString("standard"),
+					EnableManagedLocalAccount: optjson.SetBool(false),
+				},
+			},
+			expectedError: `enable_managed_local_account is required to be enabled when using "standard" for the end_user_local_account_type`,
+		},
+		{
+			name:        "end user account type none with disabled managed local account",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					EndUserLocalAccountType:   optjson.SetString("none"),
+					EnableManagedLocalAccount: optjson.SetBool(false),
+				},
+			},
+			expectedError: `enable_managed_local_account is required to be enabled when using "none" for the end_user_local_account_type`,
+		},
 	}
 
 	for _, tt := range testCases {
