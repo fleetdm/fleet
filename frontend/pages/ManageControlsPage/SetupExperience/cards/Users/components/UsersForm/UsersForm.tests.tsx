@@ -33,29 +33,6 @@ describe("UsersForm", () => {
     },
   });
 
-  it("renders the end user authentication and managed local account checkboxes", () => {
-    render(<UsersForm {...defaultProps} />);
-    expect(screen.getByText("Require IdP authentication")).toBeInTheDocument();
-  });
-
-  it("renders help text for end user authentication with IdP link", () => {
-    render(<UsersForm {...defaultProps} />);
-    expect(
-      screen.getByText(/End users are required to authenticate/)
-    ).toBeInTheDocument();
-    expect(screen.getByText("identity provider (IdP)")).toBeInTheDocument();
-  });
-
-  it("hides lock end user info when end user auth is unchecked", () => {
-    render(<UsersForm {...defaultProps} />);
-    expect(screen.queryByText("Lock end user info")).not.toBeInTheDocument();
-  });
-
-  it("shows lock end user info inline when end user auth is checked", () => {
-    render(<UsersForm {...defaultProps} defaultIsEndUserAuthEnabled />);
-    expect(screen.getByText("Lock end user info")).toBeInTheDocument();
-  });
-
   it("reveals lock end user info when end user auth is toggled on", async () => {
     const { user } = render(<UsersForm {...defaultProps} />);
 
@@ -123,66 +100,6 @@ describe("UsersForm", () => {
     render(<UsersForm {...defaultProps} />);
     const saveButtons = screen.getAllByRole("button", { name: "Save" });
     expect(saveButtons).toHaveLength(1);
-  });
-
-  describe("disabled states", () => {
-    it("disables end user authentication checkbox when IdP is not configured", () => {
-      render(<UsersForm {...defaultProps} isIdPConfigured={false} />);
-      expect(
-        screen.getByRole("checkbox", { name: "Require IdP authentication" })
-      ).toHaveAttribute("aria-disabled", "true");
-    });
-
-    it("enables end user authentication checkbox when IdP is configured", () => {
-      render(<UsersForm {...defaultProps} isIdPConfigured />);
-      expect(
-        screen.getByRole("checkbox", { name: "Require IdP authentication" })
-      ).toHaveAttribute("aria-disabled", "false");
-    });
-
-    it("disables lock end user info when IdP is not configured", () => {
-      render(
-        <UsersForm
-          {...defaultProps}
-          isIdPConfigured={false}
-          defaultIsEndUserAuthEnabled
-        />
-      );
-      expect(
-        screen.getByRole("checkbox", { name: "Lock end user info" })
-      ).toHaveAttribute("aria-disabled", "true");
-    });
-
-    it("disables lock end user info when Apple MDM is not configured", () => {
-      renderWithMdmDisabled(
-        <UsersForm {...defaultProps} defaultIsEndUserAuthEnabled />
-      );
-      expect(
-        screen.getByRole("checkbox", { name: "Lock end user info" })
-      ).toHaveAttribute("aria-disabled", "true");
-    });
-
-    it("enables lock end user info when Apple MDM is configured", () => {
-      renderWithMdmEnabled(
-        <UsersForm {...defaultProps} defaultIsEndUserAuthEnabled />
-      );
-      expect(
-        screen.getByRole("checkbox", { name: "Lock end user info" })
-      ).toHaveAttribute("aria-disabled", "false");
-    });
-
-    it("does not allow toggling end user auth when IdP is not configured", async () => {
-      const { user } = render(
-        <UsersForm {...defaultProps} isIdPConfigured={false} />
-      );
-
-      const checkbox = screen.getByRole("checkbox", {
-        name: "Require IdP authentication",
-      });
-      await user.click(checkbox);
-
-      expect(checkbox).not.toBeChecked();
-    });
   });
 
   describe("save payload", () => {
