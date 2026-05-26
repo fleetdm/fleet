@@ -346,6 +346,7 @@ func TestPubSubEnrollment(t *testing.T) {
 	})
 
 	t.Run("re-enrollment updates IdP association", func(t *testing.T) {
+		mockDS.NewAndroidHostFuncInvoked = false
 		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
 				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
@@ -400,8 +401,8 @@ func TestPubSubEnrollment(t *testing.T) {
 		require.True(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
 		require.Equal(t, existingHostUUID, capturedHostUUID)
 		require.Equal(t, "new-user-idp-uuid", capturedIdpUUID)
-		// Should NOT have called NewAndroidHost (re-enrollment updates, not creates)
-		mockDS.NewAndroidHostFuncInvoked = false
+		// Re-enrollment should update, not create a new host
+		require.False(t, mockDS.NewAndroidHostFuncInvoked)
 	})
 }
 
