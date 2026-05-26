@@ -5,6 +5,30 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2026-42306](https://nvd.nist.gov/vuln/detail/CVE-2026-42306)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-26 15:38:17
+
+### [CVE-2026-41568](https://nvd.nist.gov/vuln/detail/CVE-2026-41568)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-26 15:38:17
+
+### [CVE-2026-41567](https://nvd.nist.gov/vuln/detail/CVE-2026-41567)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-26 15:38:17
+
 ### [CVE-2026-40200](https://nvd.nist.gov/vuln/detail/CVE-2026-40200)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -20,6 +44,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleet`,`pkg:golang/go.opentelemetry.io/otel/sdk`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-04-27 15:03:59
+
+### [CVE-2026-33997](https://nvd.nist.gov/vuln/detail/CVE-2026-33997)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-26 15:38:16
 
 ### [CVE-2026-33487](https://nvd.nist.gov/vuln/detail/CVE-2026-33487)
 - **Author:** @lucasmrod

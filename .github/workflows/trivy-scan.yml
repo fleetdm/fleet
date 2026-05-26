@@ -138,9 +138,11 @@ jobs:
           # - website/config/custom.js: commented-out Stripe test-mode placeholders shown as example config.
           # - ee/fleet-agent-downloader/config/custom.js: same Sails template, commented-out Stripe test placeholders.
           # - tools/test-orbit-mtls/client.key: client private key used only by local/test mTLS tooling.
+          # - tools/smtp4dev/fleet.key: TLS key for the local smtp4dev development mail server.
           skip-files: |
             tools/osquery/in-a-box/osquery/fleet.key
             tools/osquery/fleet.key
+            tools/smtp4dev/fleet.key
             orbit/pkg/insecure/proxy.go
             ee/orbit/pkg/httpsigproxy/httpsigproxy.go
             website/config/custom.js
