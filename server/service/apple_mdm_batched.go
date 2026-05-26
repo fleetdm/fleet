@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"log/slog"
 
@@ -51,7 +50,7 @@ func ReconcileAppleProfilesBatched(
 	}
 	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
 	if block == nil || block.Type != "CERTIFICATE" {
-		return ctxerr.Wrap(ctx, errors.New("failed to decode PEM block from SCEP certificate"), "")
+		return ctxerr.New(ctx, "failed to decode PEM block from SCEP certificate")
 	}
 	if err := ensureFleetProfiles(ctx, ds, logger, block.Bytes); err != nil {
 		logger.ErrorContext(ctx, "unable to ensure fleetd configuration profiles are in place", "details", err)

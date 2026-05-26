@@ -452,7 +452,7 @@ func ExecuteReconcileBatch(
 
 	for _, p := range toInstall {
 		if pp, ok := profileIntersection.GetMatchingProfileInCurrentState(p); ok && pp != nil {
-			if pp.Status != &fleet.MDMDeliveryFailed && bytes.Equal(pp.Checksum, p.Checksum) {
+			if (pp.Status != nil && *pp.Status != fleet.MDMDeliveryFailed) && bytes.Equal(pp.Checksum, p.Checksum) {
 				hp := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 					ProfileUUID:       p.ProfileUUID,
 					HostUUID:          p.HostUUID,
@@ -669,7 +669,7 @@ func ExecuteReconcileBatch(
 						if target, ok := installTargets[hp.ProfileUUID]; ok {
 							var newEnrollmentIDs []string
 							for _, id := range target.EnrollmentIDs {
-								if id != hp.HostUUID {
+								if id != hp.HostUUID && userEnrollmentsToHostUUIDsMap[id] != hp.HostUUID {
 									newEnrollmentIDs = append(newEnrollmentIDs, id)
 								}
 							}
