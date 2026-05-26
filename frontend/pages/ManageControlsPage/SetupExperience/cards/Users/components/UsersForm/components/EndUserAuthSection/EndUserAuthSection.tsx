@@ -7,19 +7,27 @@ import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import SettingsSection from "pages/admin/components/SettingsSection";
 
-import { IUsersFormSectionProps } from "../../UsersForm";
-
 const baseClass = "users-form";
 
+interface IEndUserAuthSectionProps {
+  endUserAuthEnabled: boolean;
+  lockEndUserInfo: boolean;
+  onEndUserAuthChange: (value: boolean) => void;
+  onLockEndUserInfoChange: (value: boolean) => void;
+  isIdPConfigured: boolean;
+  isMacMdmEnabledAndConfigured: boolean;
+  gitOpsModeEnabled: boolean;
+}
+
 const EndUserAuthSection = ({
-  formData,
-  onInputChange,
+  endUserAuthEnabled,
+  lockEndUserInfo,
+  onEndUserAuthChange,
+  onLockEndUserInfoChange,
   isIdPConfigured,
   isMacMdmEnabledAndConfigured,
   gitOpsModeEnabled,
-}: IUsersFormSectionProps) => {
-  const { endUserAuthEnabled, lockEndUserInfo } = formData;
-
+}: IEndUserAuthSectionProps) => {
   return (
     <SettingsSection title="End user authentication">
       <TooltipWrapper
@@ -46,9 +54,7 @@ const EndUserAuthSection = ({
         <Checkbox
           disabled={gitOpsModeEnabled || !isIdPConfigured}
           value={endUserAuthEnabled}
-          onChange={(value: boolean) =>
-            onInputChange({ name: "endUserAuthEnabled", value })
-          }
+          onChange={onEndUserAuthChange}
           helpText={
             <span>
               End users are required to authenticate with your{" "}
@@ -94,9 +100,7 @@ const EndUserAuthSection = ({
                 !isMacMdmEnabledAndConfigured
               }
               value={lockEndUserInfo}
-              onChange={(value: boolean) =>
-                onInputChange({ name: "lockEndUserInfo", value })
-              }
+              onChange={onLockEndUserInfoChange}
               helpText={
                 <span>
                   Prevents macOS users from editing{" "}

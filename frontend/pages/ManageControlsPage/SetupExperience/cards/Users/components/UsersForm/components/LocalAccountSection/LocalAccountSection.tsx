@@ -11,7 +11,7 @@ import { EndUserLocalAccountType } from "services/entities/mdm";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
-import { IUsersFormData, IUsersFormSectionProps } from "../../UsersForm";
+import { IUsersFormData } from "../../UsersForm";
 
 const baseClass = "local-account-section";
 
@@ -22,11 +22,19 @@ export const effectiveEnableManagedLocalAccount = (formData: IUsersFormData) =>
   formData.enableManagedLocalAccount ||
   formData.localAccountType !== EndUserLocalAccountType.Admin;
 
+interface ILocalAccountSectionProps {
+  formData: IUsersFormData;
+  onLocalAccountTypeChange: (value: EndUserLocalAccountType) => void;
+  onEnableManagedLocalAccountChange: (value: boolean) => void;
+  isMacMdmEnabledAndConfigured: boolean;
+}
+
 const LocalAccountSection = ({
   formData,
-  onInputChange,
+  onLocalAccountTypeChange,
+  onEnableManagedLocalAccountChange,
   isMacMdmEnabledAndConfigured,
-}: IUsersFormSectionProps) => {
+}: ILocalAccountSectionProps) => {
   const { localAccountType } = formData;
   const forcedByLocalAccountType =
     localAccountType !== EndUserLocalAccountType.Admin;
@@ -80,9 +88,9 @@ const LocalAccountSection = ({
                     value={EndUserLocalAccountType.Admin}
                     disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
                     checked={localAccountType === EndUserLocalAccountType.Admin}
-                    onChange={(val) => {
-                      onInputChange({ name: "localAccountType", value: val });
-                    }}
+                    onChange={(val) =>
+                      onLocalAccountTypeChange(val as EndUserLocalAccountType)
+                    }
                   />
                   <Radio
                     name="localAccountType"
@@ -100,9 +108,9 @@ const LocalAccountSection = ({
                       localAccountType === EndUserLocalAccountType.Standard
                     }
                     disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
-                    onChange={(val) => {
-                      onInputChange({ name: "localAccountType", value: val });
-                    }}
+                    onChange={(val) =>
+                      onLocalAccountTypeChange(val as EndUserLocalAccountType)
+                    }
                   />
                   <Radio
                     name="localAccountType"
@@ -112,9 +120,9 @@ const LocalAccountSection = ({
                     disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
                     value={EndUserLocalAccountType.None}
                     checked={localAccountType === EndUserLocalAccountType.None}
-                    onChange={(val) => {
-                      onInputChange({ name: "localAccountType", value: val });
-                    }}
+                    onChange={(val) =>
+                      onLocalAccountTypeChange(val as EndUserLocalAccountType)
+                    }
                   />
                 </fieldset>
                 <Checkbox
@@ -132,9 +140,7 @@ const LocalAccountSection = ({
                     ) : undefined
                   }
                   value={effectiveEnableManagedLocalAccount(formData)}
-                  onChange={(value: boolean) =>
-                    onInputChange({ name: "enableManagedLocalAccount", value })
-                  }
+                  onChange={onEnableManagedLocalAccountChange}
                   helpText={
                     <span>
                       Fleet creates a user (_fleetadmin) and unique password for

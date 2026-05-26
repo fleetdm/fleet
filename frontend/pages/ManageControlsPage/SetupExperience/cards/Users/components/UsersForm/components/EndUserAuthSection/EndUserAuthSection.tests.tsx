@@ -1,26 +1,22 @@
 import React from "react";
 import { screen } from "@testing-library/react";
-import { EndUserLocalAccountType } from "services/entities/mdm";
 import { createCustomRenderer } from "test/test-utils";
 
 import EndUserAuthSection from "./EndUserAuthSection";
-import { IUsersFormSectionProps } from "../../UsersForm";
 
 describe("EndUserAuthSection", () => {
-  const onInputChangeMock = jest.fn();
+  const onEndUserAuthChangeMock = jest.fn();
+  const onLockEndUserInfoChangeMock = jest.fn();
   beforeEach(() => {
-    onInputChangeMock.mockClear();
+    onEndUserAuthChangeMock.mockClear();
+    onLockEndUserInfoChangeMock.mockClear();
   });
 
-  const defaultProps: IUsersFormSectionProps = {
-    formData: {
-      endUserAuthEnabled: false,
-      lockEndUserInfo: false,
-      enableManagedLocalAccount: false,
-      localAccountType: EndUserLocalAccountType.Admin,
-    },
-    formErrors: {},
-    onInputChange: onInputChangeMock,
+  const defaultProps = {
+    endUserAuthEnabled: false,
+    lockEndUserInfo: false,
+    onEndUserAuthChange: onEndUserAuthChangeMock,
+    onLockEndUserInfoChange: onLockEndUserInfoChangeMock,
     isIdPConfigured: true,
     isMacMdmEnabledAndConfigured: true,
     gitOpsModeEnabled: false,
@@ -49,44 +45,30 @@ describe("EndUserAuthSection", () => {
   });
 
   it("shows lock end user info inline when end user auth is checked", () => {
-    render(
-      <EndUserAuthSection
-        {...defaultProps}
-        formData={{ ...defaultProps.formData, endUserAuthEnabled: true }}
-      />
-    );
+    render(<EndUserAuthSection {...defaultProps} endUserAuthEnabled />);
     expect(screen.getByText("Lock end user info")).toBeInTheDocument();
   });
 
-  it("calls onInputChange when the EUA checkbox is toggled", async () => {
+  it("calls onEndUserAuthChange when the EUA checkbox is toggled", async () => {
     const { user } = render(<EndUserAuthSection {...defaultProps} />);
 
     await user.click(
       screen.getByRole("checkbox", { name: "Require IdP authentication" })
     );
 
-    expect(onInputChangeMock).toHaveBeenCalledWith({
-      name: "endUserAuthEnabled",
-      value: true,
-    });
+    expect(onEndUserAuthChangeMock).toHaveBeenCalledWith(true);
   });
 
-  it("calls onInputChange when lock end user info is toggled", async () => {
+  it("calls onLockEndUserInfoChange when lock end user info is toggled", async () => {
     const { user } = render(
-      <EndUserAuthSection
-        {...defaultProps}
-        formData={{ ...defaultProps.formData, endUserAuthEnabled: true }}
-      />
+      <EndUserAuthSection {...defaultProps} endUserAuthEnabled />
     );
 
     await user.click(
       screen.getByRole("checkbox", { name: "Lock end user info" })
     );
 
-    expect(onInputChangeMock).toHaveBeenCalledWith({
-      name: "lockEndUserInfo",
-      value: true,
-    });
+    expect(onLockEndUserInfoChangeMock).toHaveBeenCalledWith(true);
   });
 
   describe("disabled states", () => {
@@ -109,7 +91,7 @@ describe("EndUserAuthSection", () => {
         <EndUserAuthSection
           {...defaultProps}
           isIdPConfigured={false}
-          formData={{ ...defaultProps.formData, endUserAuthEnabled: true }}
+          endUserAuthEnabled
         />
       );
       expect(
@@ -122,7 +104,7 @@ describe("EndUserAuthSection", () => {
         <EndUserAuthSection
           {...defaultProps}
           isMacMdmEnabledAndConfigured={false}
-          formData={{ ...defaultProps.formData, endUserAuthEnabled: true }}
+          endUserAuthEnabled
         />
       );
       expect(
@@ -131,18 +113,13 @@ describe("EndUserAuthSection", () => {
     });
 
     it("enables lock end user info when Apple MDM and IdP are configured", () => {
-      render(
-        <EndUserAuthSection
-          {...defaultProps}
-          formData={{ ...defaultProps.formData, endUserAuthEnabled: true }}
-        />
-      );
+      render(<EndUserAuthSection {...defaultProps} endUserAuthEnabled />);
       expect(
         screen.getByRole("checkbox", { name: "Lock end user info" })
       ).toHaveAttribute("aria-disabled", "false");
     });
 
-    it("does not call onInputChange for EUA when IdP is not configured", async () => {
+    it("does not call onEndUserAuthChange when IdP is not configured", async () => {
       const { user } = render(
         <EndUserAuthSection {...defaultProps} isIdPConfigured={false} />
       );
@@ -151,7 +128,7 @@ describe("EndUserAuthSection", () => {
         screen.getByRole("checkbox", { name: "Require IdP authentication" })
       );
 
-      expect(onInputChangeMock).not.toHaveBeenCalled();
+      expect(onEndUserAuthChangeMock).not.toHaveBeenCalled();
     });
   });
 });

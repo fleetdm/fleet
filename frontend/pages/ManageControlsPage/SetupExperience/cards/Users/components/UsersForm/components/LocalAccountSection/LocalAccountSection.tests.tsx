@@ -4,26 +4,25 @@ import { EndUserLocalAccountType } from "services/entities/mdm";
 import { createCustomRenderer } from "test/test-utils";
 
 import LocalAccountSection from "./LocalAccountSection";
-import { IUsersFormSectionProps } from "../../UsersForm";
 
 describe("LocalAccountSection", () => {
-  const onInputChangeMock = jest.fn();
+  const onLocalAccountTypeChangeMock = jest.fn();
+  const onEnableManagedLocalAccountChangeMock = jest.fn();
   beforeEach(() => {
-    onInputChangeMock.mockClear();
+    onLocalAccountTypeChangeMock.mockClear();
+    onEnableManagedLocalAccountChangeMock.mockClear();
   });
 
-  const defaultProps: IUsersFormSectionProps = {
+  const defaultProps = {
     formData: {
       endUserAuthEnabled: false,
       lockEndUserInfo: false,
       enableManagedLocalAccount: false,
       localAccountType: EndUserLocalAccountType.Admin,
     },
-    formErrors: {},
-    onInputChange: onInputChangeMock,
-    isIdPConfigured: true,
+    onLocalAccountTypeChange: onLocalAccountTypeChangeMock,
+    onEnableManagedLocalAccountChange: onEnableManagedLocalAccountChangeMock,
     isMacMdmEnabledAndConfigured: true,
-    gitOpsModeEnabled: false,
   };
 
   const render = createCustomRenderer({
@@ -79,10 +78,7 @@ describe("LocalAccountSection", () => {
       expect(checkbox).not.toBeDisabled();
       expect(checkbox).not.toBeChecked();
       await user.click(checkbox);
-      expect(onInputChangeMock).toHaveBeenCalledWith({
-        name: "enableManagedLocalAccount",
-        value: true,
-      });
+      expect(onEnableManagedLocalAccountChangeMock).toHaveBeenCalledWith(true);
     });
   });
 
@@ -182,10 +178,7 @@ describe("LocalAccountSection", () => {
         expect(checkbox).toHaveAttribute("aria-disabled", "true");
         expect(checkbox).toBeChecked();
         await user.click(checkbox);
-        expect(onInputChangeMock).not.toHaveBeenCalledWith({
-          name: "enableManagedLocalAccount",
-          value: false,
-        });
+        expect(onEnableManagedLocalAccountChangeMock).not.toHaveBeenCalled();
       }
     );
   });

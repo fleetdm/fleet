@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
 import mdmAPI, { EndUserLocalAccountType } from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -22,28 +21,6 @@ export interface IUsersFormData {
   localAccountType: EndUserLocalAccountType;
 }
 
-export interface IUsersFormErrors {
-  endUserAuthEnabled?: string | null;
-  lockEndUserInfo?: string | null;
-  enableManagedLocalAccount?: string | null;
-  localAccountType?: EndUserLocalAccountType;
-}
-
-export type UsersInputChangeFn = ({
-  name,
-  value,
-}: IInputFieldParseTarget) => void;
-
-export interface IUsersFormSectionProps {
-  formData: IUsersFormData;
-  formErrors: IUsersFormErrors;
-  onInputChange: UsersInputChangeFn;
-  onInputBlur?: () => void;
-  isIdPConfigured: boolean;
-  isMacMdmEnabledAndConfigured: boolean;
-  gitOpsModeEnabled: boolean;
-}
-
 interface IUsersFormProps {
   currentTeamId: number;
   defaultIsEndUserAuthEnabled: boolean;
@@ -54,17 +31,6 @@ interface IUsersFormProps {
   defaultLocalAccountType?: EndUserLocalAccountType;
   isIdPConfigured: boolean;
 }
-
-// No validations are required today. The function exists so new fields can add
-// validation in one place without changing any call sites.
-const validateFormData = (formData: IUsersFormData) => {
-  const errors: Record<string, string> = {};
-  // Reference formData so the unused-parameter warning stays quiet while there
-  // are no rules to evaluate. Replace this with real checks when fields need
-  // validation.
-  if (!formData) return errors;
-  return errors;
-};
 
 const UsersForm = ({
   currentTeamId,
@@ -84,7 +50,6 @@ const UsersForm = ({
     enableManagedLocalAccount: defaultEnableManagedLocalAccount,
     localAccountType: defaultLocalAccountType,
   });
-  const [formErrors, setFormErrors] = useState<IUsersFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Re-sync local state when the parent refetches config (e.g. team switch).
@@ -104,40 +69,33 @@ const UsersForm = ({
     defaultLocalAccountType,
   ]);
 
-  const onInputChange: UsersInputChangeFn = ({ name, value }) => {
-    const next: IUsersFormData = { ...formData, [name]: value };
-    // Sync lock end user info with EUA only when Apple MDM is configured. Without
-    // Apple MDM the field is read-only, so we leave whatever value came from the
-    // backend untouched.
-    if (name === "endUserAuthEnabled" && isMacMdmEnabledAndConfigured) {
-      next.lockEndUserInfo = value as boolean;
-    }
-    setFormData(next);
-
-    // only set errors that are updates of existing errors
-    // new errors are only set onBlur
-    const newErrs = validateFormData(next);
-    const errsToSet: Record<string, string> = {};
-    Object.keys(formErrors).forEach((k) => {
-      if (newErrs[k]) {
-        errsToSet[k] = newErrs[k];
-      }
-    });
-    setFormErrors(errsToSet);
+  const onEndUserAuthChange = (value: boolean) => {
+    // Sync lock end user info with EUA only when Apple MDM is configured.
+    // Without Apple MDM the field is read-only, so we leave whatever value
+    // came from the backend untouched.
+    setFormData((prev) => ({
+      ...prev,
+      endUserAuthEnabled: value,
+      lockEndUserInfo: isMacMdmEnabledAndConfigured
+        ? value
+        : prev.lockEndUserInfo,
+    }));
   };
 
-  const onInputBlur = () => {
-    setFormErrors(validateFormData(formData));
+  const onLockEndUserInfoChange = (value: boolean) => {
+    setFormData((prev) => ({ ...prev, lockEndUserInfo: value }));
+  };
+
+  const onEnableManagedLocalAccountChange = (value: boolean) => {
+    setFormData((prev) => ({ ...prev, enableManagedLocalAccount: value }));
+  };
+
+  const onLocalAccountTypeChange = (value: EndUserLocalAccountType) => {
+    setFormData((prev) => ({ ...prev, localAccountType: value }));
   };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    const errs = validateFormData(formData);
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
-    }
 
     setIsUpdating(true);
     const canLockEndUserInfo =
@@ -167,21 +125,24 @@ const UsersForm = ({
     }
   };
 
-  const sectionProps: IUsersFormSectionProps = {
-    formData,
-    formErrors,
-    onInputChange,
-    onInputBlur,
-    isIdPConfigured,
-    isMacMdmEnabledAndConfigured: !!isMacMdmEnabledAndConfigured,
-    gitOpsModeEnabled,
-  };
-
   return (
     <div className={baseClass}>
       <form onSubmit={onSubmit}>
-        <LocalAccountSection {...sectionProps} />
-        <EndUserAuthSection {...sectionProps} />
+        <LocalAccountSection
+          formData={formData}
+          onLocalAccountTypeChange={onLocalAccountTypeChange}
+          onEnableManagedLocalAccountChange={onEnableManagedLocalAccountChange}
+          isMacMdmEnabledAndConfigured={!!isMacMdmEnabledAndConfigured}
+        />
+        <EndUserAuthSection
+          endUserAuthEnabled={formData.endUserAuthEnabled}
+          lockEndUserInfo={formData.lockEndUserInfo}
+          onEndUserAuthChange={onEndUserAuthChange}
+          onLockEndUserInfoChange={onLockEndUserInfoChange}
+          isIdPConfigured={isIdPConfigured}
+          isMacMdmEnabledAndConfigured={!!isMacMdmEnabledAndConfigured}
+          gitOpsModeEnabled={gitOpsModeEnabled}
+        />
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button
