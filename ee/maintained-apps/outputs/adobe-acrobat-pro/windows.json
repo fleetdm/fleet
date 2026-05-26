@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.001.21431",
+      "version": "26.001.21529",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Adobe Acrobat DC (64-bit)' AND publisher = 'Adobe';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Acrobat DC (64-bit)' AND publisher = 'Adobe' AND version_compare(version, '26.001.21431') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Adobe Acrobat DC (64-bit)' AND publisher = 'Adobe' AND version_compare(version, '26.001.21529') < 0);"
       },
       "installer_url": "https://trials.adobe.com/AdobeProducts/APRO/Acrobat_HelpX/win32/Acrobat_DC_Web_x64_WWMUI.zip",
       "install_script_ref": "f7f87d02",
       "uninstall_script_ref": "c94fe3ab",
-      "sha256": "e93e1bef99d88d722f6e78e56d9de17e8ea1b1fc75d05f1055839794010c0ee5",
+      "sha256": "0184e57379c215ddc296ec9fa0913964240a3c7b07c645d7809eb188eafd1986",
       "default_categories": [
         "Productivity"
       ]
