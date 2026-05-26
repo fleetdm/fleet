@@ -9,6 +9,7 @@ import CommandPalette from "./CommandPalette";
 Element.prototype.scrollIntoView = jest.fn();
 
 const adminRender = createCustomRenderer({
+  withBackendMock: true,
   context: {
     app: {
       currentUser: {
@@ -41,6 +42,7 @@ const adminRender = createCustomRenderer({
 });
 
 const observerRender = createCustomRenderer({
+  withBackendMock: true,
   context: {
     app: {
       currentUser: {
@@ -236,6 +238,7 @@ describe("CommandPalette", () => {
   describe("Permission gating", () => {
     it("renders nothing for isNoAccess users", () => {
       const noAccessRender = createCustomRenderer({
+        withBackendMock: true,
         context: {
           app: {
             isNoAccess: true,

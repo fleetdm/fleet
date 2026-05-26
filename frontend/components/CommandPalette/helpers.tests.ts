@@ -22,6 +22,7 @@ const BASE_CONTEXT: ICommandPaletteContext = {
 
   withTeamId: (path: string) => path,
   onToggleDarkMode: jest.fn(),
+  onViewHost: jest.fn(),
 };
 
 describe("CommandPalette helpers", () => {

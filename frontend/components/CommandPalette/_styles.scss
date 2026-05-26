@@ -57,9 +57,11 @@
       background-color: $ui-fleet-black-5;
     }
 
+    // box-shadow ring instead of `outline + outline-offset` so the right
+    // edge isn't clipped by the adjacent input element.
     &:focus-visible {
-      outline: 1px solid $core-focused-outline;
-      outline-offset: 1px;
+      outline: none;
+      box-shadow: 0 0 0 1px $core-focused-outline;
     }
   }
 

@@ -22,10 +22,12 @@ import {
   GROUPS,
   buildCommandItems,
 } from "./helpers";
+import FleetPicker from "./components/FleetPicker";
+import HostPicker from "./components/HostPicker";
 
 const baseClass = "command-palette";
 
-type Page = "root" | "switch-fleet";
+type Page = "root" | "switch-fleet" | "view-host";
 
 const CommandPalette = (): JSX.Element | null => {
   const [open, setOpen] = useState(false);
@@ -115,6 +117,12 @@ const CommandPalette = (): JSX.Element | null => {
 
   const canSwitchFleet =
     isPremiumTier && !!availableTeams && availableTeams.length > 1;
+
+  const subPagePlaceholders: Partial<Record<Page, string>> = {
+    "switch-fleet": "Search a fleet...",
+    "view-host": "Search hosts...",
+  };
+  const subPagePlaceholder = subPagePlaceholders[page];
 
   // Toggle open on Cmd+K / Ctrl+K; jump to switch-fleet on Cmd+Shift+F.
   // Focus is handled by the [open, page] effect below — don't rAF here, the
@@ -266,10 +274,6 @@ const CommandPalette = (): JSX.Element | null => {
     });
   }, []);
 
-  if (isNoAccess) {
-    return null;
-  }
-
   const items = buildCommandItems({
     search,
     currentTeam,
@@ -293,6 +297,7 @@ const CommandPalette = (): JSX.Element | null => {
       setThemeMode(isDarkMode() ? "light" : "dark");
       setOpen(false);
     },
+    onViewHost: () => goToPage("view-host"),
   });
 
   const groupedItems = items.reduce<Record<string, ICommandItem[]>>(
@@ -394,6 +399,18 @@ const CommandPalette = (): JSX.Element | null => {
                 />
               </button>
             )}
+            {item.opensSubPage && (
+              <span
+                aria-hidden
+                className={`${baseClass}__item-more`}
+              >
+                <Icon
+                  name="chevron-right"
+                  size="small"
+                  color="ui-fleet-black-50"
+                />
+              </span>
+            )}
           </div>
           {item.teamName && (
             <span className={`${baseClass}__item-team`}>{item.teamName}</span>
@@ -479,29 +496,17 @@ const CommandPalette = (): JSX.Element | null => {
     </>
   );
 
-  const renderSwitchFleetPage = () => (
-    <Command.Group className={`${baseClass}__group`}>
-      {availableTeams?.map((fleet) => {
-        const isSelected = fleet.id === currentTeam?.id;
-        return (
-          <Command.Item
-            key={`fleet-${fleet.id}`}
-            value={fleet.name}
-            onSelect={() => handleSwitchFleet(fleet.id)}
-            className={`${baseClass}__item`}
-          >
-            <span
-              className={`${baseClass}__item-label${
-                isSelected ? ` ${baseClass}__item-label--selected` : ""
-              }`}
-            >
-              {fleet.name}
-            </span>
-          </Command.Item>
-        );
-      })}
-    </Command.Group>
-  );
+  const handleSelectHost = useCallback((hostId: number) => {
+    // Match ManageHostsPage.handleRowSelect — navigate without fleet_id so
+    // we don't switch the user's current team context. The host details
+    // page reads the host's team from the host record itself.
+    setOpen(false);
+    browserHistory.push(paths.HOST_DETAILS(hostId));
+  }, []);
+
+  if (isNoAccess) {
+    return null;
+  }
 
   return (
     <Command.Dialog
@@ -515,6 +520,10 @@ const CommandPalette = (): JSX.Element | null => {
       filter={(value, searchTerm) => {
         // Always show exact match items at the top
         if (value.startsWith("EXACT_MATCH ")) {
+          return 1;
+        }
+        // Host results are pre-filtered by the server; show everything we got.
+        if (value.startsWith("HOST_RESULT ")) {
           return 1;
         }
         // Default cmdk filtering
@@ -538,11 +547,7 @@ const CommandPalette = (): JSX.Element | null => {
         <Command.Input
           ref={inputRef}
           className={`${baseClass}__input`}
-          placeholder={
-            page === "switch-fleet"
-              ? "Search a fleet..."
-              : "Search for a page or command..."
-          }
+          placeholder={subPagePlaceholder ?? "Search for a page or command..."}
           value={search}
           onValueChange={setSearch}
           onKeyDown={onKeyDown}
@@ -576,7 +581,16 @@ const CommandPalette = (): JSX.Element | null => {
           No results found.
         </Command.Empty>
         {page === "root" && renderRootPage()}
-        {page === "switch-fleet" && renderSwitchFleetPage()}
+        {page === "switch-fleet" && (
+          <FleetPicker
+            availableTeams={availableTeams}
+            currentTeam={currentTeam}
+            onSelect={handleSwitchFleet}
+          />
+        )}
+        {page === "view-host" && (
+          <HostPicker search={search} onSelect={handleSelectHost} />
+        )}
       </Command.List>
     </Command.Dialog>
   );

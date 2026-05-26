@@ -22,6 +22,8 @@ export interface ICommandItem {
   subItems?: ICommandSubItem[];
   /** Custom action instead of navigation */
   onAction?: () => void;
+  /** True when selecting this item opens a sub-page (not a navigation). */
+  opensSubPage?: boolean;
 }
 
 export interface ICommandPaletteContext {
@@ -44,6 +46,7 @@ export interface ICommandPaletteContext {
   hasTeamSelected?: boolean;
   withTeamId: (path: string) => string;
   onToggleDarkMode: () => void;
+  onViewHost: () => void;
 }
 
 export const GROUPS = [
@@ -79,6 +82,7 @@ export const buildCommandItems = (
     hasTeamSelected,
     withTeamId,
     onToggleDarkMode,
+    onViewHost,
   } = ctx;
 
   const isAbmConfigured = config?.mdm?.apple_bm_enabled_and_configured ?? false;
@@ -662,27 +666,6 @@ export const buildCommandItems = (
         ]
       : []),
 
-    // Run live report — Observer+ users can also run live queries.
-    ...(canRunLiveReport
-      ? [
-          {
-            id: "run-live-report",
-            label: "Run live report",
-            group: "Commands" as const,
-            path: withTeamId(paths.NEW_REPORT),
-            keywords: [
-              "osquery",
-              "sql",
-              "live",
-              "ad hoc",
-              "query",
-              "run report",
-            ],
-            teamName: switchesFromUnassigned,
-          },
-        ]
-      : []),
-
     // Actions — users who can write
     ...(canWrite
       ? [
@@ -821,6 +804,34 @@ export const buildCommandItems = (
             keywords: ["enrollment", "token", "fleetd", "enroll secret"],
             teamName: teamRequiredDestination,
           },
+        ]
+      : []),
+
+    // Run live report — Observer+ users can also run live queries.
+    // Placed here so it sits adjacent to Run live policy below.
+    ...(canRunLiveReport
+      ? [
+          {
+            id: "run-live-report",
+            label: "Run live report",
+            group: "Commands" as const,
+            path: withTeamId(paths.NEW_REPORT),
+            keywords: [
+              "osquery",
+              "sql",
+              "live",
+              "ad hoc",
+              "query",
+              "run report",
+            ],
+            teamName: switchesFromUnassigned,
+          },
+        ]
+      : []),
+
+    // Actions (continued) — users who can write
+    ...(canWrite
+      ? [
           {
             id: "run-live-policy",
             label: "Run live policy",
@@ -1092,6 +1103,24 @@ export const buildCommandItems = (
           },
         ]
       : []),
+
+    // View host — always available; opens a sub-page with searchable hosts.
+    {
+      id: "view-host",
+      label: "View host",
+      group: "Commands",
+      keywords: [
+        "host",
+        "device",
+        "find host",
+        "open host",
+        "host details",
+        "endpoint",
+        "machine",
+      ],
+      onAction: onViewHost,
+      opensSubPage: true,
+    },
 
     // Sign out — always available
     {
