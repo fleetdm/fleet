@@ -268,8 +268,16 @@ export FLEET_MDM_APPLE_BM_KEY=%[1]s/abm_key.key
 			log.Fatal("loading existing apple mdm ca cert and key: ", err) //nolint:gocritic // ignore exitAfterDefer
 		}
 
-		oldCertPEM := assets[fleet.MDMAssetCACert].Value
-		oldKeyPEM := assets[fleet.MDMAssetCAKey].Value
+		caCertAsset, ok := assets[fleet.MDMAssetCACert]
+		if !ok {
+			log.Fatal("Apple MDM CA certificate not found in database")
+		}
+		caKeyAsset, ok := assets[fleet.MDMAssetCAKey]
+		if !ok {
+			log.Fatal("Apple MDM CA private key not found in database")
+		}
+		oldCertPEM := caCertAsset.Value
+		oldKeyPEM := caKeyAsset.Value
 
 		certBlock, _ := pem.Decode(oldCertPEM)
 		if certBlock == nil || certBlock.Type != "CERTIFICATE" {
@@ -287,6 +295,26 @@ export FLEET_MDM_APPLE_BM_KEY=%[1]s/abm_key.key
 		privKey, ok := privKeyAny.(*rsa.PrivateKey)
 		if !ok {
 			log.Fatal("existing apple mdm ca key is not RSA")
+		}
+		// Sanity-check that the CA cert and key match.
+		certPub, ok := oldCert.PublicKey.(*rsa.PublicKey)
+		if !ok {
+			log.Fatal("existing apple mdm ca certificate public key is not RSA")
+		}
+		if certPub.E != privKey.PublicKey.E || certPub.N.Cmp(privKey.PublicKey.N) != 0 {
+			log.Fatal("existing apple mdm ca certificate does not match stored private key")
+		}
+		if ski, err := cryptoutil.GenerateSubjectKeyID(&privKey.PublicKey); err != nil {
+			log.Fatal("generating apple mdm ca subject key id: ", err)
+		} else if len(oldCert.SubjectKeyId) > 0 {
+			if len(oldCert.SubjectKeyId) != len(ski) {
+				log.Fatal("existing apple mdm ca certificate SubjectKeyId does not match stored private key")
+			}
+			for i := range ski {
+				if ski[i] != oldCert.SubjectKeyId[i] {
+					log.Fatal("existing apple mdm ca certificate SubjectKeyId does not match stored private key")
+				}
+			}
 		}
 
 		// Reserve a fresh serial from identity_serials so the new CA cert
@@ -315,11 +343,11 @@ export FLEET_MDM_APPLE_BM_KEY=%[1]s/abm_key.key
 
 		// Reuse the existing identity (Subject, SubjectKeyId, key) so that
 		// previously-issued client certs continue to chain to the same issuer
-		// after the rollover. Only the serial number, NotBefore, and NotAfter
-		// change.
+		// after the rollover and notBefore means certificates issued before the
+		// rollover remain valid. Only the serial number and NotAfter change.
 		newSerial := big.NewInt(serialID)
-		notBefore := time.Now().Add(-10 * time.Minute).UTC()
-		notAfter := time.Now().AddDate(flagExtendYears, 0, 0).UTC()
+		notBefore := oldCert.NotBefore
+		notAfter := oldCert.NotAfter.AddDate(flagExtendYears, 0, 0).UTC()
 
 		tmpl := x509.Certificate{
 			Subject:               oldCert.Subject,
@@ -356,6 +384,6 @@ export FLEET_MDM_APPLE_BM_KEY=%[1]s/abm_key.key
 		log.Printf("  new serial:        %s", newSerial.String())
 		return
 	default:
-		log.Fatalf("invalid subcommand %s, valid subcommands: import, export, rollover-ca-cert", os.Args[1])
+		log.Fatalf("invalid subcommand %s, valid subcommands: import, export, rollover-ca-cert", os.Args[1]) //nolint:gosec // dismiss G107
 	}
 }
