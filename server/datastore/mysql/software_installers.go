@@ -1423,41 +1423,44 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			return nil, ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE hsi FROM host_software_installs hsi
-			LEFT JOIN setup_experience_status_results sesr
-				ON sesr.host_software_installs_execution_id = hsi.execution_id
-			WHERE hsi.software_installer_id = ?
-				AND hsi.status IN('pending_install', 'pending_uninstall')
-				AND sesr.id IS NULL`, installerID)
+		_, err = tx.ExecContext(ctx, `DELETE FROM host_software_installs
+			   WHERE software_installer_id = ? AND status IN('pending_install', 'pending_uninstall')
+			   AND NOT EXISTS (
+			       SELECT 1 FROM setup_experience_status_results sesr
+			       WHERE sesr.host_software_installs_execution_id = host_software_installs.execution_id
+			   )`, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
 		}
 
 		// TODO(JK): update comment
 		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, `SELECT
-			DISTINCT ua.host_id
+			DISTINCT host_id
 		FROM
 			upcoming_activities ua
 			INNER JOIN software_install_upcoming_activities siua
 				ON ua.id = siua.upcoming_activity_id
-			LEFT JOIN setup_experience_status_results sesr
-				ON sesr.host_software_installs_execution_id = ua.execution_id
 		WHERE
 			siua.software_installer_id = ? AND
 			ua.activated_at IS NOT NULL AND
 			ua.activity_type IN ('software_install', 'software_uninstall') AND
-			sesr.id IS NULL`, installerID); err != nil {
+			NOT EXISTS (
+				SELECT 1 FROM setup_experience_status_results sesr
+				WHERE sesr.host_software_installs_execution_id = ua.execution_id
+			)`, installerID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "select affected host IDs for software installs/uninstalls")
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE ua FROM upcoming_activities ua
-			INNER JOIN software_install_upcoming_activities siua
-				ON ua.id = siua.upcoming_activity_id
-			LEFT JOIN setup_experience_status_results sesr
-				ON sesr.host_software_installs_execution_id = ua.execution_id
-			WHERE siua.software_installer_id = ?
-				AND ua.activity_type IN ('software_install', 'software_uninstall')
-				AND sesr.id IS NULL`, installerID)
+		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
+			USING
+				upcoming_activities
+				INNER JOIN software_install_upcoming_activities siua
+					ON upcoming_activities.id = siua.upcoming_activity_id
+			WHERE siua.software_installer_id = ? AND activity_type IN ('software_install', 'software_uninstall')
+				AND NOT EXISTS (
+					SELECT 1 FROM setup_experience_status_results sesr
+					WHERE sesr.host_software_installs_execution_id = upcoming_activities.execution_id
+				)`, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete upcoming host software installs/uninstalls")
 		}
