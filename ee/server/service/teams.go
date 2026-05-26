@@ -2241,14 +2241,10 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
-	if payload.EndUserLocalAccountType != nil {
-		if *payload.EndUserLocalAccountType != "admin" {
-			return fleet.NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
-		}
-		if !tm.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid || tm.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value != *payload.EndUserLocalAccountType {
-			tm.Config.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString(*payload.EndUserLocalAccountType)
-			didUpdate = true
-		}
+	if didUpdateFromValidation, err := payload.Validate(&tm.Config.MDM.MacOSSetup); err != nil {
+		return err
+	} else if didUpdateFromValidation {
+		didUpdate = true
 	}
 
 	if didUpdate {

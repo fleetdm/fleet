@@ -1387,7 +1387,7 @@ func TestMDMConfig(t *testing.T) {
 					EnableManagedLocalAccount: optjson.SetBool(false),
 				},
 			},
-			expectedError: `enable_managed_local_account is required to be enabled when using "standard" for the end_user_local_account_type`,
+			expectedError: `is required to be enabled when using "standard" for the end_user_local_account_type`,
 		},
 		{
 			name:        "end user account type none with disabled managed local account",
@@ -1398,7 +1398,7 @@ func TestMDMConfig(t *testing.T) {
 					EnableManagedLocalAccount: optjson.SetBool(false),
 				},
 			},
-			expectedError: `enable_managed_local_account is required to be enabled when using "none" for the end_user_local_account_type`,
+			expectedError: `is required to be enabled when using "none" for the end_user_local_account_type`,
 		},
 	}
 
