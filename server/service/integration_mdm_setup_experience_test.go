@@ -5384,7 +5384,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 		}
 		require.NotNil(t, echo, "EchoApp SE row must still exist")
 		require.Equal(t, fleet.SetupExperienceStatusPending, echo.Status,
-			"#42744: pending SE row must not be cancelled by an installer edit")
+			"pending SE row must not be cancelled by an installer edit")
 
 		// verify via orbit endpoint
 		statusAfter := pollOrbitSetupStatus(t, host)
@@ -5459,7 +5459,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 		}
 		require.NotNil(t, echo)
 		require.Equal(t, fleet.SetupExperienceStatusRunning, echo.Status,
-			"#42744: running SE row must not be cancelled by an installer edit")
+			"running SE row must not be cancelled by an installer edit")
 		require.NotNil(t, echo.HostSoftwareInstallsExecutionID)
 		require.Equal(t, echoInstallUUIDBefore, *echo.HostSoftwareInstallsExecutionID,
 			"execution id must survive the edit so the eventual result can land on the right row")
@@ -5583,8 +5583,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 			"orbit endpoint must still show DummyApp as successful after EchoApp delete")
 	})
 
-	// covers the GitOps batch endpoint for both an installer edit (#42744 path,
-	// runInstallerUpdateSideEffectsInTransaction with isEdit=true) and a
+	// covers the GitOps batch endpoint for both an installer edit (the
+	// runInstallerUpdateSideEffectsInTransaction isEdit=true path) and a
 	// not-in-list delete (the cancelSetupExperienceStatusForDeletedSoftwareInstalls
 	// + deletePendingSoftwareInstallsNotInListHSI path, unchanged by this PR).
 	tOuter.Run("gitops batch edit then delete via /software/batch", func(t *testing.T) {
@@ -5659,7 +5659,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 		}
 		require.NotNil(t, echo)
 		require.Equal(t, fleet.SetupExperienceStatusRunning, echo.Status,
-			"#42744 via GitOps: running SE row must not be cancelled by batch-edit")
+			"running SE row must not be cancelled by GitOps batch-edit")
 		require.NotNil(t, echo.HostSoftwareInstallsExecutionID)
 		require.Equal(t, echoInstallUUIDBefore, *echo.HostSoftwareInstallsExecutionID)
 		hsi, err := s.ds.GetSoftwareInstallResults(ctx, echoInstallUUIDBefore)
@@ -5684,5 +5684,60 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 		}
 		_, err = s.ds.GetSoftwareInstallResults(ctx, echoInstallUUIDBefore)
 		require.Error(t, err, "orphan hsi row remains after GitOps delete")
+	})
+
+	// repeats the edit-while-running scenario with require_all_software_macos=true
+	tOuter.Run("edit installer with require_all_software does not cascade cancel", func(t *testing.T) {
+		host, _, titleIDs := enrollHostWithSEInstallers(t, []struct{ Filename, Title string }{
+			{"dummy_installer.pkg", "DummyApp"},
+			{"EchoApp.pkg", "EchoApp"},
+		})
+
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			json.RawMessage(fmt.Sprintf(`{"require_all_software_macos": true, "team_id": %d}`, *host.TeamID)),
+			http.StatusNoContent)
+
+		// drive DummyApp to success, EchoApp to running
+		_ = pollOrbitSetupStatus(t, host)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var dummyInstallUUID string
+		for _, r := range results {
+			if r.Name == "DummyApp" && r.HostSoftwareInstallsExecutionID != nil {
+				dummyInstallUUID = *r.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, dummyInstallUUID)
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": 0, "install_script_output": "ok"}`,
+				*host.OrbitNodeKey, dummyInstallUUID)),
+			http.StatusNoContent)
+		_ = pollOrbitSetupStatus(t, host)
+
+		// edit EchoApp installer while running
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:       titleIDs["EchoApp"],
+			TeamID:        host.TeamID,
+			InstallScript: ptr.String("updated install script for EchoApp"),
+		}, http.StatusOK, "")
+
+		// after another poll, neither DummyApp nor EchoApp should have moved to a terminal state
+		statusAfter := pollOrbitSetupStatus(t, host)
+		require.Len(t, statusAfter.Results.Software, 2)
+		var dummyOrbit, echoOrbit *fleet.SetupExperienceStatusResult
+		for _, r := range statusAfter.Results.Software {
+			switch r.Name {
+			case "DummyApp":
+				dummyOrbit = r
+			case "EchoApp":
+				echoOrbit = r
+			}
+		}
+		require.NotNil(t, dummyOrbit)
+		require.NotNil(t, echoOrbit)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, dummyOrbit.Status,
+			"DummyApp must stay success under require_all when EchoApp's installer is edited")
+		require.Equal(t, fleet.SetupExperienceStatusRunning, echoOrbit.Status,
+			"EchoApp must stay running under require_all so the device is not released early")
 	})
 }
