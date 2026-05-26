@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "10.105.4",
+      "version": "11.17.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.evernote.Evernote';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.evernote.Evernote' AND version_compare(bundle_short_version, '10.105.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.evernote.Evernote' AND version_compare(bundle_short_version, '11.17.3') < 0);"
       },
       "installer_url": "https://mac.desktop.evernote.com/builds/Evernote-10.105.4-mac-ddl-stage-20240910164757-a2e60a8d876a07eded5d212fa56ba45214114ad0.dmg",
       "install_script_ref": "67a65f7d",
