@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260522195236, Down_20260522195236)
+	MigrationClient.AddMigration(Up_20260522195237, Down_20260522195237)
 }
 
-func Up_20260522195236(tx *sql.Tx) error {
+func Up_20260522195237(tx *sql.Tx) error {
 	if columnExists(tx, "policies", "continuous_automations_enabled") {
 		return nil
 	}
@@ -23,6 +23,6 @@ func Up_20260522195236(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260522195236(tx *sql.Tx) error {
+func Down_20260522195237(tx *sql.Tx) error {
 	return nil
 }
