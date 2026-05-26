@@ -39,6 +39,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 | [The open-source MDM](https://fleetdm.com/imagine/open-source) | Web page explaining why open source matters for device management. | 2026-05-15 |
 | [Apple MDM](https://fleetdm.com/imagine/apple-mdm) | Web page for open source Apple MDM at enterprise scale. Covers enrolling, configuring, and securing Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. | 2026-05-14 |
 | [Windows MDM](https://fleetdm.com/lp/windows-mdm) | Fleet is the modern and open source MDM that can augment or replace Intune and other MDMS | 2026-05-20 |
+| [Android MDM](https://fleetdm.com/lp/android-mdm) | Fleet is the modern and open source MDM for managing Android devices alongside macOS, Windows, Linux, iOS, and ChromeOS. | 2026-05-26 |
 | [On-premise](https://fleetdm.com/on-premise) | Web page for running Fleet on-premise, in private cloud (AWS, Azure, GCP), or air-gapped environments. Targets teams with strict data residency or infrastructure requirements. | 2026-05-08 |
 | [Replace Jamf](https://fleetdm.com/replace-jamf) | Web page for IT teams considering replacing Jamf with Fleet. Covers cross-platform device management, GitOps workflows, and migration messaging. | 2026-04-10 |
 
@@ -192,6 +193,7 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
 | [SHADOW-EARTH-053: threat brief, kill chain, and validated Fleet queries](https://fleetdm.com/securing/shadow-earth-053-fleet-detection-pack) | Trend Micro's SHADOW-EARTH-053 disclosure: Lockheed kill chain with per-stage Diamond Models, atomic indicators, and a Fleet/osquery detection pack. | Dhruv Majumdar | 2026-05-26 |
+| [ClickFix copy/paste social engineering: threat brief and Fleet detection pack](https://fleetdm.com/securing/clickfix-copy-paste-fleet-detection-pack) | Threat brief and Fleet/osquery detection guide for the ClickFix copy/paste social-engineering technique on Windows and macOS. | Dhruv Majumdar | 2026-05-26 |
 | [Pre-CVE threat response: a Dirty Frag walkthrough with Fleet](https://fleetdm.com/securing/pre-cve-threat-response-with-fleet) | A worked example of using Fleet's osquery, run-script, and policies to scope, mitigate, and verify a Linux kernel privilege escalation across a fleet before a CVE is assigned. | Dhruv Majumdar | 2026-05-22 |
 | [Patch management vs vulnerability management: why this distinction now decides whether you survive the AI vulnerability storm](https://fleetdm.com/securing/patch-management-vs-vulnerability-management) | Vulnerability management finds risk; patch management deploys updates. With AI collapsing exploit windows to hours in 2026, conflating them is fatal. | Ashish Kuthiala | 2026-05-22 |
 | [Managing Linux desktops with GitOps](https://fleetdm.com/articles/managing-linux-desktops-with-gitops) | Bring GitOps to Linux desktop management with Fleet. Declarative YAML, CI/CD pipelines, and version control replace slow, error-prone ClickOps. | Anthony Critelli | 2026-05-20 |
