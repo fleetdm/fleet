@@ -140,6 +140,7 @@ jobs:
           # - tools/test-orbit-mtls/client.key: client private key used only by local/test mTLS tooling.
           # - tools/smtp4dev/fleet.key: TLS key for the local smtp4dev development mail server.
           # - frontend/.../Calendars.tsx: placeholder GCP service-account JSON shown in the UI as example config.
+          # - ee/vulnerability-dashboard/.../homepage.ejs: Stripe test-mode key placeholder in example config snippet.
           skip-files: |
             tools/osquery/in-a-box/osquery/fleet.key
             tools/osquery/fleet.key
@@ -150,6 +151,7 @@ jobs:
             ee/fleet-agent-downloader/config/custom.js
             tools/test-orbit-mtls/client.key
             frontend/pages/admin/IntegrationsPage/cards/Calendars/Calendars.tsx
+            ee/vulnerability-dashboard/views/pages/homepage.ejs
 
       - name: Upload Trivy scan results to GitHub Security tab
         # Only upload on schedule/manual runs. PR/push uploads register
