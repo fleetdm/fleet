@@ -704,7 +704,7 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.
 			return ctxerr.Wrap(ctx, err, "checking if label is used by configuration profiles")
 		}
 		if profileCount > 0 {
-			return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")
+			return ctxerr.Wrap(ctx, foreignKey("configuration profile labels", name), "delete label")
 		}
 
 		if err := deleteLabelsInTx(ctx, tx, []uint{labelID}); err != nil {
