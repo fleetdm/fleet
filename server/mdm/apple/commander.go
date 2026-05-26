@@ -357,7 +357,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 ) error {
 	var payload string
 
-	// Send primay account info if we have an SSO account, and no adminAccount config or the primay account type is not "none"
+	// Send primay account info if we have an SSO account, and no adminAccount config or the primary account type is not "none"
 	if ssoAccount != nil && (adminAccount == nil || adminAccount.PrimaryAccountType != fleet.PrimaryAccountTypeNone) {
 		payload += fmt.Sprintf(`
       <key>PrimaryAccountFullName</key>
