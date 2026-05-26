@@ -8,7 +8,7 @@ import "context"
 // object.team_id (e.g. team-scoped admins reading host activities) will fail.
 type Host struct {
 	ID     uint  `json:"id"`
-	TeamID *uint `json:"team_id"`
+	TeamID *uint `json:"team_id"` //nolint apiparamcheck // internal struct, tag used by OPA policy engine, not emitted to user
 }
 
 // AuthzType returns the authorization type for hosts.
