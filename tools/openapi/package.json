@@ -11,7 +11,7 @@
   "scripts": {
     "generate": "node src/index.js",
     "generate:stdout": "node src/index.js --stdout",
-    "view": "node src/index.js --out spec.yml && http-server . -o /viewer.html -c-1",
+    "view": "node src/index.js --out spec.yml && npx http-server . -o /viewer.html -c-1",
     "test": "node test/golden.js",
     "test:update": "node test/golden.js --update"
   },
@@ -22,7 +22,5 @@
     "@readme/openapi-parser": "^2.7.0",
     "yaml": "^2.6.1"
   },
-  "devDependencies": {
-    "http-server": "^14.1.1"
-  }
+  "devDependencies": {}
 }

@@ -28,7 +28,7 @@ function inferSchema(value) {
   switch (typeof value) {
     case 'string': {
       // Detect ISO 8601 timestamps so consumers get format hints.
-      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value)) {
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(value)) {
         return { type: 'string', format: 'date-time' };
       }
       return { type: 'string' };

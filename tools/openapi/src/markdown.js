@@ -256,6 +256,8 @@ function stripJSONLineComments(src) {
     out += c;
   }
   // Strip trailing commas before } or ] (not valid JSON but common in the docs).
+  // Safe: the regex can't span across a JSON string value because the `"`
+  // delimiter prevents `\s*` from matching across the closing quote boundary.
   out = out.replace(/,(\s*[}\]])/g, '$1');
   return out;
 }

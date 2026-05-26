@@ -11,9 +11,10 @@ versioned artifact.
 
 ## PoC scope
 
-- One endpoint: `GET /api/v1/fleet/hosts` (the "List hosts" section in the
-  Markdown reference).
+- All 37 Hosts endpoints from the Markdown reference.
 - Markdown parser, endpoint allowlist, OpenAPI 3.1 emitter, validation step.
+- Golden-file test (`npm test`) that asserts the generated spec matches a
+  committed snapshot (`spec.yml`).
 - Output written to `build/openapi.yml` (gitignored) or to stdout.
 
 ## What is intentionally NOT in the PoC
@@ -22,12 +23,8 @@ versioned artifact.
 - Release-workflow attachment of `openapi.yml` as a downloadable artifact —
   deferred. The generator is invocable as a single command (`npm run generate`
   or `node src/index.js`) so wiring it into a release job will be mechanical.
-- The remaining nine pilot endpoints — adding them is a data-only change in
-  [`src/endpoints.js`](./src/endpoints.js); see "Adding another endpoint" below.
 - A hosted Swagger UI — Fleet explicitly does not host one. See
   [Why this way / not continuously generated reference docs](https://fleetdm.com/handbook/company/why-this-way#why-not-continuously-generate-rest-api-reference-docs-from-javadoc-style-code-comments).
-- Golden-file or property-based tests of the generator — trivial cases only
-  during PoC; the full story will add them.
 
 ## Running it locally
 
@@ -55,6 +52,24 @@ The generator validates the produced document against the OpenAPI 3.1 schema
 before writing. If validation fails, it exits non-zero (exit code `2`) and
 prints the validator's error.
 
+## Testing
+
+A golden-file test compares the generator's output against the committed
+`spec.yml` snapshot:
+
+```sh
+npm test
+```
+
+If you intentionally change the generator or the source Markdown in a way that
+affects the output, update the snapshot:
+
+```sh
+npm run test:update
+```
+
+Then commit the updated `spec.yml` alongside your changes.
+
 ## Viewing the spec
 
 For a UI view of the generated spec, run:
@@ -65,10 +80,9 @@ npm install
 npm run view
 ```
 
-This regenerates the spec to `tools/openapi/spec.yml` (gitignored), starts a
-local [`http-server`](https://www.npmjs.com/package/http-server), and opens
-[Redoc](https://redocly.com/redoc) in your browser pointed at the spec. The
-Redoc bundle is loaded from a CDN; nothing is hosted by Fleet.
+This regenerates the spec to `tools/openapi/spec.yml`, starts a local HTTP
+server, and opens [Redoc](https://redocly.com/redoc) in your browser pointed
+at the spec. The Redoc bundle is loaded from a CDN; nothing is hosted by Fleet.
 
 ## Library choices
 
@@ -107,9 +121,8 @@ Fleet's Markdown reference: a section heading, a backticked request line, a
 
 ## Adding another endpoint
 
-When the full story expands the pilot to ten endpoints, the change is data,
-not code. Append an entry to the `endpoints` array in
-[`src/endpoints.js`](./src/endpoints.js):
+Adding a new endpoint is a data-only change. Append an entry to the `endpoints`
+array in [`src/endpoints.js`](./src/endpoints.js):
 
 ```js
 {
@@ -127,6 +140,8 @@ Then re-run `npm run generate`. If the corresponding Markdown section
 violates the parser's conventions, the generator will fail with an explicit
 error pointing to the heading — fix the parser (or, more rarely, the
 Markdown) rather than special-casing in the manifest.
+
+After adding endpoints, update the golden file: `npm run test:update`.
 
 ## Out of scope by design
 

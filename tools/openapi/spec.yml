@@ -11,6 +11,14 @@ servers:
     description: Replace with your Fleet server URL.
 tags:
   - name: Hosts
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 'API token passed as "Authorization: Bearer <token>".'
 paths:
   /api/v1/fleet/hosts:
     get:
@@ -4301,6 +4309,7 @@ paths:
                       properties:
                         created_at:
                           type: string
+                          format: date-time
                         id:
                           type: integer
                         actor_full_name:
@@ -4426,6 +4435,7 @@ paths:
                       properties:
                         created_at:
                           type: string
+                          format: date-time
                         uuid:
                           type: string
                         actor_full_name:

@@ -254,6 +254,16 @@ function buildDocument(endpointResults, info) {
       },
     ],
     tags: collectTags(endpointResults),
+    security: [{ bearerAuth: [] }],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          description: 'API token passed as "Authorization: Bearer <token>".',
+        },
+      },
+    },
     paths,
   };
 }

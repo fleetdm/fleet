@@ -357,6 +357,9 @@ const endpoints = [
     ],
   },
   {
+    // The source Markdown uses a level-2 heading (##) for this endpoint, unlike
+    // the level-3 (###) used by all other endpoints. This is intentional — match
+    // the docs as-is rather than "fixing" the heading level here.
     markdownHeading: "## Bypass host's conditional access",
     operationId: 'bypassHostConditionalAccess',
     tag: 'Hosts',
