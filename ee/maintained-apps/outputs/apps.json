@@ -1402,6 +1402,13 @@
       "description": "PhpStorm is a PHP IDE by JetBrains."
     },
     {
+      "name": "PhpStorm",
+      "slug": "phpstorm/windows",
+      "platform": "windows",
+      "unique_identifier": "PhpStorm",
+      "description": "PhpStorm is a PHP IDE by JetBrains."
+    },
+    {
       "name": "Podman Desktop",
       "slug": "podman-desktop/darwin",
       "platform": "darwin",
