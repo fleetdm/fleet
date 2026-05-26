@@ -39,6 +39,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 | [The open-source MDM](https://fleetdm.com/imagine/open-source) | Web page explaining why open source matters for device management. | 2026-05-15 |
 | [Apple MDM](https://fleetdm.com/imagine/apple-mdm) | Web page for open source Apple MDM at enterprise scale. Covers enrolling, configuring, and securing Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. | 2026-05-14 |
 | [Windows MDM](https://fleetdm.com/lp/windows-mdm) | Fleet is the modern and open source MDM that can augment or replace Intune and other MDMS | 2026-05-20 |
+| [Android MDM](https://fleetdm.com/lp/android-mdm) | Fleet is the modern and open source MDM for managing Android devices alongside macOS, Windows, Linux, iOS, and ChromeOS. | 2026-05-26 |
 | [On-premise](https://fleetdm.com/on-premise) | Web page for running Fleet on-premise, in private cloud (AWS, Azure, GCP), or air-gapped environments. Targets teams with strict data residency or infrastructure requirements. | 2026-05-08 |
 | [Replace Jamf](https://fleetdm.com/replace-jamf) | Web page for IT teams considering replacing Jamf with Fleet. Covers cross-platform device management, GitOps workflows, and migration messaging. | 2026-04-10 |
 
