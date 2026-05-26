@@ -85,6 +85,7 @@ func TestSoftware(t *testing.T) {
 		{"InsertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
 		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 		{"ListHostSoftware", testListHostSoftware},
+		{"ListHostSoftwareMacOSApplicationsFilter", testListHostSoftwareMacOSApplicationsFilter},
 		{"ListHostSoftwarePaginationWithMultipleInstallers", testListHostSoftwarePaginationWithMultipleInstallers},
 		{"ListLinuxHostSoftware", testListLinuxHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
@@ -4051,6 +4052,74 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, software[i], got)
 	}
+}
+
+func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "macos-apps-host", "", "macappskey", "macappsuuid", time.Now(), test.WithPlatform("darwin"))
+	linuxHost := test.NewHost(t, ds, "linux-apps-host", "", "linuxappskey", "linuxappsuuid", time.Now(), test.WithPlatform("ubuntu"))
+
+	// All source 'apps' so the installed path is the only differentiator.
+	software := []fleet.Software{
+		{Name: "TopLevel", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.toplevel"},
+		{Name: "Helper", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.helper"},
+		{Name: "SystemApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.system"},
+		{Name: "UserApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.user"},
+	}
+	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+	pathByName := map[string]string{
+		"TopLevel":  "/Applications/TopLevel.app",                             // kept
+		"Helper":    "/Applications/TopLevel.app/Contents/Helpers/Helper.app", // nested, dropped
+		"SystemApp": "/System/Applications/SystemApp.app",                     // system, dropped
+		"UserApp":   "/Users/alice/Applications/UserApp.app",                  // user-local, dropped
+	}
+
+	swPaths := map[string]struct{}{}
+	for _, hs := range host.Software {
+		path, ok := pathByName[hs.Name]
+		require.True(t, ok)
+		key := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, hs.ToUniqueStr())
+		swPaths[key] = struct{}{}
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults))
+
+	baseOpts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 20, IncludeMetadata: true, OrderKey: "name"}}
+
+	// filter off: all four apps returned
+	opts := baseOpts
+	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 4)
+	require.EqualValues(t, 4, meta.TotalResults)
+
+	// filter on: only the top-level /Applications app
+	opts = baseOpts
+	opts.MacOSApplicationsOnly = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, "TopLevel", sw[0].Name)
+	require.EqualValues(t, 1, meta.TotalResults)
+
+	// filter is ignored on a non-macOS host
+	linuxSoftware := []fleet.Software{
+		{Name: "vim", Version: "1.0", Source: "deb_packages"},
+		{Name: "curl", Version: "1.0", Source: "deb_packages"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, linuxHost.ID, linuxSoftware)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, linuxHost, false))
+
+	opts = baseOpts
+	opts.MacOSApplicationsOnly = true
+	sw, meta, err = ds.ListHostSoftware(ctx, linuxHost, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.EqualValues(t, 2, meta.TotalResults)
 }
 
 func testListHostSoftware(t *testing.T, ds *Datastore) {

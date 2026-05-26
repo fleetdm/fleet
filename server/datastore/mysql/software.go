@@ -151,6 +151,33 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	return result, nil
 }
 
+// macOSTopLevelApplicationTitleIDs returns the set of software title IDs that
+// have at least one macOS app installed at the top level of the /Applications
+// folder on the given host (e.g. /Applications/Foo.app). Nested helper apps,
+// system apps, and user-local apps are excluded.
+func (ds *Datastore) macOSTopLevelApplicationTitleIDs(ctx context.Context, hostID uint) (map[uint]struct{}, error) {
+	const stmt = `
+		SELECT DISTINCT s.title_id
+		FROM host_software_installed_paths hsip
+		JOIN software s ON s.id = hsip.software_id
+		WHERE hsip.host_id = ?
+			AND s.source = 'apps'
+			AND hsip.installed_path LIKE '/Applications/%'
+			AND hsip.installed_path NOT LIKE '/Applications/%/%'
+			AND s.title_id IS NOT NULL`
+
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select macos top-level application title ids")
+	}
+
+	set := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
+	}
+	return set, nil
+}
+
 // hostSoftwareInstalledPathsDelta returns what should be inserted and deleted to keep the
 // 'host_software_installed_paths' table in-sync with the osquery reported query results.
 // 'reported' is a set of 'installed_path-software.UniqueStr' strings, built from the osquery
@@ -5646,6 +5673,37 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	for key, value := range otherInHouseAppsInInventory {
 		if _, ok := filteredByInHouseID[key]; !ok {
 			filteredByInHouseID[key] = value
+		}
+	}
+
+	// Filter to apps installed at the top level of the macOS /Applications
+	// folder. Ignored for non-macOS hosts. Pruning the in-memory maps (rather
+	// than the SQL) keeps the count and main queries consistent and applies
+	// uniformly across software, VPP, and in-house apps.
+	if opts.MacOSApplicationsOnly && fleet.IsMacOSPlatform(host.Platform) {
+		qualifyingTitleIDs, err := ds.macOSTopLevelApplicationTitleIDs(ctx, host.ID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "filter macos applications")
+		}
+		for titleID := range bySoftwareTitleID {
+			if _, ok := qualifyingTitleIDs[titleID]; !ok {
+				delete(bySoftwareTitleID, titleID)
+			}
+		}
+		for softwareID, s := range bySoftwareID {
+			if _, ok := qualifyingTitleIDs[s.ID]; !ok {
+				delete(bySoftwareID, softwareID)
+			}
+		}
+		for adamID, s := range byVPPAdamID {
+			if _, ok := qualifyingTitleIDs[s.ID]; !ok {
+				delete(byVPPAdamID, adamID)
+			}
+		}
+		for inHouseID, s := range byInHouseID {
+			if _, ok := qualifyingTitleIDs[s.ID]; !ok {
+				delete(byInHouseID, inHouseID)
+			}
 		}
 	}
 
