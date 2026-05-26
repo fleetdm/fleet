@@ -76,6 +76,13 @@ if (-not $foundUninstaller) {
     Exit 0
 }
 
+# msiexec returns 3010 (ERROR_SUCCESS_REBOOT_REQUIRED) or 1641
+# (ERROR_SUCCESS_REBOOT_INITIATED) on successful uninstall when a reboot is
+# needed to finish. Treat both as success.
+if ($exitCode -eq 3010 -or $exitCode -eq 1641) {
+    Exit 0
+}
+
 Exit $exitCode
 
 } catch {
