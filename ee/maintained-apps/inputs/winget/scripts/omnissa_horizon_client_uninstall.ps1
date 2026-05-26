@@ -1,10 +1,9 @@
-# Locates Omnissa Horizon Client's WiX Burn bundle uninstaller from the registry
-# and runs it silently.
+# Locates Omnissa Horizon Client's uninstaller from the registry and runs it
+# silently. The Horizon Client ships as a WiX Burn bundle, but the registered
+# UninstallString is an unquoted "MsiExec.exe /X{ProductCode}" — so the parser
+# below handles both quoted and unquoted exe paths.
 
 $softwareNameLike = "*Omnissa Horizon Client*"
-
-# WiX Burn bootstrapper uses /quiet for silent uninstall
-$uninstallArgs = "/quiet /norestart"
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -30,35 +29,33 @@ foreach ($key in $uninstallKeys) {
             $key.UninstallString
         }
 
-        # Split the command and args, handling quoted paths
-        $splitArgs = $uninstallCommand.Split('"')
-        if ($splitArgs.Length -gt 1) {
-            if ($splitArgs.Length -eq 3) {
-                $existingArgs = $splitArgs[2].Trim()
-                if ($existingArgs -notmatch '/quiet') {
-                    $uninstallArgs = "$existingArgs /quiet /norestart".Trim()
-                } else {
-                    $uninstallArgs = $existingArgs
-                }
-            } elseif ($splitArgs.Length -gt 3) {
-                Throw `
-                    "Uninstall command contains multiple quoted strings. " +
-                        "Please update the uninstall script.`n" +
-                        "Uninstall command: $uninstallCommand"
-            }
-            $uninstallCommand = $splitArgs[1]
+        # Split the uninstall string into exe + args. Handle both quoted and
+        # unquoted exe paths.
+        $exePath = ""
+        $existingArgs = ""
+        if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
+            $exePath = $matches[1]
+            $existingArgs = $matches[2].Trim()
+        } elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
+            $exePath = $matches[1]
+            $existingArgs = $matches[2].Trim()
         } else {
-            if ($uninstallCommand -notmatch '/quiet') {
-                $uninstallArgs = "/quiet /norestart"
-            } else {
-                $uninstallArgs = ""
-            }
+            Throw "Could not parse uninstall string: $uninstallCommand"
         }
-        Write-Host "Uninstall command: $uninstallCommand"
+
+        # Append /quiet /norestart if the registered command doesn't already
+        # request silent execution.
+        if ($existingArgs -notmatch '/quiet' -and $existingArgs -notmatch '/qn') {
+            $uninstallArgs = ("$existingArgs /quiet /norestart").Trim()
+        } else {
+            $uninstallArgs = $existingArgs
+        }
+
+        Write-Host "Uninstall command: $exePath"
         Write-Host "Uninstall args: $uninstallArgs"
 
         $processOptions = @{
-            FilePath = $uninstallCommand
+            FilePath = $exePath
             PassThru = $true
             Wait = $true
         }
