@@ -79,7 +79,7 @@ require (
 	github.com/google/go-github/v37 v37.0.0
 	github.com/google/go-tpm v0.9.8
 	github.com/google/uuid v1.6.0
-	github.com/goreleaser/nfpm/v2 v2.20.0
+	github.com/goreleaser/nfpm/v2 v2.29.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.1
 	github.com/gosuri/uilive v0.0.4
