@@ -52,7 +52,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 
 	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
 	query := `
-		SELECT name, install_location, version 
+		SELECT name, install_location, version, publisher
 		FROM programs
 		WHERE
 		LOWER(name) LIKE LOWER('%` + appName + `%')
@@ -71,6 +71,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 		Name            string `json:"name"`
 		InstallLocation string `json:"install_location"`
 		Version         string `json:"version"`
+		Publisher       string `json:"publisher"`
 	}
 	var results []AppResult
 	if err := json.Unmarshal(output, &results); err != nil {
@@ -80,10 +81,14 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 
 	if len(results) > 0 {
 		for _, result := range results {
+			// Vendor is populated so name/version sanitizers that key off the
+			// publisher (e.g. JetBrains build-number normalization in
+			// MutateSoftwareOnIngestion) behave as they do in production.
 			software := &fleet.Software{
 				Name:    result.Name,
 				Version: result.Version,
 				Source:  "programs",
+				Vendor:  result.Publisher,
 			}
 			queries.MutateSoftwareOnIngestion(ctx, software, logger)
 			result.Version = software.Version
