@@ -121,9 +121,10 @@ jobs:
         with:
           scan-type: "fs"
           ignore-unfixed: false
-          # PR/push: print findings to the run log and fail the check so
-          # engineers see issues before merging. Schedule/manual matrix runs:
-          # emit SARIF for upload to the Security tab.
+          # PR/push: only scan for secrets (block leaked credentials before merge).
+          # Schedule/manual: full scan (vuln + secret + misconfig) with SARIF upload
+          # to the Security tab for triage. CVEs are tracked nightly, not per-PR.
+          scanners: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'vuln,secret,misconfig' || 'secret' }}
           format: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'sarif' || 'table' }}
           output: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'trivy-results.sarif' || '' }}
           exit-code: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '0' || '1' }}
