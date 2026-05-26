@@ -1822,6 +1822,13 @@
       "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
     },
     {
+      "name": "TortoiseGit",
+      "slug": "tortoisegit/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseGit",
+      "description": "TortoiseGit is a Windows shell interface to Git, providing overlay icons showing file status and a powerful context menu for Git. Requires Git for Windows to be installed."
+    },
+    {
       "name": "Tower",
       "slug": "tower/darwin",
       "platform": "darwin",
