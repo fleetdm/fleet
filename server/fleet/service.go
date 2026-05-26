@@ -745,6 +745,7 @@ type Service interface {
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 	ModifyGlobalPolicy(ctx context.Context, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetPolicyByID(ctx context.Context, policyID uint) (*Policy, error)
+	ResetPolicyStatus(ctx context.Context, policyID uint) error
 	ApplyPolicySpecs(ctx context.Context, policies []*PolicySpec) error
 	CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error)
 	AutofillPolicySql(ctx context.Context, sql string) (description string, resolution string, err error)

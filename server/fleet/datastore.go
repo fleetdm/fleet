@@ -1614,6 +1614,13 @@ type Datastore interface {
 	// failure correctly upgrades the row and clears error_message.
 	UpdatePolicyAutomationExecutions(ctx context.Context, batchID uuid.UUID, outcomeErr error) error
 
+	// ClearPolicyRuns deletes all policy_runs rows for the given policy, along
+	// with their associated policy_automation_executions batches (via the join
+	// table). Legacy activity/result rows that carry a direct policy_id column
+	// (but no policy_run_id) have their policy_id set to NULL.
+	// Returns a not-found error if no policy_runs exist for the policy.
+	ClearPolicyRuns(ctx context.Context, policyID uint) error
+
 	// ListMDMAppleProfilesToInstall returns all the profiles that should
 	// be installed based on diffing the ideal state vs the state we have
 	// registered in `host_mdm_apple_profiles`, except if the optional argument `hostUUID` is passed.

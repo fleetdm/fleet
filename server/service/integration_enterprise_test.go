@@ -31677,3 +31677,78 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithEUAToken() {
 	require.Equal(t, idpEmail, dms[0].Email)
 	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dms[0].Source)
 }
+
+func (s *integrationEnterpriseTestSuite) TestResetPolicyStatus() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Policy not found → 404.
+	var notFoundResp fleet.ResetPolicyStatusResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/policies/99999/status", nil, http.StatusNotFound, &notFoundResp)
+
+	// Create a global policy with no runs → 404.
+	gp, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:  "reset-status-test-global",
+		Query: "SELECT 1",
+	})
+	require.NoError(t, err)
+	var noRunsResp fleet.ResetPolicyStatusResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/policies/%d/status", gp.ID), nil, http.StatusNotFound, &noRunsResp)
+
+	// Seed a failing run, then reset → 200.
+	testHosts := s.createHosts(t, "darwin", "darwin")
+	host := testHosts[0]
+	_, err = s.ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{gp.ID: new(false)}, []uint{gp.ID}, nil)
+	require.NoError(t, err)
+
+	var okResp fleet.ResetPolicyStatusResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/policies/%d/status", gp.ID), nil, http.StatusOK, &okResp)
+	require.NoError(t, okResp.Err)
+
+	// Verify no runs remain for the global policy.
+	runs, err := s.ds.GetFailingPolicyRuns(ctx, []uint{gp.ID}, []uint{host.ID})
+	require.NoError(t, err)
+	require.Empty(t, runs)
+
+	// Team policy reset → 200.
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "reset-policy-status-team"})
+	require.NoError(t, err)
+	tp, err := s.ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:  "reset-status-test-team",
+		Query: "SELECT 1",
+	})
+	require.NoError(t, err)
+
+	teamHost := testHosts[1]
+	_, err = s.ds.RecordPolicyTransitions(ctx, teamHost.ID, map[uint]*bool{tp.ID: new(false)}, []uint{tp.ID}, nil)
+	require.NoError(t, err)
+
+	var teamOkResp fleet.ResetPolicyStatusResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/policies/%d/status", tp.ID), nil, http.StatusOK, &teamOkResp)
+	require.NoError(t, teamOkResp.Err)
+
+	// Verify no runs remain for the team policy.
+	teamRuns, err := s.ds.GetFailingPolicyRuns(ctx, []uint{tp.ID}, []uint{teamHost.ID})
+	require.NoError(t, err)
+	require.Empty(t, teamRuns)
+
+	// Observer cannot reset → 403.
+	obs := &fleet.User{
+		Name:       "reset-obs",
+		Email:      "reset-obs@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	require.NoError(t, obs.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, obs)
+	require.NoError(t, err)
+
+	// Re-seed a run so the auth check doesn't short-circuit on not-found.
+	_, err = s.ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{gp.ID: new(false)}, []uint{gp.ID}, nil)
+	require.NoError(t, err)
+
+	oldToken := s.token
+	defer func() { s.token = oldToken }()
+	s.token = s.getTestToken(obs.Email, test.GoodPassword)
+	var forbiddenResp fleet.ResetPolicyStatusResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/policies/%d/status", gp.ID), nil, http.StatusForbidden, &forbiddenResp)
+}

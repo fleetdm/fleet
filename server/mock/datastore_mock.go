@@ -1052,6 +1052,8 @@ type CreatePolicyAutomationExecutionsFunc func(ctx context.Context, typ fleet.Po
 
 type UpdatePolicyAutomationExecutionsFunc func(ctx context.Context, batchID uuid.UUID, outcomeErr error) error
 
+type ClearPolicyRunsFunc func(ctx context.Context, policyID uint) error
+
 type ListMDMAppleProfilesToInstallFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error)
 
 type ListMDMAppleProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error)
@@ -3558,6 +3560,9 @@ type DataStore struct {
 
 	UpdatePolicyAutomationExecutionsFunc        UpdatePolicyAutomationExecutionsFunc
 	UpdatePolicyAutomationExecutionsFuncInvoked bool
+
+	ClearPolicyRunsFunc        ClearPolicyRunsFunc
+	ClearPolicyRunsFuncInvoked bool
 
 	ListMDMAppleProfilesToInstallFunc        ListMDMAppleProfilesToInstallFunc
 	ListMDMAppleProfilesToInstallFuncInvoked bool
@@ -8604,6 +8609,13 @@ func (s *DataStore) UpdatePolicyAutomationExecutions(ctx context.Context, batchI
 	s.UpdatePolicyAutomationExecutionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdatePolicyAutomationExecutionsFunc(ctx, batchID, outcomeErr)
+}
+
+func (s *DataStore) ClearPolicyRuns(ctx context.Context, policyID uint) error {
+	s.mu.Lock()
+	s.ClearPolicyRunsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearPolicyRunsFunc(ctx, policyID)
 }
 
 func (s *DataStore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
