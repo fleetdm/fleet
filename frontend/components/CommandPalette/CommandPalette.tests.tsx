@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import createMockConfig from "__mocks__/configMock";
 

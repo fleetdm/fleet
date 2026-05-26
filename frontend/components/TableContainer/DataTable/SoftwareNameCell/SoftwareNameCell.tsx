@@ -100,7 +100,7 @@ const getInstallIconType = (
   return isSelfService ? "selfService" : "manual";
 };
 
-const InstallIconWithTooltip = ({
+export const InstallIconWithTooltip = ({
   isSelfService,
   automaticInstallPoliciesCount,
   pageContext,

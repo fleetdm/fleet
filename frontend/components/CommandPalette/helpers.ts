@@ -47,6 +47,10 @@ export interface ICommandPaletteContext {
   withTeamId: (path: string) => string;
   onToggleDarkMode: () => void;
   onViewHost: () => void;
+  onViewSoftware: () => void;
+  onViewSoftwareLibrary: () => void;
+  onViewReport: () => void;
+  onViewPolicy: () => void;
 }
 
 export const GROUPS = [
@@ -83,6 +87,10 @@ export const buildCommandItems = (
     withTeamId,
     onToggleDarkMode,
     onViewHost,
+    onViewSoftware,
+    onViewSoftwareLibrary,
+    onViewReport,
+    onViewPolicy,
   } = ctx;
 
   const isAbmConfigured = config?.mdm?.apple_bm_enabled_and_configured ?? false;
@@ -110,19 +118,20 @@ export const buildCommandItems = (
   };
   const switchesFromAllFleets = getDefaultTeamName();
 
-  // Destination team label for commands that always operate against a team.
-  // "All fleets" → defaults to Unassigned; Unassigned → stays Unassigned;
-  // a real team → shows the team's name.
-  const teamRequiredDestination = hasTeamSelected
-    ? currentTeam?.name
-    : "Unassigned";
+  // Only show a destination chip when clicking would actually switch the
+  // user's fleet context. If the destination matches where they already
+  // are, return undefined so no chip renders.
 
-  // Destination team label for commands that operate at the fleet level
-  // (e.g., reports, software automations). "All fleets" / Unassigned both
-  // land on the All fleets context; a real team shows that team's name.
-  const defaultDestination = hasTeamSelected
-    ? currentTeam?.name
-    : "All fleets";
+  // Team-required commands (add-hosts, manage-enroll-secrets) default to
+  // Unassigned when no team is selected (i.e., on "All fleets"). On a real
+  // team or already-Unassigned, no switch happens.
+  const teamRequiredDestination =
+    !hasTeamSelected && !isUnassigned ? "Unassigned" : undefined;
+
+  // Default-context commands (add-report, software automations) operate at
+  // the "All fleets" level. Only Unassigned users switch context to reach
+  // them.
+  const defaultDestination = isUnassigned ? "All fleets" : undefined;
 
   return [
     // Pages — always visible
@@ -712,7 +721,7 @@ export const buildCommandItems = (
                     "fma",
                     "add app",
                   ],
-                      },
+                },
                 {
                   id: "add-vpp-app",
                   label: "Add VPP app",
@@ -729,7 +738,7 @@ export const buildCommandItems = (
                     "macos",
                     "add app",
                   ],
-                      },
+                },
                 {
                   id: "add-android-app-store-app",
                   label: "Add Android app store app",
@@ -738,7 +747,7 @@ export const buildCommandItems = (
                     `${paths.SOFTWARE_ADD_APP_STORE}?platform=android`
                   ),
                   keywords: ["google play", "android", "play store", "add app"],
-                      },
+                },
                 {
                   id: "add-custom-package",
                   label: "Add custom package",
@@ -760,7 +769,7 @@ export const buildCommandItems = (
                     "tarballs",
                     "sh",
                   ],
-                      },
+                },
               ]
             : []),
           // Script and variable actions require a team or unassigned (not "All fleets")
@@ -778,7 +787,7 @@ export const buildCommandItems = (
                     "ps1",
                     "create script",
                   ],
-                      },
+                },
                 {
                   id: "add-custom-variable",
                   label: "Add custom variable",
@@ -793,7 +802,7 @@ export const buildCommandItems = (
                     "add variable",
                     "create variable",
                   ],
-                      },
+                },
               ]
             : []),
           {
@@ -888,7 +897,14 @@ export const buildCommandItems = (
                   label: "Create fleet",
                   group: "Commands",
                   path: `${paths.ADMIN_FLEETS}?create_fleet=1`,
-                  keywords: ["new fleet", "add fleet", "team"],
+                  keywords: [
+                    "new fleet",
+                    "add fleet",
+                    "team",
+                    "create team",
+                    "add team",
+                    "new team",
+                  ],
                 },
               ]
             : []),
@@ -1010,7 +1026,6 @@ export const buildCommandItems = (
             group: "Automations",
             path: `${paths.SOFTWARE_INVENTORY}?manage_automations=1`,
             keywords: ["vulnerability", "webhook", "jira", "zendesk"],
-            teamName: "All fleets",
           },
         ]
       : []),
@@ -1117,8 +1132,101 @@ export const buildCommandItems = (
         "host details",
         "endpoint",
         "machine",
+        "search host",
+        "search hosts",
       ],
       onAction: onViewHost,
+      opensSubPage: true,
+    },
+
+    // View software — always available; opens a sub-page with searchable
+    // software titles scoped to the current fleet.
+    {
+      id: "view-software",
+      label: "View software",
+      group: "Commands",
+      keywords: [
+        "software",
+        "app",
+        "application",
+        "package",
+        "find software",
+        "open software",
+        "title",
+        "version",
+        "search software",
+        "search software inventory",
+        "inventory",
+      ],
+      onAction: onViewSoftware,
+      opensSubPage: true,
+    },
+
+    // View software library — installable software available for the
+    // current fleet's library. Hidden on "All fleets" since libraries are
+    // per-fleet (matches the gating used by Add Fleet-maintained app etc.).
+    ...(hasTeamOrUnassigned
+      ? [
+          {
+            id: "view-software-library",
+            label: "View software library",
+            group: "Commands" as const,
+            keywords: [
+              "library",
+              "installable",
+              "install",
+              "available",
+              "package",
+              "vpp",
+              "fma",
+              "fleet-maintained",
+              "search software library",
+              "search library",
+            ],
+            onAction: onViewSoftwareLibrary,
+            opensSubPage: true,
+          },
+        ]
+      : []),
+
+    // View report — opens a sub-page with searchable reports for the
+    // current fleet (with inherited globals merged in).
+    {
+      id: "view-report",
+      label: "View report",
+      group: "Commands",
+      keywords: [
+        "report",
+        "query",
+        "queries",
+        "sql",
+        "saved query",
+        "find report",
+        "open report",
+        "search report",
+        "search reports",
+      ],
+      onAction: onViewReport,
+      opensSubPage: true,
+    },
+
+    // View policy — opens a sub-page with searchable policies for the
+    // current fleet (or global policies on All fleets).
+    {
+      id: "view-policy",
+      label: "View policy",
+      group: "Commands",
+      keywords: [
+        "policy",
+        "compliance",
+        "failing",
+        "device health",
+        "find policy",
+        "open policy",
+        "search policy",
+        "search policies",
+      ],
+      onAction: onViewPolicy,
       opensSubPage: true,
     },
 

@@ -72,9 +72,6 @@ const HostPicker = ({ search, onSelect }: IHostPickerProps): JSX.Element => {
             className={`${baseClass}__item`}
           >
             <span className={`${baseClass}__item-label`}>{label}</span>
-            {host.hostname && host.hostname !== label && (
-              <span className={`${baseClass}__item-team`}>{host.hostname}</span>
-            )}
           </Command.Item>
         );
       })}

@@ -115,6 +115,7 @@
     cursor: pointer;
     white-space: nowrap;
     border-radius: $border-radius;
+    max-width: 250px;
 
     // In dark mode $core-fleet-white equals the dialog bg, so the outlined
     // button visually merges with the surface. Bump it one tier up.
@@ -130,6 +131,13 @@
       outline: 1px solid $core-focused-outline;
       outline-offset: 1px;
     }
+  }
+
+  &__fleet-switcher-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &__list {
@@ -205,10 +213,21 @@
     display: flex;
     align-items: center;
     min-width: 0;
+
+    // The install icon wraps an inline SVG; force inline-flex so it
+    // aligns to the row's center instead of the text baseline.
+    .software-name-cell__install-icon-with-tooltip {
+      display: inline-flex;
+      align-items: center;
+      margin-left: $pad-small;
+    }
   }
 
   &__item-label {
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     &--selected {
       font-weight: $bold;
@@ -255,13 +274,18 @@
     }
   }
 
-  &__item-team {
+  &__item-fleet,
+  &__item-meta {
     flex-shrink: 0;
     margin-left: auto;
     padding-left: $pad-medium;
     font-size: $x-small;
     color: $ui-fleet-black-50;
     font-style: italic;
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

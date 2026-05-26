@@ -23,6 +23,10 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   withTeamId: (path: string) => path,
   onToggleDarkMode: jest.fn(),
   onViewHost: jest.fn(),
+  onViewSoftware: jest.fn(),
+  onViewSoftwareLibrary: jest.fn(),
+  onViewReport: jest.fn(),
+  onViewPolicy: jest.fn(),
 };
 
 describe("CommandPalette helpers", () => {
@@ -119,7 +123,9 @@ describe("CommandPalette helpers", () => {
       expect(items.map((i) => i.id)).not.toContain("packs");
     });
 
-    it("shows team name on team-scoped actions when a team is selected", () => {
+    it("omits the teamName chip when destination matches current context", () => {
+      // On Engineering, every action either stays on Engineering or goes
+      // there — no chip should render.
       const items = buildCommandItems({
         ...BASE_CONTEXT,
         hasTeamSelected: true,
@@ -127,13 +133,13 @@ describe("CommandPalette helpers", () => {
       });
 
       const addHosts = items.find((i) => i.id === "add-hosts");
-      expect(addHosts?.teamName).toBe("Engineering");
+      expect(addHosts?.teamName).toBeUndefined();
 
       const addReport = items.find((i) => i.id === "add-report");
-      expect(addReport?.teamName).toBe("Engineering");
+      expect(addReport?.teamName).toBeUndefined();
     });
 
-    it("shows 'Unassigned' on add-hosts and manage-enroll-secrets when no team is selected", () => {
+    it("shows 'Unassigned' on add-hosts and manage-enroll-secrets when on All fleets", () => {
       const items = buildCommandItems(BASE_CONTEXT);
 
       const addHosts = items.find((i) => i.id === "add-hosts");
@@ -143,14 +149,26 @@ describe("CommandPalette helpers", () => {
       expect(enrollSecrets?.teamName).toBe("Unassigned");
     });
 
-    it("shows 'All fleets' on non-host actions when no team is selected", () => {
+    it("omits the 'All fleets' chip on default-context actions when already on All fleets", () => {
+      // add-report stays on All fleets when invoked from All fleets — no
+      // switch, no chip.
       const items = buildCommandItems(BASE_CONTEXT);
+      const addReport = items.find((i) => i.id === "add-report");
+      expect(addReport?.teamName).toBeUndefined();
+    });
+
+    it("shows 'All fleets' on default-context actions when on Unassigned", () => {
+      const items = buildCommandItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: false,
+        currentTeam: { id: 0, name: "No team" },
+      });
 
       const addReport = items.find((i) => i.id === "add-report");
       expect(addReport?.teamName).toBe("All fleets");
     });
 
-    it("shows 'Unassigned' when unassigned team is selected", () => {
+    it("omits the 'Unassigned' chip on add-hosts when already on Unassigned", () => {
       const items = buildCommandItems({
         ...BASE_CONTEXT,
         hasTeamSelected: false,
@@ -158,7 +176,7 @@ describe("CommandPalette helpers", () => {
       });
 
       const addHosts = items.find((i) => i.id === "add-hosts");
-      expect(addHosts?.teamName).toBe("Unassigned");
+      expect(addHosts?.teamName).toBeUndefined();
     });
 
     it("shows 'Turn on' MDM when not configured", () => {
@@ -300,12 +318,14 @@ describe("CommandPalette helpers", () => {
       expect(dashboard?.path).toContain("fleet_id=5");
     });
 
-    it("includes manage software automations with 'All fleets' teamName", () => {
+    it("includes manage software automations without a teamName chip on All fleets", () => {
+      // Only visible on All fleets, destination is All fleets — no switch,
+      // no chip.
       const items = buildCommandItems(BASE_CONTEXT);
 
       const swAuto = items.find((i) => i.id === "manage-software-automations");
       expect(swAuto).toBeDefined();
-      expect(swAuto?.teamName).toBe("All fleets");
+      expect(swAuto?.teamName).toBeUndefined();
     });
 
     it("calls onToggleDarkMode for the dark mode item", () => {

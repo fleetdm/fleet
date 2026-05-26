@@ -24,10 +24,20 @@ import {
 } from "./helpers";
 import FleetPicker from "./components/FleetPicker";
 import HostPicker from "./components/HostPicker";
+import SoftwarePicker from "./components/SoftwarePicker";
+import ReportPicker from "./components/ReportPicker";
+import PolicyPicker from "./components/PolicyPicker";
 
 const baseClass = "command-palette";
 
-type Page = "root" | "switch-fleet" | "view-host";
+type Page =
+  | "root"
+  | "switch-fleet"
+  | "view-host"
+  | "view-software"
+  | "view-software-library"
+  | "view-report"
+  | "view-policy";
 
 const CommandPalette = (): JSX.Element | null => {
   const [open, setOpen] = useState(false);
@@ -121,6 +131,10 @@ const CommandPalette = (): JSX.Element | null => {
   const subPagePlaceholders: Partial<Record<Page, string>> = {
     "switch-fleet": "Search a fleet...",
     "view-host": "Search hosts...",
+    "view-software": "Search software inventory...",
+    "view-software-library": "Search software library...",
+    "view-report": "Search reports...",
+    "view-policy": "Search policies...",
   };
   const subPagePlaceholder = subPagePlaceholders[page];
 
@@ -298,6 +312,10 @@ const CommandPalette = (): JSX.Element | null => {
       setOpen(false);
     },
     onViewHost: () => goToPage("view-host"),
+    onViewSoftware: () => goToPage("view-software"),
+    onViewSoftwareLibrary: () => goToPage("view-software-library"),
+    onViewReport: () => goToPage("view-report"),
+    onViewPolicy: () => goToPage("view-policy"),
   });
 
   const groupedItems = items.reduce<Record<string, ICommandItem[]>>(
@@ -413,7 +431,7 @@ const CommandPalette = (): JSX.Element | null => {
             )}
           </div>
           {item.teamName && (
-            <span className={`${baseClass}__item-team`}>{item.teamName}</span>
+            <span className={`${baseClass}__item-fleet`}>{item.teamName}</span>
           )}
         </Command.Item>
         {/* Render sub-items when expanded (browsing) or always when searching */}
@@ -504,6 +522,48 @@ const CommandPalette = (): JSX.Element | null => {
     browserHistory.push(paths.HOST_DETAILS(hostId));
   }, []);
 
+  const handleSelectSoftware = useCallback(
+    (softwareId: number) => {
+      setOpen(false);
+      const basePath = paths.SOFTWARE_TITLE_DETAILS(String(softwareId));
+      // Software titles are team-scoped; the destination page reads fleet_id
+      // from the URL. Pass the user's current team so we don't drop them on
+      // "All fleets" view by accident. Unassigned (id 0) is preserved too.
+      if (currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID) {
+        browserHistory.push(`${basePath}?fleet_id=${currentTeam.id}`);
+      } else {
+        browserHistory.push(basePath);
+      }
+    },
+    [currentTeam]
+  );
+
+  const handleSelectReport = useCallback(
+    (reportId: number) => {
+      setOpen(false);
+      const basePath = paths.REPORT_DETAILS(reportId);
+      if (currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID) {
+        browserHistory.push(`${basePath}?fleet_id=${currentTeam.id}`);
+      } else {
+        browserHistory.push(basePath);
+      }
+    },
+    [currentTeam]
+  );
+
+  const handleSelectPolicy = useCallback(
+    (policyId: number) => {
+      setOpen(false);
+      const basePath = paths.POLICY_DETAILS(policyId);
+      if (currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID) {
+        browserHistory.push(`${basePath}?fleet_id=${currentTeam.id}`);
+      } else {
+        browserHistory.push(basePath);
+      }
+    },
+    [currentTeam]
+  );
+
   if (isNoAccess) {
     return null;
   }
@@ -522,8 +582,14 @@ const CommandPalette = (): JSX.Element | null => {
         if (value.startsWith("EXACT_MATCH ")) {
           return 1;
         }
-        // Host results are pre-filtered by the server; show everything we got.
-        if (value.startsWith("HOST_RESULT ")) {
+        // Host & software results are pre-filtered by the server; show
+        // everything we got.
+        if (
+          value.startsWith("HOST_RESULT ") ||
+          value.startsWith("SOFTWARE_RESULT ") ||
+          value.startsWith("REPORT_RESULT ") ||
+          value.startsWith("POLICY_RESULT ")
+        ) {
           return 1;
         }
         // Default cmdk filtering
@@ -565,7 +631,9 @@ const CommandPalette = (): JSX.Element | null => {
               className={`${baseClass}__fleet-switcher`}
               onClick={() => goToPage("switch-fleet")}
             >
-              {currentTeam?.name || "All fleets"}
+              <span className={`${baseClass}__fleet-switcher-label`}>
+                {currentTeam?.name || "All fleets"}
+              </span>
               <Icon
                 name="chevron-down"
                 color="ui-fleet-black-75"
@@ -577,9 +645,13 @@ const CommandPalette = (): JSX.Element | null => {
         {page !== "root" && <kbd className={`${baseClass}__esc-hint`}>ESC</kbd>}
       </div>
       <Command.List className={`${baseClass}__list`}>
-        <Command.Empty className={`${baseClass}__empty`}>
-          No results found.
-        </Command.Empty>
+        {/* Sub-pages render their own contextual empty state, so only show
+            cmdk's generic Empty on the root page. */}
+        {page === "root" && (
+          <Command.Empty className={`${baseClass}__empty`}>
+            No results found.
+          </Command.Empty>
+        )}
         {page === "root" && renderRootPage()}
         {page === "switch-fleet" && (
           <FleetPicker
@@ -590,6 +662,35 @@ const CommandPalette = (): JSX.Element | null => {
         )}
         {page === "view-host" && (
           <HostPicker search={search} onSelect={handleSelectHost} />
+        )}
+        {page === "view-software" && (
+          <SoftwarePicker
+            search={search}
+            currentTeam={currentTeam}
+            onSelect={handleSelectSoftware}
+          />
+        )}
+        {page === "view-software-library" && (
+          <SoftwarePicker
+            search={search}
+            currentTeam={currentTeam}
+            scope="library"
+            onSelect={handleSelectSoftware}
+          />
+        )}
+        {page === "view-report" && (
+          <ReportPicker
+            search={search}
+            currentTeam={currentTeam}
+            onSelect={handleSelectReport}
+          />
+        )}
+        {page === "view-policy" && (
+          <PolicyPicker
+            search={search}
+            currentTeam={currentTeam}
+            onSelect={handleSelectPolicy}
+          />
         )}
       </Command.List>
     </Command.Dialog>
