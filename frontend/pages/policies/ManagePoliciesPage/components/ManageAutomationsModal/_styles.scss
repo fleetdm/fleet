@@ -1,0 +1,77 @@
+.manage-automations-modal {
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__header {
+    color: $core-fleet-black;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__section-title {
+    font-size: $small;
+    margin: 0;
+  }
+
+  &__platforms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-large;
+  }
+
+  &__platform {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
+
+  &__automations-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 8px;
+    width: 100%;
+    font-size: $x-small;
+  }
+
+  &__row td {
+    height: 40px;
+    padding: $pad-xsmall $pad-large;
+    border-top: 1px solid $ui-fleet-black-10;
+    vertical-align: middle;
+  }
+
+  &__row:first-child td {
+    border-top: none;
+  }
+
+  &__row--disabled &__row-label {
+    color: $ui-fleet-black-50;
+  }
+
+  &__row-trailing {
+    text-align: right;
+    width: 50%;
+  }
+
+  &__row-disabled-hint {
+    color: $ui-fleet-black-50;
+  }
+
+  &__row-picker {
+    max-width: 300px;
+    margin-left: auto;
+  }
+
+  &__learn-more {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+}
