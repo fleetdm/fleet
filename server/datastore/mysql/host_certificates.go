@@ -691,6 +691,31 @@ func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint,
 	return nil
 }
 
+// softDeleteMDMHostCertsDB clears all MDM-origin cert rows on unenroll, where
+// nothing else will: no more CertificateList, and osquery can't see
+// hardware-bound ACME certs.
+func softDeleteMDMHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
+	const stmt = `UPDATE host_certificates SET deleted_at = NOW(6) WHERE host_id = ? AND origin = ? AND deleted_at IS NULL`
+	if _, err := tx.ExecContext(ctx, stmt, hostID, fleet.HostCertificateOriginMDM); err != nil {
+		return ctxerr.Wrap(ctx, err, "soft deleting mdm host certificates")
+	}
+	return nil
+}
+
+// One bounded UPDATE per cron tick. See the Datastore interface for contract.
+func (ds *Datastore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error) {
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_certificates hc
+		JOIN host_mdm hm ON hm.host_id = hc.host_id AND hm.enrolled = 0
+		SET hc.deleted_at = NOW(6)
+		WHERE hc.origin = ? AND hc.deleted_at IS NULL`,
+		fleet.HostCertificateOriginMDM)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "soft-delete mdm host certificates for unenrolled hosts")
+	}
+	return res.RowsAffected()
+}
+
 func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {
 	if len(certs) == 0 {
 		return nil
