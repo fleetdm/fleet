@@ -850,25 +850,10 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 	for _, osSettingName := range []interface{}{config.Controls.MacOSSettings, config.Controls.WindowsSettings} {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
-				var labels []string
-				err := fmt.Errorf("configuration profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", filepath.Base(setting.Path))
-
-				if len(setting.LabelsIncludeAny) > 0 {
-					labels = setting.LabelsIncludeAny
+				if len(setting.LabelsIncludeAll) > 0 && len(setting.LabelsIncludeAny) > 0 {
+					return nil, fmt.Errorf("configuration profile '%s' cannot use both `labels_include_all` and `labels_include_any`; please choose one.", filepath.Base(setting.Path))
 				}
-				if len(setting.LabelsIncludeAll) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
-					labels = setting.LabelsIncludeAll
-				}
-				if len(setting.LabelsExcludeAny) > 0 {
-					if len(labels) > 0 {
-						return nil, err
-					}
-					labels = setting.LabelsExcludeAny
-				}
-
+				labels := slices.Concat(setting.LabelsIncludeAll, setting.LabelsIncludeAny, setting.LabelsExcludeAny)
 				updateLabelUsage(labels, filepath.Base(setting.Path), "configuration profile", result)
 			}
 		}

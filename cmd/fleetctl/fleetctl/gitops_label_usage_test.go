@@ -46,6 +46,7 @@ func TestGetLabelUsageProfilePathShortened(t *testing.T) {
 func TestGetLabelUsageMultipleLabelKeysError(t *testing.T) {
 	absPath := "/absolute/path/to/profile.mobileconfig"
 
+	// Two include modes together is still invalid.
 	config := &spec.GitOps{
 		Controls: spec.GitOpsControls{
 			MacOSSettings: &fleet.MacOSSettings{
@@ -67,4 +68,31 @@ func TestGetLabelUsageMultipleLabelKeysError(t *testing.T) {
 	assert.Contains(t, err.Error(), "configuration profile")
 	assert.Contains(t, err.Error(), "profile.mobileconfig")
 	assert.NotContains(t, err.Error(), "/absolute/path/to/")
+}
+
+func TestGetLabelUsageIncludeAndExcludeAllowed(t *testing.T) {
+	absPath := "/absolute/path/to/profile.mobileconfig"
+
+	// include + exclude combination is valid for configuration profiles.
+	cases := []fleet.MDMProfileSpec{
+		{Path: absPath, LabelsIncludeAll: []string{"include-label"}, LabelsExcludeAny: []string{"exclude-label"}},
+		{Path: absPath, LabelsIncludeAny: []string{"include-label"}, LabelsExcludeAny: []string{"exclude-label"}},
+		{Path: absPath, LabelsExcludeAny: []string{"exclude-label"}},
+	}
+	for _, profileSpec := range cases {
+		config := &spec.GitOps{
+			Controls: spec.GitOpsControls{
+				MacOSSettings: &fleet.MacOSSettings{
+					CustomSettings: []fleet.MDMProfileSpec{profileSpec},
+				},
+			},
+		}
+
+		usage, err := getLabelUsage(config)
+		require.NoError(t, err)
+		allLabels := append(profileSpec.LabelsIncludeAll, append(profileSpec.LabelsIncludeAny, profileSpec.LabelsExcludeAny...)...) //nolint:gocritic
+		for _, label := range allLabels {
+			assert.Contains(t, usage, label)
+		}
+	}
 }
