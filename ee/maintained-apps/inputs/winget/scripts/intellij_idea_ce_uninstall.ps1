@@ -45,9 +45,17 @@ $uninstallCommand = $selected.UninstallString
 $exePath = ""
 $existingArgs = ""
 if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
+    # Quoted path: "C:\Path With Spaces\uninst.exe" [args]
+    $exePath = $matches[1]
+    $existingArgs = $matches[2].Trim()
+} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+    # Unquoted path that may contain spaces: capture through the .exe.
+    # JetBrains stores e.g.
+    # C:\Program Files\JetBrains\IntelliJ IDEA Community Edition 2025.2.6.2\bin\Uninstall.exe
     $exePath = $matches[1]
     $existingArgs = $matches[2].Trim()
 } elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
+    # Fallback: no .exe found, split on first whitespace.
     $exePath = $matches[1]
     $existingArgs = $matches[2].Trim()
 } else {
