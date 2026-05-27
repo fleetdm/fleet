@@ -1,5 +1,4 @@
 import PropTypes from "prop-types";
-import { EndUserLocalAccountType } from "services/entities/mdm";
 import {
   IAppleDeviceUpdates,
   IConfigFeatures,
@@ -8,7 +7,7 @@ import {
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
-import { ITokenTeam } from "./mdm";
+import { EndUserLocalAccountType, ITokenTeam } from "./mdm";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,

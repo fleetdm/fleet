@@ -5,8 +5,8 @@ import {
   IWebhookSoftwareVulnerabilities,
   IWebhookActivities,
 } from "interfaces/webhook";
-import { EndUserLocalAccountType } from "services/entities/mdm";
 import { IGlobalIntegrations } from "./integration";
+import { EndUserLocalAccountType } from "./mdm";
 
 export interface ILicense {
   tier: string;

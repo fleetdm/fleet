@@ -7,9 +7,9 @@ import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import Radio from "components/forms/fields/Radio";
 import SettingsSection from "pages/admin/components/SettingsSection";
-import { EndUserLocalAccountType } from "services/entities/mdm";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import { IUsersFormData } from "../../UsersForm";
 
@@ -20,7 +20,7 @@ const baseClass = "local-account-section";
 // sent in the save payload.
 export const effectiveEnableManagedLocalAccount = (formData: IUsersFormData) =>
   formData.enableManagedLocalAccount ||
-  formData.localAccountType !== EndUserLocalAccountType.Admin;
+  formData.localAccountType !== EndUserLocalAccountType.ADMIN;
 
 interface ILocalAccountSectionProps {
   formData: IUsersFormData;
@@ -37,7 +37,7 @@ const LocalAccountSection = ({
 }: ILocalAccountSectionProps) => {
   const { localAccountType } = formData;
   const forcedByLocalAccountType =
-    localAccountType !== EndUserLocalAccountType.Admin;
+    localAccountType !== EndUserLocalAccountType.ADMIN;
   return (
     <SettingsSection
       title="Local account"
@@ -85,9 +85,9 @@ const LocalAccountSection = ({
                     id="localAccountTypeAdmin"
                     label="Admin"
                     helpText="End user can add and manage other users, install apps, and change settings."
-                    value={EndUserLocalAccountType.Admin}
+                    value={EndUserLocalAccountType.ADMIN}
                     disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
-                    checked={localAccountType === EndUserLocalAccountType.Admin}
+                    checked={localAccountType === EndUserLocalAccountType.ADMIN}
                     onChange={(val) =>
                       onLocalAccountTypeChange(val as EndUserLocalAccountType)
                     }
@@ -103,9 +103,9 @@ const LocalAccountSection = ({
                         users&apos; settings.
                       </span>
                     }
-                    value={EndUserLocalAccountType.Standard}
+                    value={EndUserLocalAccountType.STANDARD}
                     checked={
-                      localAccountType === EndUserLocalAccountType.Standard
+                      localAccountType === EndUserLocalAccountType.STANDARD
                     }
                     disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
                     onChange={(val) =>
@@ -118,8 +118,8 @@ const LocalAccountSection = ({
                     label="Skip (no account)"
                     helpText="No user account will be created during Setup Assistant and authentication must be handled by an IdP or other workflow."
                     disabled={gitopsEnabled || !isMacMdmEnabledAndConfigured}
-                    value={EndUserLocalAccountType.None}
-                    checked={localAccountType === EndUserLocalAccountType.None}
+                    value={EndUserLocalAccountType.NONE}
+                    checked={localAccountType === EndUserLocalAccountType.NONE}
                     onChange={(val) =>
                       onLocalAccountTypeChange(val as EndUserLocalAccountType)
                     }

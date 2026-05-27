@@ -1,4 +1,5 @@
 import {
+  EndUserLocalAccountType,
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
   IHostMdmProfile,
@@ -50,12 +51,6 @@ export interface IUploadProfileApiParams {
 export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
   return profile.profile_uuid.startsWith("d");
 };
-
-export enum EndUserLocalAccountType {
-  Admin = "admin",
-  Standard = "standard",
-  None = "none",
-}
 
 interface IUpdateSetupExperienceFormData {
   fleet_id?: number;

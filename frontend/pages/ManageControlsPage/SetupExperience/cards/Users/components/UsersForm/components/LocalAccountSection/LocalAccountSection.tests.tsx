@@ -1,7 +1,7 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { EndUserLocalAccountType } from "services/entities/mdm";
 import { createCustomRenderer } from "test/test-utils";
+import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import LocalAccountSection from "./LocalAccountSection";
 
@@ -18,7 +18,7 @@ describe("LocalAccountSection", () => {
       endUserAuthEnabled: false,
       lockEndUserInfo: false,
       enableManagedLocalAccount: false,
-      localAccountType: EndUserLocalAccountType.Admin,
+      localAccountType: EndUserLocalAccountType.ADMIN,
     },
     onLocalAccountTypeChange: onLocalAccountTypeChangeMock,
     onEnableManagedLocalAccountChange: onEnableManagedLocalAccountChangeMock,
@@ -160,7 +160,7 @@ describe("LocalAccountSection", () => {
       });
     });
 
-    it.each([EndUserLocalAccountType.Standard, EndUserLocalAccountType.None])(
+    it.each([EndUserLocalAccountType.STANDARD, EndUserLocalAccountType.NONE])(
       "when local account type is %s disables and forces managed local account on",
       async (accountType) => {
         const { user } = render(

@@ -7,11 +7,11 @@ import { IConfig, IMdmConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
 
 import Spinner from "components/Spinner";
-import { EndUserLocalAccountType } from "services/entities/mdm";
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import PageDescription from "components/PageDescription";
+import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import UsersForm from "./components/UsersForm/UsersForm";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
