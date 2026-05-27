@@ -180,6 +180,16 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return nil
 	})
 
+	// Null label_id references in MDM profile/declaration label tables before deleting labels,
+	// since these now have RESTRICT FK constraints that block label deletion while referenced.
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL`); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL`)
+		return err
+	})
+
 	lbls, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {

@@ -1679,22 +1679,22 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 
 	// add labels
-	var existsInclAll, existsInclAny, existsExclAny, existsDepr bool
+	var existsInclAll, existsInclAny, existsDepr bool
 	var deprecatedLabels []string
 	decoded.LabelsIncludeAll, existsInclAll = r.MultipartForm.Value[string(fleet.LabelsIncludeAll)]
 	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
-	decoded.LabelsExcludeAny, existsExclAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
+	decoded.LabelsExcludeAny, _ = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
 	deprecatedLabels, existsDepr = r.MultipartForm.Value["labels"]
 
-	// validate that only one of the labels type is provided
-	var count int
-	for _, b := range []bool{existsInclAll, existsInclAny, existsExclAny, existsDepr} {
+	// validate that at most one include mode is provided; labels_exclude_any may be combined with any include mode
+	var includeCount int
+	for _, b := range []bool{existsInclAll, existsInclAny, existsDepr} {
 		if b {
-			count++
+			includeCount++
 		}
 	}
-	if count > 1 {
-		return nil, &fleet.BadRequestError{Message: `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`}
+	if includeCount > 1 {
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`}
 	}
 	if existsDepr {
 		decoded.LabelsIncludeAll = deprecatedLabels
@@ -2806,20 +2806,19 @@ func getAndroidProfiles(ctx context.Context,
 
 func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
-		// validate that only one of labels, labels_include_all and labels_exclude_any is provided.
-		var count int
+		// validate that at most one include mode is provided; labels_exclude_any may be combined with any include mode
+		var includeCount int
 		for _, b := range []bool{
 			len(profile.LabelsIncludeAll) > 0,
 			len(profile.LabelsIncludeAny) > 0,
-			len(profile.LabelsExcludeAny) > 0,
 			len(profile.Labels) > 0,
 		} {
 			if b {
-				count++
+				includeCount++
 			}
 		}
-		if count > 1 {
-			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+		if includeCount > 1 {
+			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
 		}
 
 		if len(profile.Contents) > 1024*1024 {
