@@ -878,15 +878,11 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
 
-	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work
-	// profile, leaving the personal side intact) instead of the EnterprisesDevicesDelete call.
-	// host_mdm_actions.wipe_ref is written so device_status reflects "wiping" while the work-profile
-	// wipe is in flight; the HostHeader badge overrides the label to "Unenroll pending" since the
-	// admin clicked Unenroll, not Wipe. The mdm_unenrolled activity is emitted later, when the
-	// device removes its work profile and AMAPI sends the resulting STATUS_REPORT (or ENROLLMENT)
-	// notification with state=DELETED -- see handlePubSubStatusReport / handlePubSubEnrollment.
-	// For COBO we keep the existing delete-device behavior (terminates management without
-	// factory-resetting the device).
+	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work profile, leaving the personal side
+	// intact) instead of the EnterprisesDevicesDelete call. host_mdm_actions.wipe_ref is written so device_status reflects "wiping"
+	// while the work-profile wipe is in flight; the HostHeader badge overrides the label to "Unenroll pending" since the admin
+	// clicked Unenroll, not Wipe. The mdm_unenrolled activity is emitted later, when the device removes its work profile and AMAPI
+	// sends the resulting STATUS_REPORT (or ENROLLMENT) notification with state=DELETED
 	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")
@@ -904,9 +900,6 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		}
 
 		// Write wipe_ref so device_status flips to "wiping" while the work-profile wipe is in flight.
-		// The host page (and HostActionsDropdown) read that to surface the "Unenroll pending" badge
-		// and to gate Lock / Clear passcode / re-clicking Unenroll. The mdm_unenrolled activity is
-		// still emitted later when AMAPI sends the resulting STATUS_REPORT with state=DELETED.
 		cmd := &android.MDMAndroidCommand{
 			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.UUID,
@@ -927,16 +920,6 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 
 	if err := svc.androidAPIClient.EnterprisesDevicesDelete(ctx, deviceName); err != nil {
 		return ctxerr.Wrap(ctx, err, "amapi delete device")
-	}
-
-	// AMAPI confirmed the device is removed (or it was already gone -- the proxy client treats 404 as
-	// nil). Flip host_mdm.enrolled to 0 directly: we can't rely on a subsequent STATUS_REPORT /
-	// ENROLLMENT with state=DELETED because a wiped or already-unmanaged device has nothing left to
-	// phone home with. The API caller expects the unenroll to be observable on the host page
-	// immediately. The Pub/Sub DELETED handler's didUnenroll gate prevents duplicate activity
-	// emission if AMAPI eventually does deliver a notification.
-	if _, err := svc.fleetDS.SetAndroidHostUnenrolled(ctx, host.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set android host unenrolled after cobo delete")
 	}
 
 	return nil
@@ -1028,9 +1011,7 @@ func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
 	return nil
 }
 
-// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row plus
-// host_mdm_actions.clear_passcode_ref. The ref flips device_status to "clearing passcode" while the
-// AMAPI command is in flight; HostLockWipeStatus.IsPendingClearPasscode reads it.
+// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row plus host_mdm_actions.clear_passcode_ref.
 func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (string, error) {
 	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "clear-passcode")
 	if err != nil {

@@ -18672,17 +18672,15 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	require.True(t, didCallAMAPIDelete, "COBO unenroll must call EnterprisesDevicesDelete")
 	require.False(t, didCallAMAPIIssueWipe, "COBO unenroll must not call EnterprisesDevicesIssueCommand")
 
-	// COBO unenroll must also flip host_mdm.enrolled directly: AMAPI returns 404 for an
-	// already-gone device and never delivers a state=DELETED notification, so the API caller
-	// is the only opportunity to mark the host MDM-off. Without this, the host page keeps
-	// showing "MDM On" indefinitely after a COBO unenroll.
+	// host_mdm.enrolled must stay 1 here. EnterprisesDevicesDelete returns 200 when AMAPI accepts
+	// the request, not when the device has processed it -- the authoritative "actually unenrolled"
+	// signal is the STATUS_REPORT / ENROLLMENT Pub/Sub notification with state=DELETED. Flipping
+	// state synchronously here would show "MDM Off" on the host page while the device is still
+	// managed (online but not yet processed, or offline up to 30 days). Mirrors Apple's APNs
+	// CheckOut lifecycle.
 	coboHostMDM, err := s.ds.GetHostMDM(ctx, coboHostID)
 	require.NoError(t, err)
-	require.False(t, coboHostMDM.Enrolled, "COBO unenroll must flip host_mdm.enrolled to false")
-	// installed_from_dep must be cleared too. Android has no DEP/ABM equivalent; leaving it set
-	// would make the generated enrollment_status column compute "Pending" (Apple DEP semantics)
-	// instead of the correct "Off".
-	require.False(t, coboHostMDM.InstalledFromDep, "Android unenroll must clear installed_from_dep so enrollment_status reads 'Off' not 'Pending'")
+	require.True(t, coboHostMDM.Enrolled, "host_mdm.enrolled must stay true until the device acks via Pub/Sub DELETED")
 }
 
 // TestAndroidLockWipeClearPasscode exercises the three commands end-to-end against the real Fleet HTTP handler stack with a
