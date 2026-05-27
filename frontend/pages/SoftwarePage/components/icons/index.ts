@@ -19,6 +19,7 @@ import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
+import GoToMeeting from "./GoToMeeting";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
@@ -337,6 +338,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gemini: Gemini,
   "genesys cloud": GenesysCloud,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
+  gotomeeting: GoToMeeting,
   iina: Iina,
   insyncclient: DruvaInSync,
   kitty: Kitty,

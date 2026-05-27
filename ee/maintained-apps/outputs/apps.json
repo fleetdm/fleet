@@ -912,6 +912,20 @@
       "description": "Gemini is a native desktop AI assistant from Google."
     },
     {
+      "name": "GoToMeeting",
+      "slug": "gotomeeting/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logmein.GoToMeeting",
+      "description": "GoToMeeting is a tool for online meetings, desktop sharing, and video conferencing."
+    },
+    {
+      "name": "GoToMeeting",
+      "slug": "gotomeeting/windows",
+      "platform": "windows",
+      "unique_identifier": "GoToMeeting",
+      "description": "GoToMeeting is a tool for online meetings, desktop sharing, and video conferencing."
+    },
+    {
       "name": "GPG Suite",
       "slug": "gpg-suite/darwin",
       "platform": "darwin",
