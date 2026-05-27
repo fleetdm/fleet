@@ -19,15 +19,26 @@ import {
   ICommandItem,
   ICommandSubItem,
   GROUPS,
-  buildCommandItems,
+  buildPaletteItems,
 } from "./helpers";
 import FleetPicker from "./components/FleetPicker";
 import HostPicker from "./components/HostPicker";
 import SoftwarePicker from "./components/SoftwarePicker";
 import ReportPicker from "./components/ReportPicker";
 import PolicyPicker from "./components/PolicyPicker";
+import { isPreFilteredResult } from "./components/constants";
 
 const baseClass = "command-palette";
+
+// Pure helper hoisted to module scope so it's stable across renders and
+// can be safely called from inside memoization.
+const getItemValue = (item: ICommandItem) => {
+  const parts = [item.label, ...(item.keywords ?? [])];
+  item.subItems?.forEach((sub) => {
+    parts.push(sub.label, ...(sub.keywords ?? []));
+  });
+  return parts.join(" ");
+};
 
 type Page =
   | "root"
@@ -91,6 +102,21 @@ const CommandPalette = (): JSX.Element | null => {
   // need to surface for the user's single fleet.
   const isPrimoMode = !!config?.partnerships?.enable_primo;
 
+  // Track theme as reactive state so the toggle-dark-mode item's label
+  // updates if the theme flips externally (system theme media query,
+  // another tab, sibling component). utilities/theme dispatches a
+  // `fleet-theme-change` window event on every change.
+  const [isDarkModeActive, setIsDarkModeActive] = useState(isDarkMode);
+  useEffect(() => {
+    const onThemeChange = (e: Event) => {
+      const detail = (e as CustomEvent<{ dark: boolean }>).detail;
+      setIsDarkModeActive(!!detail?.dark);
+    };
+    window.addEventListener("fleet-theme-change", onThemeChange);
+    return () =>
+      window.removeEventListener("fleet-theme-change", onThemeChange);
+  }, []);
+
   // Policy automations: same as canAddOrDeletePolicies in ManagePoliciesPage
   const canManagePolicyAutomations =
     isGlobalAdmin ||
@@ -134,6 +160,11 @@ const CommandPalette = (): JSX.Element | null => {
     !isPrimoMode &&
     !!availableTeams &&
     availableTeams.length > 1;
+
+  // Display label for the fleet switcher button — falls back to the
+  // "All fleets" sentinel when no specific team is selected. Used in
+  // both the visible button text and the aria-label.
+  const fleetSwitcherLabel = currentTeam?.name || "All fleets";
 
   // Detect macOS so we can render the Cmd glyph (⌘) vs. "Ctrl" inline on
   // the fleet-switcher shortcut. navigator.platform is deprecated but
@@ -217,6 +248,13 @@ const CommandPalette = (): JSX.Element | null => {
   // underlying Radix Dialog.Content, and onOpenChange alone can't tell us
   // why the dialog is closing. So we flag Escape via a capture-phase
   // document listener and consume the flag in handleOpenChange.
+  //
+  // The architecturally cleaner alternative — composing Radix Dialog
+  // primitives directly so we can use `onEscapeKeyDown` — was considered
+  // and rejected: it requires either importing `@radix-ui/react-dialog`
+  // as a transitive dep (fragile if cmdk's pinned version changes) or
+  // promoting it to a direct dependency. Not worth the dep churn for an
+  // already-working defensive pattern.
   const pageRef = useRef(page);
   pageRef.current = page;
   const closeViaEscapeRef = useRef(false);
@@ -228,6 +266,15 @@ const CommandPalette = (): JSX.Element | null => {
     const onDocKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         closeViaEscapeRef.current = true;
+        // Radix's onOpenChange (if it fires) runs synchronously during
+        // event bubbling; handleOpenChange reads & clears the flag then.
+        // If a child element consumes the Escape (preventDefault /
+        // stopPropagation), Radix never fires onOpenChange and the flag
+        // would leak into the next close (e.g., a later click-outside).
+        // Schedule a microtask to clear it after the synchronous dispatch.
+        queueMicrotask(() => {
+          closeViaEscapeRef.current = false;
+        });
       }
     };
     document.addEventListener("keydown", onDocKey, true);
@@ -302,58 +349,83 @@ const CommandPalette = (): JSX.Element | null => {
     });
   }, []);
 
-  const items = buildCommandItems({
-    search,
-    currentTeam,
-    availableTeams,
-    config,
-    canAccessControls,
-    canWrite,
-    canRunLiveReport,
-    canAccessSettings,
-    canManagePolicyAutomations,
-    canManageSoftwareAutomations,
-    isTechnician,
-    isPremiumTier,
-    isPrimoMode,
-    isMacMdmEnabledAndConfigured,
-    isWindowsMdmEnabledAndConfigured,
-    isAndroidMdmEnabledAndConfigured,
-    isVppEnabled,
-    hasTeamSelected,
-    withTeamId,
-    onToggleDarkMode: () => {
-      setThemeMode(isDarkMode() ? "light" : "dark");
-      setOpen(false);
-    },
-    onViewHost: () => goToPage("view-host"),
-    onViewSoftware: () => goToPage("view-software"),
-    onViewSoftwareLibrary: () => goToPage("view-software-library"),
-    onViewReport: () => goToPage("view-report"),
-    onViewPolicy: () => goToPage("view-policy"),
-  });
+  // Memoize the item array on the values buildPaletteItems actually
+  // consumes. Inline onToggle/onView callbacks are intentionally excluded
+  // from deps — they only call already-stable setters/useCallback'd
+  // goToPage, so they don't change semantically across renders.
+  const items = useMemo(
+    () =>
+      buildPaletteItems({
+        search,
+        currentTeam,
+        availableTeams,
+        config,
+        canAccessControls,
+        canWrite,
+        canRunLiveReport,
+        canAccessSettings,
+        canManagePolicyAutomations,
+        canManageSoftwareAutomations,
+        isTechnician,
+        isPremiumTier,
+        isPrimoMode,
+        isDarkMode: isDarkModeActive,
+        isMacMdmEnabledAndConfigured,
+        isWindowsMdmEnabledAndConfigured,
+        isAndroidMdmEnabledAndConfigured,
+        isVppEnabled,
+        hasTeamSelected,
+        withTeamId,
+        onToggleDarkMode: () => {
+          setThemeMode(isDarkModeActive ? "light" : "dark");
+          setOpen(false);
+        },
+        onViewHost: () => goToPage("view-host"),
+        onViewSoftware: () => goToPage("view-software"),
+        onViewSoftwareLibrary: () => goToPage("view-software-library"),
+        onViewReport: () => goToPage("view-report"),
+        onViewPolicy: () => goToPage("view-policy"),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      search,
+      currentTeam,
+      availableTeams,
+      config,
+      canAccessControls,
+      canWrite,
+      canRunLiveReport,
+      canAccessSettings,
+      canManagePolicyAutomations,
+      canManageSoftwareAutomations,
+      isTechnician,
+      isPremiumTier,
+      isPrimoMode,
+      isDarkModeActive,
+      isMacMdmEnabledAndConfigured,
+      isWindowsMdmEnabledAndConfigured,
+      isAndroidMdmEnabledAndConfigured,
+      isVppEnabled,
+      hasTeamSelected,
+      withTeamId,
+      goToPage,
+    ]
+  );
 
-  const groupedItems = items.reduce<Record<string, ICommandItem[]>>(
-    (acc, item) => {
-      if (!acc[item.group]) {
-        acc[item.group] = [];
-      }
-      acc[item.group].push(item);
-      return acc;
-    },
-    {}
+  const groupedItems = useMemo(
+    () =>
+      items.reduce<Record<string, ICommandItem[]>>((acc, item) => {
+        if (!acc[item.group]) {
+          acc[item.group] = [];
+        }
+        acc[item.group].push(item);
+        return acc;
+      }, {}),
+    [items]
   );
 
   const isSearching = search.length > 0;
   const searchLower = search.toLowerCase().trim();
-
-  const getItemValue = (item: ICommandItem) => {
-    const parts = [item.label, ...(item.keywords ?? [])];
-    item.subItems?.forEach((sub) => {
-      parts.push(sub.label, ...(sub.keywords ?? []));
-    });
-    return parts.join(" ");
-  };
 
   // Map cmdk values (normalized) to parent item IDs for auto-expand on keyboard nav
   const valueToParentId = useMemo(() => {
@@ -382,20 +454,23 @@ const CommandPalette = (): JSX.Element | null => {
     [valueToParentId, isSearching]
   );
 
-  // Find exact match — an item or sub-item whose label exactly matches the search
-  const exactMatchIds = isSearching
-    ? new Set(
-        items.reduce<string[]>((acc, item) => {
-          if (item.label.toLowerCase() === searchLower) {
-            acc.push(item.id);
-          }
-          item.subItems
-            ?.filter((sub) => sub.label.toLowerCase() === searchLower)
-            .forEach((sub) => acc.push(sub.id));
-          return acc;
-        }, [])
-      )
-    : new Set<string>();
+  // Find exact match — an item or sub-item whose label exactly matches the
+  // search. Memoized so we don't rebuild the Set on every keystroke once
+  // items is stable.
+  const exactMatchIds = useMemo(() => {
+    if (!isSearching) return new Set<string>();
+    return new Set(
+      items.reduce<string[]>((acc, item) => {
+        if (item.label.toLowerCase() === searchLower) {
+          acc.push(item.id);
+        }
+        item.subItems
+          ?.filter((sub) => sub.label.toLowerCase() === searchLower)
+          .forEach((sub) => acc.push(sub.id));
+        return acc;
+      }, [])
+    );
+  }, [items, isSearching, searchLower]);
 
   const renderItem = (item: ICommandItem) => {
     const isExpanded = expandedItems.has(item.id);
@@ -468,21 +543,20 @@ const CommandPalette = (): JSX.Element | null => {
   };
 
   // Collect exact match items for the "Best match" section
-  const exactMatchItems =
-    exactMatchIds.size > 0
-      ? items.reduce<Array<{ item: ICommandItem; sub?: ICommandSubItem }>>(
-          (acc, item) => {
-            if (exactMatchIds.has(item.id)) {
-              acc.push({ item });
-            }
-            item.subItems
-              ?.filter((sub) => exactMatchIds.has(sub.id))
-              .forEach((sub) => acc.push({ item, sub }));
-            return acc;
-          },
-          []
-        )
-      : [];
+  const exactMatchItems = useMemo(() => {
+    if (exactMatchIds.size === 0) return [];
+    return items.reduce<
+      Array<{ item: ICommandItem; sub?: ICommandSubItem }>
+    >((acc, item) => {
+      if (exactMatchIds.has(item.id)) {
+        acc.push({ item });
+      }
+      item.subItems
+        ?.filter((sub) => exactMatchIds.has(sub.id))
+        .forEach((sub) => acc.push({ item, sub }));
+      return acc;
+    }, []);
+  }, [items, exactMatchIds]);
 
   const renderRootPage = () => (
     <>
@@ -597,14 +671,8 @@ const CommandPalette = (): JSX.Element | null => {
         if (value.startsWith("EXACT_MATCH ")) {
           return 1;
         }
-        // Host & software results are pre-filtered by the server; show
-        // everything we got.
-        if (
-          value.startsWith("HOST_RESULT ") ||
-          value.startsWith("SOFTWARE_RESULT ") ||
-          value.startsWith("REPORT_RESULT ") ||
-          value.startsWith("POLICY_RESULT ")
-        ) {
+        // Picker results are pre-filtered by the server; show everything.
+        if (isPreFilteredResult(value)) {
           return 1;
         }
         // Default cmdk filtering
@@ -636,6 +704,10 @@ const CommandPalette = (): JSX.Element | null => {
         {page === "root" && canSwitchFleet && (
           <button
             type="button"
+            // Locks the accessible name to the team name so the kbd
+            // shortcut pills (aria-hidden) can't pollute it later if
+            // the markup changes.
+            aria-label={`Switch fleet (currently ${fleetSwitcherLabel})`}
             className={`${baseClass}__fleet-switcher`}
             onClick={() => goToPage("switch-fleet")}
             onKeyDown={(e) => {
@@ -648,7 +720,7 @@ const CommandPalette = (): JSX.Element | null => {
             }}
           >
             <span className={`${baseClass}__fleet-switcher-label`}>
-              {currentTeam?.name || "All fleets"}
+              {fleetSwitcherLabel}
             </span>
             <span
               aria-hidden
@@ -665,6 +737,13 @@ const CommandPalette = (): JSX.Element | null => {
           </button>
         )}
         {page !== "root" && <kbd className={`${baseClass}__esc-hint`}>ESC</kbd>}
+      </div>
+      {/* Announce sub-page transitions to screen readers — the placeholder
+          text changes but isn't reliably announced on its own. Strip the
+          trailing ellipsis so the announcement isn't verbalized as
+          "dot dot dot" by some screen readers. */}
+      <div role="status" aria-live="polite" className="sr-only">
+        {page === "root" ? "" : subPagePlaceholder?.replace(/\.{3}$/, "") ?? ""}
       </div>
       <Command.List className={`${baseClass}__list`}>
         {/* Sub-pages render their own contextual empty state, so only show

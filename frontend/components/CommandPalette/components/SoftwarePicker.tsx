@@ -1,8 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Command } from "cmdk";
-import { useQuery } from "react-query";
 
-import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
+import {
+  APP_CONTEXT_ALL_TEAMS_ID,
+  APP_CONTEXT_NO_TEAM_ID,
+  ITeamSummary,
+} from "interfaces/team";
+import { getFleetSuffix } from "./pickerCopy";
 import {
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
@@ -14,10 +18,12 @@ import softwareAPI, {
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import { InstallIconWithTooltip } from "components/TableContainer/DataTable/SoftwareNameCell/SoftwareNameCell";
 
+import usePickerSearch from "./usePickerSearch";
+import { RESULT_PREFIXES } from "./constants";
+
 const baseClass = "command-palette";
 
 const SOFTWARE_SEARCH_LIMIT = 50;
-const SOFTWARE_SEARCH_DEBOUNCE_MS = 200;
 
 type SoftwareScope = "inventory" | "library";
 
@@ -51,48 +57,42 @@ const SoftwarePicker = ({
   scope = "inventory",
   onSelect,
 }: ISoftwarePickerProps): JSX.Element => {
-  // Debounce the raw search input so we don't fire a request per keystroke.
-  const [debouncedQuery, setDebouncedQuery] = useState(search.trim());
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      setDebouncedQuery(search.trim());
-    }, SOFTWARE_SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(id);
-  }, [search]);
-
-  // Software inventory is team-scoped — different fleets have different
-  // installed apps. The picker shows what's relevant to the user's current
-  // fleet context.
   const teamId =
     currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID
       ? currentTeam.id
       : undefined;
-  const fleetLabel =
-    currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID
-      ? currentTeam.name
-      : "All fleets";
+
+  const fleetSuffix = getFleetSuffix(currentTeam);
+
+  // For library copy ("No software in X's library.") we need a possessive
+  // form. Library is hidden on All fleets so that branch shouldn't
+  // render here, but we still default defensively.
+  const libraryOwner = (() => {
+    if (currentTeam && currentTeam.id > 0) return `${currentTeam.name}'s library`;
+    if (currentTeam?.id === APP_CONTEXT_NO_TEAM_ID) return "this fleet's library";
+    return "the library";
+  })();
 
   const libraryOnly = scope === "library";
 
-  const { data, isLoading } = useQuery<ISoftwareTitlesResponse, Error>(
-    ["commandPaletteSoftware", scope, teamId, debouncedQuery],
-    () =>
+  const { items: titles, isLoading, debouncedQuery } = usePickerSearch<
+    ISoftwareTitlesResponse,
+    ISoftwareTitle
+  >({
+    search,
+    queryKeyPrefix: ["commandPaletteSoftware", scope, teamId ?? "global"],
+    queryFn: (q) =>
       softwareAPI.getSoftwareTitles({
         page: 0,
         perPage: SOFTWARE_SEARCH_LIMIT,
         teamId,
         availableForInstall: libraryOnly || undefined,
-        query: debouncedQuery || undefined,
+        query: q || undefined,
         orderKey: "name",
         orderDirection: "asc",
       }),
-    {
-      keepPreviousData: true,
-      staleTime: 30000,
-    }
-  );
-
-  const titles = data?.software_titles ?? [];
+    selectItems: (data) => data?.software_titles ?? [],
+  });
 
   if (isLoading && titles.length === 0) {
     return <div className={`${baseClass}__empty`}>Looking for software...</div>;
@@ -102,12 +102,12 @@ const SoftwarePicker = ({
     let emptyMessage: string;
     if (libraryOnly) {
       emptyMessage = debouncedQuery
-        ? `No library software matches "${debouncedQuery}" in ${fleetLabel}.`
-        : `No software in ${fleetLabel}'s library.`;
+        ? `No library software matches "${debouncedQuery}" in ${libraryOwner}.`
+        : `No software in ${libraryOwner}.`;
     } else {
       emptyMessage = debouncedQuery
-        ? `No software matches "${debouncedQuery}" in ${fleetLabel}.`
-        : `No software found in ${fleetLabel}.`;
+        ? `No software matches "${debouncedQuery}"${fleetSuffix}.`
+        : `No software found${fleetSuffix}.`;
     }
     return <div className={`${baseClass}__empty`}>{emptyMessage}</div>;
   }
@@ -118,12 +118,10 @@ const SoftwarePicker = ({
         const label = title.display_name || title.name;
         const typeLabel = formatSoftwareType(title);
         const installerProps = getInstallerProps(title);
-        // value prefixed with SOFTWARE_RESULT so cmdk's local filter passes
-        // it through — the server already filtered by debouncedQuery.
         return (
           <Command.Item
             key={`software-${title.id}`}
-            value={`SOFTWARE_RESULT ${title.id}`}
+            value={`${RESULT_PREFIXES.software}${title.id}`}
             onSelect={() => onSelect(title.id)}
             className={`${baseClass}__item`}
           >

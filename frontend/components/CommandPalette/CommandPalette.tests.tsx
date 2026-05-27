@@ -189,12 +189,111 @@ describe("CommandPalette", () => {
     });
   });
 
+  describe("Keyboard shortcuts", () => {
+    it("opens the switch-fleet sub-page on Cmd+Shift+F", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText("Search a fleet...")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("Cmd+Shift+F also opens the palette directly to switch-fleet from closed", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      // Don't openPalette first — verify cold-start behavior.
+      await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText("Search a fleet...")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("Escape returns to root from a sub-page instead of closing", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      // Navigate into the switch-fleet sub-page
+      await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText("Search a fleet...")
+        ).toBeInTheDocument();
+      });
+
+      // ESC should take us back to root, not close the dialog
+      await user.keyboard("{Escape}");
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText("Search for a page or command...")
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("Escape closes the palette when on the root page", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      await user.keyboard("{Escape}");
+      await waitFor(() => {
+        expect(
+          screen.queryByPlaceholderText(/search/i)
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it("Backspace on empty input goes back from a sub-page", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+      await user.keyboard("{Meta>}{Shift>}f{/Shift}{/Meta}");
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText("Search a fleet...")
+        ).toBeInTheDocument();
+      });
+
+      // Backspace with empty input → root page
+      await user.keyboard("{Backspace}");
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText("Search for a page or command...")
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
   describe("Sign out", () => {
     it("renders Sign out under the Commands group", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);
 
       expect(screen.getByText("Sign out")).toBeInTheDocument();
+    });
+  });
+
+  describe("Dark mode reactivity", () => {
+    it("updates the toggle-dark-mode label on fleet-theme-change events", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      // Initial render — theme defaults to light in tests.
+      expect(screen.getByText("Switch to dark mode")).toBeInTheDocument();
+
+      // Simulate the theme flipping to dark from elsewhere (system theme,
+      // another tab, sibling component).
+      window.dispatchEvent(
+        new CustomEvent("fleet-theme-change", { detail: { dark: true } })
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Switch to light mode")).toBeInTheDocument();
+      });
     });
   });
 

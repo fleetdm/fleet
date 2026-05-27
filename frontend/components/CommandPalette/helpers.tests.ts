@@ -1,6 +1,6 @@
 import createMockConfig from "__mocks__/configMock";
 
-import { buildCommandItems, GROUPS, ICommandPaletteContext } from "./helpers";
+import { buildPaletteItems, GROUPS, ICommandPaletteContext } from "./helpers";
 
 const BASE_CONTEXT: ICommandPaletteContext = {
   search: "",
@@ -44,9 +44,9 @@ describe("CommandPalette helpers", () => {
     });
   });
 
-  describe("buildCommandItems", () => {
+  describe("buildPaletteItems", () => {
     it("returns items for a global admin with a team selected", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: true,
         currentTeam: { id: 1, name: "Engineering" },
@@ -64,7 +64,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("hides controls on All fleets", () => {
-      const items = buildCommandItems(BASE_CONTEXT);
+      const items = buildPaletteItems(BASE_CONTEXT);
       const ids = items.map((i) => i.id);
       expect(ids).not.toContain("controls-page");
       expect(ids).not.toContain("controls-os-updates");
@@ -72,7 +72,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("excludes controls for observers", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         canAccessControls: false,
         canWrite: false,
@@ -89,7 +89,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("excludes settings for non-global-admins", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         canAccessSettings: false,
         canManageSoftwareAutomations: false,
@@ -103,10 +103,10 @@ describe("CommandPalette helpers", () => {
     });
 
     it("shows packs only when searching for 'packs'", () => {
-      const itemsNoSearch = buildCommandItems(BASE_CONTEXT);
+      const itemsNoSearch = buildPaletteItems(BASE_CONTEXT);
       expect(itemsNoSearch.map((i) => i.id)).not.toContain("packs");
 
-      const itemsWithSearch = buildCommandItems({
+      const itemsWithSearch = buildPaletteItems({
         ...BASE_CONTEXT,
         search: "packs",
       });
@@ -116,7 +116,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("does not show packs when searching for 'package'", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         search: "package",
       });
@@ -126,7 +126,7 @@ describe("CommandPalette helpers", () => {
     it("omits the teamName chip when destination matches current context", () => {
       // On Engineering, every action either stays on Engineering or goes
       // there — no chip should render.
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: true,
         currentTeam: { id: 1, name: "Engineering" },
@@ -140,7 +140,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("shows 'Unassigned' on add-hosts and manage-enroll-secrets when on All fleets", () => {
-      const items = buildCommandItems(BASE_CONTEXT);
+      const items = buildPaletteItems(BASE_CONTEXT);
 
       const addHosts = items.find((i) => i.id === "add-hosts");
       expect(addHosts?.teamName).toBe("Unassigned");
@@ -152,13 +152,13 @@ describe("CommandPalette helpers", () => {
     it("omits the 'All fleets' chip on default-context actions when already on All fleets", () => {
       // add-report stays on All fleets when invoked from All fleets — no
       // switch, no chip.
-      const items = buildCommandItems(BASE_CONTEXT);
+      const items = buildPaletteItems(BASE_CONTEXT);
       const addReport = items.find((i) => i.id === "add-report");
       expect(addReport?.teamName).toBeUndefined();
     });
 
     it("shows 'All fleets' on default-context actions when on Unassigned", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: false,
         currentTeam: { id: 0, name: "No team" },
@@ -169,7 +169,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("omits the 'Unassigned' chip on add-hosts when already on Unassigned", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: false,
         currentTeam: { id: 0, name: "No team" },
@@ -180,7 +180,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("shows 'Turn on' MDM when not configured", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         isMacMdmEnabledAndConfigured: false,
         isWindowsMdmEnabledAndConfigured: false,
@@ -196,7 +196,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("shows 'Edit' MDM when configured", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         isMacMdmEnabledAndConfigured: true,
         isWindowsMdmEnabledAndConfigured: true,
@@ -217,7 +217,7 @@ describe("CommandPalette helpers", () => {
         apple_bm_enabled_and_configured: false,
       };
 
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         config: configNoAbm,
       });
@@ -228,7 +228,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("shows 'Edit ABM' when ABM is configured", () => {
-      const items = buildCommandItems(BASE_CONTEXT);
+      const items = buildPaletteItems(BASE_CONTEXT);
 
       const abm = items.find((i) => i.id === "edit-abm");
       expect(abm).toBeDefined();
@@ -236,7 +236,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("shows 'Edit VPP' when VPP is enabled", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         isVppEnabled: true,
       });
@@ -247,7 +247,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("shows team-scoped policy automations when premium and team selected", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: true,
         currentTeam: { id: 1, name: "Engineering" },
@@ -264,7 +264,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("excludes team-scoped policy automations when no team selected", () => {
-      const items = buildCommandItems(BASE_CONTEXT);
+      const items = buildPaletteItems(BASE_CONTEXT);
 
       const policyAutomations = items.find(
         (i) => i.id === "manage-policy-automations"
@@ -277,7 +277,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("excludes certificates and passwords for technicians", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         isTechnician: true,
         hasTeamSelected: true,
@@ -292,7 +292,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("includes certificates and passwords for non-technicians", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: true,
         currentTeam: { id: 1, name: "Engineering" },
@@ -307,7 +307,7 @@ describe("CommandPalette helpers", () => {
     it("appends fleet_id via withTeamId for team-scoped paths", () => {
       const mockWithTeamId = (path: string) => `${path}?fleet_id=5`;
 
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         withTeamId: mockWithTeamId,
         hasTeamSelected: true,
@@ -321,7 +321,7 @@ describe("CommandPalette helpers", () => {
     it("includes manage software automations without a teamName chip on All fleets", () => {
       // Only visible on All fleets, destination is All fleets — no switch,
       // no chip.
-      const items = buildCommandItems(BASE_CONTEXT);
+      const items = buildPaletteItems(BASE_CONTEXT);
 
       const swAuto = items.find((i) => i.id === "manage-software-automations");
       expect(swAuto).toBeDefined();
@@ -330,7 +330,7 @@ describe("CommandPalette helpers", () => {
 
     it("calls onToggleDarkMode for the dark mode item", () => {
       const mockToggle = jest.fn();
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         onToggleDarkMode: mockToggle,
       });
@@ -341,8 +341,26 @@ describe("CommandPalette helpers", () => {
       expect(mockToggle).toHaveBeenCalled();
     });
 
+    it("toggle-dark-mode label reflects the isDarkMode context flag", () => {
+      const lightItems = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isDarkMode: false,
+      });
+      expect(
+        lightItems.find((i) => i.id === "toggle-dark-mode")?.label
+      ).toBe("Switch to dark mode");
+
+      const darkItems = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isDarkMode: true,
+      });
+      expect(darkItems.find((i) => i.id === "toggle-dark-mode")?.label).toBe(
+        "Switch to light mode"
+      );
+    });
+
     it("hides software add, script, and variable actions on All fleets", () => {
-      const items = buildCommandItems(BASE_CONTEXT);
+      const items = buildPaletteItems(BASE_CONTEXT);
       const ids = items.map((i) => i.id);
 
       expect(ids).not.toContain("add-fleet-maintained-app");
@@ -354,7 +372,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("shows software add, script, and variable actions on Unassigned", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: false,
         currentTeam: { id: 0, name: "No team" },
@@ -369,21 +387,24 @@ describe("CommandPalette helpers", () => {
       expect(ids).toContain("add-custom-variable");
     });
 
-    it("hides Users page for non-admins", () => {
-      const items = buildCommandItems({
+    it("hides the Users settings item for non-admins", () => {
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         canAccessSettings: false,
         canManageSoftwareAutomations: false,
       });
 
-      expect(items.map((i) => i.id)).not.toContain("users-page");
+      // `settings-users` lives in the Settings group and is gated on
+      // canAccessSettings. (The old `users-page` Pages-group entry was
+      // removed because it pointed to the same destination.)
+      expect(items.map((i) => i.id)).not.toContain("settings-users");
     });
 
     it("shows Software library on Unassigned but not All fleets", () => {
-      const allFleetsItems = buildCommandItems(BASE_CONTEXT);
+      const allFleetsItems = buildPaletteItems(BASE_CONTEXT);
       expect(allFleetsItems.map((i) => i.id)).not.toContain("software-library");
 
-      const unassignedItems = buildCommandItems({
+      const unassignedItems = buildPaletteItems({
         ...BASE_CONTEXT,
         hasTeamSelected: false,
         currentTeam: { id: 0, name: "No team" },
@@ -392,7 +413,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("includes Run live report and Run live policy for writers", () => {
-      const items = buildCommandItems(BASE_CONTEXT);
+      const items = buildPaletteItems(BASE_CONTEXT);
       const ids = items.map((i) => i.id);
 
       expect(ids).toContain("run-live-report");
@@ -400,7 +421,7 @@ describe("CommandPalette helpers", () => {
     });
 
     it("excludes Run live report and Run live policy for observers", () => {
-      const items = buildCommandItems({
+      const items = buildPaletteItems({
         ...BASE_CONTEXT,
         canWrite: false,
         canRunLiveReport: false,
@@ -416,15 +437,130 @@ describe("CommandPalette helpers", () => {
     });
 
     it("shows Create fleet only for admins", () => {
-      const adminItems = buildCommandItems(BASE_CONTEXT);
+      const adminItems = buildPaletteItems(BASE_CONTEXT);
       expect(adminItems.map((i) => i.id)).toContain("create-fleet");
 
-      const nonAdminItems = buildCommandItems({
+      const nonAdminItems = buildPaletteItems({
         ...BASE_CONTEXT,
         canAccessSettings: false,
         canManageSoftwareAutomations: false,
       });
       expect(nonAdminItems.map((i) => i.id)).not.toContain("create-fleet");
+    });
+  });
+
+  describe("Fleet Free (isPremiumTier: false)", () => {
+    const FREE_CONTEXT = {
+      ...BASE_CONTEXT,
+      isPremiumTier: false,
+      // Free has a single implicit fleet; mirror what AppContext would set.
+      hasTeamSelected: true as const,
+      currentTeam: { id: 1, name: "Engineering" },
+    };
+
+    it("hides all software-add commands", () => {
+      const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
+      expect(ids).not.toContain("add-fleet-maintained-app");
+      expect(ids).not.toContain("add-vpp-app");
+      expect(ids).not.toContain("add-android-app-store-app");
+      expect(ids).not.toContain("add-custom-package");
+    });
+
+    it("hides the Setup Experience parent and all its sub-items", () => {
+      const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
+      expect(ids).not.toContain("controls-setup-experience");
+      // Sub-items live under controls-setup-experience.subItems; absence
+      // of the parent is sufficient.
+    });
+
+    it("hides Disk encryption, Certificates, and Passwords OS-settings sub-items", () => {
+      const osSettings = buildPaletteItems(FREE_CONTEXT).find(
+        (i) => i.id === "controls-os-settings"
+      );
+      const subIds = osSettings?.subItems?.map((s) => s.id) ?? [];
+      expect(subIds).not.toContain("controls-disk-encryption");
+      expect(subIds).not.toContain("controls-certificates");
+      expect(subIds).not.toContain("controls-passwords");
+      // Configuration profiles is not premium-gated; keep it.
+      expect(subIds).toContain("controls-custom-settings");
+    });
+
+    it("hides MDM ABM and VPP commands", () => {
+      const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
+      expect(ids).not.toContain("add-abm");
+      expect(ids).not.toContain("edit-abm");
+      expect(ids).not.toContain("add-vpp");
+      expect(ids).not.toContain("edit-vpp");
+    });
+
+    it("hides premium integrations settings sub-items", () => {
+      const integrations = buildPaletteItems(FREE_CONTEXT).find(
+        (i) => i.id === "settings-integrations"
+      );
+      const subIds = integrations?.subItems?.map((s) => s.id) ?? [];
+      expect(subIds).not.toContain("settings-int-calendars");
+      expect(subIds).not.toContain("settings-int-change-management");
+      expect(subIds).not.toContain("settings-int-certificate-authorities");
+      expect(subIds).not.toContain("add-certificate-authority");
+      expect(subIds).not.toContain("settings-int-conditional-access");
+    });
+
+    it("hides settings-fleets, create-fleet, and view-software-library", () => {
+      const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
+      expect(ids).not.toContain("settings-fleets");
+      expect(ids).not.toContain("create-fleet");
+      expect(ids).not.toContain("view-software-library");
+    });
+  });
+
+  describe("Primo Mode (isPrimoMode: true)", () => {
+    const PRIMO_CONTEXT = {
+      ...BASE_CONTEXT,
+      isPrimoMode: true,
+      hasTeamSelected: true as const,
+      currentTeam: { id: 7, name: "Default" },
+    };
+
+    it("hides settings-fleets and create-fleet", () => {
+      const ids = buildPaletteItems(PRIMO_CONTEXT).map((i) => i.id);
+      expect(ids).not.toContain("settings-fleets");
+      expect(ids).not.toContain("create-fleet");
+    });
+
+    it("shows manage-software-automations (Primo treats single fleet as all)", () => {
+      const ids = buildPaletteItems(PRIMO_CONTEXT).map((i) => i.id);
+      expect(ids).toContain("manage-software-automations");
+    });
+
+    it("suppresses all teamName chips because Primo never switches fleet context", () => {
+      const items = buildPaletteItems(PRIMO_CONTEXT);
+      const itemsWithChips = items.filter((i) => i.teamName !== undefined);
+      expect(itemsWithChips).toHaveLength(0);
+    });
+
+    it("does not synthesize an 'Unassigned' or 'All fleets' chip on add-hosts", () => {
+      const addHosts = buildPaletteItems(PRIMO_CONTEXT).find(
+        (i) => i.id === "add-hosts"
+      );
+      expect(addHosts?.teamName).toBeUndefined();
+    });
+  });
+
+  describe("GitOps Mode", () => {
+    it("hides create-fleet when GitOps mode is configured", () => {
+      const gitopsConfig = createMockConfig();
+      gitopsConfig.gitops = {
+        ...gitopsConfig.gitops,
+        gitops_mode_enabled: true,
+        repository_url: "https://github.com/fleetdm/fleet-config",
+      };
+
+      const ids = buildPaletteItems({
+        ...BASE_CONTEXT,
+        config: gitopsConfig,
+      }).map((i) => i.id);
+
+      expect(ids).not.toContain("create-fleet");
     });
   });
 });

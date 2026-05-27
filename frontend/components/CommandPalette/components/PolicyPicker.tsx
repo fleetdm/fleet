@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Command } from "cmdk";
-import { useQuery } from "react-query";
 
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -8,12 +7,16 @@ import teamPoliciesAPI from "services/entities/team_policies";
 import {
   ILoadAllPoliciesResponse,
   ILoadTeamPoliciesResponse,
+  IPolicyStats,
 } from "interfaces/policy";
+
+import usePickerSearch from "./usePickerSearch";
+import { RESULT_PREFIXES } from "./constants";
+import { getFleetSuffix } from "./pickerCopy";
 
 const baseClass = "command-palette";
 
 const POLICY_SEARCH_LIMIT = 50;
-const POLICY_SEARCH_DEBOUNCE_MS = 200;
 
 interface IPolicyPickerProps {
   search: string;
@@ -26,52 +29,39 @@ const PolicyPicker = ({
   currentTeam,
   onSelect,
 }: IPolicyPickerProps): JSX.Element => {
-  const [debouncedQuery, setDebouncedQuery] = useState(search.trim());
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      setDebouncedQuery(search.trim());
-    }, POLICY_SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(id);
-  }, [search]);
-
   const teamId =
     currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID
       ? currentTeam.id
       : undefined;
-  const fleetLabel =
-    currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID
-      ? currentTeam.name
-      : "All fleets";
 
-  // Policies live in two APIs: global (no team / All fleets) and team
-  // (specific team or Unassigned). Branch on teamId.
-  const { data, isLoading } = useQuery<
+  const fleetSuffix = getFleetSuffix(currentTeam);
+
+  const { items: policies, isLoading, debouncedQuery } = usePickerSearch<
     ILoadAllPoliciesResponse | ILoadTeamPoliciesResponse,
-    Error
-  >(
-    ["commandPalettePolicies", teamId ?? "global", debouncedQuery],
-    () => {
+    IPolicyStats
+  >({
+    search,
+    queryKeyPrefix: ["commandPalettePolicies", teamId ?? "global"],
+    queryFn: (q) => {
       if (teamId !== undefined) {
         return teamPoliciesAPI.loadAllNew({
           teamId,
           page: 0,
           perPage: POLICY_SEARCH_LIMIT,
-          query: debouncedQuery || undefined,
+          query: q || undefined,
+          // Surface inherited global policies in team views, matching the
+          // Policies page behavior.
+          mergeInherited: true,
         });
       }
       return globalPoliciesAPI.loadAllNew({
         page: 0,
         perPage: POLICY_SEARCH_LIMIT,
-        query: debouncedQuery || undefined,
+        query: q || undefined,
       });
     },
-    {
-      keepPreviousData: true,
-      staleTime: 30000,
-    }
-  );
-
-  const policies = data?.policies ?? [];
+    selectItems: (data) => data?.policies ?? [],
+  });
 
   if (isLoading && policies.length === 0) {
     return (
@@ -83,8 +73,8 @@ const PolicyPicker = ({
     return (
       <div className={`${baseClass}__empty`}>
         {debouncedQuery
-          ? `No policies match "${debouncedQuery}" in ${fleetLabel}.`
-          : `No policies found in ${fleetLabel}.`}
+          ? `No policies match "${debouncedQuery}"${fleetSuffix}.`
+          : `No policies found${fleetSuffix}.`}
       </div>
     );
   }
@@ -94,7 +84,7 @@ const PolicyPicker = ({
       {policies.map((policy) => (
         <Command.Item
           key={`policy-${policy.id}`}
-          value={`POLICY_RESULT ${policy.id}`}
+          value={`${RESULT_PREFIXES.policy}${policy.id}`}
           onSelect={() => onSelect(policy.id)}
           className={`${baseClass}__item`}
         >
