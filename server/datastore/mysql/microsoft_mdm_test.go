@@ -70,6 +70,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
+		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
 	}
 
 	for _, c := range cases {
@@ -6350,4 +6351,49 @@ func testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(t *testing.T, ds *Dat
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err),
 		"all matching rows now linked; method must return NotFound")
+}
+
+func testWindowsHostLiteByHardwareSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// 1. Empty serial → NotFound.
+	_, err := ds.WindowsHostLiteByHardwareSerial(ctx, "")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// 2. No matching host → NotFound.
+	_, err = ds.WindowsHostLiteByHardwareSerial(ctx, "SERIAL-DOES-NOT-EXIST")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// 3. Single matching Windows host → returns it.
+	winHost := test.NewHost(t, ds, "win-by-serial", "10.0.0.50", "win-by-serial-key", "win-by-serial-uuid", time.Now())
+	winHost.Platform = "windows"
+	winHost.HardwareSerial = "SERIAL-WIN-1"
+	require.NoError(t, ds.UpdateHost(ctx, winHost))
+
+	got, err := ds.WindowsHostLiteByHardwareSerial(ctx, "SERIAL-WIN-1")
+	require.NoError(t, err)
+	require.Equal(t, winHost.ID, got.ID)
+	require.Equal(t, winHost.UUID, got.UUID)
+
+	// 4. Non-Windows host with the same serial must not match (platform filter prevents cross-platform mis-linkage).
+	macHost := test.NewHost(t, ds, "mac-same-serial", "10.0.0.51", "mac-same-serial-key", "mac-same-serial-uuid", time.Now())
+	macHost.Platform = "darwin"
+	macHost.HardwareSerial = "SERIAL-WIN-1"
+	require.NoError(t, ds.UpdateHost(ctx, macHost))
+
+	got, err = ds.WindowsHostLiteByHardwareSerial(ctx, "SERIAL-WIN-1")
+	require.NoError(t, err)
+	require.Equal(t, winHost.ID, got.ID, "must return the Windows host even when a darwin host shares the serial")
+
+	// 5. Two Windows hosts sharing the same serial → NotFound (linkage would be ambiguous).
+	winHostDup := test.NewHost(t, ds, "win-by-serial-dup", "10.0.0.52", "win-by-serial-dup-key", "win-by-serial-dup-uuid", time.Now())
+	winHostDup.Platform = "windows"
+	winHostDup.HardwareSerial = "SERIAL-WIN-1"
+	require.NoError(t, ds.UpdateHost(ctx, winHostDup))
+
+	_, err = ds.WindowsHostLiteByHardwareSerial(ctx, "SERIAL-WIN-1")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "two Windows hosts share the serial; method must refuse to pick")
 }

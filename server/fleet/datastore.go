@@ -2111,6 +2111,12 @@ type Datastore interface {
 	// find a row because the host->enrollment link has not been resolved yet.
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx context.Context, deviceName string) (*MDMWindowsEnrolledDevice, error)
 
+	// WindowsHostLiteByHardwareSerial returns a HostLite for the Windows host whose hardware_serial matches the given
+	// serial. Used to link an unlinked Windows MDM enrollment to a host using SMBIOS data reported via OMA-DM DevDetail
+	// before osquery's directIngestMDMDeviceIDWindows has run. Returns NotFound if no Windows host matches or if multiple
+	// Windows hosts share the same serial (which would make the linkage ambiguous).
+	WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*HostLite, error)
+
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
 

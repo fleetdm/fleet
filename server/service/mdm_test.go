@@ -3152,3 +3152,162 @@ func TestGetDeviceSoftwareMDMCommandResultsVPPMetadata(t *testing.T) {
 		require.False(t, ds.GetVPPAppInstallStatusByCommandUUIDFuncInvoked)
 	})
 }
+
+// TestProcessIncomingMDMCmdsDevDetailLinkage exercises the OMA-DM DevDetail-based linkage path that closes the race
+// where mdm_windows_enrollments.host_uuid is empty after Azure / automatic enrollment. See issue #45380. The primary
+// linkage mechanism is implemented in processIncomingMDMCmds: when an enrollment row has empty host_uuid, the server
+// (a) parses any incoming Results for ./DevDetail/Ext/Microsoft/SMBIOSSerialNumber and links the host, then
+// (b) injects a Get for the same URI into the outgoing response so the device replies on the next round-trip.
+func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
+	const (
+		testDeviceID      = "test-device-id"
+		testSerial        = "ABC123XYZ"
+		testHostUUID      = "host-uuid-from-osquery"
+		testHostID   uint = 99
+	)
+
+	// buildReqMsg builds a minimal valid SyncML request. extraBody (if non-empty) is inserted into <SyncBody>; use it to
+	// inject a <Results> with the device's reply to our DevDetail Get.
+	buildReqMsg := func(t *testing.T, extraBody string) *fleet.SyncML {
+		t.Helper()
+		raw := fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
+			<SyncHdr>
+				<VerDTD>1.2</VerDTD>
+				<VerProto>DM/1.2</VerProto>
+				<SessionID>1</SessionID>
+				<MsgID>1</MsgID>
+				<Source><LocURI>%s</LocURI></Source>
+			</SyncHdr>
+			<SyncBody>
+				%s
+				<Final/>
+			</SyncBody>
+		</SyncML>`, testDeviceID, extraBody)
+		reqMsg := &fleet.SyncML{}
+		require.NoError(t, xml.Unmarshal([]byte(raw), reqMsg))
+		reqMsg.Raw = []byte(raw)
+		return reqMsg
+	}
+
+	// newSvc builds a service with the stubs that processIncomingMDMCmds always touches; per-subtest stubs override.
+	newSvc := func(t *testing.T) (*Service, *mock.Store, context.Context) {
+		t.Helper()
+		ds := new(mock.Store)
+		opts := &TestServerOpts{}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		var svcImpl *Service
+		switch v := svc.(type) {
+		case validationMiddleware:
+			svcImpl = v.Service.(*Service)
+		case *Service:
+			svcImpl = v
+		}
+		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, _ fleet.EnrichedSyncML, _ []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+			return nil, nil
+		}
+		ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, cmdUUIDs []string) ([]*fleet.MDMWindowsCommand, error) {
+			return nil, nil
+		}
+		return svcImpl, ds, ctx
+	}
+
+	// hasGetForDevDetailSerial reports whether responseCmds contains a Get for the SMBIOS serial number URI.
+	hasGetForDevDetailSerial := func(cmds []*fleet.SyncMLCmd) bool {
+		for _, c := range cmds {
+			if c.XMLName.Local != fleet.CmdGet || len(c.Items) == 0 || c.Items[0].Target == nil {
+				continue
+			}
+			if *c.Items[0].Target == devDetailSMBIOSSerialNumberURI {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("unlinked enrollment: Get for DevDetail SMBIOSSerialNumber is injected", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+		reqMsg := buildReqMsg(t, "")
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.True(t, hasGetForDevDetailSerial(cmds), "expected a Get for SMBIOSSerialNumber on an unlinked enrollment")
+		assert.False(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked, "no Results present yet, so no host lookup expected")
+	})
+
+	t.Run("already-linked enrollment: no Get and no host lookup", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: testHostUUID}
+		reqMsg := buildReqMsg(t, "")
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, hasGetForDevDetailSerial(cmds), "linked enrollment must not inject a DevDetail Get")
+		assert.False(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+	})
+
+	t.Run("Results with SMBIOS serial trigger linkage and skip the redundant Get", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+
+		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, serial string) (*fleet.HostLite, error) {
+			assert.Equal(t, testSerial, serial)
+			return &fleet.HostLite{ID: testHostID, UUID: testHostUUID}, nil
+		}
+		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(_ context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+			assert.Equal(t, testHostUUID, hostUUID)
+			assert.Equal(t, testDeviceID, mdmDeviceID)
+			return true, nil
+		}
+		// Non-UPN enroll user means LinkWindowsHostMDMEnrollment skips the post-link UPN/SCIM bookkeeping.
+		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(_ context.Context, _ string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, MDMEnrollUserID: ""}, nil
+		}
+
+		extraBody := fmt.Sprintf(`<Results>
+				<CmdID>r1</CmdID>
+				<MsgRef>1</MsgRef>
+				<CmdRef>%s</CmdRef>
+				<Item>
+					<Source><LocURI>%s</LocURI></Source>
+					<Data>%s</Data>
+				</Item>
+			</Results>`, uuid.NewString(), devDetailSMBIOSSerialNumberURI, testSerial)
+		reqMsg := buildReqMsg(t, extraBody)
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+		assert.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+		assert.Equal(t, testHostUUID, enrolledDevice.HostUUID, "linkage should update in-memory HostUUID")
+		assert.False(t, hasGetForDevDetailSerial(cmds), "after successful linkage, no further Get should be injected")
+	})
+
+	t.Run("serial without matching host: Get is reinjected for retry", func(t *testing.T) {
+		svc, ds, ctx := newSvc(t)
+		enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: testDeviceID, HostUUID: ""}
+
+		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
+			return nil, sql.ErrNoRows
+		}
+
+		extraBody := fmt.Sprintf(`<Results>
+				<CmdID>r1</CmdID>
+				<MsgRef>1</MsgRef>
+				<CmdRef>%s</CmdRef>
+				<Item>
+					<Source><LocURI>%s</LocURI></Source>
+					<Data>%s</Data>
+				</Item>
+			</Results>`, uuid.NewString(), devDetailSMBIOSSerialNumberURI, testSerial)
+		reqMsg := buildReqMsg(t, extraBody)
+
+		cmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.True(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked)
+		assert.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+		assert.Empty(t, enrolledDevice.HostUUID, "no link means HostUUID stays empty")
+		assert.True(t, hasGetForDevDetailSerial(cmds), "without a host match, the Get is reinjected for the next session")
+	})
+}

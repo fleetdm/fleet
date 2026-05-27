@@ -3036,58 +3036,70 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 	if len(rows) > 1 {
 		return ctxerr.Errorf(ctx, "directIngestMDMDeviceIDWindows invalid number of rows: %d", len(rows))
 	}
-	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "updating windows mdm device id")
-	}
-	if updated {
-		device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, rows[0]["data"])
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
-		}
-		if device != nil && microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
-			// Update the host's MDM enrolled flags to show it as a manual enrollment. THis is to avoid
-			// it taking two full refreshes to show this
-			if device.MDMNotInOOBE {
-				err = ds.UpdateMDMInstalledFromDEP(ctx, host.ID, false)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
-				}
-			}
+	_, err := LinkWindowsHostMDMEnrollment(ctx, logger, ds, host.ID, host.UUID, rows[0]["data"])
+	return err
+}
 
-			mapping := []*fleet.HostDeviceMapping{
-				{
-					HostID: host.ID,
-					Email:  device.MDMEnrollUserID,
-					Source: fleet.DeviceMappingMDMIdpAccounts,
-				},
-			}
-			err = ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping, fleet.DeviceMappingMDMIdpAccounts)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
-			}
-			// Check if the user is a valid SCIM user to manage the join table
-			scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
-			if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
-				return ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
-			}
-			if err == nil && scimUser != nil {
-				// User exists in SCIM, create/update the mapping for additional attributes
-				// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-				if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
-					// Log the error but don't fail the request since the main IDP mapping succeeded
-					logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
-				}
-			} else {
-				// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-				if err := ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
-					// Log the error but don't fail the request
-					logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
-				}
-			}
+// LinkWindowsHostMDMEnrollment associates the Windows MDM enrollment for mdmDeviceID with the host identified by
+// (hostID, hostUUID). On the first time the linkage is established (i.e. mdm_windows_enrollments.host_uuid changes), it
+// also reconciles the host's IDP device mapping, SCIM user attribution, and DEP flag for Azure (Entra) enrollments,
+// matching the post-link bookkeeping that osquery's directIngestMDMDeviceIDWindows has historically performed.
+//
+// Returns true if the row was updated (first linkage or re-linkage to a different host), false if the enrollment was
+// already linked to this host. Callers should not treat false as an error.
+//
+// This helper is shared by the osquery direct-ingest path (legacy) and the OMA-DM DevDetail SyncML path (primary), so
+// both linkage triggers run the same post-link bookkeeping exactly once per linkage.
+func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string) (bool, error) {
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "updating windows mdm device id")
+	}
+	if !updated {
+		return false, nil
+	}
+	device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, mdmDeviceID)
+	if err != nil {
+		return updated, ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
+	}
+	if device == nil || !microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
+		return updated, nil
+	}
+	// Update the host's MDM enrolled flags to show it as a manual enrollment so it doesn't take two full refreshes to
+	// reflect this state.
+	if device.MDMNotInOOBE {
+		if err := ds.UpdateMDMInstalledFromDEP(ctx, hostID, false); err != nil {
+			return updated, ctxerr.Wrap(ctx, err, "updating windows mdm installed from dep flag")
 		}
 	}
-	return nil
+	mapping := []*fleet.HostDeviceMapping{
+		{
+			HostID: hostID,
+			Email:  device.MDMEnrollUserID,
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+	}
+	if err := ds.ReplaceHostDeviceMapping(ctx, hostID, mapping, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+		return updated, ctxerr.Wrap(ctx, err, "replacing host device mapping for windows mdm enrolled device")
+	}
+	// Check if the user is a valid SCIM user to manage the join table.
+	scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, device.MDMEnrollUserID, device.MDMEnrollUserID)
+	if err != nil && !fleet.IsNotFound(err) && err != sql.ErrNoRows {
+		return updated, ctxerr.Wrap(ctx, err, "find SCIM user for Windows Azure enrollment linking by username or email")
+	}
+	if err == nil && scimUser != nil {
+		// User exists in SCIM, create/update the mapping for additional attributes (idp_full_name, idp_groups, etc.).
+		if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
+			// Log the error but don't fail the linkage since the main IDP mapping succeeded.
+			logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
+		}
+	} else {
+		// User doesn't exist in SCIM, remove any existing SCIM mapping for this host.
+		if err := ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
+			logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
+		}
+	}
+	return updated, nil
 }
 
 var luksVerifyQuery = DetailQuery{
