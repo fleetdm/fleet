@@ -160,17 +160,10 @@ const HostHeader = ({
   const renderDeviceStatusTag = () => {
     if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
 
-    // Android: per #41683 product direction, show pending/done badges (Lock pending, Wipe pending,
-    // Unenroll pending, Clear passcode pending, Wiped) but NOT the "Locked" badge. AMAPI delivers
-    // no "device-is-still-locked" signal: the device unlocks locally via the user's PIN with no
-    // notification back to Fleet, so a "Locked" badge would be unreliable.
-    if (isAndroid(platform) && hostMdmDeviceStatus === "locked") return null;
-
     const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
 
-    // BYO Android Unenroll fires an AMAPI WIPE under the hood (work-profile-only), so the
-    // backend tracks it via wipe_ref and surfaces device_status="wiping". The admin clicked
-    // Unenroll, not Wipe, so override both the badge label and the tooltip copy here so they
+    // BYO Android Unenroll fires an AMAPI WIPE under the hood (work-profile-only), so the backend tracks it via wipe_ref and surfaces
+    // device_status="wiping". The admin clicked Unenroll, not Wipe, so override both the badge label and the tooltip copy here so they
     // describe the action the admin actually took.
     const isAndroidBYOWipe =
       isAndroid(platform) &&

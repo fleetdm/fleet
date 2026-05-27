@@ -1709,10 +1709,8 @@ const HostDetailsPage = ({
               enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
               onSuccess={() => {
-                // Android BYO unenroll fires an AMAPI WIPE work-profile-only command, which the
-                // backend tracks via wipe_ref / device_status="wiping". Optimistically flip the
-                // device state so the "Unenroll pending" badge (HostHeader's BYO override) shows
-                // immediately instead of waiting for the next host refetch.
+                // Android BYO unenroll fires an AMAPI WIPE work-profile-only command, which the backend tracks via wipe_ref / device_status="wiping".
+                // Optimistically flip the device state so the "Unenroll pending" badge shows immediately instead of waiting for the next host refetch.
                 if (
                   isAndroid(host.platform) &&
                   host.mdm.enrollment_status === "On (personal)"
@@ -1941,9 +1939,8 @@ const HostDetailsPage = ({
             hostMdmEnrollmentStatus={host.mdm.enrollment_status}
             onExit={toggleClearPasscodeModal}
             onSuccess={() => {
-              // Android: flip device_status to "clearing_passcode" so the badge appears and the
-              // dropdown hides Lock / Unenroll / Wipe / Clear passcode while the AMAPI command is
-              // in flight. iOS / iPadOS has no equivalent device-level pending state.
+              // Android: flip device_status to "clearing_passcode" so the badge appears.
+              // Apple follow up: #46286
               if (isAndroid(host.platform)) {
                 setHostMdmDeviceState("clearing_passcode");
               }

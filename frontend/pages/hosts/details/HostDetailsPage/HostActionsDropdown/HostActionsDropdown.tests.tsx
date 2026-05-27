@@ -1538,7 +1538,7 @@ describe("Host Actions Dropdown", () => {
     });
   });
 
-  describe("Android hosts (#41683)", () => {
+  describe("Android hosts", () => {
     it("renders Transfer + Clear passcode + Unenroll + Lock + Delete for a BYO Android host with MDM on", async () => {
       const render = createCustomRenderer({
         context: {
@@ -1620,48 +1620,6 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
     });
 
-    // canWipeAndroid allow-lists BOTH "On (automatic)" and "On (company-owned)" as COBO. The case
-    // above covers "On (automatic)"; this case guards the other allow-listed value against a
-    // regression in the allow-list.
-    it("renders Transfer + Clear passcode + Lock + Wipe + Delete for an Android host with enrollment status 'On (company-owned)'", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            isAndroidMdmEnabledAndConfigured: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostPlatform="android"
-          hostMdmEnrollmentStatus="On (company-owned)"
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus="unlocked"
-          hostScriptsEnabled={false}
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      expect(screen.queryByText("Transfer")).toBeInTheDocument();
-      expect(screen.queryByText("Lock")).toBeInTheDocument();
-      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
-      expect(screen.queryByText("Wipe")).toBeInTheDocument();
-      expect(screen.queryByText("Delete")).toBeInTheDocument();
-
-      expect(screen.queryByText("Unenroll")).not.toBeInTheDocument();
-      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
-      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
-    });
-
     it("does NOT show Wipe for an Android host with enrollment status 'On (manual)' (Wipe requires COBO; allow-list, not negative check)", async () => {
       const render = createCustomRenderer({
         context: {
@@ -1732,137 +1690,73 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Unenroll")).not.toBeInTheDocument();
     });
 
-    it("hides Lock, Wipe, and Clear passcode when pending lock on COBO Android (#41683)", async () => {
-      // Per Figma dev note (#41683): hide Lock / Unenroll / Wipe / Clear passcode whenever any of
-      // those four is pending. Lock pending -> hostMdmDeviceStatus = "locking".
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            isAndroidMdmEnabledAndConfigured: true,
-            currentUser: createMockUser(),
+    // hide Lock / Unenroll / Wipe / Clear passcode whenever any of those four is pending. The four canX helpers all gate on hostMdmDeviceStatus !== "unlocked",
+    // so one table covers the matrix:
+    //   - which COBO/BYO arm of the helpers we exercise (enrollment status)
+    //   - which pending state surfaces the gate (device status)
+    // For COBO, "Unenroll" is always hidden (COBO doesn't have it); the assertion list only
+    // includes options that would otherwise be visible for that enrollment.
+    it.each([
+      {
+        case: "COBO + locking",
+        enrollment: "On (automatic)" as const,
+        deviceStatus: "locking" as const,
+        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+      },
+      {
+        case: "COBO + wiping",
+        enrollment: "On (automatic)" as const,
+        deviceStatus: "wiping" as const,
+        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+      },
+      {
+        case: "COBO + clearing_passcode",
+        enrollment: "On (automatic)" as const,
+        deviceStatus: "clearing_passcode" as const,
+        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+      },
+      {
+        // BYO Android Unenroll fires AMAPI WIPE under the hood, so the pending-unenroll state
+        // surfaces as hostMdmDeviceStatus="wiping" with enrollment "On (personal)".
+        case: "BYO + wiping (= pending unenroll)",
+        enrollment: "On (personal)" as const,
+        deviceStatus: "wiping" as const,
+        expectHidden: ["Lock", "Clear passcode", "Unenroll"],
+      },
+    ])(
+      "hides pending-gated actions for Android when $case (#41683)",
+      async ({ enrollment, deviceStatus, expectHidden }) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: true,
+              isGlobalAdmin: true,
+              isAndroidMdmEnabledAndConfigured: true,
+              currentUser: createMockUser(),
+            },
           },
-        },
-      });
+        });
 
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostPlatform="android"
-          hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus="locking"
-          hostScriptsEnabled={false}
-        />
-      );
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="android"
+            hostMdmEnrollmentStatus={enrollment}
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus={deviceStatus}
+            hostScriptsEnabled={false}
+          />
+        );
 
-      await user.click(screen.getByText("Actions"));
+        await user.click(screen.getByText("Actions"));
 
-      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
-      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
-    });
-
-    it("hides Lock, Wipe, and Clear passcode when pending wipe on COBO Android (#41683)", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            isAndroidMdmEnabledAndConfigured: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostPlatform="android"
-          hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus="wiping"
-          hostScriptsEnabled={false}
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
-      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
-    });
-
-    it("hides Lock, Clear passcode, and Unenroll when pending wipe (= pending unenroll) on BYO Android (#41683)", async () => {
-      // BYO Android Unenroll fires an AMAPI WIPE under the hood, so the backend surfaces this as
-      // hostMdmDeviceStatus = "wiping" with enrollment status = "On (personal)".
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            isAndroidMdmEnabledAndConfigured: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostPlatform="android"
-          hostMdmEnrollmentStatus="On (personal)"
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus="wiping"
-          hostScriptsEnabled={false}
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
-      expect(screen.queryByText("Unenroll")).not.toBeInTheDocument();
-    });
-
-    it("hides Lock, Wipe, and Clear passcode when pending clear passcode on Android (#41683)", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            isAndroidMdmEnabledAndConfigured: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostPlatform="android"
-          hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus="clearing_passcode"
-          hostScriptsEnabled={false}
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
-      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
-    });
+        for (const label of expectHidden) {
+          expect(screen.queryByText(label)).not.toBeInTheDocument();
+        }
+      }
+    );
   });
 
   describe("personally enrolled hosts (e.g. enrollment status => On (personal)", () => {

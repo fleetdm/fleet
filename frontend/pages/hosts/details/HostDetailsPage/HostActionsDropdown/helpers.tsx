@@ -257,14 +257,16 @@ const canWipeHost = ({
     isIPadOrIPhone(hostPlatform) &&
     isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
 
-  // Android: Wipe is COBO-only.
+  // Android: Wipe is COBO-only. The COBO Android enrollment_status is "On (automatic)" today --
+  // matching the generated-column rule (enrolled=1 AND installed_from_dep=1 AND
+  // is_personal_enrollment=0). Explicit allow-list rather than a negative check so unrelated
+  // statuses ("On (manual)", "Pending", "Off") aren't accidentally permitted.
   const canWipeAndroid =
     isAndroid(hostPlatform) &&
     isAndroidMdmEnabledAndConfigured &&
     isConnectedToFleetMdm &&
     isEnrolledInMdm &&
-    (hostMdmEnrollmentStatus === "On (automatic)" ||
-      hostMdmEnrollmentStatus === "On (company-owned)");
+    hostMdmEnrollmentStatus === "On (automatic)";
 
   return (
     isPremiumTier &&
