@@ -49,7 +49,9 @@ const showAPIMessage = (message: string) => {
   return (
     message.includes("MDM is turned off") ||
     message.includes("No available licenses") ||
-    message.includes("Software title is not available for install")
+    message.includes("Software title is not available for install") ||
+    // BYOD VPP install before nanomdm has surfaced the host's Managed Apple ID.
+    message.includes("hasn't received a Managed Apple ID")
   );
 };
 
