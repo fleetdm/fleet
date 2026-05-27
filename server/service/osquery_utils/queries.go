@@ -3045,8 +3045,11 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 // also reconciles the host's IDP device mapping, SCIM user attribution, and DEP flag for Azure (Entra) enrollments,
 // matching the post-link bookkeeping that osquery's directIngestMDMDeviceIDWindows has historically performed.
 //
-// Returns true if the row was updated (first linkage or re-linkage to a different host), false if the enrollment was
-// already linked to this host. Callers should not treat false as an error.
+// Returns true when UpdateMDMWindowsEnrollmentsHostUUID actually changed the row, false when it did not. The "no
+// change" case covers two scenarios callers must not conflate with an error: (a) the enrollment was already linked to
+// this same hostUUID, so the `WHERE host_uuid <> ?` guard short-circuited; (b) no row matched mdmDeviceID at all (e.g.
+// the enrollment was deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
+// rather than infer it from the boolean alone.
 //
 // This helper is shared by the osquery direct-ingest path (legacy) and the OMA-DM DevDetail SyncML path (primary), so
 // both linkage triggers run the same post-link bookkeeping exactly once per linkage.

@@ -204,7 +204,10 @@ func (ds *Datastore) WindowsHostLiteByHardwareSerial(ctx context.Context, hardwa
 		WHERE h.hardware_serial = ? AND h.platform = 'windows'
 		LIMIT 2`
 	var hosts []*fleet.HostLite
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, hardwareSerial); err != nil {
+	// Read from the primary: the host row may have been written seconds ago (osquery enroll → directIngestMDM
+	// completes the host insert just before the first SyncML management session arrives). Replica lag here returns a
+	// false NotFound and the linkage waits another session, defeating the point of this path.
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hosts, stmt, hardwareSerial); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select windows host by hardware serial")
 	}
 	if len(hosts) != 1 {

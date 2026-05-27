@@ -1709,20 +1709,27 @@ func (svc *Service) tryLinkUnlinkedEnrollmentFromDevDetail(ctx context.Context, 
 	if reqMsg == nil {
 		return false
 	}
+	// A SyncML Results command can carry multiple Items; the device may include the SMBIOSSerialNumber alongside other
+	// DevDetail values in a single response. Scan every item in every Results command, not just Items[0], or a serial
+	// returned in a later position is missed and the Get gets reinjected forever.
 	var serial string
+scan:
 	for _, op := range reqMsg.GetOrderedCmds() {
-		if op.Verb != mdm_types.CmdResults || len(op.Cmd.Items) == 0 {
+		if op.Verb != mdm_types.CmdResults {
 			continue
 		}
-		item := op.Cmd.Items[0]
-		if item.Source == nil || *item.Source != devDetailSMBIOSSerialNumberURI {
-			continue
+		for _, item := range op.Cmd.Items {
+			if item.Source == nil || *item.Source != devDetailSMBIOSSerialNumberURI {
+				continue
+			}
+			if item.Data == nil {
+				continue
+			}
+			serial = strings.TrimSpace(item.Data.Content)
+			if serial != "" {
+				break scan
+			}
 		}
-		if item.Data == nil {
-			continue
-		}
-		serial = strings.TrimSpace(item.Data.Content)
-		break
 	}
 	if serial == "" {
 		return false
@@ -1742,9 +1749,11 @@ func (svc *Service) tryLinkUnlinkedEnrollmentFromDevDetail(ctx context.Context, 
 			"err", err, "device_id", enrolledDevice.MDMDeviceID)
 		return false
 	}
-	if updated {
-		enrolledDevice.HostUUID = host.UUID
-	}
+	// Always refresh in-memory HostUUID after a successful link attempt, even when updated==false. updated=false means
+	// UpdateMDMWindowsEnrollmentsHostUUID's `WHERE host_uuid <> ?` guard short-circuited because the DB row already
+	// holds this host's UUID (e.g. another concurrent path linked it, or the in-memory row predates a writer-side
+	// update). Without this refresh the rest of the request would still see HostUUID="" and reinject another Get.
+	enrolledDevice.HostUUID = host.UUID
 	return updated
 }
 
