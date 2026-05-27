@@ -44,6 +44,18 @@ export interface ICommandPaletteContext {
   canAccessSettings?: boolean;
   canManagePolicyAutomations?: boolean;
   canManageSoftwareAutomations?: boolean;
+  /** Mirrors Variables.tsx `canEdit` — only global admins and global
+   *  maintainers can create custom variables. canWrite includes team
+   *  roles and technicians, which the destination page rejects, so
+   *  the palette uses this narrower flag for `add-custom-variable`. */
+  canEditCustomVariable?: boolean;
+  /** Mirrors SoftwarePage.tsx `canAddSoftware`:
+   *  isGlobalAdmin || isGlobalMaintainer || isTeamAdmin (current team)
+   *  || isTeamMaintainer (current team). Excludes technicians and
+   *  cross-team admin/maintainers — neither can use the Add software
+   *  page despite passing `canWrite`. Gates every software-add palette
+   *  item (FMA, VPP, Android, custom package). */
+  canAddSoftware?: boolean;
   isTechnician?: boolean;
   isPremiumTier?: boolean;
   isPrimoMode?: boolean;

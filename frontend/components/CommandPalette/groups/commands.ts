@@ -12,6 +12,8 @@ const buildCommandsItems = (
     canAccessSettings,
     canRunLiveReport,
     canWrite,
+    canEditCustomVariable,
+    canAddSoftware,
     isPremiumTier,
     isPrimoMode,
     isDarkMode,
@@ -182,8 +184,13 @@ const buildCommandsItems = (
           },
           // Software add actions require Premium + a team or unassigned
           // (not "All fleets"). Each destination page renders a
-          // <PremiumFeatureMessage /> in Free.
-          ...(isPremiumTier && hasTeamOrUnassigned
+          // <PremiumFeatureMessage /> in Free. Also gated on
+          // `canAddSoftware` which mirrors SoftwarePage's "Add software"
+          // button — global admin/maintainer or admin/maintainer of the
+          // CURRENT team (not any team). Excludes technicians and
+          // cross-team admins/maintainers who would otherwise pass the
+          // broad `canWrite` check above.
+          ...(isPremiumTier && hasTeamOrUnassigned && canAddSoftware
             ? [
                 {
                   id: "add-fleet-maintained-app",
@@ -255,7 +262,11 @@ const buildCommandsItems = (
                   id: "add-script",
                   label: "Add script",
                   group: "Commands" as const,
-                  path: withTeamId(paths.CONTROLS_SCRIPTS_LIBRARY),
+                  // ScriptLibrary opens its add-script modal on
+                  // `?add_script=1`, mirroring the Variables page pattern.
+                  path: withTeamId(
+                    `${paths.CONTROLS_SCRIPTS_LIBRARY}?add_script=1`
+                  ),
                   keywords: [
                     "upload script",
                     "shell",
@@ -264,24 +275,30 @@ const buildCommandsItems = (
                     "create script",
                   ],
                 },
-                // Custom Variables are NOT Premium-gated — the Variables
-                // page itself accepts Free-tier users (only the copy
-                // varies). Don't add isPremiumTier here.
-                {
-                  id: "add-custom-variable",
-                  label: "Add custom variable",
-                  group: "Commands" as const,
-                  path: withTeamId(
-                    `${paths.CONTROLS_VARIABLES}?add_variable=1`
-                  ),
-                  keywords: [
-                    "secret",
-                    "scripts",
-                    "profiles",
-                    "add variable",
-                    "create variable",
-                  ],
-                },
+                // Custom Variables: page-side `canEdit` is global admin
+                // or global maintainer only — team admins/maintainers and
+                // technicians (all `canWrite`) can't actually create one,
+                // so hide the palette entry rather than route them to a
+                // read-only page. Not Premium-gated.
+                ...(canEditCustomVariable
+                  ? [
+                      {
+                        id: "add-custom-variable",
+                        label: "Add custom variable",
+                        group: "Commands" as const,
+                        path: withTeamId(
+                          `${paths.CONTROLS_VARIABLES}?add_variable=1`
+                        ),
+                        keywords: [
+                          "secret",
+                          "scripts",
+                          "profiles",
+                          "add variable",
+                          "create variable",
+                        ],
+                      },
+                    ]
+                  : []),
               ]
             : []),
           {

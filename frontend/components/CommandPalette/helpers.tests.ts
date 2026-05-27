@@ -12,6 +12,8 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   canAccessSettings: true,
   canManagePolicyAutomations: true,
   canManageSoftwareAutomations: true,
+  canEditCustomVariable: true,
+  canAddSoftware: true,
   isTechnician: false,
   isPremiumTier: true,
   isMacMdmEnabledAndConfigured: true,
@@ -403,6 +405,43 @@ describe("CommandPalette helpers", () => {
       expect(ids).toContain("add-custom-package");
       expect(ids).toContain("add-script");
       expect(ids).toContain("add-custom-variable");
+    });
+
+    it("hides every software-add action when !canAddSoftware (current-team observer / cross-team admin / technician)", () => {
+      // A user who is admin of a different team has canWrite (via
+      // isAnyTeamAdmin) but isTeamAdmin(currentTeam) is false. The
+      // Add software button hides on the page; the palette must too.
+      // Same for technicians, who pass canWrite but never canAddSoftware.
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: false,
+        currentTeam: { id: 0, name: "No team" },
+        canAddSoftware: false,
+      });
+      const ids = items.map((i) => i.id);
+
+      expect(ids).not.toContain("add-fleet-maintained-app");
+      expect(ids).not.toContain("add-vpp-app");
+      expect(ids).not.toContain("add-android-app-store-app");
+      expect(ids).not.toContain("add-custom-package");
+      // Sanity: non-software write actions still surface.
+      expect(ids).toContain("add-hosts");
+    });
+
+    it("hides 'Add custom variable' for team admins/maintainers (canWrite but !canEditCustomVariable)", () => {
+      // Mirrors a team-admin context: they have canWrite (so add-script,
+      // add-hosts, etc. show), but the Variables page rejects them, so
+      // the variable entry must not surface.
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: false,
+        currentTeam: { id: 0, name: "No team" },
+        canEditCustomVariable: false,
+      });
+      const ids = items.map((i) => i.id);
+
+      expect(ids).toContain("add-script");
+      expect(ids).not.toContain("add-custom-variable");
     });
 
     it("hides the Users settings item for non-admins", () => {

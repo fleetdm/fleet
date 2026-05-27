@@ -65,6 +65,8 @@ const CommandPalette = (): JSX.Element | null => {
     isGlobalMaintainer,
     isAnyTeamAdmin,
     isAnyTeamMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
     isGlobalTechnician,
     isAnyTeamTechnician,
     isObserverPlus,
@@ -95,6 +97,23 @@ const CommandPalette = (): JSX.Element | null => {
     isAnyTeamAdmin ||
     isAnyTeamMaintainer ||
     isTechnician;
+
+  // Custom variables are admin-tier global config (mirrors Variables.tsx
+  // `canEdit`). Team admins/maintainers/technicians lack the role even
+  // though they have `canWrite`, so the destination page would render
+  // a read-only view — gate the palette entry accordingly.
+  const canEditCustomVariable = !!isGlobalAdmin || !!isGlobalMaintainer;
+
+  // Mirrors SoftwarePage.tsx canAddSoftware. Note isTeamAdmin /
+  // isTeamMaintainer here are scoped to currentTeam by AppContext — a
+  // user who is admin of Team A but observer of Team B (currently
+  // selected) correctly evaluates to false. canWrite would have
+  // accepted them via isAnyTeamAdmin.
+  const canAddSoftware =
+    !!isGlobalAdmin ||
+    !!isGlobalMaintainer ||
+    !!isTeamAdmin ||
+    !!isTeamMaintainer;
 
   // Observer+ users can run live queries even though they can't write.
   const canRunLiveReport =
@@ -365,6 +384,8 @@ const CommandPalette = (): JSX.Element | null => {
         canAccessSettings,
         canManagePolicyAutomations,
         canManageSoftwareAutomations,
+        canEditCustomVariable,
+        canAddSoftware,
         isTechnician,
         isPremiumTier,
         isPrimoMode,
@@ -397,6 +418,8 @@ const CommandPalette = (): JSX.Element | null => {
       canAccessSettings,
       canManagePolicyAutomations,
       canManageSoftwareAutomations,
+      canEditCustomVariable,
+      canAddSoftware,
       isTechnician,
       isPremiumTier,
       isPrimoMode,
