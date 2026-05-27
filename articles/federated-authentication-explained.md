@@ -120,11 +120,11 @@ If the IdP is unavailable, users typically can't authenticate to federated appli
 
 ### How does federated authentication connect to device management?
 
-Federated authentication ties user identity to device enrollment and compliance so access decisions can consider both. When device setup requires IdP authentication, it becomes possible to prove which identity claimed the device. Fleet supports SAML-backed [end-user authentication](https://fleetdm.com/guides/end-user-authentication) during enrollment across macOS, iOS, iPadOS, Windows, Linux, and Android. Fleet's conditional access integrations share device compliance state with Microsoft Entra ID and Okta, so federated app access can depend on device posture. Learn how Fleet brings [identity-aware device management](https://fleetdm.com/guides/setup-experience) to your environment.
+Federated authentication ties user identity to device enrollment and compliance so access decisions can consider both. When device setup requires IdP authentication, it becomes possible to prove which identity claimed the device. Fleet supports SAML-backed [end-user authentication](https://fleetdm.com/guides/end-user-authentication) during enrollment across macOS, iOS, iPadOS, Windows, Linux, and Android. Fleet's conditional access integrations share device compliance state with Microsoft Entra ID and Okta, so federated app access can depend on device posture. Learn how Fleet brings [identity-aware device management](https://fleetdm.com/contact) to your environment.
 
-<meta name="articleTitle" value="Federated authentication explained: SSO, protocols, and device management">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="articleTitle" value="Federated authentication and MDM: SAML, OIDC, and Zero Trust">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-25">
-<meta name="description" value="Learn how federated authentication works, how it differs from SSO, and how it connects to device management and Zero Trust strategies. ">
+<meta name="publishedOn" value="2026-04-22">
+<meta name="description" value="What federated authentication is, how SAML and OIDC work, and how it differs from SSO and connects to device compliance and Zero Trust.">
