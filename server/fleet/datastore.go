@@ -3516,6 +3516,12 @@ type AccessesMDMConfigAssets interface {
 	// The queryerContext is optional and can be used to pass a transaction.
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
+	// GetAllMDMConfigAssetsByNameIncludingDeleted behaves like
+	// GetAllMDMConfigAssetsByName but also returns soft-deleted rows, newest
+	// first. It returns a slice rather than a map because a single name can have
+	// multiple historical rows (e.g. the previous CA certificates kept after a
+	// rollover). Used to decrypt CMS payloads escrowed against a prior CA cert.
+	GetAllMDMConfigAssetsByNameIncludingDeleted(ctx context.Context, assetNames []MDMAssetName) ([]MDMConfigAsset, error)
 	// GetAllMDMConfigAssetsHashes behaves like
 	// GetAllMDMConfigAssetsByName, but only returns a sha256 checksum of
 	// each asset
