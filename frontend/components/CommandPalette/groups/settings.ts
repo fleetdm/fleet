@@ -1,12 +1,8 @@
 import paths from "router/paths";
 
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
-import { IDerivedContext } from "./derivations";
 
-const buildSettingsItems = (
-  ctx: ICommandPaletteContext,
-  _derived: IDerivedContext
-): ICommandItem[] => {
+const buildSettingsItems = (ctx: ICommandPaletteContext): ICommandItem[] => {
   const { canAccessSettings, isPremiumTier, isPrimoMode } = ctx;
 
   // Settings — global admins only

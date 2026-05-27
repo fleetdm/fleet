@@ -396,19 +396,22 @@ const buildCommandsItems = (
                   : []),
               ]
             : []),
-          {
-            id: "toggle-dark-mode",
-            // isDarkMode comes through as reactive state from the parent
-            // so the label re-renders when the theme flips externally.
-            label: isDarkMode ? "Switch to light mode" : "Switch to dark mode",
-            group: "Commands" as const,
-            keywords: ["dark mode", "light mode", "theme", "toggle"],
-            onAction: onToggleDarkMode,
-          },
         ]
       : []),
 
-    // Sign out — always available
+    // Theme toggle and Sign out — always available. Theme is a per-user
+    // UI preference, not a write against Fleet data (setThemeMode is
+    // exposed to every signed-in user via My Account → Theme), so it
+    // sits outside the canWrite gate alongside Sign out.
+    {
+      id: "toggle-dark-mode",
+      // isDarkMode comes through as reactive state from the parent
+      // so the label re-renders when the theme flips externally.
+      label: isDarkMode ? "Switch to light mode" : "Switch to dark mode",
+      group: "Commands" as const,
+      keywords: ["dark mode", "light mode", "theme", "toggle"],
+      onAction: onToggleDarkMode,
+    },
     {
       id: "sign-out",
       label: "Sign out",

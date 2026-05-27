@@ -89,7 +89,7 @@ export const buildPaletteItems = (
     ...buildPagesItems(ctx, derived),
     ...buildControlsItems(ctx, derived),
     ...buildSoftwareItems(ctx, derived),
-    ...buildSettingsItems(ctx, derived),
+    ...buildSettingsItems(ctx),
     ...buildCommandsItems(ctx, derived),
     ...buildMdmItems(ctx, derived),
     ...buildAutomationsItems(ctx, derived),

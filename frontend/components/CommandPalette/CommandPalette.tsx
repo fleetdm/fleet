@@ -310,7 +310,14 @@ const CommandPalette = (): JSX.Element | null => {
       );
 
       if ((isAll || isUnassignedTarget) && isOnTeamRequiredPage) {
-        browserHistory.push(paths.MANAGE_HOSTS);
+        // For Unassigned, keep fleet_id=0 on the fallback URL.
+        // useTeamIdParam coerces a missing param back to All fleets (-1),
+        // which would silently undo the setCurrentTeam({id:0}) above.
+        browserHistory.push(
+          isUnassignedTarget
+            ? `${paths.MANAGE_HOSTS}?fleet_id=0`
+            : paths.MANAGE_HOSTS
+        );
       } else {
         const params = new URLSearchParams(currentSearch);
         if (isAll) {

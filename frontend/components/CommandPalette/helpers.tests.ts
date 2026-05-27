@@ -88,6 +88,24 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("add-hosts");
     });
 
+    it("keeps toggle-dark-mode and sign-out available for observers (no write)", () => {
+      // Theme is a per-user UI preference exposed via My Account → Theme
+      // for every signed-in user, so the palette item must survive a
+      // canWrite=false context. Sign out is the other always-on item.
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        canAccessControls: false,
+        canWrite: false,
+        canAccessSettings: false,
+        canManagePolicyAutomations: false,
+        canManageSoftwareAutomations: false,
+      });
+
+      const ids = items.map((i) => i.id);
+      expect(ids).toContain("toggle-dark-mode");
+      expect(ids).toContain("sign-out");
+    });
+
     it("excludes settings for non-global-admins", () => {
       const items = buildPaletteItems({
         ...BASE_CONTEXT,
