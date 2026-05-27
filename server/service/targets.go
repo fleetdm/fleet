@@ -217,6 +217,14 @@ func (svc *Service) SearchTargets(ctx context.Context, matchQuery string, queryI
 	if err != nil {
 		return nil, err
 	}
+
+	// Strip unnecessary info from target search results.
+	// The target picker only needs team ID, name, and host count.
+	for _, t := range teams {
+		t.Secrets = nil
+		t.Config.AgentOptions = nil
+	}
+
 	results.Teams = teams
 
 	return results, nil
