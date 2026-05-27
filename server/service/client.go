@@ -3121,8 +3121,10 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		}
 
 		// Get patch policy title IDs for the team
-		for i := range config.Policies {
-			config.Policies[i].PatchSoftwareTitleID = softwareTitleIDsBySlug[config.Policies[i].FleetMaintainedAppSlug]
+		for _, policy := range config.Policies {
+			if policy.Type == fleet.PolicyTypePatch {
+				policy.PatchSoftwareTitleID = softwareTitleIDsBySlug[policy.FleetMaintainedAppSlug]
+			}
 		}
 	}
 

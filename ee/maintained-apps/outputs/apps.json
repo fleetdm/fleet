@@ -86,6 +86,13 @@
       "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe's suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
+      "name": "Adobe Creative Cloud",
+      "slug": "adobe-creative-cloud/windows",
+      "platform": "windows",
+      "unique_identifier": "Adobe Creative Cloud",
+      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe's suite of tools like Photoshop, Illustrator, and Premiere Pro."
+    },
+    {
       "name": "Adobe Digital Editions",
       "slug": "adobe-digital-editions/darwin",
       "platform": "darwin",
@@ -133,6 +140,13 @@
       "platform": "darwin",
       "unique_identifier": "com.amazon.Amazon-Chime",
       "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
+    },
+    {
+      "name": "Amazon Corretto 25",
+      "slug": "amazon-corretto-25/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Corretto (x64)",
+      "description": "Amazon Corretto 25 is a no-cost, multiplatform, production-ready distribution of OpenJDK 25."
     },
     {
       "name": "Android Studio",
@@ -261,6 +275,13 @@
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
+      "name": "Beyond Compare",
+      "slug": "beyond-compare/windows",
+      "platform": "windows",
+      "unique_identifier": "Beyond Compare",
+      "description": "Beyond Compare is an app used to compare files and folders."
+    },
+    {
       "name": "Bitwarden",
       "slug": "bitwarden/darwin",
       "platform": "darwin",
@@ -280,6 +301,13 @@
       "platform": "windows",
       "unique_identifier": "Blender",
       "description": "Blender is a 3D creation suite."
+    },
+    {
+      "name": "BlueJ",
+      "slug": "bluej/windows",
+      "platform": "windows",
+      "unique_identifier": "BlueJ",
+      "description": "BlueJ is a free Java development environment designed for beginners."
     },
     {
       "name": "Box Drive",
@@ -1087,6 +1115,13 @@
       "description": "Logi Options+ is software for managing Logitech devices."
     },
     {
+      "name": "Logi Options+",
+      "slug": "logi-options+/windows",
+      "platform": "windows",
+      "unique_identifier": "Logi Options+",
+      "description": "Logi Options+ is software for managing Logitech devices."
+    },
+    {
       "name": "Loom",
       "slug": "loom/darwin",
       "platform": "darwin",
@@ -1332,6 +1367,13 @@
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
     },
     {
+      "name": "Omnissa Horizon Client",
+      "slug": "omnissa-horizon-client/windows",
+      "platform": "windows",
+      "unique_identifier": "Omnissa Horizon Client",
+      "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
+    },
+    {
       "name": "OneDrive",
       "slug": "onedrive/darwin",
       "platform": "darwin",
@@ -1385,6 +1427,13 @@
       "slug": "phpstorm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.PhpStorm",
+      "description": "PhpStorm is a PHP IDE by JetBrains."
+    },
+    {
+      "name": "PhpStorm",
+      "slug": "phpstorm/windows",
+      "platform": "windows",
+      "unique_identifier": "PhpStorm",
       "description": "PhpStorm is a PHP IDE by JetBrains."
     },
     {
@@ -1813,6 +1862,13 @@
       "platform": "darwin",
       "unique_identifier": "org.torproject.torbrowser",
       "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
+    },
+    {
+      "name": "TortoiseGit",
+      "slug": "tortoisegit/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseGit",
+      "description": "TortoiseGit is a Windows shell interface to Git, providing overlay icons showing file status and a powerful context menu for Git. Requires Git for Windows to be installed."
     },
     {
       "name": "Tower",

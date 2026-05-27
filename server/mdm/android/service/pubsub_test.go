@@ -344,6 +344,66 @@ func TestPubSubEnrollment(t *testing.T) {
 			require.True(t, mockDS.NewAndroidHostFuncInvoked)
 		})
 	})
+
+	t.Run("re-enrollment updates IdP association", func(t *testing.T) {
+		mockDS.NewAndroidHostFuncInvoked = false
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		const existingHostUUID = "EXISTING-HOST-UUID"
+		// Return an existing host so enrollHost takes the re-enrollment path
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{
+					ID:   10,
+					UUID: existingHostUUID,
+				},
+				Device: &android.Device{
+					HostID:               10,
+					DeviceID:             "existing-device",
+					EnterpriseSpecificID: new(existingHostUUID),
+				},
+			}, nil
+		}
+
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			return nil
+		}
+		mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
+			return nil
+		}
+
+		var capturedHostUUID, capturedIdpUUID string
+		mockDS.AssociateHostMDMIdPAccountFuncInvoked = false
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			capturedHostUUID = hostUUID
+			capturedIdpUUID = accountUUID
+			return nil
+		}
+
+		enrollmentToken := enrollmentTokenRequest{
+			EnrollSecret: "global",
+			IdpUUID:      "new-user-idp-uuid",
+		}
+		enrollTokenData, err := json.Marshal(enrollmentToken)
+		require.NoError(t, err)
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("test-re-enroll"),
+			EnrollmentTokenData: string(enrollTokenData),
+		})
+
+		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.AssociateHostMDMIdPAccountFuncInvoked)
+		require.Equal(t, existingHostUUID, capturedHostUUID)
+		require.Equal(t, "new-user-idp-uuid", capturedIdpUUID)
+		// Re-enrollment should update, not create a new host
+		require.False(t, mockDS.NewAndroidHostFuncInvoked)
+	})
 }
 
 func TestStatusReportPolicyValidation(t *testing.T) {
@@ -986,9 +1046,10 @@ func TestUpdateHost(t *testing.T) {
 		// UUID is properly set from device data
 		require.Equal(t, enterpriseSpecificID, capturedHost.Host.UUID, "UUID is properly set from EnterpriseSpecificId")
 
-		// Other fields were updated
+		// Other fields were updated (no IdP account, so falls back to hardware model)
 		require.Equal(t, "Updatedbrand UpdatedModel", capturedHost.Host.ComputerName)
 		require.Equal(t, "Updatedbrand UpdatedModel", capturedHost.Host.Hostname)
+		require.Equal(t, "Updatedbrand UpdatedModel", capturedHost.Host.HardwareModel)
 		require.Equal(t, "Android 15", capturedHost.Host.OSVersion)
 	})
 
@@ -1088,6 +1149,253 @@ func TestUpdateHost(t *testing.T) {
 		require.NotNil(t, capturedHost)
 
 		require.Equal(t, testBrandTestSerialHashed, capturedHost.Host.UUID)
+	})
+}
+
+func TestAndroidHostDisplayNameWithIdP(t *testing.T) {
+	t.Run("updateHost uses IdP first name in computer name", func(t *testing.T) {
+		svc, mockDS := createAndroidService(t)
+
+		const enterpriseSpecificID = "IDP-TEST-UUID"
+
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{
+					ID:   1,
+					UUID: enterpriseSpecificID,
+				},
+				Device: &android.Device{
+					HostID:               1,
+					DeviceID:             "device-1",
+					EnterpriseSpecificID: new(enterpriseSpecificID),
+				},
+			}, nil
+		}
+
+		// Mock IdP account lookup to return a user with a full name
+		mockDS.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return &fleet.MDMIdPAccount{
+				UUID:     "idp-acct-uuid",
+				Fullname: "John Smith",
+				Email:    "ksykulev@test.com",
+			}, nil
+		}
+
+		var capturedHost *fleet.AndroidHost
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			capturedHost = host
+			return nil
+		}
+
+		device := androidmanagement.Device{
+			Name: createAndroidDeviceId("test-idp-display"),
+			HardwareInfo: &androidmanagement.HardwareInfo{
+				EnterpriseSpecificId: enterpriseSpecificID,
+				Brand:                "samsung",
+				Model:                "SM-A176U1",
+			},
+			SoftwareInfo:         &androidmanagement.SoftwareInfo{AndroidVersion: "15"},
+			MemoryInfo:           &androidmanagement.MemoryInfo{TotalRam: int64(8 * 1024 * 1024 * 1024)},
+			LastStatusReportTime: "2024-01-01T12:00:00Z",
+		}
+
+		deviceBytes, err := json.Marshal(device)
+		require.NoError(t, err)
+		message := &android.PubSubMessage{
+			Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
+			Data:       base64.StdEncoding.EncodeToString(deviceBytes),
+		}
+
+		err = svc.ProcessPubSubPush(t.Context(), "value", message)
+		require.NoError(t, err)
+		require.NotNil(t, capturedHost)
+
+		require.Equal(t, "John Smith's Samsung SM-A176U1", capturedHost.Host.ComputerName)
+		require.Equal(t, "John Smith's Samsung SM-A176U1", capturedHost.Host.Hostname)
+		require.Equal(t, "Samsung SM-A176U1", capturedHost.Host.HardwareModel)
+	})
+
+	t.Run("updateHost falls back to hardware model when no IdP account", func(t *testing.T) {
+		svc, mockDS := createAndroidService(t)
+
+		const enterpriseSpecificID = "NO-IDP-UUID"
+
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{
+				Host: &fleet.Host{
+					ID:   2,
+					UUID: enterpriseSpecificID,
+				},
+				Device: &android.Device{
+					HostID:               2,
+					DeviceID:             "device-2",
+					EnterpriseSpecificID: new(enterpriseSpecificID),
+				},
+			}, nil
+		}
+
+		var capturedHost *fleet.AndroidHost
+		mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+			capturedHost = host
+			return nil
+		}
+
+		device := androidmanagement.Device{
+			Name: createAndroidDeviceId("test-no-idp"),
+			HardwareInfo: &androidmanagement.HardwareInfo{
+				EnterpriseSpecificId: enterpriseSpecificID,
+				Brand:                "google",
+				Model:                "Pixel 7",
+			},
+			SoftwareInfo:         &androidmanagement.SoftwareInfo{AndroidVersion: "14"},
+			MemoryInfo:           &androidmanagement.MemoryInfo{TotalRam: int64(8 * 1024 * 1024 * 1024)},
+			LastStatusReportTime: "2024-01-01T12:00:00Z",
+		}
+
+		deviceBytes, err := json.Marshal(device)
+		require.NoError(t, err)
+		message := &android.PubSubMessage{
+			Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
+			Data:       base64.StdEncoding.EncodeToString(deviceBytes),
+		}
+
+		err = svc.ProcessPubSubPush(t.Context(), "value", message)
+		require.NoError(t, err)
+		require.NotNil(t, capturedHost)
+
+		require.Equal(t, "Google Pixel 7", capturedHost.Host.ComputerName)
+		require.Equal(t, "Google Pixel 7", capturedHost.Host.Hostname)
+		require.Equal(t, "Google Pixel 7", capturedHost.Host.HardwareModel)
+	})
+
+	t.Run("addNewHost uses IdP name when IdP UUID is present", func(t *testing.T) {
+		svc, mockDS := createAndroidService(t)
+
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return nil, common_mysql.NotFound("android host")
+		}
+
+		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+			return &fleet.EnrollSecret{Secret: secret}, nil
+		}
+
+		mockDS.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+			return &fleet.MDMIdPAccount{
+				UUID:     uuid,
+				Fullname: "Jane Doe",
+				Email:    "jane@test.com",
+			}, nil
+		}
+
+		var capturedHost *fleet.AndroidHost
+		mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+			capturedHost = host
+			return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
+		}
+
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			return nil
+		}
+		mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+
+		enrollmentToken := enrollmentTokenRequest{
+			EnrollSecret: "global",
+			IdpUUID:      "jane-idp-uuid",
+		}
+		enrollTokenData, err := json.Marshal(enrollmentToken)
+		require.NoError(t, err)
+
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("test-idp-enroll"),
+			EnrollmentTokenData: string(enrollTokenData),
+		})
+
+		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.NoError(t, err)
+		require.NotNil(t, capturedHost)
+
+		require.Equal(t, "Jane Doe's Testbrand TestModel", capturedHost.Host.ComputerName)
+		require.Equal(t, "Jane Doe's Testbrand TestModel", capturedHost.Host.Hostname)
+		require.Equal(t, "Testbrand TestModel", capturedHost.Host.HardwareModel)
+	})
+
+	t.Run("addNewHost falls back when IdP fullname is empty", func(t *testing.T) {
+		svc, mockDS := createAndroidService(t)
+
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+			}, nil
+		}
+
+		mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+			return nil, common_mysql.NotFound("android host")
+		}
+
+		mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+			return &fleet.EnrollSecret{Secret: secret}, nil
+		}
+
+		mockDS.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+			return &fleet.MDMIdPAccount{
+				UUID:     uuid,
+				Fullname: "",
+				Email:    "nofullname@test.com",
+			}, nil
+		}
+
+		var capturedHost *fleet.AndroidHost
+		mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+			capturedHost = host
+			return &fleet.AndroidHost{Host: &fleet.Host{}}, nil
+		}
+
+		mockDS.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			return nil
+		}
+		mockDS.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+
+		enrollmentToken := enrollmentTokenRequest{
+			EnrollSecret: "global",
+			IdpUUID:      "empty-name-uuid",
+		}
+		enrollTokenData, err := json.Marshal(enrollmentToken)
+		require.NoError(t, err)
+
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("test-empty-name-enroll"),
+			EnrollmentTokenData: string(enrollTokenData),
+		})
+
+		err = svc.ProcessPubSubPush(t.Context(), "value", enrollmentMessage)
+		require.NoError(t, err)
+		require.NotNil(t, capturedHost)
+
+		// Falls back to Brand + Model when fullname is empty
+		require.Equal(t, "Testbrand TestModel", capturedHost.Host.ComputerName)
+		require.Equal(t, "Testbrand TestModel", capturedHost.Host.Hostname)
 	})
 }
 
@@ -1902,6 +2210,195 @@ func TestPubSubStatusReport_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
 		err := svc.ProcessPubSubPush(t.Context(), "value", msg)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing hardware info")
+	})
+}
+
+func TestPubSubCommand(t *testing.T) {
+	const validToken = "value"
+	makeMessage := func(t *testing.T, op androidmanagement.Operation) *android.PubSubMessage {
+		body, err := json.Marshal(op)
+		require.NoError(t, err)
+		return &android.PubSubMessage{
+			Attributes: map[string]string{"notificationType": string(android.PubSubCommand)},
+			Data:       base64.StdEncoding.EncodeToString(body),
+		}
+	}
+
+	// newSvc builds the per-subtest fixture: a service whose mock datastore reports Android MDM as enabled. Subtests override
+	// individual *Func fields on mockDS to shape the specific branch they're exercising.
+	newSvc := func(t *testing.T) (android.Service, *AndroidMockDS) {
+		svc, mockDS := createAndroidService(t)
+		mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+		}
+		return svc, mockDS
+	}
+	// commandNotFound shapes the "unknown operation" branches: the datastore lookup by operation_name returns NotFound, simulating
+	// either a race (row not yet committed) or an orphan (device deleted from Fleet).
+	commandNotFound := func(mockDS *AndroidMockDS) {
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(opName)
+		}
+	}
+
+	t.Run("pending -> acknowledged on op with no error", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-ack",
+			HostUUID:      "host-uuid",
+			OperationName: "enterprises/E/devices/D/operations/ack-1",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			require.Equal(t, stored.OperationName, opName)
+			return stored, nil
+		}
+		var capturedStatus string
+		var capturedErrCode, capturedErrMsg *string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			require.Equal(t, stored.CommandUUID, commandUUID)
+			capturedStatus = status
+			capturedErrCode = errorCode
+			capturedErrMsg = errorMessage
+			return nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+
+		require.True(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), capturedStatus)
+		require.Nil(t, capturedErrCode)
+		require.Nil(t, capturedErrMsg)
+	})
+
+	t.Run("pending -> error on op.Error set", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-err",
+			HostUUID:      "host-uuid",
+			OperationName: "enterprises/E/devices/D/operations/err-1",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		var capturedStatus, capturedCode, capturedMsg string
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			capturedStatus = status
+			if errorCode != nil {
+				capturedCode = *errorCode
+			}
+			if errorMessage != nil {
+				capturedMsg = *errorMessage
+			}
+			return nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{
+			Name:  stored.OperationName,
+			Done:  true,
+			Error: &androidmanagement.Status{Code: 13, Message: "device does not support WIPE"},
+		})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+
+		require.Equal(t, string(android.MDMAndroidCommandStatusError), capturedStatus)
+		require.Equal(t, "13", capturedCode)
+		require.Equal(t, "device does not support WIPE", capturedMsg)
+	})
+
+	t.Run("already-terminal status is not re-transitioned", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-ack-already",
+			OperationName: "enterprises/E/devices/D/operations/redelivered",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusAcknowledged),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			t.Fatalf("UpdateMDMAndroidCommandStatus should not be called for terminal row")
+			return nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+	})
+
+	t.Run("unknown operation, host deleted from Fleet -> ack", func(t *testing.T) {
+		// COBO unenroll / manual cleanup: the host is gone from Fleet, the command row is gone from mdm_android_commands, but Pub/Sub is
+		// still trying to deliver the original notification. A false from AndroidDeviceExistsByDeviceID confirms the orphan; ack.
+		svc, mockDS := newSvc(t)
+		commandNotFound(mockDS)
+		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
+			require.Equal(t, "D", deviceID, "handler should pass the AMAPI device_id parsed from op.Name")
+			return false, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/E/devices/D/operations/orphan", Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+
+	t.Run("unknown operation, host still exists in Fleet -> retry (race window)", func(t *testing.T) {
+		// AMAPI delivered the COMMAND notification before our IssueCommand-then-insert sequence committed the row. The DB check confirms
+		// the device is still in Fleet; returning error makes Pub/Sub retry until the row commits.
+		svc, mockDS := newSvc(t)
+		commandNotFound(mockDS)
+		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
+			return true, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/E/devices/D/operations/racy", Done: true})
+		require.Error(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+
+	t.Run("unknown operation, malformed op.Name (no /devices/ segment) -> ack", func(t *testing.T) {
+		// If we can't parse a device_id from op.Name we can't probe Fleet's DB; ack rather than retry forever.
+		svc, mockDS := newSvc(t)
+		commandNotFound(mockDS)
+		mockDS.AndroidDeviceExistsByDeviceIDFunc = func(ctx context.Context, deviceID string) (bool, error) {
+			t.Fatalf("device existence check should not run when op.Name is malformed")
+			return false, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: "not-a-real-operation-name", Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+
+	t.Run("non-done operation is acked without state transition", func(t *testing.T) {
+		// AMAPI long-running Operations use done=false for in-progress states. The handler must not transition state on a non-terminal
+		// payload.
+		svc, mockDS := newSvc(t)
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			t.Fatalf("lookup should be skipped when op.Done is false")
+			return nil, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			t.Fatalf("status update should be skipped when op.Done is false")
+			return nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: "enterprises/E/devices/D/operations/in-flight", Done: false})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+	})
+
+	t.Run("empty op.Name is acked without error", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			t.Fatalf("lookup should be skipped when op.Name is empty")
+			return nil, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
 	})
 }
 
