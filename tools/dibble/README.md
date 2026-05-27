@@ -25,6 +25,10 @@ and vulnerable software inventory.
 
 **Hosts are intentionally out of scope.** Use [`cmd/osquery-perf`](../../cmd/osquery-perf)
 for those — duplicating its work here would be a waste of perfectly good seeds.
+`dibble hosts` is a thin convenience around osquery-perf: it lists the fleets,
+lets you pick one with a radio button, fetches that fleet's enroll secret, and
+prints (or runs) the `go run cmd/osquery-perf/agent.go ...` invocation.
+Ctrl-C is forwarded to the child so simulated hosts shut down cleanly.
 
 ## Quickstart
 
@@ -57,11 +61,12 @@ then plants the seeds.
 | `dibble labels`    | Dynamic, query-based labels                              |
 | `dibble scripts`        | Saved scripts (.sh, .ps1, .zsh) global + per-team        |
 | `dibble profiles`       | Apple `.mobileconfig` + Windows `.xml` MDM profiles      |
-| `dibble software`       | Software titles (custom-package upload is a v1 TODO)     |
+| `dibble software`       | Upload custom installers (2-3 per ext) + add Fleet-maintained apps. Subcommands: `all`, `custom`, `maintained`. |
 | `dibble enroll-secrets` | Per-team enroll secrets — the credential fleetd uses to join a team. Distinct from "Fleet secrets" (secret variables). Global enroll secret is left alone. |
 | `dibble cas`            | Certificate Authorities (placeholder for now)            |
 | `dibble vulns`     | Vulnerable software, written directly to MySQL           |
 | `dibble activities` | Fake activity rows, written directly to MySQL — **non-idempotent**, marked with `*` |
+| `dibble hosts`     | Radio-pick a fleet, fetch its enroll secret, and print or run the matching `cmd/osquery-perf` command (Ctrl-C forwarded) |
 | `dibble ping`      | Sanity-check `--fleet-url` and `--api-token`             |
 | `dibble version`   | Print version + signature line                           |
 
@@ -161,8 +166,12 @@ Out-of-scope and **not** absorbed (those tools still live in `tools/`):
   is intentionally non-idempotent — every run inserts a fresh batch
   prefixed with `*` and tagged with the current run id, so seeded rows are
   obvious in the UI and don't conflate across runs.
-- **Custom-package software upload** isn't wired up yet. Today
-  `dibble software` only logs intent.
+- **Custom-package software upload** uploads a curated set of installer
+  fixtures (`.pkg`, `.deb`, `.msi`, `.rpm`, `.tar.gz`, `.ipa`) bundled into
+  the dibble binary. `.exe` and large fixtures are excluded for size.
+- **Fleet-maintained apps** are added via the catalog endpoint
+  (`/api/latest/fleet/software/fleet_maintained_apps`) — `dibble software
+  maintained` POSTs the first N entries the server returns.
 - **Mock CA creation** also isn't wired up — placeholder until a mock CA
   type lands in Fleet.
 - **Manual labels and hosts** need a populated host inventory; dibble doesn't

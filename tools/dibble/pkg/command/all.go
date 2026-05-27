@@ -85,8 +85,19 @@ func runAll(c *Client, theme themes.Theme, counts allCounts) error {
 	prRes := seed.Profiles(c, log, theme, teams, counts.Profiles)
 	printf("%s", prRes.Summary())
 
-	soRes := seed.Software(c, log, theme, teams, counts.Software)
-	printf("%s", soRes.Summary())
+	if counts.Software > 0 {
+		// `dibble all` lands software under the first existing team if any,
+		// otherwise no team. Use `dibble software` directly for team
+		// overrides — this path is intentionally simple.
+		swOpt := seed.SoftwareOptions{MaintainedAppCount: counts.Software}
+		if len(teams) > 0 {
+			swOpt.TeamID = teams[0].ID
+		}
+		soRes := seed.SoftwareCustom(c, log, swOpt)
+		printf("%s", soRes.Summary())
+		fmRes := seed.SoftwareMaintained(c, log, swOpt)
+		printf("%s", fmRes.Summary())
+	}
 
 	if counts.CAs > 0 {
 		caRes := seed.CAs(nil, log, counts.CAs)

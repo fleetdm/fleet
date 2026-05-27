@@ -126,6 +126,7 @@ Hosts are intentionally out of scope — use cmd/osquery-perf for that.`,
 	root.AddCommand(newCAsCmd())
 	root.AddCommand(newVulnsCmd())
 	root.AddCommand(newActivitiesCmd())
+	root.AddCommand(newHostsCmd())
 
 	return root
 }
