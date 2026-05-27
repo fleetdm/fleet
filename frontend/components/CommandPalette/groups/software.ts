@@ -3,7 +3,7 @@ import paths from "router/paths";
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
 import { IDerivedContext } from "./derivations";
 
-export const buildSoftwareItems = (
+const buildSoftwareItems = (
   ctx: ICommandPaletteContext,
   derived: IDerivedContext
 ): ICommandItem[] => {
@@ -75,3 +75,5 @@ export const buildSoftwareItems = (
       : []),
   ];
 };
+
+export default buildSoftwareItems;

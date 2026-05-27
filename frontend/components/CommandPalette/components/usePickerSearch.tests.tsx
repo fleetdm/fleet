@@ -65,9 +65,7 @@ describe("usePickerSearch", () => {
     await waitFor(() => expect(queryFn).toHaveBeenCalledWith("a"));
 
     // Update search rapidly — debounce should swallow intermediate values.
-    rerender(
-      <Probe search="ab" queryFn={queryFn} selectItems={selectItems} />
-    );
+    rerender(<Probe search="ab" queryFn={queryFn} selectItems={selectItems} />);
     rerender(
       <Probe search="abc" queryFn={queryFn} selectItems={selectItems} />
     );

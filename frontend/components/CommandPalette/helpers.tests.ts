@@ -346,9 +346,9 @@ describe("CommandPalette helpers", () => {
         ...BASE_CONTEXT,
         isDarkMode: false,
       });
-      expect(
-        lightItems.find((i) => i.id === "toggle-dark-mode")?.label
-      ).toBe("Switch to dark mode");
+      expect(lightItems.find((i) => i.id === "toggle-dark-mode")?.label).toBe(
+        "Switch to dark mode"
+      );
 
       const darkItems = buildPaletteItems({
         ...BASE_CONTEXT,

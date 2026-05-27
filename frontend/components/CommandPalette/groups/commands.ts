@@ -3,7 +3,7 @@ import paths from "router/paths";
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
 import { IDerivedContext } from "./derivations";
 
-export const buildCommandsItems = (
+const buildCommandsItems = (
   ctx: ICommandPaletteContext,
   derived: IDerivedContext
 ): ICommandItem[] => {
@@ -222,12 +222,7 @@ export const buildCommandsItems = (
                   path: withTeamId(
                     `${paths.SOFTWARE_ADD_APP_STORE}?platform=android`
                   ),
-                  keywords: [
-                    "google play",
-                    "android",
-                    "play store",
-                    "add app",
-                  ],
+                  keywords: ["google play", "android", "play store", "add app"],
                 },
                 {
                   id: "add-custom-package",
@@ -423,3 +418,5 @@ export const buildCommandsItems = (
     },
   ];
 };
+
+export default buildCommandsItems;

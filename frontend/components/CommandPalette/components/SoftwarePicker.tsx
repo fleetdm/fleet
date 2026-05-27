@@ -6,7 +6,6 @@ import {
   APP_CONTEXT_NO_TEAM_ID,
   ITeamSummary,
 } from "interfaces/team";
-import { getFleetSuffix } from "./pickerCopy";
 import {
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
@@ -18,6 +17,7 @@ import softwareAPI, {
 import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import { InstallIconWithTooltip } from "components/TableContainer/DataTable/SoftwareNameCell/SoftwareNameCell";
 
+import getFleetSuffix from "./pickerCopy";
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
 
@@ -68,8 +68,10 @@ const SoftwarePicker = ({
   // form. Library is hidden on All fleets so that branch shouldn't
   // render here, but we still default defensively.
   const libraryOwner = (() => {
-    if (currentTeam && currentTeam.id > 0) return `${currentTeam.name}'s library`;
-    if (currentTeam?.id === APP_CONTEXT_NO_TEAM_ID) return "this fleet's library";
+    if (currentTeam && currentTeam.id > 0)
+      return `${currentTeam.name}'s library`;
+    if (currentTeam?.id === APP_CONTEXT_NO_TEAM_ID)
+      return "this fleet's library";
     return "the library";
   })();
 

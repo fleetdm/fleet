@@ -22,8 +22,7 @@ const renderInClient = createCustomRenderer({ withBackendMock: true });
 // one in production, so wrap here for tests that actually render items.
 const renderPicker = (
   ui: React.ReactElement
-): ReturnType<typeof renderInClient> =>
-  renderInClient(<Command>{ui}</Command>);
+): ReturnType<typeof renderInClient> => renderInClient(<Command>{ui}</Command>);
 
 // Minimal valid response — the picker only reads `hosts`, so we cast
 // through `unknown` rather than constructing the unused munki/MDM
@@ -135,11 +134,7 @@ describe("HostPicker", () => {
       mockedHosts.loadHosts.mockResolvedValue(hosts);
 
       const { findByText } = renderPicker(
-        <HostPicker
-          search="col-team-on"
-          showTeamColumn
-          onSelect={jest.fn()}
-        />
+        <HostPicker search="col-team-on" showTeamColumn onSelect={jest.fn()} />
       );
       expect(await findByText("Engineering")).toBeInTheDocument();
     });

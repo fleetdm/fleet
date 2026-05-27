@@ -15,7 +15,7 @@ import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/So
 
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
-import { getFleetSuffix } from "./pickerCopy";
+import getFleetSuffix from "./pickerCopy";
 
 const baseClass = "command-palette";
 
@@ -70,9 +70,7 @@ const PolicyPicker = ({
   });
 
   if (isLoading && policies.length === 0) {
-    return (
-      <div className={`${baseClass}__empty`}>Looking for policies...</div>
-    );
+    return <div className={`${baseClass}__empty`}>Looking for policies...</div>;
   }
 
   if (policies.length === 0) {

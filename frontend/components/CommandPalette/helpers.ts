@@ -2,13 +2,13 @@ import { ITeamSummary } from "interfaces/team";
 import { IConfig } from "interfaces/config";
 
 import { deriveContext } from "./groups/derivations";
-import { buildPagesItems } from "./groups/pages";
-import { buildControlsItems } from "./groups/controls";
-import { buildSoftwareItems } from "./groups/software";
-import { buildSettingsItems } from "./groups/settings";
-import { buildCommandsItems } from "./groups/commands";
-import { buildMdmItems } from "./groups/mdm";
-import { buildAutomationsItems } from "./groups/automations";
+import buildPagesItems from "./groups/pages";
+import buildControlsItems from "./groups/controls";
+import buildSoftwareItems from "./groups/software";
+import buildSettingsItems from "./groups/settings";
+import buildCommandsItems from "./groups/commands";
+import buildMdmItems from "./groups/mdm";
+import buildAutomationsItems from "./groups/automations";
 
 export interface ICommandSubItem {
   id: string;

@@ -3,16 +3,11 @@ import paths from "router/paths";
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
 import { IDerivedContext } from "./derivations";
 
-export const buildPagesItems = (
+const buildPagesItems = (
   ctx: ICommandPaletteContext,
   derived: IDerivedContext
 ): ICommandItem[] => {
-  const {
-    search,
-    canAccessControls,
-    canAccessSettings,
-    withTeamId,
-  } = ctx;
+  const { search, canAccessControls, canAccessSettings, withTeamId } = ctx;
   const {
     hasTeamOrUnassigned,
     switchesFromUnassigned,
@@ -143,3 +138,5 @@ export const buildPagesItems = (
       : []),
   ];
 };
+
+export default buildPagesItems;

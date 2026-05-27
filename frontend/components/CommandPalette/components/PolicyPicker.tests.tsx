@@ -31,20 +31,19 @@ const renderPicker: typeof renderInClient = (ui, options) =>
 // context; the parent dialog supplies one in production.
 const renderPickerInCommand = (
   ui: React.ReactElement
-): ReturnType<typeof renderInClient> =>
-  renderInClient(<Command>{ui}</Command>);
+): ReturnType<typeof renderInClient> => renderInClient(<Command>{ui}</Command>);
 
 // Minimal IPolicyStats — the picker only reads id, name, type, team_id,
 // and critical. Cast through `unknown` to skip the full shape.
 const policyWith = (
   fields: Partial<IPolicyStats> & Pick<IPolicyStats, "id" | "name">
 ): IPolicyStats =>
-  ({
+  (({
     team_id: null,
     type: "",
     critical: false,
     ...fields,
-  } as unknown) as IPolicyStats;
+  } as unknown) as IPolicyStats);
 
 beforeEach(() => {
   mockedGlobal.loadAllNew.mockReset();
@@ -183,9 +182,7 @@ describe("PolicyPicker", () => {
 
     it("omits the Patch badge for non-patch policies", async () => {
       mockedGlobal.loadAllNew.mockResolvedValue({
-        policies: [
-          policyWith({ id: 2, name: "Disk encryption", type: "" }),
-        ],
+        policies: [policyWith({ id: 2, name: "Disk encryption", type: "" })],
       });
 
       const { findByText, queryByText } = renderPickerInCommand(

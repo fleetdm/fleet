@@ -10,7 +10,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
-import { getFleetSuffix } from "./pickerCopy";
+import getFleetSuffix from "./pickerCopy";
 
 const baseClass = "command-palette";
 
@@ -82,8 +82,7 @@ const ReportPicker = ({
   return (
     <Command.Group className={`${baseClass}__group`}>
       {reports.map((report) => {
-        const showObserverIcon =
-          !isViewerObserver && report.observer_can_run;
+        const showObserverIcon = !isViewerObserver && report.observer_can_run;
         const showInheritedBadge =
           isViewingSpecificTeam && report.team_id !== currentTeam?.id;
 
@@ -104,11 +103,7 @@ const ReportPicker = ({
                   position="top"
                   delayInMs={300}
                 >
-                  <Icon
-                    name="query"
-                    size="small"
-                    color="ui-fleet-black-50"
-                  />
+                  <Icon name="query" size="small" color="ui-fleet-black-50" />
                 </TooltipWrapper>
               )}
               {showInheritedBadge && (

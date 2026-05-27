@@ -34,9 +34,7 @@ export interface IDerivedContext {
 }
 
 /** Run once per buildPaletteItems call; passed to every group builder. */
-export const deriveContext = (
-  ctx: ICommandPaletteContext
-): IDerivedContext => {
+export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
   const {
     config,
     currentTeam,

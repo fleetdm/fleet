@@ -3,7 +3,7 @@ import paths from "router/paths";
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
 import { IDerivedContext } from "./derivations";
 
-export const buildControlsItems = (
+const buildControlsItems = (
   ctx: ICommandPaletteContext,
   derived: IDerivedContext
 ): ICommandItem[] => {
@@ -167,3 +167,5 @@ export const buildControlsItems = (
     },
   ];
 };
+
+export default buildControlsItems;

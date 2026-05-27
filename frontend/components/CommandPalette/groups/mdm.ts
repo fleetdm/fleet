@@ -3,7 +3,7 @@ import paths from "router/paths";
 import { ICommandItem, ICommandPaletteContext } from "../helpers";
 import { IDerivedContext } from "./derivations";
 
-export const buildMdmItems = (
+const buildMdmItems = (
   ctx: ICommandPaletteContext,
   derived: IDerivedContext
 ): ICommandItem[] => {
@@ -113,3 +113,5 @@ export const buildMdmItems = (
         ]),
   ];
 };
+
+export default buildMdmItems;
