@@ -118,6 +118,7 @@ jobs:
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+          TRIVY_SECRET_CONFIG: "./security/code/trivy-secret.yaml"
         with:
           scan-type: "fs"
           ignore-unfixed: false
@@ -130,45 +131,8 @@ jobs:
           exit-code: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '0' || '1' }}
           severity: "CRITICAL,HIGH,MEDIUM,LOW"
           trivyignores: "./security/code/.trivyignore"
-          # Skip test/dev private keys and placeholder secrets (not production).
-          # Trivy 0.69.3 expanded secret detection; these are all non-production
-          # test keys, dev TLS keys, hardcoded dev license JWTs, placeholder
-          # Stripe/GCP credentials in Sails templates and UI components.
-          skip-files: |
-            tools/osquery/in-a-box/osquery/fleet.key
-            tools/osquery/fleet.key
-            tools/smtp4dev/fleet.key
-            tools/test-orbit-mtls/client.key
-            tools/test-certs/intermediate-ca/intermediate.key.pem
-            tools/test-certs/root-ca/root-ca.key.pem
-            tools/test-certs/server/server.key.pem
-            test/upgrade/fleet.key
-            orbit/pkg/insecure/proxy.go
-            ee/orbit/pkg/httpsigproxy/httpsigproxy.go
-            server/service/testdata/client.key
-            server/mdm/cryptoutil/testdata/pkcs8-rsa.key
-            server/mdm/cryptoutil/testdata/pkcs8-x25519.key
-            pkg/certificate/testdata/test.key
-            client/testdata/client.key
-            frontend/pages/admin/IntegrationsPage/cards/Calendars/Calendars.tsx
-            website/config/custom.js
-            website/config/env/production.js
-            website/config/env/staging.js
-            website/views/pages/faq.ejs
-            website/assets/js/cloud.setup.js
-            website/api/hooks/custom/index.js
-            ee/fleet-agent-downloader/config/custom.js
-            ee/fleet-agent-downloader/config/env/production.js
-            ee/fleet-agent-downloader/config/env/staging.js
-            ee/fleet-agent-downloader/api/hooks/custom/index.js
-            ee/vulnerability-dashboard/config/custom.js
-            ee/vulnerability-dashboard/config/env/production.js
-            ee/vulnerability-dashboard/config/env/staging.js
-            ee/vulnerability-dashboard/views/pages/homepage.ejs
-            ee/vulnerability-dashboard/views/pages/faq.ejs
-            ee/vulnerability-dashboard/assets/js/utilities/open-stripe-checkout.js
-            ee/vulnerability-dashboard/assets/js/components/stripe-card-element.component.js
-            ee/vulnerability-dashboard/api/hooks/custom/index.js
+          # Test/dev keys and Sails placeholders are handled by trivy-secret.yaml.
+          # Production files use targeted path+regex allow-rules in trivy-secret.yaml.
 
       - name: Upload Trivy scan results to GitHub Security tab
         # Only upload on schedule/manual runs. PR/push uploads register
