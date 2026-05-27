@@ -282,12 +282,9 @@ const CommandPalette = (): JSX.Element | null => {
     return () => document.removeEventListener("keydown", onDocKey, true);
   }, [open, goBack]);
 
-  const handleOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      setOpen(nextOpen);
-    },
-    []
-  );
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    setOpen(nextOpen);
+  }, []);
 
   const handleSwitchFleet = useCallback(
     (fleetId: number) => {
@@ -503,10 +500,7 @@ const CommandPalette = (): JSX.Element | null => {
               </button>
             )}
             {item.opensSubPage && (
-              <span
-                aria-hidden
-                className={`${baseClass}__item-more`}
-              >
+              <span aria-hidden className={`${baseClass}__item-more`}>
                 <Icon
                   name="chevron-right"
                   size="small"
@@ -540,17 +534,18 @@ const CommandPalette = (): JSX.Element | null => {
   // Collect exact match items for the "Best match" section
   const exactMatchItems = useMemo(() => {
     if (exactMatchIds.size === 0) return [];
-    return items.reduce<
-      Array<{ item: ICommandItem; sub?: ICommandSubItem }>
-    >((acc, item) => {
-      if (exactMatchIds.has(item.id)) {
-        acc.push({ item });
-      }
-      item.subItems
-        ?.filter((sub) => exactMatchIds.has(sub.id))
-        .forEach((sub) => acc.push({ item, sub }));
-      return acc;
-    }, []);
+    return items.reduce<Array<{ item: ICommandItem; sub?: ICommandSubItem }>>(
+      (acc, item) => {
+        if (exactMatchIds.has(item.id)) {
+          acc.push({ item });
+        }
+        item.subItems
+          ?.filter((sub) => exactMatchIds.has(sub.id))
+          .forEach((sub) => acc.push({ item, sub }));
+        return acc;
+      },
+      []
+    );
   }, [items, exactMatchIds]);
 
   const renderRootPage = () => (
