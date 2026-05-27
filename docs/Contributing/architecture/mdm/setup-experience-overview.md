@@ -1,22 +1,22 @@
 # Setup Experience Overview
 
-Setup experience lets newly enrolled hosts be configured with all the MDM profiles, software and scripts that they would need. And optionally even lock them from completing setup before requirements like all software being installed are satisfied.
+Setup experience lets newly enrolled hosts be configured with all the MDM profiles, software, and scripts that they would need. And optionally block them from completing setup until requirements like all required software being installed are met.
 
 ## Summary
 
-Setup experience has various triggers depending on the platform and mdm enrollment. After enrollment, orbit goes through end user authentication, then calls the `/api/fleet/orbit/setup_experience/init` endpoint which causes the Fleet server to queue up the relevant items in the `setup_experience_status_results` table with pending statuses. For DEP enrollments, Fleet enqueues the items when handling the TokenUpdate request. 
+Setup experience has various triggers depending on the platform and MDM enrollment. After enrollment, orbit goes through end user authentication, then calls the `/api/fleet/orbit/setup_experience/init` endpoint which causes the Fleet server to queue up the relevant items in the `setup_experience_status_results` table with pending statuses. For ADE enrollments, Fleet enqueues the items when handling the `TokenUpdate` request. 
 
 The orbit `SetupExperiencer` config receiver runs every 30s and requests the current setup experience status. This status lets orbit know if config profiles, software installers and scripts are still pending or finished while those happen asynchronously through MDM and unified queue activities. Once all items are completed, the end user can exit setup experience.
 
 ## Enqueuing items
 
-Fleet enqueues relevant software installers, vpp apps, and scripts during this step. This is what the end user sees on the web UI. For MDM items,  when a host enrolls and gets to `TokenUpdate` with `AwaitingConfiguration==true`, Fleet enqueues profiles, the bootstrap package, and account configurations as MDM commands through the nanomdm command queue.
+Fleet enqueues relevant software installers, VPP apps, and scripts during ADE enrollment or after orbit calls `setup_experience/init`. This is what the end user sees on the web UI. When Fleet processes a `TokenUpdate` request with `AwaitingConfiguration==true` for ADE enrollments, it enqueues MDM items (profiles, bootstrap package, account configurations) as MDM commands in the nanomdm command queue.
 
 ## Setup experience status
 
-Whenever `/api/fleet/orbit/setup_experience/status` is called, the Fleet server checks the current state of MDM profiles, software installs, and script runs. At the end of the function, it will call `SetupExperienceNextStep()` which queues up the next item (software install /vpp install/script run) for the host in the unified queue (see [upcoming activities](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/upcoming-activities.md)), and updates the status in `setup_experience_status_results` for that item. If there is nothing left to do, the device is released. On macOS, if everything is done and the device hasn't been released manually, the server sends a `DeviceConfigured` MDM command here to release the device from Setup Assistant.
+Whenever `/api/fleet/orbit/setup_experience/status` is called, the Fleet server checks the current state of MDM profiles, software installs, and script runs. At the end of the function, it will call `SetupExperienceNextStep()` which queues up the next item (software install/VPP install/script run) for the host in the unified queue (see [upcoming activities](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/upcoming-activities.md)), and updates the status in `setup_experience_status_results` for that item. If there is nothing left to do, the device is released. On macOS, if everything is done and the device hasn't been released manually, the server sends a `DeviceConfigured` MDM command here to release the device from Setup Assistant.
 
-These activities run in order, but they don't directly interact with the setup experience which is why the setup experience receiver polls for status. The results from software installs, script runs, or vpp installs are responsible for updating the setup experience status for that item. See [software installation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/architecture/software/software-installation.md) for how Fleet installs software on hosts while setup experience is running.
+These activities run in order, but they don't directly interact with the setup experience which is why the setup experience receiver polls for status. The results from software installs, script runs, or VPP installs are responsible for updating the setup experience status for that item. See [software installation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/architecture/software/software-installation.md) for how Fleet installs software on hosts while setup experience is running.
 
 ## Platform differences
 
