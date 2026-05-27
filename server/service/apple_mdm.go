@@ -6266,21 +6266,22 @@ func ReconcileAppleProfiles(
 //
 //	new_rights = stored_rights AND fleet_ceiling
 //
-// Returns the rights, the host's ID (for persistence via
-// SetHostMDMAppleEnrollmentPermissions), and an error. If the host is
-// unknown to Fleet (extremely unusual at renewal time but possible if the
-// record was deleted) the function returns MDMAccessRightAll with hostID=0,
-// preserving today's behavior and skipping persistence.
+// Returns the rights, the host's UUID to persist against (via
+// SetHostMDMAppleEnrollmentPermissions), and an error. The returned UUID is
+// "" when the result must not be persisted: when the host is unknown to Fleet
+// (extremely unusual at renewal time but possible if the record was deleted)
+// or when it is an ADE host (out of scope for BYOD — kept out of this table).
+// In both of those cases the function returns MDMAccessRightAll.
 //
 // Free function so RenewSCEPCertificates (also a free function) can call it
 // without plumbing through a *Service.
-func resolveRenewalAccessRights(ctx context.Context, ds fleet.Datastore, hostUUID string) (rights int, hostID uint, err error) {
+func resolveRenewalAccessRights(ctx context.Context, ds fleet.Datastore, hostUUID string) (rights int, persistUUID string, err error) {
 	host, err := ds.HostLiteByIdentifier(ctx, hostUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			return apple_mdm.MDMAccessRightAll, 0, nil
+			return apple_mdm.MDMAccessRightAll, "", nil
 		}
-		return 0, 0, ctxerr.Wrap(ctx, err, "look up host by UUID")
+		return 0, "", ctxerr.Wrap(ctx, err, "look up host by UUID")
 	}
 
 	// ADE-enrolled (DEP / Automated Device Enrollment) hosts are supervised by
@@ -6289,27 +6290,29 @@ func resolveRenewalAccessRights(ctx context.Context, ds fleet.Datastore, hostUUI
 	// (BYOD) enrollments — narrowing AccessRights on a supervised, corporate-
 	// owned device would silently strip Wipe and Lock from IT's toolbox the
 	// first time an admin toggled the BYOD setting. Short-circuit with the
-	// full rights bitmask so the renewal profile is identical to today's.
+	// full rights bitmask (and an empty persistUUID, so this Apple-BYOD table
+	// never accumulates rows for supervised hosts) so the renewal profile is
+	// identical to today's.
 	hm, err := ds.GetHostMDM(ctx, host.ID)
 	switch {
 	case err == nil:
 		if hm.InstalledFromDep {
-			return apple_mdm.MDMAccessRightAll, host.ID, nil
+			return apple_mdm.MDMAccessRightAll, "", nil
 		}
 	case fleet.IsNotFound(err):
 		// No host_mdm row yet — treat as not-ADE and fall through to the
 		// normal BYOD narrowing path.
 	default:
-		return 0, 0, ctxerr.Wrap(ctx, err, "look up host_mdm for ADE check")
+		return 0, "", ctxerr.Wrap(ctx, err, "look up host_mdm for ADE check")
 	}
 
 	allowWipe, allowLock, err := loadFleetBYODPermissions(ctx, ds, host.TeamID)
 	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "load fleet BYOD permissions")
+		return 0, "", ctxerr.Wrap(ctx, err, "load fleet BYOD permissions")
 	}
 
 	var storedPtr *int
-	perms, err := ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.ID)
+	perms, err := ds.GetHostMDMAppleEnrollmentPermissions(ctx, hostUUID)
 	switch {
 	case err == nil:
 		storedPtr = &perms.AccessRights
@@ -6319,9 +6322,9 @@ func resolveRenewalAccessRights(ctx context.Context, ds fleet.Datastore, hostUUI
 		// fleet ceiling alone determines the answer.
 		storedPtr = nil
 	default:
-		return 0, 0, ctxerr.Wrap(ctx, err, "load host MDM Apple enrollment permissions")
+		return 0, "", ctxerr.Wrap(ctx, err, "load host MDM Apple enrollment permissions")
 	}
-	return apple_mdm.ComputeAppleEnrollmentAccessRights(allowWipe, allowLock, storedPtr), host.ID, nil
+	return apple_mdm.ComputeAppleEnrollmentAccessRights(allowWipe, allowLock, storedPtr), hostUUID, nil
 }
 
 // loadFleetBYODPermissions returns (allow_byod_wipe, allow_byod_lock) for the
@@ -6493,7 +6496,7 @@ func RenewSCEPCertificates(
 		// is bounded.
 		for i := range filteredAssocs {
 			assoc := filteredAssocs[i]
-			rights, hostID, err := resolveRenewalAccessRights(ctx, ds, assoc.HostUUID)
+			rights, persistUUID, err := resolveRenewalAccessRights(ctx, ds, assoc.HostUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "resolve renewal access rights")
 			}
@@ -6510,8 +6513,8 @@ func RenewSCEPCertificates(
 			if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending profile to host without enroll reference")
 			}
-			if hostID != 0 {
-				if err := ds.SetHostMDMAppleEnrollmentPermissions(ctx, hostID, rights); err != nil {
+			if persistUUID != "" {
+				if err := ds.SetHostMDMAppleEnrollmentPermissions(ctx, persistUUID, rights); err != nil {
 					return ctxerr.Wrap(ctx, err, "persist Apple enrollment access rights")
 				}
 			}
@@ -6571,7 +6574,7 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 		}
 
-		rights, hostID, err := resolveRenewalAccessRights(ctx, ds, assoc.HostUUID)
+		rights, persistUUID, err := resolveRenewalAccessRights(ctx, ds, assoc.HostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "resolve renewal access rights")
 		}
@@ -6591,8 +6594,8 @@ func RenewSCEPCertificates(
 		if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile, appConfig.OrgInfo.OrgName+" enrollment"); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
 		}
-		if hostID != 0 {
-			if err := ds.SetHostMDMAppleEnrollmentPermissions(ctx, hostID, rights); err != nil {
+		if persistUUID != "" {
+			if err := ds.SetHostMDMAppleEnrollmentPermissions(ctx, persistUUID, rights); err != nil {
 				return ctxerr.Wrap(ctx, err, "persist Apple enrollment access rights")
 			}
 		}
@@ -6620,7 +6623,7 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "creating new ACME enrollment")
 		}
 
-		rights, hostID, err := resolveRenewalAccessRights(ctx, ds, assoc.HostUUID)
+		rights, persistUUID, err := resolveRenewalAccessRights(ctx, ds, assoc.HostUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "resolve renewal access rights")
 		}
@@ -6640,8 +6643,8 @@ func RenewSCEPCertificates(
 		if err := renewMDMAppleEnrollmentProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile, appConfig.OrgInfo.OrgName+" ACME enrollment"); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending ACME enrollment profile to hosts")
 		}
-		if hostID != 0 {
-			if err := ds.SetHostMDMAppleEnrollmentPermissions(ctx, hostID, rights); err != nil {
+		if persistUUID != "" {
+			if err := ds.SetHostMDMAppleEnrollmentPermissions(ctx, persistUUID, rights); err != nil {
 				return ctxerr.Wrap(ctx, err, "persist Apple enrollment access rights")
 			}
 		}
