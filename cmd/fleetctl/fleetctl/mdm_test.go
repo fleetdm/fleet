@@ -230,7 +230,7 @@ func TestMDMRunCommand(t *testing.T) {
 			// MDMHostData payload via the BYOD permission gate (#23242).
 			// Return NotFound so the gate falls back to the fleet ceiling
 			// alone — these tests are not exercising BYOD restrictions.
-			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMApplePermissions, error) {
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
 				return nil, &notFoundError{}
 			}
 			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
