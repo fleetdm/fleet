@@ -933,6 +933,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				DeviceRequestUUID:       profile.DeviceRequestUUID,
 				RequestFailCount:        profile.RequestFailCount,
 				IncludedInPolicyVersion: profile.IncludedInPolicyVersion,
+				Checksum:                profile.Checksum,
 			})
 		}
 
@@ -1011,6 +1012,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				DeviceRequestUUID:       profile.DeviceRequestUUID,
 				RequestFailCount:        profile.RequestFailCount,
 				IncludedInPolicyVersion: profile.IncludedInPolicyVersion,
+				Checksum:                profile.Checksum,
 				ProfileName:             profile.ProfileName,
 				PolicyRequestUUID:       profile.PolicyRequestUUID,
 				Detail:                  detail,
