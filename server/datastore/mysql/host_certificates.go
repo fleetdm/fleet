@@ -712,7 +712,7 @@ func (ds *Datastore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context
 	const stmt = `
 		UPDATE host_certificates
 		SET deleted_at = NOW(6)
-		WHERE id IN (
+		WHERE deleted_at IS NULL AND id IN (
 			SELECT id FROM (
 				SELECT hc.id
 				FROM host_certificates hc
