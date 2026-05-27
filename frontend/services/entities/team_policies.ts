@@ -116,6 +116,7 @@ export default {
       // automations-related fields
       calendar_events_enabled,
       conditional_access_enabled,
+      continuous_automations_enabled,
       software_title_id,
       script_id,
       labels_include_any,
@@ -134,6 +135,7 @@ export default {
       critical,
       calendar_events_enabled,
       conditional_access_enabled,
+      continuous_automations_enabled,
       software_title_id,
       script_id,
       labels_include_any,

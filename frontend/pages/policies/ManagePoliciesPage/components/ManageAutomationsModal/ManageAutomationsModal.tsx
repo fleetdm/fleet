@@ -1,26 +1,13 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 
-import React, { useMemo, useState } from "react";
-import { useQuery } from "react-query";
-import { omit } from "lodash";
+import React, { useContext, useMemo, useState } from "react";
 import { SingleValue } from "react-select-5";
 
+import { NotificationContext } from "context/notification";
 import { IPolicyStats } from "interfaces/policy";
 import { IConfig } from "interfaces/config";
 import { ITeamConfig, API_NO_TEAM_ID } from "interfaces/team";
-import {
-  CommaSeparatedPlatformString,
-  PLATFORM_DISPLAY_NAMES,
-  QueryablePlatform,
-} from "interfaces/platform";
-import scriptsAPI, {
-  IListScriptsQueryKey,
-  IScriptsResponse,
-} from "services/entities/scripts";
-import softwareAPI, {
-  ISoftwareTitlesQueryKey,
-  ISoftwareTitlesResponse,
-} from "services/entities/software";
+import { PLATFORM_DISPLAY_NAMES, QueryablePlatform } from "interfaces/platform";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -34,6 +21,11 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import { getTicketOrWebhookLabel, getTicketOrWebhookState } from "./helpers";
 import { IAutomationRow } from "./types";
+import {
+  useScripts,
+  useSoftwareTitles,
+  useUpdatePolicyAutomations,
+} from "./hooks";
 
 const baseClass = "manage-automations-modal";
 
@@ -44,21 +36,21 @@ const PLATFORM_DISPLAY_ORDER: QueryablePlatform[] = [
   "chrome",
 ];
 
-const SOFTWARE_PAGE_SIZE = 1000;
-const SCRIPTS_PAGE_SIZE = 1000;
+const SUCCESS_MSG = "Successfully updated policy automations.";
+const ERR_MSG = "Could not update policy automations.";
 
 interface IManageAutomationsModalProps {
   policy: IPolicyStats;
   fleetName: string;
   isGlobalPolicy: boolean;
-  /** undefined for "All fleets", 0 for "No team", positive for a team. */
+  /** undefined for "All fleets", 0 for "Unassigned", positive for a fleet. */
   teamIdForApi: number | undefined;
   automationsConfig: IConfig | ITeamConfig | undefined;
   globalConfig: IConfig | undefined;
   /** Policy IDs that have webhook/ticket (a.k.a. "other workflow")
-   *  automations configured on this team. Membership is what drives the
-   *  initial checked state of the webhook/ticket row. */
+   *  automations configured on this fleet. */
   webhookOrTicketPolicyIds: number[];
+  refetchPolicies: () => void;
   onExit: () => void;
 }
 
@@ -70,8 +62,11 @@ const ManageAutomationsModal = ({
   automationsConfig,
   globalConfig,
   webhookOrTicketPolicyIds,
+  refetchPolicies,
   onExit,
 }: IManageAutomationsModalProps): JSX.Element => {
+  const { renderFlash } = useContext(NotificationContext);
+
   const ticketOrWebhookState = getTicketOrWebhookState(automationsConfig);
 
   const isCalendarEnabledForTeam = !isGlobalPolicy
@@ -91,14 +86,16 @@ const ManageAutomationsModal = ({
   };
   const isConditionalAccessEnabledForTeam = getIsConditionalAccessEnabledForTeam();
 
-  const initialSendWebhook = webhookOrTicketPolicyIds.includes(policy.id);
+  const initialWebhookOrTicket = webhookOrTicketPolicyIds.includes(policy.id);
   const initialInstallSoftware = !!policy.install_software;
   const initialRunScript = !!policy.run_script;
   const initialCalendar = policy.calendar_events_enabled;
   const initialConditionalAccess = policy.conditional_access_enabled;
   const initialContinuous = policy.continuous_automations_enabled ?? false;
 
-  const [sendWebhook, setSendWebhook] = useState(initialSendWebhook);
+  const [webhookOrTicketEnabled, setWebhookOrTicketEnabled] = useState(
+    initialWebhookOrTicket
+  );
   const [installSoftware, setInstallSoftware] = useState(
     initialInstallSoftware
   );
@@ -117,52 +114,14 @@ const ManageAutomationsModal = ({
   );
 
   const canFetchTeamScopedLists = !isGlobalPolicy && teamIdForApi !== undefined;
-  const { data: softwareTitlesData } = useQuery<
-    ISoftwareTitlesResponse,
-    Error,
-    ISoftwareTitlesResponse,
-    [ISoftwareTitlesQueryKey]
-  >(
-    [
-      {
-        scope: "software-titles",
-        page: 0,
-        perPage: SOFTWARE_PAGE_SIZE,
-        query: "",
-        orderDirection: "desc",
-        orderKey: "hosts_count",
-        teamId: teamIdForApi ?? 0,
-        availableForInstall: true,
-        platform: "darwin,windows,linux" as CommaSeparatedPlatformString,
-      },
-    ],
-    ({ queryKey: [key] }) => softwareAPI.getSoftwareTitles(omit(key, "scope")),
-    {
-      enabled: canFetchTeamScopedLists && installSoftware,
-      staleTime: 30_000,
-    }
-  );
-
-  const { data: scriptsData } = useQuery<
-    IScriptsResponse,
-    Error,
-    IScriptsResponse,
-    [IListScriptsQueryKey]
-  >(
-    [
-      {
-        scope: "scripts",
-        page: 0,
-        per_page: SCRIPTS_PAGE_SIZE,
-        fleet_id: teamIdForApi ?? 0,
-      },
-    ],
-    ({ queryKey: [key] }) => scriptsAPI.getScripts(omit(key, "scope")),
-    {
-      enabled: canFetchTeamScopedLists && runScript,
-      staleTime: 30_000,
-    }
-  );
+  const { data: softwareTitlesData } = useSoftwareTitles({
+    teamId: teamIdForApi ?? 0,
+    enabled: canFetchTeamScopedLists && installSoftware,
+  });
+  const { data: scriptsData } = useScripts({
+    teamId: teamIdForApi ?? 0,
+    enabled: canFetchTeamScopedLists && runScript,
+  });
 
   const softwareOptions: CustomOptionType[] = useMemo(
     () =>
@@ -197,8 +156,8 @@ const ManageAutomationsModal = ({
     {
       key: "ticket_webhook",
       label: getTicketOrWebhookLabel(ticketOrWebhookState),
-      checked: sendWebhook && isTicketWebhookEnabled,
-      onToggle: setSendWebhook,
+      checked: webhookOrTicketEnabled && isTicketWebhookEnabled,
+      onToggle: setWebhookOrTicketEnabled,
       isDisabled: !isTicketWebhookEnabled,
     },
   ];
@@ -290,12 +249,71 @@ const ManageAutomationsModal = ({
     );
   }
 
+  const { mutate: save, isLoading: isSaving } = useUpdatePolicyAutomations({
+    policy,
+    teamIdForApi,
+    isGlobalPolicy,
+    automationsConfig,
+    onSuccess: () => {
+      renderFlash("success", SUCCESS_MSG);
+      refetchPolicies();
+      onExit();
+    },
+    onError: () => renderFlash("error", ERR_MSG),
+  });
+
+  const onSave = () => {
+    // Block enabling install/run without a selection — saving would silently
+    // unset the automation.
+    if (installSoftware && softwareTitleId === null) {
+      renderFlash("error", "Please select software to install.");
+      return;
+    }
+    if (runScript && scriptId === null) {
+      renderFlash("error", "Please select a script to run.");
+      return;
+    }
+
+    const perPolicyDirty =
+      !isGlobalPolicy &&
+      (installSoftware !== initialInstallSoftware ||
+        softwareTitleId !==
+          (policy.install_software?.software_title_id ?? null) ||
+        runScript !== initialRunScript ||
+        scriptId !== (policy.run_script?.id ?? null) ||
+        calendarEvent !== initialCalendar ||
+        conditionalAccess !== initialConditionalAccess ||
+        continuousEnabled !== initialContinuous);
+    const webhookDirty = webhookOrTicketEnabled !== initialWebhookOrTicket;
+
+    if (!perPolicyDirty && !webhookDirty) {
+      onExit();
+      return;
+    }
+
+    save({
+      policyUpdate: perPolicyDirty
+        ? {
+            software_title_id: installSoftware ? softwareTitleId : null,
+            script_id: runScript ? scriptId : null,
+            calendar_events_enabled: calendarEvent,
+            conditional_access_enabled: conditionalAccess,
+            continuous_automations_enabled: continuousEnabled,
+          }
+        : undefined,
+      webhookOrTicketUpdate: webhookDirty
+        ? { enabled: webhookOrTicketEnabled }
+        : undefined,
+    });
+  };
+
   return (
     <Modal
       title="Manage automations"
       onExit={onExit}
       className={baseClass}
       width="large"
+      isContentDisabled={isSaving}
     >
       <div className={`${baseClass}__body`}>
         <div className={`${baseClass}__header`}>
@@ -391,7 +409,9 @@ const ManageAutomationsModal = ({
         <Button onClick={onExit} variant="inverse">
           Cancel
         </Button>
-        <Button onClick={onExit}>Save</Button>
+        <Button onClick={onSave} isLoading={isSaving} disabled={isSaving}>
+          Save
+        </Button>
       </div>
     </Modal>
   );

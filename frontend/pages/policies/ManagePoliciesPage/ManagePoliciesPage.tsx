@@ -970,6 +970,7 @@ const ManagePolicyPage = ({
             automationsConfig={automationsConfig}
             globalConfig={globalConfig}
             webhookOrTicketPolicyIds={currentAutomatedPolicies}
+            refetchPolicies={() => refetchPolicies(teamIdForApi)}
             onExit={onCloseManageAutomationsModal}
           />
         )}
