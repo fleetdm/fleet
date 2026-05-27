@@ -40,149 +40,81 @@ Setup experience is not supported on Android. Apps are delivered through the dev
 ## Flow diagram (orbit)
 
 ```mermaid
-    flowchart TB
-
-      
+flowchart TB
 
     subgraph FS["Fleet Server"]
+        ESE["EnqueueSetupExperienceItems()"]
+        TU["TokenUpdate handler\n(ADE: AwaitingConfiguration==true)"]
+        TU --> ESE
 
-      
+        subgraph GOSES["GetOrbitSetupExperienceStatus()"]
+            direction TB
+            G_MDM["bootstrap package status\nconfiguration profile statuses\naccount configuration status\n(macOS only)"]
+            G_SW["get software/script statuses\nfrom setup_experience_status_results"]
+            G_FI{"failed installs?"}
+            G_RFSS["ResetSetupExperienceItemsAfterFailure()\nif resetFailedSetupSteps == true and requireAllSoftware == true"]
+            G_RCSA["recordCanceledSetupExperienceSoftwareActivities()"]
+            G_SENS["SetupExperienceNextStep()\nenqueues next software / VPP / script install"]
+            G_REL{"ready for release?"}
+            G_DEVCFG["DeviceConfigured MDM command\n(macOS: exit Setup Assistant)"]
 
-    ESE["EnqueueSetupExperienceItems()"]
+            G_MDM --> G_SW --> G_FI
+            G_FI -->|"yes"| G_RFSS --> G_RCSA
+            G_FI -->|"no"| G_RCSA
+            G_RCSA --> G_REL
+            G_REL -->|"yes"| G_DEVCFG
+            G_REL -->|"no"| G_SENS
+        end
 
-      
+        UQ[/"unified queue · upcoming_activities"/]
+        G_SENS --> UQ
 
-    subgraph GOSES["GetOrbitSetupExperienceStatus()"]
+        SIR_EP(("POST /orbit/software_install/result\nSaveHostSoftwareInstallResult()"))
+        SCR_EP(("POST /orbit/scripts/result\nSaveHostScriptResult()"))
 
-    direction TB
-
-    G_MDM["bootstrap package status\nconfiguration profile statuses\naccount configuration status"]
-
-    G_SW["get software/script statuses\nfrom setup_experience_status_results"]
-
-    G_FI{"failed installs?"}
-
-    G_RFSS["ResetSetupExperienceItemsAfterFailure()\n if resetFailedSetupSteps == true and requireAllSoftware == true"]
-
-    G_RCSA["recordCanceledSetupExperienceSoftwareActivities()"]
-
-    G_SENS["SetupExperienceNextStep()\nenqueues next software / VPP / script install"]
-
-      
-
-    G_MDM --> G_SW --> G_FI
-
-    G_FI -->|"yes"| G_RFSS --> G_RCSA
-
-    G_FI -->|"no"| G_RCSA
-
-    G_RCSA --> G_SENS
-
+        SIR_EP -.->|"maybeUpdateSetupExperienceStatus\nupdates setup_experience_status_results"| G_SW
+        SCR_EP -.->|"maybeUpdateSetupExperienceStatus\nupdates setup_experience_status_results"| G_SW
     end
-
-      
-
-    UQ[/"unified queue · upcoming_activities"/]
-
-    G_SENS --> UQ
-
-      
-
-    SIR_EP(("POST /orbit/software_install/result\nSaveHostSoftwareInstallResult()"))
-
-    SCR_EP(("POST /orbit/scripts/result\nSaveHostScriptResult()"))
-
-      
-
-    SIR_EP -.->|"maybeUpdateSetupExperienceStatus\nupdates setup_experience_status_results"| G_SW
-
-    SCR_EP -.->|"maybeUpdateSetupExperienceStatus\nupdates setup_experience_status_results"| G_SW
-
-    end
-
-      
 
     subgraph OH["Orbit Host"]
+        direction LR
+        O_START(["processSetupExperience"])
+        O_CONN{"server.Has(\nCapabilityWebSetupExperience\n)?"}
+        O_EUA{"end user auth"}
+        O_INIT["orbit host calls init endpoint\nInitiateSetupExperience()"]
+        O_SECR(("SetupExperience config receiver\nNewSetupExperiencer()"))
+        O_CSAS["call setupExperienceStatus()"]
+        O_PP{"profiles/bootstrap/\naccount config pending?"}
+        O_RUI["render web UI"]
+        O_SP{"any software\ninstalls pending?"}
+        O_SCP{"any scripts\npending?"}
+        O_RETURN["receiver returns"]
+        O_DONE(["done — show close button"])
+        O_SWRX(("software install receiver"))
+        O_SCRX(("script receiver"))
 
-    direction LR
-
-    O_START(["processSetupExperience"])
-
-    O_CONN{"server.Has(\nCapabilityWebSetupExperience\n)?"}
-
-    O_EUA{"end user auth"}
-
-    O_INIT["orbit host calls init endpoint\nInitiateSetupExperience()"]
-
-    O_SECR(("SetupExperience config receiver\nNewSetupExperiencer()"))
-
-    O_CSAS["call setupExperienceStatus()"]
-
-    O_PP{"profiles/bootstrap/\naccount config pending?"}
-
-    O_RUI["render web UI"]
-
-    O_SP{"any software\ninstalls pending?"}
-
-    O_SCP{"any scripts\npending?"}
-
-    O_RETURN["receiver returns"]
-
-    O_DONE(["done — show close button"])
-
-      
-
-    O_SWRX(("software install receiver"))
-
-    O_SCRX(("script receiver"))
-
-      
-
-    O_START --> O_CONN
-
-    O_CONN -->|"yes"| O_EUA
-
-    O_EUA -->|"fail"| O_EUA
-
-    O_EUA -->|"success"| O_INIT
-
-    O_INIT --> O_SECR
-
-    O_SECR --> O_CSAS
-
-    O_CSAS --> O_PP
-
-    O_PP -->|"yes"| O_RETURN
-
-    O_PP -->|"no"| O_RUI --> O_SP
-
-    O_SP -->|"yes"| O_RETURN
-
-    O_SP -->|"no"| O_SCP
-
-    O_SCP -->|"yes"| O_RETURN
-
-    O_SCP -->|"no"| O_DONE
-
-    O_RETURN -. "next run in 30s" .-> O_SECR
-
+        O_START --> O_CONN
+        O_CONN -->|"yes"| O_EUA
+        O_EUA -->|"fail"| O_EUA
+        O_EUA -->|"success"| O_INIT
+        O_INIT --> O_SECR
+        O_SECR --> O_CSAS
+        O_CSAS --> O_PP
+        O_PP -->|"yes"| O_RETURN
+        O_PP -->|"no"| O_RUI --> O_SP
+        O_SP -->|"yes"| O_RETURN
+        O_SP -->|"no"| O_SCP
+        O_SCP -->|"yes"| O_RETURN
+        O_SCP -->|"no"| O_DONE
+        O_RETURN -. "next run in 30s" .-> O_SECR
     end
 
-      
-
     O_INIT -->|"calls"| ESE
-
     ESE -.->|"Enabled=true → register receiver"| O_SECR
-
     O_CSAS -->|"calls"| GOSES
 
-      
-
-    UQ -.->|"polled, item handed off"| O_SWRX
-
-    UQ -.->|"polled, item handed off"| O_SCRX
-
+    UQ -.->|"delivered to orbit"| O_SWRX
+    UQ -.->|"delivered to orbit"| O_SCRX
     O_SWRX -->|"calls"| SIR_EP
-
     O_SCRX -->|"calls"| SCR_EP
 ```
