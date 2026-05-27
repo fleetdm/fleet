@@ -24,16 +24,17 @@ func (notFoundErr) IsNotFound() bool { return true }
 
 func TestEffectiveAppleAccessRights(t *testing.T) {
 	const hostID = uint(42)
+	const hostUUID = "uuid-42"
 	mkHost := func(teamID *uint) *fleet.Host {
-		return &fleet.Host{ID: hostID, TeamID: teamID, Platform: "darwin"}
+		return &fleet.Host{ID: hostID, UUID: hostUUID, TeamID: teamID, Platform: "darwin"}
 	}
 
 	t.Run("global config, all allowed, no stored row -> ceiling = all", func(t *testing.T) {
 		ds := new(mock.Store)
 		s := &Service{ds: ds}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
-			require.Equal(t, hostID, id)
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, uuid string) (*fleet.HostMDMApplePermissions, error) {
+			require.Equal(t, hostUUID, uuid)
 			return nil, notFoundErr{}
 		}
 		got, err := s.effectiveAppleAccessRights(t.Context(), mkHost(nil))
@@ -50,7 +51,7 @@ func TestEffectiveAppleAccessRights(t *testing.T) {
 			ac.MDM.AllowBYODLock = optjson.SetBool(true)
 			return ac, nil
 		}
-		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, uuid string) (*fleet.HostMDMApplePermissions, error) {
 			return nil, notFoundErr{}
 		}
 		got, err := s.effectiveAppleAccessRights(t.Context(), mkHost(nil))
@@ -66,8 +67,8 @@ func TestEffectiveAppleAccessRights(t *testing.T) {
 			require.Equal(t, tid, teamID)
 			return &fleet.TeamMDM{AllowBYODWipe: true, AllowBYODLock: false}, nil // ceiling no-lock
 		}
-		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
-			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, uuid string) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostUUID: uuid, AccessRights: apple_mdm.MDMAccessRightAll}, nil
 		}
 		got, err := s.effectiveAppleAccessRights(t.Context(), mkHost(&tid))
 		require.NoError(t, err)
@@ -78,8 +79,8 @@ func TestEffectiveAppleAccessRights(t *testing.T) {
 		ds := new(mock.Store)
 		s := &Service{ds: ds}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
-			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.AppleEnrollmentAccessRights(false, true)}, nil
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, uuid string) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostUUID: uuid, AccessRights: apple_mdm.AppleEnrollmentAccessRights(false, true)}, nil
 		}
 		got, err := s.effectiveAppleAccessRights(t.Context(), mkHost(nil))
 		require.NoError(t, err)
@@ -110,7 +111,7 @@ func TestEffectiveAppleAccessRights(t *testing.T) {
 		s := &Service{ds: ds}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 		boom := errors.New("perms boom")
-		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, uuid string) (*fleet.HostMDMApplePermissions, error) {
 			return nil, boom
 		}
 		_, err := s.effectiveAppleAccessRights(t.Context(), mkHost(nil))
