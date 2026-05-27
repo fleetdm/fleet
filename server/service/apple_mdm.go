@@ -4022,31 +4022,6 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 	return nil, nil
 }
 
-// hostIsPersonalEnrollment reports whether the host identified by the given
-// MDM enrollment identifier is enrolled via Account-Driven User Enrollment
-// (BYOD). The identifier is whatever the MDM command result reports — a UDID
-// for device enrollments, or a User Enrollment EnrollmentID for BYOD —
-// resolved via HostLiteByIdentifier. Returns false when the host or its MDM
-// record can't be found — callers fall through to the default (managed) path
-// in that case.
-func (svc *MDMAppleCheckinAndCommandService) hostIsPersonalEnrollment(ctx context.Context, enrollmentIdentifier string) (bool, error) {
-	host, err := svc.ds.HostLiteByIdentifier(ctx, enrollmentIdentifier)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return false, nil
-		}
-		return false, ctxerr.Wrap(ctx, err, "host lite by identifier")
-	}
-	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return false, nil
-		}
-		return false, ctxerr.Wrap(ctx, err, "get host mdm")
-	}
-	return hostMDM.IsPersonalEnrollment, nil
-}
-
 func (svc *MDMAppleCheckinAndCommandService) runCommandHandlers(ctx context.Context, cmdName string, result fleet.MDMCommandResults) error {
 	handlers, ok := svc.commandHandlers[cmdName]
 	if ok {
@@ -4261,9 +4236,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if (cmdResult.Status == fleet.MDMAppleStatusError || cmdResult.Status == fleet.MDMAppleStatusCommandFormatError) &&
 			apple_mdm.IsAppAlreadyInstalledError(cmdResult.ErrorChain) {
 			isPersonal := r.Type == mdm.UserEnrollmentDevice
-			if err != nil {
-				return nil, ctxerr.Wrap(r.Context, err, "looking up enrollment type for InstallApplication already-installed result")
-			}
 			if !isPersonal {
 				svc.logger.InfoContext(r.Context, "InstallApplication reported app already installed; treating as success",
 					"host_uuid", cmdResult.Identifier(), "command_uuid", cmdResult.CommandUUID)

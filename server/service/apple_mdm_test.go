@@ -2807,22 +2807,21 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		}
 	}
 
-	// withEnrollmentType wires the host-lookup mocks so hostIsPersonalEnrollment
-	// resolves to the requested value without each subtest re-declaring the
-	// boilerplate.
-	withEnrollmentType := func(ds *mock.Store, personal bool) {
-		ds.HostLiteByIdentifierFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
-			return &fleet.HostLite{ID: 1}, nil
+	// enrollReq builds an MDM request carrying the enrollment type the way
+	// nanomdm populates it in production. The InstallApplication handler reads
+	// r.Type directly (no DB lookup) to tell BYOD/Account-Driven User
+	// Enrollment apart from fully managed hosts.
+	enrollReq := func(personal bool) *mdm.Request {
+		var enrollType mdm.EnrollType = mdm.Device
+		if personal {
+			enrollType = mdm.UserEnrollmentDevice
 		}
-		ds.GetHostMDMFunc = func(_ context.Context, _ uint) (*fleet.HostMDM, error) {
-			return &fleet.HostMDM{HostID: 1, Enrolled: true, IsPersonalEnrollment: personal}, nil
-		}
+		return &mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{Type: enrollType, ID: hostUUID}}
 	}
 
 	t.Run("managed host: already installed bypasses retry and routes to verification", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := newSvc(ds)
-		withEnrollmentType(ds, false)
 
 		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, cmd string) (string, error) {
 			require.Equal(t, commandUUID, cmd)
@@ -2836,7 +2835,7 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		}
 
 		_, err := svc.CommandAndReportResults(
-			&mdm.Request{Context: ctx},
+			enrollReq(false),
 			&mdm.CommandResults{
 				Enrollment:  mdm.Enrollment{UDID: hostUUID},
 				CommandUUID: commandUUID,
@@ -2859,7 +2858,6 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 	t.Run("managed host: already installed via message fallback when code is unknown", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := newSvc(ds)
-		withEnrollmentType(ds, false)
 
 		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
 			return "InstallApplication", nil
@@ -2869,7 +2867,7 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		}
 
 		_, err := svc.CommandAndReportResults(
-			&mdm.Request{Context: ctx},
+			enrollReq(false),
 			&mdm.CommandResults{
 				Enrollment:  mdm.Enrollment{UDID: hostUUID},
 				CommandUUID: commandUUID,
@@ -2889,7 +2887,6 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 	t.Run("BYOD host: already installed surfaces custom error and skips retry+verification", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc := newSvc(ds)
-		withEnrollmentType(ds, true)
 
 		ds.GetMDMAppleCommandRequestTypeFunc = func(_ context.Context, _ string) (string, error) {
 			return "InstallApplication", nil
@@ -2919,7 +2916,7 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 			},
 		}
 
-		_, err := svc.CommandAndReportResults(&mdm.Request{Context: ctx}, cr)
+		_, err := svc.CommandAndReportResults(enrollReq(true), cr)
 		require.NoError(t, err)
 
 		// Status stays Error — we did NOT promote to success.
