@@ -3,14 +3,88 @@
   $gap-data-sets: $pad-medium;
 
   &__change-avatar {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+  }
+
+  &__change-avatar-circle {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    clip-path: circle(50%);
+  }
+
+  &__change-avatar-circle:hover,
+  &__change-avatar-circle:focus-within,
+  &__change-avatar:has(.account-side-panel__change-photo-badge:hover),
+  &__change-avatar:has(.account-side-panel__change-photo-badge:focus-visible) {
+    .account-side-panel__avatar {
+      filter: brightness(0.45);
+    }
+
+    .account-side-panel__change-photo-link {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+
+  &__change-photo-badge {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: $core-fleet-white;
+    border: 1px solid $ui-fleet-black-25;
     display: flex;
-    flex-direction: column;
-    gap: $pad-small;
     align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1;
   }
 
   &__avatar {
-    margin: 0 auto;
+    margin: 0;
+    transition: filter 150ms ease;
+  }
+
+  &__change-photo-link {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    align-content: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    text-align: center;
+    padding: $pad-small;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: $static-white;
+    font-size: 12px;
+    font-weight: $bold;
+    text-decoration: underline;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms ease;
+
+    &:hover,
+    &:focus {
+      color: $static-white;
+    }
+  }
+
+  &__change-photo-link-nowrap {
+    white-space: nowrap;
+  }
+
+  &__change-photo-icon {
+    margin-left: $pad-xsmall;
+    vertical-align: middle;
   }
 
   &__button {

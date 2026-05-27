@@ -11,6 +11,7 @@ import Avatar from "components/Avatar";
 import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import Icon from "components/Icon";
 import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
@@ -35,6 +36,26 @@ const AccountSidePanel = ({
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() =>
     getThemeMode()
   );
+  const [hasGravatarPhoto, setHasGravatarPhoto] = useState(false);
+
+  useEffect(() => {
+    const url = currentUser.gravatar_url;
+    if (!url) {
+      setHasGravatarPhoto(false);
+      return;
+    }
+    // Strip any existing d= param so Gravatar's built-in fallback (identicon,
+    // mystery-person, etc.) doesn't mask the "no real photo" case, then add
+    // d=404 so a missing photo errors out instead.
+    const stripped = url.replace(/([?&])d=[^&]*&?/g, "$1").replace(/[?&]$/, "");
+    const testUrl = stripped.includes("?")
+      ? `${stripped}&d=404`
+      : `${stripped}?d=404`;
+    const img = new window.Image();
+    img.onload = () => setHasGravatarPhoto(true);
+    img.onerror = () => setHasGravatarPhoto(false);
+    img.src = testUrl;
+  }, [currentUser.gravatar_url]);
 
   const onThemeSelect = (value: string) => {
     const mode = value as ThemeMode;
@@ -72,12 +93,39 @@ const AccountSidePanel = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__change-avatar`}>
-        <Avatar user={currentUser} className={`${baseClass}__avatar`} />
-        <CustomLink
-          url="https://en.gravatar.com/emails/"
-          text="Change photo at Gravatar"
-          newTab
-        />
+        <div className={`${baseClass}__change-avatar-circle`}>
+          <Avatar user={currentUser} className={`${baseClass}__avatar`} />
+          <a
+            className={`${baseClass}__change-photo-link`}
+            href="https://en.gravatar.com/emails/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Change photo at{" "}
+            <span className={`${baseClass}__change-photo-link-nowrap`}>
+              Gravatar
+              <Icon
+                name="external-link"
+                className={`${baseClass}__change-photo-icon`}
+                color="static-white"
+              />
+            </span>
+          </a>
+        </div>
+        <a
+          className={`${baseClass}__change-photo-badge`}
+          href="https://en.gravatar.com/emails/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-hidden="true"
+          tabIndex={-1}
+        >
+          <Icon
+            name={hasGravatarPhoto ? "pencil" : "plus"}
+            color="core-fleet-black"
+            size="small"
+          />
+        </a>
       </div>
       <div
         className={`${baseClass}__theme-picker`}
