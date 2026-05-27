@@ -4994,10 +4994,11 @@ func TestPersistEnrollmentAccessRights(t *testing.T) {
 
 func TestResolveHostWipeLockAllowed(t *testing.T) {
 	const hostID = uint(42)
+	const hostUUID = "uuid-42"
 	statusPtr := func(s string) *string { return &s }
 
 	mkHost := func(platform, status string) *fleet.Host {
-		h := &fleet.Host{ID: hostID, Platform: platform}
+		h := &fleet.Host{ID: hostID, UUID: hostUUID, Platform: platform}
 		if status != "" {
 			h.MDM.EnrollmentStatus = statusPtr(status)
 		}
@@ -5044,8 +5045,8 @@ func TestResolveHostWipeLockAllowed(t *testing.T) {
 		ds := new(mock.Store)
 		s := &Service{ds: ds}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
-			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, uuid string) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostUUID: uuid, AccessRights: apple_mdm.MDMAccessRightAll}, nil
 		}
 		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("darwin", "On (manual)"))
 		require.NoError(t, err)
@@ -5062,8 +5063,8 @@ func TestResolveHostWipeLockAllowed(t *testing.T) {
 			ac.MDM.AllowBYODLock = optjson.SetBool(true)
 			return ac, nil
 		}
-		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
-			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, uuid string) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostUUID: uuid, AccessRights: apple_mdm.MDMAccessRightAll}, nil
 		}
 		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("darwin", "On (manual)"))
 		require.NoError(t, err)
@@ -5075,8 +5076,8 @@ func TestResolveHostWipeLockAllowed(t *testing.T) {
 		ds := new(mock.Store)
 		s := &Service{ds: ds}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil } // ceiling = all
-		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
-			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.AppleEnrollmentAccessRights(false, true)}, nil
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, uuid string) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostUUID: uuid, AccessRights: apple_mdm.AppleEnrollmentAccessRights(false, true)}, nil
 		}
 		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("darwin", "On (manual)"))
 		require.NoError(t, err)
@@ -5088,8 +5089,8 @@ func TestResolveHostWipeLockAllowed(t *testing.T) {
 		ds := new(mock.Store)
 		s := &Service{ds: ds}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, id uint) (*fleet.HostMDMApplePermissions, error) {
-			return &fleet.HostMDMApplePermissions{HostID: id, AccessRights: apple_mdm.MDMAccessRightAll}, nil
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, uuid string) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostUUID: uuid, AccessRights: apple_mdm.MDMAccessRightAll}, nil
 		}
 		w, l, err := s.resolveHostWipeLockAllowed(t.Context(), mkHost("ios", "On (manual)"))
 		require.NoError(t, err)

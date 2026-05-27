@@ -2522,7 +2522,7 @@ func (svc *Service) resolveHostWipeLockAllowed(ctx context.Context, host *fleet.
 		return false, false, nil
 	case "On (manual)":
 		// BYOD/manual: compute effective rights for this host.
-		rights, err := svc.computeAppleEnrollmentAccessRights(ctx, host.TeamID, host.ID)
+		rights, err := svc.computeAppleEnrollmentAccessRights(ctx, host.TeamID, host.UUID)
 		if err != nil {
 			return false, false, ctxerr.Wrap(ctx, err, "compute effective access rights")
 		}
