@@ -1013,6 +1013,7 @@ const androidApplicableProfilesQuery = `
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		0 as count_profile_labels,
@@ -1042,6 +1043,7 @@ const androidApplicableProfilesQuery = `
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		COUNT(*) as count_profile_labels,
@@ -1076,6 +1078,7 @@ const androidApplicableProfilesQuery = `
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		COUNT(*) as count_profile_labels,
@@ -1120,6 +1123,7 @@ const androidApplicableProfilesQuery = `
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		COUNT(*) as count_profile_labels,
@@ -1189,13 +1193,10 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		(
 		-- at least one profile is missing from host_mdm_android_profiles
 			hmap.host_uuid IS NULL OR
-			-- profile was never sent or was updated after sent
-			-- TODO(ap): need to make sure we set it to NULL when profile is updated
-			( hmap.included_in_policy_version IS NULL AND COALESCE(hmap.status, '') <> ? ) OR
-			hmap.status IS NULL OR
-			-- profile was sent in older policy version than currently applied
-			(hmap.included_in_policy_version IS NOT NULL AND ad.applied_policy_id = ds.host_uuid AND
-				hmap.included_in_policy_version < COALESCE(ad.applied_policy_version, 0))
+			-- profile content changed (checksum mismatch)
+			hmap.checksum != ds.checksum OR
+			-- profile needs retry (status reset to NULL after transient failure)
+			hmap.status IS NULL
 		)
 
 	UNION
@@ -1233,7 +1234,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 
 		var hostUUIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt,
-			fleet.MDMDeliveryFailed, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending); err != nil {
+			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending); err != nil {
 			return ctxerr.Wrap(ctx, err, "list android hosts with profile changes")
 		}
 
@@ -1246,6 +1247,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	SELECT
 		ds.profile_uuid,
 		ds.name as profile_name,
+		ds.checksum,
 		ds.host_uuid,
 		COALESCE(hmap.request_fail_count, 0) as request_fail_count,
 		COALESCE(apr.error_details, '') as last_error_details
@@ -1268,6 +1270,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	SELECT
 		hmap.profile_uuid,
 		hmap.profile_name,
+		hmap.checksum,
 		hmap.host_uuid,
 		hmap.request_fail_count,
 		COALESCE(apr.error_details, '') as last_error_details
@@ -1365,6 +1368,7 @@ func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				device_request_uuid,
 				request_fail_count,
 				included_in_policy_version,
+				checksum,
 				can_reverify
 			)
 			VALUES %s
@@ -1377,6 +1381,7 @@ func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				device_request_uuid = VALUES(device_request_uuid),
 				request_fail_count = VALUES(request_fail_count),
 				included_in_policy_version = VALUES(included_in_policy_version),
+				checksum = VALUES(checksum),
 				can_reverify = VALUES(can_reverify)
 `, strings.TrimSuffix(valuePart, ","), detailUpdate,
 		)
@@ -1396,12 +1401,16 @@ func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMAndroidProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		checksum := p.Checksum
+		if checksum == nil {
+			checksum = make([]byte, 16)
+		}
 		args := []any{
 			p.HostUUID, p.Status, p.OperationType,
 			p.Detail, p.ProfileUUID, p.ProfileName,
 			p.PolicyRequestUUID, p.DeviceRequestUUID, p.RequestFailCount,
-			p.IncludedInPolicyVersion, p.CanReverify,
+			p.IncludedInPolicyVersion, checksum, p.CanReverify,
 		}
 		return valuePart, args
 	}

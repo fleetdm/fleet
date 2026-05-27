@@ -942,11 +942,19 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		}
 
 	} else {
-		// Dedupe the policyRequestUUID across all pending install profiles
+		// Find the policy request UUID from the most recent profile PATCH
+		// that the device has applied. We use <= instead of == because
+		// non-profile PATCHes (e.g. cert delivery, app installs) can bump
+		// the device's applied version without re-sending profiles.
 		var policyRequestUUID string
+		var maxVersion int64
 		for _, profile := range pendingInstallProfiles {
-			if int64(*profile.IncludedInPolicyVersion) == device.AppliedPolicyVersion && profile.PolicyRequestUUID != nil {
-				policyRequestUUID = *profile.PolicyRequestUUID
+			if profile.PolicyRequestUUID != nil && profile.IncludedInPolicyVersion != nil {
+				v := int64(*profile.IncludedInPolicyVersion)
+				if v <= device.AppliedPolicyVersion && v > maxVersion {
+					maxVersion = v
+					policyRequestUUID = *profile.PolicyRequestUUID
+				}
 			}
 		}
 
