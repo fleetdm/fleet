@@ -34,28 +34,33 @@ func TestEnsureVPPClientUser_NewUser(t *testing.T) {
 	tokenDB := &fleet.VPPTokenDB{ID: 42, Token: "valid-token"}
 	host := &fleet.Host{ID: hostID}
 
-	var createCalls int
+	var registerCalls int
 	setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
-		createCalls++
+		registerCalls++
 		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/users/create", r.URL.Path)
-		assert.Equal(t, "Bearer valid-token", r.Header.Get("Authorization"))
+		assert.Equal(t, "/registerVPPUserSrv", r.URL.Path)
+		// v1 puts the token in the body, not the Authorization header.
+		assert.Empty(t, r.Header.Get("Authorization"))
 
 		var got struct {
-			Users []struct {
-				ClientUserId   string `json:"clientUserId"`
-				ManagedAppleId string `json:"managedAppleId"`
-			} `json:"users"`
+			SToken            string `json:"sToken"`
+			ClientUserIDStr   string `json:"clientUserIdStr"`
+			ManagedAppleIDStr string `json:"managedAppleIDStr"`
 		}
 		assert.NoError(t, json.NewDecoder(r.Body).Decode(&got))
-		assert.Len(t, got.Users, 1)
-		assert.NotEmpty(t, got.Users[0].ClientUserId)
-		assert.Equal(t, managedAppleID, got.Users[0].ManagedAppleId)
+		assert.Equal(t, "valid-token", got.SToken)
+		assert.NotEmpty(t, got.ClientUserIDStr)
+		assert.Equal(t, managedAppleID, got.ManagedAppleIDStr)
 
 		_, _ = fmt.Fprintf(w, `{
-			"eventId": "evt-1",
-			"users": [{"userId":"apple-user-1","clientUserId":%q,"managedAppleId":%q,"status":"Registered"}]
-		}`, got.Users[0].ClientUserId, managedAppleID)
+			"status": 0,
+			"user": {
+				"userId": 98765,
+				"status": "Registered",
+				"clientUserIdStr": %q,
+				"managedAppleIDStr": %q
+			}
+		}`, got.ClientUserIDStr, managedAppleID)
 	})
 
 	ds := new(mock.Store)
@@ -78,7 +83,7 @@ func TestEnsureVPPClientUser_NewUser(t *testing.T) {
 	clientUserID, err := svc.ensureVPPClientUser(context.Background(), host, tokenDB)
 	require.NoError(t, err)
 	require.NotEmpty(t, clientUserID)
-	require.Equal(t, 1, createCalls)
+	require.Equal(t, 1, registerCalls)
 
 	require.NotNil(t, insertedRow)
 	require.Equal(t, tokenDB.ID, insertedRow.VPPTokenID)
@@ -86,7 +91,7 @@ func TestEnsureVPPClientUser_NewUser(t *testing.T) {
 	require.Equal(t, clientUserID, insertedRow.ClientUserID)
 	require.Equal(t, fleet.VPPClientUserStatusRegistered, insertedRow.Status)
 	require.NotNil(t, insertedRow.AppleUserID)
-	require.Equal(t, "apple-user-1", *insertedRow.AppleUserID)
+	require.Equal(t, "98765", *insertedRow.AppleUserID)
 }
 
 func TestEnsureVPPClientUser_ExistingRegisteredUser(t *testing.T) {
@@ -96,7 +101,7 @@ func TestEnsureVPPClientUser_ExistingRegisteredUser(t *testing.T) {
 
 	// Apple must NOT be called on cache hit.
 	setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
-		t.Fatalf("Apple VPP create-users must not be called when a registered row exists; got %s %s", r.Method, r.URL.Path)
+		t.Fatalf("Apple VPP register-user must not be called when a registered row exists; got %s %s", r.Method, r.URL.Path)
 	})
 
 	ds := new(mock.Store)
@@ -119,28 +124,25 @@ func TestEnsureVPPClientUser_ExistingRegisteredUser(t *testing.T) {
 	require.False(t, ds.InsertVPPClientUserFuncInvoked)
 }
 
-func TestEnsureVPPClientUser_PendingRetryReusesUUID(t *testing.T) {
+// A non-registered cache row (typically 'pending' from the legacy v2 async
+// flow) must NOT be treated as a fresh registration target: Apple enforces
+// uniqueness on (location, managedAppleId), so registering with a new UUID
+// would collide. Instead, look the user up on Apple's side and resync.
+func TestEnsureVPPClientUser_PendingRowAppleHasUser(t *testing.T) {
 	const (
 		managedAppleID = "user@example.com"
-		priorUUID      = "prior-uuid-1234"
+		appleClientID  = "apple-side-uuid"
 	)
 	tokenDB := &fleet.VPPTokenDB{ID: 1, Token: "tok"}
 	host := &fleet.Host{ID: 1}
 
 	setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
-		var got struct {
-			Users []struct {
-				ClientUserId   string `json:"clientUserId"`
-				ManagedAppleId string `json:"managedAppleId"`
-			} `json:"users"`
+		if r.Method == http.MethodGet && r.URL.Path == "/users" {
+			assert.Equal(t, managedAppleID, r.URL.Query().Get("managedAppleId"))
+			_, _ = fmt.Fprintf(w, `{"users":[{"clientUserId":%q,"status":"Registered"}]}`, appleClientID)
+			return
 		}
-		assert.NoError(t, json.NewDecoder(r.Body).Decode(&got))
-		assert.Equal(t, priorUUID, got.Users[0].ClientUserId, "retry must reuse the prior clientUserId")
-
-		_, _ = fmt.Fprintf(w, `{
-			"eventId": "evt",
-			"users": [{"userId":"apple-2","clientUserId":%q,"managedAppleId":%q,"status":"Registered"}]
-		}`, priorUUID, managedAppleID)
+		t.Fatalf("unexpected Apple call %s %s — pending row + Apple-side user should resync without re-registering", r.Method, r.URL.Path)
 	})
 
 	ds := new(mock.Store)
@@ -151,40 +153,88 @@ func TestEnsureVPPClientUser_PendingRetryReusesUUID(t *testing.T) {
 		return &fleet.VPPClientUser{
 			VPPTokenID:     tokenDB.ID,
 			ManagedAppleID: managedAppleID,
-			ClientUserID:   priorUUID,
+			ClientUserID:   "stale-pending-uuid",
 			Status:         fleet.VPPClientUserStatusPending,
 		}, nil
 	}
-	var lastInserted *fleet.VPPClientUser
+	var insertedRow *fleet.VPPClientUser
 	ds.InsertVPPClientUserFunc = func(_ context.Context, row *fleet.VPPClientUser) error {
-		lastInserted = row
+		insertedRow = row
 		return nil
 	}
 
 	svc := newTestServiceWithDS(ds)
-	got, err := svc.ensureVPPClientUser(context.Background(), host, tokenDB)
+	clientUserID, err := svc.ensureVPPClientUser(context.Background(), host, tokenDB)
 	require.NoError(t, err)
-	require.Equal(t, priorUUID, got)
-	require.NotNil(t, lastInserted)
-	require.Equal(t, fleet.VPPClientUserStatusRegistered, lastInserted.Status)
+	require.Equal(t, appleClientID, clientUserID)
+	require.NotNil(t, insertedRow)
+	require.Equal(t, appleClientID, insertedRow.ClientUserID)
+	require.Equal(t, fleet.VPPClientUserStatusRegistered, insertedRow.Status)
 }
 
-func TestEnsureVPPClientUser_PartialFailureKeepsPending(t *testing.T) {
+// Pending row + Apple has no user (only retired entries, or fully cleared) —
+// safe to mint a fresh registration via the v1 endpoint.
+func TestEnsureVPPClientUser_PendingRowAppleHasNoUser(t *testing.T) {
 	const managedAppleID = "user@example.com"
 	tokenDB := &fleet.VPPTokenDB{ID: 1, Token: "tok"}
 	host := &fleet.Host{ID: 1}
 
+	var registerCalls int
 	setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
-		var got struct {
-			Users []struct {
-				ClientUserId string `json:"clientUserId"`
-			} `json:"users"`
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/users":
+			_, _ = fmt.Fprint(w, `{"users":[]}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":
+			registerCalls++
+			var got struct {
+				ClientUserIDStr   string `json:"clientUserIdStr"`
+				ManagedAppleIDStr string `json:"managedAppleIDStr"`
+			}
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+			_, _ = fmt.Fprintf(w, `{"status":0,"user":{"userId":1234,"status":"Registered","clientUserIdStr":%q,"managedAppleIDStr":%q}}`,
+				got.ClientUserIDStr, managedAppleID)
+		default:
+			t.Fatalf("unexpected Apple call %s %s", r.Method, r.URL.Path)
 		}
-		assert.NoError(t, json.NewDecoder(r.Body).Decode(&got))
-		_, _ = fmt.Fprintf(w, `{
-			"eventId": "evt",
-			"users": [{"clientUserId":%q,"managedAppleId":%q,"errorMessage":"Managed Apple ID not found","errorNumber":9637}]
-		}`, got.Users[0].ClientUserId, managedAppleID)
+	})
+
+	ds := new(mock.Store)
+	ds.GetHostManagedAppleIDFunc = func(_ context.Context, _ uint) (string, error) {
+		return managedAppleID, nil
+	}
+	ds.GetVPPClientUserFunc = func(_ context.Context, _ uint, _ string) (*fleet.VPPClientUser, error) {
+		return &fleet.VPPClientUser{
+			VPPTokenID:     tokenDB.ID,
+			ManagedAppleID: managedAppleID,
+			ClientUserID:   "stale-pending-uuid",
+			Status:         fleet.VPPClientUserStatusPending,
+		}, nil
+	}
+	ds.InsertVPPClientUserFunc = func(_ context.Context, _ *fleet.VPPClientUser) error {
+		return nil
+	}
+
+	svc := newTestServiceWithDS(ds)
+	clientUserID, err := svc.ensureVPPClientUser(context.Background(), host, tokenDB)
+	require.NoError(t, err)
+	require.NotEmpty(t, clientUserID)
+	require.NotEqual(t, "stale-pending-uuid", clientUserID)
+	require.Equal(t, 1, registerCalls)
+}
+
+func TestEnsureVPPClientUser_AppleErrorSurfacesAndSkipsInsert(t *testing.T) {
+	const managedAppleID = "missing@example.com"
+	tokenDB := &fleet.VPPTokenDB{ID: 1, Token: "tok"}
+	host := &fleet.Host{ID: 1}
+
+	// v1 reports application-level errors synchronously — no Apple-side user
+	// exists, so we should surface the error and skip the DB write entirely.
+	setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, `{
+			"status": -1,
+			"errorNumber": 9637,
+			"errorMessage": "Managed Apple ID not found"
+		}`)
 	})
 
 	ds := new(mock.Store)
@@ -194,9 +244,8 @@ func TestEnsureVPPClientUser_PartialFailureKeepsPending(t *testing.T) {
 	ds.GetVPPClientUserFunc = func(_ context.Context, _ uint, _ string) (*fleet.VPPClientUser, error) {
 		return nil, &notFoundError{}
 	}
-	var inserted *fleet.VPPClientUser
-	ds.InsertVPPClientUserFunc = func(_ context.Context, row *fleet.VPPClientUser) error {
-		inserted = row
+	ds.InsertVPPClientUserFunc = func(_ context.Context, _ *fleet.VPPClientUser) error {
+		t.Fatal("InsertVPPClientUser must not be called when v1 register-user returns an error")
 		return nil
 	}
 
@@ -204,8 +253,7 @@ func TestEnsureVPPClientUser_PartialFailureKeepsPending(t *testing.T) {
 	_, err := svc.ensureVPPClientUser(context.Background(), host, tokenDB)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "9637")
-	require.NotNil(t, inserted)
-	require.Equal(t, fleet.VPPClientUserStatusPending, inserted.Status, "partial failure must persist row as pending so retries can reuse the UUID")
+	require.False(t, ds.InsertVPPClientUserFuncInvoked)
 }
 
 func TestEnsureVPPClientUser_MissingManagedAppleID(t *testing.T) {

@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2.3.879545",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Logi Options+' AND publisher = 'Logitech';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Logi Options+' AND publisher = 'Logitech' AND version_compare(version, '2.3.879545') < 0);"
+      },
+      "installer_url": "https://download01.logi.com/web/ftp/pub/techsupport/optionsplus/logioptionsplus_installer.exe",
+      "install_script_ref": "ca441859",
+      "uninstall_script_ref": "f957f3f8",
+      "sha256": "65d4401902c70ae3dbfd3380ee15bac49d3c323a44999d4d9e62ca6452e9a135",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "ca441859": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Logi Options+ silent install:\n#   /quiet            - no UI\n#   /analytics no     - decline the analytics opt-in prompt\n# Logitech's installer reports success with exit code 0 or -1978335226\n# (per the winget manifest's InstallerSuccessCodes).\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/quiet /analytics no\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\n\nif ($exitCode -eq 0 -or $exitCode -eq -1978335226) {\n  Exit 0\n}\n\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "f957f3f8": "# Locates Logi Options+ from the registry and runs its uninstaller silently.\n\n$softwareNameLike = \"*Logi Options*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path $paths `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -like $softwareNameLike -and $key.Publisher -like \"*Logitech*\") {\n        $foundUninstaller = $true\n        $uninstallCommand = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        # Split the uninstall string into exe + args. Handle both quoted and\n        # unquoted exe paths.\n        $exePath = \"\"\n        $existingArgs = \"\"\n        if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            $exePath = $matches[1]\n            $existingArgs = $matches[2].Trim()\n        } elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n            $exePath = $matches[1]\n            $existingArgs = $matches[2].Trim()\n        } else {\n            Throw \"Could not parse uninstall string: $uninstallCommand\"\n        }\n\n        if ($existingArgs -notmatch '/quiet' -and $existingArgs -notmatch '/qn') {\n            $uninstallArgs = (\"$existingArgs /quiet\").Trim()\n        } else {\n            $uninstallArgs = $existingArgs\n        }\n\n        Write-Host \"Uninstall command: $exePath\"\n        Write-Host \"Uninstall args: $uninstallArgs\"\n\n        $processOptions = @{\n            FilePath = $exePath\n            PassThru = $true\n            Wait = $true\n        }\n\n        if ($uninstallArgs -ne '') {\n            $processOptions.ArgumentList = $uninstallArgs\n        }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n        Write-Host \"Uninstall exit code: $exitCode\"\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n# Logitech's installer reports success with exit code 0 or -1978335226\n# (per the winget manifest's InstallerSuccessCodes). msiexec also returns\n# 3010/1641 on reboot-required success.\nif ($exitCode -eq 0 -or $exitCode -eq -1978335226 -or $exitCode -eq 3010 -or $exitCode -eq 1641) {\n    Exit 0\n}\n\nExit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

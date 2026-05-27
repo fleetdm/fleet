@@ -136,11 +136,14 @@ func testNewAndroidHostDedupesOrbitEnrolled(t *testing.T, ds *Datastore) {
 	test.AddBuiltinLabels(t, ds)
 
 	cases := []struct {
-		name     string
-		platform string
+		name       string
+		platform   string
+		mdmEnabled bool
 	}{
-		{"agent sends no platform", ""},
-		{"agent sends platform=android", "android"},
+		{"agent sends no platform", "", true},
+		{"agent sends platform=android", "android", true},
+		{"agent sends platform=android, Apple MDM disabled", "android", false},
+		{"agent sends no platform, Apple MDM disabled", "", false},
 	}
 
 	for _, tc := range cases {
@@ -149,7 +152,7 @@ func testNewAndroidHostDedupesOrbitEnrolled(t *testing.T, ds *Datastore) {
 			enterpriseSpecificID := strings.ToUpper(uuid.New().String())
 
 			orbitHost, err := ds.EnrollOrbit(ctx,
-				fleet.WithEnrollOrbitMDMEnabled(true),
+				fleet.WithEnrollOrbitMDMEnabled(tc.mdmEnabled),
 				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 					HardwareUUID:   enterpriseSpecificID,
 					HardwareSerial: enterpriseSpecificID,
@@ -196,7 +199,7 @@ func testNewAndroidHostDedupesOrbitEnrolled(t *testing.T, ds *Datastore) {
 
 			// Subsequent orbit re-enroll (agent node-key wipe, reinstall) stays idempotent.
 			_, err = ds.EnrollOrbit(ctx,
-				fleet.WithEnrollOrbitMDMEnabled(true),
+				fleet.WithEnrollOrbitMDMEnabled(tc.mdmEnabled),
 				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
 					HardwareUUID:   enterpriseSpecificID,
 					HardwareSerial: enterpriseSpecificID,
@@ -214,6 +217,49 @@ func testNewAndroidHostDedupesOrbitEnrolled(t *testing.T, ds *Datastore) {
 			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &deviceCount,
 				`SELECT COUNT(*) FROM android_devices WHERE enterprise_specific_id = ?`, enterpriseSpecificID))
 			require.Equal(t, 1, deviceCount)
+		})
+	}
+
+	// Test the reverse flow: AMAPI enrolls first, then orbit joins. When Apple MDM is
+	// disabled, matchHostDuringEnrollment must still find the AMAPI-created host by UUID
+	// so orbit updates the existing row instead of inserting a duplicate.
+	for _, mdmEnabled := range []bool{true, false} {
+		name := "AMAPI first then orbit, Apple MDM enabled"
+		if !mdmEnabled {
+			name = "AMAPI first then orbit, Apple MDM disabled"
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx := testCtx()
+			enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+
+			// AMAPI creates the Android host first.
+			newHost := createAndroidHost(enterpriseSpecificID)
+			amAPIHost, err := ds.NewAndroidHost(ctx, newHost, false)
+			require.NoError(t, err)
+			require.NotZero(t, amAPIHost.Host.ID)
+
+			// Orbit enrollment should find the AMAPI-created host by UUID, not create a duplicate.
+			orbitHost, err := ds.EnrollOrbit(ctx,
+				fleet.WithEnrollOrbitMDMEnabled(mdmEnabled),
+				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+					HardwareUUID:   enterpriseSpecificID,
+					HardwareSerial: enterpriseSpecificID,
+					Platform:       "android",
+					Hostname:       "Samsung TestDevice",
+					ComputerName:   "Samsung TestDevice",
+					HardwareModel:  "TestModel",
+				}),
+				fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+			)
+			require.NoError(t, err)
+			require.Equal(t, amAPIHost.Host.ID, orbitHost.ID,
+				"orbit enroll must reuse the AMAPI-created hosts row, not insert a duplicate")
+
+			// Still exactly one hosts row.
+			var hostCount int
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &hostCount,
+				`SELECT COUNT(*) FROM hosts WHERE uuid = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, hostCount)
 		})
 	}
 

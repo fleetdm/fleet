@@ -447,8 +447,11 @@ type Datastore interface {
 	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
-	// CleanupAllHostMDMProfilesForPlatform deletes all host MDM profile rows for the given platform.
-	// Used when MDM is toggled off globally to prevent stale pending profiles from persisting.
+	// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
+	// (not just pending rows) and, for Apple, also soft-disables nano_enrollments. Used when MDM is toggled off globally
+	// so the profile reconciler does not recreate pending rows after MDM is turned back on. The Windows reconciler still
+	// gates on host_mdm.enrolled = 1, which osquery and the SOAP enrollment path maintain organically. The platform
+	// argument is a platform family: passing any of "darwin", "ios", or "ipados" cleans up all three Apple platforms.
 	CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error
 
 	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
@@ -933,6 +936,13 @@ type Datastore interface {
 	// GetPoliciesWithAssociatedVPP returns team policies that have an associated VPP app
 	GetPoliciesWithAssociatedVPP(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyVPPData, error)
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
+	// ResetPolicyAutomationRetryAttemptsForHost marks all prior policy automation
+	// script/install attempts on this host as "old sequence" (attempt_number=0)
+	// for the given policies. Used when continuous_automations_enabled triggers
+	// a new automation run while the policy is still failing, so that the new
+	// attempt restarts the retry sequence at 1 instead of inheriting the cap
+	// from the previous sequence.
+	ResetPolicyAutomationRetryAttemptsForHost(ctx context.Context, hostID uint, policyIDs []uint) error
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error)

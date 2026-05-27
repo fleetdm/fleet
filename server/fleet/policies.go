@@ -65,6 +65,12 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies with the patch type.
 	PatchSoftwareTitleID *uint
+
+	// ContinuousAutomationsEnabled indicates whether software/script automations
+	// should run on every failing policy result, not just on pass→fail transitions.
+	//
+	// Only applies to team policies.
+	ContinuousAutomationsEnabled bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -110,6 +116,9 @@ type NewTeamPolicyPayload struct {
 	Type *string
 	// PatchSoftwareTitleID is the title id of the Fleet maintained app checked by a patch policy.
 	PatchSoftwareTitleID *uint
+	// ContinuousAutomationsEnabled indicates whether software/script automations
+	// should run on every failing policy result, not just on pass→fail transitions.
+	ContinuousAutomationsEnabled bool
 }
 
 var (
@@ -282,6 +291,11 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
+	// ContinuousAutomationsEnabled indicates whether software/script automations
+	// should run on every failing policy result, not just on pass→fail transitions.
+	//
+	// Only applies to team policies.
+	ContinuousAutomationsEnabled *bool `json:"continuous_automations_enabled" premium:"true"`
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string `json:"-"`
@@ -379,6 +393,12 @@ type PolicyData struct {
 	// Only applies to team policies with the patch type.
 	PatchSoftwareTitleID *uint `json:"-" db:"patch_software_title_id"`
 
+	// ContinuousAutomationsEnabled indicates whether software/script automations
+	// should run on every failing policy result, not just on pass→fail transitions.
+	//
+	// Only applies to team policies.
+	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
+
 	UpdateCreateTimestamps
 }
 
@@ -422,19 +442,22 @@ type PolicyCalendarData struct {
 }
 
 type PolicySoftwareInstallerData struct {
-	ID          uint `db:"id"`
-	InstallerID uint `db:"software_installer_id"`
+	ID                           uint `db:"id"`
+	InstallerID                  uint `db:"software_installer_id"`
+	ContinuousAutomationsEnabled bool `db:"continuous_automations_enabled"`
 }
 
 type PolicyVPPData struct {
-	ID       uint                      `db:"id"`
-	AdamID   string                    `db:"adam_id"`
-	Platform InstallableDevicePlatform `db:"platform"`
+	ID                           uint                      `db:"id"`
+	AdamID                       string                    `db:"adam_id"`
+	Platform                     InstallableDevicePlatform `db:"platform"`
+	ContinuousAutomationsEnabled bool                      `db:"continuous_automations_enabled"`
 }
 
 type PolicyScriptData struct {
-	ID       uint `db:"id"`
-	ScriptID uint `db:"script_id"`
+	ID                           uint `db:"id"`
+	ScriptID                     uint `db:"script_id"`
+	ContinuousAutomationsEnabled bool `db:"continuous_automations_enabled"`
 }
 
 // PolicyLite is a stripped down version of the policy.
@@ -504,6 +527,11 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
+	// ContinuousAutomationsEnabled indicates whether software/script automations
+	// should run on every failing policy result, not just on pass→fail transitions.
+	//
+	// Only applies to team policies.
+	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled"`
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`

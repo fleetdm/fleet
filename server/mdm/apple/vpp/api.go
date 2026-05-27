@@ -75,6 +75,49 @@ func IsMaxDevicesPerUserError(err error) bool {
 	return false
 }
 
+// IsUnknownClientUserError reports whether err indicates that Apple does not
+// recognize the clientUserId(s) Fleet sent on an associate-assets or
+// assignment query — typically because the user record was retired or never
+// completed registration on Apple's side, while Fleet still has it cached as
+// 'registered'.
+//
+// Used by the install flow to self-heal: on this error the caller should
+// re-register the VPP user via the v1 endpoint, replace the stale row, and
+// retry the original associate-assets call once.
+//
+// Confirmed code from production traffic:
+//   - 9609 / "Unable to find the registered user."
+//
+// Other codes (9605, 9612, 9627) are listed defensively against Apple's
+// docs; same substring backstop as IsMaxDevicesPerUserError catches future
+// drift.
+func IsUnknownClientUserError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var resp *ErrorResponse
+	if !errors.As(err, &resp) || resp == nil {
+		return false
+	}
+	switch resp.ErrorNumber {
+	case 9605, 9609, 9612, 9627:
+		return true
+	}
+	msg := strings.ToLower(resp.ErrorMessage)
+	if strings.Contains(msg, "unable to find") &&
+		(strings.Contains(msg, "registered user") || strings.Contains(msg, "client user") || strings.Contains(msg, "user")) {
+		return true
+	}
+	if strings.Contains(msg, "client user") &&
+		(strings.Contains(msg, "not found") || strings.Contains(msg, "unknown")) {
+		return true
+	}
+	if strings.Contains(msg, "user not found") {
+		return true
+	}
+	return false
+}
+
 // ResponseErrorInfo represents the request-specific information regarding the
 // failure.
 //
@@ -220,85 +263,154 @@ func AssociateAssets(token string, params *AssociateAssetsRequest) (string, erro
 	return respBody.EventID, nil
 }
 
-// CreateUsersRequest is the body for Apple's create-users endpoint.
+// RegisterUserResponse mirrors Apple's synchronous v1 register-user response.
 //
-// https://developer.apple.com/documentation/devicemanagement/create-users
-type CreateUsersRequest struct {
-	Users []CreateUsersUser `json:"users"`
-}
-
-// CreateUsersUser identifies a single VPP user to register against an Apple VPP
-// location. ClientUserId is a stable, Fleet-generated UUID; ManagedAppleId is
-// the user's Managed Apple ID surfaced from the host's TokenUpdate.
-type CreateUsersUser struct {
-	ClientUserId   string `json:"clientUserId"`
-	ManagedAppleId string `json:"managedAppleId"`
-}
-
-// CreateUsersResponse is the body returned by Apple's create-users endpoint.
+// Apple's v1 API responds synchronously with the full user record on success.
+// Status is 0 on success and -1 on error; the optional Error* fields carry
+// the application-level failure reason. UserID is Apple's assigned identifier.
 //
-// On success, EventID is populated and Users echoes back the registrations,
-// each carrying Apple's assigned UserId. Apple may return per-user errors
-// (e.g., for one of several requested users); callers must inspect each
-// CreateUsersResult.ErrorMessage / ErrorNumber to distinguish partial
-// failures from a fully successful batch.
-type CreateUsersResponse struct {
-	EventID string              `json:"eventId"`
-	Users   []CreateUsersResult `json:"users"`
-}
-
-// CreateUsersResult mirrors the per-user fields Apple may return.
-//
-// Modeled defensively: only ClientUserId is guaranteed in the response. UserId
-// is Apple's assigned identifier on success; the optional Error* fields carry
-// per-user partial-failure information.
-type CreateUsersResult struct {
-	UserId         string `json:"userId,omitempty"`
-	ClientUserId   string `json:"clientUserId"`
-	ManagedAppleId string `json:"managedAppleId,omitempty"`
-	Status         string `json:"status,omitempty"`
-	InviteCode     string `json:"inviteCode,omitempty"`
-	InviteURL      string `json:"inviteUrl,omitempty"`
-	// ErrorMessage and ErrorNumber are populated when Apple rejects this
-	// individual user even though the overall request succeeded with 200.
-	ErrorMessage string `json:"errorMessage,omitempty"`
+// https://developer.apple.com/documentation/devicemanagement/registervppuserresponse
+type RegisterUserResponse struct {
+	Status       int    `json:"status"`
 	ErrorNumber  int32  `json:"errorNumber,omitempty"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
+	User         *struct {
+		UserID            json.Number `json:"userId"`
+		Status            string      `json:"status"`
+		ClientUserIDStr   string      `json:"clientUserIdStr"`
+		ManagedAppleIDStr string      `json:"managedAppleIDStr"`
+		Email             string      `json:"email,omitempty"`
+		InviteURL         string      `json:"inviteUrl,omitempty"`
+		InviteCode        string      `json:"inviteCode,omitempty"`
+	} `json:"user,omitempty"`
 }
 
-// HasError returns true if Apple flagged this individual user as failed.
-func (r *CreateUsersResult) HasError() bool {
-	return r.ErrorNumber != 0 || r.ErrorMessage != ""
-}
-
-// CreateUsers registers VPP users at Apple's create-users endpoint and returns
-// Apple's response. A nil error indicates the request itself succeeded; per-user
-// partial failures are surfaced on each CreateUsersResult — callers must check
-// HasError() on each entry rather than relying solely on the function's error.
+// RegisterUser registers a single VPP user via Apple's legacy synchronous v1
+// register-user endpoint. Use this rather than the v2 /users/create flow when
+// the caller needs definitive confirmation that registration succeeded before
+// proceeding — v1 returns the full user record (with Apple's assigned userId)
+// in the same response, whereas v2 only returns an eventId that must be
+// polled separately.
 //
-// https://developer.apple.com/documentation/devicemanagement/create-users
-func CreateUsers(token string, params *CreateUsersRequest) (*CreateUsersResponse, error) {
-	if params == nil || len(params.Users) == 0 {
-		return nil, errors.New("CreateUsersRequest: at least one user is required")
+// On any Apple-level failure (status != 0 or non-2xx with error payload),
+// returns an *ErrorResponse so callers can distinguish known error codes
+// (e.g. invalid Managed Apple ID).
+//
+// https://developer.apple.com/documentation/devicemanagement/registervppuserrequest
+func RegisterUser(token, clientUserID, managedAppleID string) (string, error) {
+	if clientUserID == "" || managedAppleID == "" {
+		return "", errors.New("RegisterUser: clientUserId and managedAppleId are required")
+	}
+
+	// v1 takes the VPP server token in the body rather than the
+	// Authorization header.
+	reqParams := struct {
+		SToken            string `json:"sToken"`
+		ClientUserIDStr   string `json:"clientUserIdStr"`
+		ManagedAppleIDStr string `json:"managedAppleIDStr"`
+	}{
+		SToken:            token,
+		ClientUserIDStr:   clientUserID,
+		ManagedAppleIDStr: managedAppleID,
 	}
 
 	var reqBody bytes.Buffer
-	if err := json.NewEncoder(&reqBody).Encode(params); err != nil {
-		return nil, fmt.Errorf("encoding params as JSON: %w", err)
+	if err := json.NewEncoder(&reqBody).Encode(reqParams); err != nil {
+		return "", fmt.Errorf("encoding params as JSON: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, getBaseURL()+"/users/create", &reqBody)
+	req, err := http.NewRequest(http.MethodPost, getV1BaseURL()+"/registerVPPUserSrv", &reqBody)
+	if err != nil {
+		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	var resp RegisterUserResponse
+	if err := do(req, "", &resp); err != nil {
+		return "", fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+	}
+
+	// v1 reports application-level failures via status == -1 with an
+	// errorMessage/errorNumber but a 200 transport. Surface those through the
+	// same *ErrorResponse callers already handle for v2.
+	if resp.Status != 0 || resp.ErrorNumber != 0 || resp.ErrorMessage != "" {
+		return "", &ErrorResponse{
+			ErrorMessage: resp.ErrorMessage,
+			ErrorNumber:  resp.ErrorNumber,
+		}
+	}
+	if resp.User == nil || resp.User.UserID == "" {
+		return "", errors.New("Apple VPP register-user returned no user record on success")
+	}
+
+	return resp.User.UserID.String(), nil
+}
+
+// VPPUserStatus mirrors the lifecycle states Apple reports in v2 /users
+// responses for a VPP user.
+type VPPUserStatus string
+
+const (
+	// VPPUserStatusRegistered: Apple has accepted the registration and
+	// issued an invite, but the end user has not yet linked their Apple
+	// Account.
+	VPPUserStatusRegistered VPPUserStatus = "Registered"
+	// VPPUserStatusAssociated: end user has accepted the invite and the
+	// Apple Account is bound to the VPP user record.
+	VPPUserStatusAssociated VPPUserStatus = "Associated"
+	// VPPUserStatusRetired: the user has been retired; a new registration
+	// for the same Managed Apple ID is permitted at this location.
+	VPPUserStatusRetired VPPUserStatus = "Retired"
+)
+
+// User is a single entry from Apple's v2 /users list response.
+type User struct {
+	ClientUserID string        `json:"clientUserId"`
+	IDHash       string        `json:"idHash"`
+	Status       VPPUserStatus `json:"status"`
+}
+
+// GetUserByManagedAppleID looks up the active VPP user for the given Managed
+// Apple ID at the location identified by the bearer token. Apple enforces
+// uniqueness on (location, managedAppleId), so a successful response carries
+// at most one non-retired user.
+//
+// Returns (nil, nil) when Apple has no user (or only retired users) for the
+// Apple ID — callers should fall through to RegisterUser in that case.
+// Returns a non-nil error only for transport / Apple-application errors.
+//
+// Used by the install self-heal path to recover a stale clientUserId after
+// Fleet's local cache drifts from Apple's record (e.g. a stale DB restore).
+//
+// https://developer.apple.com/documentation/devicemanagement/get-users
+func GetUserByManagedAppleID(ctx context.Context, token, managedAppleID string) (*User, error) {
+	if managedAppleID == "" {
+		return nil, errors.New("GetUserByManagedAppleID: managedAppleID is required")
+	}
+
+	q := url.Values{}
+	q.Set("managedAppleId", managedAppleID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, getBaseURL()+"/users?"+q.Encode(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
 	}
 
-	req.Header.Add("Content-Type", "application/json")
-
-	var respBody CreateUsersResponse
-	if err := do(req, token, &respBody); err != nil {
+	var resp struct {
+		Users []User `json:"users"`
+	}
+	if err := do(req, token, &resp); err != nil {
 		return nil, fmt.Errorf("making request to Apple VPP endpoint: %w", err)
 	}
 
-	return &respBody, nil
+	// Apple's contract is at-most-one non-retired user per (location, Apple ID),
+	// but we scan the full slice defensively in case a Retired ghost is
+	// returned alongside an active record on some iOS revision.
+	for i := range resp.Users {
+		if resp.Users[i].Status != VPPUserStatusRetired {
+			return &resp.Users[i], nil
+		}
+	}
+	return nil, nil
 }
 
 // AssetFilter represents the filters for querying assets.
@@ -472,7 +584,11 @@ func GetAssignments(token string, filter *AssignmentFilter) ([]Assignment, error
 }
 
 func do[T any](req *http.Request, token string, dest *T) error {
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	// v1 endpoints carry the token in the request body, so callers pass an
+	// empty string to skip the Authorization header.
+	if token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	}
 
 	// Reset the request body for retries. After client.Do reads the body,
 	// it's consumed. GetBody (set by http.NewRequest for *bytes.Buffer)
@@ -560,6 +676,17 @@ func getBaseURL() string {
 		return devURL
 	}
 	return "https://vpp.itunes.apple.com/mdm/v2"
+}
+
+// getV1BaseURL returns the base URL for Apple's legacy v1 VPP endpoints. The
+// dev override (FLEET_DEV_VPP_URL) is returned as-is so tests can mock both
+// v1 and v2 against the same httptest server using path-based routing.
+func getV1BaseURL() string {
+	devURL := dev_mode.Env("FLEET_DEV_VPP_URL")
+	if devURL != "" {
+		return devURL
+	}
+	return "https://vpp.itunes.apple.com/mdm"
 }
 
 // addFilter adds a filter to the query values if it is not the zero value.
