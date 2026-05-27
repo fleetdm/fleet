@@ -3,8 +3,8 @@
     {
       "version": "2.49.903.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Genesys Cloud' AND publisher = 'Genesys Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Genesys Cloud' AND publisher = 'Genesys Inc.' AND version_compare(version, '2.49.903.0') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name = 'GenesysCloud' AND publisher = 'Genesys Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GenesysCloud' AND publisher = 'Genesys Inc.' AND version_compare(version, '2.49.903.0') < 0);"
       },
       "installer_url": "https://app.mypurecloud.com/directory-windows/build-assets/2.49.903-239/genesys-cloud-windows-2.49.903-x86.msi",
       "install_script_ref": "8959087b",

@@ -2,7 +2,7 @@
   "name": "Genesys Cloud",
   "slug": "genesys-cloud/windows",
   "package_identifier": "Genesys.GenesysCloud",
-  "unique_identifier": "Genesys Cloud",
+  "unique_identifier": "GenesysCloud",
   "installer_arch": "x86",
   "installer_type": "msi",
   "installer_scope": "machine",
