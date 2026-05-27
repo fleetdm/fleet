@@ -699,11 +699,16 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.
 			}
 			return ctxerr.Wrap(ctx, err, "getting label id to delete")
 		}
-		var profileCount int
-		if err := sqlx.GetContext(ctx, tx, &profileCount, `SELECT COUNT(*) FROM mdm_configuration_profile_labels WHERE label_id = ?`, labelID); err != nil {
+		var usedByProfile bool
+		if err := sqlx.GetContext(ctx, tx, &usedByProfile, `
+			SELECT EXISTS(
+				SELECT 1 FROM mdm_configuration_profile_labels WHERE label_id = ?
+				UNION ALL
+				SELECT 1 FROM mdm_declaration_labels WHERE label_id = ?
+			)`, labelID, labelID); err != nil {
 			return ctxerr.Wrap(ctx, err, "checking if label is used by configuration profiles")
 		}
-		if profileCount > 0 {
+		if usedByProfile {
 			return ctxerr.Wrap(ctx, foreignKey("configuration profile labels", name), "delete label")
 		}
 

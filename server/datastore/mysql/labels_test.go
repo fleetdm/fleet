@@ -1373,6 +1373,32 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	err = db.DeleteLabel(ctx, l3.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.Error(t, err)
 	require.True(t, fleet.IsForeignKey(err))
+
+	// create a label referenced only by a declaration — deletion must also be blocked
+	l4, err := db.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name() + "4",
+		Query: "query4",
+	})
+	require.NoError(t, err)
+
+	decl, err := db.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.example.decl-test",
+		Name:       "test-decl",
+		RawJSON:    json.RawMessage(`{"Identifier": "com.example.decl-test"}`),
+	}, nil)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO mdm_declaration_labels (apple_declaration_uuid, label_name, label_id) VALUES (?, ?, ?)`,
+			decl.DeclarationUUID, l4.Name, l4.ID,
+		)
+		return err
+	})
+
+	err = db.DeleteLabel(ctx, l4.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.Error(t, err)
+	require.True(t, fleet.IsForeignKey(err))
 }
 
 func testLabelsSummaryAndListTeamFiltering(t *testing.T, db *Datastore) {
