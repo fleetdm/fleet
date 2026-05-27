@@ -319,9 +319,9 @@ type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, erro
 
 type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error)
 
-type GetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMApplePermissions, error)
+type GetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error)
 
-type SetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostID uint, accessRights int) error
+type SetHostMDMAppleEnrollmentPermissionsFunc func(ctx context.Context, hostUUID string, accessRights int) error
 
 type GetHostManagedAppleIDFunc func(ctx context.Context, hostID uint) (string, error)
 
@@ -5988,18 +5988,18 @@ func (s *DataStore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) 
 	return s.GetHostMDMCheckinInfoFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostID uint) (*fleet.HostMDMApplePermissions, error) {
+func (s *DataStore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
 	s.mu.Lock()
 	s.GetHostMDMAppleEnrollmentPermissionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostMDMAppleEnrollmentPermissionsFunc(ctx, hostID)
+	return s.GetHostMDMAppleEnrollmentPermissionsFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostID uint, accessRights int) error {
+func (s *DataStore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string, accessRights int) error {
 	s.mu.Lock()
 	s.SetHostMDMAppleEnrollmentPermissionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetHostMDMAppleEnrollmentPermissionsFunc(ctx, hostID, accessRights)
+	return s.SetHostMDMAppleEnrollmentPermissionsFunc(ctx, hostUUID, accessRights)
 }
 
 func (s *DataStore) GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error) {

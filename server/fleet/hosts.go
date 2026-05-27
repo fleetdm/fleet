@@ -1290,9 +1290,12 @@ func (h *HostMDM) HasJSONProfileAssigned() bool {
 // narrow over time (Apple rejects profile-replacements that widen rights), so
 // this value serves as the floor when computing the profile to deliver at SCEP
 // or ACME cert renewal.
+//
+// Keyed by host UUID (the device's MDM enrollment UDID) so it correlates with
+// the nanomdm tables that the renewal path joins against.
 type HostMDMApplePermissions struct {
-	HostID       uint `db:"host_id"`
-	AccessRights int  `db:"access_rights"`
+	HostUUID     string `db:"host_uuid"`
+	AccessRights int    `db:"access_rights"`
 }
 
 // HostMunkiIssue represents a single munki issue for a host.

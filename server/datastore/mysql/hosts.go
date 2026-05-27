@@ -608,7 +608,6 @@ var hostRefs = []string{
 	"host_vpp_software_installs",
 	"host_last_known_locations",
 	"host_issues",
-	"host_mdm_apple_enrollment_permissions",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -637,6 +636,7 @@ var additionalHostRefsByUUID = map[string]string{
 	"setup_experience_status_results":       "host_uuid",
 	"host_mdm_android_profiles":             "host_uuid",
 	"host_certificate_templates":            "host_uuid",
+	"host_mdm_apple_enrollment_permissions": "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -4939,27 +4939,27 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 	return &hmdm, nil
 }
 
-func (ds *Datastore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostID uint) (*fleet.HostMDMApplePermissions, error) {
+func (ds *Datastore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
 	var p fleet.HostMDMApplePermissions
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &p, `
-		SELECT host_id, access_rights
+		SELECT host_uuid, access_rights
 		FROM host_mdm_apple_enrollment_permissions
-		WHERE host_id = ?`, hostID)
+		WHERE host_uuid = ?`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("HostMDMApplePermissions").WithID(hostID))
+			return nil, ctxerr.Wrap(ctx, notFound("HostMDMApplePermissions").WithName(hostUUID))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host MDM Apple enrollment permissions")
 	}
 	return &p, nil
 }
 
-func (ds *Datastore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostID uint, accessRights int) error {
+func (ds *Datastore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string, accessRights int) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
-		INSERT INTO host_mdm_apple_enrollment_permissions (host_id, access_rights)
+		INSERT INTO host_mdm_apple_enrollment_permissions (host_uuid, access_rights)
 		VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE access_rights = VALUES(access_rights), delivered_at = NOW()`,
-		hostID, accessRights)
+		hostUUID, accessRights)
 	return ctxerr.Wrap(ctx, err, "set host MDM Apple enrollment permissions")
 }
 
