@@ -1419,7 +1419,7 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	// manually-enrolled Apple hosts after the MDM-configured + connected
 	// checks succeed. Return NotFound so the gate falls back to the fleet
 	// ceiling alone (default-true allow_byod_*) — i.e. no restriction.
-	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMApplePermissions, error) {
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
 		return nil, &notFoundError{}
 	}
 }

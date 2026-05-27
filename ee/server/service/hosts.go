@@ -74,7 +74,7 @@ func (svc *Service) effectiveAppleAccessRights(ctx context.Context, host *fleet.
 		allowLock = tm.AllowBYODLock
 	}
 
-	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.ID)
+	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
 	switch {
 	case err == nil:
 		return apple_mdm.ComputeAppleEnrollmentAccessRights(allowWipe, allowLock, &perms.AccessRights), nil
