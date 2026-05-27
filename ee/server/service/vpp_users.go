@@ -54,9 +54,8 @@ func (svc *Service) ensureVPPClientUser(ctx context.Context, host *fleet.Host, t
 		return existing.ClientUserID, nil
 	}
 
-	// Non-registered row (typically a legacy 'pending' entry from the prior
-	// v2 async flow, or a row left over from a failed registration). Apple
-	// enforces uniqueness on (location, managedAppleId), so blindly calling
+	// Non-registered row. Apple enforces uniqueness on
+	// (location, managedAppleId), so blindly calling
 	// registerVPPClientUser with a fresh UUID will collide with any existing
 	// Apple-side user. Ask Apple first; if a user already exists, resync the
 	// local cache to its clientUserId rather than minting a new one.
