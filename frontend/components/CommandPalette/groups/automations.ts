@@ -18,11 +18,7 @@ const buildAutomationsItems = (
     isPrimoMode,
     withTeamId,
   } = ctx;
-  const {
-    isUnassigned,
-    switchesFromUnassigned,
-    hasTeamOrUnassigned,
-  } = derived;
+  const { isUnassigned, switchesFromUnassigned, hasTeamOrUnassigned } = derived;
 
   return [
     // Manage automations — software. Normally All-fleets-only, but in
