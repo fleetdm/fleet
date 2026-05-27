@@ -141,11 +141,11 @@ Start by listing the specific management actions you need on each OS: enrollment
 - Does compliance evidence land in one console regardless of platform?
 - How does the solution enforce OS updates on each OS it claims to support?
 
-Depth of device data collection is another differentiator, since surface-level inventory and detailed queryable telemetry serve different use cases. Fleet supports these platforms natively with consistent data collection and controls. [Try Fleet](https://fleetdm.com/try-fleet) to see how it fits your own device mix.
+Depth of device data collection is another differentiator, since surface-level inventory and detailed queryable telemetry serve different use cases. Fleet supports these platforms natively with consistent data collection and controls. [Schedule a demo](https://fleetdm.com/contact) to see how it fits your own device mix.
 
-<meta name="articleTitle" value="Endpoint management for mixed-platform environments">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="articleTitle" value="Multi-platform endpoint management: best practices guide">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-25">
-<meta name="description" value="How endpoint management works across macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS: protocols, best practices, and what to look for.">
+<meta name="publishedOn" value="2026-04-25">
+<meta name="description" value="How endpoint management works across macOS, Windows, Linux, iOS, Android, and ChromeOS. Protocols, best practices, and what to look for.">
