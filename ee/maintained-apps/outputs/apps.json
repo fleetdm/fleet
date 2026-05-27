@@ -1437,6 +1437,13 @@
       "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
     },
     {
+      "name": "P4V",
+      "slug": "p4v/windows",
+      "platform": "windows",
+      "unique_identifier": "P4 Apps",
+      "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
+    },
+    {
       "name": "Parallels Desktop",
       "slug": "parallels/darwin",
       "platform": "darwin",
