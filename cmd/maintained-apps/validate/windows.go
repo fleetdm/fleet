@@ -135,15 +135,6 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 				logger.InfoContext(ctx, "Google Chrome detected - version mismatch but app is installed, skipping version check due to auto-update behavior")
 				return true, nil
 			}
-
-			// GoToMeeting's winget PackageVersion ("10.19.0.19950") carries an
-			// extra ".0" segment that the installed MSI/registry version
-			// ("10.19.19950") omits, so the versions never match exactly or by
-			// prefix. Fall back to existence-only validation.
-			if appName == "GoToMeeting" {
-				logger.InfoContext(ctx, "GoToMeeting detected - version format differs between winget and the installed MSI, skipping version check")
-				return true, nil
-			}
 		}
 	}
 
