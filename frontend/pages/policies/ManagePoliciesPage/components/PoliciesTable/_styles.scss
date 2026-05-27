@@ -41,8 +41,13 @@
 
   &--none {
     color: $ui-fleet-black-50;
-    cursor: default;
   }
+}
+
+// The read-only empty cell is a plain <span> (no role="button"); keep it
+// non-interactive. The editable empty cell is a <div role="button">.
+span.automations__cell-content--none {
+  cursor: default;
 }
 
 .automations__name {

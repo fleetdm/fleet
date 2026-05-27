@@ -102,14 +102,6 @@ const AutomationsCell = ({
 }: IAutomationsCellProps): JSX.Element => {
   const automations = getAutomationsForPolicy(policy, otherAutomationType);
 
-  if (automations.length === 0) {
-    return (
-      <span className="automations__cell-content automations__cell-content--none">
-        {DEFAULT_EMPTY_CELL_VALUE}
-      </span>
-    );
-  }
-
   const handleClick = () => onOpenManageAutomationsModal?.(policy);
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -117,6 +109,32 @@ const AutomationsCell = ({
       handleClick();
     }
   };
+
+  if (automations.length === 0) {
+    // Read-only users (no edit callback) keep the plain, non-interactive "---".
+    if (!onOpenManageAutomationsModal) {
+      return (
+        <span className="automations__cell-content automations__cell-content--none">
+          {DEFAULT_EMPTY_CELL_VALUE}
+        </span>
+      );
+    }
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        className="automations__cell-content automations__cell-content--none"
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        aria-label="Add automation"
+      >
+        <span className="automations__name">{DEFAULT_EMPTY_CELL_VALUE}</span>
+        <span className="automations__edit-button" aria-hidden="true">
+          <Icon name="pencil" />
+        </span>
+      </div>
+    );
+  }
 
   const renderAutomationIcon = ({
     type,
