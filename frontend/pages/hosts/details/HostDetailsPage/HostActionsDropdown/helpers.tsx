@@ -147,9 +147,8 @@ const canTurnOffMdm = (config: IHostActionConfigOptions) => {
     isMacMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
   } = config;
-  // Android: Unenroll is BYO-only per Figma (#41683). COBO admins use Wipe or Delete instead.
-  // BYO is detected via the "On (personal)" enrollment status — same string the EE service uses
-  // server-side to gate Wipe.
+  // Android: Unenroll is BYO-only per Figma (#41683). COBO admins use Wipe instead.
+  // BYO is detected via the "On (personal)" enrollment status.
   const isAndroidWithUnenroll =
     isAndroid(hostPlatform) &&
     isAndroidMdmEnabledAndConfigured &&
@@ -209,9 +208,7 @@ const canLockHost = ({
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
-  // Android hosts (both BYO and COBO) can be locked when MDM is on. AMAPI's LOCK targets the
-  // work profile on BYO and the device on COBO; on BYO it is a no-op without a work-profile PIN
-  // set, but Fleet still allows the action — the device-side gating belongs to the OS, not Fleet.
+  // Android hosts (both BYO and COBO) can be locked when MDM is on.
   const isLockableAndroidDevice =
     isAndroid(hostPlatform) &&
     isAndroidMdmEnabledAndConfigured &&
@@ -260,11 +257,7 @@ const canWipeHost = ({
     isIPadOrIPhone(hostPlatform) &&
     isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
 
-  // Android: Wipe is COBO-only. BYO Android shows Unenroll instead (and that flow itself sends
-  // a WIPE command under the hood, per #41683 design). Use an explicit allow-list of COBO
-  // enrollment statuses — "On (automatic)" is what the API actually returns for AMAPI fully-
-  // managed enrollments today; "On (company-owned)" is the newer display string. Negative checks
-  // against "On (personal)" would also incorrectly match "On (manual)" / "Pending" / "Off".
+  // Android: Wipe is COBO-only.
   const canWipeAndroid =
     isAndroid(hostPlatform) &&
     isAndroidMdmEnabledAndConfigured &&
@@ -413,10 +406,7 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
     return false;
   }
 
-  // Android: per Figma dev note (#41683) hide Clear passcode whenever any of Lock / Unenroll /
-  // Wipe / Clear passcode is pending. Lock pending -> "locking", Wipe + BYO unenroll -> "wiping",
-  // Clear passcode pending -> "clearing_passcode". iOS / iPadOS keep the existing "show as disabled
-  // with tooltip" pattern handled later in modifyOptions, so we only short-circuit for Android.
+  // Android: per Figma dev note (#41683) hide Clear passcode whenever any of Lock / Unenroll / Wipe / Clear passcode is pending.
   if (
     isAndroid(config.hostPlatform) &&
     config.hostMdmDeviceStatus &&
@@ -425,10 +415,6 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
     return false;
   }
 
-  // Android: both BYO (clears work-profile passcode) and COBO (clears device passcode) are
-  // supported. v1 shows Clear passcode for any MDM-on Android host; the "only show if work-profile
-  // password is set" refinement from the Figma dev note is tracked as a follow-up open question
-  // (open-product-questions.md Q4) since Fleet does not yet ingest that signal from AMAPI.
   if (isAndroid(config.hostPlatform)) {
     return (
       config.isAndroidMdmEnabledAndConfigured &&

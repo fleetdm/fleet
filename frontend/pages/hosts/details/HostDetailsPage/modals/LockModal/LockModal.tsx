@@ -73,8 +73,6 @@ const LockModal = ({
     try {
       await hostAPI.lockHost(id);
       onSuccess();
-      // Android uses the Figma-specified copy; other platforms keep their existing message to
-      // avoid regressing copy they were QA'd against.
       renderFlash(
         "success",
         isAndroidHost
@@ -82,9 +80,6 @@ const LockModal = ({
           : "Locking host or will lock when it comes online."
       );
     } catch (e) {
-      // Android: surface the backend error reason when available (e.g. "Android MDM isn't turned
-      // on.", "Host has pending lock request.") and fall back to the Figma copy when the error
-      // has no extractable reason. Other platforms keep their existing getErrorReason behavior.
       const errorReason = getErrorReason(e);
       renderFlash(
         "error",
@@ -126,9 +121,6 @@ const LockModal = ({
     }
 
     if (isAndroid(platform)) {
-      // Per Figma: AMAPI's LOCK targets the work profile on BYO and the device on COBO. There is
-      // no Fleet-side unlock — the user unlocks via their existing password/PIN. Copy is the same
-      // for both ownership modes per the Figma dev note.
       return (
         <p>
           Locking will enforce the host lock screen and require the user to

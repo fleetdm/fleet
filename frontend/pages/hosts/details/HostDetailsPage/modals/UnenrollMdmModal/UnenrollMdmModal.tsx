@@ -25,7 +25,7 @@ interface IUnenrollMdmModalProps {
   /** Fires once the unenroll request returns 2xx, before onClose. The parent uses this to
    * optimistically flip the host's MDM device state so pending badges (e.g. Android BYO
    * "Unenroll pending") appear without waiting for the next refetch. */
-  onSuccess?: () => void;
+  onSuccess: () => void;
 }
 
 const UnenrollMdmModal = ({
@@ -58,7 +58,7 @@ const UnenrollMdmModal = ({
           </>
         );
       renderFlash("success", successMessage);
-      onSuccess?.();
+      onSuccess();
       onClose();
     } catch (unenrollMdmError: unknown) {
       const errorMessage =

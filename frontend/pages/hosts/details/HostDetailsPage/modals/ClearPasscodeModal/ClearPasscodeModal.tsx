@@ -32,9 +32,6 @@ const ClearPasscodeModal = ({
   const [isClearingPasscode, setIsClearingPasscode] = React.useState(false);
   const [confirmChecked, setConfirmChecked] = React.useState(false);
 
-  // Android: per Figma, the modal varies by ownership and requires a confirmation checkbox.
-  // BYO clears only the work-profile passcode; COBO clears the device passcode. iOS / iPadOS
-  // keeps its existing copy and no-checkbox flow unchanged.
   const isAndroidHost = isAndroid(hostPlatform);
   const isAndroidBYO =
     isAndroidHost && hostMdmEnrollmentStatus === "On (personal)";
@@ -45,17 +42,13 @@ const ClearPasscodeModal = ({
       await hostAPI.clearPasscode(id);
       renderFlash(
         "success",
-        isAndroidHost
-          ? "Successfully sent request to clear the passcode for this host."
-          : "Successfully sent request to clear passcode on this host."
+        "Successfully sent request to clear passcode on this host."
       );
       onSuccess?.();
     } catch (e) {
       renderFlash(
         "error",
-        isAndroidHost
-          ? "Couldn't send request to clear the passcode for this host. Please try again."
-          : "Couldn't send request to clear passcode on this host. Please try again."
+        "Couldn't send request to clear passcode on this host. Please try again."
       );
     } finally {
       onExit();
@@ -83,31 +76,22 @@ const ClearPasscodeModal = ({
     );
   };
 
-  const renderConfirmCheckbox = () => {
-    if (!isAndroidHost) return null;
-    return (
-      <div className={`${baseClass}__confirm-message`}>
-        <span>
-          <b>Please check to confirm:</b>
-        </span>
-        <Checkbox
-          wrapperClassName={`${baseClass}__clear-checkbox`}
-          value={confirmChecked}
-          onChange={(value: boolean) => setConfirmChecked(value)}
-        >
-          I wish to clear the passcode for <b>{hostName}</b>
-        </Checkbox>
-      </div>
-    );
-  };
-
-  const isConfirmDisabled = isAndroidHost && !confirmChecked;
-
   return (
     <Modal className={baseClass} title="Clear passcode" onExit={onExit}>
       <div className={`${baseClass}__modal-content`}>
         {renderBody()}
-        {renderConfirmCheckbox()}
+        <div className={`${baseClass}__confirm-message`}>
+          <span>
+            <b>Please check to confirm:</b>
+          </span>
+          <Checkbox
+            wrapperClassName={`${baseClass}__clear-checkbox`}
+            value={confirmChecked}
+            onChange={(value: boolean) => setConfirmChecked(value)}
+          >
+            I wish to clear the passcode for <b>{hostName}</b>
+          </Checkbox>
+        </div>
       </div>
 
       <div className="modal-cta-wrap">
@@ -117,7 +101,7 @@ const ClearPasscodeModal = ({
           className="clear-passcode-loading"
           variant="alert"
           isLoading={isClearingPasscode}
-          disabled={isConfirmDisabled}
+          disabled={!confirmChecked}
         >
           Clear passcode
         </Button>

@@ -38,8 +38,6 @@ const WipeModal = ({
     try {
       await hostAPI.wipeHost(id);
       onSuccess();
-      // Android uses the Figma-specified copy; other platforms keep their existing message to
-      // avoid regressing copy they were QA'd against.
       renderFlash(
         "success",
         isAndroidHost
@@ -47,9 +45,6 @@ const WipeModal = ({
           : "Wiping host or will wipe when the host comes online."
       );
     } catch (e) {
-      // Android: surface the backend error reason when available (e.g. "Wipe is not supported for
-      // personally-owned Android hosts. Use Unenroll instead.") and fall back to the Figma copy
-      // when the error has no extractable reason. Other platforms keep their existing behavior.
       const errorReason = getErrorReason(e);
       renderFlash(
         "error",
