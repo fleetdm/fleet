@@ -2025,134 +2025,96 @@ func TestPubSubCommand(t *testing.T) {
 		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
 	})
 
-	t.Run("already-terminal WIPE+ack re-runs unenroll work on Pub/Sub redelivery", func(t *testing.T) {
-		// Scenario: first delivery transitioned the WIPE row to acknowledged but then hit a transient DB blip in
-		// handleAndroidWipeAckUnenroll, so the host_mdm flip was lost. Pub/Sub redelivers; we land in the already-terminal branch but
-		// must still drive the unenroll work to completion. Idempotency guarantees no duplicate state or activity if the prior delivery
-		// had succeeded.
-		svc, mockDS := newSvc(t)
+	// Already-terminal WIPE+ack redelivery matrix. The new hook in handlePubSubCommand re-runs handleAndroidWipeAckUnenroll for
+	// terminal rows so transient DB failures on the first delivery recover on Pub/Sub retry. Two axes exercised:
+	//   - isBYO: BYO clears host_mdm_actions (wipe_ref dropped so the "Wiped" badge clears on the
+	//     work-profile-only wipe); COBO leaves it intact (badge persists post-factory-reset).
+	//   - priorDeliveryFlipped: when the prior delivery already flipped host_mdm.enrolled to 0,
+	//     SetAndroidHostUnenrolled's WHERE enrolled=1 matches no row -> didUnenroll=false ->
+	//     activity-prep lookup must short-circuit (no duplicate mdm_unenrolled in the feed).
+	for _, tc := range []struct {
+		name                 string
+		isBYO                bool
+		priorDeliveryFlipped bool
+		expectClearActions   bool
+		expectActivityPrep   bool
+	}{
+		{
+			name:                 "COBO first redelivery after transient failure flips state, leaves wipe_ref, emits activity",
+			isBYO:                false,
+			priorDeliveryFlipped: false,
+			expectClearActions:   false,
+			expectActivityPrep:   true,
+		},
+		{
+			name:                 "BYO first redelivery after transient failure flips state, clears wipe_ref, emits activity",
+			isBYO:                true,
+			priorDeliveryFlipped: false,
+			expectClearActions:   true,
+			expectActivityPrep:   true,
+		},
+		{
+			name:                 "redelivery after successful prior delivery is idempotent: no duplicate activity",
+			isBYO:                false,
+			priorDeliveryFlipped: true,
+			expectClearActions:   false,
+			expectActivityPrep:   false,
+		},
+	} {
+		t.Run("already-terminal WIPE+ack: "+tc.name, func(t *testing.T) {
+			svc, mockDS := newSvc(t)
 
-		const hostID uint = 77
-		stored := &android.MDMAndroidCommand{
-			CommandUUID:   "cmd-uuid-wipe-redelivered",
-			HostUUID:      "host-uuid-wipe",
-			OperationName: "enterprises/E/devices/D/operations/wipe-redelivered",
-			CommandType:   string(android.MDMAndroidCommandTypeWipe),
-			Status:        string(android.MDMAndroidCommandStatusAcknowledged),
-		}
-		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
-			return stored, nil
-		}
-		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
-			t.Fatalf("UpdateMDMAndroidCommandStatus should not be called for terminal row")
-			return nil
-		}
-		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
-			require.Equal(t, stored.HostUUID, hostUUID)
-			return &fleet.AndroidHost{Host: &fleet.Host{ID: hostID, UUID: hostUUID}}, nil
-		}
-		mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
-			// COBO -> clearAndroidBYOWipeRef is a no-op, ClearHostMDMActions must NOT be called.
-			return &fleet.HostMDM{IsPersonalEnrollment: false}, nil
-		}
-		mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, id uint) (bool, error) {
-			require.Equal(t, hostID, id)
-			return true, nil
-		}
-		mockDS.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
-			require.Equal(t, []uint{hostID}, ids)
-			return []*fleet.Host{{ID: hostID, Hostname: "redelivered-host"}}, nil
-		}
+			const hostID uint = 77
+			stored := &android.MDMAndroidCommand{
+				CommandUUID:   "cmd-uuid-wipe-redelivered",
+				HostUUID:      "host-uuid-wipe",
+				OperationName: "enterprises/E/devices/D/operations/wipe-redelivered",
+				CommandType:   string(android.MDMAndroidCommandTypeWipe),
+				Status:        string(android.MDMAndroidCommandStatusAcknowledged),
+			}
+			mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+				return stored, nil
+			}
+			mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+				t.Fatalf("UpdateMDMAndroidCommandStatus must not be called for a terminal row")
+				return nil
+			}
+			mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+				return &fleet.AndroidHost{Host: &fleet.Host{ID: hostID, UUID: hostUUID}}, nil
+			}
+			mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+				return &fleet.HostMDM{IsPersonalEnrollment: tc.isBYO}, nil
+			}
+			mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, id uint) error { return nil }
+			mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, id uint) (bool, error) {
+				// !priorDeliveryFlipped: first redelivery after a transient failure, WHERE enrolled=1
+				// matches, returns true. priorDeliveryFlipped: prior delivery already flipped state,
+				// no row matches, returns false.
+				return !tc.priorDeliveryFlipped, nil
+			}
+			mockDS.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+				if !tc.expectActivityPrep {
+					t.Fatalf("ListHostsLiteByIDs must not be called when didUnenroll=false (activity is suppressed)")
+				}
+				return []*fleet.Host{{ID: hostID, Hostname: "redelivered-host"}}, nil
+			}
 
-		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
-		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+			msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+			require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
 
-		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked, "terminal row must not be re-transitioned")
-		require.True(t, mockDS.SetAndroidHostUnenrolledFuncInvoked, "redelivery must re-run the host_mdm flip so transient failures recover")
-		require.False(t, mockDS.ClearHostMDMActionsFuncInvoked, "COBO must NOT clear host_mdm_actions: wipe_ref keeps the 'Wiped' badge")
-	})
-
-	t.Run("already-terminal WIPE+ack BYO redelivery fires ClearHostMDMActions", func(t *testing.T) {
-		// Mirror of the COBO redelivery case for the BYO path: BYO redelivery must drive
-		// clearAndroidBYOWipeRef -> ClearHostMDMActions so the "Wiped" badge clears. The COBO
-		// test alone leaves the BYO + redelivery composition uncovered.
-		svc, mockDS := newSvc(t)
-
-		const hostID uint = 78
-		stored := &android.MDMAndroidCommand{
-			CommandUUID:   "cmd-uuid-wipe-byo-redelivered",
-			HostUUID:      "host-uuid-wipe-byo",
-			OperationName: "enterprises/E/devices/D/operations/wipe-byo-redelivered",
-			CommandType:   string(android.MDMAndroidCommandTypeWipe),
-			Status:        string(android.MDMAndroidCommandStatusAcknowledged),
-		}
-		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
-			return stored, nil
-		}
-		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
-			return &fleet.AndroidHost{Host: &fleet.Host{ID: hostID, UUID: hostUUID}}, nil
-		}
-		mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
-			return &fleet.HostMDM{IsPersonalEnrollment: true}, nil
-		}
-		mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, id uint) error { return nil }
-		mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, id uint) (bool, error) {
-			return true, nil
-		}
-		mockDS.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
-			return []*fleet.Host{{ID: hostID, Hostname: "byo-redelivered"}}, nil
-		}
-
-		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
-		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
-
-		require.True(t, mockDS.ClearHostMDMActionsFuncInvoked, "BYO redelivery must clear host_mdm_actions so 'Wiped' badge drops")
-		require.True(t, mockDS.SetAndroidHostUnenrolledFuncInvoked)
-	})
-
-	t.Run("WIPE+ack redelivery is idempotent: didUnenroll=false suppresses duplicate activity", func(t *testing.T) {
-		// Scenario: prior delivery already flipped host_mdm.enrolled to 0 and emitted the activity.
-		// Pub/Sub redelivers anyway (at-least-once). SetAndroidHostUnenrolled returns (false, nil)
-		// because the WHERE enrolled=1 clause matches no row. The activity must NOT emit a second
-		// time, or admins would see duplicate mdm_unenrolled rows in the feed.
-		svc, mockDS := newSvc(t)
-
-		stored := &android.MDMAndroidCommand{
-			CommandUUID:   "cmd-uuid-wipe-idempotent",
-			HostUUID:      "host-uuid-wipe-idem",
-			OperationName: "enterprises/E/devices/D/operations/wipe-idempotent",
-			CommandType:   string(android.MDMAndroidCommandTypeWipe),
-			Status:        string(android.MDMAndroidCommandStatusAcknowledged),
-		}
-		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
-			return stored, nil
-		}
-		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
-			return &fleet.AndroidHost{Host: &fleet.Host{ID: 99, UUID: hostUUID}}, nil
-		}
-		mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
-			return &fleet.HostMDM{IsPersonalEnrollment: false}, nil
-		}
-		mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, id uint) (bool, error) {
-			// Already unenrolled by the prior delivery: no row matched WHERE enrolled=1.
-			return false, nil
-		}
-		mockDS.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
-			t.Fatalf("ListHostsLiteByIDs must not be called when didUnenroll=false (activity is suppressed)")
-			return nil, nil
-		}
-
-		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
-		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
-
-		require.True(t, mockDS.SetAndroidHostUnenrolledFuncInvoked)
-		require.False(t, mockDS.ListHostsLiteByIDsFuncInvoked, "didUnenroll=false must short-circuit BEFORE activity-prep lookup")
-	})
+			require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked, "terminal row must not be re-transitioned")
+			require.True(t, mockDS.SetAndroidHostUnenrolledFuncInvoked,
+				"redelivery must always re-attempt the host_mdm flip (idempotent if already done)")
+			require.Equal(t, tc.expectClearActions, mockDS.ClearHostMDMActionsFuncInvoked,
+				"ClearHostMDMActions gating: BYO clears wipe_ref so the 'Wiped' badge drops, COBO preserves it")
+			require.Equal(t, tc.expectActivityPrep, mockDS.ListHostsLiteByIDsFuncInvoked,
+				"activity-prep lookup must run when state was newly flipped, and short-circuit when didUnenroll=false")
+		})
+	}
 
 	t.Run("WIPE+ack transient SetAndroidHostUnenrolled failure bubbles error so Pub/Sub retries", func(t *testing.T) {
-		// Load-bearing claim of the refactor: a transient DB failure during the unenroll work must
-		// surface as an error from ProcessPubSubPush so Pub/Sub retries the notification (which
-		// then re-enters via the already-terminal branch and re-runs the work).
+		// A transient DB failure during the unenroll work must surface as an error from ProcessPubSubPush so Pub/Sub retries the
+		// notification (which then re-enters via the already-terminal branch and re-runs the work).
 		svc, mockDS := newSvc(t)
 
 		stored := &android.MDMAndroidCommand{
@@ -2273,17 +2235,10 @@ func TestPubSubEnrollment_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
 	})
 }
 
-// TestPubSubDeletedClearsWipeRefForBYO verifies that when AMAPI delivers a state=DELETED
-// notification (via either STATUS_REPORT or ENROLLMENT pub/sub topic) for a BYO Android host,
-// Fleet clears host_mdm_actions (via ClearHostMDMActions) so HostLockWipeStatus.IsWiped()
-// returns false. The BYO unenroll path wipes only the work profile -- not the device -- so
-// showing a "Wiped" badge post-ack would be misleading. COBO must NOT trigger this cleanup:
-// COBO unenroll uses EnterprisesDevicesDelete (no wipe_ref written), and COBO Wipe legitimately
-// leaves the row so the "Wiped" badge persists until the admin deletes the host.
-//
-// Covers both notification topics because clearAndroidBYOWipeRef is wired into both DELETED
-// branches in pubsub.go -- a regression that removed the call from one but not the other would
-// otherwise slip through.
+// TestPubSubDeletedClearsWipeRefForBYO verifies that when AMAPI delivers a state=DELETED notification (via either STATUS_REPORT
+// or ENROLLMENT pub/sub topic) for a BYO Android host, Fleet clears host_mdm_actions (via ClearHostMDMActions) so
+// HostLockWipeStatus.IsWiped() returns false. COBO must NOT trigger this cleanup: COBO unenroll uses EnterprisesDevicesDelete (no
+// wipe_ref written), and COBO Wipe legitimately leaves the row so the "Wiped" badge persists.
 func TestPubSubDeletedClearsWipeRefForBYO(t *testing.T) {
 	const existingHostID uint = 42
 	// Deterministic ESID so a failing assertion always shows the same value.
@@ -2377,18 +2332,14 @@ func TestPubSubDeletedClearsWipeRefForBYO(t *testing.T) {
 	}
 }
 
-// TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll verifies the re-enrollment cleanup added
-// for #41683: when an enrollment message arrives for a host that already exists in Fleet (typical
-// re-enrollment cycle: factory reset -> re-enroll on the same physical device), updateHost is
-// invoked with fromEnroll=true and must clear host_mdm_actions so stale Lock/Wipe/Clear-passcode
-// refs from the previous enrollment do not bleed into the new one.
+// TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll verifies the re-enrollment cleanup: when an enrollment message arrives for
+// a host that already exists in Fleet (typical re-enrollment cycle: factory reset -> re-enroll on the same physical device),
+// updateHost is invoked with fromEnroll=true and must clear host_mdm_actions so stale Lock/Wipe/Clear-passcode refs from the
+// previous enrollment do not bleed into the new one.
 func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
 
-	// COBO enrollment with no EnterpriseSpecificId in HardwareInfo. getAndroidHostKey falls back to
-	// sha256(brand:serial) (matching testBrandTestSerialHashed, since createEnrollmentMessage sets
-	// brand=TestBrand and serial=test-serial for company-owned devices). AndroidHostLite is invoked
-	// with that hash, and its assertion below catches any regression in the lookup-key generation.
+	// COBO enrollment with no EnterpriseSpecificId in HardwareInfo. getAndroidHostKey falls back to sha256(brand:serial)
 	const existingHostID uint = 42
 
 	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -2397,10 +2348,9 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 	mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		return &fleet.EnrollSecret{Secret: "global"}, nil
 	}
-	// Existing host: AndroidHostLite returns a real host so enrollHost falls into the updateHost
-	// (fromEnroll=true) branch instead of NewAndroidHost. AppliedPolicyID is seeded with the prior
-	// cycle's host-specific policy id so the regression check below (re-enroll must reset it)
-	// has something stale to clear.
+	// Existing host: AndroidHostLite returns a real host so enrollHost falls into the updateHost (fromEnroll=true) branch instead of
+	// NewAndroidHost. AppliedPolicyID is seeded with the prior cycle's host-specific policy id so the regression check below
+	// (re-enroll must reset it) has something stale to clear.
 	stalePolicyID := testBrandTestSerialHashed
 	stalePolicyVersion := int64(5)
 	staleSyncTime := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
@@ -2424,10 +2374,6 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 	}
 	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 		require.True(t, fromEnroll, "re-enrollment must invoke updateHost with fromEnroll=true")
-		// Stale per-device policy state from the prior enrollment cycle must be cleared so the
-		// setup experience worker's ensureHostSpecificPolicyIsApplied (gated on
-		// AppliedPolicyID == DefaultAndroidPolicyID) actually runs and moves the device off the
-		// empty bootstrap policy onto the host-specific policy that contains the Fleet agent.
 		require.Nil(t, host.Device.AppliedPolicyID, "re-enroll must reset stale applied_policy_id")
 		require.Nil(t, host.Device.AppliedPolicyVersion, "re-enroll must reset stale applied_policy_version")
 		require.Nil(t, host.Device.LastPolicySyncTime, "re-enroll must reset stale last_policy_sync_time")
@@ -2444,16 +2390,16 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 	enrollmentToken := enrollmentTokenRequest{EnrollSecret: "global"}
 	enrollTokenData, err := json.Marshal(enrollmentToken)
 	require.NoError(t, err)
-	// createEnrollmentMessage unconditionally overwrites HardwareInfo (brand/model/hardware) and, for
-	// COBO ownership, adds serial="test-serial" without EnterpriseSpecificId — so the lookup key
-	// produced by getAndroidHostKey is sha256("TestBrand:test-serial") = testBrandTestSerialHashed.
+	// createEnrollmentMessage unconditionally overwrites HardwareInfo (brand/model/hardware) and, for COBO ownership, adds
+	// serial="test-serial" without EnterpriseSpecificId. So the lookup key produced by getAndroidHostKey is
+	// sha256("TestBrand:test-serial") = testBrandTestSerialHashed.
 	msg := createEnrollmentMessage(t, androidmanagement.Device{
 		Name:                createAndroidDeviceId("reenroll"),
 		EnrollmentTokenData: string(enrollTokenData),
 		Ownership:           DeviceOwnershipCompanyOwned,
 	})
 
-	require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", msg))
+	require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", msg))
 	require.True(t, mockDS.AndroidHostLiteFuncInvoked,
 		"AndroidHostLite must be invoked to detect existing host on re-enroll")
 	require.True(t, mockDS.ClearHostMDMActionsFuncInvoked,
