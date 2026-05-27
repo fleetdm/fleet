@@ -680,6 +680,25 @@ const trashFunc = `trash() {
   fi
 
   local trash="/Users/$logged_in_user/.Trash"
+
+  # If the target contains glob characters, expand it and move each match.
+  # The expansion is intentionally unquoted so the shell can glob; each
+  # resolved path is quoted when moved.
+  if [[ "$target_file" == *[*?[]* ]]; then
+    local matched=false
+    for f in $target_file; do
+      [[ -e "$f" ]] || continue
+      matched=true
+      local file_name="$(basename "$f")"
+      echo "removing $f."
+      mv -f "$f" "$trash/${file_name}_${timestamp}_${rand}"
+    done
+    if [[ "$matched" == false ]]; then
+      echo "$target_file doesn't exist."
+    fi
+    return
+  fi
+
   local file_name="$(basename "${target_file}")"
 
   if [[ -e "$target_file" ]]; then
