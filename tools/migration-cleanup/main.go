@@ -319,7 +319,7 @@ func validateTLSFlags(opts options) error {
 	switch opts.tlsMode {
 	case "", "skip-verify", "verify-ca", "verify-identity":
 	default:
-		return fmt.Errorf("--tls-mode must be one of skip-verify, verify-ca, verify-identity")
+		return errors.New("--tls-mode must be one of skip-verify, verify-ca, verify-identity")
 	}
 	return nil
 }
@@ -327,11 +327,11 @@ func validateTLSFlags(opts options) error {
 func validateEffectiveTLSConfig(conf configpkg.MysqlConfig, tlsMode string) error {
 	if tlsMode == "verify-ca" || tlsMode == "verify-identity" {
 		if conf.TLSCA == "" {
-			return fmt.Errorf("--tls-ca or mysql_tls_ca is required for verify-ca / verify-identity")
+			return errors.New("--tls-ca or mysql_tls_ca is required for verify-ca / verify-identity")
 		}
 	}
 	if conf.TLSConfig != "skip-verify" && (conf.TLSCert == "") != (conf.TLSKey == "") {
-		return fmt.Errorf("TLS client certificate and key must be provided together")
+		return errors.New("TLS client certificate and key must be provided together")
 	}
 	return nil
 }
@@ -353,12 +353,13 @@ func resolveBranch(checkout, branch string) (string, error) {
 	candidates := []string{branch, "origin/" + branch}
 	var lastErr error
 	for _, candidate := range candidates {
-		if _, err := git(checkout, "rev-parse", "--verify", candidate); err == nil {
+		_, err := git(checkout, "rev-parse", "--verify", candidate)
+		if err == nil {
 			return candidate, nil
-		} else {
-			lastErr = err
-			fmt.Fprintln(os.Stderr, err)
 		}
+
+		lastErr = err
+		fmt.Fprintln(os.Stderr, err)
 	}
 	if lastErr != nil {
 		return "", fmt.Errorf("ERROR: cannot resolve branch %q", branch)
