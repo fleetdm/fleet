@@ -49,6 +49,10 @@ const useUpdatePolicyAutomations = ({
   const queryClient = useQueryClient();
   const { setConfig } = useContext(AppContext);
 
+  if (!isGlobalPolicy && teamIdForApi === undefined) {
+    throw new Error("Missing fleet id for team-scoped policy automations.");
+  }
+
   // Adds or removes this policy from the fleet/global webhook+ticket policy_ids
   // list (the backend stores membership for both webhooks and tickets there).
   const saveWebhookOrTicketMembership = async (enabled: boolean) => {
