@@ -31,7 +31,6 @@ const ENABLING_CALENDAR_API =
 const OAUTH_SCOPES =
   "https://www.googleapis.com/auth/calendar.events,https://www.googleapis.com/auth/calendar.settings.readonly";
 
-// trivy:ignore:private-key
 const API_KEY_JSON_PLACEHOLDER = `{
   "type": "service_account",
   "project_id": "fleet-in-your-calendar",
