@@ -1562,40 +1562,31 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		}
 
 	case "android":
-		// Android lock/wipe are AMAPI commands tracked in mdm_android_commands; lock_ref and
-		// wipe_ref store the Fleet-generated command_uuid (no unlock_ref on Android).
-		if mdmActions.LockRef != nil {
-			cmd, cmdRes, err := ds.getHostMDMAndroidCommand(ctx, *mdmActions.LockRef)
+		// Android lock/wipe/clear-passcode are AMAPI commands tracked in mdm_android_commands;
+		// lock_ref / wipe_ref / clear_passcode_ref store the Fleet-generated command_uuid (no
+		// unlock_ref on Android). All three fetch the same shape, so loop them.
+		for _, ref := range []struct {
+			label  string
+			refPtr *string
+			cmdOut **fleet.MDMCommand
+			resOut **fleet.MDMCommandResult
+		}{
+			{"lock", mdmActions.LockRef, &status.LockMDMCommand, &status.LockMDMCommandResult},
+			{"wipe", mdmActions.WipeRef, &status.WipeMDMCommand, &status.WipeMDMCommandResult},
+			{"clear-passcode", mdmActions.ClearPasscodeRef, &status.ClearPasscodeMDMCommand, &status.ClearPasscodeMDMCommandResult},
+		} {
+			if ref.refPtr == nil {
+				continue
+			}
+			cmd, cmdRes, err := ds.getHostMDMAndroidCommand(ctx, *ref.refPtr)
 			if err != nil && !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "get android lock reference")
+				return nil, ctxerr.Wrapf(ctx, err, "get android %s reference", ref.label)
 			}
 			if fleet.IsNotFound(err) {
-				ds.logger.ErrorContext(ctx, "orphan android lock command reference", "host_id", host.ID, "command_uuid", *mdmActions.LockRef)
+				ds.logger.ErrorContext(ctx, "orphan android command reference", "ref", ref.label, "host_id", host.ID, "command_uuid", *ref.refPtr)
 			}
-			status.LockMDMCommand = cmd
-			status.LockMDMCommandResult = cmdRes
-		}
-		if mdmActions.WipeRef != nil {
-			cmd, cmdRes, err := ds.getHostMDMAndroidCommand(ctx, *mdmActions.WipeRef)
-			if err != nil && !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "get android wipe reference")
-			}
-			if fleet.IsNotFound(err) {
-				ds.logger.ErrorContext(ctx, "orphan android wipe command reference", "host_id", host.ID, "command_uuid", *mdmActions.WipeRef)
-			}
-			status.WipeMDMCommand = cmd
-			status.WipeMDMCommandResult = cmdRes
-		}
-		if mdmActions.ClearPasscodeRef != nil {
-			cmd, cmdRes, err := ds.getHostMDMAndroidCommand(ctx, *mdmActions.ClearPasscodeRef)
-			if err != nil && !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "get android clear-passcode reference")
-			}
-			if fleet.IsNotFound(err) {
-				ds.logger.ErrorContext(ctx, "orphan android clear-passcode command reference", "host_id", host.ID, "command_uuid", *mdmActions.ClearPasscodeRef)
-			}
-			status.ClearPasscodeMDMCommand = cmd
-			status.ClearPasscodeMDMCommandResult = cmdRes
+			*ref.cmdOut = cmd
+			*ref.resOut = cmdRes
 		}
 
 	case "windows", "linux":

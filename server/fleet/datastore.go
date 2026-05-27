@@ -3279,10 +3279,8 @@ type AndroidDatastore interface {
 	// command is in flight. The caller must populate cmd.CommandUUID and cmd.OperationName before invoking.
 	ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
 
-	// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Called on re-enrollment
-	// so stale lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed into the
-	// new one. The orbit-enroll path (hosts.go) and Apple/Windows MDM cleanup paths already do this
-	// inline; this method is the Android equivalent surfaced for the AMAPI pub/sub re-enrollment.
+	// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Called on re-enrollment so stale
+	// lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed into the new one.
 	ClearHostMDMActions(ctx context.Context, hostID uint) error
 
 	// UpdateHostSoftware updates the software list of a host.

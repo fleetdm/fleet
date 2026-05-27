@@ -13630,6 +13630,7 @@ func testGetHostLockWipeStatusAndroid(t *testing.T, ds *Datastore) {
 	require.Equal(t, string(android.MDMAndroidCommandStatusError), status.LockMDMCommandResult.Status)
 	require.False(t, status.IsLocked())
 	require.False(t, status.IsPendingLock())
+
 	// Pending clear-passcode: IsPendingClearPasscode = true, device_status = clear_passcode
 	// pending action so the UI hides Lock / Unenroll / Wipe / Clear passcode.
 	cpHost := createEnrolledAndroidHost(t, ctx, ds, uuid.NewString(), nil)

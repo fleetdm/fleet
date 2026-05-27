@@ -2011,20 +2011,29 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 	})
 }
 
-func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	host, err := ds.NewHost(ctx, &fleet.Host{
+// newBareAndroidHostForTest inserts a minimal android-platform host row. Use this for tests
+// that exercise the host_mdm_actions layer and don't need a populated android_devices row
+// (use createAndroidHost + ds.NewAndroidHost for that).
+func newBareAndroidHostForTest(t *testing.T, ds *Datastore, hostname string) *fleet.Host {
+	t.Helper()
+	h, err := ds.NewHost(t.Context(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         ptr.String(uuid.NewString()),
 		UUID:            uuid.NewString(),
-		Hostname:        "android-lockwipe-helper-test",
+		Hostname:        hostname,
 		Platform:        "android",
 	})
 	require.NoError(t, err)
+	return h
+}
+
+func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := newBareAndroidHostForTest(t, ds, "android-lockwipe-helper-test")
 
 	t.Run("Lock writes both rows atomically and reports pending", func(t *testing.T) {
 		cmd := &android.MDMAndroidCommand{
@@ -2079,17 +2088,9 @@ func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
 		require.Equal(t, second.CommandUUID, status.WipeMDMCommand.CommandUUID)
 	})
 	t.Run("ClearPasscode writes the row and reports pending clear-passcode", func(t *testing.T) {
-		cpHost, err := ds.NewHost(ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			NodeKey:         ptr.String(uuid.NewString()),
-			UUID:            uuid.NewString(),
-			Hostname:        "android-clear-passcode-helper-test",
-			Platform:        "android",
-		})
-		require.NoError(t, err)
+		// Fresh host: the parent test has Lock + Wipe pending on `host`, which would dominate
+		// PendingAction() priority over clear_passcode.
+		cpHost := newBareAndroidHostForTest(t, ds, "android-clear-passcode-helper-test")
 
 		cmd := &android.MDMAndroidCommand{
 			CommandUUID:   uuid.NewString(),

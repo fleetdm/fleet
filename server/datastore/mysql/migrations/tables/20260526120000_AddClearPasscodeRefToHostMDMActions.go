@@ -9,13 +9,12 @@ func init() {
 	MigrationClient.AddMigration(Up_20260526120000, Down_20260526120000)
 }
 
-// Up_20260526120000 adds clear_passcode_ref to host_mdm_actions, mirroring lock_ref and wipe_ref.
-// For Android hosts the column points at mdm_android_commands.command_uuid for a RESET_PASSWORD
-// command and is the signal HostLockWipeStatus.IsPendingClearPasscode reads to flip a host into the
-// "clearing passcode" device status while the AMAPI command is in flight (see #41683).
+// Up_20260526120000 adds clear_passcode_ref to host_mdm_actions, mirroring lock_ref and wipe_ref. For Android hosts the column
+// points at mdm_android_commands.command_uuid for a RESET_PASSWORD command and is the signal
+// HostLockWipeStatus.IsPendingClearPasscode reads to flip a host into the "clearing passcode" device status while the AMAPI
+// command is in flight.
 //
-// Other platforms keep this column NULL: Apple's ClearPasscode lives in nano_commands and Windows
-// has no equivalent surface.
+// Other platforms keep this column NULL. Story to add Apple support: #46286
 func Up_20260526120000(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 ALTER TABLE host_mdm_actions

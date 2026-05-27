@@ -764,10 +764,8 @@ func (s HostLockWipeStatus) IsPendingWipe() bool {
 	return s.WipeMDMCommand != nil && s.WipeMDMCommandResult == nil
 }
 
-// IsPendingClearPasscode reports whether a Clear Passcode (RESET_PASSWORD) AMAPI command is in
-// flight for this Android host. Apple's ClearPasscode does not surface as a device-level pending
-// state today, so this is Android-only. The command_uuid is tracked in
-// host_mdm_actions.clear_passcode_ref and joined to mdm_android_commands by GetHostLockWipeStatus.
+// IsPendingClearPasscode reports whether a Clear Passcode is in flight.
+// Support for Apple coming in #46286
 func (s HostLockWipeStatus) IsPendingClearPasscode() bool {
 	if s.HostFleetPlatform != "android" {
 		return false
