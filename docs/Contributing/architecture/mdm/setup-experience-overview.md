@@ -118,3 +118,9 @@ flowchart TB
     O_SWRX -->|"calls"| SIR_EP
     O_SCRX -->|"calls"| SCR_EP
 ```
+
+## Related resources
+
+- [Upcoming activities](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/upcoming-activities.md) - How Fleet's unified activity queue works
+- [Software installation architecture](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/architecture/software/software-installation.md) - How Fleet installs software on hosts
+- [Automated Device Enrollment](automated-device-enrollment.md) - Architecture for ADE
