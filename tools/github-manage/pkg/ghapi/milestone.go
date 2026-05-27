@@ -121,9 +121,14 @@ func GetIssueProjects(issueNumber int) (map[int]string, error) {
 }
 
 // GetProjectsForIssues gathers the union of projects across the provided issues.
-func GetProjectsForIssues(issueNumbers []int) ([]ProjectInfo, error) {
+// If progress is non-nil it is called once per issue (1-based current, total,
+// issue number) so callers can render progress for this per-issue fetch.
+func GetProjectsForIssues(issueNumbers []int, progress func(current, total, issueNumber int)) ([]ProjectInfo, error) {
 	seen := make(map[int]string)
-	for _, num := range issueNumbers {
+	for i, num := range issueNumbers {
+		if progress != nil {
+			progress(i+1, len(issueNumbers), num)
+		}
 		prjs, err := GetIssueProjects(num)
 		if err != nil {
 			// tolerate errors per-issue, continue accumulating from others
