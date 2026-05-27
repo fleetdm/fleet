@@ -79,7 +79,12 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger *sl
 		case !ok:
 			// BYO unenroll wipes only the work profile; clear host_mdm_actions before flipping
 			// host_mdm.enrolled so the post-ack "Wiped" badge clears. COBO is a no-op here.
-			clearAndroidBYOWipeRef(ctx, ds, logger, dev.HostID)
+			// Log + continue on transient DB failure: the reconcile loop covers all enrolled hosts
+			// and we don't want one bad row to abort the whole janitor pass; next tick will retry.
+			if cerr := clearAndroidBYOWipeRef(ctx, ds, dev.HostID); cerr != nil {
+				logger.ErrorContext(ctx, "failed to clear android byo wipe-ref during reconcile", "host_id", dev.HostID, "err", cerr)
+				continue
+			}
 
 			if _, derr := ds.SetAndroidHostUnenrolled(ctx, dev.HostID); derr != nil {
 				logger.ErrorContext(ctx, "failed to mark android host unenrolled during reconcile", "host_id", dev.HostID, "err", derr)
