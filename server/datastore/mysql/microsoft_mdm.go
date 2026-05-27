@@ -2248,6 +2248,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 	WHERE
 		h.platform = 'windows' AND
 		NOT EXISTS (
@@ -2278,6 +2280,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
 				ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 1
 			LEFT OUTER JOIN label_membership lm
@@ -2320,6 +2324,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
 				ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 1 AND mcpl.require_all = 0
 			LEFT OUTER JOIN labels lbl
@@ -2356,6 +2362,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
 				ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 0
 			LEFT OUTER JOIN label_membership lm
@@ -2628,11 +2636,11 @@ const windowsProfilesToRemoveQuery = `
 	WHERE
 		-- profiles that are in B but not in A
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
-		-- only target hosts that still have a valid Windows MDM enrollment;
-		-- orphaned host_mdm_windows_profiles rows (where the enrollment was
-		-- deleted) cannot receive MDM commands and must be skipped.
+		-- skip hosts not confirmed enrolled in Fleet's Windows MDM
 		EXISTS (
 			SELECT 1 FROM mdm_windows_enrollments mwe
+				JOIN hosts h ON h.uuid = mwe.host_uuid
+				JOIN host_mdm hmdm ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			WHERE mwe.host_uuid = hmwp.host_uuid
 		) AND
 		-- exclude remove operations with non-NULL status (already processed;

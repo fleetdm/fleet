@@ -850,10 +850,26 @@ ORDER BY
 	return labels, nil
 }
 
+// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
+// (including verified/failed, not just pending) and, for Apple, soft-disables nano_enrollments so the Apple profile
+// reconciler does not recreate pending rows after MDM is re-enabled. Called when MDM is toggled off globally.
+//
+// The platform argument is a platform family. Passing any of "darwin", "ios", or "ipados" cleans up all three Apple
+// platforms, because Apple MDM is controlled by a single AppConfig.MDM.EnabledAndConfigured flag.
+//
+// host_mdm.server_url and host_mdm.mdm_id are intentionally preserved. The Apple host_mdm upsert path
+// (upsertMDMAppleHostMDMInfoDB) only updates enrolled on duplicate-key, so clearing those columns here would leave them
+// blank for iOS/iPadOS hosts (which have no osquery to repopulate them) after a re-enable cycle.
 func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		switch platform {
 		case "darwin", "ios", "ipados":
+			// The Apple reconciler filters on nano_enrollments.enabled = 1, so this prevents pending rows from being recreated when
+			// Apple MDM is re-enabled with a new APNS cert.
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE nano_enrollments SET enabled = 0, token_update_tally = 0 WHERE enabled = 1`); err != nil {
+				return ctxerr.Wrap(ctx, err, "disabling nano_enrollments")
+			}
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_apple_profiles")
 			}

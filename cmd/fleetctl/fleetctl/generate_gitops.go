@@ -1591,13 +1591,14 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	result := make([]map[string]interface{}, len(policies))
 	for i, policy := range policies {
 		policySpec := map[string]interface{}{
-			jsonFieldName(t, "Name"):                     policy.Name,
-			jsonFieldName(t, "Description"):              policy.Description,
-			jsonFieldName(t, "Resolution"):               policy.Resolution,
-			jsonFieldName(t, "Platform"):                 policy.Platform,
-			jsonFieldName(t, "Critical"):                 policy.Critical,
-			jsonFieldName(t, "CalendarEventsEnabled"):    policy.CalendarEventsEnabled,
-			jsonFieldName(t, "ConditionalAccessEnabled"): policy.ConditionalAccessEnabled,
+			jsonFieldName(t, "Name"):                         policy.Name,
+			jsonFieldName(t, "Description"):                  policy.Description,
+			jsonFieldName(t, "Resolution"):                   policy.Resolution,
+			jsonFieldName(t, "Platform"):                     policy.Platform,
+			jsonFieldName(t, "Critical"):                     policy.Critical,
+			jsonFieldName(t, "CalendarEventsEnabled"):        policy.CalendarEventsEnabled,
+			jsonFieldName(t, "ConditionalAccessEnabled"):     policy.ConditionalAccessEnabled,
+			jsonFieldName(t, "ContinuousAutomationsEnabled"): policy.ContinuousAutomationsEnabled,
 		}
 
 		if policy.Type == fleet.PolicyTypeDynamic {
