@@ -2,7 +2,8 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
-import mdmAPI, { EndUserLocalAccountType } from "services/entities/mdm";
+import mdmAPI from "services/entities/mdm";
+import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import UsersForm from "./UsersForm";
 
@@ -136,7 +137,7 @@ describe("UsersForm", () => {
         enable_end_user_authentication: false,
         lock_end_user_info: false,
         enable_managed_local_account: false,
-        end_user_local_account_type: EndUserLocalAccountType.Admin,
+        end_user_local_account_type: EndUserLocalAccountType.ADMIN,
       });
     });
   });

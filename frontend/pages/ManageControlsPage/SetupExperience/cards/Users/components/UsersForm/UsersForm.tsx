@@ -1,11 +1,12 @@
 import React, { useContext, useEffect, useState } from "react";
 
-import mdmAPI, { EndUserLocalAccountType } from "services/entities/mdm";
+import mdmAPI from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import EndUserAuthSection from "./components/EndUserAuthSection";
 import LocalAccountSection, {
@@ -37,7 +38,7 @@ const UsersForm = ({
   defaultIsEndUserAuthEnabled,
   defaultLockEndUserInfo,
   defaultEnableManagedLocalAccount,
-  defaultLocalAccountType = EndUserLocalAccountType.Admin,
+  defaultLocalAccountType = EndUserLocalAccountType.ADMIN,
   isIdPConfigured,
 }: IUsersFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
