@@ -1380,3 +1380,19 @@ const (
 	// SSOInitiatorAppleMDMSSO is used for automatic MDM Apple enrollment SSO flow.
 	SSOInitiatorAppleMDMSSO = "mdm_sso"
 )
+
+// ProfileLabelOverlap returns the first label name that appears in both
+// the include list and the exclude list, or an empty string if there is none.
+// include should be the union of labels_include_all and labels_include_any.
+func ProfileLabelOverlap(include, exclude []string) string {
+	seen := make(map[string]struct{}, len(include))
+	for _, n := range include {
+		seen[n] = struct{}{}
+	}
+	for _, n := range exclude {
+		if _, ok := seen[n]; ok {
+			return n
+		}
+	}
+	return ""
+}

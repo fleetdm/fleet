@@ -1700,6 +1700,11 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 		decoded.LabelsIncludeAll = deprecatedLabels
 	}
 
+	includeLabels := append(decoded.LabelsIncludeAll, decoded.LabelsIncludeAny...)
+	if overlap := fleet.ProfileLabelOverlap(includeLabels, decoded.LabelsExcludeAny); overlap != "" {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf(`Label %q cannot appear in both include and exclude lists.`, overlap)}
+	}
+
 	return &decoded, nil
 }
 
@@ -2819,6 +2824,11 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 		}
 		if includeCount > 1 {
 			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
+		}
+
+		includeLabels := append(profile.LabelsIncludeAll, append(profile.Labels, profile.LabelsIncludeAny...)...) //nolint:gocritic
+		if overlap := fleet.ProfileLabelOverlap(includeLabels, profile.LabelsExcludeAny); overlap != "" {
+			return fleet.NewInvalidArgumentError("mdm", fmt.Sprintf(`Couldn't edit configuration_profiles. Label %q cannot appear in both include and exclude lists.`, overlap))
 		}
 
 		if len(profile.Contents) > 1024*1024 {

@@ -1696,6 +1696,11 @@ func (svc *Service) validateMDM(
 				invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
 					fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
 			}
+			includeLabels := append(prof.Labels, append(prof.LabelsIncludeAll, prof.LabelsIncludeAny...)...) //nolint:gocritic
+			if overlap := fleet.ProfileLabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
+				invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+					fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. Label %q cannot appear in both include and exclude lists.`, prefix, overlap))
+			}
 			if len(prof.Labels) > 0 {
 				customSettings[i].LabelsIncludeAll = customSettings[i].Labels
 				customSettings[i].Labels = nil
