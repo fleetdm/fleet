@@ -407,6 +407,17 @@ describe("CommandPalette helpers", () => {
       expect(ids).toContain("add-custom-variable");
     });
 
+    it("hides 'Add script' for technicians (page-side button is disabled for them)", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: false,
+        currentTeam: { id: 0, name: "No team" },
+        isTechnician: true,
+      });
+      const ids = items.map((i) => i.id);
+      expect(ids).not.toContain("add-script");
+    });
+
     it("hides every software-add action when !canAddSoftware (current-team observer / cross-team admin / technician)", () => {
       // A user who is admin of a different team has canWrite (via
       // isAnyTeamAdmin) but isTeamAdmin(currentTeam) is false. The

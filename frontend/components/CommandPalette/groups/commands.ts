@@ -14,6 +14,7 @@ const buildCommandsItems = (
     canWrite,
     canEditCustomVariable,
     canAddSoftware,
+    isTechnician,
     isPremiumTier,
     isPrimoMode,
     isDarkMode,
@@ -255,8 +256,10 @@ const buildCommandsItems = (
                 },
               ]
             : []),
-          // Script and variable actions require a team or unassigned (not "All fleets")
-          ...(hasTeamOrUnassigned
+          // Script and variable actions require a team or unassigned
+          // (not "All fleets"). Scripts also hide for technicians —
+          // ScriptLibrary.tsx disables the page button for them.
+          ...(hasTeamOrUnassigned && !isTechnician
             ? [
                 {
                   id: "add-script",
