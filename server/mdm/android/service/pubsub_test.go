@@ -2025,6 +2025,78 @@ func TestPubSubCommand(t *testing.T) {
 		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
 	})
 
+	t.Run("already-terminal WIPE+ack re-runs unenroll work on Pub/Sub redelivery", func(t *testing.T) {
+		// Scenario: first delivery transitioned the WIPE row to acknowledged but then hit a
+		// transient DB blip in handleAndroidWipeAckUnenroll, so the host_mdm flip was lost.
+		// Pub/Sub redelivers; we land in the already-terminal branch but must still drive the
+		// unenroll work to completion. Idempotency guarantees no duplicate state or activity if
+		// the prior delivery had succeeded.
+		svc, mockDS := newSvc(t)
+
+		const hostID uint = 77
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-wipe-redelivered",
+			HostUUID:      "host-uuid-wipe",
+			OperationName: "enterprises/E/devices/D/operations/wipe-redelivered",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusAcknowledged),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			t.Fatalf("UpdateMDMAndroidCommandStatus should not be called for terminal row")
+			return nil
+		}
+		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			require.Equal(t, stored.HostUUID, hostUUID)
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: hostID, UUID: hostUUID}}, nil
+		}
+		mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+			// COBO -> clearAndroidBYOWipeRef is a no-op, ClearHostMDMActions must NOT be called.
+			return &fleet.HostMDM{IsPersonalEnrollment: false}, nil
+		}
+		mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, id uint) (bool, error) {
+			require.Equal(t, hostID, id)
+			return true, nil
+		}
+		mockDS.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			require.Equal(t, []uint{hostID}, ids)
+			return []*fleet.Host{{ID: hostID, Hostname: "redelivered-host"}}, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+
+		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked, "terminal row must not be re-transitioned")
+		require.True(t, mockDS.SetAndroidHostUnenrolledFuncInvoked, "redelivery must re-run the host_mdm flip so transient failures recover")
+		require.False(t, mockDS.ClearHostMDMActionsFuncInvoked, "COBO must NOT clear host_mdm_actions: wipe_ref keeps the 'Wiped' badge")
+	})
+
+	t.Run("already-terminal LOCK+ack does NOT trigger unenroll work", func(t *testing.T) {
+		// Guard against the redelivery hook firing for non-WIPE acked commands.
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-lock-redelivered",
+			HostUUID:      "host-uuid-lock",
+			OperationName: "enterprises/E/devices/D/operations/lock-redelivered",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusAcknowledged),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, id uint) (bool, error) {
+			t.Fatalf("SetAndroidHostUnenrolled must not be called for a terminal LOCK ack")
+			return false, nil
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+		require.False(t, mockDS.SetAndroidHostUnenrolledFuncInvoked)
+	})
+
 	t.Run("unknown operation, host deleted from Fleet -> ack", func(t *testing.T) {
 		// COBO unenroll / manual cleanup: the host is gone from Fleet, the command row is gone from mdm_android_commands, but Pub/Sub is
 		// still trying to deliver the original notification. A false from AndroidDeviceExistsByDeviceID confirms the orphan; ack.
