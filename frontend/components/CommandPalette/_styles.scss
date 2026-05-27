@@ -106,7 +106,7 @@
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: $pad-medium;
+    gap: $pad-small;
     padding: $pad-xsmall $pad-small;
     border: 1px solid $ui-fleet-black-25;
     background: $core-fleet-white;
@@ -115,7 +115,7 @@
     cursor: pointer;
     white-space: nowrap;
     border-radius: $border-radius;
-    max-width: 250px;
+    max-width: 320px;
 
     // In dark mode $core-fleet-white equals the dialog bg, so the outlined
     // button visually merges with the surface. Bump it one tier up.
@@ -128,8 +128,8 @@
     }
 
     &:focus-visible {
-      outline: 1px solid $core-focused-outline;
-      outline-offset: 1px;
+      outline: none;
+      border-color: $core-focused-outline;
     }
   }
 
@@ -138,6 +138,36 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  &__fleet-switcher-shortcut {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  &__shortcut-key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0;
+    font-family: inherit;
+    font-size: $xxx-small;
+    font-weight: $bold;
+    color: $ui-fleet-black-75;
+    background-color: $ui-fleet-black-5;
+    border: 1px solid $ui-fleet-black-25;
+    border-radius: $border-radius;
+    line-height: 1;
+  }
+
+  &__shortcut-sep {
+    font-size: $xxx-small;
+    color: $ui-fleet-black-50;
+    user-select: none;
   }
 
   &__list {
@@ -206,7 +236,7 @@
   }
 
   &__item--sub {
-    padding-left: $pad-large;
+    padding-left: $pad-medium;
   }
 
   &__item-left {

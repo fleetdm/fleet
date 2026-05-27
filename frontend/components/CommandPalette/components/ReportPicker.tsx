@@ -44,6 +44,7 @@ const ReportPicker = ({
     ["commandPaletteReports", teamId, debouncedQuery],
     () =>
       queriesAPI.loadAll({
+        scope: "queries",
         teamId,
         page: 0,
         perPage: REPORT_SEARCH_LIMIT,

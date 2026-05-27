@@ -12,7 +12,6 @@ import { browserHistory } from "react-router";
 import { AppContext } from "context/app";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
 import { isDarkMode, setThemeMode } from "utilities/theme";
 import paths from "router/paths";
 
@@ -87,6 +86,11 @@ const CommandPalette = (): JSX.Element | null => {
   const canRunLiveReport =
     canWrite || !!isObserverPlus || !!isAnyTeamObserverPlus;
 
+  // Primo Mode is a single-fleet premium installation. The fleet switcher
+  // should be hidden, fleet creation disabled, and All-fleets-only commands
+  // need to surface for the user's single fleet.
+  const isPrimoMode = !!config?.partnerships?.enable_primo;
+
   // Policy automations: same as canAddOrDeletePolicies in ManagePoliciesPage
   const canManagePolicyAutomations =
     isGlobalAdmin ||
@@ -126,7 +130,17 @@ const CommandPalette = (): JSX.Element | null => {
   }, [open]);
 
   const canSwitchFleet =
-    isPremiumTier && !!availableTeams && availableTeams.length > 1;
+    isPremiumTier &&
+    !isPrimoMode &&
+    !!availableTeams &&
+    availableTeams.length > 1;
+
+  // Detect macOS so we can render the Cmd glyph (⌘) vs. "Ctrl" inline on
+  // the fleet-switcher shortcut. navigator.platform is deprecated but
+  // still the most reliable cross-browser signal for this binary check.
+  const isMacPlatform =
+    typeof navigator !== "undefined" &&
+    /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
 
   const subPagePlaceholders: Partial<Record<Page, string>> = {
     "switch-fleet": "Search a fleet...",
@@ -301,6 +315,7 @@ const CommandPalette = (): JSX.Element | null => {
     canManageSoftwareAutomations,
     isTechnician,
     isPremiumTier,
+    isPrimoMode,
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
@@ -619,28 +634,35 @@ const CommandPalette = (): JSX.Element | null => {
           onKeyDown={onKeyDown}
         />
         {page === "root" && canSwitchFleet && (
-          <TooltipWrapper
-            tipContent="Use ⌘ + Shift + F to select a fleet."
-            position="bottom-end"
-            tipOffset={2}
-            underline={false}
-            className={`${baseClass}__fleet-switcher-tooltip`}
+          <button
+            type="button"
+            className={`${baseClass}__fleet-switcher`}
+            onClick={() => goToPage("switch-fleet")}
+            onKeyDown={(e) => {
+              // Stop Enter from bubbling to cmdk-root, which would
+              // activate whichever list item is currently highlighted.
+              // The button's native Enter still triggers the click above.
+              if (e.key === "Enter") {
+                e.stopPropagation();
+              }
+            }}
           >
-            <button
-              type="button"
-              className={`${baseClass}__fleet-switcher`}
-              onClick={() => goToPage("switch-fleet")}
+            <span className={`${baseClass}__fleet-switcher-label`}>
+              {currentTeam?.name || "All fleets"}
+            </span>
+            <span
+              aria-hidden
+              className={`${baseClass}__fleet-switcher-shortcut`}
             >
-              <span className={`${baseClass}__fleet-switcher-label`}>
-                {currentTeam?.name || "All fleets"}
-              </span>
-              <Icon
-                name="chevron-down"
-                color="ui-fleet-black-75"
-                className={`${baseClass}__fleet-switcher-caret`}
-              />
-            </button>
-          </TooltipWrapper>
+              <kbd className={`${baseClass}__shortcut-key`}>
+                {isMacPlatform ? "⌘" : "Ctrl"}
+              </kbd>
+              <span className={`${baseClass}__shortcut-sep`}>+</span>
+              <kbd className={`${baseClass}__shortcut-key`}>⇧</kbd>
+              <span className={`${baseClass}__shortcut-sep`}>+</span>
+              <kbd className={`${baseClass}__shortcut-key`}>F</kbd>
+            </span>
+          </button>
         )}
         {page !== "root" && <kbd className={`${baseClass}__esc-hint`}>ESC</kbd>}
       </div>

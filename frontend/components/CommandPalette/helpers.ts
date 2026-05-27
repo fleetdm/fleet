@@ -39,6 +39,7 @@ export interface ICommandPaletteContext {
   canManageSoftwareAutomations?: boolean;
   isTechnician?: boolean;
   isPremiumTier?: boolean;
+  isPrimoMode?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
   isWindowsMdmEnabledAndConfigured?: boolean;
   isAndroidMdmEnabledAndConfigured?: boolean;
@@ -79,6 +80,7 @@ export const buildCommandItems = (
     canManageSoftwareAutomations,
     isTechnician,
     isPremiumTier,
+    isPrimoMode,
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
@@ -100,13 +102,19 @@ export const buildCommandItems = (
   // Whether a specific team OR unassigned is selected (not "All fleets")
   const hasTeamOrUnassigned = hasTeamSelected || isUnassigned;
 
+  // In Primo Mode the user perceives a single-fleet install, so the concept
+  // of "switching fleet context" doesn't apply. Force every destination
+  // chip to undefined so no fleet labels surface in Primo.
+
   // Show destination team name only when navigating would switch your context.
   // Pages with includeNoTeam: false redirect Unassigned → All fleets.
-  const switchesFromUnassigned = isUnassigned ? "All fleets" : undefined;
+  const switchesFromUnassigned =
+    !isPrimoMode && isUnassigned ? "All fleets" : undefined;
 
   // Pages with includeAllTeams: false (e.g. Controls) redirect All fleets
   // to the default team. Replicate useTeamIdParam's preferredOrLowestIdFleet logic.
   const getDefaultTeamName = () => {
+    if (isPrimoMode) return undefined;
     if (hasTeamOrUnassigned) return undefined;
     const realFleets = availableTeams?.filter((t) => t.id > 0) ?? [];
     if (!realFleets.length) return undefined;
@@ -126,12 +134,15 @@ export const buildCommandItems = (
   // Unassigned when no team is selected (i.e., on "All fleets"). On a real
   // team or already-Unassigned, no switch happens.
   const teamRequiredDestination =
-    !hasTeamSelected && !isUnassigned ? "Unassigned" : undefined;
+    !isPrimoMode && !hasTeamSelected && !isUnassigned
+      ? "Unassigned"
+      : undefined;
 
   // Default-context commands (add-report, software automations) operate at
   // the "All fleets" level. Only Unassigned users switch context to reach
   // them.
-  const defaultDestination = isUnassigned ? "All fleets" : undefined;
+  const defaultDestination =
+    !isPrimoMode && isUnassigned ? "All fleets" : undefined;
 
   return [
     // Pages — always visible
@@ -283,12 +294,17 @@ export const buildCommandItems = (
             path: withTeamId(paths.CONTROLS_OS_SETTINGS),
             keywords: ["enforce", "remotely", "profiles"],
             subItems: [
-              {
-                id: "controls-disk-encryption",
-                label: "Disk encryption",
-                path: withTeamId(paths.CONTROLS_DISK_ENCRYPTION),
-                keywords: ["filevault", "bitlocker", "recovery key"],
-              },
+              // Disk encryption is Premium-only.
+              ...(isPremiumTier
+                ? [
+                    {
+                      id: "controls-disk-encryption",
+                      label: "Disk encryption",
+                      path: withTeamId(paths.CONTROLS_DISK_ENCRYPTION),
+                      keywords: ["filevault", "bitlocker", "recovery key"],
+                    },
+                  ]
+                : []),
               {
                 id: "controls-custom-settings",
                 label: "Configuration profiles",
@@ -301,8 +317,9 @@ export const buildCommandItems = (
                   "windows csp",
                 ],
               },
-              // Certificates and Passwords — not available to technicians
-              ...(!isTechnician
+              // Certificates and Passwords — Premium-only, and not
+              // available to technicians.
+              ...(isPremiumTier && !isTechnician
                 ? [
                     {
                       id: "controls-certificates",
@@ -328,46 +345,52 @@ export const buildCommandItems = (
                 : []),
             ],
           },
-          // Setup experience sub-pages
-          {
-            id: "controls-setup-experience",
-            label: "Setup experience",
-            group: "Controls",
-            path: withTeamId(paths.CONTROLS_SETUP_EXPERIENCE),
-            keywords: ["customize", "end user", "enrollment"],
-            subItems: [
-              {
-                id: "controls-users",
-                label: "Users",
-                path: withTeamId(paths.CONTROLS_USERS),
-                keywords: ["idp", "login", "sso"],
-              },
-              {
-                id: "controls-bootstrap-package",
-                label: "Bootstrap package",
-                path: withTeamId(paths.CONTROLS_BOOTSTRAP_PACKAGE),
-                keywords: ["pkg", "deploy"],
-              },
-              {
-                id: "controls-install-software",
-                label: "Install software",
-                path: withTeamId(paths.CONTROLS_INSTALL_SOFTWARE("macos")),
-                keywords: ["automatic install"],
-              },
-              {
-                id: "controls-run-script",
-                label: "Run script",
-                path: withTeamId(paths.CONTROLS_RUN_SCRIPT),
-                keywords: ["shell", "post-enrollment"],
-              },
-              {
-                id: "controls-setup-assistant",
-                label: "Setup Assistant",
-                path: withTeamId(paths.CONTROLS_SETUP_ASSISTANT),
-                keywords: ["apple", "dep", "ade"],
-              },
-            ],
-          },
+          // Setup experience sub-pages — Premium-only.
+          ...(isPremiumTier
+            ? [
+                {
+                  id: "controls-setup-experience",
+                  label: "Setup experience",
+                  group: "Controls" as const,
+                  path: withTeamId(paths.CONTROLS_SETUP_EXPERIENCE),
+                  keywords: ["customize", "end user", "enrollment"],
+                  subItems: [
+                    {
+                      id: "controls-users",
+                      label: "Users",
+                      path: withTeamId(paths.CONTROLS_USERS),
+                      keywords: ["idp", "login", "sso"],
+                    },
+                    {
+                      id: "controls-bootstrap-package",
+                      label: "Bootstrap package",
+                      path: withTeamId(paths.CONTROLS_BOOTSTRAP_PACKAGE),
+                      keywords: ["pkg", "deploy"],
+                    },
+                    {
+                      id: "controls-install-software",
+                      label: "Install software",
+                      path: withTeamId(
+                        paths.CONTROLS_INSTALL_SOFTWARE("macos")
+                      ),
+                      keywords: ["automatic install"],
+                    },
+                    {
+                      id: "controls-run-script",
+                      label: "Run script",
+                      path: withTeamId(paths.CONTROLS_RUN_SCRIPT),
+                      keywords: ["shell", "post-enrollment"],
+                    },
+                    {
+                      id: "controls-setup-assistant",
+                      label: "Setup Assistant",
+                      path: withTeamId(paths.CONTROLS_SETUP_ASSISTANT),
+                      keywords: ["apple", "dep", "ade"],
+                    },
+                  ],
+                },
+              ]
+            : []),
           // Scripts
           {
             id: "controls-scripts",
@@ -574,23 +597,28 @@ export const buildCommandItems = (
                   "entra",
                 ],
               },
-              {
-                id: "settings-int-calendars",
-                label: "Calendars",
-                path: paths.ADMIN_INTEGRATIONS_CALENDARS,
-                keywords: [
-                  "google calendar api",
-                  "google workspace",
-                  "service account",
-                  "events",
-                ],
-              },
-              {
-                id: "settings-int-change-management",
-                label: "Change management",
-                path: paths.ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT,
-                keywords: ["workflow", "gitops mode"],
-              },
+              // Calendars and Change management are Premium-only.
+              ...(isPremiumTier
+                ? [
+                    {
+                      id: "settings-int-calendars",
+                      label: "Calendars",
+                      path: paths.ADMIN_INTEGRATIONS_CALENDARS,
+                      keywords: [
+                        "google calendar api",
+                        "google workspace",
+                        "service account",
+                        "events",
+                      ],
+                    },
+                    {
+                      id: "settings-int-change-management",
+                      label: "Change management",
+                      path: paths.ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT,
+                      keywords: ["workflow", "gitops mode"],
+                    },
+                  ]
+                : []),
               {
                 id: "settings-int-sso-fleet-users",
                 label: "Single sign-on (SSO) for Fleet users",
@@ -603,32 +631,37 @@ export const buildCommandItems = (
                 path: paths.ADMIN_INTEGRATIONS_SSO_END_USERS,
                 keywords: ["saml", "idp", "device user", "login"],
               },
-              {
-                id: "settings-int-certificate-authorities",
-                label: "Certificate authorities",
-                path: paths.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
-                keywords: [
-                  "scep",
-                  "est",
-                  "digicert",
-                  "ndes",
-                  "smallstep",
-                  "scep",
-                ],
-              },
-              {
-                id: "add-certificate-authority",
-                label: "Add certificate authority",
-                path: paths.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
-                keywords: [
-                  "scep",
-                  "est",
-                  "digicert",
-                  "ndes",
-                  "smallstep",
-                  "pki",
-                ],
-              },
+              // Certificate authorities pages are Premium-only.
+              ...(isPremiumTier
+                ? [
+                    {
+                      id: "settings-int-certificate-authorities",
+                      label: "Certificate authorities",
+                      path: paths.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
+                      keywords: [
+                        "scep",
+                        "est",
+                        "digicert",
+                        "ndes",
+                        "smallstep",
+                        "scep",
+                      ],
+                    },
+                    {
+                      id: "add-certificate-authority",
+                      label: "Add certificate authority",
+                      path: paths.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
+                      keywords: [
+                        "scep",
+                        "est",
+                        "digicert",
+                        "ndes",
+                        "smallstep",
+                        "pki",
+                      ],
+                    },
+                  ]
+                : []),
               {
                 id: "settings-int-identity-provider",
                 label: "Identity provider (IdP)",
@@ -641,12 +674,17 @@ export const buildCommandItems = (
                 path: paths.ADMIN_INTEGRATIONS_HOST_STATUS_WEBHOOK,
                 keywords: ["offline", "missing hosts", "notification"],
               },
-              {
-                id: "settings-int-conditional-access",
-                label: "Conditional access",
-                path: paths.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS,
-                keywords: ["okta", "entra", "intune", "zero trust"],
-              },
+              // Conditional access is Premium-only.
+              ...(isPremiumTier
+                ? [
+                    {
+                      id: "settings-int-conditional-access",
+                      label: "Conditional access",
+                      path: paths.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS,
+                      keywords: ["okta", "entra", "intune", "zero trust"],
+                    },
+                  ]
+                : []),
             ],
           },
 
@@ -658,20 +696,26 @@ export const buildCommandItems = (
             path: paths.ADMIN_USERS,
             keywords: ["accounts", "admins", "invite"],
           },
-          {
-            id: "settings-fleets",
-            label: "Fleets",
-            group: "Settings",
-            path: paths.ADMIN_FLEETS,
-            keywords: [
-              "teams",
-              "groups",
-              "add fleet",
-              "create fleet",
-              "edit fleet",
-              "delete fleet",
-            ],
-          },
+          // Fleets settings tab — Premium-only, and hidden in Primo Mode
+          // (single-fleet installs don't expose fleet management).
+          ...(isPremiumTier && !isPrimoMode
+            ? [
+                {
+                  id: "settings-fleets",
+                  label: "Fleets",
+                  group: "Settings" as const,
+                  path: paths.ADMIN_FLEETS,
+                  keywords: [
+                    "teams",
+                    "groups",
+                    "add fleet",
+                    "create fleet",
+                    "edit fleet",
+                    "delete fleet",
+                  ],
+                },
+              ]
+            : []),
         ]
       : []),
 
@@ -706,8 +750,10 @@ export const buildCommandItems = (
               "device health",
             ],
           },
-          // Software add actions require a team or unassigned (not "All fleets")
-          ...(hasTeamOrUnassigned
+          // Software add actions require Premium + a team or unassigned
+          // (not "All fleets"). Each destination page renders a
+          // <PremiumFeatureMessage /> in Free.
+          ...(isPremiumTier && hasTeamOrUnassigned
             ? [
                 {
                   id: "add-fleet-maintained-app",
@@ -816,6 +862,108 @@ export const buildCommandItems = (
         ]
       : []),
 
+    // View commands — open sub-pages with searchable lists. Surfaced at
+    // the top of the Commands group so they're the first thing the user
+    // sees after Pages.
+    {
+      id: "view-host",
+      label: "View host",
+      group: "Commands" as const,
+      keywords: [
+        "host",
+        "device",
+        "find host",
+        "open host",
+        "host details",
+        "endpoint",
+        "machine",
+        "search host",
+        "search hosts",
+      ],
+      onAction: onViewHost,
+      opensSubPage: true,
+    },
+    {
+      id: "view-software",
+      label: "View software",
+      group: "Commands" as const,
+      keywords: [
+        "software",
+        "app",
+        "application",
+        "package",
+        "find software",
+        "open software",
+        "title",
+        "version",
+        "search software",
+        "search software inventory",
+        "inventory",
+      ],
+      onAction: onViewSoftware,
+      opensSubPage: true,
+    },
+    // View software library — Premium-only and hidden on "All fleets" since
+    // libraries are per-fleet.
+    ...(isPremiumTier && hasTeamOrUnassigned
+      ? [
+          {
+            id: "view-software-library",
+            label: "View software library",
+            group: "Commands" as const,
+            keywords: [
+              "library",
+              "installable",
+              "install",
+              "available",
+              "package",
+              "vpp",
+              "fma",
+              "fleet-maintained",
+              "search software library",
+              "search library",
+            ],
+            onAction: onViewSoftwareLibrary,
+            opensSubPage: true,
+          },
+        ]
+      : []),
+    {
+      id: "view-report",
+      label: "View report",
+      group: "Commands" as const,
+      keywords: [
+        "report",
+        "query",
+        "queries",
+        "sql",
+        "saved query",
+        "find report",
+        "open report",
+        "search report",
+        "search reports",
+      ],
+      onAction: onViewReport,
+      opensSubPage: true,
+    },
+    {
+      id: "view-policy",
+      label: "View policy",
+      group: "Commands" as const,
+      keywords: [
+        "policy",
+        "compliance",
+        "failing",
+        "device health",
+        "find policy",
+        "open policy",
+        "search policy",
+        "search policies",
+      ],
+      onAction: onViewPolicy,
+      opensSubPage: true,
+    },
+
     // Run live report — Observer+ users can also run live queries.
     // Placed here so it sits adjacent to Run live policy below.
     ...(canRunLiveReport
@@ -892,20 +1040,26 @@ export const buildCommandItems = (
                     "create user",
                   ],
                 },
-                {
-                  id: "create-fleet",
-                  label: "Create fleet",
-                  group: "Commands",
-                  path: `${paths.ADMIN_FLEETS}?create_fleet=1`,
-                  keywords: [
-                    "new fleet",
-                    "add fleet",
-                    "team",
-                    "create team",
-                    "add team",
-                    "new team",
-                  ],
-                },
+                // Create fleet — Premium-only and hidden in Primo Mode
+                // (ManageFleetsPage disables creation with PRIMO_TOOLTIP).
+                ...(isPremiumTier && !isPrimoMode
+                  ? [
+                      {
+                        id: "create-fleet",
+                        label: "Create fleet",
+                        group: "Commands" as const,
+                        path: `${paths.ADMIN_FLEETS}?create_fleet=1`,
+                        keywords: [
+                          "new fleet",
+                          "add fleet",
+                          "team",
+                          "create team",
+                          "add team",
+                          "new team",
+                        ],
+                      },
+                    ]
+                  : []),
               ]
             : []),
           {
@@ -948,24 +1102,29 @@ export const buildCommandItems = (
                   path: paths.ADMIN_INTEGRATIONS_MDM_APPLE,
                   keywords: ["apns", "certificate", "renew"],
                 },
-                {
-                  id: isAbmConfigured ? "edit-abm" : "add-abm",
-                  label: isAbmConfigured
-                    ? "Edit Apple Business Manager (ABM)"
-                    : "Add Apple Business Manager (ABM)",
-                  group: "MDM",
-                  path: paths.ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER,
-                  keywords: ["dep", "automated enrollment", "apple"],
-                },
-                {
-                  id: isVppEnabled ? "edit-vpp" : "add-vpp",
-                  label: isVppEnabled
-                    ? "Edit Volume Purchasing Program (VPP)"
-                    : "Add Volume Purchasing Program (VPP)",
-                  group: "MDM",
-                  path: paths.ADMIN_INTEGRATIONS_VPP,
-                  keywords: ["app store", "apple", "token"],
-                },
+                // ABM and VPP pages are Premium-only.
+                ...(isPremiumTier
+                  ? [
+                      {
+                        id: isAbmConfigured ? "edit-abm" : "add-abm",
+                        label: isAbmConfigured
+                          ? "Edit Apple Business Manager (ABM)"
+                          : "Add Apple Business Manager (ABM)",
+                        group: "MDM" as const,
+                        path: paths.ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER,
+                        keywords: ["dep", "automated enrollment", "apple"],
+                      },
+                      {
+                        id: isVppEnabled ? "edit-vpp" : "add-vpp",
+                        label: isVppEnabled
+                          ? "Edit Volume Purchasing Program (VPP)"
+                          : "Add Volume Purchasing Program (VPP)",
+                        group: "MDM" as const,
+                        path: paths.ADMIN_INTEGRATIONS_VPP,
+                        keywords: ["app store", "apple", "token"],
+                      },
+                    ]
+                  : []),
               ]),
           // Windows MDM — turn on or edit
           ...(!isWindowsMdmEnabledAndConfigured
@@ -1017,8 +1176,11 @@ export const buildCommandItems = (
         ]
       : []),
 
-    // Manage automations — software (global admin, all fleets view only)
-    ...(canManageSoftwareAutomations && !hasTeamSelected && !isUnassigned
+    // Manage automations — software. Normally All-fleets-only, but in
+    // Primo Mode the single fleet acts as "all fleets" so the destination
+    // page (SoftwarePage) accepts it too.
+    ...(canManageSoftwareAutomations &&
+    ((!hasTeamSelected && !isUnassigned) || isPrimoMode)
       ? [
           {
             id: "manage-software-automations",
@@ -1118,117 +1280,6 @@ export const buildCommandItems = (
           },
         ]
       : []),
-
-    // View host — always available; opens a sub-page with searchable hosts.
-    {
-      id: "view-host",
-      label: "View host",
-      group: "Commands",
-      keywords: [
-        "host",
-        "device",
-        "find host",
-        "open host",
-        "host details",
-        "endpoint",
-        "machine",
-        "search host",
-        "search hosts",
-      ],
-      onAction: onViewHost,
-      opensSubPage: true,
-    },
-
-    // View software — always available; opens a sub-page with searchable
-    // software titles scoped to the current fleet.
-    {
-      id: "view-software",
-      label: "View software",
-      group: "Commands",
-      keywords: [
-        "software",
-        "app",
-        "application",
-        "package",
-        "find software",
-        "open software",
-        "title",
-        "version",
-        "search software",
-        "search software inventory",
-        "inventory",
-      ],
-      onAction: onViewSoftware,
-      opensSubPage: true,
-    },
-
-    // View software library — installable software available for the
-    // current fleet's library. Hidden on "All fleets" since libraries are
-    // per-fleet (matches the gating used by Add Fleet-maintained app etc.).
-    ...(hasTeamOrUnassigned
-      ? [
-          {
-            id: "view-software-library",
-            label: "View software library",
-            group: "Commands" as const,
-            keywords: [
-              "library",
-              "installable",
-              "install",
-              "available",
-              "package",
-              "vpp",
-              "fma",
-              "fleet-maintained",
-              "search software library",
-              "search library",
-            ],
-            onAction: onViewSoftwareLibrary,
-            opensSubPage: true,
-          },
-        ]
-      : []),
-
-    // View report — opens a sub-page with searchable reports for the
-    // current fleet (with inherited globals merged in).
-    {
-      id: "view-report",
-      label: "View report",
-      group: "Commands",
-      keywords: [
-        "report",
-        "query",
-        "queries",
-        "sql",
-        "saved query",
-        "find report",
-        "open report",
-        "search report",
-        "search reports",
-      ],
-      onAction: onViewReport,
-      opensSubPage: true,
-    },
-
-    // View policy — opens a sub-page with searchable policies for the
-    // current fleet (or global policies on All fleets).
-    {
-      id: "view-policy",
-      label: "View policy",
-      group: "Commands",
-      keywords: [
-        "policy",
-        "compliance",
-        "failing",
-        "device health",
-        "find policy",
-        "open policy",
-        "search policy",
-        "search policies",
-      ],
-      onAction: onViewPolicy,
-      opensSubPage: true,
-    },
 
     // Sign out — always available
     {
