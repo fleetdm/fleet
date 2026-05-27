@@ -2376,23 +2376,23 @@ func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgNa
 //     installed on the device (Apple rejects profile-replacements that grant
 //     more rights than were previously granted).
 //
-// Pass hostID == 0 for initial enrollment with no host record yet; in that
-// case the result is the fleet ceiling alone.
+// Pass hostUUID == "" for initial enrollment with no stored floor yet (e.g.
+// no host record exists); in that case the result is the fleet ceiling alone.
 //
 // Callers are responsible for short-circuiting non-BYOD cases (ADE-enrolled
 // hosts, non-Apple platforms) before calling this — there, just pass
 // apple_mdm.MDMAccessRightAll directly to the profile generator.
-func (svc *Service) computeAppleEnrollmentAccessRights(ctx context.Context, teamID *uint, hostID uint) (int, error) {
+func (svc *Service) computeAppleEnrollmentAccessRights(ctx context.Context, teamID *uint, hostUUID string) (int, error) {
 	allowWipe, allowLock, err := svc.fleetBYODPermissions(ctx, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "load fleet BYOD permissions")
 	}
 
-	if hostID == 0 {
+	if hostUUID == "" {
 		return apple_mdm.AppleEnrollmentAccessRights(allowWipe, allowLock), nil
 	}
 
-	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, hostID)
+	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, hostUUID)
 	var storedPtr *int
 	switch {
 	case err == nil:
