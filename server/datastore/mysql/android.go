@@ -483,9 +483,15 @@ UPDATE host_mdm
 func (ds *Datastore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
 	var rows int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// installed_from_dep is also cleared because Android has no DEP/ABM equivalent. Fleet uses
+		// installed_from_dep=1 at COBO enrollment time to make enrollment_status compute as
+		// "On (automatic)" via the generated column rule, but if left set on unenroll the rule
+		// collapses to "Pending" -- Apple DEP semantics for "assigned via ABM, awaiting first
+		// enrollment", which is meaningless for Android. Resetting to 0 makes the post-unenroll
+		// state correctly compute as "Off". Re-enrollment's upsert re-sets it from companyOwned.
 		result, err := tx.ExecContext(ctx, `
 UPDATE host_mdm
-	SET server_url = '', mdm_id = NULL, enrolled = 0
+	SET server_url = '', mdm_id = NULL, enrolled = 0, installed_from_dep = 0
 	WHERE host_id = ? AND enrolled = 1`, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android host")

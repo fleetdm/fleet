@@ -2114,6 +2114,86 @@ func TestPubSubEnrollment_DoesNotPanicWhenHardwareInfoMissing(t *testing.T) {
 	})
 }
 
+// TestPubSubStatusReport_BYOUnenrollClearsWipeRef verifies that when AMAPI's STATUS_REPORT
+// notification arrives with appliedState=DELETED for a BYO Android host, Fleet clears
+// host_mdm_actions (via ClearHostMDMActions) so HostLockWipeStatus.IsWiped() returns false. The
+// BYO unenroll path wipes only the work profile -- not the device -- so showing a "Wiped" badge
+// post-ack would be misleading. COBO must NOT trigger this cleanup: COBO unenroll uses
+// EnterprisesDevicesDelete (no wipe_ref written), and COBO Wipe legitimately leaves the row so
+// the "Wiped" badge persists until the admin deletes the host.
+func TestPubSubStatusReport_BYOUnenrollClearsWipeRef(t *testing.T) {
+	const existingHostID uint = 42
+	enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+
+	// validateDevice runs before the DELETED branch, so the payload must include hardwareInfo +
+	// softwareInfo + memoryInfo even though those are unused for the unenroll path.
+	device := androidmanagement.Device{
+		Name:         "enterprises/E1/devices/abc123",
+		AppliedState: "DELETED",
+		HardwareInfo: &androidmanagement.HardwareInfo{
+			EnterpriseSpecificId: enterpriseSpecificID,
+			Brand:                "TestBrand",
+			Model:                "TestModel",
+		},
+		SoftwareInfo: &androidmanagement.SoftwareInfo{AndroidBuildNumber: "test-build", AndroidVersion: "1"},
+		MemoryInfo: &androidmanagement.MemoryInfo{
+			TotalRam:             int64(8 * 1024 * 1024 * 1024),
+			TotalInternalStorage: int64(64 * 1024 * 1024 * 1024),
+		},
+	}
+	data, err := json.Marshal(device)
+	require.NoError(t, err)
+	msg := &android.PubSubMessage{
+		Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
+		Data:       base64.StdEncoding.EncodeToString(data),
+	}
+
+	for _, tc := range []struct {
+		name              string
+		isBYO             bool
+		expectClearCalled bool
+	}{
+		{name: "BYO unenroll clears wipe_ref", isBYO: true, expectClearCalled: true},
+		{name: "COBO unenroll leaves wipe_ref intact", isBYO: false, expectClearCalled: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, mockDS := createAndroidService(t)
+
+			mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+			}
+			mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
+				return &fleet.AndroidHost{
+					Host: &fleet.Host{ID: existingHostID, UUID: enterpriseSpecificID},
+					Device: &android.Device{
+						HostID:               existingHostID,
+						DeviceID:             "abc123",
+						EnterpriseSpecificID: new(enterpriseSpecificID),
+					},
+				}, nil
+			}
+			mockDS.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+				require.Equal(t, existingHostID, hostID)
+				return &fleet.HostMDM{IsPersonalEnrollment: tc.isBYO}, nil
+			}
+			mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, hostID uint) (bool, error) {
+				return true, nil
+			}
+			mockDS.MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc = func(ctx context.Context, hostID uint) ([]*fleet.User, []fleet.ActivityDetails, error) {
+				return nil, nil, nil
+			}
+			mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+				require.Equal(t, existingHostID, hostID)
+				return nil
+			}
+
+			require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", msg))
+			require.Equal(t, tc.expectClearCalled, mockDS.ClearHostMDMActionsFuncInvoked,
+				"ClearHostMDMActions invocation must gate on BYO so post-unenroll badge clears for BYO and persists 'Wiped' for COBO")
+		})
+	}
+}
+
 // TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll verifies the re-enrollment cleanup added
 // for #41683: when an enrollment message arrives for a host that already exists in Fleet (typical
 // re-enrollment cycle: factory reset -> re-enroll on the same physical device), updateHost is
@@ -2135,7 +2215,12 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 		return &fleet.EnrollSecret{Secret: "global"}, nil
 	}
 	// Existing host: AndroidHostLite returns a real host so enrollHost falls into the updateHost
-	// (fromEnroll=true) branch instead of NewAndroidHost.
+	// (fromEnroll=true) branch instead of NewAndroidHost. AppliedPolicyID is seeded with the prior
+	// cycle's host-specific policy id so the regression check below (re-enroll must reset it)
+	// has something stale to clear.
+	stalePolicyID := testBrandTestSerialHashed
+	stalePolicyVersion := int64(5)
+	staleSyncTime := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
 	mockDS.AndroidHostLiteFunc = func(ctx context.Context, esID string) (*fleet.AndroidHost, error) {
 		require.Equal(t, testBrandTestSerialHashed, esID,
 			"AndroidHostLite must be called with the brand:serial hash for COBO re-enrollment")
@@ -2148,11 +2233,21 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 				HostID:               existingHostID,
 				DeviceID:             "device-reenroll",
 				EnterpriseSpecificID: new(testBrandTestSerialHashed),
+				AppliedPolicyID:      &stalePolicyID,
+				AppliedPolicyVersion: &stalePolicyVersion,
+				LastPolicySyncTime:   &staleSyncTime,
 			},
 		}, nil
 	}
 	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
 		require.True(t, fromEnroll, "re-enrollment must invoke updateHost with fromEnroll=true")
+		// Stale per-device policy state from the prior enrollment cycle must be cleared so the
+		// setup experience worker's ensureHostSpecificPolicyIsApplied (gated on
+		// AppliedPolicyID == DefaultAndroidPolicyID) actually runs and moves the device off the
+		// empty bootstrap policy onto the host-specific policy that contains the Fleet agent.
+		require.Nil(t, host.Device.AppliedPolicyID, "re-enroll must reset stale applied_policy_id")
+		require.Nil(t, host.Device.AppliedPolicyVersion, "re-enroll must reset stale applied_policy_version")
+		require.Nil(t, host.Device.LastPolicySyncTime, "re-enroll must reset stale last_policy_sync_time")
 		return nil
 	}
 	mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {

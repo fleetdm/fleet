@@ -18671,6 +18671,18 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", coboHostID), nil, http.StatusNoContent)
 	require.True(t, didCallAMAPIDelete, "COBO unenroll must call EnterprisesDevicesDelete")
 	require.False(t, didCallAMAPIIssueWipe, "COBO unenroll must not call EnterprisesDevicesIssueCommand")
+
+	// COBO unenroll must also flip host_mdm.enrolled directly: AMAPI returns 404 for an
+	// already-gone device and never delivers a state=DELETED notification, so the API caller
+	// is the only opportunity to mark the host MDM-off. Without this, the host page keeps
+	// showing "MDM On" indefinitely after a COBO unenroll.
+	coboHostMDM, err := s.ds.GetHostMDM(ctx, coboHostID)
+	require.NoError(t, err)
+	require.False(t, coboHostMDM.Enrolled, "COBO unenroll must flip host_mdm.enrolled to false")
+	// installed_from_dep must be cleared too. Android has no DEP/ABM equivalent; leaving it set
+	// would make the generated enrollment_status column compute "Pending" (Apple DEP semantics)
+	// instead of the correct "Off".
+	require.False(t, coboHostMDM.InstalledFromDep, "Android unenroll must clear installed_from_dep so enrollment_status reads 'Off' not 'Pending'")
 }
 
 // TestAndroidLockWipeClearPasscode exercises the three commands end-to-end against the real Fleet HTTP handler stack with a
@@ -18825,6 +18837,24 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.Equal(t, string(android.MDMAndroidCommandTypeWipe), row.CommandType)
 
 		assertHostMDMStatus(t, wipeHostID, "wipe", "unlocked")
+
+		// COBO Wipe ack must flip host_mdm.enrolled directly. AMAPI does not reliably send a
+		// STATUS_REPORT / ENROLLMENT with state=DELETED for a factory-reset COBO device (the
+		// agent is gone), so the COMMAND ack is the only authoritative unenroll signal. Without
+		// this, the host page sticks at "MDM On" + "Wiped" badge forever.
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
+
+		row, err = s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), row.Status)
+
+		wipeHostMDM, err := s.ds.GetHostMDM(ctx, wipeHostID)
+		require.NoError(t, err)
+		require.False(t, wipeHostMDM.Enrolled, "COBO Wipe ack must flip host_mdm.enrolled to false")
+
+		// wipe_ref stays so the host page surfaces "Wiped" -- COBO Wipe is destructive and the
+		// badge is correct. The host stays in Fleet until an admin deletes it manually.
+		assertHostMDMStatus(t, wipeHostID, "", "wiped")
 	})
 
 	t.Run("Clear passcode uses RESET_PASSWORD with empty newPassword and transitions clear_passcode_ref through Pub/Sub ack", func(t *testing.T) {

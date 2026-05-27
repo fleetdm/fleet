@@ -929,6 +929,16 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		return ctxerr.Wrap(ctx, err, "amapi delete device")
 	}
 
+	// AMAPI confirmed the device is removed (or it was already gone -- the proxy client treats 404 as
+	// nil). Flip host_mdm.enrolled to 0 directly: we can't rely on a subsequent STATUS_REPORT /
+	// ENROLLMENT with state=DELETED because a wiped or already-unmanaged device has nothing left to
+	// phone home with. The API caller expects the unenroll to be observable on the host page
+	// immediately. The Pub/Sub DELETED handler's didUnenroll gate prevents duplicate activity
+	// emission if AMAPI eventually does deliver a notification.
+	if _, err := svc.fleetDS.SetAndroidHostUnenrolled(ctx, host.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set android host unenrolled after cobo delete")
+	}
+
 	return nil
 }
 
