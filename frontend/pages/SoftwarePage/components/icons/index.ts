@@ -30,6 +30,7 @@ import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
+import PowerBi from "./PowerBi";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
@@ -456,6 +457,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   phpstorm: PhpStorm,
   "podman desktop": PodmanDesktop,
   postman: Postman,
+  "power bi": PowerBi,
   privileges: Privileges,
   pritunl: Pritunl,
   "proton mail": ProtonMail,
