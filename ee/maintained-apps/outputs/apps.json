@@ -996,10 +996,24 @@
       "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
     },
     {
+      "name": "IntelliJ IDEA CE",
+      "slug": "intellij-idea-ce/windows",
+      "platform": "windows",
+      "unique_identifier": "IntelliJ IDEA Community Edition",
+      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
+    },
+    {
       "name": "IntelliJ IDEA Ultimate",
       "slug": "intellij-idea/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.intellij",
+      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
+    },
+    {
+      "name": "IntelliJ IDEA Ultimate",
+      "slug": "intellij-idea/windows",
+      "platform": "windows",
+      "unique_identifier": "IntelliJ IDEA",
       "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
     },
     {

@@ -1,9 +1,9 @@
-# Locates PhpStorm's NSIS uninstaller from the registry and runs it silently.
-# JetBrains NSIS installers embed the version in DisplayName (e.g.
-# "PhpStorm 2026.1.2"), so we match by prefix and require the JetBrains
-# publisher to avoid collisions with other JetBrains IDEs.
+# Locates IntelliJ IDEA Ultimate's NSIS uninstaller from the registry and runs
+# it silently. Ultimate's DisplayName is "IntelliJ IDEA <version>" with no
+# edition marker, so exclude the Community and Educational editions (whose
+# DisplayNames also start with "IntelliJ IDEA ") to avoid uninstalling the
+# wrong product.
 
-$softwareNameLike = "PhpStorm*"
 $publisherLike = "*JetBrains*"
 
 $paths = @(
@@ -22,20 +22,24 @@ try {
 
 $selected = $null
 foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike -and $key.Publisher -like $publisherLike) {
+    if ($key.DisplayName -and `
+        $key.DisplayName -like "IntelliJ IDEA *" -and `
+        $key.DisplayName -notlike "*Community*" -and `
+        $key.DisplayName -notlike "*Educational*" -and `
+        $key.Publisher -like $publisherLike) {
         $selected = $key
         break
     }
 }
 
 if (-not $selected -or -not $selected.UninstallString) {
-    Write-Host "Uninstall entry not found for $softwareNameLike"
+    Write-Host "Uninstall entry not found for IntelliJ IDEA Ultimate"
     Exit 1
 }
 
 # Best-effort: stop the IDE so the uninstaller doesn't fail on locked files.
-Stop-Process -Name "phpstorm64" -Force -ErrorAction SilentlyContinue
-Stop-Process -Name "phpstorm" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "idea64" -Force -ErrorAction SilentlyContinue
+Stop-Process -Name "idea" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "fsnotifier" -Force -ErrorAction SilentlyContinue
 
 $uninstallCommand = $selected.UninstallString
@@ -51,7 +55,7 @@ if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
 } elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
     # Unquoted path that may contain spaces: capture through the .exe.
     # JetBrains stores e.g.
-    # C:\Program Files\JetBrains\PhpStorm 2026.1.2\bin\Uninstall.exe
+    # C:\Program Files\JetBrains\IntelliJ IDEA 2025.2.5\bin\Uninstall.exe
     $exePath = $matches[1]
     $existingArgs = $matches[2].Trim()
 } elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
