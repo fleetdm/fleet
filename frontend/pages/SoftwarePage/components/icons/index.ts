@@ -6,6 +6,7 @@ import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
 import AmazonCorretto25 from "./AmazonCorretto25";
+import AmazonWorkspaces from "./AmazonWorkspaces";
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
 import Bluej from "./Bluej";
@@ -286,6 +287,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "amazon chime": AmazonChime,
   "amazon corretto 25": AmazonCorretto25,
   "amazon dcv": AmazonDCV,
+  "amazon workspaces": AmazonWorkspaces,
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
   anka: Anka,
