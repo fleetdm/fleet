@@ -18652,10 +18652,7 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	require.Equal(t, "315360000s", issuedCommand.Duration, "android commands must use the long duration to mirror Apple/Windows queue semantics")
 	require.NotEmpty(t, issuedToDeviceName)
 
-	// wipe_ref must be written so device_status flips to "wiping" — that's what powers the
-	// HostHeader "Unenroll pending" badge override and the canTurnOffMdm / canClearPasscode /
-	// canLockHost gating that prevents duplicate AMAPI commands while the work-profile wipe is
-	// in flight.
+	// wipe_ref must be written so device_status flips to "wiping"
 	var byoResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", byoHostID), nil, http.StatusOK, &byoResp)
 	require.NotNil(t, byoResp.Host.MDM.PendingAction)
@@ -18672,12 +18669,7 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	require.True(t, didCallAMAPIDelete, "COBO unenroll must call EnterprisesDevicesDelete")
 	require.False(t, didCallAMAPIIssueWipe, "COBO unenroll must not call EnterprisesDevicesIssueCommand")
 
-	// host_mdm.enrolled must stay 1 here. EnterprisesDevicesDelete returns 200 when AMAPI accepts
-	// the request, not when the device has processed it -- the authoritative "actually unenrolled"
-	// signal is the STATUS_REPORT / ENROLLMENT Pub/Sub notification with state=DELETED. Flipping
-	// state synchronously here would show "MDM Off" on the host page while the device is still
-	// managed (online but not yet processed, or offline up to 30 days). Mirrors Apple's APNs
-	// CheckOut lifecycle.
+	// host_mdm.enrolled must stay 1 here. EnterprisesDevicesDelete returns 200 when AMAPI accepts the request, not when the device has processed it.
 	coboHostMDM, err := s.ds.GetHostMDM(ctx, coboHostID)
 	require.NoError(t, err)
 	require.True(t, coboHostMDM.Enrolled, "host_mdm.enrolled must stay true until the device acks via Pub/Sub DELETED")
@@ -18836,10 +18828,9 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 
 		assertHostMDMStatus(t, wipeHostID, "wipe", "unlocked")
 
-		// COBO Wipe ack must flip host_mdm.enrolled directly. AMAPI does not reliably send a
-		// STATUS_REPORT / ENROLLMENT with state=DELETED for a factory-reset COBO device (the
-		// agent is gone), so the COMMAND ack is the only authoritative unenroll signal. Without
-		// this, the host page sticks at "MDM On" + "Wiped" badge forever.
+		// COBO Wipe ack must flip host_mdm.enrolled directly. AMAPI does not reliably send a STATUS_REPORT / ENROLLMENT with
+		// state=DELETED for a factory-reset COBO device (the agent is gone), so the COMMAND ack is the only authoritative unenroll
+		// signal. Without this, the host page sticks at "MDM On" + "Wiped" badge forever.
 		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
 
 		row, err = s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
@@ -18851,7 +18842,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.False(t, wipeHostMDM.Enrolled, "COBO Wipe ack must flip host_mdm.enrolled to false")
 
 		// wipe_ref stays so the host page surfaces "Wiped" -- COBO Wipe is destructive and the
-		// badge is correct. The host stays in Fleet until an admin deletes it manually.
+		// badge is correct. The host stays in Fleet until an admin deletes it manually or device re-enrolls.
 		assertHostMDMStatus(t, wipeHostID, "", "wiped")
 	})
 
@@ -18878,13 +18869,11 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.Equal(t, row.CommandUUID, cpResp.CommandUUID,
 			"the CommandUUID returned to API consumers must match the persisted row (#41683 review fix)")
 
-		// host_mdm_actions.clear_passcode_ref is written so device_status flips to "clearing
-		// passcode" while the AMAPI command is in flight -- that's what powers the
-		// "Clear passcode pending" badge and the canClearPasscode dropdown gating.
+		// host_mdm_actions.clear_passcode_ref is written so device_status flips to "clearing passcode" while the AMAPI command is in flight
 		assertHostMDMStatus(t, passHostID, "clear_passcode", "unlocked")
 
-		// Pub/Sub COMMAND ack clears the ref and returns the host to its baseline (unlocked, no
-		// pending action). Mirrors the symmetric round-trip the Lock subtest above performs.
+		// Pub/Sub COMMAND ack clears the ref and returns the host to its baseline (unlocked, no pending action). Mirrors the symmetric
+		// round-trip the Lock subtest above performs.
 		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
 
 		row, err = s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
