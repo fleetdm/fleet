@@ -22,7 +22,7 @@ import {
 
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import {
-  ICreateQueryRequestBody,
+  ICreateQueryFormData,
   ISchedulableQuery,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
@@ -51,7 +51,7 @@ export interface ISaveNewQueryModalProps {
   queryValue: string;
   apiTeamIdForQuery?: number; // query will be global if omitted
   isLoading: boolean;
-  saveQuery: (formData: ICreateQueryRequestBody) => void;
+  saveQuery: (formData: ICreateQueryFormData) => void;
   toggleSaveNewQueryModal: () => void;
   backendValidators: { [key: string]: string };
   existingQuery?: ISchedulableQuery;

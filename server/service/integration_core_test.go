@@ -681,7 +681,7 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 	assert.True(t, createResp.User.AdminForcedPasswordReset)
 	u := *createResp.User
 
-	var loginResp loginResponse
+	var loginResp fleet.LoginResponse
 	s.DoJSON("POST", "/api/latest/fleet/login", params, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)
 
@@ -734,8 +734,8 @@ func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 				_, err = s.ds.NewUser(t.Context(), user)
 				require.NoError(t, err)
 
-				var loginResp loginResponse
-				s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
+				var loginResp fleet.LoginResponse
+				s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{
 					Email:    fmt.Sprintf("%s@example.com", role),
 					Password: test.GoodPassword,
 				}, http.StatusPaymentRequired, &loginResp)
@@ -6437,7 +6437,7 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.True(t, createResp.User.AdminForcedPasswordReset)
 	u := *createResp.User
 
-	var loginResp loginResponse
+	var loginResp fleet.LoginResponse
 
 	// try MFA
 	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
@@ -6449,7 +6449,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login", params, http.StatusBadRequest, &loginResp)
 	// MFA supported; send email
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
-		contract.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
+		fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
 	var mfaToken string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), tx, &mfaToken, `SELECT token FROM verification_tokens WHERE user_id = ? LIMIT 1`, createResp.User.ID)
@@ -6461,7 +6461,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// send another email, which we'll expire the token for
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
-		contract.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
+		fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(
 			context.Background(),
@@ -6587,13 +6587,13 @@ func (s *integrationTestSuite) TestUsers() {
 	s.token = s.getTestAdminToken()
 
 	// login as that user to verify that the new password is active (userRawPwd was updated to the new pwd)
-	loginResp = loginResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{Email: u.Email, Password: userRawPwd}, http.StatusOK, &loginResp)
+	loginResp = fleet.LoginResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{Email: u.Email, Password: userRawPwd}, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)
 
 	// logout for that user
 	s.token = loginResp.Token
-	var logoutResp logoutResponse
+	var logoutResp fleet.LogoutResponse
 	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusOK, &logoutResp)
 
 	// logout again, even though not logged in
@@ -6602,8 +6602,8 @@ func (s *integrationTestSuite) TestUsers() {
 	s.token = s.getTestAdminToken()
 
 	// login as that user with previous pwd fails
-	loginResp = loginResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{Email: u.Email, Password: oldUserRawPwd}, http.StatusUnauthorized, &loginResp)
+	loginResp = fleet.LoginResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{Email: u.Email, Password: oldUserRawPwd}, http.StatusUnauthorized, &loginResp)
 
 	// require a password reset
 	var reqResetResp requirePasswordResetResponse
@@ -10067,7 +10067,7 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 
 	// Login with invalid passwordm, should fail.
 	res := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
-		jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: test.GoodPassword2}),
+		jsonMustMarshal(t, fleet.LoginRequest{Email: u.Email, Password: test.GoodPassword2}),
 		http.StatusUnauthorized,
 	)
 	res.Body.Close()
@@ -10090,7 +10090,7 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 
 	// login with good password, should succeed
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login",
-		jsonMustMarshal(t, contract.LoginRequest{
+		jsonMustMarshal(t, fleet.LoginRequest{
 			Email:    u.Email,
 			Password: test.GoodPassword,
 		}), http.StatusOK,
@@ -10256,12 +10256,12 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	res.Body.Close()
 
 	// login with the old password, should not succeed
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: userRawPwd}),
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, fleet.LoginRequest{Email: u.Email, Password: userRawPwd}),
 		http.StatusUnauthorized)
 	res.Body.Close()
 
 	// login with the new password, should succeed
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: userNewPwd}),
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, fleet.LoginRequest{Email: u.Email, Password: userNewPwd}),
 		http.StatusOK)
 	res.Body.Close()
 }
@@ -10360,8 +10360,8 @@ func (s *integrationTestSuite) TestModifyUser() {
 	}, http.StatusUnprocessableEntity, &modResp)
 
 	// login as the user, with the last password successfully set (to confirm it is the current one)
-	var loginResp loginResponse
-	resp := s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{
+	var loginResp fleet.LoginResponse
+	resp := s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, fleet.LoginRequest{
 		Email:    u.Email, // all email changes made are still pending, never confirmed
 		Password: newRawPwd,
 	}), http.StatusOK)
@@ -15599,6 +15599,12 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 }
 
 func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uint) uint {
+	return createAndroidHostForTest(t, ds, teamID, false)
+}
+
+// createAndroidHostForTest creates an android host. companyOwned=false stores it as BYO
+// (is_personal_enrollment=true); companyOwned=true stores it as COBO.
+func createAndroidHostForTest(t *testing.T, ds *mysql.Datastore, teamID *uint, companyOwned bool) uint {
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			Hostname:                  "android-storage-host",
@@ -15622,7 +15628,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-	ahost, err := ds.NewAndroidHost(context.Background(), host, false)
+	ahost, err := ds.NewAndroidHost(context.Background(), host, companyOwned)
 	require.NoError(t, err)
 	return ahost.Host.ID
 }

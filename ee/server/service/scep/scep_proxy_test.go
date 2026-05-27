@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -110,6 +111,46 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	}
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.NoError(t, err)
+}
+
+// TestGetNDESSCEPChallenge_BasicAuthFronted verifies that Fleet works
+// against an "NDES Admin URL" fronted by Okta or another gateway that
+// uses HTTP Basic auth instead of NTLM. v0.1.1 of go-ntlmssp made the
+// Basic-auth fallback opt-in via AllowBasicAuth; this test fails if that
+// field is unset because the upstream Negotiator returns the probe 401
+// to the caller without ever sending credentials.
+func TestGetNDESSCEPChallenge_BasicAuthFronted(t *testing.T) {
+	t.Parallel()
+
+	const challengeBody = `<HTML><BODY>The enrollment challenge password is: <B> ABC123XYZ </B></BODY></HTML>`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			// Mimic Okta-fronted NDES: probe gets 401 with Basic challenge.
+			w.Header().Set("WWW-Authenticate", `Basic realm=https://integrator-5691053.okta.com`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if strings.HasPrefix(r.Header.Get("Authorization"), "Basic ") {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(challengeBody))
+			return
+		}
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	t.Cleanup(server.Close)
+
+	proxy := fleet.NDESSCEPProxyCA{
+		AdminURL: server.URL,
+		Username: "admin",
+		Password: "password",
+	}
+
+	logger := slog.New(slog.DiscardHandler)
+	svc := NewSCEPConfigService(logger, nil)
+	challenge, err := svc.GetNDESSCEPChallenge(t.Context(), proxy)
+	require.NoError(t, err, "Fleet must fall back to Basic auth when the upstream advertises only Basic; v0.1.1 made this opt-in via AllowBasicAuth")
+	require.Equal(t, "ABC123XYZ", challenge)
 }
 
 func TestDecodeHTMLResponse(t *testing.T) {

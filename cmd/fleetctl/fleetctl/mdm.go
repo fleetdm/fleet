@@ -28,6 +28,7 @@ func mdmCommand() *cli.Command {
 			mdmLockCommand(),
 			mdmUnlockCommand(),
 			mdmWipeCommand(),
+			mdmClearPasscodeCommand(),
 		},
 	}
 }
@@ -183,6 +184,20 @@ func mdmLockCommand() *cli.Command {
 				return fmt.Errorf("Failed to lock host: %w", err)
 			}
 
+			// Android has no Fleet-side unlock: the user unlocks via their device PIN/passcode,
+			// not a Fleet command. Tailor the help text to platform.
+			if fleet.IsAndroidPlatform(host.Platform) {
+				fmt.Fprintf(c.App.Writer, `
+The host will lock when it comes online. The end user can unlock by entering their device PIN.
+
+Copy and run this command to see lock status:
+
+fleetctl get host %s
+
+`, hostIdent)
+				return nil
+			}
+
 			fmt.Fprintf(c.App.Writer, `
 The host will lock when it comes online.
 
@@ -243,6 +258,46 @@ fleetctl get host %s
 
 `, hostIdent)
 
+			return nil
+		},
+	}
+}
+
+// mdmClearPasscodeCommand issues an MDM clear-passcode request. Supported on iOS/iPadOS hosts
+// (clears the device passcode) and Android hosts (clears the work-profile passcode on BYO; the
+// device passcode on COBO). Other platforms are rejected by the server.
+func mdmClearPasscodeCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "clear-passcode",
+		Aliases: []string{"clear_passcode"},
+		Usage:   "Clear the passcode on a host. Supported on iOS, iPadOS, and Android.",
+		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
+			Name:     "host",
+			Usage:    "The host, specified by hostname, UUID, or serial number.",
+			Required: true,
+		}},
+		Action: func(c *cli.Context) error {
+			hostIdent := c.String("host")
+
+			client, host, err := hostMdmActionSetup(c, hostIdent, "clear passcode for")
+			if err != nil {
+				return err
+			}
+
+			res, err := client.MDMClearPasscodeHost(host.ID)
+			if err != nil {
+				return fmt.Errorf("Failed to clear passcode on host: %w", err)
+			}
+
+			// Clear-passcode deliberately does not populate host_mdm_actions, so `fleetctl get host`
+			// shows no clear-passcode-specific state (unlike lock/wipe). Completion surfaces only as
+			// the "cleared_passcode" activity. The CommandUUID is the persisted command identifier:
+			// for Apple it queries against nano_commands via `fleetctl get mdm-command-results`; for
+			// Android it identifies the mdm_android_commands row.
+			fmt.Fprintf(c.App.Writer, "\nThe host's passcode will be cleared when it comes online.\n")
+			if res != nil && res.CommandUUID != "" {
+				fmt.Fprintf(c.App.Writer, "Command UUID: %s\n", res.CommandUUID)
+			}
 			return nil
 		},
 	}
@@ -311,8 +366,9 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 		return nil, nil, err
 	}
 
-	// check mdm is on for the host
-	if fleet.MDMSupported(host.Platform) {
+	// check mdm is on for the host. Android isn't in fleet.MDMPlatform.
+	// See eng-init story: https://github.com/fleetdm/fleet/issues/46118
+	if fleet.MDMSupported(host.Platform) || fleet.IsAndroidPlatform(host.Platform) {
 		if host.MDM.ConnectedToFleet == nil || !*host.MDM.ConnectedToFleet {
 			return nil, nil, fmt.Errorf("Can't %s the host because it doesn't have MDM turned on.", actionType)
 		}

@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IApiError } from "interfaces/errors";
-import { INewTeamUsersBody, ITeam } from "interfaces/team";
+import { INewTeamUsersFormData, ITeam } from "interfaces/team";
 import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
 import PATHS from "router/paths";
@@ -172,7 +172,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   ]);
 
   const onAddUserSubmit = useCallback(
-    (newUsers: INewTeamUsersBody) => {
+    (newUsers: INewTeamUsersFormData) => {
       teamsAPI
         .addUsers(currentTeamDetails?.id, newUsers)
         .then(() => {
