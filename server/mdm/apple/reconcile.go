@@ -305,10 +305,7 @@ func ComputeDeclarationDeltas(
 				Token:            string(d.Token),
 				SecretsUpdatedAt: d.SecretsUpdatedAt,
 			}
-			// Mirror legacy setVariablesUpdatedAtForDeclarations: when the
-			// declaration uses Fleet variables, stamp variables_updated_at
-			// so host status / re-delivery logic can detect variable-value
-			// changes. Only set on install rows.
+
 			if d.HasFleetVariables {
 				now := time.Now().UTC()
 				row.VariablesUpdatedAt = &now

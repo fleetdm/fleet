@@ -557,12 +557,12 @@ type AppleDeclarationForReconcile struct {
 	IncludeMode           AppleProfileIncludeMode
 	IncludeLabels         []AppleProfileLabelRef
 	ExcludeLabels         []AppleProfileLabelRef
-	// HasFleetVariables is true if the declaration references any
-	// $FLEET_VAR_* / FLEET_SECRET_* placeholder. The batched DDM
-	// reconciler sets VariablesUpdatedAt on the host declaration row
-	// when this is true, mirroring the legacy
-	// setVariablesUpdatedAtForDeclarations behavior so the host knows
-	// to re-deliver when variable values change.
+	// HasFleetVariables is true if the declaration references any $FLEET_VAR_*.
+	// The reconciler sets VariablesUpdatedAt on the host declaration row so the
+	// host knows to re-deliver when variable values change.
+	//
+	// This does not cover $FLEET_SECRET_* variables and SecretsUpdatedAt as that is handled at upload time
+	// where we extract the secrets and their last update time.
 	HasFleetVariables bool
 }
 
@@ -572,6 +572,7 @@ func (d *AppleDeclarationForReconcile) GetIncludeMode() AppleProfileIncludeMode 
 func (d *AppleDeclarationForReconcile) GetIncludeLabels() []AppleProfileLabelRef {
 	return d.IncludeLabels
 }
+
 func (d *AppleDeclarationForReconcile) GetExcludeLabels() []AppleProfileLabelRef {
 	return d.ExcludeLabels
 }
