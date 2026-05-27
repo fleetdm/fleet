@@ -18,7 +18,11 @@ const buildAutomationsItems = (
     isPrimoMode,
     withTeamId,
   } = ctx;
-  const { isUnassigned, switchesFromUnassigned } = derived;
+  const {
+    isUnassigned,
+    switchesFromUnassigned,
+    hasTeamOrUnassigned,
+  } = derived;
 
   return [
     // Manage automations — software. Normally All-fleets-only, but in
@@ -82,8 +86,13 @@ const buildAutomationsItems = (
                 ),
                 keywords: ["jira", "zendesk", "failing"],
               },
-              // Team-scoped policy automations (premium, require a specific fleet selected)
-              ...(isPremiumTier && hasTeamSelected
+              // Team-scoped policy automations (Premium-only). The
+              // policies page allows install_software / run_script /
+              // conditional_access on No team / Unassigned, so those
+              // three use `hasTeamOrUnassigned`. Calendar events stay
+              // on `hasTeamSelected` — the page disables them when
+              // there's no specific team.
+              ...(isPremiumTier && hasTeamOrUnassigned
                 ? [
                     {
                       id: "manage-policy-automations-install-software",
@@ -97,6 +106,10 @@ const buildAutomationsItems = (
                       path: `${paths.MANAGE_POLICIES}?fleet_id=${currentTeam?.id}&manage_automations=run_script`,
                       keywords: ["resolve", "remediate"],
                     },
+                  ]
+                : []),
+              ...(isPremiumTier && hasTeamSelected
+                ? [
                     {
                       id: "manage-policy-automations-calendar",
                       label: "Calendar events",
@@ -107,6 +120,10 @@ const buildAutomationsItems = (
                         "google calendar",
                       ],
                     },
+                  ]
+                : []),
+              ...(isPremiumTier && hasTeamOrUnassigned
+                ? [
                     {
                       id: "manage-policy-automations-conditional-access",
                       label: "Conditional access",

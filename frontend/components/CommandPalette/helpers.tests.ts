@@ -296,6 +296,29 @@ describe("CommandPalette helpers", () => {
       );
     });
 
+    it("on Unassigned, shows install-software / run-script / conditional-access but NOT calendar", () => {
+      // ManagePoliciesPage allows these three automations on No team
+      // but disables Calendar events without a specific fleet. The
+      // palette must match — earlier all four were gated together on
+      // hasTeamSelected, which dropped them all on Unassigned.
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: false,
+        currentTeam: { id: 0, name: "No team" },
+      });
+
+      const policyAutomations = items.find(
+        (i) => i.id === "manage-policy-automations"
+      );
+      const subIds = policyAutomations?.subItems?.map((s) => s.id) ?? [];
+
+      expect(subIds).toContain("manage-policy-automations-webhooks");
+      expect(subIds).toContain("manage-policy-automations-install-software");
+      expect(subIds).toContain("manage-policy-automations-run-script");
+      expect(subIds).toContain("manage-policy-automations-conditional-access");
+      expect(subIds).not.toContain("manage-policy-automations-calendar");
+    });
+
     it("excludes certificates and passwords for technicians", () => {
       const items = buildPaletteItems({
         ...BASE_CONTEXT,
