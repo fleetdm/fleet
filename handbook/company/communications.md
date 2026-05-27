@@ -471,7 +471,7 @@ To propose an event, complete the steps in the [Propose event issue](https://git
 
 ## Contributing to the handbook and docs
 
-> Fleet operates as a [handbook-first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy) company.  If something has changed, it is up to you to update the handbook first.  If the change can't be handbooked in 1 business day, or if you are stuck waiting on a review before it can be merged, get a handbook coach.  They'll pair with you in a scheduled meeting on your calendar and help.  To get a handbook coach, ask [Sam Pfluger](https://fleetdm.slack.com/team/U05CS07KASK) in Slack.
+> Fleet operates as a [handbook-first](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy) company.  If something has changed, it is up to you to update the handbook first.  If the change can't be handbooked in 1 business day, or if you are stuck waiting on a review before it can be merged, get a handbook coach.  They'll pair with you in a scheduled meeting on your calendar and help.  To get a handbook coach, ask the Head of People in Slack.
 
 Learn how to contribute to the handbook, documentation, and articles at Fleet on the ["Writing at Fleet" handbook page](https://fleetdm.com/handbook/company/writing).
 

@@ -1,0 +1,11 @@
+{
+  "name": "P4V",
+  "slug": "p4v/windows",
+  "package_identifier": "Perforce.P4V",
+  "unique_identifier": "P4 Apps",
+  "program_publisher": "Perforce Software",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

@@ -24,7 +24,8 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 
 | Asset | Audience | Use case | Date updated |
 | --- | --- | --- | --- |
-|[Conference Handout]() | All | High level overview of Fleet- 2026 messaging.  [Figma](https://www.figma.com/design/G8PruLlNbwrz75wtcR3Zeo/Fleet-Conference-Brochure---2-Page-Handout?node-id=0-1&p=f&t=jHABDmENvR3VUF63-0) |2026-04-15 |
+| [Fleet AEM 1-pager handout](https://drive.google.com/file/d/1pZkLHmakHYJxAC1xg3k1GsemjrNvjj_O/view) | All | Fleet AEM 1 pager handout, PDF format. | 2026-05-24 |
+|[Conference Handout](https://drive.google.com/file/d/1YJq7ni7WRNvzAXcrawoCVi8_XjD2Jy-U/view?usp=drive_link) | All | High level overview of Fleet- 2026 messaging.  [Figma](https://www.figma.com/design/G8PruLlNbwrz75wtcR3Zeo/Fleet-Conference-Brochure---2-Page-Handout?node-id=0-1&p=f&t=jHABDmENvR3VUF63-0) |2026-05-26 |
 | [Safe Enough to Switch](https://drive.google.com/drive/folders/1ynAk92_DSxvtOPmreo84fOGUqhrdu_MY) | All | Both sides are in this folder. Overview of Fleet's maturity for organizations switching tools. | 2025-09-15 |
 | [Fleet capabilities one-pager](https://docs.google.com/document/d/15nVnn2dalLnyJgfX3o-96jvFAzZPS9vrTaNo_lYNick/edit) | All | High-level summary of the platform's core capabilities. | 2022-02-14 |
 | [Fleet for IT Product Brochure](https://docs.google.com/document/d/1d_53iYU6O-uzaXnzjlXXGwByGRmpz3VMG6kWT6hMCkU/edit) | IT teams | Marketing overview for IT teams in early sales cycles. | 2021-10-20 |
@@ -38,6 +39,7 @@ Decks, battle cards, one-pagers, comparisons, and tools used in the sales cycle 
 | [The open-source MDM](https://fleetdm.com/imagine/open-source) | Web page explaining why open source matters for device management. | 2026-05-15 |
 | [Apple MDM](https://fleetdm.com/imagine/apple-mdm) | Web page for open source Apple MDM at enterprise scale. Covers enrolling, configuring, and securing Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. | 2026-05-14 |
 | [Windows MDM](https://fleetdm.com/lp/windows-mdm) | Fleet is the modern and open source MDM that can augment or replace Intune and other MDMS | 2026-05-20 |
+| [Android MDM](https://fleetdm.com/lp/android-mdm) | Fleet is the modern and open source MDM for managing Android devices alongside macOS, Windows, Linux, iOS, and ChromeOS. | 2026-05-26 |
 | [On-premise](https://fleetdm.com/on-premise) | Web page for running Fleet on-premise, in private cloud (AWS, Azure, GCP), or air-gapped environments. Targets teams with strict data residency or infrastructure requirements. | 2026-05-08 |
 | [Replace Jamf](https://fleetdm.com/replace-jamf) | Web page for IT teams considering replacing Jamf with Fleet. Covers cross-platform device management, GitOps workflows, and migration messaging. | 2026-04-10 |
 
@@ -55,6 +57,8 @@ Downloadable PDFs for lead generation, ABM campaigns, and executive education. A
 
 | Asset | Audience | Use case | Date updated |
 | --- | --- | --- | --- |
+| [Fleet autonomous endpoint management](https://docs.google.com/document/d/1Xv_30iJN3zI5N1B3iq9S2pgCQVRVPZU2QYNZaGpBJpI/edit?tab=t.0) | Fleet sales and channel teams | What Fleet AEM, the catalog, and auto patching do. | 2026-05-23 |
+| [Selling Fleet AEM](https://docs.google.com/document/d/1uAukX0P9wxR_6nZHIJJG9isfY7k-bSZn/edit?usp=drive_link&ouid=105837981104785381659&rtpof=true&sd=true) | Fleet sales and channel teams | Sales and partner enablement 2-pager. | 2026-05-23 |
 | [Fleet pain points guide](https://docs.google.com/document/d/1h8N9Icow6g-08EZPQMnbH-bDKDbXoPy-lwlUm9DiPJA/edit) | Fleet sales and channel teams | Typical pain points Fleet solves and how to uncover them. | 2026-03-06 |
 | [Fleet ideal customer profile and persona guide](https://docs.google.com/document/d/1ffsPCS6KGrHQFF7EgRLz1z2mOvtZwMSGyfDezOuOUwc/edit) | Fleet sales and channel teams | Typical Fleet buyer profiles. | 2026-01-18 |
 
@@ -118,10 +122,10 @@ Opinion, industry analysis, executive POV, named-series articles, and standalone
 | [Endpoint management's crucial role in healthcare](https://fleetdm.com/announcements/endpoint-managements-crucial-role-in-healthcare) | Healthcare | Why robust endpoint management is essential for securing healthcare data, ensuring compliance, and building patient trust. | Alex Mitchell | 2024-05-24 |
 | [The device security tightrope: balancing cost and protection in K-12 schools](https://fleetdm.com/announcements/the-device-security-tightrope-balancing-cost-and-protection-in-k-12-schools) | K-12 / EDU | How K-12 schools can balance tight budgets with the need for strong device security and compliance. | Keith Barnes | 2024-03-01 |
 | [Government agencies need to ditch the MDM thicket](https://fleetdm.com/announcements/government-agencies-need-to-ditch-the-mdm-thicket) | Government | Why consolidating MDM tools saves government agencies time, money, and security risk. | Keith Barnes | 2024-02-09 |
-| [Vulnerability management: advantages of Fleet to support government agencies](https://fleetdm.com/articles/vulnerability-management-the-advantages-of-fleet-to-support-government-agencies) | Government | How Fleet's vulnerability management capabilities address the needs of government IT and security teams. | Keith Barnes | 2023-12-26 |
-| [Optimizing government cybersecurity strategies with Fleet](https://fleetdm.com/articles/optimizing-government-cybersecurity-strategies) | Government | How Fleet helps government agencies build a stronger cybersecurity posture. | Keith Barnes | 2023-11-14 |
+| [Vulnerability management: advantages of Fleet to support government agencies](https://fleetdm.com/securing/vulnerability-management-the-advantages-of-fleet-to-support-government-agencies) | Government | How Fleet's vulnerability management capabilities address the needs of government IT and security teams. | Keith Barnes | 2023-12-26 |
+| [Optimizing government cybersecurity strategies with Fleet](https://fleetdm.com/securing/optimizing-government-cybersecurity-strategies) | Government | How Fleet helps government agencies build a stronger cybersecurity posture. | Keith Barnes | 2023-11-14 |
 | [Embracing the future: Declarative Device Management](https://fleetdm.com/announcements/embracing-the-future-declarative-device-management) | Apple / IT | Explore the transformative impact of Declarative Device Management (DDM), Fleet, and osquery for MacAdmins. | JD Strong | 2023-07-06 |
-| [How Fleet helps federal agencies meet CISA BOD 23-01](https://fleetdm.com/articles/how-fleet-helps-federal-agencies-meet-cisa-bod-23-01) | Government | How Fleet enables federal agencies to achieve continuous visibility into internet-exposed assets per CISA BOD 23-01. | Chris McGillicuddy | 2022-10-28 |
+| [How Fleet helps federal agencies meet CISA BOD 23-01](https://fleetdm.com/securing/how-fleet-helps-federal-agencies-meet-cisa-bod-23-01) | Government | How Fleet enables federal agencies to achieve continuous visibility into internet-exposed assets per CISA BOD 23-01. | Chris McGillicuddy | 2022-10-28 |
 
 
 
@@ -175,19 +179,23 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 
 | Part | Article | Author | Date |
 | --- | --- | --- | --- |
-| <nobr>1 of 8</nobr> | [Tales from Fleet security: securing the startup](https://fleetdm.com/articles/tales-from-fleet-security-securing-the-startup) | Guillaume Ross | 2022-03-17 |
-| <nobr>2 of 8</nobr> | [Tales from Fleet security: securing Google Workspace](https://fleetdm.com/articles/tales-from-fleet-security-securing-google-workspace) | Guillaume Ross | 2022-03-25 |
-| <nobr>3 of 8</nobr> | [Tales from Fleet security: GitHub configuration and OpenSSF Scorecards](https://fleetdm.com/articles/tales-from-fleet-security-github-configuration-and-openssf-scorecards) | Guillaume Ross | 2022-04-15 |
-| <nobr>4 of 8</nobr> | [Tales from Fleet security: securing 1Password](https://fleetdm.com/articles/tales-from-fleet-security-securing-1password) | Guillaume Ross | 2022-05-06 |
-| <nobr>5 of 8</nobr> | [Tales from Fleet security: how we achieved our SOC 2 type 1 rapidly](https://fleetdm.com/articles/tales-from-fleet-security-soc2) | Guillaume Ross | 2022-06-24 |
-| <nobr>6 of 8</nobr> | [Tales from Fleet security: speeding up macOS updates with Nudge](https://fleetdm.com/articles/tales-from-fleet-security-speeding-up-macos-updates-with-nudge) | Guillaume Ross | 2022-07-05 |
-| <nobr>7 of 8</nobr> | [Tales from Fleet security: securing bank accounts from business email compromise](https://fleetdm.com/articles/tales-from-fleet-security-securing-bank-accounts-from-business-email-compromise) | Guillaume Ross | 2022-07-15 |
-| <nobr>8 of 8</nobr> | [Tales from Fleet security: scams targeting Google Groups](https://fleetdm.com/articles/tales-from-fleet-security-google-groups-scams) | Guillaume Ross | 2022-08-05 |
+| <nobr>1 of 8</nobr> | [Tales from Fleet security: securing the startup](https://fleetdm.com/securing/tales-from-fleet-security-securing-the-startup) | Guillaume Ross | 2022-03-17 |
+| <nobr>2 of 8</nobr> | [Tales from Fleet security: securing Google Workspace](https://fleetdm.com/securing/tales-from-fleet-security-securing-google-workspace) | Guillaume Ross | 2022-03-25 |
+| <nobr>3 of 8</nobr> | [Tales from Fleet security: GitHub configuration and OpenSSF Scorecards](https://fleetdm.com/securing/tales-from-fleet-security-github-configuration-and-openssf-scorecards) | Guillaume Ross | 2022-04-15 |
+| <nobr>4 of 8</nobr> | [Tales from Fleet security: securing 1Password](https://fleetdm.com/securing/tales-from-fleet-security-securing-1password) | Guillaume Ross | 2022-05-06 |
+| <nobr>5 of 8</nobr> | [Tales from Fleet security: how we achieved our SOC 2 type 1 rapidly](https://fleetdm.com/securing/tales-from-fleet-security-soc2) | Guillaume Ross | 2022-06-24 |
+| <nobr>6 of 8</nobr> | [Tales from Fleet security: speeding up macOS updates with Nudge](https://fleetdm.com/securing/tales-from-fleet-security-speeding-up-macos-updates-with-nudge) | Guillaume Ross | 2022-07-05 |
+| <nobr>7 of 8</nobr> | [Tales from Fleet security: securing bank accounts from business email compromise](https://fleetdm.com/securing/tales-from-fleet-security-securing-bank-accounts-from-business-email-compromise) | Guillaume Ross | 2022-07-15 |
+| <nobr>8 of 8</nobr> | [Tales from Fleet security: scams targeting Google Groups](https://fleetdm.com/securing/tales-from-fleet-security-google-groups-scams) | Guillaume Ross | 2022-08-05 |
 
 ### Standalone articles
 
 | Asset | Description | Author | Date updated |
 | --- | --- | --- | --- |
+| [SHADOW-EARTH-053: threat brief, kill chain, and validated Fleet queries](https://fleetdm.com/securing/shadow-earth-053-fleet-detection-pack) | Trend Micro's SHADOW-EARTH-053 disclosure: Lockheed kill chain with per-stage Diamond Models, atomic indicators, and a Fleet/osquery detection pack. | Dhruv Majumdar | 2026-05-26 |
+| [ClickFix copy/paste social engineering: threat brief and Fleet detection pack](https://fleetdm.com/securing/clickfix-copy-paste-fleet-detection-pack) | Threat brief and Fleet/osquery detection guide for the ClickFix copy/paste social-engineering technique on Windows and macOS. | Dhruv Majumdar | 2026-05-26 |
+| [Pre-CVE threat response: a Dirty Frag walkthrough with Fleet](https://fleetdm.com/securing/pre-cve-threat-response-with-fleet) | A worked example of using Fleet's osquery, run-script, and policies to scope, mitigate, and verify a Linux kernel privilege escalation across a fleet before a CVE is assigned. | Dhruv Majumdar | 2026-05-22 |
+| [Patch management vs vulnerability management: why this distinction now decides whether you survive the AI vulnerability storm](https://fleetdm.com/securing/patch-management-vs-vulnerability-management) | Vulnerability management finds risk; patch management deploys updates. With AI collapsing exploit windows to hours in 2026, conflating them is fatal. | Ashish Kuthiala | 2026-05-22 |
 | [Managing Linux desktops with GitOps](https://fleetdm.com/articles/managing-linux-desktops-with-gitops) | Bring GitOps to Linux desktop management with Fleet. Declarative YAML, CI/CD pipelines, and version control replace slow, error-prone ClickOps. | Anthony Critelli | 2026-05-20 |
 | [Patch management and vulnerability reporting for Linux desktops](https://fleetdm.com/articles/patch-management-and-vulnerability-reporting-for-linux-desktops) | Close the loop on Linux desktop security with cross-distro software inventory, CVE prioritization, and automated patch remediation. | Anthony Critelli | 2026-05-20 |
 | [Which AI model works best for generating configuration profiles?](https://fleetdm.com/articles/which-ai-model-works-best-for-generating-configuration-profiles) | Comparing Claude Opus 4.6, GPT-5, and Gemini 2.5 Pro for generating macOS .mobileconfig and Windows CSP profiles. | Harry Ravazzolo | 2026-05-20 |
@@ -197,7 +205,7 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 | [Linux desktop inventory and visibility](https://fleetdm.com/articles/linux-desktop-inventory-and-visibility) | Track and query Linux desktops at scale with Fleet and osquery, covering fleets, labels, ad-hoc reports, and compliance policies. | Anthony Critelli | 2026-05-18 |
 | [Automated software provisioning and self-service for Linux desktops](https://fleetdm.com/articles/linux-software-management-and-self-service) | Give Linux desktop users the same automated provisioning and self-service experience as Windows and Mac, powered by Fleet. | Anthony Critelli | 2026-05-18 |
 | [Endpoint risk and threat hunting, in plain English: a Fleet MCP manifesto](https://fleetdm.com/securing/natural-language-endpoint-security-fleet-mcp) | A manifesto for natural-language endpoint security with Fleet's MCP server: ask in English, get an osquery scan, see the SQL. | Dhruv Majumdar | 2026-05-15 |
-| [Detecting the Mini Shai-Hulud npm supply chain worm with Fleet](https://fleetdm.com/articles/detecting-the-mini-shai-hulud-npm-supply-chain-worm-with-fleet) | How Fleet's security team detected the Mini Shai-Hulud npm supply chain worm across its fleet using live queries and deep scan scripts. | Dhruv Majumdar | 2026-05-13 |
+| [Detecting the Mini Shai-Hulud npm supply chain worm with Fleet](https://fleetdm.com/securing/detecting-the-mini-shai-hulud-npm-supply-chain-worm-with-fleet) | How Fleet's security team detected the Mini Shai-Hulud npm supply chain worm across its fleet using live queries and deep scan scripts. | Dhruv Majumdar | 2026-05-13 |
 | [What is the principle of least privilege for device management?](https://fleetdm.com/articles/principle-of-least-privilege-dm) | How to enforce least privilege on macOS, Windows, and Linux and map it to compliance frameworks auditors care about. | Dan Gordon | 2026-05-13 |
 | [Threat prevention: a guide for multi-platform fleets](https://fleetdm.com/articles/enterprise-threat-prevention) | How threat prevention protects device fleets, supports compliance, and keeps controls aligned across macOS, Windows, and Linux. | Dan Gordon | 2026-05-13 |
 | [What is device attestation, and why does it matter for Apple enrollment?](https://fleetdm.com/articles/what-is-device-attestation) | Fleet 4.84.0 adds hardware-attested MDM enrollment for Apple Silicon Macs. What device attestation is and why it matters. | Kitzy | 2026-04-24 |
@@ -238,25 +246,25 @@ How Fleet's own security team secures the company - a window into Fleet's intern
 | [I work in operations. I deployed Fleet in minutes.](https://fleetdm.com/articles/i-work-in-operations-i-deployed-fleet-in-minutes) | Self-hosting Fleet is easier than you think - even for non-technical roles. | Nate Holliday | 2025-06-05 |
 | [Not everything runs in Kubernetes](https://fleetdm.com/articles/not-everything-runs-in-kubernete) | Why Fleet goes beyond Kubernetes to manage real-world infrastructure. | Zach Wasserman | 2025-05-27 |
 | [Introducing Workbrew: bringing enterprise control to Homebrew deployments](https://fleetdm.com/securing/introducing-workbrew) | Workbrew brings centralized policy, visibility, and control to Homebrew across managed Macs. | Drew Baker | 2024-11-19 |
-| [Fleet & osquery: Unlocking the value of Axonius with open-source telemetry](https://fleetdm.com/articles/fleet-osquery-unlocking-the-value-of-axonius-with-open-source-telemetry) | How Fleet and osquery enrich Axonius with real-time, open-source device telemetry. | Brad Macdowall | 2023-12-28 |
+| [Fleet & osquery: Unlocking the value of Axonius with open-source telemetry](https://fleetdm.com/securing/fleet-osquery-unlocking-the-value-of-axonius-with-open-source-telemetry) | How Fleet and osquery enrich Axonius with real-time, open-source device telemetry. | Brad Macdowall | 2023-12-28 |
 | [How osquery can help cyber responders](https://fleetdm.com/securing/how-osquery-can-help-cyber-responders) | How incident responders can use osquery to investigate compromised endpoints and gather forensic evidence. | JD Strong | 2023-11-02 |
-| [Does osquery violate the New York employee monitoring law?](https://fleetdm.com/articles/does-osquery-violate-the-new-york-employee-monitoring-law) | Legal analysis of whether osquery-based monitoring triggers New York's employee monitoring disclosure requirements. | JD Strong | 2023-04-18 |
+| [Does osquery violate the New York employee monitoring law?](https://fleetdm.com/securing/does-osquery-violate-the-new-york-employee-monitoring-law) | Legal analysis of whether osquery-based monitoring triggers New York's employee monitoring disclosure requirements. | JD Strong | 2023-04-18 |
 | [Mapping Fleet and osquery results to the MITRE ATT&CK framework via Splunk](https://fleetdm.com/securing/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk) | How to map Fleet and osquery results to MITRE ATT&CK techniques using Splunk for detection engineering. | Dave Herder | 2023-01-30 |
-| [Vulnerability management at scale: a presentation from osquery co-creator Zach Wasserman](https://fleetdm.com/articles/osquery-vulnerability-management-at-scale) | How to use osquery and Fleet for vulnerability management across large, heterogeneous device fleets. | Chris McGillicuddy | 2022-10-05 |
+| [Vulnerability management at scale: a presentation from osquery co-creator Zach Wasserman](https://fleetdm.com/securing/osquery-vulnerability-management-at-scale) | How to use osquery and Fleet for vulnerability management across large, heterogeneous device fleets. | Chris McGillicuddy | 2022-10-05 |
 | [Osquery as a threat hunting platform?](https://fleetdm.com/securing/osquery-as-a-threat-hunting-platform) | Using osquery as a foundation for threat hunting workflows and detection. | Chris McGillicuddy | 2022-09-16 |
 | [Linux vulnerability detection with OVAL and Fleet](https://fleetdm.com/articles/linux-vulnerability-detection-with-oval-and-fleet) | How Fleet uses OVAL definitions to detect vulnerabilities on Linux hosts. | Juan Fernandes | 2022-07-29 |
-| [Stay on course with your security compliance goals](https://fleetdm.com/articles/stay-on-course-with-your-security-compliance-goals) | How to maintain momentum on security compliance programs without losing sight of the goal. | Chris McGillicuddy | 2022-07-18 |
+| [Stay on course with your security compliance goals](https://fleetdm.com/securing/stay-on-course-with-your-security-compliance-goals) | How to maintain momentum on security compliance programs without losing sight of the goal. | Chris McGillicuddy | 2022-07-18 |
 | [State of Device Management report 2022](https://fleetdm.com/articles/state-of-device-management) | Fleet's 2022 industry report on the state of device management practices and tooling. | Mike McNeil | 2022-07-07 |
 | [Lossless YubiKeys with Yubitrak and AirTag](https://fleetdm.com/securing/lossless-yubikeys-with-yubitrak-and-airtag) | A practical approach to keeping YubiKeys trackable using Yubitrak and AirTag. | Guillaume Ross | 2022-06-16 |
 | [Penetration testing of Fleet (April 2022)](https://fleetdm.com/securing/security-testing-at-fleet-fleet-pentest) | Results and analysis from Fleet's external penetration test in April 2022. | Guillaume Ross | 2022-05-10 |
 | [Security testing at Fleet: Orbit auto-updater audit](https://fleetdm.com/securing/security-testing-at-fleet-orbit-auto-updater-audit) | Audit results and findings from security testing of the Orbit auto-updater. | Guillaume Ross | 2022-03-30 |
 | [Get and stay compliant across your devices with Fleet](https://fleetdm.com/securing/get-and-stay-compliant-across-your-devices-with-fleet) | How to use Fleet to achieve and maintain compliance across your device fleet. | Drew Baker | 2022-03-09 |
-| [Apply BYOD to soothe supply chain pain](https://fleetdm.com/articles/apply-byod-to-soothe-supply-chain-pain) | How a well-structured BYOD program can reduce hardware dependency and procurement delays. | Guillaume Ross | 2022-02-10 |
+| [Apply BYOD to soothe supply chain pain](https://fleetdm.com/securing/apply-byod-to-soothe-supply-chain-pain) | How a well-structured BYOD program can reduce hardware dependency and procurement delays. | Guillaume Ross | 2022-02-10 |
 | [Saving over 100x on egress switching from AWS to Hetzner](https://fleetdm.com/articles/saving-over-100x-on-egress-switching-from-aws-to-hetzner) | How moving infrastructure off AWS to Hetzner dramatically reduced egress costs. | Zach Wasserman | 2022-01-25 |
 | [4 tips for GitHub Actions usability (+2 bonus tips for debugging)](https://fleetdm.com/articles/4-tips-for-github-actions-usability) | Practical tips for improving GitHub Actions workflows, plus bonus debugging tips. | Zach Wasserman | 2022-01-03 |
 | [Detect Log4j with osquery (and Fleet)](https://fleetdm.com/securing/detect-log4j-with-osquery-and-fleet) | How to detect Log4j vulnerabilities across your fleet using osquery and Fleet. | Zach Wasserman | 2021-12-15 |
-| [Work may be watching, but it might not be as bad as you think](https://fleetdm.com/articles/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think) | A clear-eyed look at employee monitoring, what IT teams actually collect, and how to set expectations. | Mike Thomas | 2021-10-22 |
-| [eBPF & the future of osquery on Linux](https://fleetdm.com/articles/ebpf-the-future-of-osquery-on-linux) | How eBPF extends osquery's visibility on Linux and what it means for endpoint security. | Zach Wasserman | 2021-01-25 |
+| [Work may be watching, but it might not be as bad as you think](https://fleetdm.com/securing/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think) | A clear-eyed look at employee monitoring, what IT teams actually collect, and how to set expectations. | Mike Thomas | 2021-10-22 |
+| [eBPF & the future of osquery on Linux](https://fleetdm.com/securing/ebpf-the-future-of-osquery-on-linux) | How eBPF extends osquery's visibility on Linux and what it means for endpoint security. | Zach Wasserman | 2021-01-25 |
 
 
 ## 🟡 Practitioner resources
@@ -512,8 +520,8 @@ Command-line tools for managing Fleet configurations, running queries, and deplo
 | [Catch missed authorization checks during software development](https://fleetdm.com/guides/catch-missed-authorization-checks-during-software-development) | How to perform authorization checks in a golang codebase for cybersecurity. | Victor Lyuboslavsky | 2023-12-04 |
 | [ChromeOS](https://fleetdm.com/guides/chrome-os) | Learn about ChromeOS and Fleet. | Mo Zhu | 2023-11-21 |
 | [Which API endpoints to expose to the public internet?](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet) | Guidance on which Fleet API endpoints are safe to expose publicly and which should stay internal. | Mike Thomas | 2023-11-13 |
-| [End-user self remediation: empower your employees to fix security issues](https://fleetdm.com/articles/end-user-self-remediation) | How Fleet Desktop enables end users to self-remediate failing policies without IT intervention. | Chris McGillicuddy | 2022-12-15 |
-| [What are Fleet policies?](https://fleetdm.com/articles/what-are-fleet-policies) | An introduction to Fleet policies - what they are, how they work, and how to use them for compliance and automation. | Andrew Baker | 2022-05-20 |
+| [End-user self remediation: empower your employees to fix security issues](https://fleetdm.com/securing/end-user-self-remediation) | How Fleet Desktop enables end users to self-remediate failing policies without IT intervention. | Chris McGillicuddy | 2022-12-15 |
+| [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies) | An introduction to Fleet policies - what they are, how they work, and how to use them for compliance and automation. | Andrew Baker | 2022-05-20 |
 
 
 ## ⬛ Product news

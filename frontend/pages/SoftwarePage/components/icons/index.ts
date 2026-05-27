@@ -5,8 +5,10 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import AmazonCorretto25 from "./AmazonCorretto25";
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
+import Bluej from "./Bluej";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
@@ -15,7 +17,9 @@ import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
+import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
+import GoToMeeting from "./GoToMeeting";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
@@ -227,6 +231,7 @@ import TheUnarchiver from "./TheUnarchiver";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import TorBrowser from "./TorBrowser";
+import Tortoisegit from "./Tortoisegit";
 import Tower from "./Tower";
 import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
@@ -279,6 +284,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   aircall: Aircall,
   airtame: Airtame,
   "amazon chime": AmazonChime,
+  "amazon corretto 25": AmazonCorretto25,
   "amazon dcv": AmazonDCV,
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
@@ -302,6 +308,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
   blender: Blender,
+  bluej: Bluej,
   box: Box,
   brave: Brave,
   bruno: Bruno,
@@ -329,7 +336,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "duo desktop": DuoDesktop,
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
+  "genesys cloud": GenesysCloud,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
+  gotomeeting: GoToMeeting,
   iina: Iina,
   insyncclient: DruvaInSync,
   kitty: Kitty,
@@ -500,6 +509,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   thunderbird: Thunderbird,
   todoist: Todoist,
   "tor browser": TorBrowser,
+  tortoisegit: Tortoisegit,
   tower: Tower,
   transmit: Transmit,
   tunnelblick: Tunnelblick,

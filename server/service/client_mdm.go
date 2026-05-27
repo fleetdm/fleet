@@ -427,6 +427,16 @@ func (c *Client) MDMWipeHost(hostID uint) error {
 	return nil
 }
 
+// MDMClearPasscodeHost issues a clear-passcode MDM command for the given host. Supported on
+// Apple mobile (iOS/iPadOS) and Android hosts; the server returns 4xx for other platforms.
+func (c *Client) MDMClearPasscodeHost(hostID uint) (*fleet.CommandEnqueueResult, error) {
+	var response fleet.ClearPasscodeResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", hostID), &response); err != nil {
+		return nil, fmt.Errorf("clear passcode request: %w", err)
+	}
+	return response.CommandEnqueueResult, nil
+}
+
 type eulaContent struct {
 	Bytes []byte
 }

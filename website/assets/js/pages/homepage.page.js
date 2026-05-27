@@ -19,10 +19,8 @@ parasails.registerPage('homepage', {
     cloudError: '',
     cloudSuccess: false,
 
-    comparisonTableMode: 'it',
     // For MDM comparison table
     comparisonModeForIt: 'jamf',
-    comparisonModeForSecurity: 'rapid',
     comparisonModeFriendlyNames: {
       jamf: 'Jamf Pro',
       sccm: 'SCCM',
@@ -51,10 +49,7 @@ parasails.registerPage('homepage', {
     }
   },
   mounted: async function() {
-    this.animateHeroTicker();
-    if(['mdm', 'eo-it', undefined].includes(this.primaryBuyingSituation)){
-      this.animateBottomTicker();
-    }
+    this.animateBottomTicker();
     $('[data-toggle="tooltip"]').tooltip({
       container: '#homepage',
       trigger: 'hover',
@@ -65,30 +60,6 @@ parasails.registerPage('homepage', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    animateHeroTicker: function() {
-      // Animate the ticker in the top heading.
-      setInterval(()=>{
-        let currentTickerOption = $('[purpose="hero-ticker-option"].visible');
-        if(currentTickerOption) {
-          if (currentTickerOption.length === 0) {
-            currentTickerOption = $('[purpose="hero-ticker-option"]').first();
-            currentTickerOption.addClass('visible');
-            return;
-          }
-          // [?]:https://api.jquery.com/nextAll/#nextAll-selector
-          let nextTickerOption = currentTickerOption.nextAll('[purpose="hero-ticker-option"]').first();
-          // If we've reached the end of the list, pick the first option to be the next ticker option
-          if (nextTickerOption.length === 0) {
-            nextTickerOption = $('span[purpose="hero-ticker-option"]').first();
-          }
-          currentTickerOption.removeClass('visible').addClass('animating-out');
-          nextTickerOption.addClass('visible');
-          setTimeout(()=>{
-            currentTickerOption.removeClass('animating-out');
-          }, 1000);
-        }
-      }, this.animationDelayInMs);
-    },
     animateBottomTicker: function() {
       // Animate the ticker in the bottom heading on the page (Currently only agnostic, mdm, and eo-it personalized views)
       setInterval(()=>{
@@ -116,21 +87,8 @@ parasails.registerPage('homepage', {
     clickOpenVideoModal: function(modalName) {
       this.modal = modalName;
     },
-    clickSwitchComparisonMode: async function(mode) {
-      this.comparisonTableMode = mode;
-      await setTimeout(()=>{
-        $('[data-toggle="tooltip"]').tooltip({
-          container: '#homepage',
-          trigger: 'hover',
-        });
-      }, 250);
-    },
     clickSwitchComparisonTableColumn: async function(option){
-      if(this.comparisonTableMode === 'it'){
-        this.comparisonModeForIt = option;
-      } else {
-        this.comparisonModeForSecurity = option;
-      }
+      this.comparisonModeForIt = option;
       await setTimeout(()=>{
         $('[data-toggle="tooltip"]').tooltip({
           container: '#homepage',

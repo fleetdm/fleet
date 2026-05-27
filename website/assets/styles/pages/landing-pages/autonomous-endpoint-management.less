@@ -58,8 +58,13 @@
     text-align: center;
   }
   [purpose='page-hero-headings'] {
+    display: flex;
+    flex-direction: column;
     h1 {
       text-align: center;
+    }
+    h4 {
+      margin-bottom: 8px;
     }
   }
   [purpose='ticker-container'] {
@@ -649,6 +654,9 @@
     [purpose='landing-page-container'] {
       padding-left: 24px;
       padding-right: 24px;
+    }
+    [purpose='landing-page-hero'] {
+      padding-bottom: 0px;
     }
     [parasails-component='scrollable-tweets'] {
       [purpose='tweets'] {
