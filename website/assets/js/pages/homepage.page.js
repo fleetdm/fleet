@@ -19,7 +19,6 @@ parasails.registerPage('homepage', {
     cloudError: '',
     cloudSuccess: false,
 
-    comparisonTableMode: 'it',
     // For MDM comparison table
     comparisonModeForIt: 'jamf',
     comparisonModeFriendlyNames: {
