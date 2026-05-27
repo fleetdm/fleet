@@ -4260,7 +4260,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		alreadyInstalledBYOD := false
 		if (cmdResult.Status == fleet.MDMAppleStatusError || cmdResult.Status == fleet.MDMAppleStatusCommandFormatError) &&
 			apple_mdm.IsAppAlreadyInstalledError(cmdResult.ErrorChain) {
-			isPersonal, err := svc.hostIsPersonalEnrollment(r.Context, cmdResult.Identifier())
+			isPersonal := r.Type == mdm.UserEnrollmentDevice
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "looking up enrollment type for InstallApplication already-installed result")
 			}
