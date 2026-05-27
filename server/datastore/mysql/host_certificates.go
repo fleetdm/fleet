@@ -728,7 +728,10 @@ func (ds *Datastore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context
 		if err != nil {
 			return total, ctxerr.Wrap(ctx, err, "soft-delete mdm host certificates for unenrolled hosts")
 		}
-		n, _ := res.RowsAffected()
+		n, err := res.RowsAffected()
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "rows affected for mdm host certificates sweep")
+		}
 		total += n
 		if n < batchSize {
 			break
