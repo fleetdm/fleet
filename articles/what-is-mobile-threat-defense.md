@@ -86,9 +86,9 @@ Deployment timelines depend on fleet size and existing infrastructure. Organizat
 
 Most enterprise MTD products support both iOS and Android through a single product, though detection capabilities differ based on platform APIs. iOS restrictions limit deep system monitoring but reduce malware risk, while Android provides broader security product access but faces greater application threat exposure. Configure platform-specific policies within your unified MTD product rather than deploying separate products. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet manages iOS, Android, macOS, Windows, and Linux from a single console.
 
-<meta name="articleTitle" value="Mobile threat defense: What it detects and how it works">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="articleTitle" value="Mobile threat defense: what it detects and how it works">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-25">
-<meta name="description" value="Learn how mobile threat defense detects phishing, network attacks, and malicious apps on iOS and Android, and how it pairs with device management.">
+<meta name="publishedOn" value="2026-04-18">
+<meta name="description" value="How mobile threat defense detects phishing, network attacks, and malicious apps on iOS and Android, and how it integrates with MDM and UEM.">
