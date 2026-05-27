@@ -596,3 +596,6 @@
 - method: "DELETE"
   path: "/api/v1/fleet/software/titles/:title_id/icon"
   display_name: "Delete software title icon"
+- method: "POST"
+  path: "/api/v1/fleet/hosts/:id/software/:software_title_id/install"
+  display_name: "Install software"
