@@ -702,18 +702,39 @@ func softDeleteMDMHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID ui
 	return nil
 }
 
-// One bounded UPDATE per cron tick. See the Datastore interface for contract.
+// See the Datastore interface for contract. Batched to bound lock scope: a
+// host can have many MDM certs, so a mass unenroll could otherwise lock a
+// large set in one statement.
 func (ds *Datastore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error) {
-	res, err := ds.writer(ctx).ExecContext(ctx, `
-		UPDATE host_certificates hc
-		JOIN host_mdm hm ON hm.host_id = hc.host_id AND hm.enrolled = 0
-		SET hc.deleted_at = NOW(6)
-		WHERE hc.origin = ? AND hc.deleted_at IS NULL`,
-		fleet.HostCertificateOriginMDM)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "soft-delete mdm host certificates for unenrolled hosts")
+	const batchSize = 1000
+	// Derived-table wrap is required: MySQL forbids referencing the updated
+	// table directly in the subquery's FROM.
+	const stmt = `
+		UPDATE host_certificates
+		SET deleted_at = NOW(6)
+		WHERE id IN (
+			SELECT id FROM (
+				SELECT hc.id
+				FROM host_certificates hc
+				JOIN host_mdm hm ON hm.host_id = hc.host_id AND hm.enrolled = 0
+				WHERE hc.origin = ? AND hc.deleted_at IS NULL
+				ORDER BY hc.id
+				LIMIT ?
+			) AS batch
+		)`
+	var total int64
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.HostCertificateOriginMDM, batchSize)
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "soft-delete mdm host certificates for unenrolled hosts")
+		}
+		n, _ := res.RowsAffected()
+		total += n
+		if n < batchSize {
+			break
+		}
 	}
-	return res.RowsAffected()
+	return total, nil
 }
 
 func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {
