@@ -380,6 +380,8 @@ Before committing anything to code, we create wireframes (referred to as ["draft
 
 The [Product Design](https://fleetdm.com/handbook/product-design#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
+> Temporary landing pages follow a different process. See [temporary landing pages](https://fleetdm.com/handbook/company/writing#temporary-landing-pages).
+
 
 ## Design at Fleet
 
@@ -708,6 +710,13 @@ Either way, it's up to you to make sure that your responsibilities are covered a
 ## Benefits
 
 In this section, you can find information about Fleet's benefit strategies and decisions.
+
+
+### Health coverage
+
+**US-based team members:** Fleet offers premium US benefits that includes health, dental, and life insurance, with 66%+ coverage for dependents.
+
+**International team members:** Fleet provides premium health benefits for international employees via our employer of record [Remote](https://remote.com).
 
 
 ### Paid time off

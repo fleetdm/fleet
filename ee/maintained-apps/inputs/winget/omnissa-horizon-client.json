@@ -1,0 +1,12 @@
+{
+  "name": "Omnissa Horizon Client",
+  "slug": "omnissa-horizon-client/windows",
+  "package_identifier": "Omnissa.HorizonClient",
+  "unique_identifier": "Omnissa Horizon Client",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/omnissa_horizon_client_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/omnissa_horizon_client_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

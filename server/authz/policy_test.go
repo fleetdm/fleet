@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/activity"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
@@ -29,6 +30,7 @@ const (
 	selectiveRead      = fleet.ActionSelectiveRead
 	selectiveList      = fleet.ActionSelectiveList
 	cancelHostActivity = fleet.ActionCancelHostActivity
+	transferHost       = fleet.ActionTransferHost
 	create             = fleet.ActionCreate
 	readSecrets        = fleet.ActionReadSecrets
 )
@@ -960,14 +962,17 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: nil, object: host, action: selectiveList, allow: false},
 		{user: nil, object: host, action: selectiveRead, allow: false},
 		{user: nil, object: host, action: cancelHostActivity, allow: false},
+		{user: nil, object: host, action: transferHost, allow: false},
 		{user: nil, object: hostTeam1, action: read, allow: false},
 		{user: nil, object: hostTeam1, action: write, allow: false},
 		{user: nil, object: hostTeam1, action: selectiveRead, allow: false},
 		{user: nil, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: nil, object: hostTeam1, action: transferHost, allow: false},
 		{user: nil, object: hostTeam2, action: read, allow: false},
 		{user: nil, object: hostTeam2, action: write, allow: false},
 		{user: nil, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: nil, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: nil, object: hostTeam2, action: transferHost, allow: false},
 
 		// No host access if the user has no roles.
 		{user: test.UserNoRoles, object: host, action: read, allow: false},
@@ -976,14 +981,17 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserNoRoles, object: host, action: selectiveList, allow: false},
 		{user: test.UserNoRoles, object: host, action: selectiveRead, allow: false},
 		{user: test.UserNoRoles, object: host, action: cancelHostActivity, allow: false},
+		{user: test.UserNoRoles, object: host, action: transferHost, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: read, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: write, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: selectiveRead, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: test.UserNoRoles, object: hostTeam1, action: transferHost, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: read, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: write, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: test.UserNoRoles, object: hostTeam2, action: transferHost, allow: false},
 
 		// Global observer can read all
 		{user: test.UserObserver, object: host, action: read, allow: true},
@@ -992,14 +1000,17 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserObserver, object: host, action: selectiveList, allow: true},
 		{user: test.UserObserver, object: host, action: selectiveRead, allow: true},
 		{user: test.UserObserver, object: host, action: cancelHostActivity, allow: false},
+		{user: test.UserObserver, object: host, action: transferHost, allow: false},
 		{user: test.UserObserver, object: hostTeam1, action: read, allow: true},
 		{user: test.UserObserver, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserObserver, object: hostTeam1, action: write, allow: false},
 		{user: test.UserObserver, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: test.UserObserver, object: hostTeam1, action: transferHost, allow: false},
 		{user: test.UserObserver, object: hostTeam2, action: read, allow: true},
 		{user: test.UserObserver, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserObserver, object: hostTeam2, action: write, allow: false},
 		{user: test.UserObserver, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: test.UserObserver, object: hostTeam2, action: transferHost, allow: false},
 
 		// Global observer+ can read all
 		{user: test.UserObserverPlus, object: host, action: read, allow: true},
@@ -1008,30 +1019,36 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserObserverPlus, object: host, action: selectiveList, allow: true},
 		{user: test.UserObserverPlus, object: host, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: host, action: cancelHostActivity, allow: false},
+		{user: test.UserObserverPlus, object: host, action: transferHost, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam1, action: read, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam1, action: write, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: test.UserObserverPlus, object: hostTeam1, action: transferHost, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam2, action: read, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam2, action: write, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: test.UserObserverPlus, object: hostTeam2, action: transferHost, allow: false},
 
-		// Global technician can read all but not write
+		// Global technician can read all and transfer hosts, but cannot write hosts.
 		{user: test.UserTechnician, object: host, action: read, allow: true},
 		{user: test.UserTechnician, object: host, action: write, allow: false},
 		{user: test.UserTechnician, object: host, action: list, allow: true},
 		{user: test.UserTechnician, object: host, action: selectiveList, allow: true},
 		{user: test.UserTechnician, object: host, action: selectiveRead, allow: true},
 		{user: test.UserTechnician, object: host, action: cancelHostActivity, allow: false},
+		{user: test.UserTechnician, object: host, action: transferHost, allow: true},
 		{user: test.UserTechnician, object: hostTeam1, action: read, allow: true},
 		{user: test.UserTechnician, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserTechnician, object: hostTeam1, action: write, allow: false},
 		{user: test.UserTechnician, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: test.UserTechnician, object: hostTeam1, action: transferHost, allow: true},
 		{user: test.UserTechnician, object: hostTeam2, action: read, allow: true},
 		{user: test.UserTechnician, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserTechnician, object: hostTeam2, action: write, allow: false},
 		{user: test.UserTechnician, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: test.UserTechnician, object: hostTeam2, action: transferHost, allow: true},
 
 		// Global admin can read/write all
 		{user: test.UserAdmin, object: host, action: read, allow: true},
@@ -1040,14 +1057,17 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserAdmin, object: host, action: list, allow: true},
 		{user: test.UserAdmin, object: host, action: selectiveList, allow: true},
 		{user: test.UserAdmin, object: host, action: cancelHostActivity, allow: true},
+		{user: test.UserAdmin, object: host, action: transferHost, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: read, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: write, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: cancelHostActivity, allow: true},
+		{user: test.UserAdmin, object: hostTeam1, action: transferHost, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: read, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: write, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: cancelHostActivity, allow: true},
+		{user: test.UserAdmin, object: hostTeam2, action: transferHost, allow: true},
 
 		// Global maintainer can read/write all
 		{user: test.UserMaintainer, object: host, action: read, allow: true},
@@ -1056,14 +1076,17 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserMaintainer, object: host, action: list, allow: true},
 		{user: test.UserMaintainer, object: host, action: selectiveList, allow: true},
 		{user: test.UserMaintainer, object: host, action: cancelHostActivity, allow: true},
+		{user: test.UserMaintainer, object: host, action: transferHost, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: read, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: write, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: cancelHostActivity, allow: true},
+		{user: test.UserMaintainer, object: hostTeam1, action: transferHost, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: read, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: write, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: cancelHostActivity, allow: true},
+		{user: test.UserMaintainer, object: hostTeam2, action: transferHost, allow: true},
 
 		// Global GitOps can write and selectively read all.
 		{user: test.UserGitOps, object: host, action: read, allow: false},
@@ -1072,14 +1095,17 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserGitOps, object: host, action: list, allow: false},
 		{user: test.UserGitOps, object: host, action: selectiveList, allow: true},
 		{user: test.UserGitOps, object: host, action: cancelHostActivity, allow: false},
+		{user: test.UserGitOps, object: host, action: transferHost, allow: true},
 		{user: test.UserGitOps, object: hostTeam1, action: read, allow: false},
 		{user: test.UserGitOps, object: hostTeam1, action: write, allow: true},
 		{user: test.UserGitOps, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserGitOps, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: test.UserGitOps, object: hostTeam1, action: transferHost, allow: true},
 		{user: test.UserGitOps, object: hostTeam2, action: read, allow: false},
 		{user: test.UserGitOps, object: hostTeam2, action: write, allow: true},
 		{user: test.UserGitOps, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserGitOps, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: test.UserGitOps, object: hostTeam2, action: transferHost, allow: true},
 
 		// Team observer can read only on appropriate team
 		{user: teamObserver, object: host, action: read, allow: false},
@@ -1088,14 +1114,17 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamObserver, object: host, action: list, allow: true},
 		{user: teamObserver, object: host, action: selectiveList, allow: true},
 		{user: teamObserver, object: host, action: cancelHostActivity, allow: false},
+		{user: teamObserver, object: host, action: transferHost, allow: false},
 		{user: teamObserver, object: hostTeam1, action: read, allow: true},
 		{user: teamObserver, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamObserver, object: hostTeam1, action: write, allow: false},
 		{user: teamObserver, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: teamObserver, object: hostTeam1, action: transferHost, allow: false},
 		{user: teamObserver, object: hostTeam2, action: read, allow: false},
 		{user: teamObserver, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamObserver, object: hostTeam2, action: write, allow: false},
 		{user: teamObserver, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: teamObserver, object: hostTeam2, action: transferHost, allow: false},
 
 		// Team observer+ can read only on appropriate team
 		{user: teamObserverPlus, object: host, action: read, allow: false},
@@ -1104,14 +1133,17 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamObserverPlus, object: host, action: list, allow: true},
 		{user: teamObserverPlus, object: host, action: selectiveList, allow: true},
 		{user: teamObserverPlus, object: host, action: cancelHostActivity, allow: false},
+		{user: teamObserverPlus, object: host, action: transferHost, allow: false},
 		{user: teamObserverPlus, object: hostTeam1, action: read, allow: true},
 		{user: teamObserverPlus, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamObserverPlus, object: hostTeam1, action: write, allow: false},
 		{user: teamObserverPlus, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: teamObserverPlus, object: hostTeam1, action: transferHost, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: read, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: write, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: teamObserverPlus, object: hostTeam2, action: transferHost, allow: false},
 
 		// Team maintainer can read/write only on appropriate team
 		{user: teamMaintainer, object: host, action: read, allow: false},
@@ -1120,13 +1152,16 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamMaintainer, object: host, action: list, allow: true},
 		{user: teamMaintainer, object: host, action: selectiveList, allow: true},
 		{user: teamMaintainer, object: host, action: cancelHostActivity, allow: false},
+		{user: teamMaintainer, object: host, action: transferHost, allow: false},
 		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: write, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: cancelHostActivity, allow: true},
+		{user: teamMaintainer, object: hostTeam1, action: transferHost, allow: true},
 		{user: teamMaintainer, object: hostTeam2, action: read, allow: false},
 		{user: teamMaintainer, object: hostTeam2, action: write, allow: false},
 		{user: teamMaintainer, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: teamMaintainer, object: hostTeam2, action: transferHost, allow: false},
 
 		// Team admin can read/write only on appropriate team
 		{user: teamAdmin, object: host, action: read, allow: false},
@@ -1135,44 +1170,123 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamAdmin, object: host, action: list, allow: true},
 		{user: teamAdmin, object: host, action: selectiveList, allow: true},
 		{user: teamAdmin, object: host, action: cancelHostActivity, allow: false},
+		{user: teamAdmin, object: host, action: transferHost, allow: false},
 		{user: teamAdmin, object: hostTeam1, action: read, allow: true},
 		{user: teamAdmin, object: hostTeam1, action: write, allow: true},
 		{user: teamAdmin, object: hostTeam1, action: cancelHostActivity, allow: true},
+		{user: teamAdmin, object: hostTeam1, action: transferHost, allow: true},
 		{user: teamAdmin, object: hostTeam2, action: read, allow: false},
 		{user: teamAdmin, object: hostTeam2, action: write, allow: false},
 		{user: teamAdmin, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: teamAdmin, object: hostTeam2, action: transferHost, allow: false},
 
 		// Team GitOps can cannot read hosts, but it can write and selectively read them.
 		{user: teamGitOps, object: host, action: read, allow: false},
 		{user: teamGitOps, object: host, action: write, allow: false},
 		{user: teamGitOps, object: host, action: selectiveRead, allow: false},
 		{user: teamGitOps, object: host, action: cancelHostActivity, allow: false},
+		{user: teamGitOps, object: host, action: transferHost, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: read, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: list, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: selectiveList, allow: true},
 		{user: teamGitOps, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamGitOps, object: hostTeam1, action: write, allow: false},
 		{user: teamGitOps, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: teamGitOps, object: hostTeam1, action: transferHost, allow: true},
 		{user: teamGitOps, object: hostTeam2, action: read, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: write, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: teamGitOps, object: hostTeam2, action: transferHost, allow: false},
 
-		// Team technician can read only on appropriate team
+		// Team technician can transfer hosts of their own team only.
 		{user: teamTechnician, object: host, action: read, allow: false},
 		{user: teamTechnician, object: host, action: selectiveRead, allow: false},
 		{user: teamTechnician, object: host, action: write, allow: false},
 		{user: teamTechnician, object: host, action: list, allow: true},
 		{user: teamTechnician, object: host, action: selectiveList, allow: true},
 		{user: teamTechnician, object: host, action: cancelHostActivity, allow: false},
+		{user: teamTechnician, object: host, action: transferHost, allow: false},
 		{user: teamTechnician, object: hostTeam1, action: read, allow: true},
 		{user: teamTechnician, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamTechnician, object: hostTeam1, action: write, allow: false},
 		{user: teamTechnician, object: hostTeam1, action: cancelHostActivity, allow: false},
+		{user: teamTechnician, object: hostTeam1, action: transferHost, allow: true},
 		{user: teamTechnician, object: hostTeam2, action: read, allow: false},
 		{user: teamTechnician, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamTechnician, object: hostTeam2, action: write, allow: false},
 		{user: teamTechnician, object: hostTeam2, action: cancelHostActivity, allow: false},
+		{user: teamTechnician, object: hostTeam2, action: transferHost, allow: false},
+	})
+}
+
+// TestAuthorizeActivityHost verifies that the bounded-context activity.Host
+// type is serialized with the json field names the OPA policy expects
+// (object.team_id, object.id). Without those tags, team-scoped users get a
+// 403 when listing host past activities (issue #46009).
+func TestAuthorizeActivityHost(t *testing.T) {
+	t.Parallel()
+
+	teamAdmin := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin},
+		},
+	}
+	teamMaintainer := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer},
+		},
+	}
+	teamObserver := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+		},
+	}
+	teamTechnician := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician},
+		},
+	}
+	teamGitOps := &fleet.User{
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps},
+		},
+	}
+
+	globalHost := &activity.Host{}
+	hostTeam1 := &activity.Host{ID: 10, TeamID: new(uint(1))}
+	hostTeam2 := &activity.Host{ID: 11, TeamID: new(uint(2))}
+
+	runTestCases(t, []authTestCase{
+		// Global admin can read any host.
+		{user: test.UserAdmin, object: globalHost, action: list, allow: true},
+		{user: test.UserAdmin, object: hostTeam1, action: read, allow: true},
+		{user: test.UserAdmin, object: hostTeam2, action: read, allow: true},
+
+		// Team admin can read hosts on their team but not other teams.
+		{user: teamAdmin, object: globalHost, action: list, allow: true},
+		{user: teamAdmin, object: hostTeam1, action: read, allow: true},
+		{user: teamAdmin, object: hostTeam2, action: read, allow: false},
+
+		// Team maintainer / observer can also read hosts on their team.
+		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},
+		{user: teamMaintainer, object: hostTeam2, action: read, allow: false},
+		{user: teamObserver, object: hostTeam1, action: read, allow: true},
+		{user: teamObserver, object: hostTeam2, action: read, allow: false},
+
+		// Team technician can also read hosts on their team.
+		{user: teamTechnician, object: globalHost, action: list, allow: true},
+		{user: teamTechnician, object: hostTeam1, action: read, allow: true},
+		{user: teamTechnician, object: hostTeam2, action: read, allow: false},
+
+		// Team gitops cannot list or read hosts (only selective variants).
+		{user: teamGitOps, object: globalHost, action: list, allow: false},
+		{user: teamGitOps, object: hostTeam1, action: read, allow: false},
+		{user: teamGitOps, object: hostTeam2, action: read, allow: false},
+
+		// Users with no roles or no user cannot read.
+		{user: nil, object: hostTeam1, action: read, allow: false},
+		{user: test.UserNoRoles, object: hostTeam1, action: read, allow: false},
 	})
 }
 

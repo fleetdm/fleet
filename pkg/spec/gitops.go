@@ -476,7 +476,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			return result, multiError.ErrorOrNil()
 		case result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml":
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for No Team must be named `no-team.yml`", filePath))
-			multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please rename the file to 'unassigned.yml' and update the team name to 'Unassigned'."))
+			multiError = multierror.Append(multiError, errors.New("no-team.yml is deprecated; please ensure the fleet name has been updated to 'Unassigned' and rename the file to 'unassigned.yml'."))
 			return result, multiError.ErrorOrNil()
 		case result.IsUnassignedTeam() && filepath.Base(filePath) != "unassigned.yml":
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for unassigned hosts must be named `unassigned.yml`", filePath))
@@ -1769,7 +1769,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		if _, ok := fmasBySlug[installSoftwareObj.FleetMaintainedAppSlug]; !ok {
 			errs = append(errs, wrapErr(fmt.Errorf("install_software.fleet_maintained_app_slug %q not found in software.fleet_maintained_apps for team %s", installSoftwareObj.FleetMaintainedAppSlug, *teamName)))
 		}
-		policy.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
+		policy.InstallSoftware.Other.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
 	}
 
 	return errs

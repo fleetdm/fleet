@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 
-import { INewTeamUser, INewTeamUsersBody, ITeam } from "interfaces/team";
+import { INewTeamUser, INewTeamUsersFormData, ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -13,7 +13,7 @@ interface IAddUsersModal {
   team: ITeam;
   disabledUsers: number[];
   onCancel: () => void;
-  onSubmit: (userIds: INewTeamUsersBody) => void;
+  onSubmit: (userIds: INewTeamUsersFormData) => void;
   onCreateNewTeamUser: () => void;
 }
 

@@ -10124,16 +10124,33 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
 
-	// Verify CleanupAllHostMDMProfilesForPlatform removes all remaining profile rows when MDM is
-	// toggled off globally. At this point hosts still have pending remove profiles.
-
 	// Windows hosts have pending removes; cleanup should wipe them.
 	err = ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows")
 	require.NoError(t, err)
 	assertHostProfileOpStatus(t, ds, host3.UUID)
 	assertHostProfileOpStatus(t, ds, host4.UUID)
 
-	// Apple hosts still have pending removes; verify they survived the Windows cleanup, then clean them up too.
+	// Windows host_mdm rows must NOT be touched by global disable. Orbit's programmatic-unenrollment notification
+	// depends on host_mdm.enrolled = 1 to be able to tell the device to unenroll.
+	var winHostMDM struct {
+		Total    int `db:"total"`
+		Enrolled int `db:"enrolled"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &winHostMDM,
+			`SELECT
+				COUNT(*) AS total,
+				COALESCE(SUM(CASE WHEN hmdm.enrolled = 1 THEN 1 ELSE 0 END), 0) AS enrolled
+			 FROM host_mdm hmdm
+			 JOIN hosts h ON h.id = hmdm.host_id
+			 WHERE h.uuid IN (?, ?) AND h.platform = 'windows'`,
+			host3.UUID, host4.UUID)
+	})
+	require.Equal(t, 2, winHostMDM.Total, "Windows host_mdm rows must survive global disable")
+	require.Equal(t, 2, winHostMDM.Enrolled,
+		"Windows host_mdm.enrolled must be preserved so orbit can still send unenroll notifications")
+
+	// Apple hosts still have pending removes; verify they survived the Windows cleanup, then disable Apple MDM too.
 	appleProfsHost1, err := ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
 	require.NoError(t, err)
 	require.NotEmpty(t, appleProfsHost1)
@@ -10146,6 +10163,24 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assertHostProfileOpStatus(t, ds, host1.UUID)
 	assertHostProfileOpStatus(t, ds, host2.UUID)
+
+	// Apple nano_enrollments must be soft-disabled (rows survive, enabled = 0) so the reconciler does not recreate
+	// pending rows when a new APNS cert is uploaded.
+	var appleEnrollments struct {
+		Total    int `db:"total"`
+		Disabled int `db:"disabled"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &appleEnrollments,
+			`SELECT
+				COUNT(*) AS total,
+				COALESCE(SUM(CASE WHEN enabled = 0 THEN 1 ELSE 0 END), 0) AS disabled
+			 FROM nano_enrollments
+			 WHERE id IN (?, ?)`,
+			host1.UUID, host2.UUID)
+	})
+	require.Positive(t, appleEnrollments.Total, "nano_enrollments rows must survive global disable, not be deleted")
+	require.Equal(t, appleEnrollments.Total, appleEnrollments.Disabled, "nano_enrollments rows must be flipped to enabled = 0")
 }
 
 // testDeleteTeamCancelsWindowsProfileInstalls verifies that when a team is

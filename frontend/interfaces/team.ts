@@ -114,10 +114,10 @@ export interface INewTeamUser {
 /**
  * The shape of the body expected from the API when adding new users to teams
  */
-export interface INewTeamUsersBody {
+export interface INewTeamUsersFormData {
   users: INewTeamUser[];
 }
-export interface IRemoveTeamUserBody {
+export interface IRemoveTeamUserFormData {
   users: { id?: number }[];
 }
 interface INewTeamSecret {
@@ -125,10 +125,10 @@ interface INewTeamSecret {
   secret: string;
   created_at?: string;
 }
-export interface INewTeamSecretBody {
+export interface INewTeamSecretFormData {
   secrets: INewTeamSecret[];
 }
-export interface IRemoveTeamSecretBody {
+export interface IRemoveTeamSecretFormData {
   secrets: { secret: string }[];
 }
 
