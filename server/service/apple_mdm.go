@@ -2327,7 +2327,7 @@ func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardw
 		return nil, ctxerr.Wrap(ctx, err, "creating ACME enrollment")
 	}
 
-	accessRights, hostID, err := svc.resolveEnrollmentAccessRightsForServe(ctx, machineInfo)
+	accessRights, hostUUID, err := svc.resolveEnrollmentAccessRightsForServe(ctx, machineInfo)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "resolve enrollment access rights")
 	}
@@ -2344,7 +2344,7 @@ func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardw
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleACMEEnrollProfile: generating ACME enrollment profile")
 	}
 
-	if err := svc.persistEnrollmentAccessRights(ctx, hostID, accessRights); err != nil {
+	if err := svc.persistEnrollmentAccessRights(ctx, hostUUID, accessRights); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "persist Apple enrollment access rights")
 	}
 
@@ -2359,7 +2359,7 @@ func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgNa
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: loading SCEP challenge from the database")
 	}
 
-	accessRights, hostID, err := svc.resolveEnrollmentAccessRightsForServe(ctx, machineInfo)
+	accessRights, hostUUID, err := svc.resolveEnrollmentAccessRightsForServe(ctx, machineInfo)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "resolve enrollment access rights")
 	}
@@ -2375,7 +2375,7 @@ func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgNa
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: generating enrollment profile")
 	}
 
-	if err := svc.persistEnrollmentAccessRights(ctx, hostID, accessRights); err != nil {
+	if err := svc.persistEnrollmentAccessRights(ctx, hostUUID, accessRights); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "persist Apple enrollment access rights")
 	}
 
@@ -2387,43 +2387,43 @@ func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgNa
 // computeAppleEnrollmentAccessRights helper. It resolves the host context
 // from machineInfo.UDID and returns:
 //   - accessRights: the bitmask to bake into the next .mobileconfig
-//   - hostID:      the matched host's id, or 0 if no host record exists yet
-//     (initial enrollment); used by persistEnrollmentAccessRights.
+//   - hostUUID:     the matched host's UUID, or "" if no host record exists
+//     yet (initial enrollment); used by persistEnrollmentAccessRights.
 //
-// For renewals (host already exists), the resolved teamID + hostID drives
+// For renewals (host already exists), the resolved teamID + hostUUID drives
 // monotonic narrowing via the helper. For initial enrollments (no host
 // record yet), we fall back to global config because the team is not yet
 // known — Fleet only learns the host's team via the enroll secret used at
 // TokenUpdate time.
-func (svc *Service) resolveEnrollmentAccessRightsForServe(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo) (accessRights int, hostID uint, err error) {
+func (svc *Service) resolveEnrollmentAccessRightsForServe(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo) (accessRights int, hostUUID string, err error) {
 	var teamID *uint
 	if machineInfo != nil && machineInfo.UDID != "" {
 		host, err := svc.ds.HostLiteByIdentifier(ctx, machineInfo.UDID)
 		switch {
 		case err == nil && host != nil:
 			teamID = host.TeamID
-			hostID = host.ID
+			hostUUID = host.UUID
 		case err != nil && !fleet.IsNotFound(err):
-			return 0, 0, ctxerr.Wrap(ctx, err, "look up host by UDID")
+			return 0, "", ctxerr.Wrap(ctx, err, "look up host by UDID")
 		}
 	}
-	accessRights, err = svc.computeAppleEnrollmentAccessRights(ctx, teamID, hostID)
+	accessRights, err = svc.computeAppleEnrollmentAccessRights(ctx, teamID, hostUUID)
 	if err != nil {
-		return 0, 0, err
+		return 0, "", err
 	}
-	return accessRights, hostID, nil
+	return accessRights, hostUUID, nil
 }
 
 // persistEnrollmentAccessRights records the AccessRights baked into the
 // profile we just served, so that future renewals know the floor to AND with
-// the fleet's current ceiling. Skips the write for hostID == 0 (initial
+// the fleet's current ceiling. Skips the write for an empty hostUUID (initial
 // enrollment with no host record yet — persistence happens later when
 // TokenUpdate creates the host).
-func (svc *Service) persistEnrollmentAccessRights(ctx context.Context, hostID uint, accessRights int) error {
-	if hostID == 0 {
+func (svc *Service) persistEnrollmentAccessRights(ctx context.Context, hostUUID string, accessRights int) error {
+	if hostUUID == "" {
 		return nil
 	}
-	return svc.ds.SetHostMDMAppleEnrollmentPermissions(ctx, hostID, accessRights)
+	return svc.ds.SetHostMDMAppleEnrollmentPermissions(ctx, hostUUID, accessRights)
 }
 
 // computeAppleEnrollmentAccessRights returns the AccessRights bitmask to bake
