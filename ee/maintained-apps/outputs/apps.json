@@ -800,6 +800,20 @@
       "description": "Front is a customer communication platform."
     },
     {
+      "name": "Genesys Cloud",
+      "slug": "genesys-cloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.inin.purecloud.directory",
+      "description": "Genesys Cloud is a desktop app for running the Genesys Cloud contact center platform as a stand-alone program, separate from the web browser."
+    },
+    {
+      "name": "Genesys Cloud",
+      "slug": "genesys-cloud/windows",
+      "platform": "windows",
+      "unique_identifier": "Genesys Cloud",
+      "description": "Genesys Cloud is a desktop app for running the Genesys Cloud contact center platform as a stand-alone program, separate from the web browser."
+    },
+    {
       "name": "Ghostty",
       "slug": "ghostty/darwin",
       "platform": "darwin",

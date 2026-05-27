@@ -17,6 +17,7 @@ import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
+import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
@@ -334,6 +335,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "duo desktop": DuoDesktop,
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
+  "genesys cloud": GenesysCloud,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   iina: Iina,
   insyncclient: DruvaInSync,
