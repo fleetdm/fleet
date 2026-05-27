@@ -236,6 +236,30 @@ describe("CommandPalette", () => {
       });
     });
 
+    it("Escape returns to root from a picker sub-page (view-host)", async () => {
+      const { user } = adminRender(<CommandPalette />);
+      await openPalette(user);
+
+      // The root page lists commands; find "View host" and activate it
+      // to reach the view-host sub-page.
+      const viewHost = await screen.findByText("View host");
+      fireEvent.click(viewHost);
+
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText("Search hosts...")
+        ).toBeInTheDocument();
+      });
+
+      // ESC takes us back to root, NOT closing the dialog.
+      await user.keyboard("{Escape}");
+      await waitFor(() => {
+        expect(
+          screen.getByPlaceholderText("Search for a page or command...")
+        ).toBeInTheDocument();
+      });
+    });
+
     it("Escape closes the palette when on the root page", async () => {
       const { user } = adminRender(<CommandPalette />);
       await openPalette(user);

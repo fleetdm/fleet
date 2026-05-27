@@ -12,10 +12,18 @@ const HOST_SEARCH_LIMIT = 50;
 
 interface IHostPickerProps {
   search: string;
+  /** When true, render the host's team in a third column. Caller is
+   *  responsible for enforcing premium-tier + non-Primo (single-fleet
+   *  installs have nothing meaningful to show in the team column). */
+  showTeamColumn?: boolean;
   onSelect: (hostId: number) => void;
 }
 
-const HostPicker = ({ search, onSelect }: IHostPickerProps): JSX.Element => {
+const HostPicker = ({
+  search,
+  showTeamColumn = false,
+  onSelect,
+}: IHostPickerProps): JSX.Element => {
   // No team scoping — the picker is a global navigator. On select, the
   // parent navigates to /hosts/:id/details without fleet_id; the host
   // details page reads the host's team from the host record itself, so
@@ -55,6 +63,7 @@ const HostPicker = ({ search, onSelect }: IHostPickerProps): JSX.Element => {
     <Command.Group className={`${baseClass}__group`}>
       {hosts.map((host) => {
         const label = host.display_name || host.hostname || `Host ${host.id}`;
+        const dotClass = `${baseClass}__host-status-dot ${baseClass}__host-status-dot--${host.status}`;
         return (
           <Command.Item
             key={`host-${host.id}`}
@@ -62,7 +71,18 @@ const HostPicker = ({ search, onSelect }: IHostPickerProps): JSX.Element => {
             onSelect={() => onSelect(host.id)}
             className={`${baseClass}__item`}
           >
-            <span className={`${baseClass}__item-label`}>{label}</span>
+            <span className={`${baseClass}__host-name`}>
+              <span
+                className={dotClass}
+                aria-label={`status: ${host.status}`}
+              />
+              <span className={`${baseClass}__item-label`}>{label}</span>
+            </span>
+            {showTeamColumn && (
+              <span className={`${baseClass}__host-team`}>
+                {host.team_name ?? ""}
+              </span>
+            )}
           </Command.Item>
         );
       })}

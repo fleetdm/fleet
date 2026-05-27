@@ -9,6 +9,9 @@ import {
   ILoadTeamPoliciesResponse,
   IPolicyStats,
 } from "interfaces/policy";
+import CriticalPolicyBadge from "components/CriticalPolicyBadge";
+import PillBadge from "components/PillBadge";
+import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
@@ -21,12 +24,15 @@ const POLICY_SEARCH_LIMIT = 50;
 interface IPolicyPickerProps {
   search: string;
   currentTeam?: ITeamSummary;
+  /** Critical-policy badge is Premium-only (matches PoliciesTable). */
+  isPremiumTier?: boolean;
   onSelect: (policyId: number) => void;
 }
 
 const PolicyPicker = ({
   search,
   currentTeam,
+  isPremiumTier = false,
   onSelect,
 }: IPolicyPickerProps): JSX.Element => {
   const teamId =
@@ -79,18 +85,41 @@ const PolicyPicker = ({
     );
   }
 
+  // "Inherited" applies only when viewing a specific team and the policy
+  // is a global one (team_id === null), matching PoliciesTableConfig.
+  const isViewingSpecificTeam =
+    !!currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID;
+
   return (
     <Command.Group className={`${baseClass}__group`}>
-      {policies.map((policy) => (
-        <Command.Item
-          key={`policy-${policy.id}`}
-          value={`${RESULT_PREFIXES.policy}${policy.id}`}
-          onSelect={() => onSelect(policy.id)}
-          className={`${baseClass}__item`}
-        >
-          <span className={`${baseClass}__item-label`}>{policy.name}</span>
-        </Command.Item>
-      ))}
+      {policies.map((policy) => {
+        const showCriticalBadge = isPremiumTier && policy.critical;
+        const showPatchBadge = policy.type === "patch";
+        const showInheritedBadge =
+          isViewingSpecificTeam && policy.team_id === null;
+
+        return (
+          <Command.Item
+            key={`policy-${policy.id}`}
+            value={`${RESULT_PREFIXES.policy}${policy.id}`}
+            onSelect={() => onSelect(policy.id)}
+            className={`${baseClass}__item`}
+          >
+            <div className={`${baseClass}__item-left`}>
+              <span className={`${baseClass}__item-label`}>{policy.name}</span>
+              {showCriticalBadge && <CriticalPolicyBadge />}
+              {showPatchBadge && (
+                <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>Patch</PillBadge>
+              )}
+              {showInheritedBadge && (
+                <PillBadge tipContent="This policy runs on all hosts.">
+                  Inherited
+                </PillBadge>
+              )}
+            </div>
+          </Command.Item>
+        );
+      })}
     </Command.Group>
   );
 };

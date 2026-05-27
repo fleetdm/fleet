@@ -238,6 +238,48 @@
     padding-left: $pad-medium;
   }
 
+  // HostPicker rows: a small status dot sits inline with the host name;
+  // the optional team column (premium + !primo only) is pushed to the
+  // right via the default __item flex / space-between.
+  &__host-name {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  &__host-status-dot {
+    flex-shrink: 0;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 100%;
+    background-color: $ui-fleet-black-25;
+
+    &--online,
+    &--new {
+      background-color: $ui-success;
+    }
+    &--offline,
+    &--missing {
+      background-color: $ui-offline;
+    }
+  }
+
+  &__host-team {
+    flex-shrink: 0;
+    width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: $x-small;
+    color: $ui-fleet-black-50;
+    font-style: italic;
+    text-align: right;
+  }
+
   &__item-left {
     display: flex;
     align-items: center;

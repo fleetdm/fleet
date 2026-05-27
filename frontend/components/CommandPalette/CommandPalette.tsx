@@ -1,6 +1,7 @@
 import React, {
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   useCallback,
@@ -68,6 +69,8 @@ const CommandPalette = (): JSX.Element | null => {
     isAnyTeamTechnician,
     isObserverPlus,
     isAnyTeamObserverPlus,
+    isGlobalObserver,
+    isTeamObserver,
     isPremiumTier,
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
@@ -96,6 +99,12 @@ const CommandPalette = (): JSX.Element | null => {
   // Observer+ users can run live queries even though they can't write.
   const canRunLiveReport =
     canWrite || !!isObserverPlus || !!isAnyTeamObserverPlus;
+
+  // Used by ReportPicker to decide whether to render the "Observers can
+  // run" affordance on a report — that hint is meant for non-observers
+  // (it advertises which reports they can hand off), so suppress for
+  // observers viewing their own scope.
+  const isViewerObserverInScope = !!isGlobalObserver || !!isTeamObserver;
 
   // Primo Mode is a single-fleet premium installation. The fleet switcher
   // should be hidden, fleet creation disabled, and All-fleets-only commands
@@ -242,56 +251,42 @@ const CommandPalette = (): JSX.Element | null => {
     [page, search, goBack]
   );
 
-  // Intercept dialog close: Escape on a sub-page goes back to root, but
-  // click-outside still closes the palette outright. cmdk 1.1.1's
-  // Command.Dialog does not forward props (e.g., onEscapeKeyDown) to the
-  // underlying Radix Dialog.Content, and onOpenChange alone can't tell us
-  // why the dialog is closing. So we flag Escape via a capture-phase
-  // document listener and consume the flag in handleOpenChange.
+  // Intercept Escape on a sub-page so it returns to root instead of
+  // closing the dialog. cmdk 1.1.1's Command.Dialog doesn't forward
+  // `onEscapeKeyDown` to Radix's Dialog.Content, so we can't override
+  // the close intent via props.
   //
-  // The architecturally cleaner alternative — composing Radix Dialog
-  // primitives directly so we can use `onEscapeKeyDown` — was considered
-  // and rejected: it requires either importing `@radix-ui/react-dialog`
-  // as a transitive dep (fragile if cmdk's pinned version changes) or
-  // promoting it to a direct dependency. Not worth the dep churn for an
-  // already-working defensive pattern.
+  // Approach: a capture-phase document listener that calls
+  // `stopImmediatePropagation` on Escape from a sub-page. This prevents
+  // both Radix's DismissableLayer ESC handler AND any sibling listeners
+  // from firing on this event — the dialog never learns about the press,
+  // so it doesn't close. `useLayoutEffect` is intentional: it attaches
+  // before any `useEffect` in deeper Radix components, guaranteeing
+  // priority in the capture phase regardless of mount order. Click-
+  // outside still closes the palette outright via onOpenChange.
   const pageRef = useRef(page);
   pageRef.current = page;
-  const closeViaEscapeRef = useRef(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) {
       return undefined;
     }
     const onDocKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        closeViaEscapeRef.current = true;
-        // Radix's onOpenChange (if it fires) runs synchronously during
-        // event bubbling; handleOpenChange reads & clears the flag then.
-        // If a child element consumes the Escape (preventDefault /
-        // stopPropagation), Radix never fires onOpenChange and the flag
-        // would leak into the next close (e.g., a later click-outside).
-        // Schedule a microtask to clear it after the synchronous dispatch.
-        queueMicrotask(() => {
-          closeViaEscapeRef.current = false;
-        });
+      if (e.key === "Escape" && pageRef.current !== "root") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        goBack();
       }
     };
     document.addEventListener("keydown", onDocKey, true);
     return () => document.removeEventListener("keydown", onDocKey, true);
-  }, [open]);
+  }, [open, goBack]);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      const viaEscape = closeViaEscapeRef.current;
-      closeViaEscapeRef.current = false;
-      if (!nextOpen && viaEscape && pageRef.current !== "root") {
-        goBack();
-        return;
-      }
       setOpen(nextOpen);
     },
-    [goBack]
+    []
   );
 
   const handleSwitchFleet = useCallback(
@@ -762,7 +757,11 @@ const CommandPalette = (): JSX.Element | null => {
           />
         )}
         {page === "view-host" && (
-          <HostPicker search={search} onSelect={handleSelectHost} />
+          <HostPicker
+            search={search}
+            showTeamColumn={!!isPremiumTier && !isPrimoMode}
+            onSelect={handleSelectHost}
+          />
         )}
         {page === "view-software" && (
           <SoftwarePicker
@@ -783,6 +782,7 @@ const CommandPalette = (): JSX.Element | null => {
           <ReportPicker
             search={search}
             currentTeam={currentTeam}
+            isViewerObserver={isViewerObserverInScope}
             onSelect={handleSelectReport}
           />
         )}
@@ -790,6 +790,7 @@ const CommandPalette = (): JSX.Element | null => {
           <PolicyPicker
             search={search}
             currentTeam={currentTeam}
+            isPremiumTier={!!isPremiumTier}
             onSelect={handleSelectPolicy}
           />
         )}
