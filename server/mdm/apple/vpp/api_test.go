@@ -594,100 +594,158 @@ func TestDoRetry(t *testing.T) {
 	})
 }
 
-func TestCreateUsers(t *testing.T) {
-	t.Run("rejects empty request", func(t *testing.T) {
-		_, err := CreateUsers("token", nil)
+func TestRegisterUser(t *testing.T) {
+	t.Run("rejects empty client user id or managed apple id", func(t *testing.T) {
+		_, err := RegisterUser("tok", "", "user@example.com")
 		require.Error(t, err)
 
-		_, err = CreateUsers("token", &CreateUsersRequest{})
+		_, err = RegisterUser("tok", "uuid-1", "")
 		require.Error(t, err)
 	})
 
-	t.Run("success path returns event id and users", func(t *testing.T) {
+	t.Run("success returns apple userId synchronously", func(t *testing.T) {
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, http.MethodPost, r.Method)
-			assert.Equal(t, "/users/create", r.URL.Path)
-			assert.Equal(t, "Bearer valid_token", r.Header.Get("Authorization"))
+			assert.Equal(t, "/registerVPPUserSrv", r.URL.Path)
+			// v1 carries the token in the body, not the Authorization header.
+			assert.Empty(t, r.Header.Get("Authorization"))
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 			body, err := io.ReadAll(r.Body)
 			assert.NoError(t, err)
 
-			var got CreateUsersRequest
+			var got struct {
+				SToken            string `json:"sToken"`
+				ClientUserIDStr   string `json:"clientUserIdStr"`
+				ManagedAppleIDStr string `json:"managedAppleIDStr"`
+			}
 			assert.NoError(t, json.Unmarshal(body, &got))
-			assert.Equal(t, []CreateUsersUser{
-				{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"},
-				{ClientUserId: "uuid-2", ManagedAppleId: "user2@example.com"},
-			}, got.Users)
+			assert.Equal(t, "valid_token", got.SToken)
+			assert.Equal(t, "uuid-1", got.ClientUserIDStr)
+			assert.Equal(t, "user1@example.com", got.ManagedAppleIDStr)
 
 			_, _ = w.Write([]byte(`{
-				"eventId": "evt-123",
-				"users": [
-					{"userId":"apple-1","clientUserId":"uuid-1","managedAppleId":"user1@example.com","status":"Registered"},
-					{"userId":"apple-2","clientUserId":"uuid-2","managedAppleId":"user2@example.com","status":"Registered"}
-				]
+				"status": 0,
+				"user": {
+					"userId": 12345,
+					"status": "Registered",
+					"clientUserIdStr": "uuid-1",
+					"managedAppleIDStr": "user1@example.com"
+				}
 			}`))
 		})
 
-		resp, err := CreateUsers("valid_token", &CreateUsersRequest{
-			Users: []CreateUsersUser{
-				{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"},
-				{ClientUserId: "uuid-2", ManagedAppleId: "user2@example.com"},
-			},
-		})
+		appleUserID, err := RegisterUser("valid_token", "uuid-1", "user1@example.com")
 		require.NoError(t, err)
-		require.NotNil(t, resp)
-		require.Equal(t, "evt-123", resp.EventID)
-		require.Len(t, resp.Users, 2)
-		require.Equal(t, "apple-1", resp.Users[0].UserId)
-		require.Equal(t, "Registered", resp.Users[0].Status)
-		require.False(t, resp.Users[0].HasError())
-		require.False(t, resp.Users[1].HasError())
+		require.Equal(t, "12345", appleUserID)
 	})
 
-	t.Run("partial failure surfaces per-user error info", func(t *testing.T) {
+	t.Run("apple application error surfaces as ErrorResponse", func(t *testing.T) {
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			// v1 application errors come back as HTTP 200 with status=-1.
 			_, _ = w.Write([]byte(`{
-				"eventId": "evt-456",
-				"users": [
-					{"userId":"apple-1","clientUserId":"uuid-1","managedAppleId":"user1@example.com","status":"Registered"},
-					{"clientUserId":"uuid-2","managedAppleId":"user2@example.com","errorMessage":"Managed Apple ID not found","errorNumber":9637}
-				]
+				"status": -1,
+				"errorNumber": 9637,
+				"errorMessage": "Managed Apple ID not found"
 			}`))
 		})
 
-		resp, err := CreateUsers("valid_token", &CreateUsersRequest{
-			Users: []CreateUsersUser{
-				{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"},
-				{ClientUserId: "uuid-2", ManagedAppleId: "user2@example.com"},
-			},
-		})
-		require.NoError(t, err)
-		require.NotNil(t, resp)
-		require.Equal(t, "evt-456", resp.EventID)
-		require.Len(t, resp.Users, 2)
+		_, err := RegisterUser("valid_token", "uuid-1", "missing@example.com")
+		require.Error(t, err)
 
-		require.False(t, resp.Users[0].HasError())
-		require.Equal(t, "apple-1", resp.Users[0].UserId)
-
-		require.True(t, resp.Users[1].HasError())
-		require.Equal(t, "uuid-2", resp.Users[1].ClientUserId)
-		require.Equal(t, "Managed Apple ID not found", resp.Users[1].ErrorMessage)
-		require.EqualValues(t, 9637, resp.Users[1].ErrorNumber)
-		require.Empty(t, resp.Users[1].UserId)
+		var appleErr *ErrorResponse
+		require.ErrorAs(t, err, &appleErr)
+		require.EqualValues(t, 9637, appleErr.ErrorNumber)
+		require.Equal(t, "Managed Apple ID not found", appleErr.ErrorMessage)
 	})
 
-	t.Run("apple-level error from /users/create", func(t *testing.T) {
+	t.Run("apple transport-level error surfaces as ErrorResponse", func(t *testing.T) {
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`{"errorInfo":{},"errorMessage":"Bad Request","errorNumber":400}`))
+			_, _ = w.Write([]byte(`{"errorMessage":"Bad Request","errorNumber":400}`))
 		})
 
-		resp, err := CreateUsers("valid_token", &CreateUsersRequest{
-			Users: []CreateUsersUser{{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"}},
-		})
+		_, err := RegisterUser("valid_token", "uuid-1", "user1@example.com")
 		require.Error(t, err)
-		require.Nil(t, resp)
+		require.Contains(t, err.Error(), "error number: 400")
+	})
+
+	t.Run("success without user object is treated as error", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"status": 0}`))
+		})
+
+		_, err := RegisterUser("valid_token", "uuid-1", "user1@example.com")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no user record")
+	})
+}
+
+func TestGetUserByManagedAppleID(t *testing.T) {
+	t.Run("rejects empty managed apple id", func(t *testing.T) {
+		_, err := GetUserByManagedAppleID(t.Context(), "tok", "")
+		require.Error(t, err)
+	})
+
+	t.Run("returns the single non-retired user", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, http.MethodGet, r.Method)
+			assert.Equal(t, "/users", r.URL.Path)
+			assert.Equal(t, "user@example.com", r.URL.Query().Get("managedAppleId"))
+			assert.Equal(t, "Bearer tok", r.Header.Get("Authorization"))
+			_, _ = w.Write([]byte(`{"users":[{"clientUserId":"uuid-1","idHash":"hash-1","status":"Associated"}]}`))
+		})
+
+		got, err := GetUserByManagedAppleID(t.Context(), "tok", "user@example.com")
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.Equal(t, "uuid-1", got.ClientUserID)
+		require.Equal(t, VPPUserStatusAssociated, got.Status)
+	})
+
+	t.Run("returns nil when Apple has no users", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"users":[]}`))
+		})
+
+		got, err := GetUserByManagedAppleID(t.Context(), "tok", "missing@example.com")
+		require.NoError(t, err)
+		require.Nil(t, got)
+	})
+
+	t.Run("skips Retired entries", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"users":[{"clientUserId":"old","status":"Retired"}]}`))
+		})
+
+		got, err := GetUserByManagedAppleID(t.Context(), "tok", "user@example.com")
+		require.NoError(t, err)
+		require.Nil(t, got, "Retired-only response must be treated as 'no user' so caller re-registers")
+	})
+
+	t.Run("Registered user is recoverable too", func(t *testing.T) {
+		// A user who's been invited but hasn't accepted yet (status=Registered)
+		// is still a valid record — Fleet should sync to that clientUserId
+		// rather than try to mint a duplicate.
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"users":[{"clientUserId":"pending-uuid","status":"Registered"}]}`))
+		})
+
+		got, err := GetUserByManagedAppleID(t.Context(), "tok", "user@example.com")
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.Equal(t, "pending-uuid", got.ClientUserID)
+		require.Equal(t, VPPUserStatusRegistered, got.Status)
+	})
+
+	t.Run("surfaces Apple application error", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"errorMessage":"Bad Request","errorNumber":400}`))
+		})
+
+		_, err := GetUserByManagedAppleID(t.Context(), "tok", "user@example.com")
+		require.Error(t, err)
 		require.Contains(t, err.Error(), "error number: 400")
 	})
 }
@@ -737,6 +795,88 @@ func TestIsMaxDevicesPerUserError(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.expected, IsMaxDevicesPerUserError(tt.err))
+		})
+	}
+}
+
+func TestIsUnknownClientUserError(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "non-VPP error",
+			err:      errors.New("network down"),
+			expected: false,
+		},
+		{
+			name:     "candidate code 9605",
+			err:      &ErrorResponse{ErrorMessage: "User not found", ErrorNumber: 9605},
+			expected: true,
+		},
+		{
+			// Production-observed signature from #31138 retry test on
+			// 2026-05-22 — pinning the exact code/message so a regression
+			// here flips the self-heal off and we'd notice in CI.
+			name:     "confirmed production signature 9609 / Unable to find the registered user.",
+			err:      &ErrorResponse{ErrorMessage: "Unable to find the registered user.", ErrorNumber: 9609},
+			expected: true,
+		},
+		{
+			name:     "9609 substring fallback when code drifts",
+			err:      &ErrorResponse{ErrorMessage: "Unable to find the registered user for this license.", ErrorNumber: 0},
+			expected: true,
+		},
+		{
+			name:     "candidate code 9612",
+			err:      &ErrorResponse{ErrorMessage: "Client user not found", ErrorNumber: 9612},
+			expected: true,
+		},
+		{
+			name:     "candidate code 9627",
+			err:      &ErrorResponse{ErrorMessage: "Unknown user id", ErrorNumber: 9627},
+			expected: true,
+		},
+		{
+			name:     "matched by case-insensitive 'client user not found' message",
+			err:      &ErrorResponse{ErrorMessage: "Client User Not Found in organization.", ErrorNumber: 99999},
+			expected: true,
+		},
+		{
+			name:     "matched by 'client user' + 'unknown' phrasing",
+			err:      &ErrorResponse{ErrorMessage: "Unknown client user supplied.", ErrorNumber: 0},
+			expected: true,
+		},
+		{
+			name:     "matched by 'user not found' phrasing",
+			err:      &ErrorResponse{ErrorMessage: "User not found.", ErrorNumber: 0},
+			expected: true,
+		},
+		{
+			name:     "unrelated VPP error 9610",
+			err:      &ErrorResponse{ErrorMessage: "Cannot establish a connection.", ErrorNumber: 9610},
+			expected: false,
+		},
+		{
+			name:     "max-devices error must NOT match unknown-user",
+			err:      &ErrorResponse{ErrorMessage: "User has reached the maximum number of devices.", ErrorNumber: 9622},
+			expected: false,
+		},
+		{
+			name:     "wrapped via fmt.Errorf %w still detected",
+			err:      fmt.Errorf("calling vpp: %w", &ErrorResponse{ErrorMessage: "Client user not found", ErrorNumber: 9612}),
+			expected: true,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, IsUnknownClientUserError(tt.err))
 		})
 	}
 }
