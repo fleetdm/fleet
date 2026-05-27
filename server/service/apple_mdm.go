@@ -6228,7 +6228,7 @@ func RenewSCEPCertificates(
 		if len(filteredAssocs) > 0 {
 			profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 				appConfig.OrgInfo.OrgName,
-				appConfig.MDMUrl(),
+				appConfig.MDMUrl()+"/fake-url",
 				scepChallenge,
 				mdmPushCertTopic,
 			)

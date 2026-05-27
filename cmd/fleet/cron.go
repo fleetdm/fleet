@@ -1204,7 +1204,6 @@ func newAppleMDMWorkerSchedule(
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	vppInstaller fleet.AppleMDMVPPInstaller,
 	newActivityFn fleet.NewActivityFunc,
-	certProfilesLimit int,
 ) (*schedule.Schedule, error) {
 	const (
 		name             = string(fleet.CronAppleMDMWorker)
@@ -1223,7 +1222,6 @@ func newAppleMDMWorkerSchedule(
 		BootstrapPackageStore: bootstrapPackageStore,
 		VPPInstaller:          vppInstaller,
 		NewActivityFn:         newActivityFn,
-		CertProfilesLimit:     certProfilesLimit,
 	}
 
 	w.Register(appleMDM)

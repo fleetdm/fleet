@@ -53,7 +53,6 @@ type AppleMDM struct {
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 	VPPInstaller          fleet.AppleMDMVPPInstaller
 	NewActivityFn         fleet.NewActivityFunc
-	CertProfilesLimit     int
 }
 
 // Name returns the name of the job.
@@ -768,7 +767,7 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID string) ([]string, error) {
 	a.Log.InfoContext(ctx, "installing profiles post-enrollment", "host_uuid", hostUUID)
 
-	cmdUUIDs, err := apple_mdm.ReconcileProfilesForEnrollingHost(ctx, a.Datastore, a.Commander, a.Log, hostUUID, a.CertProfilesLimit)
+	cmdUUIDs, err := apple_mdm.ReconcileProfilesForEnrollingHost(ctx, a.Datastore, a.Commander, a.Log, hostUUID, 0)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reconcile apple profiles for enrolling host")
 	}
