@@ -845,9 +845,19 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 		}
 
 		if len(matchingCmds) == 0 {
-			if len(commandIDsBeingResent) == 0 {
+			// Suppress the warning when the only CmdRefs in the message are Fleet-internal commands that are
+			// intentionally absent from windows_mdm_commands (e.g. the DevDetail/SMBIOSSerialNumber Get used for
+			// unlinked-enrollment linkage). Without this filter, an unlinked Windows enrollment with no other pending
+			// commands warns on every session until linkage completes.
+			externalCmdRefs := make([]string, 0, len(enrichedSyncML.CmdRefUUIDs))
+			for _, u := range enrichedSyncML.CmdRefUUIDs {
+				if !fleet.IsFleetInternalCmdID(u) {
+					externalCmdRefs = append(externalCmdRefs, u)
+				}
+			}
+			if len(commandIDsBeingResent) == 0 && len(externalCmdRefs) > 0 {
 				// Only log if not resending commands as we then can expect no matching commands
-				ds.logger.WarnContext(ctx, "unmatched Windows MDM commands", "uuids", strings.Join(enrichedSyncML.CmdRefUUIDs, ","), "mdm_device_id",
+				ds.logger.WarnContext(ctx, "unmatched Windows MDM commands", "uuids", strings.Join(externalCmdRefs, ","), "mdm_device_id",
 					enrolledDevice.MDMDeviceID)
 			}
 			return nil

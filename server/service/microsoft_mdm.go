@@ -1917,8 +1917,15 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	// mdm_windows_enrollments.host_uuid in one SyncML round-trip instead of waiting for osquery's distributed-read
 	// cycle (~10s) to backfill via directIngestMDMDeviceIDWindows. The Get is idempotent and reinjected each session
 	// until linkage succeeds; osquery direct-ingest remains as a backstop for hosts that never reply to DevDetail.
+	//
+	// The Get uses a stable fleet-internal CmdID instead of a fresh UUID so that MDMWindowsSaveResponse can recognize
+	// and skip it when checking for "unmatched Windows MDM commands". The Get is never inserted into windows_mdm_commands
+	// (it's purely a protocol-level linkage probe), so without that filter the device's Status/Results reply would log
+	// a warning on every session for unlinked enrollments.
 	if enrolledDevice.HostUUID == "" {
-		responseCmds = append(responseCmds, newSyncMLCmdGet(devDetailSMBIOSSerialNumberURI))
+		get := newSyncMLCmdGet(devDetailSMBIOSSerialNumberURI)
+		get.CmdID = mdm_types.CmdID{Value: fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"}
+		responseCmds = append(responseCmds, get)
 	}
 
 	return responseCmds, nil

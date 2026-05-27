@@ -3233,6 +3233,18 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, hasGetForDevDetailSerial(cmds), "expected a Get for SMBIOSSerialNumber on an unlinked enrollment")
 		assert.False(t, ds.WindowsHostLiteByHardwareSerialFuncInvoked, "no Results present yet, so no host lookup expected")
+		// The injected Get must use a stable fleet-internal CmdID so MDMWindowsSaveResponse can suppress the
+		// "unmatched Windows MDM commands" warning when the device replies on the next session.
+		var foundInternalCmdID bool
+		for _, c := range cmds {
+			if c.XMLName.Local == fleet.CmdGet && len(c.Items) > 0 && c.Items[0].Target != nil &&
+				*c.Items[0].Target == devDetailSMBIOSSerialNumberURI {
+				assert.True(t, fleet.IsFleetInternalCmdID(c.CmdID.Value),
+					"CmdID %q must use the fleet-internal sentinel prefix", c.CmdID.Value)
+				foundInternalCmdID = true
+			}
+		}
+		assert.True(t, foundInternalCmdID, "expected to find the DevDetail Get among response commands")
 	})
 
 	t.Run("already-linked enrollment: no Get and no host lookup", func(t *testing.T) {
