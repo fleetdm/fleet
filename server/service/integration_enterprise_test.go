@@ -23807,8 +23807,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
 		require.Equal(t, fleet.SetupExperienceStatusRunning, getDeviceStatusResponse.Results.Software[1].Status)
 
-		// Modify the vim installer, which should cause the setup experience item to fail.
-		// update should succeed
+		// Modify the vim installer. The in-flight setup experience install for vim must not be cancelled.
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 			SelfService:       new(true),
 			InstallScript:     ptr.String("some updated install script"),
@@ -23832,7 +23831,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.Equal(t, fleet.SetupExperienceStatusFailure, getDeviceStatusResponse.Results.Software[1].Status)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, getDeviceStatusResponse.Results.Software[1].Status)
 
 		// Get execution ID for vim
 		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
@@ -23846,15 +23845,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.NotEmpty(t, executionIDs["vim"])
 		require.NotEmpty(t, executionIDs["test.tar.gz"])
 
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledInstallSoftware{}.ActivityName(), fmt.Sprintf(`{
-			"host_id": %d,
-			"host_display_name": %q,
-			"software_title": %q,
-			"software_title_id": %d,
-			"from_setup_experience": true
-		}`, ubuntuHost.ID, ubuntuHost.DisplayName(), "vim", debVimTitleID), 0)
-
-		// Record a result for test.tar.gz.
+		// Record a result for vim. The setup experience should pick up the result and mark vim as success.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 			fmt.Sprintf(`{
 					"orbit_node_key": %q,
@@ -23863,12 +23854,10 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 					"install_script_output": "ok"
 				}`,
 				*ubuntuHost.OrbitNodeKey,
-				executionIDs["test.tar.gz"],
+				executionIDs["vim"],
 			),
 		), http.StatusNoContent)
 
-		// Get status of the "Setup experience" for the Ubuntu host.
-		// Editing the software causes the queued setup experience installation to be marked as failure.
 		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
 		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
 			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
@@ -23882,7 +23871,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.Equal(t, fleet.SetupExperienceStatusFailure, getDeviceStatusResponse.Results.Software[1].Status)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, getDeviceStatusResponse.Results.Software[1].Status)
 	})
 
 	// Transfer the Ubuntu host to "No team".
