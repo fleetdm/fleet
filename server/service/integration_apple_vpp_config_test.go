@@ -629,6 +629,39 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			}
 		}
 		require.True(t, found, "a failed installed_app_store_app activity must be in the feed")
+
+		// Regression: the per-team/per-app status summary (vpp.go
+		// GetSummaryHostVPPAppInstalls) and the host software list
+		// status=failed_install filter (software_installers.go
+		// vppHostSoftwareInstallJoin) must both count Fleet-side pre-flight
+		// failures. Before the SQL fix, the WHERE `ncr.id IS NOT NULL …`
+		// clause dropped these rows entirely (no nano_command_results is
+		// written when no MDM command is enqueued), so the install row
+		// existed in host_vpp_software_installs with verification_failed_at
+		// set but was invisible to both surfaces.
+		var titleSummary getSoftwareTitleResponse
+		s.DoJSON("GET",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID),
+			&getSoftwareTitleRequest{ID: titleID, TeamID: &team.ID},
+			http.StatusOK, &titleSummary, "fleet_id", fmt.Sprint(team.ID))
+		require.NotNil(t, titleSummary.SoftwareTitle.AppStoreApp)
+		require.NotNil(t, titleSummary.SoftwareTitle.AppStoreApp.Status)
+		require.GreaterOrEqual(t, int(titleSummary.SoftwareTitle.AppStoreApp.Status.Failed), 1,
+			"per-team/per-app failed-install summary must count the pre-flight failure")
+
+		var hostSw getHostSoftwareResponse
+		s.DoJSON("GET",
+			fmt.Sprintf("/api/latest/fleet/hosts/%d/software", iosHost.ID),
+			nil, http.StatusOK, &hostSw, "status", "failed_install")
+		var foundInList bool
+		for _, sw := range hostSw.Software {
+			if sw.ID == titleID {
+				foundInList = true
+				break
+			}
+		}
+		require.True(t, foundInList,
+			"host software list filtered by status=failed_install must include the pre-flight-failed title")
 	})
 
 	t.Run("self-service install carries Configuration with $FLEET_VAR_HOST_UUID resolved", func(t *testing.T) {
@@ -830,7 +863,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 				cancelHost.ID, adamMulti)
 		})
 		// Sanity: this install was the one that reserved a seat.
-		require.NotEqual(t, "", row.AssociatedEventID, "test setup: this install should have reserved a license")
+		require.NotEmpty(t, row.AssociatedEventID, "test setup: this install should have reserved a license")
 		commandUUID := row.CommandUUID
 
 		// Cancel the upcoming activity (DELETE /hosts/{id}/activities/upcoming/{activity_id}).

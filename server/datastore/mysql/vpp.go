@@ -257,7 +257,13 @@ past AS (
 		hvsi2.id IS NULL
 		AND hvsi.adam_id = :adam_id
 		AND hvsi.platform = :platform
-		AND (ncr.id IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+		-- Allow rows with no nano_command_results — Android VPP never produces
+		-- one, and Fleet-side pre-flight failures (e.g. unresolvable
+		-- managed-config Fleet variable on iOS/iPadOS) record only the install
+		-- row with verification_failed_at set, no MDM command. The CASE above
+		-- maps verification_failed_at IS NOT NULL to failed ahead of the ncr
+		-- branches.
+		AND (ncr.id IS NOT NULL OR hvsi.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
 		AND hvsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 		AND hvsi.removed = 0

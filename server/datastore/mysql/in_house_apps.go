@@ -459,7 +459,12 @@ past AS (
 	FROM
 		host_in_house_software_installs hihsi
 		JOIN hosts h ON host_id = h.id
-		JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hihsi.command_uuid
+		-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable
+		-- managed-config Fleet variable) survive — those never enqueue an MDM
+		-- command, so no ncr row exists. The CASE above maps
+		-- verification_failed_at IS NOT NULL to failed before any ncr.status
+		-- branch is evaluated.
+		LEFT JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hihsi.command_uuid
 		LEFT JOIN host_in_house_software_installs hihsi2
 			ON hihsi.host_id = hihsi2.host_id AND
 				 hihsi.in_house_app_id = hihsi2.in_house_app_id AND

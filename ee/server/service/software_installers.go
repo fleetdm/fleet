@@ -1470,6 +1470,12 @@ var fleetVarInErrRe = regexp.MustCompile(`\$FLEET_VAR_[A-Z_]+`)
 // typed per-variable detail (same wording configuration-profile delivery uses)
 // and falls back to a generic sentence that names the variable.
 func unresolvableAppConfigFailureReason(err error) string {
+	// All current call sites gate on errors.Is(err, …ErrUnresolvableAppConfigVar)
+	// before invoking, so err is non-nil in practice. Defensive nil-guard so
+	// nilaway can prove this and to keep the helper safe if reused.
+	if err == nil {
+		return ""
+	}
 	var typed *apple_mdm.UnresolvableAppConfigVarError
 	if errors.As(err, &typed) && typed.Detail != "" {
 		return typed.Detail
@@ -1733,6 +1739,12 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 				if err != nil {
 					return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s after vpp client user recovery", vppApp.AdamID)
 				}
+				// Same as the first-attempt success branch above: remember the
+				// reservation so the cleanup block below can release the seat
+				// if InsertHostVPPSoftwareInstall later fails. Without this
+				// the recovered seat leaks (no host_vpp_software_installs row
+				// for cancel-path release to find either).
+				assocReq = req
 			} else {
 				return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 			}
