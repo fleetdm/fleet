@@ -83,12 +83,41 @@
       min-height: 0;
       margin-bottom: 24px;
     }
-    [purpose='quote'] {
+    [purpose='quote-container'] {
+      position: relative;
+      max-height: 180px;
+      overflow: hidden;
       margin-bottom: 24px;
+      &.overflowing {
+        margin-bottom: 8px;
+      }
+      &.overflowing::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 80px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.00) -2.2%, #FFF 87.37%);
+        pointer-events: none;
+      }
+      &.expanded {
+        max-height: none;
+      }
+    }
+    [purpose='quote'] {
+      margin-bottom: 0;
       color: #515774;
       font-size: 14px;
       font-weight: 400;
       line-height: 150%;
+    }
+    [purpose='show-full-quote-link'] {
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      display: inline-block;
     }
     [purpose='quote-author-info'] {
       [purpose='job-title'] {
@@ -109,8 +138,11 @@
       }
     }
     [purpose='video-link'] {
+      color: @core-fleet-black-75;
       cursor: pointer;
-      color: @core-vibrant-blue;
+      text-decoration: underline;
+      text-underline-offset: 4px;
+      text-decoration-color: #C5C7D1;
     }
     height: fit-content;
     max-width: 360px;

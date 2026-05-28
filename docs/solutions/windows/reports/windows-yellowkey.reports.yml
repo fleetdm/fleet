@@ -1,0 +1,25 @@
+- name: Windows YellowKey BitLocker bypass exposure
+  automations_enabled: false
+  description: |
+    Per-host YellowKey (CVE-2026-45585) verdict from the windows_yellowkey
+    osquery extension. The extension derives `state` on the host; this
+    report surfaces it.
+
+    state:
+      not_affected         Windows 10 or unrecognised SKU
+      mitigated            autofstx stripped (BootExecMitigated marker set)
+      mitigated_winre_off  WinRE disabled
+      bitlocker_off        no protected BitLocker volume
+      exposed              affected OS + BitLocker on + no mitigation
+
+    A host returns rows only once the extension is loaded. Hosts pending
+    the extension show up as failing the windows-yellowkey-extension
+    policy, which installs it.
+  discard_data: false
+  interval: 86400
+  logging: snapshot
+  observer_can_run: true
+  platform: windows
+  query: |
+    SELECT state, state_reason, needs_action, winre_enabled, tpm_only, mitigated
+    FROM windows_yellowkey;
