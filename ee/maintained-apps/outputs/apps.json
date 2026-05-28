@@ -415,6 +415,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "Canva",
+      "slug": "canva/windows",
+      "platform": "windows",
+      "unique_identifier": "Canva",
+      "description": "Canva is a popular online graphic design tool."
+    },
+    {
       "name": "Cavalry",
       "slug": "cavalry/darwin",
       "platform": "darwin",
