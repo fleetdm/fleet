@@ -1304,7 +1304,7 @@ func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx s
 INSERT INTO
 	host_vpp_software_installs
 (host_id, adam_id, platform, command_uuid,
-	user_id, associated_event_id, self_service, policy_id)
+	user_id, associated_event_id, self_service, policy_id, policy_run_id)
 SELECT
 	ua.host_id,
 	vaua.adam_id,
@@ -1313,7 +1313,8 @@ SELECT
 	ua.user_id,
 	ua.payload->>'$.associated_event_id',
 	COALESCE(ua.payload->'$.self_service', 0),
-	vaua.policy_id
+	vaua.policy_id,
+	vaua.policy_run_id
 FROM
 	upcoming_activities ua
 	INNER JOIN vpp_app_upcoming_activities vaua

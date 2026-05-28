@@ -1159,9 +1159,9 @@ VALUES
 
 		insertVAUAStmt = `
 INSERT INTO vpp_app_upcoming_activities
-	(upcoming_activity_id, adam_id, platform, policy_id)
+	(upcoming_activity_id, adam_id, platform, policy_id, policy_run_id)
 VALUES
-	(?, ?, ?, ?)`
+	(?, ?, ?, ?, ?)`
 
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
 	)
@@ -1204,6 +1204,7 @@ VALUES
 			appID.AdamID,
 			appID.Platform,
 			opts.PolicyID,
+			opts.PolicyRunID,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")

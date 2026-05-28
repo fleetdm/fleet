@@ -128,6 +128,30 @@ func Up_20260525130443(tx *sql.Tx) error {
 		return fmt.Errorf("add policy_run_id to software_install_upcoming_activities: %w", err)
 	}
 
+	// VPP install paths get the same treatment as software_installs: stamp
+	// policy_run_id on both the upcoming activity row and the final result row
+	// so the policy status page can attribute a VPP install outcome to the
+	// originating run.
+	if _, err := tx.Exec(`
+	ALTER TABLE host_vpp_software_installs
+		ADD COLUMN policy_run_id BIGINT UNSIGNED NULL DEFAULT NULL,
+		ADD KEY idx_host_vpp_software_installs_policy_run (policy_run_id),
+		ADD CONSTRAINT fk_host_vpp_software_installs_policy_run
+			FOREIGN KEY (policy_run_id) REFERENCES host_policy_runs (id) ON DELETE SET NULL
+	`); err != nil {
+		return fmt.Errorf("add policy_run_id to host_vpp_software_installs: %w", err)
+	}
+
+	if _, err := tx.Exec(`
+	ALTER TABLE vpp_app_upcoming_activities
+		ADD COLUMN policy_run_id BIGINT UNSIGNED NULL DEFAULT NULL,
+		ADD KEY idx_vpp_app_upcoming_activities_policy_run (policy_run_id),
+		ADD CONSTRAINT fk_vpp_app_upcoming_activities_policy_run
+			FOREIGN KEY (policy_run_id) REFERENCES host_policy_runs (id) ON DELETE SET NULL
+	`); err != nil {
+		return fmt.Errorf("add policy_run_id to vpp_app_upcoming_activities: %w", err)
+	}
+
 	return nil
 }
 

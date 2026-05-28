@@ -1238,7 +1238,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
 			// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
 			// host details.
-			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults, newFailingSet); err != nil {
+			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults, newFailingSet, failingPolicyRunIDs); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
@@ -2141,6 +2141,7 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	hostPlatform string,
 	incomingPolicyResults map[uint]*bool,
 	newFailingSet map[uint]struct{},
+	failingPolicyRunIDs map[uint]uint,
 ) error {
 	var policyTeamID uint
 	if hostTeamID == nil {
@@ -2234,9 +2235,18 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
+		// Stamp the policy_run_id from the centralized write done at the top
+		// of SubmitDistributedQueryResults so the VPP install row carries the
+		// originating run linkage all the way to host_vpp_software_installs.
+		var policyRunID *uint
+		if id, ok := failingPolicyRunIDs[policyID]; ok {
+			policyRunID = &id
+		}
+
 		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, fleet.HostSoftwareInstallOptions{
 			SelfService: false,
 			PolicyID:    &policyID,
+			PolicyRunID: policyRunID,
 		})
 		if err != nil {
 			logger.ErrorContext(ctx, "failed to get install VPP app",
