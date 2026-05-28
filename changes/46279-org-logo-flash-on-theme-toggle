@@ -1,0 +1,1 @@
+* Fixed a brief flash where the default Fleet logo rendered oversized in the nav bar when toggling dark/light mode if a logo was uploaded for only one mode.
