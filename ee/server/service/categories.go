@@ -19,6 +19,11 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID uint) ([]
 }
 
 func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
+	if name == "" {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewInvalidArgumentError("name", "is required")
+	}
+
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareCategory{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -30,6 +35,11 @@ func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID uint, name s
 }
 
 func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
+	if name == "" {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewInvalidArgumentError("name", "is required")
+	}
+
 	// we need to get the category first to find its fleet id for authorization
 	category, err := svc.ds.SoftwareCategory(ctx, id)
 	if err != nil {

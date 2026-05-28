@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -13,7 +12,7 @@ import (
 //////////////////////////////////////////////////////////////////////////////
 
 type getSelfServiceCategoriesRequest struct {
-	FleetID *uint `query:"fleet_id"`
+	FleetID uint `query:"fleet_id"`
 }
 
 type getSelfServiceCategoriesResponse struct {
@@ -25,7 +24,7 @@ func (r getSelfServiceCategoriesResponse) Error() error { return r.Err }
 
 func getSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSelfServiceCategoriesRequest)
-	categories, err := svc.ListSoftwareCategories(ctx, ptr.ValOrZero(req.FleetID))
+	categories, err := svc.ListSoftwareCategories(ctx, req.FleetID)
 	if err != nil {
 		return getSelfServiceCategoriesResponse{Err: err}, nil
 	}
@@ -45,7 +44,7 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, _ uint) ([]*flee
 //////////////////////////////////////////////////////////////////////////////
 
 type addSelfServiceCategoriesRequest struct {
-	FleetID *uint  `json:"fleet_id"`
+	FleetID uint   `json:"fleet_id"`
 	Name    string `json:"name"`
 }
 
@@ -58,7 +57,7 @@ func (r addSelfServiceCategoriesResponse) Error() error { return r.Err }
 
 func addSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addSelfServiceCategoriesRequest)
-	category, err := svc.NewSoftwareCategory(ctx, ptr.ValOrZero(req.FleetID), req.Name)
+	category, err := svc.NewSoftwareCategory(ctx, req.FleetID, req.Name)
 	if err != nil {
 		return addSelfServiceCategoriesResponse{Err: err}, nil
 	}

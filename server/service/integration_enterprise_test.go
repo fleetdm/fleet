@@ -31678,32 +31678,75 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithEUAToken() {
 	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dms[0].Source)
 }
 
-// TODO: temporary smoke test — endpoints are no-ops until the service/datastore
-// layer is implemented. Replace with full assertions once that work lands.
-func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesEndpointsSmoke() {
-	// GET — list categories for a fleet.
-	var listResp getSelfServiceCategoriesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/self_service_categories", nil, http.StatusOK, &listResp, "fleet_id", "0")
+func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
+	t := s.T()
 
-	// POST — add a category.
+	// POST — create a category on the "Unassigned" (fleet_id=0) scope.
 	var addResp addSelfServiceCategoriesResponse
-	addReq := map[string]any{"fleet_id": 0, "name": "🌎 Browsers"}
-	s.DoJSON("POST", "/api/latest/fleet/software/self_service_categories", addReq, http.StatusOK, &addResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/self_service_categories",
+		map[string]any{"fleet_id": 0, "name": "🌎 Browsers"},
+		http.StatusOK, &addResp)
+	require.NotNil(t, addResp.SelfServiceCategory)
+	require.NotZero(t, addResp.SelfServiceCategory.ID)
+	require.Equal(t, "🌎 Browsers", addResp.SelfServiceCategory.Name)
+	require.Equal(t, uint(0), addResp.SelfServiceCategory.TeamID)
+	catID := addResp.SelfServiceCategory.ID
 
-	// PATCH — rename a category. Datastore stub reports not-found until
-	// implemented, so we expect 404.
-	patchReq := map[string]any{"name": "🌐 Browsers"}
-	s.Do("PATCH", "/api/latest/fleet/software/self_service_categories/1", patchReq, http.StatusNotFound)
+	// GET — list should include the newly created category.
+	var listResp getSelfServiceCategoriesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/self_service_categories",
+		nil, http.StatusOK, &listResp, "fleet_id", "0")
+	var found *fleet.SoftwareCategory
+	for _, c := range listResp.SelfServiceCategories {
+		if c.ID == catID {
+			found = c
+			break
+		}
+	}
+	require.NotNil(t, found, "newly added category should appear in the list")
+	require.Equal(t, "🌎 Browsers", found.Name)
 
-	// DELETE — same not-found expectation as PATCH.
-	s.Do("DELETE", "/api/latest/fleet/software/self_service_categories/1", nil, http.StatusNotFound)
+	// PATCH — rename the category.
+	var patchResp patchSelfServiceCategoriesResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", catID),
+		map[string]any{"name": "🌐 Browsers"},
+		http.StatusOK, &patchResp)
+	require.NotNil(t, patchResp.SelfServiceCategory)
+	require.Equal(t, catID, patchResp.SelfServiceCategory.ID)
+	require.Equal(t, "🌐 Browsers", patchResp.SelfServiceCategory.Name)
+
+	// DELETE — remove the category.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", catID),
+		nil, http.StatusNoContent)
+
+	// DELETE again — now 404.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", catID),
+		nil, http.StatusNotFound)
+
+	// Missing-input edge cases.
+
+	// POST without name → 422.
+	s.Do("POST", "/api/latest/fleet/software/self_service_categories",
+		map[string]any{"fleet_id": 0}, http.StatusUnprocessableEntity)
+
+	// POST without fleet_id silently treats it as 0 (Unassigned) — by design.
+	var addNoFleetResp addSelfServiceCategoriesResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/self_service_categories",
+		map[string]any{"name": "no-fleet-id"}, http.StatusOK, &addNoFleetResp)
+	require.NotNil(t, addNoFleetResp.SelfServiceCategory)
+	require.Equal(t, uint(0), addNoFleetResp.SelfServiceCategory.TeamID)
+
+	// GET without fleet_id → 400 from the required query-param parser.
+	s.Do("GET", "/api/latest/fleet/software/self_service_categories", nil, http.StatusBadRequest)
+
+	// PATCH without name → 422.
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", addNoFleetResp.SelfServiceCategory.ID),
+		map[string]any{}, http.StatusUnprocessableEntity)
 
 	// Verify augmenting fleet.SoftwareCategory (added TeamID + timestamps + JSON
 	// tags) hasn't changed the shape of existing endpoints that surface
 	// categories — they should still emit `categories: [strings]`, not objects.
-	t := s.T()
 	ctx := t.Context()
-
 	cat1, err := s.ds.NewSoftwareCategory(ctx, 0, "smoke-test-cat-1")
 	require.NoError(t, err)
 	cat2, err := s.ds.NewSoftwareCategory(ctx, 0, "smoke-test-cat-2")
