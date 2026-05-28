@@ -31690,8 +31690,10 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	require.Equal(t, "🌎 Browsers", addResp.SelfServiceCategory.Name)
 	require.Equal(t, uint(0), addResp.SelfServiceCategory.TeamID)
 	catID := addResp.SelfServiceCategory.ID
+	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
+		`{"self_service_category_name":"🌎 Browsers","fleet_id":0,"fleet_name":""}`, 0)
 
-	// list includes new category
+	// list returns sorted by name and includes new category
 	var listResp getSelfServiceCategoriesResponse
 	s.DoJSON("GET", path, nil, http.StatusOK, &listResp, "fleet_id", "0")
 	names := make([]string, 0, len(listResp.SelfServiceCategories))
@@ -31699,15 +31701,20 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 		names = append(names, c.Name)
 	}
 	require.Contains(t, names, "🌎 Browsers")
+	require.True(t, sort.StringsAreSorted(names), "list should be sorted by name, got %v", names)
 
 	// rename
 	var patchResp patchSelfServiceCategoriesResponse
 	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "🌐 Browsers"}, http.StatusOK, &patchResp)
 	require.Equal(t, catID, patchResp.SelfServiceCategory.ID)
 	require.Equal(t, "🌐 Browsers", patchResp.SelfServiceCategory.Name)
+	s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(),
+		`{"self_service_category_name":"🌐 Browsers","fleet_id":0,"fleet_name":""}`, 0)
 
 	// delete then 404 on repeat
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNoContent)
+	s.lastActivityMatches(fleet.ActivityTypeDeletedSelfServiceCategory{}.ActivityName(),
+		`{"self_service_category_name":"🌐 Browsers","fleet_id":0,"fleet_name":""}`, 0)
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNotFound)
 
 	// patch unknown id returns 404
@@ -31727,17 +31734,20 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	// patch without name returns 422
 	s.Do("PATCH", fmt.Sprintf("%s/%d", path, noFleet.SelfServiceCategory.ID), map[string]any{}, http.StatusUnprocessableEntity)
 
-	// duplicate name within a fleet is rejected case-insensitively
+	// long name returns 422
+	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": strings.Repeat("a", 256)}, http.StatusUnprocessableEntity)
+
+	// case-insensitive dup returns 409
 	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "UniqueCat"}, http.StatusOK, &addResp)
 	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": "uniquecat"}, http.StatusConflict)
 
-	// patch into an existing name returns 409
+	// rename into existing name returns 409
 	var another addSelfServiceCategoriesResponse
 	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "AnotherCat"}, http.StatusOK, &another)
 	s.Do("PATCH", fmt.Sprintf("%s/%d", path, another.SelfServiceCategory.ID),
 		map[string]any{"name": "UniqueCat"}, http.StatusConflict)
 
-	// same name is allowed across different fleets
+	// duplicate across fleets allowed
 	var teamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "SelfServiceCategoryCrossFleet"}, http.StatusOK, &teamResp)
 	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), teamResp.Team.ID)) })
@@ -31746,16 +31756,22 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "CrossFleet"}, http.StatusOK, &cf0)
 	s.DoJSON("POST", path, map[string]any{"fleet_id": teamResp.Team.ID, "name": "CrossFleet"}, http.StatusOK, &cf1)
 	require.NotEqual(t, cf0.SelfServiceCategory.ID, cf1.SelfServiceCategory.ID)
+	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
+		fmt.Sprintf(`{"self_service_category_name":"CrossFleet","fleet_id":%d,"fleet_name":%q}`, teamResp.Team.ID, teamResp.Team.Name), 0)
 
-	// list scoped to the new fleet returns only its own category
+	// list scoped to the new fleet returns its seeded defaults plus the added category
 	s.DoJSON("GET", path, nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(teamResp.Team.ID))
-	require.Len(t, listResp.SelfServiceCategories, 1)
-	require.Equal(t, "CrossFleet", listResp.SelfServiceCategories[0].Name)
+	require.Len(t, listResp.SelfServiceCategories, len(fleet.DefaultSelfServiceCategoryNames)+1)
+	newFleetNames := make([]string, 0, len(listResp.SelfServiceCategories))
+	for _, c := range listResp.SelfServiceCategories {
+		newFleetNames = append(newFleetNames, c.Name)
+	}
+	require.ElementsMatch(t, append(fleet.DefaultSelfServiceCategoryNames, "CrossFleet"), newFleetNames)
 
 	// unknown fleet_id returns 404
 	s.Do("POST", path, map[string]any{"fleet_id": 9999999, "name": "ghost"}, http.StatusNotFound)
 
-	// existing endpoints still expose categories as strings
+	// categories still surface as strings on existing endpoints
 	cat1, err := s.ds.NewSoftwareCategory(ctx, 0, "smoke-test-cat-1")
 	require.NoError(t, err)
 	cat2, err := s.ds.NewSoftwareCategory(ctx, 0, "smoke-test-cat-2")
@@ -31781,9 +31797,20 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "team_id", "0")
 	require.ElementsMatch(t, []string{cat1.Name, cat2.Name}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
 
-	// deleting a category removes it from the linked title
+	// deleting a category cascades the link
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, cat1.ID), nil, http.StatusNoContent)
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "team_id", "0")
 	require.ElementsMatch(t, []string{cat2.Name}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
+
+	// deleting a team cascades to its categories
+	var deletableResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "SelfServiceCategoryDeleteScope"}, http.StatusOK, &deletableResp)
+	seeded, err := s.ds.ListSoftwareCategories(ctx, deletableResp.Team.ID)
+	require.NoError(t, err)
+	require.Len(t, seeded, len(fleet.DefaultSelfServiceCategoryNames))
+	require.NoError(t, s.ds.DeleteTeam(ctx, deletableResp.Team.ID))
+	leftover, err := s.ds.ListSoftwareCategories(ctx, deletableResp.Team.ID)
+	require.NoError(t, err)
+	require.Empty(t, leftover, "categories should be cleaned up when a team is deleted")
 }

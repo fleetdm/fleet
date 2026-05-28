@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -50,6 +51,18 @@ func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID uint, name s
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new software category")
 	}
+
+	fleetName, err := svc.fleetNameForActivity(ctx, category.TeamID)
+	if err != nil {
+		return nil, err
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeAddedSelfServiceCategory{
+		SelfServiceCategoryName: category.Name,
+		FleetID:                 category.TeamID,
+		FleetName:               fleetName,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity for added self-service category")
+	}
 	return category, nil
 }
 
@@ -78,6 +91,18 @@ func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name st
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "update software category")
 	}
+
+	fleetName, err := svc.fleetNameForActivity(ctx, updated.TeamID)
+	if err != nil {
+		return nil, err
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedSelfServiceCategory{
+		SelfServiceCategoryName: updated.Name,
+		FleetID:                 updated.TeamID,
+		FleetName:               fleetName,
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity for edited self-service category")
+	}
 	return updated, nil
 }
 
@@ -100,5 +125,30 @@ func (svc *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 	if err := svc.ds.DeleteSoftwareCategory(ctx, id); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete software category")
 	}
+
+	fleetName, err := svc.fleetNameForActivity(ctx, category.TeamID)
+	if err != nil {
+		return err
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedSelfServiceCategory{
+		SelfServiceCategoryName: category.Name,
+		FleetID:                 category.TeamID,
+		FleetName:               fleetName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for deleted self-service category")
+	}
 	return nil
+}
+
+// fleetNameForActivity returns the team's name for use in a category activity.
+// fleet_id=0 ("Unassigned") has no associated team, so an empty string is returned.
+func (svc *Service) fleetNameForActivity(ctx context.Context, teamID uint) (string, error) {
+	if teamID == 0 {
+		return "", nil
+	}
+	tm, err := svc.ds.TeamLite(ctx, teamID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "fetching fleet name for category activity")
+	}
+	return tm.Name, nil
 }

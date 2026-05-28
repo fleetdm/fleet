@@ -132,6 +132,14 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		return nil, err
 	}
 
+	// Seed the default self-service categories on every new fleet. Admins
+	// can rename or delete them after the fact.
+	for _, name := range fleet.DefaultSelfServiceCategoryNames {
+		if _, err := svc.ds.NewSoftwareCategory(ctx, team.ID, name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "seeding default self-service categories")
+		}
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),

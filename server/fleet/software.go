@@ -864,3 +864,15 @@ type SoftwareCategory struct {
 func (c *SoftwareCategory) AuthzType() string {
 	return "software_category"
 }
+
+// DefaultSelfServiceCategoryNames is the set of self-service categories
+// seeded onto every new fleet at creation. Admins can rename or delete them
+// after the fact.
+var DefaultSelfServiceCategoryNames = []string{
+	"🌎 Browsers",
+	"👬 Communication",
+	"🧰 Developer tools",
+	"💻 Productivity",
+	"🔐 Security",
+	"🛟 Support",
+}
