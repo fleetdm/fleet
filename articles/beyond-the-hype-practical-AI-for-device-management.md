@@ -14,7 +14,8 @@ If you're leading an IT or corporate engineering team and wondering how to move 
 As device management complexity grows, IT and platform teams are rethinking how they work, not just what tools they use. Join Allen Houchins (Fleet), Harley Williams (Senior Systems Engineer), and Mike Meyer (Senior Manager of Corporate Engineering) from Foursquare for a practical look at how consolidating tooling, adopting GitOps, and integrating AI have changed the way their teams operate. You'll walk away with real-world lessons on what worked, what didn't, and how these shifts are reshaping the future of device management engineering.
 
 
-<meta name="articleTitle" value="Beyond the hype, practical AI for device management"> 
+<meta name="articleTitle" value="Beyond the hype, practical AI for device management">
+<meta name="articleImageUrl" value="../website/assets/images/articles/webinar-beyond-the-hype-ai-device-management-800x450@2x.png">
 
 <meta name="authorFullName" value="n/a">
 <meta name="authorGitHubUsername" value="fleet-release">
