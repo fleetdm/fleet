@@ -1,4 +1,5 @@
 - calendar_events_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy
   name: Team Policy
@@ -12,6 +13,7 @@
   conditional_access_bypass_enabled: true
   webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team patch policy
   name: Team patch policy
@@ -25,6 +27,7 @@
   webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy with VPP app automation
   install_software:

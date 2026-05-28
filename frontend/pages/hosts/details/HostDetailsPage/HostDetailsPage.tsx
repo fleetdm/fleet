@@ -16,7 +16,7 @@ import activitiesAPI, {
 } from "services/entities/activities";
 import hostAPI, {
   IGetHostCertificatesResponse,
-  IGetHostCertsRequestParams,
+  IGetHostCertsApiParams,
 } from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import commandAPI from "services/entities/command";
@@ -353,7 +353,7 @@ const HostDetailsPage = ({
     IGetHostCertificatesResponse,
     Error,
     IGetHostCertificatesResponse,
-    Array<IGetHostCertsRequestParams & { scope: "host-certificates" }>
+    Array<IGetHostCertsApiParams & { scope: "host-certificates" }>
   >(
     [
       {
@@ -797,7 +797,12 @@ const HostDetailsPage = ({
   };
 
   const onShowActivityDetails = useCallback(
-    ({ type, details }: IShowActivityDetailsData) => {
+    ({
+      type,
+      details,
+      actor_full_name,
+      fleet_initiated,
+    }: IShowActivityDetailsData) => {
       switch (type) {
         case "ran_script":
           setScriptExecutiontId(details?.script_execution_id || "");
@@ -813,6 +818,10 @@ const HostDetailsPage = ({
                 details.software_display_name
               ),
               commandUuid: details?.command_uuid,
+              failureReason: details?.failure_reason,
+              actorFullName: actor_full_name,
+              fleetInitiated: fleet_initiated,
+              selfService: details?.self_service,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
             setScriptPackageDetails({
@@ -861,6 +870,10 @@ const HostDetailsPage = ({
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
             platform: details?.host_platform || host?.platform,
+            failureReason: details?.failure_reason,
+            actorFullName: actor_full_name,
+            fleetInitiated: fleet_initiated,
+            selfService: details?.self_service,
           });
           break;
         case "installed_certificate":
@@ -1074,8 +1087,11 @@ const HostDetailsPage = ({
     if (!host) return;
     try {
       const { device_url } = await hostAPI.getDeviceURL(host.id);
-      // window.open returns null when the browser blocks the popup, so an
-      // explicit check is needed — the promise will not reject.
+      // TODO: this sometimes flashes the "please allow pop-ups" error even when
+      // the popup successfully opens — `window.open` is returning null in cases
+      // where the new tab actually appears. Investigate (likely the async gap
+      // between the click and window.open is treated as non-user-initiated by
+      // some browsers, or the returned WindowProxy is filtered by noopener).
       const opened = window.open(device_url, "_blank", "noopener,noreferrer");
       if (!opened) {
         renderFlash(

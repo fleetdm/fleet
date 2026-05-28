@@ -336,8 +336,11 @@ type OsqueryCommandLineFlagsMacOS struct {
 	DisableEndpointsecurityFim bool   `json:"disable_endpointsecurity_fim"`
 	EnableKeyboardEvents       bool   `json:"enable_keyboard_events"`
 	EnableMouseEvents          bool   `json:"enable_mouse_events"`
+	EsFimEnableOpenEvents      bool   `json:"es_fim_enable_open_events"`
 	EsFimMutePathLiteral       string `json:"es_fim_mute_path_literal"`
 	EsFimMutePathPrefix        string `json:"es_fim_mute_path_prefix"`
+	KeychainAccessCache        bool   `json:"keychain_access_cache"`
+	KeychainAccessInterval     uint32 `json:"keychain_access_interval"`
 }
 
 // those osquery flags are not OS-specific, but are also not visible using

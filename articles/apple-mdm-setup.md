@@ -210,7 +210,7 @@ If a host is restarted/shut down during macOS Setup Assistant, it will fail to e
 
 Fleet surfaces AB (formerly Apple Business Manager) automatic enrollment profile assignment by retrieving assignment errors and timestamps for each host. While Fleet does not actively monitor push events, admins can view assignment and push timestamps in host details. If a device shows an assignment time but no push time, admins can infer the push did not occur and may need to restart the device or run `sudo profiles renew -type enrollment` for remediation. Error details and timestamps are available for targeted troubleshooting. Customers may need to contact Apple support if an online host never has a push time. 
 
-![Fleet-AB-workflow](https://github.com/fleetdm/fleet/blob/main/website/assets/images/articles/abm-assignment-workflow.jpg)
+![Fleet-AB-workflow](https://fleetdm.com/images/articles/abm-assignment-workflow.jpg)
 
 To view an AB issue:
 

@@ -190,6 +190,8 @@ On every run, we pull the list of added/modified/deleted devices and:
     1. Assign the corresponding JSON profile to each host using ABM's APIs.
 2. If the host was deleted, we soft delete the `host_dep_assignments` entry 
 
+Read [resetting Apple DEP sync cursor](./troubleshooting/resetting-apple-dep-sync-cursor.md) for how to reset the sync cursor.
+
 #### Special case: host in ABM is deleted in Fleet
 
 If an IT admin deletes a host in the UI/API, and we have a non-deleted entry in `host_dep_assignments` for the host, we immediately create a new host entry as if the device was just ingested from the ABM sync.

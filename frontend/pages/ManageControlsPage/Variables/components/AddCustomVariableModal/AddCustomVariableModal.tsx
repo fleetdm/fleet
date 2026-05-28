@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { IVariablePayload } from "interfaces/variables";
+import { IVariableFormData } from "interfaces/variables";
 import { hasStatusKey } from "interfaces/errors";
 import variablesAPI from "services/entities/variables";
 import { NotificationContext } from "context/notification";
@@ -59,7 +59,7 @@ const AddCustomVariableModal = ({
     const validation = validateFormData({ name, value }, true);
     if (validation.isValid) {
       setIsSaving(true);
-      const newVariable: IVariablePayload = {
+      const newVariable: IVariableFormData = {
         name: variableName,
         value: variableValue,
       };

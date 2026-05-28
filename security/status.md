@@ -5,6 +5,30 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2026-42306](https://nvd.nist.gov/vuln/detail/CVE-2026-42306)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-26 15:38:17
+
+### [CVE-2026-41568](https://nvd.nist.gov/vuln/detail/CVE-2026-41568)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-26 15:38:17
+
+### [CVE-2026-41567](https://nvd.nist.gov/vuln/detail/CVE-2026-41567)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-26 15:38:17
+
 ### [CVE-2026-40200](https://nvd.nist.gov/vuln/detail/CVE-2026-40200)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -20,6 +44,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleet`,`pkg:golang/go.opentelemetry.io/otel/sdk`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-04-27 15:03:59
+
+### [CVE-2026-33997](https://nvd.nist.gov/vuln/detail/CVE-2026-33997)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** github.com/docker/docker is only imported in test/upgrade/fleet_test.go and is never compiled into the fleet binary.
+- **Products:** `fleet`,`pkg:golang/github.com/docker/docker`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-26 15:38:16
 
 ### [CVE-2026-33487](https://nvd.nist.gov/vuln/detail/CVE-2026-33487)
 - **Author:** @lucasmrod
@@ -268,6 +300,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-23 16:44:57
 
+### [CVE-2026-7598](https://nvd.nist.gov/vuln/detail/CVE-2026-7598)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** libssh2 is not used in fleetdm/fleetctl; go binary runs as entrypoint and does not use libssh2.
+- **Products:** `fleetctl`,`pkg:deb/debian/libssh2-1t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:35:00
+
+### [CVE-2026-42010](https://nvd.nist.gov/vuln/detail/CVE-2026-42010)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** gnutls is not used in fleetdm/fleetctl (go binary uses Go's TLS).
+- **Products:** `fleetctl`,`pkg:deb/debian/libgnutls30t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:35:00
+
 ### [CVE-2026-40962](https://nvd.nist.gov/vuln/detail/CVE-2026-40962)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -346,6 +394,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-03-13 12:33:34
 
+### [CVE-2026-26062](https://nvd.nist.gov/vuln/detail/CVE-2026-26062)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** This is a vulnerability in Fleet, not fleetctl.
+- **Products:** `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:30:00
+
 ### [CVE-2026-26061](https://nvd.nist.gov/vuln/detail/CVE-2026-26061)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -362,6 +418,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-03-23 19:12:15
 
+### [CVE-2026-24899](https://nvd.nist.gov/vuln/detail/CVE-2026-24899)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** This is a vulnerability in Fleet, not fleetctl.
+- **Products:** `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:30:00
+
 ### [CVE-2026-24515](https://nvd.nist.gov/vuln/detail/CVE-2026-24515)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -369,6 +433,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:deb/debian/libexpat1`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-01-03 15:15:53
+
+### [CVE-2026-23998](https://nvd.nist.gov/vuln/detail/CVE-2026-23998)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** This is a vulnerability in Fleet, not fleetctl.
+- **Products:** `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-19 10:30:00
 
 ### [CVE-2026-23517](https://nvd.nist.gov/vuln/detail/CVE-2026-23517)
 - **Author:** @lucasmrod
@@ -595,6 +667,30 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-04-20 11:42:37
 
+### [CVE-2026-42011](https://nvd.nist.gov/vuln/detail/CVE-2026-42011)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use gnutls when using fleetdm/wix (go binary uses Go's TLS).
+- **Products:** `wix`,`pkg:deb/debian/libgnutls30t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-20 10:30:00
+
+### [CVE-2026-42010](https://nvd.nist.gov/vuln/detail/CVE-2026-42010)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use gnutls when using fleetdm/wix (go binary uses Go's TLS).
+- **Products:** `wix`,`pkg:deb/debian/libgnutls30t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-20 10:30:00
+
+### [CVE-2026-42009](https://nvd.nist.gov/vuln/detail/CVE-2026-42009)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use gnutls when using fleetdm/wix (go binary uses Go's TLS).
+- **Products:** `wix`,`pkg:deb/debian/libgnutls30t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-20 10:30:00
+
 ### [CVE-2026-41254](https://nvd.nist.gov/vuln/detail/CVE-2026-41254)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -626,6 +722,38 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libexif12`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:16:53
+
+### [CVE-2026-40356](https://nvd.nist.gov/vuln/detail/CVE-2026-40356)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers.
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-26 10:42:11
+
+### [CVE-2026-3833](https://nvd.nist.gov/vuln/detail/CVE-2026-3833)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use gnutls when using fleetdm/wix (go binary uses Go's TLS).
+- **Products:** `wix`,`pkg:deb/debian/libgnutls30t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-20 10:30:00
+
+### [CVE-2026-33846](https://nvd.nist.gov/vuln/detail/CVE-2026-33846)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use gnutls when using fleetdm/wix (go binary uses Go's TLS).
+- **Products:** `wix`,`pkg:deb/debian/libgnutls30t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-20 10:30:00
+
+### [CVE-2026-33845](https://nvd.nist.gov/vuln/detail/CVE-2026-33845)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use gnutls when using fleetdm/wix (go binary uses Go's TLS).
+- **Products:** `wix`,`pkg:deb/debian/libgnutls30t64`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-05-20 10:30:00
 
 ### [CVE-2026-33636](https://nvd.nist.gov/vuln/detail/CVE-2026-33636)
 - **Author:** @lucasmrod

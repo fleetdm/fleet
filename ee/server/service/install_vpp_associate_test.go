@@ -36,29 +36,37 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		body []byte
 	}
 
+	// handleRegisterUserV1 emulates Apple's synchronous v1 registerVPPUserSrv
+	// endpoint — the token is in the request body, not the Authorization header.
+	handleRegisterUserV1 := func(t *testing.T, w http.ResponseWriter, r *http.Request) {
+		t.Helper()
+		var body struct {
+			SToken            string `json:"sToken"`
+			ClientUserIDStr   string `json:"clientUserIdStr"`
+			ManagedAppleIDStr string `json:"managedAppleIDStr"`
+		}
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.Equal(t, bearerToken, body.SToken)
+		_, _ = fmt.Fprintf(w, `{"status":0,"user":{"userId":12345,"status":"Registered","clientUserIdStr":%q,"managedAppleIDStr":%q}}`,
+			body.ClientUserIDStr, body.ManagedAppleIDStr)
+	}
+
 	// Common mock-server setup. Captures the AssociateAssets body so the test
 	// can assert on the wire payload.
 	setupServer := func(t *testing.T, capt *captured) {
 		t.Helper()
 		setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "Bearer "+bearerToken, r.Header.Get("Authorization"))
 			switch {
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assignments"):
+				assert.Equal(t, "Bearer "+bearerToken, r.Header.Get("Authorization"))
 				_, _ = w.Write([]byte(`{"assignments": []}`))
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
+				assert.Equal(t, "Bearer "+bearerToken, r.Header.Get("Authorization"))
 				_, _ = fmt.Fprintf(w, `{"assets":[{"adamId":%q,"pricingParam":"STDQ","availableCount":5}]}`, adamID)
-			case r.Method == http.MethodPost && r.URL.Path == "/users/create":
-				body := struct {
-					Users []struct {
-						ClientUserId   string `json:"clientUserId"`
-						ManagedAppleId string `json:"managedAppleId"`
-					} `json:"users"`
-				}{}
-				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-				assert.Len(t, body.Users, 1)
-				_, _ = fmt.Fprintf(w, `{"eventId":"evt","users":[{"userId":"apple-1","clientUserId":%q,"managedAppleId":%q,"status":"Registered"}]}`,
-					body.Users[0].ClientUserId, body.Users[0].ManagedAppleId)
+			case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":
+				handleRegisterUserV1(t, w, r)
 			case r.Method == http.MethodPost && r.URL.Path == "/assets/associate":
+				assert.Equal(t, "Bearer "+bearerToken, r.Header.Get("Authorization"))
 				b, err := io.ReadAll(r.Body)
 				assert.NoError(t, err)
 				capt.body = b
@@ -92,6 +100,11 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		}
 		ds.InsertHostVPPSoftwareInstallFunc = func(_ context.Context, _ uint, _ fleet.VPPAppID, _ string, _ string, _ fleet.HostSoftwareInstallOptions) error {
 			return nil
+		}
+		// No managed app configuration → the pre-flight substitution check is a
+		// no-op and this test exercises the license-assignment routing only.
+		ds.GetVPPAppConfigurationFunc = func(_ context.Context, _ fleet.InstallableDevicePlatform, _ string, _ uint) ([]byte, error) {
+			return nil, &notFoundError{}
 		}
 		return ds
 	}
@@ -157,16 +170,8 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 				_, _ = w.Write([]byte(`{"assignments": []}`))
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
 				_, _ = fmt.Fprintf(w, `{"assets":[{"adamId":%q,"pricingParam":"STDQ","availableCount":5}]}`, adamID)
-			case r.Method == http.MethodPost && r.URL.Path == "/users/create":
-				body := struct {
-					Users []struct {
-						ClientUserId   string `json:"clientUserId"`
-						ManagedAppleId string `json:"managedAppleId"`
-					} `json:"users"`
-				}{}
-				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-				_, _ = fmt.Fprintf(w, `{"eventId":"evt","users":[{"userId":"apple-1","clientUserId":%q,"managedAppleId":%q,"status":"Registered"}]}`,
-					body.Users[0].ClientUserId, body.Users[0].ManagedAppleId)
+			case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":
+				handleRegisterUserV1(t, w, r)
 			case r.Method == http.MethodPost && r.URL.Path == "/assets/associate":
 				_, _ = w.Write([]byte(`{"eventId":"associate-evt"}`))
 			default:
@@ -193,16 +198,8 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 				_, _ = fmt.Fprintf(w, `{"assignments":[{"adamId":%q,"pricingParam":"STDQ"}]}`, adamID)
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
 				t.Errorf("/assets must not be queried when assignments already exist")
-			case r.Method == http.MethodPost && r.URL.Path == "/users/create":
-				body := struct {
-					Users []struct {
-						ClientUserId   string `json:"clientUserId"`
-						ManagedAppleId string `json:"managedAppleId"`
-					} `json:"users"`
-				}{}
-				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-				_, _ = fmt.Fprintf(w, `{"eventId":"evt","users":[{"userId":"apple-1","clientUserId":%q,"managedAppleId":%q,"status":"Registered"}]}`,
-					body.Users[0].ClientUserId, body.Users[0].ManagedAppleId)
+			case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":
+				handleRegisterUserV1(t, w, r)
 			case r.Method == http.MethodPost && r.URL.Path == "/assets/associate":
 				associateCalls++
 				_, _ = w.Write([]byte(`{"eventId":"associate-evt"}`))
@@ -228,16 +225,8 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 				_, _ = w.Write([]byte(`{"assignments": []}`))
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
 				_, _ = fmt.Fprintf(w, `{"assets":[{"adamId":%q,"pricingParam":"STDQ","availableCount":5}]}`, adamID)
-			case r.Method == http.MethodPost && r.URL.Path == "/users/create":
-				body := struct {
-					Users []struct {
-						ClientUserId   string `json:"clientUserId"`
-						ManagedAppleId string `json:"managedAppleId"`
-					} `json:"users"`
-				}{}
-				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-				_, _ = fmt.Fprintf(w, `{"eventId":"evt","users":[{"userId":"apple-1","clientUserId":%q,"managedAppleId":%q,"status":"Registered"}]}`,
-					body.Users[0].ClientUserId, body.Users[0].ManagedAppleId)
+			case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":
+				handleRegisterUserV1(t, w, r)
 			case r.Method == http.MethodPost && r.URL.Path == "/assets/associate":
 				w.WriteHeader(http.StatusBadRequest)
 				_, _ = w.Write([]byte(`{"errorInfo":{},"errorMessage":"User has reached the maximum number of devices for this license.","errorNumber":9622}`))
@@ -258,6 +247,41 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		// Internal error preserves Apple's raw response for debugging.
 		require.Error(t, bre.InternalErr)
 		require.Contains(t, bre.InternalErr.Error(), "9622")
+	})
+
+	t.Run("personal enrollment surfaces associate error without retry", func(t *testing.T) {
+		// An associate error bubbles up directly — Fleet registers the user
+		// once up front and does not retry or re-register on failure.
+		var (
+			registerCalls  int
+			associateCalls int
+		)
+		setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assignments"):
+				_, _ = w.Write([]byte(`{"assignments": []}`))
+			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
+				_, _ = fmt.Fprintf(w, `{"assets":[{"adamId":%q,"pricingParam":"STDQ","availableCount":5}]}`, adamID)
+			case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":
+				registerCalls++
+				handleRegisterUserV1(t, w, r)
+			case r.Method == http.MethodPost && r.URL.Path == "/assets/associate":
+				associateCalls++
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"errorInfo":{},"errorMessage":"Unable to find the registered user.","errorNumber":9609}`))
+			default:
+				t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			}
+		})
+
+		ds := setupDS(t, true)
+		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "9609")
+		require.Equal(t, 1, registerCalls, "only the initial ensureVPPClientUser register; no retry")
+		require.Equal(t, 1, associateCalls, "associate is attempted exactly once")
 	})
 
 	// Pin the dev_mode override in scope until t.Cleanup runs — referenced by the

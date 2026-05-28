@@ -41,6 +41,41 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 	return p7.Decrypt(cert, key)
 }
 
+// DecryptBase64CMSWithCerts tries each candidate certificate in order and
+// returns the first successful decryption.
+//
+// CMS matches the recipient by issuer + serial number, not by key (see
+// pkcs7.selectRecipientForCertificate). After a CA certificate rollover the
+// renewed cert keeps the same private key but is issued a new serial, so a
+// payload escrowed against a previous CA cert no longer matches the current
+// cert even though the key can still decrypt it. Passing the current and any
+// previous CA certs (all sharing the one private key) lets decryption succeed
+// regardless of which cert was current when the payload was escrowed.
+func DecryptBase64CMSWithCerts(p7Base64 string, key crypto.PrivateKey, certs []*x509.Certificate) ([]byte, error) {
+	if len(certs) == 0 {
+		return nil, errors.New("no certificates provided for decryption")
+	}
+
+	p7Bytes, err := base64.StdEncoding.DecodeString(p7Base64)
+	if err != nil {
+		return nil, err
+	}
+	p7, err := pkcs7.Parse(p7Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	var errs []error
+	for _, cert := range certs {
+		decrypted, err := p7.Decrypt(cert, key)
+		if err == nil {
+			return decrypted, nil
+		}
+		errs = append(errs, err)
+	}
+	return nil, errors.Join(errs...)
+}
+
 func prefixMatches(val []byte, prefix string) bool {
 	return len(val) >= len(prefix) &&
 		bytes.EqualFold([]byte(prefix), val[:len(prefix)])

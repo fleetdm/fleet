@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.122.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Canva' AND publisher = 'Canva Pty Ltd';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Canva' AND publisher = 'Canva Pty Ltd' AND version_compare(version, '1.122.0') < 0);"
+      },
+      "installer_url": "https://desktop-release.canva.com/Canva%20Setup%201.122.0.exe",
+      "install_script_ref": "af334744",
+      "uninstall_script_ref": "58022dd8",
+      "sha256": "fa0dec6c910cfa9944062f649671bb8b8293d79acc4d888578f4bd23e9446c92",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "58022dd8": "$displayName = \"Canva\"\n$publisher   = \"Canva\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and\n    ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n# Kill any running Canva processes before uninstalling.\nStop-Process -Name \"Canva\" -Force -ErrorAction SilentlyContinue\nStart-Sleep -Seconds 2\n\n$uninstallString = $uninstall.UninstallString\n$exePath = \"\"\n\n# Parse the uninstall string. Handle both quoted and unquoted exe paths.\nif ($uninstallString -match '^\"([^\"]+)\"(.*)') {\n    $exePath = $matches[1]\n} elseif ($uninstallString -match '^([^\\s]+)(.*)') {\n    $exePath = $matches[1]\n} else {\n    Write-Host \"Error: Could not parse uninstall string: $uninstallString\"\n    Exit 1\n}\n\n# Prefer the registry InstallLocation; fall back to the uninstaller's parent\n# directory. _?=<installdir> must match $INSTDIR for NSIS to honor it.\n$installDir = if ($uninstall.InstallLocation -and (Test-Path -LiteralPath $uninstall.InstallLocation)) {\n    $uninstall.InstallLocation.TrimEnd('\\')\n} else {\n    (Split-Path -Parent $exePath).TrimEnd('\\')\n}\n\n$argumentList = @(\"/S\", \"_?=$installDir\")\n\nWrite-Host \"Uninstall executable: $exePath\"\nWrite-Host \"Uninstall arguments: $($argumentList -join ' ')\"\n\ntry {\n    $processOptions = @{\n        FilePath     = $exePath\n        ArgumentList = $argumentList\n        NoNewWindow  = $true\n        PassThru     = $true\n        Wait         = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    # NSIS run in-place can't delete its own exe; sweep the leftover folder\n    # so detection sees a clean state.\n    if (Test-Path -LiteralPath $installDir) {\n        Remove-Item -LiteralPath $installDir -Recurse -Force -ErrorAction SilentlyContinue\n    }\n\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "af334744": "# Canva Desktop is an NSIS installer. NSIS uses /S for a silent install.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    $processOptions = @{\n        FilePath     = \"$exeFilePath\"\n        ArgumentList = \"/S\"\n        PassThru     = $true\n        Wait         = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n\n    # electron-builder NSIS often auto-launches the app after a silent install.\n    # Stop it so files aren't left locked for later detection/uninstall.\n    Start-Sleep -Seconds 5\n    Stop-Process -Name \"Canva\" -Force -ErrorAction SilentlyContinue\n\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

@@ -681,7 +681,7 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 	assert.True(t, createResp.User.AdminForcedPasswordReset)
 	u := *createResp.User
 
-	var loginResp loginResponse
+	var loginResp fleet.LoginResponse
 	s.DoJSON("POST", "/api/latest/fleet/login", params, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)
 
@@ -734,8 +734,8 @@ func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 				_, err = s.ds.NewUser(t.Context(), user)
 				require.NoError(t, err)
 
-				var loginResp loginResponse
-				s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{
+				var loginResp fleet.LoginResponse
+				s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{
 					Email:    fmt.Sprintf("%s@example.com", role),
 					Password: test.GoodPassword,
 				}, http.StatusPaymentRequired, &loginResp)
@@ -3829,7 +3829,7 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	c2.MaxBlock = 3
 	require.NoError(t, s.ds.UpdateCarve(ctx, c2))
 
-	var listResp listCarvesResponse
+	var listResp fleet.ListCarvesResponse
 	s.DoJSON("GET", "/api/latest/fleet/carves", nil, http.StatusOK, &listResp, "per_page", "2", "order_key", "id")
 	require.Len(t, listResp.Carves, 2)
 	assert.Equal(t, c1.ID, listResp.Carves[0].ID)
@@ -3854,7 +3854,7 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	require.Len(t, listResp.Carves, 0)
 
 	// get specific carve
-	var getResp getCarveResponse
+	var getResp fleet.GetCarveResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", c2.ID), nil, http.StatusOK, &getResp)
 	require.Equal(t, c2.ID, getResp.Carve.ID)
 	require.True(t, getResp.Carve.Expired)
@@ -3863,7 +3863,7 @@ func (s *integrationTestSuite) TestListGetCarves() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", c3.ID+1), nil, http.StatusNotFound, &getResp)
 
 	// get expired carve block
-	var blkResp getCarveBlockResponse
+	var blkResp fleet.GetCarveBlockResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d/block/%d", c2.ID, 1), nil, http.StatusInternalServerError, &blkResp)
 
 	// get valid carve block, but block not inserted yet
@@ -6437,7 +6437,7 @@ func (s *integrationTestSuite) TestUsers() {
 	assert.True(t, createResp.User.AdminForcedPasswordReset)
 	u := *createResp.User
 
-	var loginResp loginResponse
+	var loginResp fleet.LoginResponse
 
 	// try MFA
 	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
@@ -6449,7 +6449,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login", params, http.StatusBadRequest, &loginResp)
 	// MFA supported; send email
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
-		contract.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
+		fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
 	var mfaToken string
 	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), tx, &mfaToken, `SELECT token FROM verification_tokens WHERE user_id = ? LIMIT 1`, createResp.User.ID)
@@ -6461,7 +6461,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// send another email, which we'll expire the token for
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
-		contract.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
+		fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(
 			context.Background(),
@@ -6587,13 +6587,13 @@ func (s *integrationTestSuite) TestUsers() {
 	s.token = s.getTestAdminToken()
 
 	// login as that user to verify that the new password is active (userRawPwd was updated to the new pwd)
-	loginResp = loginResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{Email: u.Email, Password: userRawPwd}, http.StatusOK, &loginResp)
+	loginResp = fleet.LoginResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{Email: u.Email, Password: userRawPwd}, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)
 
 	// logout for that user
 	s.token = loginResp.Token
-	var logoutResp logoutResponse
+	var logoutResp fleet.LogoutResponse
 	s.DoJSON("POST", "/api/latest/fleet/logout", nil, http.StatusOK, &logoutResp)
 
 	// logout again, even though not logged in
@@ -6602,8 +6602,8 @@ func (s *integrationTestSuite) TestUsers() {
 	s.token = s.getTestAdminToken()
 
 	// login as that user with previous pwd fails
-	loginResp = loginResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{Email: u.Email, Password: oldUserRawPwd}, http.StatusUnauthorized, &loginResp)
+	loginResp = fleet.LoginResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/login", fleet.LoginRequest{Email: u.Email, Password: oldUserRawPwd}, http.StatusUnauthorized, &loginResp)
 
 	// require a password reset
 	var reqResetResp requirePasswordResetResponse
@@ -9835,7 +9835,7 @@ func (s *integrationTestSuite) TestCarve() {
 
 	// begin a carve with an invalid node key
 	var errRes map[string]interface{}
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey + "zzz",
 		BlockCount: 1,
 		BlockSize:  1,
@@ -9845,7 +9845,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "invalid node key")
 
 	// invalid carve size
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
@@ -9855,7 +9855,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "carve_size must be greater")
 
 	// invalid block size too big
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  maxBlockSize + 1,
@@ -9865,7 +9865,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "block_size exceeds max")
 
 	// invalid carve size too big
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  maxBlockSize,
@@ -9875,7 +9875,7 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "carve_size exceeds max")
 
 	// invalid carve size, does not match blocks
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
@@ -9885,8 +9885,8 @@ func (s *integrationTestSuite) TestCarve() {
 	assert.Contains(t, errRes["error"], "carve_size does not match")
 
 	// valid carve begin
-	var beginResp carveBeginResponse
-	s.DoJSON("POST", "/api/osquery/carve/begin", carveBeginRequest{
+	var beginResp fleet.CarveBeginResponse
+	s.DoJSON("POST", "/api/osquery/carve/begin", fleet.CarveBeginRequest{
 		NodeKey:    *hosts[0].NodeKey,
 		BlockCount: 3,
 		BlockSize:  3,
@@ -9898,8 +9898,8 @@ func (s *integrationTestSuite) TestCarve() {
 	sid := beginResp.SessionId
 
 	// sending a block with invalid session id
-	var blockResp carveBlockResponse
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	var blockResp fleet.CarveBlockResponse
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   1,
 		SessionId: sid + "zz",
 		RequestId: "??",
@@ -9907,7 +9907,7 @@ func (s *integrationTestSuite) TestCarve() {
 	}, http.StatusUnauthorized, &blockResp)
 
 	// sending a block with valid session id but invalid request id
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "??",
@@ -9915,13 +9915,13 @@ func (s *integrationTestSuite) TestCarve() {
 	}, http.StatusUnauthorized, &blockResp)
 
 	checkCarveError := func(id uint, err string) {
-		var getResp getCarveResponse
+		var getResp fleet.GetCarveResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", id), nil, http.StatusOK, &getResp)
 		require.Equal(t, err, *getResp.Carve.Error)
 	}
 
 	// sending a block with unexpected block id (expects 0, got 1)
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9930,7 +9930,7 @@ func (s *integrationTestSuite) TestCarve() {
 	checkCarveError(1, "block_id does not match expected block (0): 1")
 
 	// sending a block with valid payload, block 0
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   0,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9939,8 +9939,8 @@ func (s *integrationTestSuite) TestCarve() {
 	require.True(t, blockResp.Success)
 
 	// sending next block
-	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	blockResp = fleet.CarveBlockResponse{}
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9949,8 +9949,8 @@ func (s *integrationTestSuite) TestCarve() {
 	require.True(t, blockResp.Success)
 
 	// sending already-sent block again
-	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	blockResp = fleet.CarveBlockResponse{}
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   1,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9959,8 +9959,8 @@ func (s *integrationTestSuite) TestCarve() {
 	checkCarveError(1, "block_id does not match expected block (2): 1")
 
 	// sending final block with too many bytes
-	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	blockResp = fleet.CarveBlockResponse{}
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   2,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9969,8 +9969,8 @@ func (s *integrationTestSuite) TestCarve() {
 	checkCarveError(1, "exceeded declared block size 3: 7")
 
 	// sending actual final block
-	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	blockResp = fleet.CarveBlockResponse{}
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   2,
 		SessionId: sid,
 		RequestId: "r1",
@@ -9979,8 +9979,8 @@ func (s *integrationTestSuite) TestCarve() {
 	require.True(t, blockResp.Success)
 
 	// sending unexpected block
-	blockResp = carveBlockResponse{}
-	s.DoJSON("POST", "/api/osquery/carve/block", carveBlockRequest{
+	blockResp = fleet.CarveBlockResponse{}
+	s.DoJSON("POST", "/api/osquery/carve/block", fleet.CarveBlockRequest{
 		BlockId:   3,
 		SessionId: sid,
 		RequestId: "r1",
@@ -10067,7 +10067,7 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 
 	// Login with invalid passwordm, should fail.
 	res := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
-		jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: test.GoodPassword2}),
+		jsonMustMarshal(t, fleet.LoginRequest{Email: u.Email, Password: test.GoodPassword2}),
 		http.StatusUnauthorized,
 	)
 	res.Body.Close()
@@ -10090,7 +10090,7 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 
 	// login with good password, should succeed
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login",
-		jsonMustMarshal(t, contract.LoginRequest{
+		jsonMustMarshal(t, fleet.LoginRequest{
 			Email:    u.Email,
 			Password: test.GoodPassword,
 		}), http.StatusOK,
@@ -10256,12 +10256,12 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	res.Body.Close()
 
 	// login with the old password, should not succeed
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: userRawPwd}),
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, fleet.LoginRequest{Email: u.Email, Password: userRawPwd}),
 		http.StatusUnauthorized)
 	res.Body.Close()
 
 	// login with the new password, should succeed
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: userNewPwd}),
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, fleet.LoginRequest{Email: u.Email, Password: userNewPwd}),
 		http.StatusOK)
 	res.Body.Close()
 }
@@ -10360,8 +10360,8 @@ func (s *integrationTestSuite) TestModifyUser() {
 	}, http.StatusUnprocessableEntity, &modResp)
 
 	// login as the user, with the last password successfully set (to confirm it is the current one)
-	var loginResp loginResponse
-	resp := s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{
+	var loginResp fleet.LoginResponse
+	resp := s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, fleet.LoginRequest{
 		Email:    u.Email, // all email changes made are still pending, never confirmed
 		Password: newRawPwd,
 	}), http.StatusOK)
@@ -15599,6 +15599,12 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 }
 
 func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uint) uint {
+	return createAndroidHostForTest(t, ds, teamID, false)
+}
+
+// createAndroidHostForTest creates an android host. companyOwned=false stores it as BYO
+// (is_personal_enrollment=true); companyOwned=true stores it as COBO.
+func createAndroidHostForTest(t *testing.T, ds *mysql.Datastore, teamID *uint, companyOwned bool) uint {
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			Hostname:                  "android-storage-host",
@@ -15622,7 +15628,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-	ahost, err := ds.NewAndroidHost(context.Background(), host, false)
+	ahost, err := ds.NewAndroidHost(context.Background(), host, companyOwned)
 	require.NoError(t, err)
 	return ahost.Host.ID
 }

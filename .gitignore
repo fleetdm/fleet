@@ -111,6 +111,12 @@ tools/test_extensions/hello_world/linux-arm64
 tools/test_extensions/hello_world/windows
 tools/test_extensions/hello_world/windows-arm64
 
+# typical screencap output dir
+tools/screencap/screenshots
+
+# MDM asset manager build output (binary matches the package dir name)
+tools/mdm/assets/assets
+
 # Residual files when building fleet_tables extension.
 fleet_tables_*.ext
 

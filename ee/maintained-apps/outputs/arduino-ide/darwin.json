@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.3.8",
+      "version": "2.3.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'cc.arduino.IDE2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cc.arduino.IDE2' AND version_compare(bundle_short_version, '2.3.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cc.arduino.IDE2' AND version_compare(bundle_short_version, '2.3.9') < 0);"
       },
-      "installer_url": "https://github.com/arduino/arduino-ide/releases/download/2.3.8/arduino-ide_2.3.8_macOS_ARM64.dmg",
+      "installer_url": "https://github.com/arduino/arduino-ide/releases/download/2.3.9/arduino-ide_2.3.9_macOS_ARM64.dmg",
       "install_script_ref": "b8e694ce",
       "uninstall_script_ref": "7daa5478",
-      "sha256": "8965919943d12dd68ca5ee20947bc2b37dc5aa297c5b30e22a890f84ef72c2ec",
+      "sha256": "88dcbe0360a6d96e811413110fc4c72e66e14e0c2fd93994bc1c82fc90ef3917",
       "default_categories": [
         "Developer tools"
       ]

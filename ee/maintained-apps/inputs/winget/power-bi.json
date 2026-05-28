@@ -1,0 +1,12 @@
+{
+  "name": "Power BI",
+  "slug": "power-bi/windows",
+  "package_identifier": "Microsoft.PowerBI",
+  "unique_identifier": "Microsoft Power BI Desktop (x64)",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/power_bi_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/power_bi_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}
