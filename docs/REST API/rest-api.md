@@ -3040,6 +3040,7 @@ None.
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
 - [Wipe host](#wipe-host)
+- [Clear host passcode](#clear-host-passcode)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
 - [Cancel host's upcoming activity](#cancel-hosts-upcoming-activity)
@@ -4495,6 +4496,10 @@ _Available in Fleet Premium_
 
 Turns off MDM for the specified macOS, iOS, iPadOS, or Android host.
 
+> On personal Android hosts (work profile), Fleet sends a [wipe command](https://developers.google.com/android/management/deprovision-device#wipe_command) via the Android Management API, because the unenroll command is retired if the host is offline for more than 30 days. The wipe is scoped to Fleet's work profile, so managed apps, certificates, and configuration are removed and the user's personal apps, photos, and settings remain intact. The wipe command remains valid for 10 years, so an offline BYO host will unenroll the next time it checks in.
+
+> On company-owned Android hosts, Fleet sends the AMAPI `Delete` device command, which factory-resets the device and removes it from Fleet management. The `Delete` command is only valid for 30 days, so an offline company-owned host that does not check in within that window will not unenroll. If you need a longer queue window, use [Wipe host](#wipe-host) instead, which is valid for 10 years.
+
 `DELETE /api/v1/fleet/hosts/:id/mdm`
 
 #### Parameters
@@ -5347,11 +5352,13 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 _Available in Fleet Premium_
 
-Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host. The host is locked once it comes online.
+Sends a command to lock the specified macOS, iOS, iPadOS, Android, Linux, or Windows host. The host is locked once it comes online.
 
-To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To lock a macOS, iOS, iPadOS, or Android host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
 For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documentation/devicemanagement/enable-lost-mode-command) and sends a [Device Location](https://developer.apple.com/documentation/devicemanagement/device-location-command) MDM command. To see location, use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint.
+
+For Android, Lock is available for both personally-owned (BYOD) and company-owned hosts. On a company-owned host, Lock locks the whole device. On a BYOD host, what Lock locks depends on the end user's device-lock configuration: if the user has a separate work profile lock (a distinct PIN for work apps), Lock locks just the work profile and the device screen stays usable; if the user has a unified lock (the same PIN for device and work profile, which is the common default), Lock locks the whole device screen. The command is queued by Google's Android Management API and remains valid for 10 years, so an offline host will execute the lock the next time it checks in. Fleet does not report a "locked" state for Android. Google's API does not deliver an unlock notification, since the end user unlocks the device locally with their PIN. The host shows a "Lock pending" badge while the command is in flight and returns to its baseline state after the device acknowledges the lock. Android does not support remote Unlock.
 
 `POST /api/v1/fleet/hosts/:id/lock`
 
@@ -5416,9 +5423,13 @@ To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a W
 
 ### Wipe host
 
-Sends a command to wipe the specified macOS, iOS, iPadOS, Windows, or Linux host. The host is wiped once it comes online.
+Sends a command to wipe the specified macOS, iOS, iPadOS, Android, Linux, or Windows host. The host is wiped once it comes online.
 
-To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To lock a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To wipe a macOS, iOS, iPadOS, Android, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). To wipe an Android host, the host must be enrolled as a fully managed (company-owned) device.
+
+Wipe is **not** supported for personally-owned (BYOD) Android hosts. Calling this endpoint for a BYOD Android host returns a `400` with the message `Wipe is not supported for personally-owned Android hosts`. To remove Fleet's work profile from a BYOD Android host, use the [Turn off host's MDM](#turn-off-hosts-mdm) endpoint, which sends a work-profile-only wipe under the hood and leaves the user's personal apps and data intact.
+
+For Android, the wipe command is queued by Google's Android Management API and remains valid for 10 years, so an offline host will execute the wipe the next time it checks in.
 
 `POST /api/v1/fleet/hosts/:id/wipe`
 
@@ -5811,11 +5822,15 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `Status: 200` 
 
-## Clear iOS/iPadOS host passcode
+## Clear host passcode
 
 _Available in Fleet Premium._
 
-Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sent its unlock token during MDM check-in.
+Remotely clear the passcode on an iOS, iPadOS, or Android host.
+
+For iOS and iPadOS, the host must be ADE-enrolled and must have sent its unlock token during MDM check-in.
+
+For Android, Clear passcode is available for both personally-owned (BYOD) and company-owned hosts with Android MDM turned on. On a BYOD host it clears the work-profile passcode (the device unlock is untouched); on a company-owned host it clears the device passcode. The command is queued by Google's Android Management API and remains valid for 10 years, so an offline host will execute the clear the next time it checks in. The host shows a "Clear passcode pending" badge until the device acknowledges the command.
 
 `POST /api/v1/fleet/hosts/:id/clear_passcode`
 
@@ -5823,7 +5838,7 @@ Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sen
 
 | Name        | Type   | In   | Description                                                                                    |
 | ----------- | ------ | ---- | ---------------------------------------------------------------------------------------------- |
-| id          | number | path | **Required.** The Fleet host ID of the ADE-enrolled iOS/iPadOS host to clear the passcode for. |
+| id          | number | path | **Required.** The Fleet host ID of the iOS, iPadOS, or Android host to clear the passcode for. |
 
 
 #### Example 
@@ -5839,6 +5854,18 @@ Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sen
   "command_uuid": "84F7F777-803E-40BB-8B47-2C0DC8B0118A",
   "request_type": "ClearPasscode",
   "platform": "ios"
+}
+```
+
+##### Android response
+
+`Status: 200`
+
+```json
+{
+  "command_uuid": "8a1b2c3d-4e5f-6789-abcd-ef0123456789",
+  "request_type": "RESET_PASSWORD",
+  "platform": "android"
 }
 ```
 
