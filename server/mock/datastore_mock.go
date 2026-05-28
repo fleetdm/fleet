@@ -33,6 +33,8 @@ type InsertOrReplaceMDMConfigAssetFunc func(ctx context.Context, asset fleet.MDM
 
 type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName, queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
 
+type GetAllMDMConfigAssetsByNameIncludingDeletedFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error)
+
 type GetAllMDMConfigAssetsHashesFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error)
 
 type DeleteMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) error
@@ -1773,6 +1775,10 @@ type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *
 
 type WipeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
+type ClearPasscodeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
+
+type ClearHostMDMActionsFunc func(ctx context.Context, hostID uint) error
+
 type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error)
 
 type SetLockCommandForLostModeCheckinFunc func(ctx context.Context, hostID uint, commandUUID string) error
@@ -2028,6 +2034,9 @@ type DataStore struct {
 
 	GetAllMDMConfigAssetsByNameFunc        GetAllMDMConfigAssetsByNameFunc
 	GetAllMDMConfigAssetsByNameFuncInvoked bool
+
+	GetAllMDMConfigAssetsByNameIncludingDeletedFunc        GetAllMDMConfigAssetsByNameIncludingDeletedFunc
+	GetAllMDMConfigAssetsByNameIncludingDeletedFuncInvoked bool
 
 	GetAllMDMConfigAssetsHashesFunc        GetAllMDMConfigAssetsHashesFunc
 	GetAllMDMConfigAssetsHashesFuncInvoked bool
@@ -4639,6 +4648,12 @@ type DataStore struct {
 	WipeHostViaAndroidMDMFunc        WipeHostViaAndroidMDMFunc
 	WipeHostViaAndroidMDMFuncInvoked bool
 
+	ClearPasscodeHostViaAndroidMDMFunc        ClearPasscodeHostViaAndroidMDMFunc
+	ClearPasscodeHostViaAndroidMDMFuncInvoked bool
+
+	ClearHostMDMActionsFunc        ClearHostMDMActionsFunc
+	ClearHostMDMActionsFuncInvoked bool
+
 	GetLatestAppleMDMCommandOfTypeFunc        GetLatestAppleMDMCommandOfTypeFunc
 	GetLatestAppleMDMCommandOfTypeFuncInvoked bool
 
@@ -5035,6 +5050,13 @@ func (s *DataStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames 
 	s.GetAllMDMConfigAssetsByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAllMDMConfigAssetsByNameFunc(ctx, assetNames, queryerContext)
+}
+
+func (s *DataStore) GetAllMDMConfigAssetsByNameIncludingDeleted(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+	s.mu.Lock()
+	s.GetAllMDMConfigAssetsByNameIncludingDeletedFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllMDMConfigAssetsByNameIncludingDeletedFunc(ctx, assetNames)
 }
 
 func (s *DataStore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
@@ -11125,6 +11147,20 @@ func (s *DataStore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host,
 	s.WipeHostViaAndroidMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.WipeHostViaAndroidMDMFunc(ctx, host, cmd)
+}
+
+func (s *DataStore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.ClearPasscodeHostViaAndroidMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearPasscodeHostViaAndroidMDMFunc(ctx, host, cmd)
+}
+
+func (s *DataStore) ClearHostMDMActions(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.ClearHostMDMActionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearHostMDMActionsFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetLatestAppleMDMCommandOfType(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error) {

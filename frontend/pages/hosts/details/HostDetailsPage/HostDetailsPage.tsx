@@ -37,7 +37,10 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { FLEET_FILEVAULT_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
+import {
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  isAndroidBYO,
+} from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
@@ -1432,7 +1435,7 @@ const HostDetailsPage = ({
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
-              hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
+              hostMdmEnrollmentStatus={host.mdm?.enrollment_status ?? null}
             />
           </div>
           <TabNav className={`${baseClass}__tab-nav`}>
@@ -1721,6 +1724,16 @@ const HostDetailsPage = ({
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
+              onSuccess={() => {
+                // Android BYO unenroll fires an AMAPI WIPE work-profile-only command, which the backend tracks via wipe_ref / device_status="wiping".
+                // Optimistically flip the device state so the "Unenroll pending" badge shows immediately instead of waiting for the next host refetch.
+                if (
+                  isAndroid(host.platform) &&
+                  isAndroidBYO(host.mdm.enrollment_status)
+                ) {
+                  setHostMdmDeviceState("wiping");
+                }
+              }}
             />
           )}
           {showDiskEncryptionModal && host && (
@@ -1870,6 +1883,7 @@ const HostDetailsPage = ({
             <WipeModal
               id={host.id}
               hostName={host.display_name}
+              hostPlatform={host.platform}
               isWindowsHost={isWindowsHost}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
@@ -1934,7 +1948,20 @@ const HostDetailsPage = ({
           />
         )}
         {showClearPasscodeModal && (
-          <ClearPasscodeModal id={host.id} onExit={toggleClearPasscodeModal} />
+          <ClearPasscodeModal
+            id={host.id}
+            hostName={host.display_name}
+            hostPlatform={host.platform}
+            hostMdmEnrollmentStatus={host.mdm.enrollment_status}
+            onExit={toggleClearPasscodeModal}
+            onSuccess={() => {
+              // Android: flip device_status to "clearing_passcode" so the badge appears.
+              // Apple follow up: #46286
+              if (isAndroid(host.platform)) {
+                setHostMdmDeviceState("clearing_passcode");
+              }
+            }}
+          />
         )}
       </>
     );
