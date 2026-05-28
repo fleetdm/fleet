@@ -258,6 +258,10 @@ const HostSoftware = ({
       perPage: queryParams.per_page,
       page: 0, // resets page index
       fleet_id: queryParams.fleet_id,
+      // Preserve an explicit macOS /Applications filter selection across vuln
+      // filter changes. Left undefined when not set so the platform default
+      // continues to apply.
+      macos_applications: queryParams.macos_applications,
       ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
