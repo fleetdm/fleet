@@ -598,6 +598,15 @@ type MDMHostData struct {
 	DeviceStatus  *string `json:"device_status,omitempty" db:"-" csv:"-"`
 	PendingAction *string `json:"pending_action,omitempty" db:"-" csv:"-"`
 
+	// WipeAllowed indicates whether Fleet can issue a wipe to this host right
+	// now. True for all wipe-capable hosts by default. For BYOD Apple hosts it
+	// is false when either the owning fleet's allow_byod_wipe is off OR the
+	// host's currently-delivered MDM AccessRights lack the device-erase bit.
+	// Omitted on endpoints that don't populate it (e.g. list hosts).
+	WipeAllowed *bool `json:"wipe_allowed,omitempty" db:"-" csv:"-"`
+	// LockAllowed: same semantics as WipeAllowed but for the lock command.
+	LockAllowed *bool `json:"lock_allowed,omitempty" db:"-" csv:"-"`
+
 	// ConnectedToFleet indicates if the host has an active MDM connection
 	// with this Fleet instance. This boolean is not filled by all
 	// host-returning methods.
