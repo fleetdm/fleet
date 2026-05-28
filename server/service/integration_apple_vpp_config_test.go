@@ -646,7 +646,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			http.StatusOK, &titleSummary, "fleet_id", fmt.Sprint(team.ID))
 		require.NotNil(t, titleSummary.SoftwareTitle.AppStoreApp)
 		require.NotNil(t, titleSummary.SoftwareTitle.AppStoreApp.Status)
-		require.GreaterOrEqual(t, int(titleSummary.SoftwareTitle.AppStoreApp.Status.Failed), 1,
+		require.GreaterOrEqual(t, titleSummary.SoftwareTitle.AppStoreApp.Status.Failed, uint(1),
 			"per-team/per-app failed-install summary must count the pre-flight failure")
 
 		var hostSw getHostSoftwareResponse
