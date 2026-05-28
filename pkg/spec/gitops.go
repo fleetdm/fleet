@@ -1769,7 +1769,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		if _, ok := fmasBySlug[installSoftwareObj.FleetMaintainedAppSlug]; !ok {
 			errs = append(errs, wrapErr(fmt.Errorf("install_software.fleet_maintained_app_slug %q not found in software.fleet_maintained_apps for team %s", installSoftwareObj.FleetMaintainedAppSlug, *teamName)))
 		}
-		policy.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
+		policy.InstallSoftware.Other.FleetMaintainedAppSlug = installSoftwareObj.FleetMaintainedAppSlug
 	}
 
 	return errs

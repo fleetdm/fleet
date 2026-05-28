@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -4368,7 +4370,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	// activities got created as expected
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`
 	{"enrollment_id": null, "host_display_name": %q, "host_serial": %q, "installed_from_dep": false, "platform": %q}`,
-		host1.DisplayName(), "", host1.Platform), 0) // for some reason the serial is force-set to empty string when we create this activity
+		host1.DisplayName(), host1.HardwareSerial, host1.Platform), 0)
 	s.lastActivityOfTypeMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":%q,
 		"command_uuid":%q, "from_auto_update": false, "from_setup_experience": true, "host_display_name":%q, "host_id":%d, "host_platform":%q, "policy_id":null, "policy_name":null, "self_service":false, "software_title":%q,
 		"status":%q}`, app1.AdamID, app1CmdUUID, host1.DisplayName(), host1.ID, host1.Platform, app1.Name, fleet.SoftwareInstallFailed), 0)
@@ -5144,8 +5146,9 @@ func (s *integrationMDMTestSuite) TestLinuxSetupExperienceEnqueueSoftwareInstall
 //
 // The setup-experience VPP install half of the BYOD flow is exercised by
 // unit-level tests (see TestInstallVPPAppPostValidation_AssociateAssetsRouting);
-// reproducing the full Apple /users/create + /assets/associate clientUserId
-// dance in this integration test would need a more complete VPP mock backend.
+// reproducing the full Apple /registerVPPUserSrv + /assets/associate
+// clientUserId dance in this integration test would need a more complete VPP
+// mock backend.
 func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
@@ -5242,4 +5245,405 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 	require.True(t, sawManagedOnly, "InstalledApplicationList for BYOD must set managedOnly=true")
 	require.True(t, sawCertList, "CertificateList must be queued for BYOD iPhone")
 	require.True(t, sawDeviceInfo, "DeviceInformation must be queued for BYOD iPhone")
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
+	tOuter := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(tOuter)
+
+	s.pushProvider.PushFunc = func(_ context.Context, _ []*mdm.Push) (map[string]*push.Response, error) {
+		return map[string]*push.Response{}, nil
+	}
+
+	enrollHostWithSEInstallers := func(t *testing.T, installers []struct {
+		Filename string
+		Title    string
+	}) (*fleet.Host, *mdmtest.TestAppleMDMClient, map[string]uint) {
+		// unique per-subtest team name and ABM org so subtests don't collide
+		isoName := strings.ReplaceAll(t.Name(), "/", "_")
+		s.enableABM(isoName)
+		tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: isoName})
+		require.NoError(t, err)
+
+		teamDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
+
+		titleIDs := make(map[string]uint, len(installers))
+		var titleIDList []uint
+		for _, inst := range installers {
+			s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+				InstallScript: "install script for " + inst.Title,
+				Filename:      inst.Filename,
+				Title:         inst.Title,
+				TeamID:        &tm.ID,
+			}, http.StatusOK, "")
+			titleIDs[inst.Title] = getSoftwareTitleID(t, s.ds, inst.Title, "apps")
+			titleIDList = append(titleIDList, titleIDs[inst.Title])
+		}
+		var swInstallResp putSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software",
+			putSetupExperienceSoftwareRequest{TeamID: tm.ID, TitleIDs: titleIDList},
+			http.StatusOK, &swInstallResp)
+
+		s.mockDEPResponse(isoName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// assert (not require) in HTTP handlers per testifylint go-require
+			encoder := json.NewEncoder(w)
+			switch r.URL.Path {
+			case "/session":
+				assert.NoError(t, encoder.Encode(map[string]string{"auth_session_token": "xyz"}))
+			case "/profile":
+				assert.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()}))
+			case "/server/devices":
+				assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{teamDevice}}))
+			case "/devices/sync":
+				assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{teamDevice}, Cursor: "foo"}))
+			case "/profile/devices":
+				b, err := io.ReadAll(r.Body)
+				assert.NoError(t, err)
+				var prof profileAssignmentReq
+				assert.NoError(t, json.Unmarshal(b, &prof))
+				resp := godep.ProfileResponse{ProfileUUID: prof.ProfileUUID, Devices: make(map[string]string, len(prof.Devices))}
+				for _, device := range prof.Devices {
+					resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+				}
+				assert.NoError(t, encoder.Encode(resp))
+			default:
+				_, _ = w.Write([]byte(`{}`))
+			}
+		}))
+
+		s.runDEPSchedule()
+
+		listHostsRes := listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+		var host *fleet.Host
+		for _, h := range listHostsRes.Hosts {
+			if h.HardwareSerial == teamDevice.SerialNumber {
+				host = h.Host
+				break
+			}
+		}
+		require.NotNil(t, host, "could not find host by serial after DEP schedule")
+		host.TeamID = &tm.ID
+		s.Do("POST", "/api/v1/fleet/hosts/transfer",
+			addHostsToTeamRequest{TeamID: &tm.ID, HostIDs: []uint{host.ID}}, http.StatusOK)
+
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+		mdmDevice.SerialNumber = teamDevice.SerialNumber
+		require.NoError(t, mdmDevice.Enroll())
+
+		s.awaitTriggerProfileSchedule(t)
+		s.awaitRunAppleMDMWorkerSchedule()
+		s.runWorker()
+
+		// drain MDM commands
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+
+		host.OsqueryHostID = ptr.String(mdmDevice.UUID)
+		host.UUID = mdmDevice.UUID
+		orbitKey := setOrbitEnrollment(t, host, s.ds)
+		host.OrbitNodeKey = &orbitKey
+
+		return host, mdmDevice, titleIDs
+	}
+
+	pollOrbitSetupStatus := func(t *testing.T, host *fleet.Host) fleet.GetOrbitSetupExperienceStatusResponse {
+		var statusResp fleet.GetOrbitSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+			http.StatusOK, &statusResp)
+		return statusResp
+	}
+
+	// edits an installer while its SE row is pending and again while running, under
+	// require_all_software_macos=true. both edits must leave the SE rows as-is and
+	// must not flip the running row to failure on the next orbit poll.
+	tOuter.Run("edit installer leaves setup experience intact", func(t *testing.T) {
+		host, _, titleIDs := enrollHostWithSEInstallers(t, []struct{ Filename, Title string }{
+			{"dummy_installer.pkg", "DummyApp"},
+			{"EchoApp.pkg", "EchoApp"},
+			{"no_version.pkg", "NoVersion"},
+		})
+
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			json.RawMessage(fmt.Sprintf(`{"require_all_software_macos": true, "team_id": %d}`, *host.TeamID)),
+			http.StatusNoContent)
+
+		// first poll: DummyApp runs (alphabetically first), EchoApp and NoVersion stay pending
+		pollOrbitSetupStatus(t, host)
+
+		// edit NoVersion while its SE row is pending. must not cancel it.
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:       titleIDs["NoVersion"],
+			TeamID:        host.TeamID,
+			InstallScript: ptr.String("updated install script for NoVersion"),
+		}, http.StatusOK, "")
+
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var dummyInstallUUID string
+		var noVersion *fleet.SetupExperienceStatusResult
+		for _, r := range results {
+			switch r.Name {
+			case "DummyApp":
+				if r.HostSoftwareInstallsExecutionID != nil {
+					dummyInstallUUID = *r.HostSoftwareInstallsExecutionID
+				}
+			case "NoVersion":
+				noVersion = r
+			}
+		}
+		require.NotEmpty(t, dummyInstallUUID)
+		require.NotNil(t, noVersion)
+		require.Equal(t, fleet.SetupExperienceStatusPending, noVersion.Status,
+			"pending SE row must not be cancelled by an installer edit")
+
+		// complete DummyApp so EchoApp advances to running
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": 0, "install_script_output": "ok"}`,
+				*host.OrbitNodeKey, dummyInstallUUID)),
+			http.StatusNoContent)
+		pollOrbitSetupStatus(t, host)
+
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var echoInstallUUIDBefore string
+		for _, r := range results {
+			if r.Name == "EchoApp" {
+				require.Equal(t, fleet.SetupExperienceStatusRunning, r.Status, "precondition: EchoApp should be running")
+				require.NotNil(t, r.HostSoftwareInstallsExecutionID)
+				echoInstallUUIDBefore = *r.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, echoInstallUUIDBefore)
+
+		// edit EchoApp while its SE row is running. must not cancel it, hsi row must survive.
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:       titleIDs["EchoApp"],
+			TeamID:        host.TeamID,
+			InstallScript: ptr.String("updated install script for EchoApp"),
+		}, http.StatusOK, "")
+
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var echo *fleet.SetupExperienceStatusResult
+		for _, r := range results {
+			if r.Name == "EchoApp" {
+				echo = r
+			}
+		}
+		require.NotNil(t, echo)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, echo.Status,
+			"running SE row must not be cancelled by an installer edit")
+		require.NotNil(t, echo.HostSoftwareInstallsExecutionID)
+		require.Equal(t, echoInstallUUIDBefore, *echo.HostSoftwareInstallsExecutionID,
+			"execution id must survive the edit so the eventual result can land on the right row")
+
+		hsi, err := s.ds.GetSoftwareInstallResults(ctx, echoInstallUUIDBefore)
+		require.NoError(t, err, "host_software_installs row must survive the edit")
+		require.Equal(t, fleet.SoftwareInstallPending, hsi.Status)
+
+		// orbit endpoint must show the expected final state: DummyApp success, EchoApp running, NoVersion pending
+		statusAfter := pollOrbitSetupStatus(t, host)
+		require.Len(t, statusAfter.Results.Software, 3)
+		var dummyOrbit, echoOrbit, noVersionOrbit *fleet.SetupExperienceStatusResult
+		for _, r := range statusAfter.Results.Software {
+			switch r.Name {
+			case "DummyApp":
+				dummyOrbit = r
+			case "EchoApp":
+				echoOrbit = r
+			case "NoVersion":
+				noVersionOrbit = r
+			}
+		}
+		require.NotNil(t, dummyOrbit)
+		require.NotNil(t, echoOrbit)
+		require.NotNil(t, noVersionOrbit)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, dummyOrbit.Status)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, echoOrbit.Status,
+			"running SE row must not flip to failure after an installer edit")
+		require.Equal(t, fleet.SetupExperienceStatusPending, noVersionOrbit.Status)
+	})
+
+	// covers delete-while-pending and delete-while-running on the same host.
+	// The running case verifies the hsi row is cleaned up too (not left orphaned).
+	tOuter.Run("delete installer removes setup experience row", func(t *testing.T) {
+		host, _, titleIDs := enrollHostWithSEInstallers(t, []struct{ Filename, Title string }{
+			{"dummy_installer.pkg", "DummyApp"},
+			{"EchoApp.pkg", "EchoApp"},
+			{"no_version.pkg", "NoVersion"},
+		})
+
+		// drive DummyApp to success, EchoApp to running. NoVersion stays pending.
+		pollOrbitSetupStatus(t, host)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var dummyInstallUUID string
+		for _, r := range results {
+			if r.Name == "DummyApp" && r.HostSoftwareInstallsExecutionID != nil {
+				dummyInstallUUID = *r.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, dummyInstallUUID)
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": 0, "install_script_output": "ok"}`,
+				*host.OrbitNodeKey, dummyInstallUUID)),
+			http.StatusNoContent)
+		pollOrbitSetupStatus(t, host)
+
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var echoInstallUUID string
+		for _, r := range results {
+			if r.Name == "EchoApp" {
+				require.Equal(t, fleet.SetupExperienceStatusRunning, r.Status, "precondition: EchoApp should be running")
+				require.NotNil(t, r.HostSoftwareInstallsExecutionID)
+				echoInstallUUID = *r.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, echoInstallUUID)
+
+		// remove both EchoApp and NoVersion from the SE list so both installers can be deleted
+		var swInstallResp putSetupExperienceSoftwareResponse
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software",
+			putSetupExperienceSoftwareRequest{TeamID: *host.TeamID, TitleIDs: []uint{titleIDs["DummyApp"]}},
+			http.StatusOK, &swInstallResp)
+
+		// delete EchoApp (was running) and NoVersion (was pending)
+		s.Do("DELETE",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install?team_id=%d", titleIDs["EchoApp"], *host.TeamID),
+			nil, http.StatusNoContent)
+		s.Do("DELETE",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install?team_id=%d", titleIDs["NoVersion"], *host.TeamID),
+			nil, http.StatusNoContent)
+
+		// both SE rows must be removed by the FK ON DELETE CASCADE
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NotEqual(t, "EchoApp", r.Name, "EchoApp SE row must be removed after installer delete")
+			require.NotEqual(t, "NoVersion", r.Name, "NoVersion SE row must be removed after installer delete")
+		}
+
+		// the hsi row for the running EchoApp install must also be cleaned up,
+		// not left orphaned with software_installer_id=NULL
+		_, err = s.ds.GetSoftwareInstallResults(ctx, echoInstallUUID)
+		require.Error(t, err, "orphan hsi row remains after installer delete")
+
+		// orbit endpoint must show only DummyApp now, still successful
+		statusAfter := pollOrbitSetupStatus(t, host)
+		require.Len(t, statusAfter.Results.Software, 1)
+		require.Equal(t, "DummyApp", statusAfter.Results.Software[0].Name)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, statusAfter.Results.Software[0].Status)
+	})
+
+	// covers the GitOps batch endpoint for both an installer edit (the
+	// runInstallerUpdateSideEffectsInTransaction isEdit=true path) and a
+	// not-in-list delete (the cancelSetupExperienceStatusForDeletedSoftwareInstalls
+	// + deletePendingSoftwareInstallsNotInListHSI path, unchanged by this PR).
+	tOuter.Run("gitops batch edit then delete via /software/batch", func(t *testing.T) {
+		host, _, _ := enrollHostWithSEInstallers(t, []struct{ Filename, Title string }{
+			{"dummy_installer.pkg", "DummyApp"},
+			{"EchoApp.pkg", "EchoApp"},
+		})
+
+		// drive DummyApp to success, EchoApp to running
+		pollOrbitSetupStatus(t, host)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var dummyInstallUUID string
+		for _, r := range results {
+			if r.Name == "DummyApp" && r.HostSoftwareInstallsExecutionID != nil {
+				dummyInstallUUID = *r.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, dummyInstallUUID)
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": 0, "install_script_output": "ok"}`,
+				*host.OrbitNodeKey, dummyInstallUUID)),
+			http.StatusNoContent)
+		pollOrbitSetupStatus(t, host)
+
+		// snapshot EchoApp's running install execution id
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var echoInstallUUIDBefore string
+		for _, r := range results {
+			if r.Name == "EchoApp" {
+				require.Equal(t, fleet.SetupExperienceStatusRunning, r.Status, "precondition: EchoApp should be running")
+				require.NotNil(t, r.HostSoftwareInstallsExecutionID)
+				echoInstallUUIDBefore = *r.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, echoInstallUUIDBefore)
+
+		// HTTP server to serve the installer files for the batch endpoint
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			file, err := os.Open(filepath.Join("testdata", "software-installers", strings.TrimPrefix(r.URL.Path, "/")))
+			if err != nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			defer file.Close()
+			_, _ = io.Copy(w, file)
+		}))
+		t.Cleanup(srv.Close)
+
+		teamName := strings.ReplaceAll(t.Name(), "/", "_")
+
+		// GitOps edit: batch with both installers, EchoApp's install script changed.
+		var batchResp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{
+				Software: []*fleet.SoftwareInstallerPayload{
+					{URL: srv.URL + "/dummy_installer.pkg", InstallScript: "install", InstallDuringSetup: new(true)},
+					{URL: srv.URL + "/EchoApp.pkg", InstallScript: "updated install script for EchoApp", InstallDuringSetup: new(true)},
+				},
+			}, http.StatusAccepted, &batchResp, "team_name", teamName)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResp.RequestUUID)
+
+		// SE row for EchoApp must still be running, hsi row preserved
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		var echo *fleet.SetupExperienceStatusResult
+		for _, r := range results {
+			if r.Name == "EchoApp" {
+				echo = r
+			}
+		}
+		require.NotNil(t, echo)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, echo.Status,
+			"running SE row must not be cancelled by GitOps batch-edit")
+		require.NotNil(t, echo.HostSoftwareInstallsExecutionID)
+		require.Equal(t, echoInstallUUIDBefore, *echo.HostSoftwareInstallsExecutionID)
+		hsi, err := s.ds.GetSoftwareInstallResults(ctx, echoInstallUUIDBefore)
+		require.NoError(t, err, "host_software_installs row must survive the batch-edit")
+		require.Equal(t, fleet.SoftwareInstallPending, hsi.Status)
+
+		// GitOps delete: batch with only DummyApp (EchoApp dropped from list).
+		batchResp = batchSetSoftwareInstallersResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{
+				Software: []*fleet.SoftwareInstallerPayload{
+					{URL: srv.URL + "/dummy_installer.pkg", InstallScript: "install", InstallDuringSetup: new(true)},
+				},
+			}, http.StatusAccepted, &batchResp, "team_name", teamName)
+		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResp.RequestUUID)
+
+		// EchoApp SE row gone, hsi cleaned up too
+		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+		require.NoError(t, err)
+		for _, r := range results {
+			require.NotEqual(t, "EchoApp", r.Name, "EchoApp SE row must be removed after GitOps delete")
+		}
+		_, err = s.ds.GetSoftwareInstallResults(ctx, echoInstallUUIDBefore)
+		require.Error(t, err, "orphan hsi row remains after GitOps delete")
+	})
 }

@@ -133,6 +133,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		"critical": true,
 		"calendar_events_enabled": false,
 		"conditional_access_enabled": false,
+		"continuous_automations_enabled": false,
 		"type": "dynamic"
     },
     "hosts": [
@@ -328,6 +329,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		"critical": false,
 		"calendar_events_enabled": true,
 		"conditional_access_enabled": false,
+		"continuous_automations_enabled": false,
 		"type": "dynamic"
     },
     "hosts": [
