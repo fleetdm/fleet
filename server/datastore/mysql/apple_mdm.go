@@ -5107,6 +5107,12 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			return ctxerr.Wrap(ctx, err, "resetting disk encryption key information for host")
 		}
 
+		// Clear MDM-delivered certs for the same re-enroll-without-CheckOut
+		// cases (local wipe, restore from backup, manual MDM profile removal).
+		if err := softDeleteMDMHostCertsDB(ctx, tx, host.ID); err != nil {
+			return err
+		}
+
 		// Do platform-specific cleanup.
 		switch host.Platform {
 		case "ios", "ipados":
