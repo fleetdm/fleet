@@ -25,7 +25,7 @@ class OrgLogoIcon extends Component {
   componentWillMount() {
     const { src } = this.props;
 
-    this.setState({ imageSrc: src });
+    this.setState({ imageSrc: src || fleetAvatar });
 
     return false;
   }
@@ -38,7 +38,7 @@ class OrgLogoIcon extends Component {
       return false;
     }
 
-    this.setState({ imageSrc: src });
+    this.setState({ imageSrc: src || fleetAvatar });
 
     return false;
   }
