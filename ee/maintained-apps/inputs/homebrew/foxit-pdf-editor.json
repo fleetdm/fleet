@@ -1,0 +1,8 @@
+{
+  "name": "Foxit PDF Editor",
+  "slug": "foxit-pdf-editor/darwin",
+  "unique_identifier": "com.foxit.PDFEditor",
+  "token": "foxit-pdf-editor",
+  "installer_format": "pkg",
+  "default_categories": ["Productivity"]
+}
