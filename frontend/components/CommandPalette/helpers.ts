@@ -75,10 +75,6 @@ export interface ICommandPaletteContext {
   isVppEnabled?: boolean;
   hasTeamSelected?: boolean;
   withTeamId: (path: string) => string;
-  /** Like withTeamId, but for commands that require a specific team —
-   *  on "All fleets" this routes to Unassigned (fleet_id=0) so the
-   *  destination matches the "Unassigned" chip shown next to the item. */
-  withTeamRequired: (path: string) => string;
   onToggleDarkMode: () => void;
   onViewHost: () => void;
   onViewSoftware: () => void;

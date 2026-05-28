@@ -156,10 +156,13 @@ const CommandPalette = (): JSX.Element | null => {
   // Software automations require global admin (all fleets view)
   const canManageSoftwareAutomations = isGlobalAdmin;
 
-  // Report automations: mirrors ManageQueriesPage's `canManageAutomations`
-  // (isGlobalAdmin || isTeamAdmin). At the palette level we don't know
-  // which team the user will land on, so admit anyone admin somewhere.
-  const canManageReportAutomations = isGlobalAdmin || isAnyTeamAdmin;
+  // Report automations: mirror ManageQueriesPage's `canManageAutomations`
+  // exactly (isGlobalAdmin || isTeamAdmin) — the palette item points at
+  // the current team via withTeamId, so the destination's gate evaluates
+  // against the same team. Using isAnyTeamAdmin here would surface the
+  // command for users who are admin of *some* team but observer of the
+  // current one — they'd land on Reports and see no button.
+  const canManageReportAutomations = isGlobalAdmin || isTeamAdmin;
 
   const canAccessSettings = isGlobalAdmin;
 
@@ -178,22 +181,6 @@ const CommandPalette = (): JSX.Element | null => {
       return `${path}${separator}fleet_id=${currentTeam?.id}`;
     },
     [hasTeamSelected, isUnassigned, currentTeam?.id]
-  );
-
-  // For team-required commands (add hosts, manage enroll secrets): on
-  // "All fleets" the destination chip says "Unassigned", so the URL
-  // must actually route there with fleet_id=0 — otherwise the modal
-  // would use global enroll secrets instead of the Unassigned team's.
-  // Free has no team concept, so emit the bare path; useTeamIdParam
-  // would otherwise redirect-strip fleet_id on Free anyway.
-  const withTeamRequired = useCallback(
-    (path: string) => {
-      if (!isPremiumTier) return path;
-      const targetId = hasTeamSelected || isUnassigned ? currentTeam?.id : 0;
-      const separator = path.includes("?") ? "&" : "?";
-      return `${path}${separator}fleet_id=${targetId}`;
-    },
-    [isPremiumTier, hasTeamSelected, isUnassigned, currentTeam?.id]
   );
 
   // Reset page and search when dialog opens/closes
@@ -389,7 +376,6 @@ const CommandPalette = (): JSX.Element | null => {
         isVppEnabled,
         hasTeamSelected,
         withTeamId,
-        withTeamRequired,
         onToggleDarkMode: () => {
           setThemeMode(isDarkModeActive ? "light" : "dark");
           setOpen(false);
@@ -425,7 +411,6 @@ const CommandPalette = (): JSX.Element | null => {
       isVppEnabled,
       hasTeamSelected,
       withTeamId,
-      withTeamRequired,
       goToPage,
     ]
   );

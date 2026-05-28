@@ -30,7 +30,6 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   hasTeamSelected: false,
 
   withTeamId: (path: string) => path,
-  withTeamRequired: (path: string) => path,
   onToggleDarkMode: jest.fn(),
   onViewHost: jest.fn(),
   onViewSoftware: jest.fn(),
@@ -167,14 +166,17 @@ describe("CommandPalette helpers", () => {
       expect(addReport?.teamName).toBeUndefined();
     });
 
-    it("shows 'Unassigned' on add-hosts and manage-enroll-secrets when on All fleets", () => {
+    it("omits the chip on add-hosts and manage-enroll-secrets when on All fleets", () => {
+      // These commands intentionally do NOT switch teams from All fleets —
+      // the destination page reads the existing team context, which on
+      // All fleets means global enroll secrets. So no chip should render.
       const items = buildPaletteItems(BASE_CONTEXT);
 
       const addHosts = items.find((i) => i.id === "add-hosts");
-      expect(addHosts?.teamName).toBe("Unassigned");
+      expect(addHosts?.teamName).toBeUndefined();
 
       const enrollSecrets = items.find((i) => i.id === "manage-enroll-secrets");
-      expect(enrollSecrets?.teamName).toBe("Unassigned");
+      expect(enrollSecrets?.teamName).toBeUndefined();
     });
 
     it("omits the 'All fleets' chip on default-context actions when already on All fleets", () => {
@@ -205,24 +207,6 @@ describe("CommandPalette helpers", () => {
 
       const addHosts = items.find((i) => i.id === "add-hosts");
       expect(addHosts?.teamName).toBeUndefined();
-    });
-
-    it("omits the 'Unassigned' chip for team-required commands on Free tier", () => {
-      // Free has no team concept — no Unassigned to switch to — so the
-      // chip should be hidden even when neither hasTeamSelected nor
-      // isUnassigned is true (the All-fleets-style sentinel state).
-      const items = buildPaletteItems({
-        ...BASE_CONTEXT,
-        isPremiumTier: false,
-        hasTeamSelected: false,
-        currentTeam: { id: -1, name: "All fleets" },
-      });
-
-      const addHosts = items.find((i) => i.id === "add-hosts");
-      expect(addHosts?.teamName).toBeUndefined();
-
-      const enrollSecrets = items.find((i) => i.id === "manage-enroll-secrets");
-      expect(enrollSecrets?.teamName).toBeUndefined();
     });
 
     it("shows 'Turn on' MDM when not configured", () => {
