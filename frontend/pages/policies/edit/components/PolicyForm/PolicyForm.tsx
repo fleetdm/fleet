@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
-import React, { useState, useContext, useEffect, useMemo } from "react";
+import React, { useState, useContext, useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
 import { Ace } from "ace-builds";
@@ -59,6 +59,12 @@ import labelsAPI, {
 } from "services/entities/labels";
 
 import teamPoliciesAPI from "services/entities/team_policies";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+
+import PolicyAutomationsFields, {
+  IPolicyAutomationsFieldsHandle,
+  useUpdatePolicyAutomations,
+} from "pages/policies/components/PolicyAutomationsFields";
 
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 import PolicyAutomations from "../PolicyAutomations";
@@ -88,7 +94,6 @@ interface IPolicyFormProps {
   resetAiAutofillData: () => void;
   currentAutomatedPolicies: number[];
   otherAutomationType?: OtherAutomationType;
-  onCancel?: () => void;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -126,13 +131,11 @@ const PolicyForm = ({
   resetAiAutofillData,
   currentAutomatedPolicies,
   otherAutomationType,
-  onCancel,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
     false
   );
-  const [showQueryEditor, setShowQueryEditor] = useState(false);
 
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
   const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
@@ -261,6 +264,49 @@ const PolicyForm = ({
   const isNewTemplatePolicy =
     !policyIdForEdit &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
+
+  const isGlobalPolicy = storedPolicy?.team_id == null;
+  const automationsTeamId = storedPolicy?.team_id ?? undefined;
+
+  const { data: automationsTeamData } = useQuery<ILoadTeamResponse, Error>(
+    ["teams", automationsTeamId],
+    () => teamsAPI.load(automationsTeamId as number),
+    {
+      enabled: isEditMode && !!storedPolicy && !isGlobalPolicy,
+      staleTime: 5000,
+    }
+  );
+
+  const automationsConfig =
+    (isGlobalPolicy ? config : automationsTeamData?.team) ?? undefined;
+
+  let automationsFleetName = "";
+  if (isGlobalPolicy) {
+    automationsFleetName = APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
+  } else if (storedPolicy?.team_id === 0) {
+    automationsFleetName = APP_CONTEXT_NO_TEAM_SUMMARY.name;
+  } else {
+    automationsFleetName =
+      automationsTeamData?.team?.name ?? currentTeam?.name ?? "";
+  }
+
+  const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
+
+  const {
+    mutate: saveAutomations,
+    isLoading: isSavingAutomations,
+  } = useUpdatePolicyAutomations({
+    // storedPolicy is guaranteed present once the form (and this section)
+    // renders — the page shows a spinner while it loads.
+    policy: storedPolicy as IPolicy,
+    teamIdForApi: automationsTeamId,
+    isGlobalPolicy,
+    automationsConfig,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["policy", policyIdForEdit]);
+    },
+    onError: () => renderFlash("error", "Could not update policy automations."),
+  });
 
   /* - Observer/Observer+ and Technicians cannot edit existing policies
      - Team users cannot edit inherited policies
@@ -463,6 +509,26 @@ const PolicyForm = ({
     if (!isEditMode) {
       setIsSaveNewPolicyModalOpen(true);
     } else {
+      // Capture automation changes up front so an invalid selection (e.g. an
+      // enabled automation with no software/script chosen) blocks the whole
+      // save before anything is persisted. The ref is null when the section
+      // isn't rendered (e.g. config not yet loaded), so optional chaining
+      // gracefully yields undefined.
+      const automations = automationsRef.current?.getAutomationsPayload();
+      if (automations?.error) {
+        return renderFlash("error", automations.error);
+      }
+
+      // Persist automations (per-policy fields + webhook/ticket config), only
+      // when something changed. Independent of the core policy update below —
+      // a failure in one won't block the other.
+      if (automations?.isDirty) {
+        saveAutomations({
+          policyUpdate: automations.policyUpdate,
+          webhookOrTicketUpdate: automations.webhookOrTicketUpdate,
+        });
+      }
+
       const payload: IPolicyFormData = {
         name: lastEditedQueryName,
         description: lastEditedQueryDescription,
@@ -705,6 +771,17 @@ const PolicyForm = ({
               otherAutomationType={otherAutomationType}
             />
           )}
+          {isEditMode && !!storedPolicy && !!automationsConfig && (
+            <PolicyAutomationsFields
+              ref={automationsRef}
+              policy={storedPolicy}
+              isGlobalPolicy={isGlobalPolicy}
+              teamIdForApi={automationsTeamId}
+              automationsConfig={automationsConfig}
+              globalConfig={config ?? undefined}
+              fleetName={automationsFleetName}
+            />
+          )}
           {isEditMode &&
             isPremiumTier &&
             !isPatchPolicy &&
@@ -740,11 +817,6 @@ const PolicyForm = ({
           {renderPlatformCompatibility()}
           {renderLiveQueryWarning()}
           <div className="button-wrap">
-            {isEditMode && onCancel && (
-              <Button variant="inverse" onClick={onCancel}>
-                Cancel
-              </Button>
-            )}
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
                 <TooltipWrapper
@@ -767,7 +839,7 @@ const PolicyForm = ({
                       onClick={promptSavePolicy()}
                       disabled={disableSaveFormErrors || disableChildren}
                       className="save-loading"
-                      isLoading={isUpdatingPolicy}
+                      isLoading={isUpdatingPolicy || isSavingAutomations}
                     >
                       Save
                     </Button>
@@ -807,7 +879,7 @@ const PolicyForm = ({
                   }
                   variant="inverse"
                 >
-                  Run <Icon name="run" />
+                  Run policy <Icon name="run" />
                 </Button>
               </span>
             </TooltipWrapper>

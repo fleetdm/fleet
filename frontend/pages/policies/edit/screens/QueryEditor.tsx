@@ -303,17 +303,6 @@ const QueryEditor = ({
         resetAiAutofillData={() => setPolicyAutofillData(null)}
         currentAutomatedPolicies={currentAutomatedPolicies || []}
         otherAutomationType={otherAutomationType}
-        onCancel={
-          policyIdForEdit
-            ? () =>
-                router.push(
-                  getPathWithQueryParams(
-                    PATHS.POLICY_DETAILS(policyIdForEdit),
-                    { fleet_id: teamIdForApi }
-                  )
-                )
-            : undefined
-        }
       />
     </div>
   );
