@@ -1710,6 +1710,13 @@
       "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
     },
     {
+      "name": "Prisma Browser",
+      "slug": "prisma-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Prisma Access Browser",
+      "description": "Prisma Browser is an SASE-native browser that empowers secure work."
+    },
+    {
       "name": "Pritunl",
       "slug": "pritunl/darwin",
       "platform": "darwin",

@@ -32,6 +32,7 @@ import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
 import PowerBi from "./PowerBi";
 import Plugdata from "./Plugdata";
+import Prisma from "./Prisma";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
@@ -461,6 +462,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "podman desktop": PodmanDesktop,
   postman: Postman,
   "power bi": PowerBi,
+  prisma: Prisma,
   privileges: Privileges,
   pritunl: Pritunl,
   "proton mail": ProtonMail,

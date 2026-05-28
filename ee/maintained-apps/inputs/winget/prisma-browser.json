@@ -1,0 +1,10 @@
+{
+  "name": "Prisma Browser",
+  "slug": "prisma-browser/windows",
+  "package_identifier": "PaloAltoNetworks.PrismaAccessBrowser",
+  "unique_identifier": "Prisma Access Browser",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Browsers"]
+}
