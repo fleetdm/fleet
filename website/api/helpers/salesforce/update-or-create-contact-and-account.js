@@ -286,7 +286,7 @@ module.exports = {
           // Otherwise, we'll check the referer value and attempt to categorize the referer.
           let REFERRER_DOMAINS_FOR_ORGANIC_SEARCH = [
             'https://www.google.',      // covers all ~190 country variants (google.com, google.co.uk, google.de, etc.)
-            'https://www.bing.com/',
+            'https://www.bing.com/search',
             'https://search.yahoo.com/',
             'https://duckduckgo.com/',
             'https://www.baidu.com/',
