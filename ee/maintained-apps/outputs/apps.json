@@ -667,6 +667,13 @@
       "description": "Dialpad is a cloud communication platform."
     },
     {
+      "name": "Dialpad",
+      "slug": "dialpad/windows",
+      "platform": "windows",
+      "unique_identifier": "Dialpad",
+      "description": "Dialpad is a cloud communication platform."
+    },
+    {
       "name": "Discord",
       "slug": "discord/darwin",
       "platform": "darwin",
@@ -713,6 +720,13 @@
       "slug": "dropbox/darwin",
       "platform": "darwin",
       "unique_identifier": "com.getdropbox.dropbox",
+      "description": "Dropbox is a client for the Dropbox cloud storage service."
+    },
+    {
+      "name": "Dropbox",
+      "slug": "dropbox/windows",
+      "platform": "windows",
+      "unique_identifier": "Dropbox",
       "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
@@ -776,6 +790,13 @@
       "slug": "evernote/darwin",
       "platform": "darwin",
       "unique_identifier": "com.evernote.Evernote",
+      "description": "Evernote is an app for note taking, organising, task lists, and archiving."
+    },
+    {
+      "name": "Evernote",
+      "slug": "evernote/windows",
+      "platform": "windows",
+      "unique_identifier": "Evernote",
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
     },
     {
@@ -1007,6 +1028,13 @@
       "slug": "grammarly-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "com.grammarly.ProjectLlama",
+      "description": "Grammarly Desktop is an AI writing assistant."
+    },
+    {
+      "name": "Grammarly Desktop",
+      "slug": "grammarly-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Grammarly for Windows",
       "description": "Grammarly Desktop is an AI writing assistant."
     },
     {
@@ -1262,6 +1290,13 @@
       "description": "Loom is screen and video recording software."
     },
     {
+      "name": "Loom",
+      "slug": "loom/windows",
+      "platform": "windows",
+      "unique_identifier": "Loom",
+      "description": "Loom is screen and video recording software."
+    },
+    {
       "name": "LuLu",
       "slug": "lulu/darwin",
       "platform": "darwin",
@@ -1287,6 +1322,13 @@
       "slug": "mattermost/darwin",
       "platform": "darwin",
       "unique_identifier": "Mattermost.Desktop",
+      "description": "Mattermost is an open-source, self-hosted Slack-alternative."
+    },
+    {
+      "name": "Mattermost",
+      "slug": "mattermost/windows",
+      "platform": "windows",
+      "unique_identifier": "Mattermost",
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
@@ -1364,6 +1406,13 @@
       "slug": "miro/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.realtimeboard",
+      "description": "Miro is an online collaborative whiteboard platform."
+    },
+    {
+      "name": "Miro",
+      "slug": "miro/windows",
+      "platform": "windows",
+      "unique_identifier": "Miro",
       "description": "Miro is an online collaborative whiteboard platform."
     },
     {
@@ -1864,6 +1913,13 @@
       "description": "Signal is an instant messaging application focusing on security."
     },
     {
+      "name": "Signal",
+      "slug": "signal/windows",
+      "platform": "windows",
+      "unique_identifier": "Signal",
+      "description": "Signal is an instant messaging application focusing on security."
+    },
+    {
       "name": "Sketch",
       "slug": "sketch/darwin",
       "platform": "darwin",
@@ -1889,6 +1945,13 @@
       "slug": "snagit/darwin",
       "platform": "darwin",
       "unique_identifier": "com.TechSmith.Snagit",
+      "description": "Snagit is screen capture software."
+    },
+    {
+      "name": "Snagit",
+      "slug": "snagit/windows",
+      "platform": "windows",
+      "unique_identifier": "Snagit 2026",
       "description": "Snagit is screen capture software."
     },
     {
@@ -2106,6 +2169,13 @@
       "slug": "todoist-app/darwin",
       "platform": "darwin",
       "unique_identifier": "com.todoist.mac.Todoist",
+      "description": "Todoist is a to do list and a planning center for individuals and teams."
+    },
+    {
+      "name": "Todoist",
+      "slug": "todoist-app/windows",
+      "platform": "windows",
+      "unique_identifier": "Todoist",
       "description": "Todoist is a to do list and a planning center for individuals and teams."
     },
     {
