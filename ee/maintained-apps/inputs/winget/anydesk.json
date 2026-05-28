@@ -1,0 +1,12 @@
+{
+  "name": "AnyDesk",
+  "slug": "anydesk/windows",
+  "package_identifier": "AnyDesk.AnyDesk",
+  "unique_identifier": "AnyDesk",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/anydesk_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/anydesk_uninstall.ps1",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

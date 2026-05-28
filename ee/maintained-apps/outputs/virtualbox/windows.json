@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "7.2.8",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Oracle VirtualBox %' AND publisher = 'Oracle and/or its affiliates';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Oracle VirtualBox %' AND publisher = 'Oracle and/or its affiliates' AND version_compare(version, '7.2.8') < 0);"
+      },
+      "installer_url": "https://download.virtualbox.org/virtualbox/7.2.8/VirtualBox-7.2.8-173730-Win.exe",
+      "install_script_ref": "30e953e2",
+      "uninstall_script_ref": "80008517",
+      "sha256": "ae5415cc968c0e8acddd99358c21d267a2c31ac4ff5182861aab9e6931001606",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "30e953e2": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Oracle VirtualBox ships an exe wrapper around a WiX MSI. The winget manifest\n# documents the silent install as: --silent with -msiparams REBOOT=ReallySuppress.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"--silent -msiparams REBOOT=ReallySuppress\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\n# Treat 3010 (reboot required) as success.\nif ($exitCode -eq 3010) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "80008517": "# Attempts to locate Oracle VirtualBox's uninstaller from registry and run it silently\n# (the wrapped MSI uninstall path).\n\n$displayNameLike = \"Oracle VirtualBox*\"\n$publisherLike = \"Oracle*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"VirtualBox\" -Force -ErrorAction SilentlyContinue\nStop-Process -Name \"VBoxSVC\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = $uninstall.UninstallString\n\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\n# If we got MsiExec.exe with /X{GUID}, append /quiet /norestart for silent uninstall.\nif ($exePath -match '(?i)msiexec') {\n    $existingArgs = (\"$existingArgs /quiet /norestart\").Trim()\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    if ($exitCode -eq 3010) { Exit 0 }\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

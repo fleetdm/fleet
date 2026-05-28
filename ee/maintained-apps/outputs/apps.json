@@ -177,6 +177,13 @@
       "description": "AnyDesk is an app that allows connection to a computer remotely."
     },
     {
+      "name": "AnyDesk",
+      "slug": "anydesk/windows",
+      "platform": "windows",
+      "unique_identifier": "AnyDesk",
+      "description": "AnyDesk is an app that allows connection to a computer remotely."
+    },
+    {
       "name": "Apparency",
       "slug": "apparency/darwin",
       "platform": "darwin",
@@ -233,6 +240,13 @@
       "description": "Audacity is a multi-track audio editor and recorder."
     },
     {
+      "name": "Audacity",
+      "slug": "audacity/windows",
+      "platform": "windows",
+      "unique_identifier": "Audacity",
+      "description": "Audacity is a multi-track audio editor and recorder."
+    },
+    {
       "name": "Avast Secure Browser",
       "slug": "avast-secure-browser/darwin",
       "platform": "darwin",
@@ -265,6 +279,13 @@
       "slug": "balenaetcher/darwin",
       "platform": "darwin",
       "unique_identifier": "io.balena.etcher",
+      "description": "balenaEtcher is a tool to flash OS images to SD cards & USB drives."
+    },
+    {
+      "name": "balenaEtcher",
+      "slug": "balenaetcher/windows",
+      "platform": "windows",
+      "unique_identifier": "balenaEtcher",
       "description": "balenaEtcher is a tool to flash OS images to SD cards & USB drives."
     },
     {
@@ -377,6 +398,13 @@
       "slug": "calibre/darwin",
       "platform": "darwin",
       "unique_identifier": "net.kovidgoyal.calibre",
+      "description": "calibre is e-book management software."
+    },
+    {
+      "name": "calibre",
+      "slug": "calibre/windows",
+      "platform": "windows",
+      "unique_identifier": "calibre",
       "description": "calibre is e-book management software."
     },
     {
@@ -660,6 +688,13 @@
       "description": "DeepL is an AI-powered translator."
     },
     {
+      "name": "DeepL",
+      "slug": "deepl/windows",
+      "platform": "windows",
+      "unique_identifier": "DeepL",
+      "description": "DeepL is an AI-powered translator."
+    },
+    {
       "name": "Dialpad",
       "slug": "dialpad/darwin",
       "platform": "darwin",
@@ -713,6 +748,13 @@
       "slug": "drawio/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jgraph.drawio.desktop",
+      "description": "draw.io is a versatile diagramming or whiteboarding application."
+    },
+    {
+      "name": "draw.io",
+      "slug": "drawio/windows",
+      "platform": "windows",
+      "unique_identifier": "draw.io",
       "description": "draw.io is a versatile diagramming or whiteboarding application."
     },
     {
@@ -1231,6 +1273,13 @@
       "slug": "lens/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.kontena-lens",
+      "description": "Lens is a Kubernetes IDE."
+    },
+    {
+      "name": "Lens",
+      "slug": "lens/windows",
+      "platform": "windows",
+      "unique_identifier": "Lens",
       "description": "Lens is a Kubernetes IDE."
     },
     {
@@ -1808,6 +1857,13 @@
       "description": "Rancher Desktop is an app for kubernetes and container management on the desktop."
     },
     {
+      "name": "Rancher Desktop",
+      "slug": "rancher/windows",
+      "platform": "windows",
+      "unique_identifier": "Rancher Desktop",
+      "description": "Rancher Desktop is an app for kubernetes and container management on the desktop."
+    },
+    {
       "name": "RapidAPI",
       "slug": "rapidapi/darwin",
       "platform": "darwin",
@@ -2207,6 +2263,13 @@
       "description": "Tower is a git client focusing on power and productivity."
     },
     {
+      "name": "Tower",
+      "slug": "tower/windows",
+      "platform": "windows",
+      "unique_identifier": "Tower",
+      "description": "Tower is a git client focusing on power and productivity."
+    },
+    {
       "name": "Transmit",
       "slug": "transmit/darwin",
       "platform": "darwin",
@@ -2247,6 +2310,13 @@
       "platform": "darwin",
       "unique_identifier": "org.virtualbox.app.VirtualBox",
       "description": "VirtualBox is a virtualiser for arm64 hardware."
+    },
+    {
+      "name": "VirtualBox",
+      "slug": "virtualbox/windows",
+      "platform": "windows",
+      "unique_identifier": "Oracle VirtualBox",
+      "description": "VirtualBox is a virtualiser for x86 and AMD64 hardware."
     },
     {
       "name": "Viscosity",
