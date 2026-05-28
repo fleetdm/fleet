@@ -6,6 +6,7 @@ import CustomLink from "components/CustomLink";
 import NotSupported from "components/NotSupported";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IHost } from "interfaces/host";
+import { MDM_ENROLLMENT_STATUS_UI_MAP, MdmEnrollmentStatus } from "interfaces/mdm";
 
 const baseClass = "host-mdm-status-cell";
 
@@ -26,9 +27,13 @@ const HostMdmStatusCell = ({
     return <span className={`${baseClass}`}>{DEFAULT_EMPTY_CELL_VALUE}</span>;
   }
 
+  const displayValue =
+    MDM_ENROLLMENT_STATUS_UI_MAP[value as MdmEnrollmentStatus]?.displayName ??
+    value;
+
   return (
     <span className={`${baseClass}`}>
-      {value}
+      {displayValue}
       {mdm?.dep_profile_error && (
         <TooltipWrapper
           tipContent={
