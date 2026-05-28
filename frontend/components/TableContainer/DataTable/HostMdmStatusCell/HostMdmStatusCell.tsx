@@ -1,5 +1,5 @@
 import React from "react";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { DEFAULT_EMPTY_CELL_VALUE, MDM_STATUS_TOOLTIP } from "utilities/constants";
 import paths from "router/paths";
 import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
@@ -33,7 +33,16 @@ const HostMdmStatusCell = ({
 
   return (
     <span className={`${baseClass}`}>
-      {displayValue}
+      {!MDM_STATUS_TOOLTIP[value as MdmEnrollmentStatus] ? (
+        displayValue
+      ) : (
+        <TooltipWrapper
+          className="mdm-status-tooltip"
+          tipContent={MDM_STATUS_TOOLTIP[value as MdmEnrollmentStatus]}
+        >
+          {displayValue}
+        </TooltipWrapper>
+      )}
       {mdm?.dep_profile_error && (
         <TooltipWrapper
           tipContent={

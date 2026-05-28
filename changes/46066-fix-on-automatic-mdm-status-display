@@ -1,1 +1,2 @@
 * Fixed MDM status column in the host table showing "On (automatic)" instead of "On (company-owned)".
+* Added hosts page tooltip to MDM status on hover.

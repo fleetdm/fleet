@@ -5,3 +5,8 @@
   gap: $gap-icon-text;
   align-items: center;
 }
+
+.host-mdm-status-cell .component__tooltip-wrapper.mdm-status-tooltip .component__tooltip-wrapper__element {
+  // prevent status name from wrapping to multiple lines
+  white-space: nowrap;
+}
