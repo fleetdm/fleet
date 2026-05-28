@@ -1,0 +1,1 @@
+- Sanitized error messages from external service integrations (Jira, Zendesk, DigiCert, EST) to prevent leaking response body content from admin-configured URLs.

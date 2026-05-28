@@ -120,12 +120,13 @@ func (s *Service) GetCertificate(ctx context.Context, estCA fleet.ESTProxyCA, cs
 		return nil, ctxerr.Wrap(ctx, err, "reading EST CA response body")
 	}
 	if resp.StatusCode != http.StatusOK {
+		// Log response body at debug level only — do not log at error level
+		// to prevent leaking internal service data (SSRF).
 		bytesToLog := bytes
-		// Limit logged data in case we get a huge response(a certificate perhaps?)
 		if len(bytes) > 1000 {
 			bytesToLog = bytes[:1000]
 		}
-		s.logger.ErrorContext(ctx, "unexpected EST CA status code", "status_code", resp.StatusCode, "response_body", string(bytesToLog))
+		s.logger.DebugContext(ctx, "unexpected EST CA status code", "status_code", resp.StatusCode, "response_body", string(bytesToLog))
 		return nil, ctxerr.Errorf(ctx, "unexpected EST CA status code: %d", resp.StatusCode)
 	}
 

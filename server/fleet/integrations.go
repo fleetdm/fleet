@@ -272,7 +272,9 @@ func makeTestJiraRequest(ctx context.Context, intg *JiraIntegration) error {
 		return IntegrationTestError{Err: fmt.Errorf("Jira integration request failed: %w", err)}
 	}
 	if _, err := client.GetProject(ctx); err != nil {
-		return IntegrationTestError{Err: fmt.Errorf("Jira integration request failed: %w", err)}
+		// Do not include the raw error — it may contain response body content
+		// from the configured URL, which could leak internal service data (SSRF).
+		return IntegrationTestError{Err: errors.New("Jira integration request failed: verify the URL, credentials, and project key")}
 	}
 	return nil
 }
@@ -376,7 +378,9 @@ func makeTestZendeskRequest(ctx context.Context, intg *ZendeskIntegration) error
 	}
 	grp, err := client.GetGroup(ctx)
 	if err != nil {
-		return IntegrationTestError{Err: fmt.Errorf("Zendesk integration request failed: %w", err)}
+		// Do not include the raw error — it may contain response body content
+		// from the configured URL, which could leak internal service data (SSRF).
+		return IntegrationTestError{Err: errors.New("Zendesk integration request failed: verify the URL, credentials, and group ID")}
 	}
 	if grp.ID != intg.GroupID {
 		return IntegrationTestError{Err: fmt.Errorf("Zendesk integration request failed: no matching group id: received %d, expected %d", grp.ID, intg.GroupID)}

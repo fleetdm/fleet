@@ -218,20 +218,20 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 			return nil, ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d", resp.StatusCode)
 		}
 
+		// Log response body content at debug level only — do not include in
+		// returned errors to prevent leaking internal service data (SSRF).
 		combinedErrorMessages := make([]string, len(errResp.Errors))
 		for i, e := range errResp.Errors {
 			combinedErrorMessages[i] = e.Message
 		}
+		s.logger.DebugContext(ctx, "DigiCert error response", "status_code", resp.StatusCode, "errors", strings.Join(combinedErrorMessages, "; "))
 		switch resp.StatusCode {
 		case http.StatusUnauthorized:
-			return nil, ctxerr.Errorf(ctx, errMessageInvalidAPIToken+", errors: %s", config.Name, resp.StatusCode,
-				strings.Join(combinedErrorMessages, "; "))
+			return nil, ctxerr.Errorf(ctx, errMessageInvalidAPIToken, config.Name, resp.StatusCode)
 		case http.StatusForbidden:
-			return nil, ctxerr.Errorf(ctx, errMessageInvalidProfile+", errors: %s", config.Name, resp.StatusCode,
-				strings.Join(combinedErrorMessages, "; "))
+			return nil, ctxerr.Errorf(ctx, errMessageInvalidProfile, config.Name, resp.StatusCode)
 		}
-		return nil, ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d, errors: %s", resp.StatusCode,
-			strings.Join(combinedErrorMessages, "; "))
+		return nil, ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d", resp.StatusCode)
 	}
 
 	type certificateResponse struct {
