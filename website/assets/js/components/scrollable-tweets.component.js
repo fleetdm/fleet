@@ -85,17 +85,15 @@ parasails.registerComponent('scrollableTweets', {
     if(!_.isArray(this.testimonials)){
       throw new Error('Incomplete usage of <scrollable-tweets>:  The `testimonials` prop provided is an invalid type. Please provide an array of testimonial values.');
     }
-    this.quotesToDisplay = _.clone(this.testimonials);
-    for(let quote of this.quotesToDisplay) {
-      quote.isQuoteExpanded = false;
-      quote.isQuoteExpanded = false;
-      if(quote.youtubeVideoUrl) {
+    this.quotesToDisplay = this.testimonials.map((testimonial) =>{
+      if(testimonial.youtubeVideoUrl) {
         this.quotesWithVideoLinks.push({
-          modalId: _.kebabCase(quote.quoteAuthorName),
-          embedId: quote.videoIdForEmbed,
+          modalId: _.kebabCase(testimonial.quoteAuthorName),
+          embedId: testimonial.videoIdForEmbed,
         });
       }
-    }
+      return Object.assign({}, testimonial, { isQuoteOverflowing: false, isQuoteExpanded: false});
+    });
   },
   mounted: async function(){
     this.tweetsDiv = $('div[purpose="tweets"]')[0];
