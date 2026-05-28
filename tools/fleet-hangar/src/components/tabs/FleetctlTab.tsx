@@ -158,7 +158,7 @@ export function FleetctlTab({
               color: "var(--ui-error)",
               fontSize: "var(--fs-xx-small)",
               padding: "6px 10px",
-              background: "rgba(214,108,123,0.08)",
+              background: "rgba(224,120,136,0.08)",
               border: "1px solid var(--ui-error)",
               borderRadius: "var(--radius-md)",
             }}
@@ -492,7 +492,7 @@ function SubTabSidebar({
               color: isActive
                 ? "var(--core-fleet-green)"
                 : "var(--app-text)",
-              background: isActive ? "rgba(0,154,125,0.10)" : undefined,
+              background: isActive ? "rgba(0,194,139,0.10)" : undefined,
               borderLeft: isActive
                 ? "2px solid var(--core-fleet-green)"
                 : "2px solid transparent",
@@ -807,7 +807,7 @@ function ModeChip({
       style={{
         padding: "4px 12px",
         fontSize: "var(--fs-xxx-small)",
-        background: active ? "rgba(0,154,125,0.12)" : "transparent",
+        background: active ? "rgba(0,194,139,0.12)" : "transparent",
         border: `1px solid ${active ? "var(--core-fleet-green)" : "var(--app-border)"}`,
         color: active ? "var(--core-fleet-green)" : "var(--app-text-dim)",
         borderRadius: 999,
@@ -1497,7 +1497,7 @@ function GroupOutputEntry({ entry }: { entry: GroupEntry }) {
         <span className="dim mono">{formatClock(entry.ts)}</span>
         <span
           className="mono"
-          style={{ color: "var(--app-text)", fontWeight: 500 }}
+          style={{ color: "var(--app-text)", fontWeight: 600 }}
         >
           {entry.cron}
         </span>

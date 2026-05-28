@@ -106,7 +106,7 @@ function Sidebar({
           padding: "6px 12px",
           fontSize: "var(--fs-x-small)",
           color: active ? "var(--core-fleet-green)" : "var(--app-text)",
-          background: active ? "rgba(0,154,125,0.10)" : undefined,
+          background: active ? "rgba(0,194,139,0.10)" : undefined,
           borderLeft: active
             ? "2px solid var(--core-fleet-green)"
             : "2px solid transparent",
@@ -162,7 +162,7 @@ function EnableToggle({
         alignItems: "flex-start",
         gap: 10,
         padding: "10px 14px",
-        background: checked ? "rgba(0,154,125,0.10)" : "var(--app-surface)",
+        background: checked ? "rgba(0,194,139,0.10)" : "var(--app-surface)",
         border: checked
           ? "1px solid var(--core-fleet-green)"
           : "1px solid var(--app-border)",
@@ -1210,7 +1210,7 @@ function ParsedRow({
         borderRadius: "var(--radius-md)",
         cursor: "pointer",
         background: selected
-          ? "rgba(0,154,125,0.12)"
+          ? "rgba(0,194,139,0.12)"
           : "var(--app-surface-2)",
         border: `1px solid ${selected ? "var(--core-fleet-green)" : "transparent"}`,
         display: "flex",
@@ -1296,7 +1296,7 @@ function StatusPill({
       style={{
         fontSize: "var(--fs-xxx-small)",
         color: "var(--core-fleet-green)",
-        background: filled ? "rgba(0,154,125,0.12)" : "transparent",
+        background: filled ? "rgba(0,194,139,0.12)" : "transparent",
         border: `1px solid ${filled ? "transparent" : "var(--core-fleet-green)"}`,
         padding: "1px 6px",
         borderRadius: 999,
@@ -2048,11 +2048,11 @@ function CountBadge({
         fontSize: "var(--fs-xxx-small)",
         color: clean ? "var(--core-fleet-green)" : "var(--ui-error)",
         background: clean
-          ? "rgba(0,154,125,0.12)"
-          : "rgba(214,108,123,0.12)",
+          ? "rgba(0,194,139,0.12)"
+          : "rgba(224,120,136,0.12)",
         padding: "1px 8px",
         borderRadius: 999,
-        fontWeight: 500,
+        fontWeight: 600,
         letterSpacing: "0.03em",
       }}
     >

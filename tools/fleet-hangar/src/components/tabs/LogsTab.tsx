@@ -217,7 +217,7 @@ export function LogsTab() {
             style={{
               padding: "4px 10px",
               fontSize: "var(--fs-xx-small)",
-              background: follow ? "rgba(0,154,125,0.12)" : undefined,
+              background: follow ? "rgba(0,194,139,0.12)" : undefined,
               borderColor: follow
                 ? "var(--core-fleet-green)"
                 : "var(--app-border)",
@@ -549,7 +549,7 @@ function WindowPicker({
                 ? "var(--core-fleet-green)"
                 : "var(--app-border)",
               color: active ? "var(--core-fleet-white)" : "var(--app-text-dim)",
-              fontWeight: active ? 500 : 400,
+              fontWeight: active ? 600 : 400,
             }}
           >
             {w.label}
@@ -589,7 +589,7 @@ function LevelChip({
         opacity: on ? 1 : 0.55,
         textTransform: "uppercase",
         letterSpacing: "0.05em",
-        fontWeight: 500,
+        fontWeight: 600,
       }}
     >
       {level}
@@ -615,7 +615,7 @@ function LogRow({
         ...style,
         width: rowWidth,
         padding: "1px 12px 1px 8px",
-        background: isErr ? "rgba(214, 108, 123, 0.10)" : undefined,
+        background: isErr ? "rgba(224, 120, 136, 0.10)" : undefined,
         borderLeft: isErr
           ? "2px solid var(--ui-error)"
           : "2px solid transparent",

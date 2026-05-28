@@ -1,5 +1,48 @@
 @import "./tokens.css";
 
+/* Inter (sans) + SourceCodePro (mono) — bundled locally so the app
+ * renders Fleet's typography without depending on system fallbacks.
+ * Mirror of frontend/styles/global/_fonts.scss. */
+@font-face {
+  font-family: "Inter";
+  font-weight: 400;
+  src: url("../assets/fonts/inter/Inter-Regular.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Regular.woff") format("woff");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: italic;
+  font-weight: 400;
+  src: url("../assets/fonts/inter/Inter-Regular-Italic.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Regular-Italic.woff") format("woff");
+}
+@font-face {
+  font-family: "Inter";
+  font-weight: 600;
+  src: url("../assets/fonts/inter/Inter-Semibold.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Semibold.woff") format("woff");
+}
+@font-face {
+  font-family: "Inter";
+  font-weight: 700;
+  src: url("../assets/fonts/inter/Inter-Bold.woff2") format("woff2"),
+    url("../assets/fonts/inter/Inter-Bold.woff") format("woff");
+}
+@font-face {
+  font-family: "SourceCodePro";
+  font-weight: 400;
+  font-style: normal;
+  src: url("../assets/fonts/source-code-pro/Source-Code-Pro-Regular.ttf.woff") format("woff"),
+    url("../assets/fonts/source-code-pro/Source-Code-Pro-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "SourceCodePro";
+  font-weight: 600;
+  font-style: normal;
+  src: url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.woff") format("woff"),
+    url("../assets/fonts/source-code-pro/Source-Code-Pro-Bold.ttf") format("truetype");
+}
+
 * {
   box-sizing: border-box;
 }
@@ -49,7 +92,7 @@ button.primary {
   background: var(--core-fleet-green);
   border-color: var(--core-fleet-green);
   color: var(--core-fleet-white);
-  font-weight: 500;
+  font-weight: 600;
 }
 button.primary:hover:not(:disabled) {
   background: var(--core-fleet-green-over);
@@ -64,15 +107,15 @@ button.danger {
   background: var(--core-vibrant-red);
   border-color: var(--core-vibrant-red);
   color: var(--core-fleet-white);
-  font-weight: 500;
+  font-weight: 600;
 }
 button.danger:hover:not(:disabled) {
-  background: #e93661;
-  border-color: #e93661;
+  background: var(--core-vibrant-red-over);
+  border-color: var(--core-vibrant-red-over);
 }
 button.danger:active:not(:disabled) {
-  background: #cb3559;
-  border-color: #cb3559;
+  background: var(--core-vibrant-red-down);
+  border-color: var(--core-vibrant-red-down);
 }
 
 input,
@@ -128,7 +171,7 @@ input[type="number"] {
 .dot.run,
 .dot.running {
   background: var(--core-fleet-green);
-  box-shadow: 0 0 0 0 rgba(0, 154, 125, 0.6);
+  box-shadow: 0 0 0 0 rgba(0, 194, 139, 0.6);
   animation: pulse 1.6s ease-in-out infinite;
 }
 .dot.ok,
@@ -149,13 +192,13 @@ input[type="number"] {
 
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(0, 154, 125, 0.5);
+    box-shadow: 0 0 0 0 rgba(0, 194, 139, 0.5);
   }
   70% {
-    box-shadow: 0 0 0 5px rgba(0, 154, 125, 0);
+    box-shadow: 0 0 0 5px rgba(0, 194, 139, 0);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 154, 125, 0);
+    box-shadow: 0 0 0 0 rgba(0, 194, 139, 0);
   }
 }
 
@@ -231,7 +274,7 @@ input[type="number"] {
 }
 .tab-btn.is-active {
   color: var(--app-text);
-  font-weight: 500;
+  font-weight: 600;
   border-bottom-color: var(--core-fleet-green);
 }
 .tab-btn.is-active:hover:not(:disabled) {
@@ -298,13 +341,13 @@ input[type="number"] {
 }
 .tunnel-chip.is-selected {
   border-color: var(--core-fleet-green);
-  background: rgba(0, 154, 125, 0.10);
+  background: rgba(0, 194, 139, 0.10);
   color: var(--core-fleet-green);
 }
 .tunnel-chip.is-selected:hover {
   /* Matches primary button hover: deepen the green like green-over. */
   border-color: var(--core-fleet-green-over);
-  background: rgba(0, 154, 125, 0.18);
+  background: rgba(0, 194, 139, 0.18);
 }
 .tunnel-chip.is-locked {
   cursor: default;

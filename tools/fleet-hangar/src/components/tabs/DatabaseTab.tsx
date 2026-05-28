@@ -152,7 +152,7 @@ export function DatabaseTab({
             color: "var(--ui-error)",
             fontSize: "var(--fs-xx-small)",
             padding: "6px 10px",
-            background: "rgba(214,108,123,0.08)",
+            background: "rgba(224,120,136,0.08)",
             border: "1px solid var(--ui-error)",
             borderRadius: "var(--radius-md)",
           }}
@@ -531,7 +531,7 @@ function BackupRow({
         borderRadius: 6,
         cursor: "pointer",
         background: selected
-          ? "rgba(0,154,125,0.12)"
+          ? "rgba(0,194,139,0.12)"
           : "var(--app-surface-2)",
         border: `1px solid ${selected ? "var(--core-fleet-green)" : "transparent"}`,
         display: "flex",
@@ -831,7 +831,7 @@ function NewBackupPanel({
           className="mono"
           style={{
             color: nameExists ? "var(--ui-error)" : "var(--app-text)",
-            fontWeight: nameExists ? 500 : 400,
+            fontWeight: nameExists ? 600 : 400,
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -937,8 +937,8 @@ function ResetPanel({
       <div
         className="card"
         style={{
-          background: "rgba(214,108,123,0.06)",
-          border: "1px solid rgba(214,108,123,0.4)",
+          background: "rgba(224,120,136,0.06)",
+          border: "1px solid rgba(224,120,136,0.4)",
           padding: 14,
           marginTop: "auto",
         }}

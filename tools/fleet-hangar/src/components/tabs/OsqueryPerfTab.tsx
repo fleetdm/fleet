@@ -303,7 +303,7 @@ export function OsqueryPerfTab({
           style={{
             margin: "var(--pad-small) var(--pad-medium)",
             padding: "6px 10px",
-            background: "rgba(214,108,123,0.08)",
+            background: "rgba(224,120,136,0.08)",
             border: "1px solid var(--ui-error)",
             color: "var(--ui-error)",
             borderRadius: "var(--radius-md)",
@@ -612,7 +612,7 @@ function RunCard({
       {failed ? (
         <div
           style={{
-            background: "rgba(214,108,123,0.10)",
+            background: "rgba(224,120,136,0.10)",
             border: "1px solid var(--ui-error)",
             borderRadius: "var(--radius-sm)",
             padding: "6px 10px",
@@ -727,7 +727,7 @@ function CommandSummary({ command }: { command: string }) {
           <span
             className="mono"
             style={{
-              background: "rgba(106,103,254,0.10)",
+              background: "rgba(123,121,255,0.10)",
               border: "1px solid var(--core-vibrant-blue)",
               padding: "0 6px",
               borderRadius: 999,
@@ -1049,7 +1049,7 @@ function NewRunPanel({
               style={{
                 padding: "2px 8px",
                 fontSize: "var(--fs-xxx-small)",
-                background: n === total ? "rgba(0,154,125,0.10)" : undefined,
+                background: n === total ? "rgba(0,194,139,0.10)" : undefined,
                 borderColor:
                   n === total
                     ? "var(--core-fleet-green)"
@@ -1108,7 +1108,7 @@ function NewRunPanel({
                     gap: 10,
                     padding: "5px 10px",
                     background: selected
-                      ? "rgba(0,154,125,0.08)"
+                      ? "rgba(0,194,139,0.08)"
                       : "transparent",
                     borderTop:
                       i > 0 ? "1px solid var(--app-border)" : "none",
@@ -1267,7 +1267,7 @@ function MdmSection({
       style={{
         padding: 10,
         background: form.mdm_enabled
-          ? "rgba(106,103,254,0.06)"
+          ? "rgba(123,121,255,0.06)"
           : "var(--app-surface-2)",
         border: form.mdm_enabled
           ? "1px solid var(--core-vibrant-blue)"

@@ -748,7 +748,7 @@ function RepoCard({
         padding: "8px 10px",
         borderRadius: "var(--radius-md)",
         background: selected
-          ? "rgba(0,154,125,0.12)"
+          ? "rgba(0,194,139,0.12)"
           : "var(--app-surface-2)",
         border: `1px solid ${selected ? "var(--core-fleet-green)" : "transparent"}`,
         display: "flex",
@@ -941,7 +941,7 @@ function RepoPanel({
                   gap: 10,
                   padding: "6px 10px",
                   background: isChecked(f.name)
-                    ? "rgba(0,154,125,0.05)"
+                    ? "rgba(0,194,139,0.05)"
                     : undefined,
                   borderTop: i > 0 ? "1px solid var(--app-border)" : "none",
                   cursor: "pointer",

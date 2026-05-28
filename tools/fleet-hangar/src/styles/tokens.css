@@ -1,24 +1,34 @@
+/* Fleet-hangar is dark-only; values mirror Fleet's `body.dark-mode`
+ * overrides in frontend/styles/var/colors.scss so the palette and its
+ * hover/active hexes stay in lockstep with the product. When Fleet's
+ * dark-mode values change, mirror them here. */
 :root {
-  /* Brand */
-  --core-fleet-black: #192147;
-  --core-fleet-green: #009a7d;
-  --core-fleet-green-over: #00886c;
-  --core-fleet-green-down: #00775f;
-  --core-fleet-white: #ffffff;
+  /* Brand. Note that --core-fleet-white maps to a near-black surface
+   * color in dark mode — same trick Fleet uses so `color:
+   * var(--core-fleet-white)` flips with the theme. */
+  --core-fleet-black: #e2e4ea;
+  --core-fleet-green: #00c28b;
+  --core-fleet-green-over: #01a889;
+  --core-fleet-green-down: #02be9c;
+  --core-fleet-white: #1a1c21;
 
   /* Accent */
-  --core-vibrant-blue: #6a67fe;
-  --core-vibrant-red: #ff5c83;
-  --core-fleet-purple: #ae6ddf;
+  --core-vibrant-blue: #7b79ff;
+  --core-vibrant-blue-over: #8c8aff;
+  --core-vibrant-blue-down: #6b69d9;
+  --core-vibrant-red: #ff7a9a;
+  --core-vibrant-red-over: #ff8da5;
+  --core-vibrant-red-down: #e07090;
+  --core-fleet-purple: #c08ae8;
 
   /* Status */
-  --ui-success: #3db67b;
-  --ui-warning: #fbbf24;
-  --ui-error: #d66c7b;
-  --ui-info: #6a67fe;
+  --ui-success: #4dc98b;
+  --ui-warning: #f0ca5e;
+  --ui-error: #e07888;
+  --ui-info: #7b79ff;
   --ui-offline: #8b8fa2;
 
-  /* Dark surface scale (default) */
+  /* Dark surface scale */
   --app-bg: #181a1f;
   --app-surface: #1e2128;
   --app-surface-2: #252830;

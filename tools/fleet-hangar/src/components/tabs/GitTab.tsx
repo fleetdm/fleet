@@ -438,7 +438,7 @@ function FilterPill({
         padding: "4px 10px",
         fontSize: "var(--fs-xx-small)",
         borderRadius: 999,
-        background: active ? "rgba(0, 154, 125, 0.15)" : undefined,
+        background: active ? "rgba(0, 194, 139, 0.15)" : undefined,
         borderColor: active
           ? "var(--core-fleet-green)"
           : "var(--app-border)",
