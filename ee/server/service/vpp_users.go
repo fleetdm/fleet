@@ -54,43 +54,13 @@ func (svc *Service) ensureVPPClientUser(ctx context.Context, host *fleet.Host, t
 		return existing.ClientUserID, nil
 	}
 
-	// Non-registered row. Apple enforces uniqueness on
-	// (location, managedAppleId), so blindly calling
-	// registerVPPClientUser with a fresh UUID will collide with any existing
-	// Apple-side user. Ask Apple first; if a user already exists, resync the
-	// local cache to its clientUserId rather than minting a new one.
-	if existing != nil {
-		appleUser, lookupErr := vpp.GetUserByManagedAppleID(ctx, token.Token, managedAppleID)
-		if lookupErr != nil {
-			return "", ctxerr.Wrapf(ctx, lookupErr, "looking up vpp user by managed apple id for token %d", token.ID)
-		}
-		if appleUser != nil {
-			row := &fleet.VPPClientUser{
-				VPPTokenID:     token.ID,
-				ManagedAppleID: managedAppleID,
-				ClientUserID:   appleUser.ClientUserID,
-				Status:         fleet.VPPClientUserStatusRegistered,
-			}
-			if err := svc.ds.InsertVPPClientUser(ctx, row); err != nil {
-				return "", ctxerr.Wrap(ctx, err, "resyncing vpp client user cache from Apple")
-			}
-			return appleUser.ClientUserID, nil
-		}
-	}
-
 	return svc.registerVPPClientUser(ctx, token.ID, managedAppleID, token.Token)
 }
 
 // registerVPPClientUser unconditionally registers a new VPP user via Apple's
 // synchronous v1 endpoint and upserts the (vpp_token_id, managed_apple_id)
 // row with the freshly-generated clientUserId, overwriting any prior cache
-// entry. Used by:
-//
-//   - ensureVPPClientUser on its first-call / cache-miss branch.
-//   - The install-flow self-heal path, when Apple rejects the cached
-//     clientUserId as unknown — bypassing the cache is the whole point of the
-//     retry, so this entry point exists to avoid a confusing 'force' flag on
-//     ensureVPPClientUser.
+// entry. Called by ensureVPPClientUser on its first-call / cache-miss branch.
 func (svc *Service) registerVPPClientUser(ctx context.Context, tokenID uint, managedAppleID, token string) (string, error) {
 	clientUserID := uuid.NewString()
 
