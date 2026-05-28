@@ -1,0 +1,26 @@
+- name: Windows YellowKey osquery extension loaded
+  query: |
+    SELECT 1 FROM osquery_registry
+    WHERE registry = 'table' AND name = 'windows_yellowkey' AND active = 1;
+  description: |
+    Passes when the windows_yellowkey extension is loaded, so the
+    windows-yellowkey report can read it.
+
+    The query checks osquery_registry (a table that always exists) for
+    the windows_yellowkey table plugin. It returns one row when the
+    extension is loaded (pass) and zero rows when it is not (fail). It
+    never errors, so the policy always reports a clean pass or fail.
+    Querying the windows_yellowkey table directly would error when the
+    extension is absent, which Fleet shows as neither passing nor
+    failing and would not trigger the installer.
+
+    Failing hosts run install-yellowkey-extension.ps1. Fleet caps
+    run_script retries at 3 per failure; a host that still fails has
+    likely lost egress to the release URL or could not restart orbit.
+  resolution: |
+    install-yellowkey-extension.ps1 downloads, registers, and loads the
+    extension. If a host stays failing, check the script output in
+    Fleet > Hosts > Activity and confirm the host can reach the release URL.
+  platform: windows
+  run_script:
+    path: ../scripts/install-yellowkey-extension.ps1

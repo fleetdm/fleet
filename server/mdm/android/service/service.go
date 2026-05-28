@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
 )
@@ -32,7 +33,9 @@ var testSetEmptyPrivateKey bool
 
 const (
 	DefaultSignupSSEInterval = 3 * time.Second
-	SignupSSESuccess         = "Android Enterprise successfully connected"
+	// SignupSSESuccess is the SSE event sent on the wire when the Android
+	// enterprise signup completes. Spec-compliant SSE framing ("data: " field + blank-line terminator).
+	SignupSSESuccess = "data: Android Enterprise successfully connected\n\n"
 )
 
 type Service struct {
@@ -637,7 +640,7 @@ type enterpriseSSEResponse struct {
 	done chan string
 }
 
-func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
+func (r enterpriseSSEResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -653,6 +656,9 @@ func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWr
 
 	for {
 		select {
+		case <-ctx.Done():
+			// Client disconnected; stop holding the response open.
+			return
 		case data, ok := <-r.done:
 			if ok {
 				_, _ = fmt.Fprint(w, data)
@@ -660,10 +666,11 @@ func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWr
 			}
 			return
 		case <-time.After(5 * time.Second):
-			// We send a heartbeat to prevent the load balancer from closing the (otherwise idle) connection.
-			// The leading colon indicates this is a comment, and is ignored.
+			// Heartbeat as an SSE comment (line starting with ":"). Comments are
+			// ignored by SSE consumers but keep the connection alive for proxies.
+			// Blank line (\n\n) terminates the event per spec.
 			// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
-			_, _ = fmt.Fprint(w, ":heartbeat\n")
+			_, _ = fmt.Fprint(w, ":heartbeat\n\n")
 			w.(http.Flusher).Flush()
 		}
 	}
@@ -682,7 +689,10 @@ func (svc *Service) EnterpriseSignupSSE(ctx context.Context) (chan string, error
 		return nil, err
 	}
 
-	done := make(chan string)
+	// Buffered so the poller's single send can always complete, even if the
+	// HTTP handler (HijackRender) has already exited due to client disconnect.
+	// Without this, the producer goroutine would leak on an unbuffered channel.
+	done := make(chan string, 1)
 	go func() {
 		if svc.signupSSECheck(ctx, done) {
 			return
@@ -706,7 +716,10 @@ func (svc *Service) EnterpriseSignupSSE(ctx context.Context) (chan string, error
 func (svc *Service) signupSSECheck(ctx context.Context, done chan string) bool {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		done <- fmt.Sprintf("Error getting app config: %v", err)
+		// SSE error event: distinct event type so a client can branch on it.
+		// Strip newlines from err so embedded line breaks don't break SSE framing.
+		msg := strings.ReplaceAll(err.Error(), "\n", " ")
+		done <- fmt.Sprintf("event: error\ndata: Error getting app config: %s\n\n", msg)
 		return true
 	}
 	if appConfig.MDM.AndroidEnabledAndConfigured {
@@ -857,17 +870,216 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		return &fleet.BadRequestError{Message: "missing android device or enterprise id"}
 	}
 
-	// Authenticate client and call AMAPI delete
+	// Authenticate client.
 	secret, err := svc.getClientAuthenticationSecret(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting Android authentication secret")
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
+
+	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work
+	// profile, leaving the personal side intact) instead of the EnterprisesDevicesDelete call.
+	// The mdm_unenrolled activity is emitted later, when the device removes its work profile and
+	// AMAPI sends the resulting STATUS_REPORT (or ENROLLMENT) notification with state=DELETED --
+	// see handlePubSubStatusReport / handlePubSubEnrollment. The COMMAND notification path only
+	// transitions the mdm_android_commands row from pending to acknowledged/error.
+	// For COBO we keep the existing delete-device behavior (terminates management without
+	// factory-resetting the device).
+	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")
+	}
+	isBYO := hostMDM != nil && hostMDM.IsPersonalEnrollment
+
+	if isBYO {
+		op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
+			Type:       string(android.MDMAndroidCommandTypeWipe),
+			WipeParams: &androidmanagement.WipeParams{},
+			Duration:   longCommandDuration,
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amapi issue byo-unenroll wipe command")
+		}
+
+		// Persist the row but don't write wipe_ref: BYO unenroll surfaces as the mdm_unenrolled activity, not as a wipe in the UI.
+		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      host.UUID,
+			OperationName: op.Name,
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		if err := svc.fleetDS.NewMDMAndroidCommand(ctx, cmd); err != nil {
+			svc.logger.ErrorContext(ctx, "amapi byo-unenroll wipe issued but local persist failed",
+				"host_id", host.ID, "operation_name", op.Name, "err", err)
+			return ctxerr.Wrap(ctx, err, "persist android byo-unenroll wipe command")
+		}
+
+		svc.logger.InfoContext(ctx, "android BYO unenroll wipe issued",
+			"host_id", host.ID, "command_uuid", cmd.CommandUUID, "operation_name", op.Name)
+		return nil
+	}
+
 	if err := svc.androidAPIClient.EnterprisesDevicesDelete(ctx, deviceName); err != nil {
 		return ctxerr.Wrap(ctx, err, "amapi delete device")
 	}
 
+	return nil
+}
+
+// longCommandDuration is the AMAPI Command.duration we set on every command Fleet issues. To match Apple/Windows MDM
+// semantics where commands stay queued at the MDM server until delivered, we set this to 10 years — effectively
+// "pending forever" for any realistic device lifecycle. AMAPI docs explicitly state "There is no maximum duration."
+const longCommandDuration = "315360000s" // 10 * 365 * 24 * 3600
+
+// resolveAndroidCommandTarget centralizes the host/enterprise/secret lookup shared by all three command-issuing methods
+// (Lock, Wipe, ClearPasscode). Returns the host (for host_mdm_actions writes and audit fields) and the AMAPI deviceName
+// ready to pass to IssueCommand. Authorization is applied here so the per-command methods stay thin.
+func (svc *Service) resolveAndroidCommandTarget(ctx context.Context, hostID uint, opLabel string) (*fleet.Host, string, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, "", err
+	}
+
+	host, err := svc.fleetDS.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "getting host for android "+opLabel)
+	}
+
+	if !fleet.IsAndroidPlatform(host.Platform) {
+		return nil, "", &fleet.BadRequestError{Message: "host is not an Android host"}
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{
+		TeamID: host.TeamID,
+	}, fleet.ActionWrite); err != nil {
+		return nil, "", err
+	}
+
+	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, host.UUID)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "getting android host by uuid")
+	}
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "getting android enterprise")
+	}
+	if ah.Device == nil || ah.Device.DeviceID == "" || enterprise.EnterpriseID == "" {
+		return nil, "", &fleet.BadRequestError{Message: "missing android device or enterprise id"}
+	}
+
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "getting Android authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
+	return host, deviceName, nil
+}
+
+// LockAndroidHost issues an AMAPI LOCK command and persists state. The Pub/Sub COMMAND
+// notification (see ProcessPubSubPush) transitions the row from pending to acknowledged/error.
+func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
+	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "lock")
+	if err != nil {
+		return err
+	}
+
+	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
+		Type:     string(android.MDMAndroidCommandTypeLock),
+		Duration: longCommandDuration,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "amapi issue lock command")
+	}
+
+	cmd := &android.MDMAndroidCommand{
+		CommandUUID:   uuid.NewString(),
+		HostUUID:      host.UUID,
+		OperationName: op.Name,
+		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}
+	if err := svc.fleetDS.LockHostViaAndroidMDM(ctx, host, cmd); err != nil {
+		// AMAPI already accepted the command at this point; log the orphan but surface the error
+		// so the caller knows the local state is out of sync.
+		svc.logger.ErrorContext(ctx, "amapi lock issued but local state write failed",
+			"host_id", host.ID, "operation_name", op.Name, "err", err)
+		return ctxerr.Wrap(ctx, err, "persist android lock command")
+	}
+
+	svc.logger.InfoContext(ctx, "android lock command issued",
+		"host_id", host.ID, "command_uuid", cmd.CommandUUID, "operation_name", op.Name)
+	return nil
+}
+
+// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row. Unlike Lock/Wipe,
+// ClearPasscode is a one-shot action with no UI lock state, so it does NOT touch host_mdm_actions.
+func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (string, error) {
+	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "clear-passcode")
+	if err != nil {
+		return "", err
+	}
+
+	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
+		Type:        string(android.MDMAndroidCommandTypeResetPassword),
+		NewPassword: "", // explicit empty: clears the passcode
+		Duration:    longCommandDuration,
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "amapi issue reset-password command")
+	}
+
+	cmd := &android.MDMAndroidCommand{
+		CommandUUID:   uuid.NewString(),
+		HostUUID:      host.UUID,
+		OperationName: op.Name,
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}
+	if err := svc.fleetDS.NewMDMAndroidCommand(ctx, cmd); err != nil {
+		svc.logger.ErrorContext(ctx, "amapi clear-passcode issued but local state write failed",
+			"host_id", host.ID, "operation_name", op.Name, "err", err)
+		return "", ctxerr.Wrap(ctx, err, "persist android clear-passcode command")
+	}
+
+	svc.logger.InfoContext(ctx, "android clear-passcode command issued",
+		"host_id", host.ID, "command_uuid", cmd.CommandUUID, "operation_name", op.Name)
+	return cmd.CommandUUID, nil
+}
+
+// WipeAndroidHost issues an AMAPI WIPE command and persists state. AMAPI requires WipeParams to be set (even if empty).
+func (svc *Service) WipeAndroidHost(ctx context.Context, hostID uint) error {
+	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "wipe")
+	if err != nil {
+		return err
+	}
+
+	op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
+		Type:       string(android.MDMAndroidCommandTypeWipe),
+		WipeParams: &androidmanagement.WipeParams{}, // empty struct required by AMAPI
+		Duration:   longCommandDuration,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "amapi issue wipe command")
+	}
+
+	cmd := &android.MDMAndroidCommand{
+		CommandUUID:   uuid.NewString(),
+		HostUUID:      host.UUID,
+		OperationName: op.Name,
+		CommandType:   string(android.MDMAndroidCommandTypeWipe),
+		Status:        string(android.MDMAndroidCommandStatusPending),
+	}
+	if err := svc.fleetDS.WipeHostViaAndroidMDM(ctx, host, cmd); err != nil {
+		svc.logger.ErrorContext(ctx, "amapi wipe issued but local state write failed",
+			"host_id", host.ID, "operation_name", op.Name, "err", err)
+		return ctxerr.Wrap(ctx, err, "persist android wipe command")
+	}
+
+	svc.logger.InfoContext(ctx, "android wipe command issued",
+		"host_id", host.ID, "command_uuid", cmd.CommandUUID, "operation_name", op.Name)
 	return nil
 }
 

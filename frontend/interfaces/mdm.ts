@@ -257,7 +257,7 @@ export type RecoveryLockPasswordStatus =
   | "removing_enforcement"
   | "failed";
 
-export interface IMdmSSOReponse {
+export interface IMdmSSOResponse {
   url: string;
 }
 

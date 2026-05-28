@@ -25,7 +25,7 @@ jobs:
             "runs": [{ "tool": { "driver": { "name": "Trivy" } }, "results": [] }]
           }
           EOF
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@8a470fddafa5cbb6266ee11b37ef4d8aae19c571 # v3.24.6
         with:
           sarif_file: clean.sarif
           category: ${{ matrix.category }}

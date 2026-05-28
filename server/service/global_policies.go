@@ -234,7 +234,10 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 // Modify
 /////////////////////////////////////////////////////////////////////////////////
 
-const errPolicyAllFleetsForConditionalAccess = "\"All fleets\" policy cannot have conditional_access_enabled set"
+const (
+	errPolicyAllFleetsForConditionalAccess     = "\"All fleets\" policy cannot have conditional_access_enabled set"
+	errPolicyAllFleetsForContinuousAutomations = "\"All fleets\" policy cannot have continuous_automations_enabled set"
+)
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ModifyGlobalPolicyRequest)
@@ -456,6 +459,12 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			})
 		}
 
+		if policy.Team == "" && policy.ContinuousAutomationsEnabled {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForContinuousAutomations),
+			})
+		}
+
 		if err := policy.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),
@@ -464,6 +473,11 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 		// LabelsIncludeAll is premium-only.
 		if len(policy.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		// ContinuousAutomationsEnabled is premium-only.
+		if policy.ContinuousAutomationsEnabled && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 

@@ -14,12 +14,4 @@
     gap: $pad-small;
   }
 
-  &__rotate-button--disabled {
-    color: $ui-fleet-black-50;
-    cursor: default;
-
-    .icon {
-      color: $ui-fleet-black-50;
-    }
-  }
 }

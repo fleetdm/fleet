@@ -5,11 +5,16 @@ import (
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
+	mathrand "math/rand/v2"
 	"slices"
 	"sort"
 	"strings"
@@ -136,6 +141,7 @@ func TestMDMApple(t *testing.T) {
 		{"HostRecoveryLockStatusMatrix", testHostRecoveryLockStatusMatrix},
 		{"RecoveryLockReadersReturnNotFoundForSoftDeleted", testRecoveryLockReadersReturnNotFoundForSoftDeleted},
 		{"MDMTurnOffSoftDeletesRecoveryLockPassword", testMDMTurnOffSoftDeletesRecoveryLockPassword},
+		{"MDMTurnOffSoftDeletesMDMCertificates", testMDMTurnOffSoftDeletesMDMCertificates},
 	}
 
 	for _, c := range cases {
@@ -13175,6 +13181,52 @@ func testMDMTurnOffSoftDeletesRecoveryLockPassword(t *testing.T, ds *Datastore) 
 		row := readRaw(t, host.UUID)
 		assert.Nil(t, row, "no row should be created by MDMTurnOff")
 	})
+}
+
+// testMDMTurnOffSoftDeletesMDMCertificates verifies unenroll clears MDM-origin
+// certs but leaves osquery-origin certs intact.
+func testMDMTurnOffSoftDeletesMDMCertificates(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	mkCert := func(hostID uint, commonName string) *fleet.HostCertificateRecord {
+		template := x509.Certificate{
+			Subject:               pkix.Name{CommonName: commonName},
+			Issuer:                pkix.Name{CommonName: "issuer.test.example.com"},
+			SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+		certBytes, _, err := GenerateTestCertBytes(&template)
+		require.NoError(t, err)
+		block, _ := pem.Decode(certBytes)
+		parsed, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		return fleet.NewHostCertificateRecord(hostID, parsed)
+	}
+
+	host := test.NewHost(t, ds, "turnoff-certs", "1.2.3.45", "turnoffcertskey", "turnoffcertsuuid", time.Now())
+	nanoEnroll(t, ds, host, false)
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://mdm.example.com", false, "Fleet", "", false))
+
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{mkCert(host.ID, "osquery.example.com")}, fleet.HostCertificateOriginOsquery))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{mkCert(host.ID, "mdm-acme.example.com")}, fleet.HostCertificateOriginMDM))
+
+	certs, _, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{OrderKey: "common_name"})
+	require.NoError(t, err)
+	require.Len(t, certs, 2)
+
+	_, _, err = ds.MDMTurnOff(ctx, host.UUID)
+	require.NoError(t, err)
+
+	// Only the osquery-origin cert remains; the MDM-origin cert is soft-deleted.
+	certs, _, err = ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{OrderKey: "common_name"})
+	require.NoError(t, err)
+	require.Len(t, certs, 1)
+	require.Equal(t, "osquery.example.com", certs[0].CommonName)
 }
 
 // testRecoveryLockReadersReturnNotFoundForSoftDeleted verifies that view-password and

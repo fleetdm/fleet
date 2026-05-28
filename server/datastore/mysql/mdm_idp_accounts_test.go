@@ -35,7 +35,13 @@ func TestMDMIdPAccountsReconciliation(t *testing.T) {
 func testAssociateHostMDMIdPAccountTriggersReconciliation(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// Android and one Apple platform to verify cross-platform behavior
+	// Android, macOS, Windows, and Linux to verify cross-platform
+	// behavior. Windows and Linux pin down issue #45066: the Orbit Setup
+	// Experience SSO callback (shared by Windows MSI / Linux Orbit enrollment
+	// with End User Authentication).
+	//
+	// This test ensures the full AssociateHostMDMIdPAccount
+	// populates host_emails on every supported platform.
 	platforms := []struct {
 		name     string
 		platform string
@@ -43,6 +49,8 @@ func testAssociateHostMDMIdPAccountTriggersReconciliation(t *testing.T, ds *Data
 	}{
 		{"Android", "android", "android-host-uuid"},
 		{"macOS", "darwin", "macos-host-uuid"}, // Apple platforms
+		{"Windows", "windows", "windows-host-uuid"},
+		{"Linux", "ubuntu", "linux-host-uuid"},
 	}
 
 	// create IdP account

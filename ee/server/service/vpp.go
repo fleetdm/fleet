@@ -331,9 +331,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				vppToken = teamTokenInfo.Secret
 			}
 
-			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
+			var validatedLabels *fleet.LabelIdentsWithScope
+			if !dryRun {
+				validatedLabels, err = ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
+				}
 			}
 
 			payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
@@ -407,14 +410,23 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				assetMap[asset.AdamID] = struct{}{}
 			}
 
+			// incomingAppleApps has one entry per (AdamID, platform); without
+			// dedup, a single missing app would repeat in the error.
+			seenMissing := map[string]struct{}{}
 			for _, vppAppID := range incomingAppleApps {
-				if _, ok := assetMap[vppAppID.AdamID]; !ok {
-					missingAssets = append(missingAssets, vppAppID.AdamID)
+				if _, ok := assetMap[vppAppID.AdamID]; ok {
+					continue
 				}
+				if _, dup := seenMissing[vppAppID.AdamID]; dup {
+					continue
+				}
+				seenMissing[vppAppID.AdamID] = struct{}{}
+				missingAssets = append(missingAssets, vppAppID.AdamID)
 			}
 
 			if len(missingAssets) != 0 {
-				reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ","))
+				sort.Strings(missingAssets)
+				reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ", "))
 				return nil, fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
 			}
 		}

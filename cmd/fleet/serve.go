@@ -125,8 +125,6 @@ import (
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
 
-var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
-
 const (
 	liveQueryMemCacheDuration = 1 * time.Second
 )
@@ -191,12 +189,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	// Validate OTEL server options
-	if config.Logging.OtelLogsEnabled && !config.Logging.TracingEnabled {
-		initFatal(
-			errors.New("logging.otel_logs_enabled requires logging.tracing_enabled to be true"),
-			"OTEL logs require tracing for trace correlation",
-		)
-	}
+	config.Logging.Validate(initFatal)
 
 	// Init OTEL providers (traces, metrics, logs)
 	var loggerProvider *otelsdklog.LoggerProvider
@@ -317,37 +310,15 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		createTestBuckets(cmd.Context(), &config, logger)
 	}
 
-	allowedHostIdentifiers := map[string]bool{
-		"provided": true,
-		"instance": true,
-		"uuid":     true,
-		"hostname": true,
-	}
-	if !allowedHostIdentifiers[config.Osquery.HostIdentifier] {
-		initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
-	}
+	config.Osquery.Validate(initFatal)
 
 	config.ConditionalAccess.Validate(initFatal)
 
-	if len(config.Server.URLPrefix) > 0 {
-		// Massage provided prefix to match expected format
-		config.Server.URLPrefix = strings.TrimSuffix(config.Server.URLPrefix, "/")
-		if len(config.Server.URLPrefix) > 0 && !strings.HasPrefix(config.Server.URLPrefix, "/") {
-			config.Server.URLPrefix = "/" + config.Server.URLPrefix
-		}
+	config.Server.NormalizeURLPrefix()
+	config.Server.ValidateURLPrefix(initFatal)
 
-		if !allowedURLPrefixRegexp.MatchString(config.Server.URLPrefix) {
-			initFatal(
-				fmt.Errorf("prefix must match regexp \"%s\"", allowedURLPrefixRegexp.String()),
-				"setting server URL prefix",
-			)
-		}
-	}
-
-	// Handle server private key configuration - either direct or via AWS Secrets Manager
-	if config.Server.PrivateKey != "" && config.Server.PrivateKeySecretArn != "" {
-		initFatal(errors.New("cannot specify both private_key and private_key_secret_arn"), "validate private key configuration")
-	}
+	// Handle server private key configuration - either direct or via AWS Secrets Manager.
+	config.Server.Validate(initFatal)
 
 	// Retrieve private key from AWS Secrets Manager if specified
 	if config.Server.PrivateKeySecretArn != "" {
@@ -364,13 +335,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		config.Server.PrivateKey = privateKey
 	}
 
+	config.Server.ValidatePrivateKeyLength(initFatal)
 	if len(config.Server.PrivateKey) > 0 {
-		if len(config.Server.PrivateKey) < 32 {
-			initFatal(errors.New("private key must be at least 32 bytes long"), "validate private key")
-		}
-
-		// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
-		// infra setups generate keys that are longer than 32 bytes.
+		// Truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK;
+		// some infra setups generate keys that are longer than 32 bytes.
 		config.Server.PrivateKey = config.Server.PrivateKey[:32]
 	}
 
@@ -743,13 +711,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 
 		if len(toInsert) > 0 {
-			if !config.MDM.IsAppleAPNsSet() {
-				initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"),
-					"validate Apple MDM")
-			} else if !config.MDM.IsAppleSCEPSet() {
-				initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"),
-					"validate Apple MDM")
-			}
+			config.MDM.ValidateAppleAPNSAndSCEPPair(initFatal)
 
 			// parse the APNs and SCEP assets from the config
 			_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
@@ -1122,7 +1084,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	logger.InfoContext(ctx, "instance info", "instanceID", instanceID)
 
 	// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
-	activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
+	activitySvc, activityRoutes := createActivityBoundedContext(svc, ds, dbConns, logger)
 	// Inject the activity bounded context into the main service
 	svc.SetActivityService(activitySvc)
 
@@ -2016,13 +1978,13 @@ func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *
 	return store
 }
 
-func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
+func createActivityBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
 	legacyAuthorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		initFatal(err, "initializing activity authorizer")
 	}
 	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
+	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc, ds)
 	activitySvc, activityRoutesFn := activity_bootstrap.New(
 		dbConns,
 		activityAuthorizer,

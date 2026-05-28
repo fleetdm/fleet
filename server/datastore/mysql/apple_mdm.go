@@ -1311,7 +1311,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 
 	// MDM is necessarily enabled if this gets called, always pass true for that
 	// parameter.
-	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial)
+	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial, "")
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, fromPersonalEnrollment)
@@ -2070,6 +2070,12 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 		// contains darwin/Apple-silicon rows.
 		if err := softDeleteHostRecoveryLockPassword(ctx, tx, uuid); err != nil {
 			return err
+		}
+
+		// Clear MDM-delivered certs dropped on unenroll. All platforms:
+		// iOS/iPadOS lose their refetch channel too.
+		if err := softDeleteMDMHostCertsDB(ctx, tx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing mdm host certificates for host")
 		}
 
 		// we may need to create corresponding "past" activities for "canceled" VPP
@@ -5099,6 +5105,12 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
                     WHERE host_id = ?`, host.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "resetting disk encryption key information for host")
+		}
+
+		// Clear MDM-delivered certs for the same re-enroll-without-CheckOut
+		// cases (local wipe, restore from backup, manual MDM profile removal).
+		if err := softDeleteMDMHostCertsDB(ctx, tx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting mdm host certificates for host")
 		}
 
 		// Do platform-specific cleanup.

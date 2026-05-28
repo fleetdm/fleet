@@ -351,6 +351,8 @@ type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.
 
 type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error
 
+type SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc func(ctx context.Context) (int64, error)
+
 type ProfileHasACMEPayloadForCommandFunc func(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error)
 
 type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
@@ -676,6 +678,8 @@ type GetPoliciesWithAssociatedInstallerFunc func(ctx context.Context, teamID uin
 type GetPoliciesWithAssociatedVPPFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyVPPData, error)
 
 type GetPoliciesWithAssociatedScriptFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicyScriptData, error)
+
+type ResetPolicyAutomationRetryAttemptsForHostFunc func(ctx context.Context, hostID uint, policyIDs []uint) error
 
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
 
@@ -1611,6 +1615,12 @@ type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, app
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
+type RecordFailedVPPAppInstallFunc func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, failureReason string, opts fleet.HostSoftwareInstallOptions) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
+
+type RecordFailedInHouseAppInstallFunc func(ctx context.Context, hostID uint, inHouseAppID uint, commandUUID string, failureReason string, opts fleet.HostSoftwareInstallOptions) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error)
+
+type GetVPPInstallReleaseInfoForCancelFunc func(ctx context.Context, hostID uint, executionID string) (*fleet.VPPInstallReleaseInfo, error)
+
 type GetVPPAppInstallStatusByCommandUUIDFunc func(ctx context.Context, commandUUID string) (bool, error)
 
 type IsAutoUpdateVPPInstallFunc func(ctx context.Context, commandUUID string) (bool, error)
@@ -1731,6 +1741,8 @@ type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) 
 
 type AndroidHostLiteByHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error)
 
+type AndroidDeviceExistsByDeviceIDFunc func(ctx context.Context, deviceID string) (bool, error)
+
 type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
 
 type SetAndroidHostUnenrolledFunc func(ctx context.Context, hostID uint) (bool, error)
@@ -1748,6 +1760,18 @@ type BulkDeleteMDMAndroidHostProfilesFunc func(ctx context.Context, hostUUID str
 type ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
 
 type GetAndroidPolicyRequestByUUIDFunc func(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
+
+type NewMDMAndroidCommandFunc func(ctx context.Context, cmd *android.MDMAndroidCommand) error
+
+type GetMDMAndroidCommandByUUIDFunc func(ctx context.Context, commandUUID string) (*android.MDMAndroidCommand, error)
+
+type GetMDMAndroidCommandByOperationNameFunc func(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
+
+type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error
+
+type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
+
+type WipeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
 type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error)
 
@@ -2482,6 +2506,9 @@ type DataStore struct {
 	UpdateHostCertificatesFunc        UpdateHostCertificatesFunc
 	UpdateHostCertificatesFuncInvoked bool
 
+	SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc        SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc
+	SoftDeleteMDMHostCertificatesForUnenrolledHostsFuncInvoked bool
+
 	ProfileHasACMEPayloadForCommandFunc        ProfileHasACMEPayloadForCommandFunc
 	ProfileHasACMEPayloadForCommandFuncInvoked bool
 
@@ -2970,6 +2997,9 @@ type DataStore struct {
 
 	GetPoliciesWithAssociatedScriptFunc        GetPoliciesWithAssociatedScriptFunc
 	GetPoliciesWithAssociatedScriptFuncInvoked bool
+
+	ResetPolicyAutomationRetryAttemptsForHostFunc        ResetPolicyAutomationRetryAttemptsForHostFunc
+	ResetPolicyAutomationRetryAttemptsForHostFuncInvoked bool
 
 	GetCalendarPoliciesFunc        GetCalendarPoliciesFunc
 	GetCalendarPoliciesFuncInvoked bool
@@ -4372,6 +4402,15 @@ type DataStore struct {
 	GetPastActivityDataForVPPAppInstallFunc        GetPastActivityDataForVPPAppInstallFunc
 	GetPastActivityDataForVPPAppInstallFuncInvoked bool
 
+	RecordFailedVPPAppInstallFunc        RecordFailedVPPAppInstallFunc
+	RecordFailedVPPAppInstallFuncInvoked bool
+
+	RecordFailedInHouseAppInstallFunc        RecordFailedInHouseAppInstallFunc
+	RecordFailedInHouseAppInstallFuncInvoked bool
+
+	GetVPPInstallReleaseInfoForCancelFunc        GetVPPInstallReleaseInfoForCancelFunc
+	GetVPPInstallReleaseInfoForCancelFuncInvoked bool
+
 	GetVPPAppInstallStatusByCommandUUIDFunc        GetVPPAppInstallStatusByCommandUUIDFunc
 	GetVPPAppInstallStatusByCommandUUIDFuncInvoked bool
 
@@ -4552,6 +4591,9 @@ type DataStore struct {
 	AndroidHostLiteByHostUUIDFunc        AndroidHostLiteByHostUUIDFunc
 	AndroidHostLiteByHostUUIDFuncInvoked bool
 
+	AndroidDeviceExistsByDeviceIDFunc        AndroidDeviceExistsByDeviceIDFunc
+	AndroidDeviceExistsByDeviceIDFuncInvoked bool
+
 	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
 	BulkSetAndroidHostsUnenrolledFuncInvoked bool
 
@@ -4578,6 +4620,24 @@ type DataStore struct {
 
 	GetAndroidPolicyRequestByUUIDFunc        GetAndroidPolicyRequestByUUIDFunc
 	GetAndroidPolicyRequestByUUIDFuncInvoked bool
+
+	NewMDMAndroidCommandFunc        NewMDMAndroidCommandFunc
+	NewMDMAndroidCommandFuncInvoked bool
+
+	GetMDMAndroidCommandByUUIDFunc        GetMDMAndroidCommandByUUIDFunc
+	GetMDMAndroidCommandByUUIDFuncInvoked bool
+
+	GetMDMAndroidCommandByOperationNameFunc        GetMDMAndroidCommandByOperationNameFunc
+	GetMDMAndroidCommandByOperationNameFuncInvoked bool
+
+	UpdateMDMAndroidCommandStatusFunc        UpdateMDMAndroidCommandStatusFunc
+	UpdateMDMAndroidCommandStatusFuncInvoked bool
+
+	LockHostViaAndroidMDMFunc        LockHostViaAndroidMDMFunc
+	LockHostViaAndroidMDMFuncInvoked bool
+
+	WipeHostViaAndroidMDMFunc        WipeHostViaAndroidMDMFunc
+	WipeHostViaAndroidMDMFuncInvoked bool
 
 	GetLatestAppleMDMCommandOfTypeFunc        GetLatestAppleMDMCommandOfTypeFunc
 	GetLatestAppleMDMCommandOfTypeFuncInvoked bool
@@ -6090,6 +6150,13 @@ func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, hos
 	return s.UpdateHostCertificatesFunc(ctx, hostID, hostUUID, certs, origin)
 }
 
+func (s *DataStore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.SoftDeleteMDMHostCertificatesForUnenrolledHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SoftDeleteMDMHostCertificatesForUnenrolledHostsFunc(ctx)
+}
+
 func (s *DataStore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID string, commandUUID string) (fleet.ProfileACMECommandResult, error) {
 	s.mu.Lock()
 	s.ProfileHasACMEPayloadForCommandFuncInvoked = true
@@ -7229,6 +7296,13 @@ func (s *DataStore) GetPoliciesWithAssociatedScript(ctx context.Context, teamID 
 	s.GetPoliciesWithAssociatedScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPoliciesWithAssociatedScriptFunc(ctx, teamID, policyIDs)
+}
+
+func (s *DataStore) ResetPolicyAutomationRetryAttemptsForHost(ctx context.Context, hostID uint, policyIDs []uint) error {
+	s.mu.Lock()
+	s.ResetPolicyAutomationRetryAttemptsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetPolicyAutomationRetryAttemptsForHostFunc(ctx, hostID, policyIDs)
 }
 
 func (s *DataStore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {
@@ -10500,6 +10574,27 @@ func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, com
 	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandResults)
 }
 
+func (s *DataStore) RecordFailedVPPAppInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, failureReason string, opts fleet.HostSoftwareInstallOptions) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	s.mu.Lock()
+	s.RecordFailedVPPAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordFailedVPPAppInstallFunc(ctx, hostID, appID, commandUUID, failureReason, opts)
+}
+
+func (s *DataStore) RecordFailedInHouseAppInstall(ctx context.Context, hostID uint, inHouseAppID uint, commandUUID string, failureReason string, opts fleet.HostSoftwareInstallOptions) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
+	s.mu.Lock()
+	s.RecordFailedInHouseAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordFailedInHouseAppInstallFunc(ctx, hostID, inHouseAppID, commandUUID, failureReason, opts)
+}
+
+func (s *DataStore) GetVPPInstallReleaseInfoForCancel(ctx context.Context, hostID uint, executionID string) (*fleet.VPPInstallReleaseInfo, error) {
+	s.mu.Lock()
+	s.GetVPPInstallReleaseInfoForCancelFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPInstallReleaseInfoForCancelFunc(ctx, hostID, executionID)
+}
+
 func (s *DataStore) GetVPPAppInstallStatusByCommandUUID(ctx context.Context, commandUUID string) (bool, error) {
 	s.mu.Lock()
 	s.GetVPPAppInstallStatusByCommandUUIDFuncInvoked = true
@@ -10920,6 +11015,13 @@ func (s *DataStore) AndroidHostLiteByHostUUID(ctx context.Context, hostUUID stri
 	return s.AndroidHostLiteByHostUUIDFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) AndroidDeviceExistsByDeviceID(ctx context.Context, deviceID string) (bool, error) {
+	s.mu.Lock()
+	s.AndroidDeviceExistsByDeviceIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.AndroidDeviceExistsByDeviceIDFunc(ctx, deviceID)
+}
+
 func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
 	s.mu.Lock()
 	s.BulkSetAndroidHostsUnenrolledFuncInvoked = true
@@ -10981,6 +11083,48 @@ func (s *DataStore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUU
 	s.GetAndroidPolicyRequestByUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAndroidPolicyRequestByUUIDFunc(ctx, requestUUID)
+}
+
+func (s *DataStore) NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.NewMDMAndroidCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMDMAndroidCommandFunc(ctx, cmd)
+}
+
+func (s *DataStore) GetMDMAndroidCommandByUUID(ctx context.Context, commandUUID string) (*android.MDMAndroidCommand, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidCommandByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidCommandByUUIDFunc(ctx, commandUUID)
+}
+
+func (s *DataStore) GetMDMAndroidCommandByOperationName(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidCommandByOperationNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidCommandByOperationNameFunc(ctx, operationName)
+}
+
+func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string) error {
+	s.mu.Lock()
+	s.UpdateMDMAndroidCommandStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage)
+}
+
+func (s *DataStore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.LockHostViaAndroidMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.LockHostViaAndroidMDMFunc(ctx, host, cmd)
+}
+
+func (s *DataStore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.WipeHostViaAndroidMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.WipeHostViaAndroidMDMFunc(ctx, host, cmd)
 }
 
 func (s *DataStore) GetLatestAppleMDMCommandOfType(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error) {
