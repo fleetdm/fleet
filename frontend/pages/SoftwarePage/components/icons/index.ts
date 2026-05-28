@@ -30,6 +30,7 @@ import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
+import Plugdata from "./Plugdata";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
@@ -455,6 +456,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
+  plugdata: Plugdata,
   "podman desktop": PodmanDesktop,
   postman: Postman,
   privileges: Privileges,
