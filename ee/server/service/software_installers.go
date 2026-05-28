@@ -1474,17 +1474,12 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	isPersonal := hostMDM != nil && hostMDM.IsPersonalEnrollment
 
 	var clientUserID string
-	// personalTokenDB stays in scope past the BYOD branch so the self-heal
-	// path below (on an "unknown clientUserId" associate error) can
-	// re-register via Apple's v1 endpoint without re-doing the team-token
-	// lookup.
-	var personalTokenDB *fleet.VPPTokenDB
 	if isPersonal {
 		// Token-selection policy (per #44009): use the team's default token —
 		// `GetVPPTokenByTeamID` already returns the first token for the team
 		// (existing behavior). Multi-location support is deferred unless a
 		// customer hits the edge case.
-		personalTokenDB, err = svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+		personalTokenDB, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "fetching VPP token DB row for user-enrolled install")
 		}
@@ -1564,65 +1559,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 				}
 			}
 
-			// Self-heal a stale local cache: Apple says it doesn't recognize
-			// the clientUserId we sent. Recovery is two-step because Apple
-			// enforces one VPP user per (location, managedAppleId):
-			//
-			//   1. Ask Apple for its current user record for this Managed
-			//      Apple ID. If one exists, the local cache simply drifted
-			//      (DB restore, manual edit, prior bug); re-sync to Apple's
-			//      clientUserId and retry the associate.
-			//   2. If Apple has no user (or only Retired entries),
-			//      register a fresh one via the v1 endpoint.
-			//
-			// One retry only either way — if the follow-up associate fails,
-			// surface that error rather than looping.
-			if isPersonal && personalTokenDB != nil && vpp.IsUnknownClientUserError(err) {
-				managedAppleID, idErr := svc.ds.GetHostManagedAppleID(ctx, host.ID)
-				if idErr != nil {
-					return "", ctxerr.Wrap(ctx, idErr, "looking up managed apple id for vpp recovery")
-				}
-
-				existing, lookupErr := vpp.GetUserByManagedAppleID(ctx, personalTokenDB.Token, managedAppleID)
-				if lookupErr != nil {
-					return "", ctxerr.Wrap(ctx, lookupErr, "looking up vpp user by managed apple id for recovery")
-				}
-
-				var recoveredClientUserID string
-				if existing != nil {
-					// Apple still has the user — local cache drift only. Re-sync.
-					recoveredClientUserID = existing.ClientUserID
-					if upsertErr := svc.ds.InsertVPPClientUser(ctx, &fleet.VPPClientUser{
-						VPPTokenID:     personalTokenDB.ID,
-						ManagedAppleID: managedAppleID,
-						ClientUserID:   recoveredClientUserID,
-						Status:         fleet.VPPClientUserStatusRegistered,
-					}); upsertErr != nil {
-						return "", ctxerr.Wrap(ctx, upsertErr, "resyncing vpp client user cache from Apple")
-					}
-					svc.logger.WarnContext(ctx, "recovered vpp client user from Apple; resynced local cache",
-						"host_id", host.ID, "vpp_token_id", personalTokenDB.ID, "adam_id", vppApp.AdamID,
-						"recovered_status", string(existing.Status), "original_err", err.Error())
-				} else {
-					// Apple has no user (likely retired) — safe to mint a new one.
-					newID, regErr := svc.registerVPPClientUser(ctx, personalTokenDB.ID, managedAppleID, personalTokenDB.Token)
-					if regErr != nil {
-						return "", ctxerr.Wrap(ctx, regErr, "re-registering vpp client user after lookup returned no active user")
-					}
-					recoveredClientUserID = newID
-					svc.logger.WarnContext(ctx, "no active vpp user at Apple; registered a new one",
-						"host_id", host.ID, "vpp_token_id", personalTokenDB.ID, "adam_id", vppApp.AdamID,
-						"original_err", err.Error())
-				}
-
-				req.ClientUserIds = []string{recoveredClientUserID}
-				eventID, err = vpp.AssociateAssets(token, req)
-				if err != nil {
-					return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s after vpp client user recovery", vppApp.AdamID)
-				}
-			} else {
-				return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
-			}
+			return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
 	}
 
