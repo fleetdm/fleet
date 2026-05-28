@@ -478,6 +478,13 @@
       "description": "CLion is a JetBrains IDE for C and C++."
     },
     {
+      "name": "CLion",
+      "slug": "clion/windows",
+      "platform": "windows",
+      "unique_identifier": "CLion",
+      "description": "CLion is a JetBrains IDE for C and C++."
+    },
+    {
       "name": "Clockify Desktop",
       "slug": "clockify/darwin",
       "platform": "darwin",
@@ -566,6 +573,13 @@
       "slug": "datagrip/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.datagrip",
+      "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
+    },
+    {
+      "name": "DataGrip",
+      "slug": "datagrip/windows",
+      "platform": "windows",
+      "unique_identifier": "DataGrip",
       "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
     },
     {
@@ -874,6 +888,13 @@
       "slug": "goland/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.goland",
+      "description": "GoLand is a Go (golang) IDE by JetBrains"
+    },
+    {
+      "name": "GoLand",
+      "slug": "goland/windows",
+      "platform": "windows",
+      "unique_identifier": "GoLand",
       "description": "GoLand is a Go (golang) IDE by JetBrains"
     },
     {
@@ -1570,10 +1591,24 @@
       "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
     },
     {
+      "name": "PyCharm Community Edition",
+      "slug": "pycharm-ce/windows",
+      "platform": "windows",
+      "unique_identifier": "PyCharm Community Edition",
+      "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
+    },
+    {
       "name": "PyCharm Professional",
       "slug": "pycharm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm",
+      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+    },
+    {
+      "name": "PyCharm Professional",
+      "slug": "pycharm/windows",
+      "platform": "windows",
+      "unique_identifier": "PyCharm",
       "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
     },
     {
@@ -1619,6 +1654,13 @@
       "description": "Rider is a .NET IDE by JetBrains."
     },
     {
+      "name": "Rider",
+      "slug": "rider/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains Rider",
+      "description": "Rider is a .NET IDE by JetBrains."
+    },
+    {
       "name": "Royal TSX",
       "slug": "royal-tsx/darwin",
       "platform": "darwin",
@@ -1633,10 +1675,24 @@
       "description": "Ruby on Rails IDE by JetBrains."
     },
     {
+      "name": "RubyMine",
+      "slug": "rubymine/windows",
+      "platform": "windows",
+      "unique_identifier": "RubyMine",
+      "description": "Ruby on Rails IDE by JetBrains."
+    },
+    {
       "name": "RustRover",
       "slug": "rustrover/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.rustrover",
+      "description": "Rust IDE by JetBrains."
+    },
+    {
+      "name": "RustRover",
+      "slug": "rustrover/windows",
+      "platform": "windows",
+      "unique_identifier": "RustRover",
       "description": "Rust IDE by JetBrains."
     },
     {
@@ -1770,6 +1826,13 @@
       "slug": "sublime-merge/darwin",
       "platform": "darwin",
       "unique_identifier": "com.sublimemerge",
+      "description": "Sublime Merge is a git client."
+    },
+    {
+      "name": "Sublime Merge",
+      "slug": "sublime-merge/windows",
+      "platform": "windows",
+      "unique_identifier": "Sublime Merge",
       "description": "Sublime Merge is a git client."
     },
     {
@@ -2050,6 +2113,13 @@
       "slug": "webstorm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.WebStorm",
+      "description": "JavaScript IDE by JetBrains."
+    },
+    {
+      "name": "WebStorm",
+      "slug": "webstorm/windows",
+      "platform": "windows",
+      "unique_identifier": "WebStorm",
       "description": "JavaScript IDE by JetBrains."
     },
     {
