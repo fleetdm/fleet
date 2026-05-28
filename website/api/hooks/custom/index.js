@@ -147,7 +147,7 @@ will be disabled and/or hidden in the UI.
         }
         if (!_.isArray(sails.config.builtStaticContent.testimonials) || sails.config.builtStaticContent.testimonials.length === 0) {
           sails.config.builtStaticContent.testimonials = [{
-            quote: 'Run `sails run build-static-content` or `npm start-dev` to see real customer testimonials. This placeholder appears because the website\'s static content has not been built.',
+            quote: 'This placeholder appears because the website\'s static content has not been built. Run `sails run build-static-content` or `npm start-dev` to see real customer testimonials.',
             quoteImageFilename: 'logo-blue-118x41@2x.png',
             quoteAuthorName: 'Fleet',
             quoteAuthorJobTitle: 'Placeholder testimonial',
