@@ -32,7 +32,7 @@ $exePath = ""
 # Parse the uninstall string. Handle both quoted and unquoted exe paths.
 if ($uninstallString -match '^"([^"]+)"(.*)') {
     $exePath = $matches[1]
-} elseif ($uninstallString -match '^([^\s]+)(.*)') {
+} elseif ($uninstallString -match '^(.+?\.exe)(.*)$') {
     $exePath = $matches[1]
 } else {
     Write-Host "Error: Could not parse uninstall string: $uninstallString"
