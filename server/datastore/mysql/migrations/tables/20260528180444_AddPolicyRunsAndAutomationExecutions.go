@@ -31,6 +31,8 @@ func Up_20260528180444(tx *sql.Tx) error {
 		updated_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 		UNIQUE KEY uk_policy_run (policy_id, host_id),
 		KEY idx_host_policy_runs_host_id (host_id),
+		KEY idx_host_policy_runs_policy_id_consecutive_failures (policy_id, consecutive_failures),
+		KEY idx_host_policy_runs_policy_id_created_at (policy_id, created_at),
 		CONSTRAINT fk_host_policy_runs_policy FOREIGN KEY (policy_id) REFERENCES policies (id) ON DELETE CASCADE
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`); err != nil {
@@ -88,7 +90,7 @@ func Up_20260528180444(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 	ALTER TABLE host_script_results
 		ADD COLUMN policy_run_id BIGINT UNSIGNED NULL DEFAULT NULL,
-		ADD KEY idx_host_script_results_policy_run (policy_run_id),
+		ADD KEY idx_host_script_results_policy_run (policy_run_id, exit_code),
 		ADD CONSTRAINT fk_host_script_results_policy_run
 			FOREIGN KEY (policy_run_id) REFERENCES host_policy_runs (id) ON DELETE SET NULL
 	`); err != nil {
@@ -98,7 +100,7 @@ func Up_20260528180444(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 	ALTER TABLE host_software_installs
 		ADD COLUMN policy_run_id BIGINT UNSIGNED NULL DEFAULT NULL,
-		ADD KEY idx_host_software_installs_policy_run (policy_run_id),
+		ADD KEY idx_host_software_installs_policy_run (policy_run_id, execution_status),
 		ADD CONSTRAINT fk_host_software_installs_policy_run
 			FOREIGN KEY (policy_run_id) REFERENCES host_policy_runs (id) ON DELETE SET NULL
 	`); err != nil {

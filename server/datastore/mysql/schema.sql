@@ -1095,6 +1095,8 @@ CREATE TABLE `host_policy_runs` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_policy_run` (`policy_id`,`host_id`),
   KEY `idx_host_policy_runs_host_id` (`host_id`),
+  KEY `idx_host_policy_runs_policy_id_consecutive_failures` (`policy_id`,`consecutive_failures`),
+  KEY `idx_host_policy_runs_policy_id_created_at` (`policy_id`,`created_at`),
   CONSTRAINT `fk_host_policy_runs_policy` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1195,7 +1197,7 @@ CREATE TABLE `host_script_results` (
   KEY `fk_host_script_results_setup_experience_id` (`setup_experience_script_id`),
   KEY `idx_host_script_canceled_created_at` (`host_id`,`script_id`,`canceled`,`created_at` DESC),
   KEY `idx_host_script_results_host_policy` (`host_id`,`policy_id`),
-  KEY `idx_host_script_results_policy_run` (`policy_run_id`),
+  KEY `idx_host_script_results_policy_run` (`policy_run_id`,`exit_code`),
   CONSTRAINT `fk_host_script_results_policy_run` FOREIGN KEY (`policy_run_id`) REFERENCES `host_policy_runs` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_host_script_results_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_host_script_results_setup_experience_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE SET NULL,
@@ -1277,7 +1279,7 @@ CREATE TABLE `host_software_installs` (
   KEY `fk_host_software_installs_installer_id` (`software_installer_id`),
   KEY `fk_host_software_installs_software_title_id` (`software_title_id`),
   KEY `idx_host_software_installs_host_policy` (`host_id`,`policy_id`),
-  KEY `idx_host_software_installs_policy_run` (`policy_run_id`),
+  KEY `idx_host_software_installs_policy_run` (`policy_run_id`,`execution_status`),
   CONSTRAINT `fk_host_software_installs_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_host_software_installs_policy_run` FOREIGN KEY (`policy_run_id`) REFERENCES `host_policy_runs` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_host_software_installs_software_title_id` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
