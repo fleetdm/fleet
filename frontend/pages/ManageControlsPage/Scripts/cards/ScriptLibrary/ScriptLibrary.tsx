@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { AxiosError } from "axios";
 import { useQuery } from "react-query";
 
@@ -52,6 +58,26 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showEditScriptModal, setShowEditScriptModal] = useState(false);
   const [showAddScriptModal, setShowAddScriptModal] = useState(false);
+
+  // Open the add-script modal when arriving from the command palette
+  // with `?add_script=1`. Cleans the param so a refresh doesn't reopen
+  // the modal. Technicians never see the "Add script" button on this
+  // page, so don't honor the deep-link for them either.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("add_script") === "1") {
+      if (!isTechnician) {
+        setShowAddScriptModal(true);
+      }
+      params.delete("add_script");
+      const qs = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+      );
+    }
+  }, [isTechnician]);
 
   const selectedScript = useRef<IScript | null>(null);
 
