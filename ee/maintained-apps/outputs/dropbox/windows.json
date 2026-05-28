@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "252.4.3485",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Dropbox' AND publisher = 'Dropbox, Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dropbox' AND publisher = 'Dropbox, Inc.' AND version_compare(version, '252.4.3485') < 0);"
+      },
+      "installer_url": "https://edge.dropboxstatic.com/dbx-releng/client/Dropbox%20252.4.3485%20Enterprise%20Installer.x64.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "d941db84",
+      "sha256": "a27395733453af0d176bc98674b68cf6195fa3494468dd2bb5b3cb6af7046c1e",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "d941db84": "$product_code = '{4FACD0F4-1AE8-5B27-9912-CCF9EFF75582}'\n$timeoutSeconds = 300  # 5 minute timeout\n\n# Fleet uninstalls app using product code that's extracted on upload\n$process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n# Wait for process with timeout\n$completed = $process.WaitForExit($timeoutSeconds * 1000)\n\nif (-not $completed) {\n    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n    Exit 1603  # ERROR_UNINSTALL_FAILURE\n}\n\n# Check exit code and output result\nif ($process.ExitCode -eq 0) {\n    Write-Output \"Exit 0\"\n    Exit 0\n} else {\n    Write-Output \"Exit $($process.ExitCode)\"\n    Exit $process.ExitCode\n}\n"
+  }
+}

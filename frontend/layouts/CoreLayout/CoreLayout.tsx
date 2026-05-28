@@ -13,6 +13,7 @@ import paths from "router/paths";
 import useDeepEffect from "hooks/useDeepEffect";
 import FlashMessage from "components/FlashMessage";
 import SiteTopNav from "components/top_nav/SiteTopNav";
+import CommandPalette from "components/CommandPalette";
 import { QueryParams } from "utilities/url";
 import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
 
@@ -71,6 +72,7 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
 
   return (
     <div className="app-wrap">
+      <CommandPalette />
       {shouldShowUnsupportedScreen(location.pathname) && (
         <UnsupportedScreenSize />
       )}

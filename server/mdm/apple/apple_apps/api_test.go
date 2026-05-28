@@ -232,6 +232,10 @@ func (m *mockDataStore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNa
 	return nil, nil
 }
 
+func (m *mockDataStore) GetAllMDMConfigAssetsByNameIncludingDeleted(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+	return nil, nil
+}
+
 func (m *mockDataStore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
 	return nil
 }
