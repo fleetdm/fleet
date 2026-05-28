@@ -2,7 +2,12 @@
 # Tableau Desktop is a WiX Burn bundle; its registered UninstallString points
 # to the bundle EXE in the Package Cache.
 
-$softwareNameLike = "Tableau Desktop*"
+# Tableau Desktop registers in Add/Remove Programs as
+# "Tableau YYYY.X (BUILD)" (e.g. "Tableau 2024.3 (20243.25.0208.0338)"),
+# NOT "Tableau Desktop ...". The "Tableau 20*" pattern matches Desktop while
+# excluding sibling products (Tableau Prep Builder, Tableau Reader, Tableau Public)
+# whose DisplayNames continue with a letter, not the year.
+$softwareNameLike = "Tableau 20*"
 $publisherLike = "*Tableau*"
 
 $paths = @(
