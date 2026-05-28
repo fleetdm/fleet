@@ -1125,8 +1125,8 @@ const (
 	MDMAccessRightDeviceErase = 1024 // bit 10: Device Erase
 )
 
-// AppleEnrollmentAccessRights computes the AccessRights bitmask for the SCEP-
-// or ACME-backed Apple enrollment profile given a fleet's BYOD permission
+// AppleEnrollmentAccessRights computes the AccessRights bitmask for the
+// Apple enrollment profile given a fleet's BYOD permission
 // flags. Both arguments default to true (i.e. start from MDMAccessRightAll and
 // strip bits as requested).
 func AppleEnrollmentAccessRights(allowWipe, allowLock bool) int {
