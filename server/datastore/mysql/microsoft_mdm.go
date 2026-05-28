@@ -176,38 +176,23 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx conte
 	return &winMDMDevice, nil
 }
 
-// WindowsHostLiteByHardwareSerial looks up a Windows host by its hardware_serial. It is used to link an unlinked Windows
-// MDM enrollment (mdm_windows_enrollments.host_uuid = ”) to its host using DevDetail/Ext/Microsoft/SMBIOSSerialNumber
-// reported during the first SyncML management session. The platform filter avoids cross-platform collisions on shared
-// serials. If multiple Windows hosts share the same serial (e.g. VM gold images that did not regenerate SMBIOS), the
-// caller cannot pick safely so we return NotFound and let the osquery direct-ingest backstop resolve linkage later.
+// WindowsHostLiteByHardwareSerial looks up a Windows host by its hardware_serial. If multiple Windows hosts share the
+// same serial (e.g. VM gold images that did not regenerate SMBIOS), the caller cannot pick safely so we return NotFound.
+//
+// The read honors ctxdb.RequirePrimary: a caller linking a just-enrolled host (whose hosts row may have been inserted
+// seconds ago) must pass a primary-required context, otherwise replica lag can return a false NotFound.
 func (ds *Datastore) WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*fleet.HostLite, error) {
 	if hardwareSerial == "" {
 		return nil, ctxerr.Wrap(ctx, notFound("Host").WithMessage("empty hardware serial"))
 	}
 	const stmt = `
-		SELECT
-			h.id,
-			h.team_id,
-			h.osquery_host_id,
-			COALESCE(h.node_key, '') AS node_key,
-			h.computer_name,
-			h.hostname,
-			h.uuid,
-			h.hardware_model,
-			h.hardware_serial,
-			h.distributed_interval,
-			h.config_tls_refresh,
-			COALESCE(hst.seen_time, h.created_at) AS seen_time
+		SELECT ` + hostLiteColumns + `
 		FROM hosts h
 		LEFT JOIN host_seen_times hst ON h.id = hst.host_id
 		WHERE h.hardware_serial = ? AND h.platform = 'windows'
 		LIMIT 2`
 	var hosts []*fleet.HostLite
-	// Read from the primary: the host row may have been written seconds ago (osquery enroll → directIngestMDM
-	// completes the host insert just before the first SyncML management session arrives). Replica lag here returns a
-	// false NotFound and the linkage waits another session, defeating the point of this path.
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &hosts, stmt, hardwareSerial); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, hardwareSerial); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select windows host by hardware serial")
 	}
 	if len(hosts) != 1 {

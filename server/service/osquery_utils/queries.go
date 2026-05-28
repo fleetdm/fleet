@@ -3050,9 +3050,6 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 // this same hostUUID, so the `WHERE host_uuid <> ?` guard short-circuited; (b) no row matched mdmDeviceID at all (e.g.
 // the enrollment was deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
 // rather than infer it from the boolean alone.
-//
-// This helper is shared by the osquery direct-ingest path (legacy) and the OMA-DM DevDetail SyncML path (primary), so
-// both linkage triggers run the same post-link bookkeeping exactly once per linkage.
 func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string) (bool, error) {
 	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, hostUUID, mdmDeviceID)
 	if err != nil {
