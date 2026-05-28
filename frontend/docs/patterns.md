@@ -334,6 +334,26 @@ const PageOrComponent = (props) => {
 
 > NOTE: Other hooks are available per [React's documentation](https://reactjs.org/docs/hooks-intro.html).
 
+## Custom hooks
+
+Along with the hooks supplied by React such as `useEffect()` and `useState()`, you may create custom hooks as needed. A custom hook is a shared helper function that uses React state internally, for example to extract certain properties from a context or update a value when state changes.  A good example of a widely-used custom hook is `useTeamIdParam`, which returns information about the currently selected Fleet and ensures (via its use of `useEffect()`) that the caller will get up-to-date values whenever a different team is selected.
+
+Custom hook names should be camel-cased and use the `use` prefix, and should live in the `frontend/hooks` directory.
+
+Current custom hooks include:
+
+- [`useCheckTruncatedElement`](../hooks/useCheckTruncatedElement.ts) — Returns whether a referenced element's content is overflowing/truncated, updating on resize.
+- [`useCheckboxListStateManagement`](../hooks/useCheckboxListStateManagement.tsx) — Manages checked/unchecked state for a list of policies with a toggle updater.
+- [`useDeepEffect`](../hooks/useDeepEffect.ts) — `useEffect` variant that does a deep (lodash `isEqual`) comparison of dependencies.
+- [`useGitOpsMode`](../hooks/useGitOpsMode.ts) — Reports whether GitOps mode is enabled (optionally per-entity, honoring exceptions) and returns the repo URL.
+- [`useIsMobileWidth`](../hooks/useIsMobileWidth.tsx) — Tracks whether the viewport is below the 768px mobile breakpoint via `matchMedia`.
+- [`usePlatformCompatibility`](../hooks/usePlatformCompatibility.tsx) — Debounced check of a SQL string for queryable-platform compatibility, with getter and renderer.
+- [`usePlatformSelector`](../hooks/usePlatformSelector.tsx) — Manages platform-checkbox state (darwin/windows/linux/chrome) and renders the platform selector UI.
+- [`useQueryTargets`](../hooks/useQueryTargets.ts) — `react-query` wrapper that fetches and groups target hosts/labels/teams for a query.
+- [`useSoftwareInstallerMeta`](../hooks/useSoftwareInstallerMeta.ts) — Derives normalized metadata (installer type, FMA/VPP/Android flags, permissions, GitOps state) from a software title.
+- [`useTeamIdParam`](../hooks/useTeamIdParam.ts) — Reads/writes the `team_id` URL param, resolving the current team and handling param strip/replace rules on team change.
+- [`useToggleSidePanel`](../hooks/useToggleSidePanel.ts) — Simple open/closed state with toggle and explicit setter for a side panel.
+
 ## React context
 
 [React context](https://reactjs.org/docs/context.html) is a way to share values across the
@@ -542,7 +562,7 @@ The icon should now be available to use with the `Icon` component from the given
 ### File size
 
 The recommend line limit per page/component is 500 lines. This is only a recommendation.
-Larger files are to be split into multiple files if possible.
+Larger files are to be split into multiple files if possible, especially components which could be split into subcomponents.
 
 ## Testing
 
