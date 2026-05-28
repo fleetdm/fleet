@@ -1383,7 +1383,7 @@ module.exports.routes = {
   'GET /status': 'https://status.fleetdm.com',
   'GET /hall-of-fame': 'https://github.com/fleetdm/fleet/pulse',
   'GET /apply': '/jobs',
-  'GET /jobs': 'https://fleetdm.com/handbook/company#open-positions',
+  'GET /jobs': '/handbook/company#open-positions',
   'GET /company/stewardship': 'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /logout': '/api/v1/account/logout',
   'GET /defcon': 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',

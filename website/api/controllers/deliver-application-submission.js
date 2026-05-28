@@ -89,6 +89,21 @@ module.exports = {
     });
 
 
+    // Send a "Thanks for applying to Fleet" email to the user who submitted the form.
+    await sails.helpers.sendTemplateEmail.with({
+      to: emailAddress,
+      subject: 'Thanks for applying to Fleet',
+      template: 'email-application-submitted',
+      layout: 'layout-email',
+      from: sails.config.custom.applicationReplyEmailAddress,
+      templateData: {
+        firstName: firstName,
+        contactEmail: emailAddress
+      },
+      ensureAck: true,
+    });
+
+
     // All done.
     return;
 
