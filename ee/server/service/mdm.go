@@ -1537,11 +1537,19 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}
 
+	// Apply the global BYOD permission ceiling (#23242) so the downloaded
+	// profile reflects the admin's allow_byod_wipe / allow_byod_lock setting
+	// rather than hardcoding all rights. The downloaded profile has no host
+	// context yet, so the team-level ceiling cannot apply — the host's team
+	// is only known after TokenUpdate.
+	allowWipe := !appConfig.MDM.AllowBYODWipe.Valid || appConfig.MDM.AllowBYODWipe.Value
+	allowLock := !appConfig.MDM.AllowBYODLock.Valid || appConfig.MDM.AllowBYODLock.Value
 	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		appConfig.MDMUrl(),
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		apple_mdm.AppleEnrollmentAccessRights(allowWipe, allowLock),
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
