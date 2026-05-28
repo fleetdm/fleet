@@ -1,0 +1,70 @@
+.self-service-categories-page {
+  @include vertical-page-layout;
+  align-items: flex-start;
+
+  &__fleet-row {
+    align-self: stretch;
+
+    .team-dropdown-wrapper {
+      @include normalize-team-header;
+    }
+  }
+
+  &__premium-card {
+    background-color: $ui-off-white;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    padding: $pad-xxlarge;
+    display: flex;
+    justify-content: center;
+  }
+
+  &__list {
+    align-self: stretch;
+    font-size: $x-small;
+
+    .upload-list__list-item {
+      padding: 0 $pad-large;
+      height: 56px;
+      box-sizing: border-box;
+    }
+  }
+
+  &__list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: $x-small;
+  }
+
+  &__list-title {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-medium;
+    height: 100%;
+  }
+
+  &__row-name {
+    font-size: $x-small;
+    color: $core-fleet-black;
+  }
+
+  &__row-actions {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    opacity: 0;
+    transition: opacity 0.1s ease-in-out;
+  }
+
+  .upload-list__list-item:hover &__row-actions {
+    opacity: 1;
+  }
+}

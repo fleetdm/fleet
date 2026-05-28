@@ -117,6 +117,11 @@ export default {
   LABEL: (id: number) => `/${API_VERSION}/fleet/labels/${id}`,
   LABELS: `/${API_VERSION}/fleet/labels`,
   LABELS_SUMMARY: `/${API_VERSION}/fleet/labels/summary`,
+
+  // self-service categories
+  SELF_SERVICE_CATEGORIES: `/${API_VERSION}/fleet/software/self_service_categories`,
+  SELF_SERVICE_CATEGORY: (id: number) =>
+    `/${API_VERSION}/fleet/software/self_service_categories/${id}`,
   LABEL_HOSTS: (id: number): string => {
     return `/${API_VERSION}/fleet/labels/${id}/hosts`;
   },
