@@ -303,6 +303,13 @@
       "description": "Bitwarden is a desktop password and login vault."
     },
     {
+      "name": "Bitwarden",
+      "slug": "bitwarden/windows",
+      "platform": "windows",
+      "unique_identifier": "Bitwarden",
+      "description": "Bitwarden is an open-source password management service."
+    },
+    {
       "name": "Blender",
       "slug": "blender/darwin",
       "platform": "darwin",
@@ -777,6 +784,13 @@
       "platform": "darwin",
       "unique_identifier": "com.expressvpn.ExpressVPN",
       "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
+    },
+    {
+      "name": "ExpressVPN",
+      "slug": "expressvpn/windows",
+      "platform": "windows",
+      "unique_identifier": "ExpressVPN",
+      "description": "ExpressVPN is a commercial VPN service."
     },
     {
       "name": "Figma",
@@ -1395,11 +1409,25 @@
       "description": "NordPass is a password manager."
     },
     {
+      "name": "NordPass",
+      "slug": "nordpass/windows",
+      "platform": "windows",
+      "unique_identifier": "NordPass",
+      "description": "NordPass is a password manager from the makers of NordVPN."
+    },
+    {
       "name": "NordVPN",
       "slug": "nordvpn/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nordvpn.macos",
       "description": "NordVPN is a VPN client for secure internet access and private browsing."
+    },
+    {
+      "name": "NordVPN",
+      "slug": "nordvpn/windows",
+      "platform": "windows",
+      "unique_identifier": "NordVPN",
+      "description": "NordVPN is a commercial VPN service."
     },
     {
       "name": "Notepad++",
@@ -1528,6 +1556,13 @@
       "description": "OpenVPN Connect is a VPN client that provides secure remote access to networks and services."
     },
     {
+      "name": "OpenVPN Connect",
+      "slug": "openvpn-connect/windows",
+      "platform": "windows",
+      "unique_identifier": "OpenVPN Connect",
+      "description": "OpenVPN Connect is the official OpenVPN client."
+    },
+    {
       "name": "Opera",
       "slug": "opera/darwin",
       "platform": "darwin",
@@ -1619,6 +1654,13 @@
       "description": "Pritunl is an OpenVPN client."
     },
     {
+      "name": "Pritunl",
+      "slug": "pritunl/windows",
+      "platform": "windows",
+      "unique_identifier": "Pritunl",
+      "description": "Pritunl is an OpenVPN client."
+    },
+    {
       "name": "Privileges",
       "slug": "privileges/darwin",
       "platform": "darwin",
@@ -1633,11 +1675,25 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
+      "name": "Proton Mail",
+      "slug": "proton-mail/windows",
+      "platform": "windows",
+      "unique_identifier": "Proton Mail",
+      "description": "Proton Mail is an end-to-end encrypted email service."
+    },
+    {
       "name": "ProtonVPN",
       "slug": "protonvpn/darwin",
       "platform": "darwin",
       "unique_identifier": "ch.protonvpn.mac",
       "description": "ProtonVPN is a VPN client focusing on security."
+    },
+    {
+      "name": "ProtonVPN",
+      "slug": "protonvpn/windows",
+      "platform": "windows",
+      "unique_identifier": "Proton VPN",
+      "description": "Proton VPN is a Swiss-based VPN service focused on privacy."
     },
     {
       "name": "Proxifier",
@@ -1927,6 +1983,13 @@
       "description": "Surfshark is a VPN client for secure internet access and private browsing."
     },
     {
+      "name": "Surfshark",
+      "slug": "surfshark/windows",
+      "platform": "windows",
+      "unique_identifier": "Surfshark",
+      "description": "Surfshark is a commercial VPN service."
+    },
+    {
       "name": "Suspicious Package",
       "slug": "suspicious-package/darwin",
       "platform": "darwin",
@@ -2051,6 +2114,13 @@
       "platform": "darwin",
       "unique_identifier": "org.torproject.torbrowser",
       "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
+    },
+    {
+      "name": "Tor Browser",
+      "slug": "tor-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Tor Browser",
+      "description": "Tor Browser is a privacy-focused web browser that routes traffic through the Tor network."
     },
     {
       "name": "TortoiseGit",
