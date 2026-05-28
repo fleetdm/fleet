@@ -2627,6 +2627,10 @@ func TestPubSubDeletedClearsWipeRefForBYO(t *testing.T) {
 				clearActionsArgs = append(clearActionsArgs, hostID)
 				return nil
 			}
+			// DELETED handler emits mdm_unenrolled activity and looks up display_name + hardware_serial first.
+			mockDS.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+				return []*fleet.Host{{ID: existingHostID, Hostname: "deleted-host"}}, nil
+			}
 
 			require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", buildDELETEDMessage(t, tc.topic)))
 
