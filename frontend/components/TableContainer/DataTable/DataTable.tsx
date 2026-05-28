@@ -457,6 +457,7 @@ const DataTable = ({
           {isAllPagesSelected && totalCount !== undefined
             ? totalCount
             : selectedCount}
+          {isAllPagesSelected && totalCount === undefined && "+"}
         </span>{" "}
         selected
       </p>
