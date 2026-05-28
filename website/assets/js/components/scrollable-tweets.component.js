@@ -103,7 +103,7 @@ parasails.registerComponent('scrollableTweets', {
     $(window).on('wheel', this.updatePageIndicators);
   },
   beforeDestroy: function() {
-    $(window).off('.scrollableTweets');
+
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
