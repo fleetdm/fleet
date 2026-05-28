@@ -1,0 +1,1 @@
+* Fixed "Show example payload" button being incorrectly disabled in GitOps mode on the "Other workflows" and "Calendar events" policy automation modals.

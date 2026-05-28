@@ -275,7 +275,7 @@ const CalendarEventsModal = ({
               onClick={() => {
                 setShowExamplePayload(!showExamplePayload);
               }}
-              disabled={!formData.enabled || gitOpsModeEnabled}
+              disabled={!formData.enabled}
             />
             {showExamplePayload && renderExamplePayload()}
           </>
