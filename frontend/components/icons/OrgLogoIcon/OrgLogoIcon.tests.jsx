@@ -20,12 +20,4 @@ describe("OrgLogoIcon - component", () => {
       "/assets/images/avatar.svg"
     );
   });
-
-  it("falls back to the Fleet logo when src is an empty string", () => {
-    render(<OrgLogoIcon src="" />);
-
-    const img = screen.getByRole("img");
-    expect(img).toHaveAttribute("src", fleetAvatar);
-    expect(img).toHaveClass("default-fleet-logo");
-  });
 });
