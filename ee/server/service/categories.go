@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -18,6 +20,16 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID uint) ([]
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareCategory{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
+	if teamID != 0 {
+		exists, err := svc.ds.TeamExists(ctx, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking if fleet exists")
+		}
+		if !exists {
+			return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", teamID)).
+				WithStatus(http.StatusNotFound)
+		}
+	}
 	categories, err := svc.ds.ListSoftwareCategories(ctx, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list software categories")
@@ -26,20 +38,23 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID uint) ([]
 }
 
 func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
+	name = strings.TrimSpace(name)
 	if name == "" {
 		svc.authz.SkipAuthorization(ctx)
 		return nil, fleet.NewInvalidArgumentError("name", "name is required")
+	}
+	if utf8.RuneCountInString(name) > 255 {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewInvalidArgumentError("name", "name must be at most 255 characters")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareCategory{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-
-	// teamID=0 is the "Unassigned" scope and doesn't need an existence check.
 	if teamID != 0 {
 		exists, err := svc.ds.TeamExists(ctx, teamID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+			return nil, ctxerr.Wrap(ctx, err, "checking if fleet exists")
 		}
 		if !exists {
 			return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", teamID)).
@@ -52,13 +67,13 @@ func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID uint, name s
 		return nil, ctxerr.Wrap(ctx, err, "new software category")
 	}
 
-	fleetName, err := svc.fleetNameForActivity(ctx, category.TeamID)
+	fleetID, fleetName, err := svc.fleetForActivity(ctx, category.TeamID)
 	if err != nil {
 		return nil, err
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeAddedSelfServiceCategory{
 		SelfServiceCategoryName: category.Name,
-		FleetID:                 category.TeamID,
+		FleetID:                 fleetID,
 		FleetName:               fleetName,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for added self-service category")
@@ -67,9 +82,14 @@ func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID uint, name s
 }
 
 func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
+	name = strings.TrimSpace(name)
 	if name == "" {
 		svc.authz.SkipAuthorization(ctx)
 		return nil, fleet.NewInvalidArgumentError("name", "name is required")
+	}
+	if utf8.RuneCountInString(name) > 255 {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewInvalidArgumentError("name", "name must be at most 255 characters")
 	}
 
 	// we need to load the category first to scope authz to its team_id
@@ -87,18 +107,24 @@ func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name st
 		return nil, err
 	}
 
+	if category.Name == name {
+		// No-op rename — return the existing row without touching the DB or
+		// emitting an activity.
+		return category, nil
+	}
+
 	updated, err := svc.ds.UpdateSoftwareCategory(ctx, id, name)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "update software category")
 	}
 
-	fleetName, err := svc.fleetNameForActivity(ctx, updated.TeamID)
+	fleetID, fleetName, err := svc.fleetForActivity(ctx, updated.TeamID)
 	if err != nil {
 		return nil, err
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedSelfServiceCategory{
 		SelfServiceCategoryName: updated.Name,
-		FleetID:                 updated.TeamID,
+		FleetID:                 fleetID,
 		FleetName:               fleetName,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for edited self-service category")
@@ -126,13 +152,13 @@ func (svc *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete software category")
 	}
 
-	fleetName, err := svc.fleetNameForActivity(ctx, category.TeamID)
+	fleetID, fleetName, err := svc.fleetForActivity(ctx, category.TeamID)
 	if err != nil {
 		return err
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedSelfServiceCategory{
 		SelfServiceCategoryName: category.Name,
-		FleetID:                 category.TeamID,
+		FleetID:                 fleetID,
 		FleetName:               fleetName,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for deleted self-service category")
@@ -140,15 +166,19 @@ func (svc *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 	return nil
 }
 
-// fleetNameForActivity returns the team's name for use in a category activity.
-// fleet_id=0 ("Unassigned") has no associated team, so an empty string is returned.
-func (svc *Service) fleetNameForActivity(ctx context.Context, teamID uint) (string, error) {
+// fleetForActivity returns the fleet id and name pointers for use in a
+// category activity. team_id=0 ("Unassigned") returns nil for both, matching
+// the convention used by other fleet-aware activities (the JSON output is
+// `null` rather than 0/"").
+func (svc *Service) fleetForActivity(ctx context.Context, teamID uint) (*uint, *string, error) {
 	if teamID == 0 {
-		return "", nil
+		return nil, nil, nil
 	}
 	tm, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "fetching fleet name for category activity")
+		return nil, nil, ctxerr.Wrap(ctx, err, "fetching fleet name for category activity")
 	}
-	return tm.Name, nil
+	id := teamID
+	name := tm.Name
+	return &id, &name, nil
 }

@@ -44,7 +44,7 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, _ uint) ([]*flee
 //////////////////////////////////////////////////////////////////////////////
 
 type addSelfServiceCategoriesRequest struct {
-	FleetID uint   `json:"fleet_id"`
+	FleetID *uint  `json:"fleet_id"`
 	Name    string `json:"name"`
 }
 
@@ -57,7 +57,10 @@ func (r addSelfServiceCategoriesResponse) Error() error { return r.Err }
 
 func addSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addSelfServiceCategoriesRequest)
-	category, err := svc.NewSoftwareCategory(ctx, req.FleetID, req.Name)
+	if req.FleetID == nil {
+		return addSelfServiceCategoriesResponse{Err: fleet.NewInvalidArgumentError("fleet_id", "fleet_id is required")}, nil
+	}
+	category, err := svc.NewSoftwareCategory(ctx, *req.FleetID, req.Name)
 	if err != nil {
 		return addSelfServiceCategoriesResponse{Err: err}, nil
 	}

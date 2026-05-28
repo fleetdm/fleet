@@ -31683,15 +31683,15 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	ctx := t.Context()
 	const path = "/api/latest/fleet/software/self_service_categories"
 
-	// create
+	// create — leading/trailing whitespace in the name is trimmed before storage
 	var addResp addSelfServiceCategoriesResponse
-	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "💼 Engineering"}, http.StatusOK, &addResp)
+	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "  💼 Engineering  "}, http.StatusOK, &addResp)
 	require.NotZero(t, addResp.SelfServiceCategory.ID)
 	require.Equal(t, "💼 Engineering", addResp.SelfServiceCategory.Name)
 	require.Equal(t, uint(0), addResp.SelfServiceCategory.TeamID)
 	catID := addResp.SelfServiceCategory.ID
 	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering","fleet_id":0,"fleet_name":""}`, 0)
+		`{"self_service_category_name":"💼 Engineering","fleet_id":null,"fleet_name":null}`, 0)
 
 	// list includes new category
 	var listResp getSelfServiceCategoriesResponse
@@ -31707,13 +31707,18 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "💼 Engineering tools"}, http.StatusOK, &patchResp)
 	require.Equal(t, catID, patchResp.SelfServiceCategory.ID)
 	require.Equal(t, "💼 Engineering tools", patchResp.SelfServiceCategory.Name)
-	s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":""}`, 0)
+	editActID := s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(),
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":null,"fleet_name":null}`, 0)
+
+	// patch with the same name is a no-op — no new activity emitted
+	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "💼 Engineering tools"}, http.StatusOK, &patchResp)
+	require.Equal(t, editActID, s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(), "", 0),
+		"no-op PATCH should not emit a new activity")
 
 	// delete then 404 on repeat
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNoContent)
 	s.lastActivityMatches(fleet.ActivityTypeDeletedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":""}`, 0)
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":null,"fleet_name":null}`, 0)
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNotFound)
 
 	// patch unknown id returns 404
@@ -31722,18 +31727,23 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	// post without name returns 422
 	s.Do("POST", path, map[string]any{"fleet_id": 0}, http.StatusUnprocessableEntity)
 
-	// post without fleet_id defaults to unassigned
-	var noFleet addSelfServiceCategoriesResponse
-	s.DoJSON("POST", path, map[string]any{"name": "no-fleet"}, http.StatusOK, &noFleet)
-	require.Equal(t, uint(0), noFleet.SelfServiceCategory.TeamID)
+	// whitespace-only name returns 422
+	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": "   "}, http.StatusUnprocessableEntity)
 
-	// get without fleet_id returns 400
+	// get without fleet_id returns 400 (required query param)
 	s.Do("GET", path, nil, http.StatusBadRequest)
 
-	// patch without name returns 422
-	s.Do("PATCH", fmt.Sprintf("%s/%d", path, noFleet.SelfServiceCategory.ID), map[string]any{}, http.StatusUnprocessableEntity)
+	// get unknown fleet_id returns 404
+	s.Do("GET", path, nil, http.StatusNotFound, "fleet_id", "9999999")
 
-	// long name returns 422
+	// patch without name returns 422 — use a fixture for this since the no-op
+	// PATCH above leaves catID deleted
+	var fixture addSelfServiceCategoriesResponse
+	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "patch-target"}, http.StatusOK, &fixture)
+	s.Do("PATCH", fmt.Sprintf("%s/%d", path, fixture.SelfServiceCategory.ID), map[string]any{}, http.StatusUnprocessableEntity)
+
+	// 255-rune name succeeds; 256-rune name returns 422
+	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": strings.Repeat("a", 255)}, http.StatusOK)
 	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": strings.Repeat("a", 256)}, http.StatusUnprocessableEntity)
 
 	// case-insensitive dup returns 409
