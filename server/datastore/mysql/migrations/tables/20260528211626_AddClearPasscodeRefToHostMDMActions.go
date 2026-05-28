@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260528163657, Down_20260528163657)
+	MigrationClient.AddMigration(Up_20260528211626, Down_20260528211626)
 }
 
 // Up_20260528163657 adds clear_passcode_ref to host_mdm_actions, mirroring lock_ref and wipe_ref. For Android hosts the column
@@ -15,7 +15,7 @@ func init() {
 // command is in flight.
 //
 // Other platforms keep this column NULL. Story to add Apple support: #46286
-func Up_20260528163657(tx *sql.Tx) error {
+func Up_20260528211626(tx *sql.Tx) error {
 	if columnExists(tx, "host_mdm_actions", "clear_passcode_ref") {
 		return nil
 	}
@@ -28,6 +28,6 @@ ALTER TABLE host_mdm_actions
 	return nil
 }
 
-func Down_20260528163657(tx *sql.Tx) error {
+func Down_20260528211626(tx *sql.Tx) error {
 	return nil
 }
