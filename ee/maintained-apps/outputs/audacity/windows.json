@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "3.7.7",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity Team';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Audacity %' AND publisher = 'Audacity Team' AND version_compare(version, '3.7.7') < 0);"
+      },
+      "installer_url": "https://github.com/audacity/audacity/releases/download/Audacity-3.7.7/audacity-win-3.7.7-64bit.exe",
+      "install_script_ref": "33137473",
+      "uninstall_script_ref": "3cfe5900",
+      "sha256": "a96f41f21efcdfec1d2f7f332544f8a8fb00a6c411e3bee2aa0031b691dd91a7",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "33137473": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Audacity ships as an Inno Setup installer.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "3cfe5900": "# Attempts to locate Audacity's Inno Setup uninstaller from the registry and run it silently.\n\n$displayNameLike = \"Audacity*\"\n$publisher = \"Audacity Team\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like \"$publisher*\"\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"audacity\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = $uninstall.UninstallString\n$uninstallArgs = \"/VERYSILENT /NORESTART\"\n\n$splitArgs = $uninstallCommand.Split('\"')\nif ($splitArgs.Length -gt 1) {\n    if ($splitArgs.Length -eq 3) {\n        $existingArgs = $splitArgs[2].Trim()\n        if ($existingArgs -ne '') {\n            $uninstallArgs = \"$existingArgs $uninstallArgs\"\n        }\n    } elseif ($splitArgs.Length -gt 3) {\n        Write-Host \"Error: Uninstall command contains multiple quoted strings\"\n        Exit 1\n    }\n    $uninstallCommand = $splitArgs[1]\n}\n\nWrite-Host \"Uninstall command: $uninstallCommand\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $uninstallCommand\n        ArgumentList = $uninstallArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

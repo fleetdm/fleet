@@ -1,0 +1,10 @@
+{
+  "name": "Dropbox",
+  "slug": "dropbox/windows",
+  "package_identifier": "Dropbox.Dropbox",
+  "unique_identifier": "Dropbox",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}
