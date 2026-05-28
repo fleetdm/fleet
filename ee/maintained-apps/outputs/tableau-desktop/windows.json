@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "24.3.965",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Tableau Desktop %' AND publisher = 'Tableau Software, LLC';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Tableau Desktop %' AND publisher = 'Tableau Software, LLC' AND version_compare(version, '24.3.965') < 0);"
+      },
+      "installer_url": "https://downloads.tableau.com/esdalt/2024.3.4/TableauDesktop-64bit-2024-3-4.exe",
+      "install_script_ref": "e460cb4a",
+      "uninstall_script_ref": "0d45c811",
+      "sha256": "fcf55eeb582b080af3480a1b41875abf0dd0e9913150c91c6d2c240514f2cf88",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "0d45c811": "# Locates Tableau Desktop's uninstaller from the registry and runs it silently.\n# Tableau Desktop is a WiX Burn bundle; its registered UninstallString points\n# to the bundle EXE in the Package Cache.\n\n$softwareNameLike = \"Tableau Desktop*\"\n$publisherLike = \"*Tableau*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path $paths `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $null\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike -and $key.Publisher -like $publisherLike) {\n        $selected = $key\n        break\n    }\n}\n\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n$uninstallCommand = if ($selected.QuietUninstallString) {\n    $selected.QuietUninstallString\n} else {\n    $selected.UninstallString\n}\n\n# Defensive UninstallString parser: handle quoted, unquoted-with-spaces (Burn\n# bundles often live under \"C:\\ProgramData\\Package Cache\\...\"), or bare token.\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\n# Burn bundles: append /uninstall if missing (UninstallString doesn't always\n# include the verb), then /quiet /norestart.\nif ($exePath -notmatch '(?i)msiexec' -and $existingArgs -notmatch '/uninstall') {\n    $existingArgs = (\"/uninstall $existingArgs\").Trim()\n}\nif ($existingArgs -notmatch '/quiet' -and $existingArgs -notmatch '/qn') {\n    $existingArgs = (\"$existingArgs /quiet /norestart\").Trim()\n}\n\nWrite-Host \"Selected entry DisplayName: $($selected.DisplayName)\"\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\n$processOptions = @{\n    FilePath = $exePath\n    PassThru = $true\n    Wait = $true\n}\n\nif ($existingArgs -ne '') {\n    $processOptions.ArgumentList = $existingArgs\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) {\n    Exit 0\n}\n\nExit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "e460cb4a": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Tableau Desktop ships as a WiX Burn bundle.\n#   /quiet /norestart   - standard Burn silent install\n#   ACCEPTEULA=1        - required by Tableau (winget Custom switch)\n#   SKIPAPPLICATIONLAUNCH=1 - don't launch after install\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/quiet /norestart ACCEPTEULA=1 SKIPAPPLICATIONLAUNCH=1\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\n\n# msiexec reboot-required success codes (Burn bundles propagate these).\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) {\n  Exit 0\n}\n\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

@@ -254,6 +254,20 @@
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
     },
     {
+      "name": "Azul Zulu JDK 25",
+      "slug": "azul-zulu-25-jdk/windows",
+      "platform": "windows",
+      "unique_identifier": "Azul Zulu JDK",
+      "description": "Azul Zulu JDK 25 is a free, certified build of OpenJDK 25 from Azul Systems."
+    },
+    {
+      "name": "Azul Zulu JRE 25",
+      "slug": "azul-zulu-25-jre/windows",
+      "platform": "windows",
+      "unique_identifier": "Azul Zulu JRE",
+      "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
+    },
+    {
       "name": "Backblaze",
       "slug": "backblaze/darwin",
       "platform": "darwin",
@@ -2075,6 +2089,13 @@
     },
     {
       "name": "Tableau Desktop",
+      "slug": "tableau-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Desktop",
+      "description": "Tableau Desktop is a powerful data visualization and business intelligence platform for analyzing and presenting data insights."
+    },
+    {
+      "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tableausoftware.Desktop.app",
@@ -2100,6 +2121,20 @@
       "platform": "windows",
       "unique_identifier": "Tailscale",
       "description": "Tailscale is mesh VPN based on WireGuard."
+    },
+    {
+      "name": "TeamViewer Host",
+      "slug": "teamviewer-host/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.teamviewer.TeamViewerHost",
+      "description": "TeamViewer Host sets up unattended remote access to a device."
+    },
+    {
+      "name": "TeamViewer Host",
+      "slug": "teamviewer-host/windows",
+      "platform": "windows",
+      "unique_identifier": "TeamViewer Host",
+      "description": "TeamViewer Host sets up unattended remote access to a device."
     },
     {
       "name": "TeamViewer",
@@ -2289,6 +2324,13 @@
       "platform": "windows",
       "unique_identifier": "VLC media player",
       "description": "VLC media player is a free and open-source media player software."
+    },
+    {
+      "name": "VNC Server",
+      "slug": "vnc-server/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.realvnc.vncserver",
+      "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
     },
     {
       "name": "VNC Viewer",

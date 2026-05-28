@@ -1,0 +1,11 @@
+{
+  "name": "Azul Zulu JRE 25",
+  "slug": "azul-zulu-25-jre/windows",
+  "package_identifier": "Azul.Zulu.25.JRE",
+  "unique_identifier": "Azul Zulu JRE",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Azul Zulu JRE %' AND publisher = 'Azul Systems, Inc.' AND version LIKE '25.%';",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}
