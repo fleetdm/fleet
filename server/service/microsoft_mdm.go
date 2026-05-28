@@ -1723,9 +1723,8 @@ scan:
 			}
 			candidate := strings.TrimSpace(item.Data.Content)
 			// Skip empty or well-known placeholder serials (whitebox/consumer BIOS defaults, un-sysprepped VM
-			// templates). They are not unique identities, so linking on one risks attaching this enrollment to an
-			// unrelated host that happens to report the same junk value. Such devices fall back to the osquery
-			// directIngestMDMDeviceIDWindows backstop, which links by the unique MDMDeviceID instead.
+			// templates). Such devices fall back to the osquery directIngestMDMDeviceIDWindows backstop, which links by
+			// the unique MDMDeviceID instead.
 			if fleet.IsPlaceholderHardwareSerial(candidate) {
 				continue
 			}
