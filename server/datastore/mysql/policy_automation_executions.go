@@ -108,17 +108,15 @@ func (ds *Datastore) RecordPolicyTransitions(
 	return failingIDs, nil
 }
 
-// lookupFailingPolicyRunRefs returns the failing host_policy_runs row (new_status=false)
-// for every (policy_id, host_id) pair in the cross-product policyIDs × hostIDs.
-// Callers that want a 1:N shape (e.g. one policy × N hosts, the webhook batch
-// pattern) should pass a singleton for the "1" side; pairs without a matching
-// row are simply absent from the result.
+// lookupFailingPolicyRunRefs returns the failing host_policy_runs row
+// (new_status=false) for every (policy_id, host_id) pair in the cross-product
+// policyIDs × hostIDs. Pairs without a matching row are absent from the result.
 //
 // Both sides are chunked at policyAutomationBatchSize so the per-statement
 // placeholder count stays bounded at ~2×policyAutomationBatchSize regardless
-// of how large either input grows. The outer loop chunks the larger side and
-// the inner loop chunks the smaller side, so realistic 1×N callers issue one
-// query per chunk on the N side and no extra queries on the 1 side.
+// of how large either input grows. Total query count is
+// ceil(len(policyIDs)/B) × ceil(len(hostIDs)/B); production callers pass a
+// singleton on one side so the corresponding loop iterates once.
 func lookupFailingPolicyRunRefs(
 	ctx context.Context,
 	exec sqlx.QueryerContext,
@@ -128,61 +126,25 @@ func lookupFailingPolicyRunRefs(
 		return nil, nil
 	}
 
-	var outerSide, innerSide []uint
-	var outerCol, innerCol string
-	if len(policyIDs) >= len(hostIDs) {
-		outerSide, outerCol = policyIDs, "policy_id"
-		innerSide, innerCol = hostIDs, "host_id"
-	} else {
-		outerSide, outerCol = hostIDs, "host_id"
-		innerSide, innerCol = policyIDs, "policy_id"
-	}
+	const stmt = `SELECT id, policy_id, host_id FROM host_policy_runs
+		WHERE policy_id IN (?) AND host_id IN (?) AND new_status = false`
 
 	var out []fleet.PolicyRunRef
-	for outerStart := 0; outerStart < len(outerSide); outerStart += policyAutomationBatchSize {
-		outerEnd := min(outerStart+policyAutomationBatchSize, len(outerSide))
-		outerChunk := outerSide[outerStart:outerEnd]
+	for pStart := 0; pStart < len(policyIDs); pStart += policyAutomationBatchSize {
+		pChunk := policyIDs[pStart:min(pStart+policyAutomationBatchSize, len(policyIDs))]
 
-		outerPlaceholders := strings.Repeat("?,", len(outerChunk))
-		outerPlaceholders = outerPlaceholders[:len(outerPlaceholders)-1]
+		for hStart := 0; hStart < len(hostIDs); hStart += policyAutomationBatchSize {
+			hChunk := hostIDs[hStart:min(hStart+policyAutomationBatchSize, len(hostIDs))]
 
-		for innerStart := 0; innerStart < len(innerSide); innerStart += policyAutomationBatchSize {
-			innerEnd := min(innerStart+policyAutomationBatchSize, len(innerSide))
-			innerChunk := innerSide[innerStart:innerEnd]
-
-			innerPlaceholders := strings.Repeat("?,", len(innerChunk))
-			innerPlaceholders = innerPlaceholders[:len(innerPlaceholders)-1]
-
-			args := make([]any, 0, len(outerChunk)+len(innerChunk))
-			for _, v := range outerChunk {
-				args = append(args, v)
-			}
-			for _, v := range innerChunk {
-				args = append(args, v)
-			}
-
-			query := `SELECT id, policy_id, host_id FROM host_policy_runs WHERE ` +
-				outerCol + ` IN (` + outerPlaceholders + `) AND ` +
-				innerCol + ` IN (` + innerPlaceholders + `) AND new_status = false`
-
-			rows, err := exec.QueryxContext(ctx, query, args...)
+			query, args, err := sqlx.In(stmt, pChunk, hChunk)
 			if err != nil {
 				return nil, err
 			}
-			err = func() error {
-				defer rows.Close()
-				for rows.Next() {
-					var r fleet.PolicyRunRef
-					if err := rows.Scan(&r.RunID, &r.PolicyID, &r.HostID); err != nil {
-						return err
-					}
-					out = append(out, r)
-				}
-				return rows.Err()
-			}()
-			if err != nil {
+			var batch []fleet.PolicyRunRef
+			if err := sqlx.SelectContext(ctx, exec, &batch, query, args...); err != nil {
 				return nil, err
 			}
+			out = append(out, batch...)
 		}
 	}
 	return out, nil

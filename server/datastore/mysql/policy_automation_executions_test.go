@@ -770,10 +770,10 @@ func TestPolicyRunsForeignKeyBehavior(t *testing.T) {
 }
 
 func TestLookupFailingPolicyRunRefsHandlesLargeInputs(t *testing.T) {
-	// Exercises the chunked branch of lookupFailingPolicyRunRefs without
-	// having to materialize 1000+ rows in MySQL — the query runs against
-	// non-existent IDs and is expected to match nothing, but must not error
-	// or panic on the chunking math.
+	// Smoke-tests the chunked path of lookupFailingPolicyRunRefs without having
+	// to materialize 1000+ rows in MySQL — the query runs against non-existent
+	// IDs and is expected to match nothing, but must not error or panic on the
+	// chunking math.
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
 	ctx := t.Context()
@@ -787,14 +787,14 @@ func TestLookupFailingPolicyRunRefsHandlesLargeInputs(t *testing.T) {
 		bigHostIDs[i] = uint(i + 1)
 	}
 
-	// Both sides exceed the chunk size: chunked side is whichever is larger
-	// (here policyIDs by tie-break), and each chunk inlines the full fixed
-	// side. No rows match, so the result is empty but the call must succeed.
+	// Both sides exceed the chunk size: each dimension is chunked
+	// independently, producing ceil(N/B) × ceil(M/B) queries.
 	refs, err := ds.GetFailingPolicyRuns(ctx, bigPolicyIDs, bigHostIDs)
 	require.NoError(t, err)
 	require.Empty(t, refs)
 
-	// Swap which side is larger to exercise the other chunkSide branch.
+	// Asymmetric sizes: only the larger side gets chunked into multiple
+	// iterations; the smaller side fits in a single chunk.
 	refs, err = ds.GetFailingPolicyRuns(ctx, bigPolicyIDs[:10], bigHostIDs)
 	require.NoError(t, err)
 	require.Empty(t, refs)
