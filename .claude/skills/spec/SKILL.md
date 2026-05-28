@@ -69,7 +69,7 @@ Once the contract is agreed upon:
 
 [The behavioral contract]
 
-## Subtasks
+## Proposed subtasks
 
 - [ ] #issue_number - Subtask 1
 - [ ] #issue_number - Subtask 2
