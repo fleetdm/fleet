@@ -2074,6 +2074,13 @@
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
+      "name": "WinSCP",
+      "slug": "winscp/windows",
+      "platform": "windows",
+      "unique_identifier": "WinSCP",
+      "description": "WinSCP is a free SFTP, SCP, S3, and FTP client for Windows."
+    },
+    {
       "name": "Wireshark",
       "slug": "wireshark-app/darwin",
       "platform": "darwin",
