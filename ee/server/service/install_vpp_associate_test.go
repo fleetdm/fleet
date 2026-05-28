@@ -61,6 +61,10 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assignments"):
 				assert.Equal(t, "Bearer "+bearerToken, r.Header.Get("Authorization"))
 				_, _ = w.Write([]byte(`{"assignments": []}`))
+			case r.Method == http.MethodGet && r.URL.Path == "/users":
+				// ensureVPPClientUser now consults Apple before registering, so
+				// brand-new users go through this path returning an empty list.
+				_, _ = w.Write([]byte(`{"users":[]}`))
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
 				assert.Equal(t, "Bearer "+bearerToken, r.Header.Get("Authorization"))
 				_, _ = fmt.Fprintf(w, `{"assets":[{"adamId":%q,"pricingParam":"STDQ","availableCount":5}]}`, adamID)
@@ -164,6 +168,8 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assignments"):
 				assignmentsQuery = r.URL.RawQuery
 				_, _ = w.Write([]byte(`{"assignments": []}`))
+			case r.Method == http.MethodGet && r.URL.Path == "/users":
+				_, _ = w.Write([]byte(`{"users":[]}`))
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
 				_, _ = fmt.Fprintf(w, `{"assets":[{"adamId":%q,"pricingParam":"STDQ","availableCount":5}]}`, adamID)
 			case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":
@@ -192,6 +198,8 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assignments"):
 				// User already has the asset — Apple returns a non-empty assignment list.
 				_, _ = fmt.Fprintf(w, `{"assignments":[{"adamId":%q,"pricingParam":"STDQ"}]}`, adamID)
+			case r.Method == http.MethodGet && r.URL.Path == "/users":
+				_, _ = w.Write([]byte(`{"users":[]}`))
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
 				t.Errorf("/assets must not be queried when assignments already exist")
 			case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":
@@ -219,6 +227,8 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 			switch {
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assignments"):
 				_, _ = w.Write([]byte(`{"assignments": []}`))
+			case r.Method == http.MethodGet && r.URL.Path == "/users":
+				_, _ = w.Write([]byte(`{"users":[]}`))
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
 				_, _ = fmt.Fprintf(w, `{"assets":[{"adamId":%q,"pricingParam":"STDQ","availableCount":5}]}`, adamID)
 			case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":
@@ -299,10 +309,22 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 			}
 		})
 
-		// Override managed-apple-id so the GET /users assertion above can pin it.
+		// Stale local cache: registered row points at a clientUserId Apple no
+		// longer recognizes. This is the cache-drift scenario where the
+		// associate-time 9609 self-heal kicks in — ensureVPPClientUser returns
+		// the stale UUID on the cache hit without consulting Apple.
+		const staleUUID = "stale-cached-uuid"
 		ds := setupDS(t, true)
 		ds.GetHostManagedAppleIDFunc = func(_ context.Context, _ uint) (string, error) {
 			return "user@example.com", nil
+		}
+		ds.GetVPPClientUserFunc = func(_ context.Context, _ uint, _ string) (*fleet.VPPClientUser, error) {
+			return &fleet.VPPClientUser{
+				VPPTokenID:     99,
+				ManagedAppleID: "user@example.com",
+				ClientUserID:   staleUUID,
+				Status:         fleet.VPPClientUserStatusRegistered,
+			}, nil
 		}
 		var upserts []*fleet.VPPClientUser
 		ds.InsertVPPClientUserFunc = func(_ context.Context, row *fleet.VPPClientUser) error {
@@ -316,15 +338,15 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		require.NotEmpty(t, cmdUUID)
 
 		require.Equal(t, 2, associateCalls, "associate must be retried exactly once")
-		require.Equal(t, 1, getUsersCalls, "must look up the user by managed apple id before deciding to re-register")
-		require.Equal(t, 1, registerCalls, "only the initial ensureVPPClientUser register; no second register since Apple still has the user")
+		require.Equal(t, 1, getUsersCalls, "self-heal looks up the user by managed apple id once after 9609")
+		require.Equal(t, 0, registerCalls, "Apple still has the user — must resync, not register")
 
-		require.NotEqual(t, capturedFirstClientUserID, capturedSecondClientUser, "second associate must use the recovered clientUserId")
+		require.Equal(t, staleUUID, capturedFirstClientUserID, "first associate uses the stale cached clientUserId")
 		require.Equal(t, recoveredUUID, capturedSecondClientUser, "second associate must use the clientUserId returned by Apple's GET /users")
 
-		require.Len(t, upserts, 2, "initial register + cache resync from Apple")
-		require.Equal(t, recoveredUUID, upserts[1].ClientUserID)
-		require.Equal(t, fleet.VPPClientUserStatusRegistered, upserts[1].Status)
+		require.Len(t, upserts, 1, "cache resync from Apple is the only write")
+		require.Equal(t, recoveredUUID, upserts[0].ClientUserID)
+		require.Equal(t, fleet.VPPClientUserStatusRegistered, upserts[0].Status)
 		require.True(t, ds.InsertHostVPPSoftwareInstallFuncInvoked)
 	})
 
@@ -370,7 +392,11 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
 		require.NoError(t, err)
 
-		require.Equal(t, 1, getUsersCalls)
+		// ensureVPPClientUser now consults Apple before registering, so the
+		// lookup fires twice: once during ensure (resolves to Retired-only,
+		// falls through to register) and once during the self-heal recovery
+		// after associate fails with 9609.
+		require.Equal(t, 2, getUsersCalls)
 		require.Equal(t, 2, registerCalls, "initial ensure + fallback re-register")
 		require.Equal(t, 2, associateCalls, "associate retried after re-register")
 	})
@@ -383,6 +409,8 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 			switch {
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assignments"):
 				_, _ = w.Write([]byte(`{"assignments": []}`))
+			case r.Method == http.MethodGet && r.URL.Path == "/users":
+				_, _ = w.Write([]byte(`{"users":[]}`))
 			case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/assets"):
 				_, _ = fmt.Fprintf(w, `{"assets":[{"adamId":%q,"pricingParam":"STDQ","availableCount":5}]}`, adamID)
 			case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":

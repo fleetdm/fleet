@@ -34,33 +34,40 @@ func TestEnsureVPPClientUser_NewUser(t *testing.T) {
 	tokenDB := &fleet.VPPTokenDB{ID: 42, Token: "valid-token"}
 	host := &fleet.Host{ID: hostID}
 
-	var registerCalls int
+	var registerCalls, lookupCalls int
 	setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
-		registerCalls++
-		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/registerVPPUserSrv", r.URL.Path)
-		// v1 puts the token in the body, not the Authorization header.
-		assert.Empty(t, r.Header.Get("Authorization"))
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/users":
+			lookupCalls++
+			assert.Equal(t, managedAppleID, r.URL.Query().Get("managedAppleId"))
+			_, _ = fmt.Fprint(w, `{"users":[]}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/registerVPPUserSrv":
+			registerCalls++
+			// v1 puts the token in the body, not the Authorization header.
+			assert.Empty(t, r.Header.Get("Authorization"))
 
-		var got struct {
-			SToken            string `json:"sToken"`
-			ClientUserIDStr   string `json:"clientUserIdStr"`
-			ManagedAppleIDStr string `json:"managedAppleIDStr"`
-		}
-		assert.NoError(t, json.NewDecoder(r.Body).Decode(&got))
-		assert.Equal(t, "valid-token", got.SToken)
-		assert.NotEmpty(t, got.ClientUserIDStr)
-		assert.Equal(t, managedAppleID, got.ManagedAppleIDStr)
-
-		_, _ = fmt.Fprintf(w, `{
-			"status": 0,
-			"user": {
-				"userId": 98765,
-				"status": "Registered",
-				"clientUserIdStr": %q,
-				"managedAppleIDStr": %q
+			var got struct {
+				SToken            string `json:"sToken"`
+				ClientUserIDStr   string `json:"clientUserIdStr"`
+				ManagedAppleIDStr string `json:"managedAppleIDStr"`
 			}
-		}`, got.ClientUserIDStr, managedAppleID)
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+			assert.Equal(t, "valid-token", got.SToken)
+			assert.NotEmpty(t, got.ClientUserIDStr)
+			assert.Equal(t, managedAppleID, got.ManagedAppleIDStr)
+
+			_, _ = fmt.Fprintf(w, `{
+				"status": 0,
+				"user": {
+					"userId": 98765,
+					"status": "Registered",
+					"clientUserIdStr": %q,
+					"managedAppleIDStr": %q
+				}
+			}`, got.ClientUserIDStr, managedAppleID)
+		default:
+			t.Fatalf("unexpected Apple call %s %s", r.Method, r.URL.Path)
+		}
 	})
 
 	ds := new(mock.Store)
@@ -83,6 +90,7 @@ func TestEnsureVPPClientUser_NewUser(t *testing.T) {
 	clientUserID, err := svc.ensureVPPClientUser(context.Background(), host, tokenDB)
 	require.NoError(t, err)
 	require.NotEmpty(t, clientUserID)
+	require.Equal(t, 1, lookupCalls)
 	require.Equal(t, 1, registerCalls)
 
 	require.NotNil(t, insertedRow)
@@ -156,6 +164,50 @@ func TestEnsureVPPClientUser_PendingRowAppleHasUser(t *testing.T) {
 			ClientUserID:   "stale-pending-uuid",
 			Status:         fleet.VPPClientUserStatusPending,
 		}, nil
+	}
+	var insertedRow *fleet.VPPClientUser
+	ds.InsertVPPClientUserFunc = func(_ context.Context, row *fleet.VPPClientUser) error {
+		insertedRow = row
+		return nil
+	}
+
+	svc := newTestServiceWithDS(ds)
+	clientUserID, err := svc.ensureVPPClientUser(context.Background(), host, tokenDB)
+	require.NoError(t, err)
+	require.Equal(t, appleClientID, clientUserID)
+	require.NotNil(t, insertedRow)
+	require.Equal(t, appleClientID, insertedRow.ClientUserID)
+	require.Equal(t, fleet.VPPClientUserStatusRegistered, insertedRow.Status)
+}
+
+// No local cache row at all, but Apple still has the Managed Apple ID
+// registered (e.g. an operator deleted the vpp_client_users row while Apple
+// retained the user). Without the Apple-side lookup the next install would
+// hit error 9635 ("Apple Account can't be associated with registered user")
+// from /registerVPPUserSrv. The lookup must run and resync the cache.
+func TestEnsureVPPClientUser_NoRowAppleHasUser(t *testing.T) {
+	const (
+		managedAppleID = "user@example.com"
+		appleClientID  = "apple-side-uuid"
+	)
+	tokenDB := &fleet.VPPTokenDB{ID: 1, Token: "tok"}
+	host := &fleet.Host{ID: 1}
+
+	setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/users" {
+			assert.Equal(t, managedAppleID, r.URL.Query().Get("managedAppleId"))
+			_, _ = fmt.Fprintf(w, `{"users":[{"clientUserId":%q,"status":"Registered"}]}`, appleClientID)
+			return
+		}
+		t.Fatalf("unexpected Apple call %s %s — no local row + Apple-side user should resync without re-registering", r.Method, r.URL.Path)
+	})
+
+	ds := new(mock.Store)
+	ds.GetHostManagedAppleIDFunc = func(_ context.Context, _ uint) (string, error) {
+		return managedAppleID, nil
+	}
+	ds.GetVPPClientUserFunc = func(_ context.Context, _ uint, _ string) (*fleet.VPPClientUser, error) {
+		return nil, &notFoundError{}
 	}
 	var insertedRow *fleet.VPPClientUser
 	ds.InsertVPPClientUserFunc = func(_ context.Context, row *fleet.VPPClientUser) error {

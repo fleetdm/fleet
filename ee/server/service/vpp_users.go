@@ -54,28 +54,29 @@ func (svc *Service) ensureVPPClientUser(ctx context.Context, host *fleet.Host, t
 		return existing.ClientUserID, nil
 	}
 
-	// Non-registered row. Apple enforces uniqueness on
-	// (location, managedAppleId), so blindly calling
-	// registerVPPClientUser with a fresh UUID will collide with any existing
-	// Apple-side user. Ask Apple first; if a user already exists, resync the
-	// local cache to its clientUserId rather than minting a new one.
-	if existing != nil {
-		appleUser, lookupErr := vpp.GetUserByManagedAppleID(ctx, token.Token, managedAppleID)
-		if lookupErr != nil {
-			return "", ctxerr.Wrapf(ctx, lookupErr, "looking up vpp user by managed apple id for token %d", token.ID)
+	// No registered row — either pending, or the row was removed entirely
+	// (e.g. operator wiped vpp_client_users while Apple still has the user
+	// registered). Apple enforces uniqueness on (location, managedAppleId),
+	// so calling registerVPPClientUser with a fresh UUID would collide with
+	// the existing Apple-side user and trip error 9635 ("Apple Account can't
+	// be associated with registered user"). Ask Apple first; if a user
+	// already exists, resync the local cache to its clientUserId rather than
+	// minting a new one.
+	appleUser, lookupErr := vpp.GetUserByManagedAppleID(ctx, token.Token, managedAppleID)
+	if lookupErr != nil {
+		return "", ctxerr.Wrapf(ctx, lookupErr, "looking up vpp user by managed apple id for token %d", token.ID)
+	}
+	if appleUser != nil {
+		row := &fleet.VPPClientUser{
+			VPPTokenID:     token.ID,
+			ManagedAppleID: managedAppleID,
+			ClientUserID:   appleUser.ClientUserID,
+			Status:         fleet.VPPClientUserStatusRegistered,
 		}
-		if appleUser != nil {
-			row := &fleet.VPPClientUser{
-				VPPTokenID:     token.ID,
-				ManagedAppleID: managedAppleID,
-				ClientUserID:   appleUser.ClientUserID,
-				Status:         fleet.VPPClientUserStatusRegistered,
-			}
-			if err := svc.ds.InsertVPPClientUser(ctx, row); err != nil {
-				return "", ctxerr.Wrap(ctx, err, "resyncing vpp client user cache from Apple")
-			}
-			return appleUser.ClientUserID, nil
+		if err := svc.ds.InsertVPPClientUser(ctx, row); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "resyncing vpp client user cache from Apple")
 		}
+		return appleUser.ClientUserID, nil
 	}
 
 	return svc.registerVPPClientUser(ctx, token.ID, managedAppleID, token.Token)
