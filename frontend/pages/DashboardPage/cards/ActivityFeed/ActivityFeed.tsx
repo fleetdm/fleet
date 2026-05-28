@@ -14,7 +14,11 @@ import {
   SoftwareInstallUninstallStatus,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { ActivityType, IActivityDetails } from "interfaces/activity";
+import {
+  ActivityType,
+  IActivityDetails,
+  IActivityDetailsWithActor,
+} from "interfaces/activity";
 import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 
 import { getPerformanceImpactDescription } from "utilities/helpers";
@@ -114,27 +118,18 @@ const ActivityFeed = ({
     scriptPackageDetails,
     setScriptPackageDetails,
   ] = useState<IActivityDetails | null>(null);
-  const [ipaPackageInstallDetails, setIpaPackageInstallDetails] = useState<
-    // Carries the activity-envelope actor fields alongside details so the
-    // install-details modal can render the Figma-spec actor-driven failure copy
-    // ("Fleet failed to install…" vs "<Admin> failed to install…").
-    | (IActivityDetails & {
-        actor_full_name?: string;
-        fleet_initiated?: boolean;
-      })
-    | null
-  >(null);
+  const [
+    ipaPackageInstallDetails,
+    setIpaPackageInstallDetails,
+  ] = useState<IActivityDetailsWithActor | null>(null);
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
   ] = useState<ISWUninstallDetailsParentState | null>(null);
-  const [vppInstallDetails, setVppInstallDetails] = useState<
-    | (IActivityDetails & {
-        actor_full_name?: string;
-        fleet_initiated?: boolean;
-      })
-    | null
-  >(null);
+  const [
+    vppInstallDetails,
+    setVppInstallDetails,
+  ] = useState<IActivityDetailsWithActor | null>(null);
   const [
     activityAutomationDetails,
     setActivityAutomationDetails,

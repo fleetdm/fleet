@@ -338,6 +338,17 @@ export interface IActivityDetails {
   dataset?: string;
 }
 
+/**
+ * IActivityDetails plus the activity-envelope actor fields the
+ * install-details modal needs to render the actor-driven failure copy
+ * ("Fleet failed to install…" vs "<Admin> failed to install…"). Used by
+ * activity-feed entry points that stash a clicked activity into modal state.
+ */
+export type IActivityDetailsWithActor = IActivityDetails & {
+  actor_full_name?: string;
+  fleet_initiated?: boolean;
+};
+
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
 export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_app_store_app: "Added App Store app", // Includes VPP and Android Playstore apps
