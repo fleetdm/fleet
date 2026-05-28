@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2025.3.4.7",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Android Studio' AND publisher = 'Google LLC';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Android Studio' AND publisher = 'Google LLC' AND version_compare(version, '2025.3.4.7') < 0);"
+      },
+      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2025.3.4.7/android-studio-panda4-patch1-windows.exe",
+      "install_script_ref": "ae3e0abb",
+      "uninstall_script_ref": "8e0edd38",
+      "sha256": "d0dd178a3d92b4151fd895bb8e6937c0a722ae5b6ccadac5f88d24f213b44bf2",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "8e0edd38": "# Locates Android Studio's NSIS uninstaller from the registry and runs it silently.\n\n$displayNameLike = \"Android Studio*\"\n$publisher = \"Google LLC\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -eq $publisher\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"studio64\" -Force -ErrorAction SilentlyContinue\nStop-Process -Name \"studio\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = $uninstall.UninstallString\n\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\nif ($existingArgs -notmatch '\\b/S\\b') {\n    $existingArgs = (\"$existingArgs /S\").Trim()\n}\n\nWrite-Host \"Selected entry DisplayName: $($uninstall.DisplayName)\"\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "ae3e0abb": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Android Studio ships as a Nullsoft (NSIS) installer; /S runs silent.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

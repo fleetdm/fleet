@@ -156,6 +156,13 @@
       "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
     },
     {
+      "name": "Android Studio",
+      "slug": "android-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Android Studio",
+      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
+    },
+    {
       "name": "Anka",
       "slug": "anka-virtualization/darwin",
       "platform": "darwin",
@@ -349,6 +356,13 @@
       "slug": "bruno/darwin",
       "platform": "darwin",
       "unique_identifier": "com.usebruno.app",
+      "description": "Bruno is an open source IDE for exploring and testing APIs."
+    },
+    {
+      "name": "Bruno",
+      "slug": "bruno/windows",
+      "platform": "windows",
+      "unique_identifier": "Bruno",
       "description": "Bruno is an open source IDE for exploring and testing APIs."
     },
     {
@@ -594,6 +608,13 @@
       "slug": "dbeaver-community/darwin",
       "platform": "darwin",
       "unique_identifier": "org.jkiss.dbeaver.core.product",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
+      "name": "DBeaver",
+      "slug": "dbeaver-community/windows",
+      "platform": "windows",
+      "unique_identifier": "DBeaver",
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
@@ -884,6 +905,13 @@
       "description": "GitKraken is a git client focusing on productivity."
     },
     {
+      "name": "GitKraken",
+      "slug": "gitkraken/windows",
+      "platform": "windows",
+      "unique_identifier": "GitKraken",
+      "description": "GitKraken is a git client focusing on productivity."
+    },
+    {
       "name": "GoLand",
       "slug": "goland/darwin",
       "platform": "darwin",
@@ -1031,6 +1059,13 @@
       "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
     },
     {
+      "name": "Insomnia",
+      "slug": "insomnia/windows",
+      "platform": "windows",
+      "unique_identifier": "Insomnia",
+      "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
+    },
+    {
       "name": "IntelliJ IDEA CE",
       "slug": "intellij-idea-ce/darwin",
       "platform": "darwin",
@@ -1161,6 +1196,13 @@
       "slug": "libreoffice/darwin",
       "platform": "darwin",
       "unique_identifier": "org.libreoffice.script",
+      "description": "LibreOffice is a free cross-platform office suite."
+    },
+    {
+      "name": "LibreOffice",
+      "slug": "libreoffice/windows",
+      "platform": "windows",
+      "unique_identifier": "LibreOffice",
       "description": "LibreOffice is a free cross-platform office suite."
     },
     {
@@ -1318,10 +1360,24 @@
       "description": "MongoDB Compass is an interactive tool for analyzing MongoDB data."
     },
     {
+      "name": "MongoDB Compass",
+      "slug": "mongodb-compass/windows",
+      "platform": "windows",
+      "unique_identifier": "MongoDB Compass",
+      "description": "MongoDB Compass is an interactive tool for analyzing MongoDB data."
+    },
+    {
       "name": "MySQL Workbench",
       "slug": "mysqlworkbench/darwin",
       "platform": "darwin",
       "unique_identifier": "com.oracle.workbench.MySQLWorkbench",
+      "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
+    },
+    {
+      "name": "MySQL Workbench",
+      "slug": "mysqlworkbench/windows",
+      "platform": "windows",
+      "unique_identifier": "MySQL Workbench",
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
@@ -1406,6 +1462,13 @@
       "slug": "obsidian/darwin",
       "platform": "darwin",
       "unique_identifier": "md.obsidian",
+      "description": "Obsidian is a knowledge base that works on top of a local folder of plain text Markdown files."
+    },
+    {
+      "name": "Obsidian",
+      "slug": "obsidian/windows",
+      "platform": "windows",
+      "unique_identifier": "Obsidian",
       "description": "Obsidian is a knowledge base that works on top of a local folder of plain text Markdown files."
     },
     {
@@ -1504,6 +1567,13 @@
       "slug": "pgadmin4/darwin",
       "platform": "darwin",
       "unique_identifier": "org.pgadmin.pgadmin4",
+      "description": "pgAdmin4 is an administration and development platform for PostgreSQL."
+    },
+    {
+      "name": "pgAdmin 4",
+      "slug": "pgadmin4/windows",
+      "platform": "windows",
+      "unique_identifier": "pgAdmin 4",
       "description": "pgAdmin4 is an administration and development platform for PostgreSQL."
     },
     {

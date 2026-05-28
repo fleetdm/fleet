@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "26.0.5",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'DBeaver' AND publisher = 'DBeaver Corp';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'DBeaver' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.0.5') < 0);"
+      },
+      "installer_url": "https://github.com/dbeaver/dbeaver/releases/download/26.0.5/dbeaver-ce-26.0.5-windows-x86_64.exe",
+      "install_script_ref": "44838cfb",
+      "uninstall_script_ref": "e9e7cbea",
+      "sha256": "473f069b03035acd0259a6479eee9af7517515bab0dc974cc81999f07bda0911",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "44838cfb": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# DBeaver ships as a Nullsoft (NSIS) installer. /S runs silent, /allusers\n# installs machine-wide per the winget manifest's machine-scope switch.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S /allusers\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "e9e7cbea": "# Locates DBeaver's NSIS uninstaller from the registry and runs it silently.\n# Match by exact DisplayName + publisher; DBeaver does not embed the version\n# in the registry DisplayName, so use exact match rather than fuzzy.\n\n$displayName = \"DBeaver\"\n$publisher = \"DBeaver Corp\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -eq $displayName -and $_.Publisher -eq $publisher\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"dbeaver\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = $uninstall.UninstallString\n\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\n# NSIS uninstallers require /S for silent uninstall.\nif ($existingArgs -notmatch '\\b/S\\b') {\n    $existingArgs = (\"$existingArgs /S\").Trim()\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}
