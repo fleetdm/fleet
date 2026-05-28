@@ -623,6 +623,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 - [Delete certificate template](#delete-certificate-template)
 - [Request certificate](#request-certificate)
 - [Resend host's certificate](#resend-hosts-certificate)
+- [Get device's certificates](#get-devices-certificates)
 
 ### Connect certificate authority (CA)
 
@@ -1237,6 +1238,73 @@ Resends a certificate for the specified host. Currently, only Android certificat
 `Status: 202`
 
 ---
+
+
+### Get device's certificates
+
+_Available for macOS, iOS, and iPadOS hosts only. Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup)._
+
+Lists the certificates installed on the current device. Uses the device token for authentication.
+
+`GET /api/v1/fleet/device/{token}/certificates`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                                                                                             |
+| --------------- | ------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| token           | string  | path  | **Required.** The device's authentication token.                                                                                        |
+| page            | integer | query | Page number of the results to fetch.                                                                                                    |
+| per_page        | integer | query | Results per page.                                                                                                                       |
+| order_key       | string  | query | What to order results by. Options include `common_name` and `not_valid_after`. Default is `common_name`.                                |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.           |
+
+#### Example
+
+`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/certificates`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificates": [
+    {
+      "id": 3,
+      "not_valid_after": "2021-08-19T02:02:17Z",
+      "not_valid_before": "2021-08-19T02:02:17Z",
+      "certificate_authority": true,
+      "common_name": "FleetDM",
+      "key_algorithm": "rsaEncryption",
+      "key_strength": 2048,
+      "key_usage": "CRL Sign, Key Cert Sign",
+      "serial": 1,
+      "signing_algorithm": "sha256WithRSAEncryption",
+      "subject": {
+        "country": "US",
+        "organization": "Fleet Device Management Inc.",
+        "organizational_unit": "Fleet Device Management Inc.",
+        "common_name": "FleetDM"
+      },
+      "issuer": {
+        "country": "US",
+        "organization": "Fleet Device Management Inc.",
+        "organizational_unit": "Fleet Device Management Inc.",
+        "common_name": "FleetDM"
+      },
+      "source": "user",
+      "username": "alice"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+---
+
 
 ## Conditional access
 
@@ -3047,6 +3115,13 @@ None.
 - [Remove labels from host](#remove-labels-from-host)
 - [Run live query on host (ad hoc)](#run-live-query-on-host-ad-hoc)
 - [Run live query on host by identifier (ad hoc)](#run-live-query-on-host-by-identifier-ad-hoc)
+- [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
+- [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
+- [Ping device](#ping-device)
+- [Get Fleet Desktop information](#get-fleet-desktop-information)
+- [Get device's transparency URL](#get-devices-transparency-url)
+- [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
+- [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
 - [Bypass host's conditional access](#bypass-hosts-conditional-access)
 - [Get host's managed account password](#get-hosts-managed-account-password)
 
@@ -5790,6 +5865,193 @@ The live query will stop if the targeted host is offline, or if the query times 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
 
 
+
+### Get device's Google Chrome profiles
+
+Returns the Google Chrome profiles for the current device. Uses the device token for authentication. Same as [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles) but authenticated with the device token.
+
+`GET /api/v1/fleet/device/{token}/device_mapping`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                                      |
+| ----- | ------ | ---- | ------------------------------------------------ |
+| token | string | path | **Required.** The device's authentication token. |
+
+---
+
+### Get device's mobile device management (MDM) and Munki information
+
+Returns the MDM and Munki information for the current device. Uses the device token for authentication. Same as [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information) but authenticated with the device token.
+
+`GET /api/v1/fleet/device/{token}/macadmins`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                                      |
+| ----- | ------ | ---- | ------------------------------------------------ |
+| token | string | path | **Required.** The device's authentication token. |
+
+---
+
+### Ping device
+
+Pings the server to verify the device token is still valid.
+
+`HEAD /api/v1/fleet/device/{token}/ping`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                                      |
+| ----- | ------ | ---- | ------------------------------------------------ |
+| token | string | path | **Required.** The device's authentication token. |
+
+#### Example
+
+`HEAD /api/v1/fleet/device/abcdef012456789/ping`
+
+##### Default response
+
+`Status: 200`
+
+---
+
+### Get Fleet Desktop information
+
+_Available in Fleet Premium._
+
+Returns all information required by Fleet Desktop, including the number of failing policies and notifications to show/hide menu items. Uses the device token for authentication.
+
+`GET /api/v1/fleet/device/{token}/desktop`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                                      |
+| ----- | ------ | ---- | ------------------------------------------------ |
+| token | string | path | **Required.** The device's authentication token. |
+
+#### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/desktop`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "failing_policies_count": 3,
+  "self_service": true,
+  "notifications": {
+    "needs_mdm_migration": true,
+    "renew_enrollment_profile": false
+  },
+  "config": {
+    "org_info": {
+      "org_name": "Fleet",
+      "org_logo_url": "https://example.com/logo.jpg",
+      "org_logo_url_light_background": "https://example.com/logo-light.jpg",
+      "contact_url": "https://fleetdm.com/company/contact"
+    },
+    "mdm": {
+      "macos_migration": {
+        "mode": "forced"
+      }
+    }
+  }
+}
+```
+
+In regards to the `notifications` key:
+
+- `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
+- `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
+
+---
+
+### Get device's transparency URL
+
+Returns the URL to open when clicking the "About Fleet" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL. Uses the device token for authentication.
+
+`GET /api/v1/fleet/device/{token}/transparency`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                                      |
+| ----- | ------ | ---- | ------------------------------------------------ |
+| token | string | path | **Required.** The device's authentication token. |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
+#### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/transparency`
+
+##### Default response
+
+`Status: 307`
+
+Redirects to the transparency URL.
+
+---
+
+### Download device's MDM manual enrollment profile
+
+Returns the URL to provide installation instructions and allow a user to download a manual enrollment profile for a device. A user may be required to complete SSO authentication if configured on the team before being presented with the download option. Uses the device token for authentication.
+
+`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                                      |
+| ----- | ------ | ---- | ------------------------------------------------ |
+| token | string | path | **Required.** The device's authentication token. |
+
+#### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/mdm/apple/manual_enrollment_profile`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "enroll_url": "https://your-fleet-server-url.com/enroll?enroll_secret=ABCzmPbtEECxZhHlFlz9uTWApZmXsCND"
+}
+```
+
+---
+
+### Migrate device to Fleet from another MDM solution
+
+_Available in Fleet Premium._
+
+Signals the Fleet server to send a webhook request with the device UUID and serial number to the webhook URL configured for MDM migration. Uses the device token for authentication.
+
+`POST /api/v1/fleet/device/{token}/migrate_mdm`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                                      |
+| ----- | ------ | ---- | ------------------------------------------------ |
+| token | string | path | **Required.** The device's authentication token. |
+
+#### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/migrate_mdm`
+
+##### Default response
+
+`Status: 204`
+
+
 ## Bypass host's conditional access
 
 Grant a blocked host access for a single login. Requires Okta conditional access configured with bypass enabled.
@@ -6429,6 +6691,7 @@ Deletes the label specified by ID.
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend configuration profile](#resend-configuration-profile)
 - [Batch-resend configuration profile](#batch-resend-configuration-profile)
+- [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
 
 
 ### Create configuration profile
@@ -6943,6 +7206,32 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 
 ---
 
+
+### Trigger Linux disk encryption escrow
+
+_Available in Fleet Premium._
+
+Signals the Fleet server to queue up the LUKS disk encryption escrow process (LUKS passphrase and slot key). Validation requires that disk encryption is enforced for the team, the host's platform is supported, the host's disk is already encrypted, and the host's Orbit version is new enough. On success, a notification flag is added for Orbit that triggers escrow from the Orbit side. Uses the device token for authentication.
+
+`POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                                      |
+| ----- | ------ | ---- | ------------------------------------------------ |
+| token | string | path | **Required.** The device's authentication token. |
+
+#### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/mdm/linux/trigger_escrow`
+
+##### Default response
+
+`Status: 204`
+
+---
+
+
 ## Setup experience
 
 - [Update custom MDM setup enrollment profile](#update-custom-mdm-setup-enrollment-profile)
@@ -6966,6 +7255,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 - [Get or download setup experience script](#get-or-download-setup-experience-script)
 - [Delete setup experience script](#delete-setup-experience-script)
 - [Update managed local account](#update-managed-local-account)
+- [Get device setup experience status](#get-device-setup-experience-status)
 
 
 
@@ -7732,6 +8022,53 @@ Edit managed local account enforcement settings for eligible macOS hosts.
 
 ---
 
+
+### Get device setup experience status
+
+_Available in Fleet Premium._
+
+Returns the status of the setup experience for the current device. Uses the device token for authentication.
+
+`POST /api/v1/fleet/device/{token}/setup_experience/status`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                                      |
+| ----- | ------ | ---- | ------------------------------------------------ |
+| token | string | path | **Required.** The device's authentication token. |
+
+#### Example
+
+`POST /api/v1/fleet/device/7d940b6e-130a-493b-b58a-2b6e9f9f8bfc/setup_experience/status`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "setup_experience_results": {
+    "software": [
+      {
+        "name": "1password-latest.tar.gz",
+        "status": "running",
+        "software_title_id": 3007
+      },
+      {
+        "name": "slack.deb",
+        "status": "pending",
+        "software_title_id": 3008,
+        "display_name": "My Slack",
+        "icon_url": "/api/latest/fleet/device/7d940b6e-130a-493b-b58a-2b6e9f9f8bfc/software/titles/3008/icon"
+      }
+    ]
+  }
+}
+```
+
+---
+
+
 ## Commands
 
 - [Run MDM command](#run-mdm-command)
@@ -8134,6 +8471,7 @@ None.
 - [Update policy](#update-policy)
 - [Update fleet-level policy](#update-fleet-level-policy)
 - [Reset policy automations](#reset-policy-automations)
+- [Get device's policies](#get-devices-policies)
 
 Policies are yes or no questions you can ask about your hosts.
 
@@ -9013,6 +9351,66 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 ```
 
 ---
+
+
+### Get device's policies
+
+_Available in Fleet Premium._
+
+Lists the policies applied to the current device. Uses the device token for authentication.
+
+`GET /api/v1/fleet/device/{token}/policies`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                                      |
+| ----- | ------ | ---- | ------------------------------------------------ |
+| token | string | path | **Required.** The device's authentication token. |
+
+#### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/policies`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "policies": [
+    {
+      "id": 1,
+      "name": "SomeQuery",
+      "query": "SELECT * FROM foo;",
+      "description": "this is a query",
+      "resolution": "fix with these steps...",
+      "platform": "windows,linux",
+      "response": "pass"
+    },
+    {
+      "id": 2,
+      "name": "SomeQuery2",
+      "query": "SELECT * FROM bar;",
+      "description": "this is another query",
+      "resolution": "fix with these other steps...",
+      "platform": "darwin",
+      "response": "fail"
+    },
+    {
+      "id": 3,
+      "name": "SomeQuery3",
+      "query": "SELECT * FROM baz;",
+      "description": "",
+      "resolution": "",
+      "platform": "",
+      "response": ""
+    }
+  ]
+}
+```
+
+---
+
 
 ## Reports
 
@@ -10527,6 +10925,14 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software install result](#get-software-install-result)
 - [Download software](#download-package)
 - [Delete software](#delete-software)
+- [Get device's software](#get-devices-software)
+- [Download device software icon](#download-device-software-icon)
+- [Get device's software install results](#get-devices-software-install-results)
+- [Get device's software MDM command results](#get-devices-software-mdm-command-results)
+- [Install self-service software on device](#install-self-service-software-on-device)
+- [Install all self-service software on device](#install-all-self-service-software-on-device)
+- [Uninstall device software via self-service](#uninstall-device-software-via-self-service)
+- [Get device software uninstall results](#get-device-software-uninstall-results)
 
 ### List software
 
@@ -12191,6 +12597,392 @@ Deletes software that's available for install. This won't uninstall the software
 ##### Default response
 
 `Status: 204`
+
+
+### Get device's software
+
+Lists the software installed on the current device. Uses the device token for authentication.
+
+`GET /api/v1/fleet/device/{token}/software`
+
+#### Parameters
+
+| Name           | Type    | In    | Description                                                                                                                                                                                    |
+| -------------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| token          | string  | path  | **Required.** The device's authentication token.                                                                                                                                               |
+| self_service   | boolean | query | Filter to only self-service software.                                                                                                                                                          |
+| query          | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                       |
+| vulnerable     | boolean | query | If `true` or `1`, only list software that has vulnerabilities. Default is `false`.                                                                                                             |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.                                   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.                                       |
+| exploit        | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`. |
+| page           | integer | query | Page number of the results to fetch.                                                                                                                                                           |
+| per_page       | integer | query | Results per page.                                                                                                                                                                              |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
+#### Example
+
+`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 3,
+  "software": [
+    {
+      "id": 121,
+      "name": "Google Chrome.app",
+      "display_name": "Chrome",
+      "icon_url": "/api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles/121/icon",
+      "software_package": {
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.2",
+        "self_service": true,
+        "categories": ["Browsers"],
+        "last_install": {
+          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+          "installed_at": "2024-05-15T15:23:57Z"
+        }
+      },
+      "app_store_app": null,
+      "source": "apps",
+      "status": "failed",
+      "installed_versions": [
+        {
+          "version": "121.0",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234", "CVE-2023-4321", "CVE-2023-7654"],
+          "installed_paths": ["/Applications/Google Chrome.app"]
+        }
+      ]
+    },
+    {
+      "id": 143,
+      "name": "Firefox.app",
+      "display_name": "Firefox",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d1/2f/ff/d12fff5b-fe7b-a41b-e55a-96606c7193b1/electron.png/512x512bb.png",
+      "software_package": null,
+      "app_store_app": {
+        "app_store_id": "618783545",
+        "categories": ["Communication"],
+        "version": "25.08.10",
+        "self_service": false,
+        "last_install": null
+      },
+      "source": "apps",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "125.6",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": [],
+          "installed_paths": ["/Applications/Slack.app"]
+        }
+      ]
+    },
+    {
+      "id": 144,
+      "name": "Prettier",
+      "software_package": null,
+      "app_store_app": null,
+      "source": "vscode_extensions",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "1.2.6",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234", "CVE-2023-4321", "CVE-2023-7654"],
+          "installed_paths": ["/Users/admin/.cursor/extensions/prettier"]
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+---
+
+### Download device software icon
+
+_Available in Fleet Premium._
+
+Retrieves the icon for a software title on the current device, either the icon added via Fleet or the icon from the App Store (VPP). Uses the device token for authentication.
+
+`GET /api/v1/fleet/device/{token}/software/titles/{id}/icon`
+
+#### Parameters
+
+| Name  | Type    | In   | Description                                                  |
+| ----- | ------- | ---- | ------------------------------------------------------------ |
+| token | string  | path | **Required.** The device's authentication token.             |
+| id    | integer | path | **Required.** ID of the software title to get the icon for.  |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
+This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's team.
+
+#### Example
+
+`GET /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/titles/121/icon`
+
+##### Default response
+
+`Status: 200`
+
+```http
+Status: 200
+Content-Type: image/png
+Content-Disposition: inline; filename="zoom-icon-512x512.png"
+Content-Length: 124567
+
+<BINARY_IMAGE_DATA>
+```
+
+---
+
+### Get device's software install results
+
+_Available in Fleet Premium._
+
+Returns the results of a Fleet-maintained app or custom package install if it was performed on the current device. Uses the device token for authentication.
+
+`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                      |
+| ------------ | ------ | ---- | ------------------------------------------------ |
+| token        | string | path | **Required.** The device's authentication token. |
+| install_uuid | string | path | **Required.** The software installation UUID.    |
+
+#### Example
+
+`GET /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/b15ce221-e22e-4c6a-afe7-5b3400a017da/results`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
+  "software_title": "Falcon.app",
+  "software_title_id": 8353,
+  "software_package": "FalconSensor-6.44.pkg",
+  "host_id": 123,
+  "host_display_name": "Marko's MacBook Pro",
+  "status": "failed_install",
+  "output": "Installing software...
+Error: The operation can't be completed because the item "Falcon" is in use.",
+  "pre_install_query_output": "Query returned result
+Success",
+  "post_install_script_output": "Running script...
+Exit code: 1 (Failed)
+Rolling back software install...
+Success"
+}
+```
+
+---
+
+### Get device's software MDM command results
+
+Returns the results for a specific MDM command associated with a software install or uninstall on the current device. Uses the device token for authentication.
+
+`GET /api/v1/fleet/device/{token}/software/commands/{command_uuid}/results`
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                         |
+| ------------ | ------ | ---- | --------------------------------------------------- |
+| token        | string | path | **Required.** The device's authentication token.    |
+| command_uuid | string | path | **Required.** The unique identifier of the command. |
+
+#### Example
+
+`GET /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/commands/a2064cef-0000-1234-afb9-283e3c1d487e/results`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "results": [
+    {
+      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "status": "Acknowledged",
+      "updated_at": "2023-04-04:00:00Z",
+      "request_type": "InstallApplication",
+      "hostname": "mycomputer",
+      "payload": "[base64]",
+      "result": "[base64]",
+      "results_metadata": {
+        "software_installed": false,
+        "vpp_verify_timeout_seconds": 600
+      }
+    }
+  ]
+}
+```
+
+`results_metadata` contains command-specific metadata.
+
+For VPP `InstallApplication` command results, `results_metadata` may include:
+
+| Name                         | Type    | Description                                                                                                                              |
+| ---------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| software_installed           | boolean | Whether Fleet has reconciled the app as installed on the host.                                                                           |
+| vpp_verify_timeout_seconds   | integer | The VPP install verification timeout, in seconds, used by Fleet when determining whether an acknowledged install should be marked failed. |
+
+> Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
+
+---
+
+### Install self-service software on device
+
+Installs self-service software on the current macOS, Windows, or Linux (Ubuntu) device. The software must have its `self_service` flag set to `true`. Uses the device token for authentication.
+
+`POST /api/v1/fleet/device/{token}/software/install/{software_title_id}`
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                      |
+| ----------------- | ------- | ---- | ------------------------------------------------ |
+| token             | string  | path | **Required.** The device's authentication token. |
+| software_title_id | integer | path | **Required.** The software title's ID.           |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
+#### Example
+
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
+
+##### Default response
+
+`Status: 202`
+
+---
+
+### Install all self-service software on device
+
+Queues an install for every self-service software title available to the current device that isn't already installed. Uses the device token for authentication.
+
+If `category_id` is provided, only titles assigned to that [self-service category](#self-service-categories) on the device's fleet are queued.
+
+`POST /api/v1/fleet/device/{token}/software/install_all`
+
+#### Parameters
+
+| Name        | Type    | In    | Description                                                                                                                                                  |
+| ----------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| token       | string  | path  | **Required.** The device's authentication token.                                                                                                             |
+| category_id | integer | query | Restrict the install to a single self-service category. Must reference a category that exists on the device's fleet. If omitted, all categories are included. |
+
+#### Example
+
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install_all?category_id=12`
+
+##### Default response
+
+`Status: 202`
+
+---
+
+### Uninstall device software via self-service
+
+Uninstalls software from the current device via the My device page. Uses the device token for authentication.
+
+`POST /api/v1/fleet/device/{token}/software/uninstall/{software_title_id}`
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                      |
+| ----------------- | ------- | ---- | ------------------------------------------------ |
+| token             | string  | path | **Required.** The device's authentication token. |
+| software_title_id | integer | path | **Required.** The software title's ID.           |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
+#### Example
+
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/uninstall/123`
+
+##### Default response
+
+`Status: 202`
+
+---
+
+### Get device software uninstall results
+
+Returns the result of a software uninstall performed on the current device via the My device page. Uses the device token for authentication.
+
+`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                      |
+| ------------ | ------ | ---- | ------------------------------------------------ |
+| token        | string | path | **Required.** The device's authentication token. |
+| execution_id | string | path | **Required.** The execution ID of the script.    |
+
+#### Example
+
+`GET /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/uninstall/22aada07-dc73-41f2-8452-c0987543fd29/results`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "script_contents": "echo 'hello'",
+  "exit_code": 0,
+  "output": "hello",
+  "message": "",
+  "hostname": "Test Host",
+  "host_timeout": false,
+  "host_id": 1,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "runtime": 20,
+  "created_at": "2024-09-11T20:30:24Z"
+}
+```
+
 
 ## Self-service categories
 
@@ -14762,6 +15554,7 @@ or
 - [Get errors](#get-errors)
 - [Get database information](#get-database-information)
 - [Get profiling information](#get-profiling-information)
+- [Report an agent error](#report-an-agent-error)
 
 The Fleet server exposes a handful of API endpoints to retrieve debug information about the server itself in order to help troubleshooting. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
 
@@ -14835,6 +15628,32 @@ Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 
 #### Parameters
 None.
+
+
+### Report an agent error
+
+Notifies the server about an agent error. The error gets saved in Redis and can later be accessed using `fleetctl debug archive`.
+
+> Note: To allow `fleetd` agents to use this endpoint, you need to set the `FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS` environment variable. `fleetd` agents will always report vital errors to Fleet.
+
+`POST /api/v1/fleet/device/{token}/debug/errors`
+
+#### Parameters
+
+| Name                  | Type     | In   | Description                                                                                                                               |
+| --------------------- | -------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| token                 | string   | path | **Required.** The device's authentication token.                                                                                          |
+| error_source          | string   | body | Process name that the error originated from (e.g., orbit, fleet-desktop).                                                                 |
+| error_source_version  | string   | body | Version of `error_source`.                                                                                                                |
+| error_timestamp       | datetime | body | Time in UTC that the error occurred.                                                                                                      |
+| error_message         | string   | body | The error message.                                                                                                                        |
+| error_additional_info | object   | body | Any additional identifiers to assist debugging.                                                                                           |
+| vital                 | boolean  | body | Whether the error is vital and should also be reported to Fleet via usage statistics. Do not put sensitive information into vital errors.  |
+
+##### Default response
+
+`Status: 200`
+
 
 ## Custom variables
 
