@@ -66,8 +66,8 @@ We test each browser on Windows whenever possible, because our engineering team 
 - Mobile Chrome on Android
 
 ### Note
-> - Mobile web is not yet supported in the Fleet product.
-> - The Fleet user interface [may not be fully supported](https://github.com/fleetdm/fleet/issues/969) in Google Chrome when the browser is running on ChromeOS.
+> - Not every feature in the Fleet admin UI is easy to use from mobile browsers, though you can now access many features of Fleet via mobile browser.
+> - The Fleet admin user interface [may not be fully supported](https://github.com/fleetdm/fleet/issues/969) in Google Chrome when the browser is running on ChromeOS.
 
 ## What host operating systems does Fleet support?
 
