@@ -125,16 +125,20 @@ const ProfileListItem = ({
     FileSaver.saveAs(file);
   };
 
-  const labels = labels_include_all || labels_include_any || labels_exclude_any;
+  const labels = [
+    ...(labels_include_all ?? []),
+    ...(labels_include_any ?? []),
+    ...(labels_exclude_any ?? []),
+  ];
 
   const renderLabelInfo = () => {
-    if (!isPremium || labels === undefined || labels.length === 0) {
+    if (!isPremium || labels.length === 0) {
       return null;
     }
 
     return (
       <div className={`${subClass}__labels`}>
-        {labels?.some((label) => label.broken) && <Icon name="warning" />}
+        {labels.some((label) => label.broken) && <Icon name="warning" />}
         <LabelCount className={subClass} count={labels.length} />
       </div>
     );
