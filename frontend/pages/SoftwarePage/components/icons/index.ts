@@ -18,6 +18,7 @@ import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
+import Goland from "./Goland";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
 import Iina from "./Iina";
