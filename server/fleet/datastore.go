@@ -2270,25 +2270,12 @@ type Datastore interface {
 	// the Windows MDM reconciliation cron. See GetMDMWindowsReconcileCursor.
 	SetMDMWindowsReconcileCursor(ctx context.Context, cursor string) error
 
-	// ListAppleMDMHostsForReconcileBatch returns up to batchSize Apple MDM-
-	// enrolled hosts (host_uuid > afterHostUUID, ordered ascending) with the
-	// fields needed by the batched Apple profile reconciler to compute
-	// desired state in memory. Used by ReconcileAppleProfilesBatched.
-	ListAppleMDMHostsForReconcileBatch(ctx context.Context, afterHostUUID string, batchSize int) ([]*AppleHostReconcileInfo, error)
-
 	// GetAppleMDMHostForReconcile returns reconcile info for a single Apple
 	// MDM-enrolled host UUID, or (nil, nil) if the host is not enrolled or
 	// not an Apple platform. Used by ReconcileAppleProfilesForEnrollingHost (the
 	// per-host enrollment path that reuses the same in-memory logic as the
 	// batched cron).
 	GetAppleMDMHostForReconcile(ctx context.Context, hostUUID string) (*AppleHostReconcileInfo, error)
-
-	// ListAppleProfilesForReconcile returns every Apple configuration
-	// profile in the system along with its label assignments. The result is
-	// used by the batched reconciler to evaluate desired state per host in
-	// memory. Returned profiles are intended to be small relative to the
-	// host population and are loaded once per tick.
-	ListAppleProfilesForReconcile(ctx context.Context) ([]*AppleProfileForReconcile, error)
 
 	// ListAppleProfilesForReconcileByTeam is the per-host variant: it
 	// returns only profiles whose team_id equals the given teamID.
@@ -2311,6 +2298,26 @@ type Datastore interface {
 	// in-memory desired state.
 	BulkGetHostMDMAppleProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMAppleProfilePayload, error)
 
+	// GetAppleProfileReconcileSnapshot returns a consistent snapshot of the
+	// state needed by the batched Apple profile reconciler: the bounded host
+	// window (afterHostUUID, batchSize), every Apple profile with its label
+	// assignments, host↔label memberships for labels referenced by those
+	// profiles, and current host_mdm_apple_profiles rows for the host window.
+	// All reads run inside a single read-only MySQL transaction so they
+	// observe one snapshot. If the host window is empty the remaining slices
+	// and maps are nil.
+	GetAppleProfileReconcileSnapshot(
+		ctx context.Context,
+		afterHostUUID string,
+		batchSize int,
+	) (
+		hosts []*AppleHostReconcileInfo,
+		allProfiles []*AppleProfileForReconcile,
+		hostLabels map[uint]map[uint]struct{},
+		currentByHost map[string][]*MDMAppleProfilePayload,
+		err error,
+	)
+
 	// GetMDMAppleReconcileCursor returns the persisted host_uuid cursor
 	// used by the batched Apple MDM reconciliation cron to bound per-tick
 	// work. Returns "" if no cursor is set or if the implementation does
@@ -2322,16 +2329,25 @@ type Datastore interface {
 	// batched Apple MDM reconciliation cron.
 	SetMDMAppleReconcileCursor(ctx context.Context, cursor string) error
 
-	// ListAppleDeclarationsForReconcile returns every Apple declaration in
-	// the system along with its label assignments. Mirrors
-	// ListAppleProfilesForReconcile; the batched DDM reconciler uses it to
-	// evaluate desired state per host in memory.
-	ListAppleDeclarationsForReconcile(ctx context.Context) ([]*AppleDeclarationForReconcile, error)
-
-	// BulkGetHostMDMAppleDeclarationsByUUIDs returns the current
-	// host_mdm_apple_declarations rows for the given host UUIDs, grouped
-	// by host UUID.
-	BulkGetHostMDMAppleDeclarationsByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMAppleHostDeclaration, error)
+	// GetAppleDeclarationReconcileSnapshot is the DDM counterpart of
+	// GetAppleProfileReconcileSnapshot. It returns a consistent snapshot
+	// of the bounded host window, every Apple declaration with its label
+	// assignments, host↔label memberships for labels referenced by those
+	// declarations, and current host_mdm_apple_declarations rows for the
+	// host window. All reads run inside a single read-only MySQL
+	// transaction. If the host window is empty the remaining slices and
+	// maps are nil.
+	GetAppleDeclarationReconcileSnapshot(
+		ctx context.Context,
+		afterHostUUID string,
+		batchSize int,
+	) (
+		hosts []*AppleHostReconcileInfo,
+		allDecls []*AppleDeclarationForReconcile,
+		hostLabels map[uint]map[uint]struct{},
+		currentByHost map[string][]*MDMAppleHostDeclaration,
+		err error,
+	)
 
 	// BulkUpsertMDMAppleHostDeclarations writes the given host declaration
 	// rows directly (per-row Status / OperationType / Token honored),

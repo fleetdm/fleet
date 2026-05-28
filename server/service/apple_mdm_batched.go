@@ -62,12 +62,12 @@ func ReconcileAppleProfilesBatched(
 		cursor = ""
 	}
 
-	hosts, err := ds.ListAppleMDMHostsForReconcileBatch(ctx, cursor, reconcileAppleProfilesBatchSize)
+	hosts, allProfiles, hostLabels, currentByHost, err := ds.GetAppleProfileReconcileSnapshot(ctx, cursor, reconcileAppleProfilesBatchSize)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing apple MDM hosts for reconcile batch")
+		return ctxerr.Wrap(ctx, err, "loading apple profile reconcile snapshot")
 	}
-	logger.DebugContext(ctx, "batched reconcile: listed hosts",
-		"cursor", cursor, "hosts_in_batch", len(hosts))
+	logger.DebugContext(ctx, "batched reconcile: loaded snapshot",
+		"cursor", cursor, "hosts_in_batch", len(hosts), "profile_count", len(allProfiles))
 
 	if len(hosts) == 0 {
 		if cursor != "" {
@@ -110,60 +110,20 @@ func ReconcileAppleProfilesBatched(
 		)
 	}
 
-	allProfiles, err := ds.ListAppleProfilesForReconcile(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing apple profiles for reconcile")
-	}
-	logger.DebugContext(ctx, "batched reconcile: loaded profiles",
-		"profile_count", len(allProfiles))
-
 	profilesWithBrokenLabel := make(map[string]struct{})
 	profilesByTeam := make(map[uint][]*fleet.AppleProfileForReconcile, 4)
-	labelIDSet := make(map[uint]struct{})
 	for _, p := range allProfiles {
 		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
 		if p.HasBrokenLabel() {
 			profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
 		}
-		for _, lr := range p.IncludeLabels {
-			if lr.LabelID != nil {
-				labelIDSet[*lr.LabelID] = struct{}{}
-			}
-		}
-		for _, lr := range p.ExcludeLabels {
-			if lr.LabelID != nil {
-				labelIDSet[*lr.LabelID] = struct{}{}
-			}
-		}
-	}
-
-	hostIDs := make([]uint, 0, len(hosts))
-	hostUUIDs := make([]string, 0, len(hosts))
-	for _, h := range hosts {
-		hostIDs = append(hostIDs, h.HostID)
-		hostUUIDs = append(hostUUIDs, h.UUID)
-	}
-	labelIDs := make([]uint, 0, len(labelIDSet))
-	for id := range labelIDSet {
-		labelIDs = append(labelIDs, id)
-	}
-
-	hostLabels, err := ds.BulkGetHostLabelMemberships(ctx, hostIDs, labelIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk get host label memberships")
-	}
-
-	currentByHost, err := ds.BulkGetHostMDMAppleProfilesByUUIDs(ctx, hostUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk get host mdm apple profiles")
 	}
 
 	toInstall, toRemove := apple_mdm.ComputeReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
 
 	logger.DebugContext(ctx, "batched reconcile: computed deltas",
-		"to_install", len(toInstall), "to_remove", len(toRemove),
-		"host_ids", len(hostIDs), "label_ids", len(labelIDs))
+		"to_install", len(toInstall), "to_remove", len(toRemove))
 
 	if len(toInstall) == 0 && len(toRemove) == 0 {
 		return nil

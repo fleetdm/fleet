@@ -48,12 +48,12 @@ func ReconcileAppleDeclarationsBatched(
 		cursor = ""
 	}
 
-	hosts, err := ds.ListAppleMDMHostsForReconcileBatch(ctx, cursor, reconcileAppleDeclarationsBatchSize)
+	hosts, allDecls, hostLabels, currentByHost, err := ds.GetAppleDeclarationReconcileSnapshot(ctx, cursor, reconcileAppleDeclarationsBatchSize)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing apple MDM hosts for ddm reconcile batch")
+		return ctxerr.Wrap(ctx, err, "loading apple declaration reconcile snapshot")
 	}
-	logger.DebugContext(ctx, "ddm batched reconcile: listed hosts",
-		"cursor", cursor, "hosts_in_batch", len(hosts))
+	logger.DebugContext(ctx, "ddm batched reconcile: loaded snapshot",
+		"cursor", cursor, "hosts_in_batch", len(hosts), "declaration_count", len(allDecls))
 
 	if len(hosts) == 0 {
 		if cursor != "" {
@@ -88,54 +88,14 @@ func ReconcileAppleDeclarationsBatched(
 		}
 	}()
 
-	allDecls, err := ds.ListAppleDeclarationsForReconcile(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing apple declarations for reconcile")
-	}
-	logger.DebugContext(ctx, "ddm batched reconcile: loaded declarations",
-		"declaration_count", len(allDecls))
-
 	declsWithBrokenLabel := make(map[string]struct{})
 	declsByTeam := make(map[uint][]*fleet.AppleDeclarationForReconcile, 4)
-	labelIDSet := make(map[uint]struct{})
 	for _, d := range allDecls {
 		declsByTeam[d.TeamID] = append(declsByTeam[d.TeamID], d)
 
 		if d.HasBrokenLabel() {
 			declsWithBrokenLabel[d.DeclarationUUID] = struct{}{}
 		}
-
-		for _, lr := range d.IncludeLabels {
-			if lr.LabelID != nil {
-				labelIDSet[*lr.LabelID] = struct{}{}
-			}
-		}
-		for _, lr := range d.ExcludeLabels {
-			if lr.LabelID != nil {
-				labelIDSet[*lr.LabelID] = struct{}{}
-			}
-		}
-	}
-
-	hostIDs := make([]uint, 0, len(hosts))
-	hostUUIDs := make([]string, 0, len(hosts))
-	for _, h := range hosts {
-		hostIDs = append(hostIDs, h.HostID)
-		hostUUIDs = append(hostUUIDs, h.UUID)
-	}
-	labelIDs := make([]uint, 0, len(labelIDSet))
-	for id := range labelIDSet {
-		labelIDs = append(labelIDs, id)
-	}
-
-	hostLabels, err := ds.BulkGetHostLabelMemberships(ctx, hostIDs, labelIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk get host label memberships")
-	}
-
-	currentByHost, err := ds.BulkGetHostMDMAppleDeclarationsByUUIDs(ctx, hostUUIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk get host mdm apple declarations")
 	}
 
 	changedHostUUIDs, declRowsToWrite := apple_mdm.ComputeDeclarationDeltas(

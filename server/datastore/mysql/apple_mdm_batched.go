@@ -9,20 +9,22 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
-// ListAppleMDMHostsForReconcileBatch returns up to batchSize Apple-MDM-
-// enrolled hosts with host_uuid > afterHostUUID, ordered ascending by uuid,
-// along with the fields the batched reconciler needs to compute desired
-// state in memory.
+// listAppleMDMHostsForReconcileBatchTransaction returns up to batchSize
+// Apple-MDM-enrolled hosts with host_uuid > afterHostUUID, ordered ascending
+// by uuid, along with the fields the batched reconciler needs to compute
+// desired state in memory.
 //
 // Selection criteria mirror the host-side filters in the legacy desired-
 // state query (generateDesiredStateQuery): platform in (darwin, ios, ipados),
 // an enabled nano_enrollment of type Device or "User Enrollment (Device)",
 // and an existing nano_devices row supplying authenticate_at.
-func (ds *Datastore) ListAppleMDMHostsForReconcileBatch(
+func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 	ctx context.Context,
+	tx common_mysql.DBReadTx,
 	afterHostUUID string,
 	batchSize int,
 ) ([]*fleet.AppleHostReconcileInfo, error) {
@@ -49,7 +51,7 @@ func (ds *Datastore) ListAppleMDMHostsForReconcileBatch(
 	`
 
 	var hosts []*fleet.AppleHostReconcileInfo
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, afterHostUUID, batchSize); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &hosts, stmt, afterHostUUID, batchSize); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple mdm hosts for reconcile batch")
 	}
 	return hosts, nil
@@ -57,7 +59,7 @@ func (ds *Datastore) ListAppleMDMHostsForReconcileBatch(
 
 // GetAppleMDMHostForReconcile returns the Apple-MDM reconcile info for a
 // single host UUID, or (nil, nil) if the host is not enrolled or not an
-// Apple platform. Uses the same JOIN as ListAppleMDMHostsForReconcileBatch
+// Apple platform. Uses the same JOIN as listAppleMDMHostsForReconcileBatchTransaction
 // so per-host and per-batch reconcile paths see the same eligibility rules.
 func (ds *Datastore) GetAppleMDMHostForReconcile(
 	ctx context.Context,
@@ -94,19 +96,6 @@ func (ds *Datastore) GetAppleMDMHostForReconcile(
 	return &host, nil
 }
 
-// ListAppleProfilesForReconcile loads every Apple configuration profile in
-// the system, paired with its label assignments. The result is intended to
-// be loaded once per reconciliation tick and used to evaluate desired state
-// per host in memory.
-//
-// Label assignments include broken labels (label_id IS NULL) so the
-// in-memory handlers can apply the same "broken-label" semantics as the
-// legacy SQL: broken include-* profiles do not apply, and broken profiles
-// are exempted from removal.
-func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*fleet.AppleProfileForReconcile, error) {
-	return ds.listAppleProfilesForReconcile(ctx, nil)
-}
-
 // ListAppleProfilesForReconcileByTeam is the per-host variant: it loads
 // only profiles for the host's team. team_id=0 is its own team (the
 // "no team" scope); a host with a real team does NOT inherit team_id=0
@@ -115,10 +104,20 @@ func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*flee
 // concern in suites that accumulate profile rows across many sub-tests
 // without cleanup.
 func (ds *Datastore) ListAppleProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
-	return ds.listAppleProfilesForReconcile(ctx, &teamID)
+	return ds.listAppleProfilesForReconcileTransaction(ctx, ds.reader(ctx), &teamID)
 }
 
-func (ds *Datastore) listAppleProfilesForReconcile(ctx context.Context, teamID *uint) ([]*fleet.AppleProfileForReconcile, error) {
+// listAppleProfilesForReconcileTransaction loads Apple configuration profiles
+// in the system, paired with their label assignments. When teamID is nil
+// every profile is returned (used by the batched reconciler snapshot); when
+// teamID is set only profiles for that team are returned (used by the
+// per-host enrollment path).
+//
+// Label assignments include broken labels (label_id IS NULL) so the
+// in-memory handlers can apply the same "broken-label" semantics as the
+// legacy SQL: broken include-* profiles do not apply, and broken profiles
+// are exempted from removal.
+func (ds *Datastore) listAppleProfilesForReconcileTransaction(ctx context.Context, tx common_mysql.DBReadTx, teamID *uint) ([]*fleet.AppleProfileForReconcile, error) {
 	type profileRow struct {
 		ProfileUUID       string             `db:"profile_uuid"`
 		ProfileIdentifier string             `db:"identifier"`
@@ -144,7 +143,7 @@ func (ds *Datastore) listAppleProfilesForReconcile(ctx context.Context, teamID *
 	}
 
 	var rows []profileRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, profStmt, profArgs...); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &rows, profStmt, profArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple profiles for reconcile")
 	}
 	if len(rows) == 0 {
@@ -217,7 +216,7 @@ func (ds *Datastore) listAppleProfilesForReconcile(ctx context.Context, teamID *
 	}
 
 	var labelRows []labelRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelRows, labelStmt, labelStmtArgs...); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &labelRows, labelStmt, labelStmtArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple profile labels for reconcile")
 	}
 
@@ -308,6 +307,15 @@ func (ds *Datastore) BulkGetHostLabelMemberships(
 	hostIDs []uint,
 	labelIDs []uint,
 ) (map[uint]map[uint]struct{}, error) {
+	return ds.bulkGetHostLabelMembershipsTransaction(ctx, ds.reader(ctx), hostIDs, labelIDs)
+}
+
+func (ds *Datastore) bulkGetHostLabelMembershipsTransaction(
+	ctx context.Context,
+	tx common_mysql.DBReadTx,
+	hostIDs []uint,
+	labelIDs []uint,
+) (map[uint]map[uint]struct{}, error) {
 	out := make(map[uint]map[uint]struct{}, len(hostIDs))
 	if len(hostIDs) == 0 || len(labelIDs) == 0 {
 		return out, nil
@@ -339,7 +347,7 @@ func (ds *Datastore) BulkGetHostLabelMemberships(
 			}
 
 			var rows []membershipRow
-			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, q, args...); err != nil {
+			if err := sqlx.SelectContext(ctx, tx, &rows, q, args...); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "query host label memberships")
 			}
 
@@ -363,9 +371,17 @@ func (ds *Datastore) BulkGetHostLabelMemberships(
 // The returned MDMAppleProfilePayload fields mirror what the legacy
 // listMDMAppleProfilesToRemoveTransaction returns. HostPlatform and
 // DeviceEnrolledAt are left zero because they come from joined tables the
-// in-memory reconciler already has from ListAppleMDMHostsForReconcileBatch.
+// in-memory reconciler already has from listAppleMDMHostsForReconcileBatchTransaction.
 func (ds *Datastore) BulkGetHostMDMAppleProfilesByUUIDs(
 	ctx context.Context,
+	hostUUIDs []string,
+) (map[string][]*fleet.MDMAppleProfilePayload, error) {
+	return ds.bulkGetHostMDMAppleProfilesByUUIDsTransaction(ctx, ds.reader(ctx), hostUUIDs)
+}
+
+func (ds *Datastore) bulkGetHostMDMAppleProfilesByUUIDsTransaction(
+	ctx context.Context,
+	tx common_mysql.DBReadTx,
 	hostUUIDs []string,
 ) (map[string][]*fleet.MDMAppleProfilePayload, error) {
 	out := make(map[string][]*fleet.MDMAppleProfilePayload, len(hostUUIDs))
@@ -403,7 +419,7 @@ func (ds *Datastore) BulkGetHostMDMAppleProfilesByUUIDs(
 		}
 
 		var rows []*fleet.MDMAppleProfilePayload
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, q, args...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &rows, q, args...); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "select host mdm apple profiles")
 		}
 
@@ -413,6 +429,81 @@ func (ds *Datastore) BulkGetHostMDMAppleProfilesByUUIDs(
 	}
 
 	return out, nil
+}
+
+// GetAppleProfileReconcileSnapshot loads the four pieces of state the batched
+// Apple profile reconciler needs — the bounded host window, every profile
+// (with label assignments), host↔label memberships restricted to labels
+// referenced by those profiles, and current host_mdm_apple_profiles rows for
+// the hosts in the window. All reads run inside a single read-only
+// transaction so they observe one MySQL snapshot.
+//
+// When the host window is empty the remaining queries are skipped — the
+// caller short-circuits in that case anyway, and there's no point loading
+// profiles or memberships we won't use.
+func (ds *Datastore) GetAppleProfileReconcileSnapshot(
+	ctx context.Context,
+	afterHostUUID string,
+	batchSize int,
+) (
+	hosts []*fleet.AppleHostReconcileInfo,
+	allProfiles []*fleet.AppleProfileForReconcile,
+	hostLabels map[uint]map[uint]struct{},
+	currentByHost map[string][]*fleet.MDMAppleProfilePayload,
+	err error,
+) {
+	err = ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
+		var inner error
+		hosts, inner = ds.listAppleMDMHostsForReconcileBatchTransaction(ctx, tx, afterHostUUID, batchSize)
+		if inner != nil {
+			return inner
+		}
+		if len(hosts) == 0 {
+			return nil
+		}
+
+		allProfiles, inner = ds.listAppleProfilesForReconcileTransaction(ctx, tx, nil)
+		if inner != nil {
+			return inner
+		}
+
+		hostIDs := make([]uint, 0, len(hosts))
+		hostUUIDs := make([]string, 0, len(hosts))
+		for _, h := range hosts {
+			hostIDs = append(hostIDs, h.HostID)
+			hostUUIDs = append(hostUUIDs, h.UUID)
+		}
+
+		labelIDSet := make(map[uint]struct{})
+		for _, p := range allProfiles {
+			for _, lr := range p.IncludeLabels {
+				if lr.LabelID != nil {
+					labelIDSet[*lr.LabelID] = struct{}{}
+				}
+			}
+			for _, lr := range p.ExcludeLabels {
+				if lr.LabelID != nil {
+					labelIDSet[*lr.LabelID] = struct{}{}
+				}
+			}
+		}
+		labelIDs := make([]uint, 0, len(labelIDSet))
+		for id := range labelIDSet {
+			labelIDs = append(labelIDs, id)
+		}
+
+		hostLabels, inner = ds.bulkGetHostLabelMembershipsTransaction(ctx, tx, hostIDs, labelIDs)
+		if inner != nil {
+			return inner
+		}
+
+		currentByHost, inner = ds.bulkGetHostMDMAppleProfilesByUUIDsTransaction(ctx, tx, hostUUIDs)
+		return inner
+	})
+	if err != nil {
+		return nil, nil, nil, nil, ctxerr.Wrap(ctx, err, "apple profile reconcile snapshot")
+	}
+	return hosts, allProfiles, hostLabels, currentByHost, nil
 }
 
 // GetMDMAppleReconcileCursor returns the persisted host_uuid cursor used by
@@ -430,11 +521,11 @@ func (ds *Datastore) SetMDMAppleReconcileCursor(_ context.Context, _ string) err
 	return nil
 }
 
-// ListAppleDeclarationsForReconcile loads every Apple declaration in the
-// system, paired with its label assignments. Mirrors
-// ListAppleProfilesForReconcile so the batched DDM reconciler runs the
-// same label-row processing logic.
-func (ds *Datastore) ListAppleDeclarationsForReconcile(ctx context.Context) ([]*fleet.AppleDeclarationForReconcile, error) {
+// listAppleDeclarationsForReconcileTransaction loads every Apple declaration
+// in the system, paired with its label assignments. Mirrors
+// listAppleProfilesForReconcileTransaction so the batched DDM reconciler
+// runs the same label-row processing logic.
+func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Context, tx common_mysql.DBReadTx) ([]*fleet.AppleDeclarationForReconcile, error) {
 	type declRow struct {
 		DeclarationUUID       string             `db:"declaration_uuid"`
 		DeclarationIdentifier string             `db:"identifier"`
@@ -451,7 +542,7 @@ func (ds *Datastore) ListAppleDeclarationsForReconcile(ctx context.Context) ([]*
 	`
 
 	var rows []declRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, declStmt); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &rows, declStmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple declarations for reconcile")
 	}
 	if len(rows) == 0 {
@@ -505,7 +596,7 @@ func (ds *Datastore) ListAppleDeclarationsForReconcile(ctx context.Context) ([]*
 	}
 
 	var labelRows []labelRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelRows, labelStmt); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &labelRows, labelStmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple declaration labels for reconcile")
 	}
 
@@ -586,7 +677,7 @@ func (ds *Datastore) ListAppleDeclarationsForReconcile(ctx context.Context) ([]*
 			return nil, ctxerr.Wrap(ctx, err, "build apple declaration variables query")
 		}
 		var withVars []string
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &withVars, q, args...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &withVars, q, args...); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "select apple declarations with fleet variables")
 		}
 		for _, u := range withVars {
@@ -599,11 +690,12 @@ func (ds *Datastore) ListAppleDeclarationsForReconcile(ctx context.Context) ([]*
 	return out, nil
 }
 
-// BulkGetHostMDMAppleDeclarationsByUUIDs returns the current
+// bulkGetHostMDMAppleDeclarationsByUUIDsTransaction returns the current
 // host_mdm_apple_declarations rows for the given host UUIDs, grouped by
-// host UUID. Mirrors BulkGetHostMDMAppleProfilesByUUIDs.
-func (ds *Datastore) BulkGetHostMDMAppleDeclarationsByUUIDs(
+// host UUID. Mirrors bulkGetHostMDMAppleProfilesByUUIDsTransaction.
+func (ds *Datastore) bulkGetHostMDMAppleDeclarationsByUUIDsTransaction(
 	ctx context.Context,
+	tx common_mysql.DBReadTx,
 	hostUUIDs []string,
 ) (map[string][]*fleet.MDMAppleHostDeclaration, error) {
 	out := make(map[string][]*fleet.MDMAppleHostDeclaration, len(hostUUIDs))
@@ -646,7 +738,7 @@ func (ds *Datastore) BulkGetHostMDMAppleDeclarationsByUUIDs(
 		}
 
 		var rows []*fleet.MDMAppleHostDeclaration
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, q, args...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &rows, q, args...); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "select host mdm apple declarations")
 		}
 
@@ -656,6 +748,80 @@ func (ds *Datastore) BulkGetHostMDMAppleDeclarationsByUUIDs(
 	}
 
 	return out, nil
+}
+
+// GetAppleDeclarationReconcileSnapshot is the DDM counterpart of
+// GetAppleProfileReconcileSnapshot. It loads the bounded host window, every
+// Apple declaration (with label assignments), host↔label memberships
+// restricted to labels referenced by those declarations, and current
+// host_mdm_apple_declarations rows for the hosts in the window. All reads
+// run inside a single read-only transaction so they observe one MySQL
+// snapshot.
+//
+// When the host window is empty the remaining queries are skipped.
+func (ds *Datastore) GetAppleDeclarationReconcileSnapshot(
+	ctx context.Context,
+	afterHostUUID string,
+	batchSize int,
+) (
+	hosts []*fleet.AppleHostReconcileInfo,
+	allDecls []*fleet.AppleDeclarationForReconcile,
+	hostLabels map[uint]map[uint]struct{},
+	currentByHost map[string][]*fleet.MDMAppleHostDeclaration,
+	err error,
+) {
+	err = ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
+		var inner error
+		hosts, inner = ds.listAppleMDMHostsForReconcileBatchTransaction(ctx, tx, afterHostUUID, batchSize)
+		if inner != nil {
+			return inner
+		}
+		if len(hosts) == 0 {
+			return nil
+		}
+
+		allDecls, inner = ds.listAppleDeclarationsForReconcileTransaction(ctx, tx)
+		if inner != nil {
+			return inner
+		}
+
+		hostIDs := make([]uint, 0, len(hosts))
+		hostUUIDs := make([]string, 0, len(hosts))
+		for _, h := range hosts {
+			hostIDs = append(hostIDs, h.HostID)
+			hostUUIDs = append(hostUUIDs, h.UUID)
+		}
+
+		labelIDSet := make(map[uint]struct{})
+		for _, d := range allDecls {
+			for _, lr := range d.IncludeLabels {
+				if lr.LabelID != nil {
+					labelIDSet[*lr.LabelID] = struct{}{}
+				}
+			}
+			for _, lr := range d.ExcludeLabels {
+				if lr.LabelID != nil {
+					labelIDSet[*lr.LabelID] = struct{}{}
+				}
+			}
+		}
+		labelIDs := make([]uint, 0, len(labelIDSet))
+		for id := range labelIDSet {
+			labelIDs = append(labelIDs, id)
+		}
+
+		hostLabels, inner = ds.bulkGetHostLabelMembershipsTransaction(ctx, tx, hostIDs, labelIDs)
+		if inner != nil {
+			return inner
+		}
+
+		currentByHost, inner = ds.bulkGetHostMDMAppleDeclarationsByUUIDsTransaction(ctx, tx, hostUUIDs)
+		return inner
+	})
+	if err != nil {
+		return nil, nil, nil, nil, ctxerr.Wrap(ctx, err, "apple declaration reconcile snapshot")
+	}
+	return hosts, allDecls, hostLabels, currentByHost, nil
 }
 
 // GetMDMAppleDeclarationReconcileCursor / SetMDMAppleDeclarationReconcileCursor
