@@ -63,6 +63,15 @@ interface IGetStatusMessageProps {
   hasInstalledVersionsOnHost?: boolean;
   /** Set when Fleet failed the install before reaching the device. */
   failureReason?: string;
+  /** Display name of the user who triggered the install; empty for
+   *  Fleet-initiated paths. */
+  actorFullName?: string;
+  /** True when no user triggered the install (policy / auto-update / setup
+   *  experience). Renders the actor as "Fleet". */
+  fleetInitiated?: boolean;
+  /** True when the install was a self-service request. Renders the actor as
+   *  "End user". */
+  selfService?: boolean;
 }
 
 export const getStatusMessage = ({
@@ -78,6 +87,9 @@ export const getStatusMessage = ({
   canOverrideFailureWithInstalled = false,
   hasInstalledVersionsOnHost = false,
   failureReason,
+  actorFullName,
+  fleetInitiated,
+  selfService,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
   const formattedVerifyTimeout = secondsToDhms(vppVerifyTimeoutSeconds || 600);
@@ -152,13 +164,21 @@ export const getStatusMessage = ({
   // managed app configuration references a Fleet variable that can't be
   // resolved for this host). The backend records this with a failure reason
   // on the activity — no MDM command was ever enqueued, so there is no
-  // command result to show. Surface the reason directly.
+  // command result to show. Render the actor-driven status sentence per Figma
+  // ("<Actor> failed to install <App> on <Host>.") and leave the reason text
+  // to the Details section the modal renders below.
   if (displayStatus === "failed_install" && failureReason) {
+    let actor = "Fleet";
+    if (selfService) {
+      actor = "End user";
+    } else if (!fleetInitiated && actorFullName) {
+      actor = actorFullName;
+    }
     return (
       <>
-        Fleet couldn&apos;t install <b>{appName}</b>
+        <b>{actor}</b> failed to install <b>{appName}</b>
         {!isMyDevicePage && <> on {formattedHost}</>}
-        {displayTimestamp && <> {displayTimestamp}</>}: {failureReason}
+        {displayTimestamp && <> {displayTimestamp}</>}.
       </>
     );
   }
@@ -304,6 +324,19 @@ export type IVppInstallDetails = {
    * Host > Software entry points open from inventory and don't have it.
    */
   failureReason?: string;
+  /**
+   * Display name of the user who triggered the install. Empty / undefined for
+   * Fleet-initiated installs (policy, auto-update, setup experience). Used to
+   * render the actor-driven failure copy in the modal status line per Figma:
+   * "<Actor> failed to install <App> on <Host>".
+   */
+  actorFullName?: string;
+  /** True when no user triggered the install (policy, auto-update, setup
+   *  experience). Renders the actor as "Fleet". */
+  fleetInitiated?: boolean;
+  /** Whether the install was triggered as a self-service action by the end
+   *  user. Renders the actor as "End user". */
+  selfService?: boolean;
 };
 
 interface IVPPInstallDetailsModalProps {
@@ -330,6 +363,9 @@ export const VppInstallDetailsModal = ({
     appName = "",
     platform: detailsPlatform,
     failureReason,
+    actorFullName,
+    fleetInitiated,
+    selfService,
   } = details;
 
   const [showInstallDetails, setShowInstallDetails] = useState(false);
@@ -480,6 +516,9 @@ export const VppInstallDetailsModal = ({
     canOverrideFailureWithInstalled,
     hasInstalledVersionsOnHost,
     failureReason,
+    actorFullName,
+    fleetInitiated,
+    selfService,
   });
 
   const renderInstallDetailsSection = () => {
@@ -510,6 +549,30 @@ export const VppInstallDetailsModal = ({
               </Textarea>
             )}
           </>
+        )}
+      </>
+    );
+  };
+
+  // For Fleet-side pre-flight failures (e.g. unresolvable managed-config
+  // variable) there's no MDM command result to show. Render a parallel
+  // collapsible "Details" section that surfaces the activity's failureReason
+  // in a monospace block, matching the Figma spec for failed-install copy.
+  const renderFleetSideFailureDetails = () => {
+    if (!failureReason) return null;
+    return (
+      <>
+        <RevealButton
+          isShowing={showInstallDetails}
+          showText="Details"
+          hideText="Details"
+          caretPosition="after"
+          onClick={toggleInstallDetails}
+        />
+        {showInstallDetails && (
+          <Textarea label="Error details:" variant="code">
+            {failureReason}
+          </Textarea>
         )}
       </>
     );
@@ -572,10 +635,12 @@ export const VppInstallDetailsModal = ({
         hostSoftware?.installed_versions?.length ? (
           <InventoryVersions hostSoftware={hostSoftware} />
         ) : null}
-        {!isPendingInstall &&
-          isInstalledByFleet &&
-          !excludeInstallDetails &&
-          renderInstallDetailsSection()}
+        {failureReason
+          ? renderFleetSideFailureDetails()
+          : !isPendingInstall &&
+            isInstalledByFleet &&
+            !excludeInstallDetails &&
+            renderInstallDetailsSection()}
       </div>
     );
   };

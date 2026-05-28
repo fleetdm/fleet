@@ -114,18 +114,27 @@ const ActivityFeed = ({
     scriptPackageDetails,
     setScriptPackageDetails,
   ] = useState<IActivityDetails | null>(null);
-  const [
-    ipaPackageInstallDetails,
-    setIpaPackageInstallDetails,
-  ] = useState<IActivityDetails | null>(null);
+  const [ipaPackageInstallDetails, setIpaPackageInstallDetails] = useState<
+    // Carries the activity-envelope actor fields alongside details so the
+    // install-details modal can render the Figma-spec actor-driven failure copy
+    // ("Fleet failed to install…" vs "<Admin> failed to install…").
+    | (IActivityDetails & {
+        actor_full_name?: string;
+        fleet_initiated?: boolean;
+      })
+    | null
+  >(null);
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
   ] = useState<ISWUninstallDetailsParentState | null>(null);
-  const [
-    vppInstallDetails,
-    setVppInstallDetails,
-  ] = useState<IActivityDetails | null>(null);
+  const [vppInstallDetails, setVppInstallDetails] = useState<
+    | (IActivityDetails & {
+        actor_full_name?: string;
+        fleet_initiated?: boolean;
+      })
+    | null
+  >(null);
   const [
     activityAutomationDetails,
     setActivityAutomationDetails,
@@ -233,7 +242,12 @@ const ActivityFeed = ({
     setPageIndex(pageIndex + 1);
   };
 
-  const handleDetailsClick = ({ type, details }: IShowActivityDetailsData) => {
+  const handleDetailsClick = ({
+    type,
+    details,
+    actor_full_name,
+    fleet_initiated,
+  }: IShowActivityDetailsData) => {
     switch (type) {
       case ActivityType.LiveQuery:
         queryShown.current = details?.query_sql ?? "";
@@ -251,7 +265,11 @@ const ActivityFeed = ({
           setScriptPackageDetails({ ...details });
         } else {
           details?.command_uuid
-            ? setIpaPackageInstallDetails({ ...details })
+            ? setIpaPackageInstallDetails({
+                ...details,
+                actor_full_name,
+                fleet_initiated,
+              })
             : setPackageInstallDetails({ ...details });
         }
         break;
@@ -268,7 +286,9 @@ const ActivityFeed = ({
         });
         break;
       case ActivityType.InstalledAppStoreApp:
-        setVppInstallDetails({ ...details }); // Apple VPP + Android installs
+        // Apple VPP + Android installs. Envelope actor fields ride along so
+        // the modal can render the actor-driven failure copy per Figma.
+        setVppInstallDetails({ ...details, actor_full_name, fleet_initiated });
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
@@ -410,6 +430,9 @@ const ActivityFeed = ({
             hostDisplayName: ipaPackageInstallDetails.host_display_name || "",
             commandUuid: ipaPackageInstallDetails.command_uuid || "",
             failureReason: ipaPackageInstallDetails.failure_reason,
+            actorFullName: ipaPackageInstallDetails.actor_full_name,
+            fleetInitiated: ipaPackageInstallDetails.fleet_initiated,
+            selfService: ipaPackageInstallDetails.self_service,
           }}
           onCancel={() => setIpaPackageInstallDetails(null)}
         />
@@ -434,6 +457,9 @@ const ActivityFeed = ({
             commandUuid: vppInstallDetails.command_uuid || "",
             platform: vppInstallDetails.host_platform,
             failureReason: vppInstallDetails.failure_reason,
+            actorFullName: vppInstallDetails.actor_full_name,
+            fleetInitiated: vppInstallDetails.fleet_initiated,
+            selfService: vppInstallDetails.self_service,
           }}
           onCancel={() => setVppInstallDetails(null)}
         />

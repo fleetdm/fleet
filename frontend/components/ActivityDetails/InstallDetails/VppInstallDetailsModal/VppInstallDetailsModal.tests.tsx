@@ -59,7 +59,7 @@ describe("getStatusMessage helper function", () => {
     expect(screen.getByText(/Refetch/i)).toBeInTheDocument();
   });
 
-  it("shows the Fleet-side failure reason when Fleet failed the install before sending it to the device (e.g. unresolvable managed-config Fleet variable)", () => {
+  it("renders the actor-driven failure sentence when Fleet failed the install before sending it to the device (admin actor)", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
@@ -70,14 +70,54 @@ describe("getStatusMessage helper function", () => {
         commandUpdatedAt: "2026-05-27T22:49:52Z",
         platform: "ipados",
         failureReason:
-          "The app's managed configuration references $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT, which Fleet couldn't populate for this host.",
+          "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.",
+        actorFullName: "Carlo DiCelico",
+        fleetInitiated: false,
+        selfService: false,
       })
     );
-    expect(screen.getByText(/Fleet couldn't install/i)).toBeInTheDocument();
+    // The reason text is rendered by the modal's Details section, not by
+    // getStatusMessage — here we only verify the top-line sentence is
+    // actor-driven and references the right app/host.
+    expect(screen.getByText("Carlo DiCelico")).toBeInTheDocument();
+    expect(screen.getByText(/failed to install/i)).toBeInTheDocument();
     expect(screen.getByText("Logic Pro")).toBeInTheDocument();
-    expect(
-      screen.getByText(/\$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT/)
-    ).toBeInTheDocument();
+  });
+
+  it("renders 'Fleet' as the actor when the install is Fleet-initiated (policy, auto-update, setup experience)", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Zoom Workplace",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2026-05-27T22:49:52Z",
+        platform: "ipados",
+        failureReason: "There is no IdP username for this host. …",
+        fleetInitiated: true,
+      })
+    );
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(screen.getByText(/failed to install/i)).toBeInTheDocument();
+  });
+
+  it("renders 'End user' as the actor for self-service installs", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Slack",
+        hostDisplayName: "Anna's iPad",
+        commandUpdatedAt: "2026-05-27T22:49:52Z",
+        platform: "ipados",
+        failureReason: "There is no IdP email for this host. …",
+        selfService: true,
+        actorFullName: "Anna",
+      })
+    );
+    expect(screen.getByText("End user")).toBeInTheDocument();
   });
 
   it("shows failed_install message for non-Apple platform when MDM command fails", () => {

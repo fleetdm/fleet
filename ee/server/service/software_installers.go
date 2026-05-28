@@ -1466,8 +1466,14 @@ var fleetVarInErrRe = regexp.MustCompile(`\$FLEET_VAR_[A-Z_]+`)
 
 // unresolvableAppConfigFailureReason builds the user-facing reason surfaced in
 // the activity feed and Install Details modal when a managed app configuration
-// references a Fleet variable that can't be resolved for the host.
+// references a Fleet variable that can't be resolved for the host. Prefers the
+// typed per-variable detail (same wording configuration-profile delivery uses)
+// and falls back to a generic sentence that names the variable.
 func unresolvableAppConfigFailureReason(err error) string {
+	var typed *apple_mdm.UnresolvableAppConfigVarError
+	if errors.As(err, &typed) && typed.Detail != "" {
+		return typed.Detail
+	}
 	if v := fleetVarInErrRe.FindString(err.Error()); v != "" {
 		return fmt.Sprintf("The app's managed configuration references %s, which Fleet couldn't populate for this host.", v)
 	}
