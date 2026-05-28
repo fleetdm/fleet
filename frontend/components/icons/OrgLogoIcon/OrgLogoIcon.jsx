@@ -19,52 +19,21 @@ class OrgLogoIcon extends Component {
   constructor(props) {
     super(props);
 
-    this.state = { imageSrc: fleetAvatar };
+    this.state = { imageSrc: props.src || fleetAvatar, prevSrc: props.src };
   }
 
-  componentWillMount() {
-    const { src } = this.props;
-
-    this.setState({ imageSrc: src || fleetAvatar });
-
-    return false;
-  }
-
-  componentWillReceiveProps(nextProps) {
-    const { src } = nextProps;
-    const { unchangedSourceProp } = this;
-
-    if (unchangedSourceProp(nextProps)) {
-      return false;
+  static getDerivedStateFromProps(nextProps, prevState) {
+    if (nextProps.src !== prevState.prevSrc) {
+      return {
+        imageSrc: nextProps.src || fleetAvatar,
+        prevSrc: nextProps.src,
+      };
     }
-
-    this.setState({ imageSrc: src || fleetAvatar });
-
-    return false;
-  }
-
-  shouldComponentUpdate(nextProps) {
-    const { imageSrc } = this.state;
-    const { unchangedSourceProp } = this;
-
-    if (unchangedSourceProp(nextProps) && imageSrc === fleetAvatar) {
-      return false;
-    }
-
-    return true;
+    return null;
   }
 
   onError = () => {
     this.setState({ imageSrc: fleetAvatar });
-
-    return false;
-  };
-
-  unchangedSourceProp = (nextProps) => {
-    const { src: nextSrcProp } = nextProps;
-    const { src } = this.props;
-
-    return src === nextSrcProp;
   };
 
   render() {
