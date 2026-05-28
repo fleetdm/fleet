@@ -8,6 +8,8 @@ In Fleet, you can lock and wipe macOS, Windows, Linux, iOS, iPadOS, and Android 
 
 Restricting wipe for iPhones and iPads to only company-owned iPhones and iPads is coming soon.
 
+> **Android lifetime:** Commands sent to Android hosts are kept valid by Google's Android Management API for 10 years, so a Lock, Wipe, or Clear passcode targeting an offline Android host stays pending and runs the next time the device comes online (matching how Apple and Windows MDM commands queue indefinitely).
+
 ## Lock a host
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to lock. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
@@ -22,7 +24,7 @@ As part of locking an iOS or iPadOS host, Fleet collects the device's location d
 
 > **Linux**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
 
-> **Android**: Lock action will enforce the host lock screen and require the user to enter their password/PIN to regain access. Fully managed and BYO Android hosts are both supported.
+> **Android**: Lock action will enforce the host lock screen and require the user to enter their password/PIN to regain access. Fully managed and BYO Android hosts are both supported. On a personal device, Lock locks the work profile only and the personal side of the device remains usable. On a company-owned device, Lock locks the whole device. While the lock command is in flight the host shows a "Lock pending" badge. Once the device acknowledges the lock, Fleet returns the host to its normal state. There is no separate "Locked" badge for Android because the Android Management API does not deliver an "unlocked" signal back to Fleet (the end user unlocks the device locally with their PIN, with no notification to Fleet). Android does not support remote Unlock from Fleet.
 
 ### Get location of locked iOS/iPadOS host
 
@@ -62,9 +64,7 @@ For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/
 If the wipe command fails (MDM protocol returns 500 in [MDM command results](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands)), you can run a [fallback wipe script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/wipe-windows-device.ps1) via Fleet. This script validates and repairs WinRE (the most common cause of wipe failure), suspends BitLocker, and triggers the wipe locally via the WMI-to-CSP bridge, bypassing the MDM command queue.
 For macOS hosts, Fleet uses Erase All Content and Settings (EACS) with the [default fallback behavior documented by Apple](https://developer.apple.com/documentation/devicemanagement/erasedevicecommand/command-data.dictionary#:~:text=devices%20always%20obliterate.-,Default,-%3A%20If%20EACS%20preflight).
 
-Wipe is available for fully managed Android hosts. To remove Fleet from a BYO Android host, unenroll it instead.
-
-On personal Android hosts (work profile), Fleet sends a [wipe command](https://developers.google.com/android/management/deprovision-device#wipe_command) via the Android Management API, because the unenroll command is retired if the host is offline for more than 30 days.
+Wipe is available for fully managed Android hosts. To remove Fleet from a BYO Android host, unenroll it instead. Attempting to call Wipe directly on a BYO Android host through the API or `fleetctl` returns an error.
 
 ## Unlock a host
 
@@ -81,23 +81,29 @@ On personal Android hosts (work profile), Fleet sends a [wipe command](https://d
 
 If an iPhone/iPad is turned off or restarted while locked, it will disconnect from Wi-Fi and can't be unlocked remotely. Connect your iPhone/iPad to your Mac with a USB and [share the network](https://support.apple.com/en-gb/guide/mac-help/mchlp1540/mac). After connecting your iPhone/iPad to the internet, in Fleet, head to the **Host details** page and select **Actions > Unlock**.
 
-## Clear passcode on iOS/iPadOS host
+## Clear passcode on iOS, iPadOS, or Android host
 
-You can remotely clear the passcode on an iOS or iPadOS host to help end users who have forgotten their passcode.
+You can remotely clear the passcode on an iOS, iPadOS, or Android host to help end users who have forgotten their passcode.
 
-> Clear passcode is only available for company-owned or manually enrolled iOS/iPadOS hosts. It is not available for hosts with a personal MDM enrollment status, or hosts that are in Lost Mode or pending wipe.
+> **iOS and iPadOS:** Clear passcode is only available for company-owned or manually enrolled hosts. It is not available for hosts with a personal MDM enrollment status, or hosts that are in Lost Mode or pending wipe.
 
-1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the iOS or iPadOS device you want to clear the passcode for. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
+> **Android:** Clear passcode is available for both personally-owned (BYOD) and company-owned Android hosts with Android MDM turned on. On a personally-owned host, Clear passcode clears the work-profile passcode (the user's personal device unlock is untouched). On a company-owned host, Clear passcode clears the device passcode. The user can then unlock the device without entering a passcode until they set a new one.
+
+1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the iOS, iPadOS, or Android device you want to clear the passcode for. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
 2. Click the host to open the **Host details** page.
 3. Click the **Actions** dropdown, then click **Clear passcode**.
 4. A confirmation dialog will appear. Click **Clear passcode** to confirm.
 
-The clear passcode activity will be logged in the host's activity feed.
+For Android, while the command is in flight, the host shows a "Clear passcode pending" badge. The clear passcode activity is logged in the host's activity feed once the device acknowledges the command.
 
-You can also clear the passcode using the [REST API](https://fleetdm.com/docs/rest-api/rest-api#clear-iosipados-host-passcode):
+You can also clear the passcode using the [REST API](https://fleetdm.com/docs/rest-api/rest-api#clear-host-passcode) or `fleetctl`:
 
 ```shell
 POST /api/v1/fleet/hosts/:id/clear_passcode
+```
+
+```shell
+fleetctl mdm clear-passcode --host $HOST_IDENTIFIER
 ```
 
 ## Lock and wipe using `fleetctl`
