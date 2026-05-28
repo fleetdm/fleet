@@ -1395,6 +1395,101 @@ WHERE
 	return user, act, nil
 }
 
+// RecordFailedVPPAppInstall records a VPP app install that Fleet failed before
+// sending it to the device — currently, the managed app configuration
+// referenced a Fleet variable that can't be resolved for this host (e.g. an
+// IdP variable on a host with no IdP linkage). It writes a failed
+// host_vpp_software_installs row (verification_failed_at sentinel) without
+// enqueuing any MDM command or reserving a license, and returns the user +
+// failed-install activity to emit. failureReason is surfaced on the activity
+// (and the Install Details modal).
+func (ds *Datastore) RecordFailedVPPAppInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID,
+	commandUUID, failureReason string, opts fleet.HostSoftwareInstallOptions,
+) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	// Mirror the user attribution used by InsertHostVPPSoftwareInstall: a
+	// policy-driven install has no acting user (Fleet-initiated).
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && opts.PolicyID == nil {
+		userID = &ctxUser.ID
+	}
+
+	const insStmt = `
+INSERT INTO host_vpp_software_installs
+	(host_id, adam_id, platform, command_uuid, user_id, self_service, policy_id, verification_failed_at)
+VALUES
+	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6))`
+
+	var (
+		user *fleet.User
+		act  *fleet.ActivityInstalledAppStoreApp
+	)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, insStmt,
+			hostID, appID.AdamID, appID.Platform, commandUUID, userID, opts.SelfService, opts.PolicyID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert failed vpp install")
+		}
+
+		var err error
+		user, act, err = ds.getPastActivityDataForVPPAppInstallDB(ctx, tx,
+			&mdm.CommandResults{CommandUUID: commandUUID, Status: fleet.MDMAppleStatusError})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get failed vpp install activity data")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if act != nil {
+		// Status and SelfService are already set from the row; carry the
+		// trigger-source flags (not stored on the install row) and the reason.
+		act.FromAutoUpdate = opts.ForScheduledUpdates
+		act.FromSetupExperience = opts.ForSetupExperience
+		act.FailureReason = failureReason
+	}
+	return user, act, nil
+}
+
+// GetVPPInstallReleaseInfoForCancel looks up the canceled VPP install row by
+// (host_id, command_uuid) and reports whether the cancel path should release
+// the reserved VPP license seat. Returns NotFound if no matching VPP install
+// row exists.
+func (ds *Datastore) GetVPPInstallReleaseInfoForCancel(ctx context.Context, hostID uint, executionID string) (*fleet.VPPInstallReleaseInfo, error) {
+	const stmt = `
+SELECT
+	hvsi.adam_id,
+	COALESCE(hvsi.associated_event_id, '') AS associated_event_id,
+	EXISTS(
+		SELECT 1 FROM host_vpp_software_installs other
+		WHERE other.host_id = hvsi.host_id
+		  AND other.adam_id = hvsi.adam_id
+		  AND other.command_uuid != hvsi.command_uuid
+		  AND other.canceled = 0
+		  AND other.verification_failed_at IS NULL
+	) AS has_other_active_install
+FROM host_vpp_software_installs hvsi
+WHERE hvsi.host_id = ? AND hvsi.command_uuid = ?`
+
+	var row struct {
+		AdamID                string `db:"adam_id"`
+		AssociatedEventID     string `db:"associated_event_id"`
+		HasOtherActiveInstall bool   `db:"has_other_active_install"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostID, executionID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("vpp_install")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get vpp install release info")
+	}
+	return &fleet.VPPInstallReleaseInfo{
+		AdamID:                row.AdamID,
+		AssociatedEventID:     row.AssociatedEventID,
+		HasOtherActiveInstall: row.HasOtherActiveInstall,
+	}, nil
+}
+
 // GetVPPAppInstallStatusByCommandUUID returns whether the VPP app from the given install command
 // is currently installed (not at the time the command was issued).
 // Because of the UNIQUE constraint on command_uuid in host_vpp_software_installs,

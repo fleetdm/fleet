@@ -813,6 +813,7 @@ const HostDetailsPage = ({
                 details.software_display_name
               ),
               commandUuid: details?.command_uuid,
+              failureReason: details?.failure_reason,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
             setScriptPackageDetails({
@@ -861,6 +862,7 @@ const HostDetailsPage = ({
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
             platform: details?.host_platform || host?.platform,
+            failureReason: details?.failure_reason,
           });
           break;
         case "installed_certificate":

@@ -59,6 +59,27 @@ describe("getStatusMessage helper function", () => {
     expect(screen.getByText(/Refetch/i)).toBeInTheDocument();
   });
 
+  it("shows the Fleet-side failure reason when Fleet failed the install before sending it to the device (e.g. unresolvable managed-config Fleet variable)", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Anna's iPad",
+        commandUpdatedAt: "2026-05-27T22:49:52Z",
+        platform: "ipados",
+        failureReason:
+          "The app's managed configuration references $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT, which Fleet couldn't populate for this host.",
+      })
+    );
+    expect(screen.getByText(/Fleet couldn't install/i)).toBeInTheDocument();
+    expect(screen.getByText("Logic Pro")).toBeInTheDocument();
+    expect(
+      screen.getByText(/\$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT/)
+    ).toBeInTheDocument();
+  });
+
   it("shows failed_install message for non-Apple platform when MDM command fails", () => {
     render(
       getStatusMessage({

@@ -768,6 +768,60 @@ WHERE
 	return user, act, nil
 }
 
+// RecordFailedInHouseAppInstall records an in-house (.ipa) app install that
+// Fleet failed before sending it to the device — currently, the managed app
+// configuration referenced a Fleet variable that can't be resolved for this
+// host. It writes a failed host_in_house_software_installs row
+// (verification_failed_at sentinel) without enqueuing any MDM command, and
+// returns the user + failed-install activity to emit. failureReason is
+// surfaced on the activity (and the Install Details modal).
+func (ds *Datastore) RecordFailedInHouseAppInstall(ctx context.Context, hostID, inHouseAppID uint,
+	commandUUID, failureReason string, opts fleet.HostSoftwareInstallOptions,
+) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
+	// Mirror InsertHostInHouseAppInstall's user attribution (in-house apps have
+	// no policy-driven path, so no PolicyID check).
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		userID = &ctxUser.ID
+	}
+
+	const insStmt = `
+INSERT INTO host_in_house_software_installs
+	(host_id, in_house_app_id, command_uuid, user_id, platform, self_service, verification_failed_at)
+SELECT ?, ?, ?, ?, iha.platform, ?, CURRENT_TIMESTAMP(6)
+FROM in_house_apps iha
+WHERE iha.id = ?`
+
+	var (
+		user *fleet.User
+		act  *fleet.ActivityTypeInstalledSoftware
+	)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, insStmt,
+			hostID, inHouseAppID, commandUUID, userID, opts.SelfService, inHouseAppID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert failed in-house install")
+		}
+
+		var err error
+		user, act, err = ds.getPastActivityDataForInHouseAppInstallDB(ctx, tx,
+			&mdm.CommandResults{CommandUUID: commandUUID, Status: fleet.MDMAppleStatusError})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get failed in-house install activity data")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if act != nil {
+		act.FromSetupExperience = opts.ForSetupExperience
+		act.FailureReason = failureReason
+	}
+	return user, act, nil
+}
+
 func (ds *Datastore) BatchSetInHouseAppsInstallers(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 	const upsertSoftwareTitles = `
 INSERT INTO software_titles

@@ -61,6 +61,8 @@ interface IGetStatusMessageProps {
   /** Used to show warning to close an app if failed to install with
    * detected installed version on host */
   hasInstalledVersionsOnHost?: boolean;
+  /** Set when Fleet failed the install before reaching the device. */
+  failureReason?: string;
 }
 
 export const getStatusMessage = ({
@@ -75,6 +77,7 @@ export const getStatusMessage = ({
   vppVerifyTimeoutSeconds,
   canOverrideFailureWithInstalled = false,
   hasInstalledVersionsOnHost = false,
+  failureReason,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
   const formattedVerifyTimeout = secondsToDhms(vppVerifyTimeoutSeconds || 600);
@@ -141,6 +144,21 @@ export const getStatusMessage = ({
         {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
         installation has not been verified. To re-check, select <b>Refetch</b>
         {!isMyDevicePage && " for this host"}.
+      </>
+    );
+  }
+
+  // Fleet failed the install BEFORE sending it to the device (e.g. the
+  // managed app configuration references a Fleet variable that can't be
+  // resolved for this host). The backend records this with a failure reason
+  // on the activity — no MDM command was ever enqueued, so there is no
+  // command result to show. Surface the reason directly.
+  if (displayStatus === "failed_install" && failureReason) {
+    return (
+      <>
+        Fleet couldn&apos;t install <b>{appName}</b>
+        {!isMyDevicePage && <> on {formattedHost}</>}
+        {displayTimestamp && <> {displayTimestamp}</>}: {failureReason}
       </>
     );
   }
@@ -279,6 +297,13 @@ export type IVppInstallDetails = {
   appName: string;
   commandUuid?: string;
   platform?: string;
+  /**
+   * Set when Fleet failed the install before reaching the device (e.g. an
+   * unresolvable Fleet variable in the managed app configuration). Available
+   * only on activity-feed entry points (the activity details carry it); the
+   * Host > Software entry points open from inventory and don't have it.
+   */
+  failureReason?: string;
 };
 
 interface IVPPInstallDetailsModalProps {
@@ -304,6 +329,7 @@ export const VppInstallDetailsModal = ({
     hostDisplayName = "",
     appName = "",
     platform: detailsPlatform,
+    failureReason,
   } = details;
 
   const [showInstallDetails, setShowInstallDetails] = useState(false);
@@ -345,7 +371,12 @@ export const VppInstallDetailsModal = ({
     {
       refetchOnWindowFocus: false,
       staleTime: 3000,
-      enabled: !!commandUuid,
+      // Pre-flight Fleet failures (e.g. unresolvable managed-config var) never
+      // enqueue an MDM command, so there's no command result to fetch — the
+      // reason is carried by the activity itself via failureReason. Skipping
+      // the query avoids the 404 short-circuit to "no longer available" and
+      // lets the render fall through to the status message.
+      enabled: !!commandUuid && !failureReason,
     }
   );
 
@@ -448,6 +479,7 @@ export const VppInstallDetailsModal = ({
       : undefined,
     canOverrideFailureWithInstalled,
     hasInstalledVersionsOnHost,
+    failureReason,
   });
 
   const renderInstallDetailsSection = () => {

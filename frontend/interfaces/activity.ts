@@ -311,6 +311,15 @@ export interface IActivityDetails {
   teams?: ITeamSummary[];
   triggered_by?: string;
   from_setup_experience?: boolean;
+  from_auto_update?: boolean;
+  /**
+   * Set on a failed install activity (`installed_app_store_app` /
+   * `installed_software`) when Fleet failed the install before reaching the
+   * device — currently, the managed app configuration references a Fleet
+   * variable that can't be resolved for this host. Empty for device-reported
+   * failures, which surface their reason through the MDM command error chain.
+   */
+  failure_reason?: string;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;

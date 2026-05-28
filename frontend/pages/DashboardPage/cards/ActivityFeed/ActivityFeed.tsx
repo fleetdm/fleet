@@ -409,6 +409,7 @@ const ActivityFeed = ({
               "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: ipaPackageInstallDetails.host_display_name || "",
             commandUuid: ipaPackageInstallDetails.command_uuid || "",
+            failureReason: ipaPackageInstallDetails.failure_reason,
           }}
           onCancel={() => setIpaPackageInstallDetails(null)}
         />
@@ -432,6 +433,7 @@ const ActivityFeed = ({
             hostDisplayName: vppInstallDetails.host_display_name || "",
             commandUuid: vppInstallDetails.command_uuid || "",
             platform: vppInstallDetails.host_platform,
+            failureReason: vppInstallDetails.failure_reason,
           }}
           onCancel={() => setVppInstallDetails(null)}
         />

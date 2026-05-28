@@ -53,6 +53,9 @@ interface IGetStatusMessageProps {
    - From Activity feed: never override (always show the failure).
    Parity with VPPInstallDetailsModal/SoftwareInstallDetailsModal */
   canOverrideFailureWithInstalled?: boolean;
+  /** Set when Fleet failed the install before reaching the device (e.g. an
+   * unresolvable Fleet variable in the managed app configuration). */
+  failureReason?: string;
 }
 
 export const getStatusMessage = ({
@@ -64,6 +67,7 @@ export const getStatusMessage = ({
   hostDisplayName,
   commandUpdatedAt,
   canOverrideFailureWithInstalled = false,
+  failureReason,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
   const displayTimestamp =
@@ -130,6 +134,20 @@ export const getStatusMessage = ({
         {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
         installation has not been verified. To re-check, select <b>Refetch</b>
         {!isMyDevicePage && " for this host"}.
+      </>
+    );
+  }
+
+  // Fleet failed the install BEFORE sending it to the device (e.g. the
+  // managed app configuration references a Fleet variable that can't be
+  // resolved for this host). The backend records this with a failure reason
+  // on the activity — no MDM command was ever enqueued. Surface the reason.
+  if (displayStatus === "failed_install" && failureReason) {
+    return (
+      <>
+        Fleet couldn&apos;t install <b>{appName}</b>
+        {!isMyDevicePage && <> on {formattedHost}</>}
+        {displayTimestamp && <> {displayTimestamp}</>}: {failureReason}
       </>
     );
   }
@@ -231,6 +249,12 @@ export type ISoftwareIpaInstallDetails = {
   hostDisplayName: string;
   appName: string;
   commandUuid?: string;
+  /**
+   * Set when Fleet failed the install before reaching the device (e.g. an
+   * unresolvable Fleet variable in the managed app configuration). Available
+   * only on activity-feed entry points.
+   */
+  failureReason?: string;
 };
 
 interface ISoftwareIpaInstallDetailsModal {
@@ -255,6 +279,7 @@ export const SoftwareIpaInstallDetailsModal = ({
     commandUuid = "",
     hostDisplayName = "",
     appName = "",
+    failureReason,
   } = details;
 
   const [showInstallDetails, setShowInstallDetails] = useState(false);
@@ -294,7 +319,12 @@ export const SoftwareIpaInstallDetailsModal = ({
     {
       refetchOnWindowFocus: false,
       staleTime: 3000,
-      enabled: !!commandUuid,
+      // Pre-flight Fleet failures (e.g. unresolvable managed-config var) never
+      // enqueue an MDM command, so there's no command result to fetch — the
+      // reason is carried by the activity itself via failureReason. Skipping
+      // the query avoids the 404 short-circuit to "no longer available" and
+      // lets the render fall through to the status message.
+      enabled: !!commandUuid && !failureReason,
     }
   );
 
@@ -385,6 +415,7 @@ export const SoftwareIpaInstallDetailsModal = ({
     hostDisplayName,
     commandUpdatedAt: commandUpdatedAt || "",
     canOverrideFailureWithInstalled,
+    failureReason,
   });
 
   const renderInventoryVersionsSection = () => {
