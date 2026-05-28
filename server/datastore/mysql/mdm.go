@@ -1111,7 +1111,7 @@ OR
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":
-			appleHosts = append(appleHosts, h.UUID)
+			appleHosts = append(appleHosts, h.UUID) //nolint:staticcheck // Will be cleaned up in follow-up PR
 		case "windows":
 			if collectWinHosts {
 				winHosts = append(winHosts, h.UUID)

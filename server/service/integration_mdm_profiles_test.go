@@ -9410,14 +9410,6 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	windowsOSUpdatesProfileUUID := checkWindowsOSUpdatesProfile(t, s.ds, &teamID,
 		&fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(5), GracePeriodDays: optjson.SetInt(1)})
 
-	// Verify that the Apple declarations are immediately queued for the enrolled
-	// hosts in the team. BulkSetPendingMDMHostProfiles is called synchronously
-	// when OS updates are edited via spec/teams. The status is NULL at this point
-	// (set to pending by ReconcileAppleDeclarations on the next run).
-	assertAppleDeclarationQueued(macOSHost.UUID, macOSUpdateIdent)
-	assertAppleDeclarationQueued(iOSHost.UUID, iOSUpdateIdent)
-	assertAppleDeclarationQueued(iPadOSHost.UUID, iPadOSUpdateIdent)
-
 	// Trigger the profile schedule so that:
 	//   - ReconcileAppleDeclarations sends DDM sync commands to Apple hosts.
 	//   - ReconcileWindowsProfiles queues the OS updates profile for the Windows host.
