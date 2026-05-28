@@ -1775,6 +1775,10 @@ type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *
 
 type WipeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
+type ClearPasscodeHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
+
+type ClearHostMDMActionsFunc func(ctx context.Context, hostID uint) error
+
 type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error)
 
 type SetLockCommandForLostModeCheckinFunc func(ctx context.Context, hostID uint, commandUUID string) error
@@ -4643,6 +4647,12 @@ type DataStore struct {
 
 	WipeHostViaAndroidMDMFunc        WipeHostViaAndroidMDMFunc
 	WipeHostViaAndroidMDMFuncInvoked bool
+
+	ClearPasscodeHostViaAndroidMDMFunc        ClearPasscodeHostViaAndroidMDMFunc
+	ClearPasscodeHostViaAndroidMDMFuncInvoked bool
+
+	ClearHostMDMActionsFunc        ClearHostMDMActionsFunc
+	ClearHostMDMActionsFuncInvoked bool
 
 	GetLatestAppleMDMCommandOfTypeFunc        GetLatestAppleMDMCommandOfTypeFunc
 	GetLatestAppleMDMCommandOfTypeFuncInvoked bool
@@ -11137,6 +11147,20 @@ func (s *DataStore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host,
 	s.WipeHostViaAndroidMDMFuncInvoked = true
 	s.mu.Unlock()
 	return s.WipeHostViaAndroidMDMFunc(ctx, host, cmd)
+}
+
+func (s *DataStore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	s.mu.Lock()
+	s.ClearPasscodeHostViaAndroidMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearPasscodeHostViaAndroidMDMFunc(ctx, host, cmd)
+}
+
+func (s *DataStore) ClearHostMDMActions(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.ClearHostMDMActionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearHostMDMActionsFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetLatestAppleMDMCommandOfType(ctx context.Context, hostUUID string, commandType string) (*fleet.MDMCommand, error) {

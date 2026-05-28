@@ -483,9 +483,10 @@ UPDATE host_mdm
 func (ds *Datastore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
 	var rows int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// installed_from_dep is also cleared because Android has no DEP/ABM equivalent (no "Pending" state).
 		result, err := tx.ExecContext(ctx, `
 UPDATE host_mdm
-	SET server_url = '', mdm_id = NULL, enrolled = 0
+	SET server_url = '', mdm_id = NULL, enrolled = 0, installed_from_dep = 0
 	WHERE host_id = ? AND enrolled = 1`, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android host")
@@ -545,7 +546,7 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, is_personal_enrollment, host_id) VALUES %s
-		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), mdm_id = VALUES(mdm_id), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ",")), args...)
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), installed_from_dep = VALUES(installed_from_dep), mdm_id = VALUES(mdm_id), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ",")), args...)
 
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
@@ -949,9 +950,23 @@ func (ds *Datastore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host
 	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "wipe_ref")
 }
 
-// issueAndroidHostMDMRef performs the two-write transaction shared by LockHostViaAndroidMDM and
-// WipeHostViaAndroidMDM. refColumn is hard-coded by callers (never user input) so the
-// fmt.Sprintf into the SQL stays safe. The caller is responsible for populating cmd.CommandUUID.
+// ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and
+// upserts host_mdm_actions.clear_passcode_ref in a single transaction.
+func (ds *Datastore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "clear_passcode_ref")
+}
+
+// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Used by the Android
+// pub/sub re-enrollment path to drop stale lock/wipe/clear-passcode refs from a previous enrollment
+// cycle.
+func (ds *Datastore) ClearHostMDMActions(ctx context.Context, hostID uint) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_actions WHERE host_id = ?`, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear host_mdm_actions")
+	}
+	return nil
+}
+
+// issueAndroidHostMDMRef performs the two-write transaction. refColumn is hard-coded by callers. The caller is responsible for populating cmd.CommandUUID.
 func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, refColumn string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertCmdStmt = `

@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260528211618, Down_20260528211618)
+	MigrationClient.AddMigration(Up_20260528213326, Down_20260528213326)
 }
 
-func Up_20260528211618(tx *sql.Tx) error {
+func Up_20260528213326(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		`ALTER TABLE mdm_android_configuration_profiles
 			ADD COLUMN checksum BINARY(16) AS (UNHEX(MD5(CAST(raw_json AS CHAR)))) STORED;
@@ -25,6 +25,6 @@ func Up_20260528211618(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260528211618(tx *sql.Tx) error {
+func Down_20260528213326(tx *sql.Tx) error {
 	return nil
 }

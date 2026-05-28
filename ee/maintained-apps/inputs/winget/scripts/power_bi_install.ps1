@@ -5,7 +5,7 @@ try {
 # Add argument to install silently
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/silent", "/norestart", "ACCEPT_EULA=1"
+  ArgumentList = "/quiet", "/norestart", "ACCEPT_EULA=1"
   PassThru = $true
   Wait = $true
 }

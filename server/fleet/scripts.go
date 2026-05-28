@@ -664,6 +664,12 @@ type HostLockWipeStatus struct {
 	// Linux uses a script for Wipe
 	WipeScript *HostScriptResult
 
+	// Android tracks Clear passcode (RESET_PASSWORD) as a pending state via mdm_android_commands.
+	// Apple's ClearPasscode lives in nano_commands and is not surfaced as a device-level pending
+	// state, so these fields are Android-only today.
+	ClearPasscodeMDMCommand       *MDMCommand
+	ClearPasscodeMDMCommandResult *MDMCommandResult
+
 	LocationPending bool
 }
 
@@ -700,11 +706,12 @@ func (s HostLockWipeStatus) DeviceStatus() DeviceStatus {
 type PendingDeviceAction string
 
 const (
-	PendingActionLock     PendingDeviceAction = "lock"
-	PendingActionUnlock   PendingDeviceAction = "unlock"
-	PendingActionWipe     PendingDeviceAction = "wipe"
-	PendingActionLocation PendingDeviceAction = "location"
-	PendingActionNone     PendingDeviceAction = ""
+	PendingActionLock          PendingDeviceAction = "lock"
+	PendingActionUnlock        PendingDeviceAction = "unlock"
+	PendingActionWipe          PendingDeviceAction = "wipe"
+	PendingActionClearPasscode PendingDeviceAction = "clear_passcode"
+	PendingActionLocation      PendingDeviceAction = "location"
+	PendingActionNone          PendingDeviceAction = ""
 )
 
 func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
@@ -717,6 +724,8 @@ func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
 		return PendingActionUnlock
 	case s.IsPendingWipe():
 		return PendingActionWipe
+	case s.IsPendingClearPasscode():
+		return PendingActionClearPasscode
 	default:
 		return PendingActionNone
 	}
@@ -753,6 +762,15 @@ func (s HostLockWipeStatus) IsPendingWipe() bool {
 	}
 	// pending wipe if an MDM command is queued but no result received yet (Apple, Windows, Android)
 	return s.WipeMDMCommand != nil && s.WipeMDMCommandResult == nil
+}
+
+// IsPendingClearPasscode reports whether a Clear Passcode is in flight.
+// Support for Apple coming in #46286
+func (s HostLockWipeStatus) IsPendingClearPasscode() bool {
+	if s.HostFleetPlatform != "android" {
+		return false
+	}
+	return s.ClearPasscodeMDMCommand != nil && s.ClearPasscodeMDMCommandResult == nil
 }
 
 func (s HostLockWipeStatus) IsLocked() bool {

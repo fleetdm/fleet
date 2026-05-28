@@ -9,7 +9,7 @@ import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWith
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import TooltipWrapper from "components/TooltipWrapper";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { isAndroidBYO, MdmEnrollmentStatus } from "interfaces/mdm";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
@@ -77,7 +77,7 @@ interface IHostSummaryProps {
    * Falls back to "My device" if not provided. */
   deviceUserHeader?: string;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
-  hostMdmEnrollmentStatus?: MdmEnrollmentStatus;
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
 }
 
 const HostHeader = ({
@@ -162,6 +162,23 @@ const HostHeader = ({
 
     const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
 
+    // BYO Android Unenroll fires an AMAPI WIPE under the hood (work-profile-only), so the backend tracks it via wipe_ref and surfaces
+    // device_status="wiping". The admin clicked Unenroll, not Wipe, so override both the badge label and the tooltip copy here so they
+    // describe the action the admin actually took.
+    const isAndroidBYOWipe =
+      isAndroid(platform) &&
+      hostMdmDeviceStatus === "wiping" &&
+      isAndroidBYO(hostMdmEnrollmentStatus);
+    const title = isAndroidBYOWipe ? "Unenroll pending" : tag.title;
+    const tipContent = isAndroidBYOWipe ? (
+      <>
+        Host will unenroll when it comes online. If the host is online, it will
+        unenroll the next time it checks in to Fleet.
+      </>
+    ) : (
+      tag.generateTooltip(platform)
+    );
+
     const classNames = classnames(
       `${baseClass}__device-status-tag`,
       tag.tagType
@@ -170,13 +187,13 @@ const HostHeader = ({
     return (
       <>
         <TooltipWrapper
-          tipContent={tag.generateTooltip(platform)}
+          tipContent={tipContent}
           position="top"
           underline={false}
           showArrow
           className={`${baseClass}__device-status-tag-wrapper`}
         >
-          <span className={classNames}>{tag.title}</span>
+          <span className={classNames}>{title}</span>
         </TooltipWrapper>
       </>
     );

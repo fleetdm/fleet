@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260528211618(t *testing.T) {
+func TestUp_20260528213326(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	rawJSON := `{"openNetworkConfiguration":{"Type":"WiFi"}}`

@@ -125,9 +125,6 @@ try {
             Write-Host "WARNING: entry still present and product files remain: '$($e.DisplayName)'"
             if ($exitCode -eq 0) { $exitCode = 1 }
         }
-            Write-Host "WARNING: entry still present and product files remain: '$($e.DisplayName)'"
-            if ($exitCode -eq 0) { $exitCode = 1 }
-        }
     }
 
 } catch {
