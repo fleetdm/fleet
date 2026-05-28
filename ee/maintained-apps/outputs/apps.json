@@ -2361,6 +2361,13 @@
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
+      "name": "Windsurf",
+      "slug": "windsurf/windows",
+      "platform": "windows",
+      "unique_identifier": "Windsurf",
+      "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
+    },
+    {
       "name": "WinSCP",
       "slug": "winscp/windows",
       "platform": "windows",
