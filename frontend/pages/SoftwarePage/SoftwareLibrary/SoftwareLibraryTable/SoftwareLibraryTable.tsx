@@ -276,7 +276,6 @@ const SoftwareLibraryTable = ({
         disableSearch={controlsDisabled}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
-        additionalQueries={String(selfServiceOnly)}
         customControl={renderCustomControls}
         stackControls
         renderCount={renderSoftwareCount}
