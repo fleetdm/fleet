@@ -1511,7 +1511,7 @@
       "slug": "power-bi/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Power BI Desktop (x64)",
-      "description": "Interactive data visualization platform with a primary focus on business intelligence (BI)."
+      "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
     },
     {
       "name": "Pritunl",
