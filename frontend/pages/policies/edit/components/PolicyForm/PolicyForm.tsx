@@ -765,10 +765,6 @@ const PolicyForm = ({
           {isEditMode && !!storedPolicy && !!automationsConfig && (
             <div className="form-field">
               <div className="form-field__label">Automations</div>
-              {/* The patch-policy CTA sits between the header and the table
-                  on the edit page (the details page renders it above the
-                  read-only list instead). Self-renders nothing when not
-                  applicable. */}
               <PatchAutomationCta
                 storedPolicy={storedPolicy}
                 canEditPolicy={isEditMode}
