@@ -1121,8 +1121,8 @@ var OTASCEPTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`<?xml
 // https://developer.apple.com/documentation/devicemanagement/mdm#properties
 const (
 	MDMAccessRightAll         = 8191 // all 13 bits (2^13 - 1)
-	MDMAccessRightDeviceLock  = 512  // bit 9: Device Lock & Passcode Removal
-	MDMAccessRightDeviceErase = 1024 // bit 10: Device Erase
+	MDMAccessRightDeviceLock  = 4    // bit 3: Device Lock & Passcode Removal
+	MDMAccessRightDeviceErase = 8    // bit 4: Device Erase
 )
 
 // AppleEnrollmentAccessRights computes the AccessRights bitmask for the
