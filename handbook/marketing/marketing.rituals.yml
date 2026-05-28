@@ -180,7 +180,7 @@
 -
   task: "Update brand front spreadsheet"
   startedOn: "2026-05-01"
-  frequency: "Quarterly (first Friday)"
+  frequency: "Quarterly (first Tuesday)"
   description: "The CEO and Content Specialist will meet at the beginning of each quarter to go through the brand front spreadsheet and determine whether our current messaging aligns with our horizons. If the brand front messaging needs changing, it will be updated in the spreadsheet, and then the Content Specialist will make the adjustments to the websites."
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1c15vwMZytpCLHUdGvXxi0d6WGgPcQU1UBMniC1F9oKk/edit?gid=0#gid=0"
   dri: "irenareedy"
