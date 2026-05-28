@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 //////////////////////////////////////////////////////////////////////////////
@@ -24,14 +25,14 @@ func (r getSelfServiceCategoriesResponse) Error() error { return r.Err }
 
 func getSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSelfServiceCategoriesRequest)
-	categories, err := svc.ListSelfServiceCategories(ctx, req.FleetID)
+	categories, err := svc.ListSelfServiceCategories(ctx, ptr.ValOrZero(req.FleetID))
 	if err != nil {
 		return getSelfServiceCategoriesResponse{Err: err}, nil
 	}
 	return getSelfServiceCategoriesResponse{SelfServiceCategories: categories}, nil
 }
 
-func (svc *Service) ListSelfServiceCategories(ctx context.Context, _ *uint) ([]*fleet.SelfServiceCategory, error) {
+func (svc *Service) ListSelfServiceCategories(ctx context.Context, _ uint) ([]*fleet.SelfServiceCategory, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -57,14 +58,14 @@ func (r addSelfServiceCategoriesResponse) Error() error { return r.Err }
 
 func addSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addSelfServiceCategoriesRequest)
-	category, err := svc.NewSelfServiceCategory(ctx, req.FleetID, req.Name)
+	category, err := svc.NewSelfServiceCategory(ctx, ptr.ValOrZero(req.FleetID), req.Name)
 	if err != nil {
 		return addSelfServiceCategoriesResponse{Err: err}, nil
 	}
 	return addSelfServiceCategoriesResponse{SelfServiceCategory: category}, nil
 }
 
-func (svc *Service) NewSelfServiceCategory(ctx context.Context, _ *uint, _ string) (*fleet.SelfServiceCategory, error) {
+func (svc *Service) NewSelfServiceCategory(ctx context.Context, _ uint, _ string) (*fleet.SelfServiceCategory, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

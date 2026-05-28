@@ -850,9 +850,9 @@ type UploadSoftwareTitleIconFunc func(ctx context.Context, payload *fleet.Upload
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
-type ListSelfServiceCategoriesFunc func(ctx context.Context, fleetID *uint) ([]*fleet.SelfServiceCategory, error)
+type ListSelfServiceCategoriesFunc func(ctx context.Context, fleetID uint) ([]*fleet.SelfServiceCategory, error)
 
-type NewSelfServiceCategoryFunc func(ctx context.Context, fleetID *uint, name string) (*fleet.SelfServiceCategory, error)
+type NewSelfServiceCategoryFunc func(ctx context.Context, fleetID uint, name string) (*fleet.SelfServiceCategory, error)
 
 type UpdateSelfServiceCategoryFunc func(ctx context.Context, id uint, name string) (*fleet.SelfServiceCategory, error)
 
@@ -5219,14 +5219,14 @@ func (s *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	return s.DeleteSoftwareTitleIconFunc(ctx, teamID, titleID)
 }
 
-func (s *Service) ListSelfServiceCategories(ctx context.Context, fleetID *uint) ([]*fleet.SelfServiceCategory, error) {
+func (s *Service) ListSelfServiceCategories(ctx context.Context, fleetID uint) ([]*fleet.SelfServiceCategory, error) {
 	s.mu.Lock()
 	s.ListSelfServiceCategoriesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSelfServiceCategoriesFunc(ctx, fleetID)
 }
 
-func (s *Service) NewSelfServiceCategory(ctx context.Context, fleetID *uint, name string) (*fleet.SelfServiceCategory, error) {
+func (s *Service) NewSelfServiceCategory(ctx context.Context, fleetID uint, name string) (*fleet.SelfServiceCategory, error) {
 	s.mu.Lock()
 	s.NewSelfServiceCategoryFuncInvoked = true
 	s.mu.Unlock()

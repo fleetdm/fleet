@@ -1393,8 +1393,8 @@ type Service interface {
 	/////////////////////////////////////////////////////////////////////////////////
 	// Self-service categories
 
-	ListSelfServiceCategories(ctx context.Context, fleetID *uint) ([]*SelfServiceCategory, error)
-	NewSelfServiceCategory(ctx context.Context, fleetID *uint, name string) (*SelfServiceCategory, error)
+	ListSelfServiceCategories(ctx context.Context, fleetID uint) ([]*SelfServiceCategory, error)
+	NewSelfServiceCategory(ctx context.Context, fleetID uint, name string) (*SelfServiceCategory, error)
 	UpdateSelfServiceCategory(ctx context.Context, id uint, name string) (*SelfServiceCategory, error)
 	DeleteSelfServiceCategory(ctx context.Context, id uint) error
 

@@ -31677,3 +31677,24 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithEUAToken() {
 	require.Equal(t, idpEmail, dms[0].Email)
 	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dms[0].Source)
 }
+
+// TODO: temporary smoke test — endpoints are no-ops until the service/datastore
+// layer is implemented. Replace with full assertions once that work lands.
+func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesEndpointsSmoke() {
+	// GET — list categories for a fleet.
+	var listResp getSelfServiceCategoriesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/self_service_categories", nil, http.StatusOK, &listResp, "fleet_id", "0")
+
+	// POST — add a category.
+	var addResp addSelfServiceCategoriesResponse
+	addReq := map[string]any{"fleet_id": 0, "name": "🌎 Browsers"}
+	s.DoJSON("POST", "/api/latest/fleet/software/self_service_categories", addReq, http.StatusOK, &addResp)
+
+	// PATCH — rename a category. Datastore stub reports not-found until
+	// implemented, so we expect 404.
+	patchReq := map[string]any{"name": "🌐 Browsers"}
+	s.Do("PATCH", "/api/latest/fleet/software/self_service_categories/1", patchReq, http.StatusNotFound)
+
+	// DELETE — same not-found expectation as PATCH.
+	s.Do("DELETE", "/api/latest/fleet/software/self_service_categories/1", nil, http.StatusNotFound)
+}

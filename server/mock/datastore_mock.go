@@ -583,6 +583,16 @@ type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.Ho
 
 type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error)
 
+type ListSelfServiceCategoriesFunc func(ctx context.Context, fleetID uint) ([]*fleet.SelfServiceCategory, error)
+
+type SelfServiceCategoryFunc func(ctx context.Context, id uint) (*fleet.SelfServiceCategory, error)
+
+type NewSelfServiceCategoryFunc func(ctx context.Context, fleetID uint, name string) (*fleet.SelfServiceCategory, error)
+
+type UpdateSelfServiceCategoryFunc func(ctx context.Context, id uint, name string) (*fleet.SelfServiceCategory, error)
+
+type DeleteSelfServiceCategoryFunc func(ctx context.Context, id uint) error
+
 type NewSoftwareCategoryFunc func(ctx context.Context, name string) (*fleet.SoftwareCategory, error)
 
 type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uint, error)
@@ -2845,6 +2855,21 @@ type DataStore struct {
 
 	CreateIntermediateInstallFailureRecordFunc        CreateIntermediateInstallFailureRecordFunc
 	CreateIntermediateInstallFailureRecordFuncInvoked bool
+
+	ListSelfServiceCategoriesFunc        ListSelfServiceCategoriesFunc
+	ListSelfServiceCategoriesFuncInvoked bool
+
+	SelfServiceCategoryFunc        SelfServiceCategoryFunc
+	SelfServiceCategoryFuncInvoked bool
+
+	NewSelfServiceCategoryFunc        NewSelfServiceCategoryFunc
+	NewSelfServiceCategoryFuncInvoked bool
+
+	UpdateSelfServiceCategoryFunc        UpdateSelfServiceCategoryFunc
+	UpdateSelfServiceCategoryFuncInvoked bool
+
+	DeleteSelfServiceCategoryFunc        DeleteSelfServiceCategoryFunc
+	DeleteSelfServiceCategoryFuncInvoked bool
 
 	NewSoftwareCategoryFunc        NewSoftwareCategoryFunc
 	NewSoftwareCategoryFuncInvoked bool
@@ -6940,6 +6965,41 @@ func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, 
 	s.CreateIntermediateInstallFailureRecordFuncInvoked = true
 	s.mu.Unlock()
 	return s.CreateIntermediateInstallFailureRecordFunc(ctx, result)
+}
+
+func (s *DataStore) ListSelfServiceCategories(ctx context.Context, fleetID uint) ([]*fleet.SelfServiceCategory, error) {
+	s.mu.Lock()
+	s.ListSelfServiceCategoriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSelfServiceCategoriesFunc(ctx, fleetID)
+}
+
+func (s *DataStore) SelfServiceCategory(ctx context.Context, id uint) (*fleet.SelfServiceCategory, error) {
+	s.mu.Lock()
+	s.SelfServiceCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.SelfServiceCategoryFunc(ctx, id)
+}
+
+func (s *DataStore) NewSelfServiceCategory(ctx context.Context, fleetID uint, name string) (*fleet.SelfServiceCategory, error) {
+	s.mu.Lock()
+	s.NewSelfServiceCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewSelfServiceCategoryFunc(ctx, fleetID, name)
+}
+
+func (s *DataStore) UpdateSelfServiceCategory(ctx context.Context, id uint, name string) (*fleet.SelfServiceCategory, error) {
+	s.mu.Lock()
+	s.UpdateSelfServiceCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateSelfServiceCategoryFunc(ctx, id, name)
+}
+
+func (s *DataStore) DeleteSelfServiceCategory(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteSelfServiceCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteSelfServiceCategoryFunc(ctx, id)
 }
 
 func (s *DataStore) NewSoftwareCategory(ctx context.Context, name string) (*fleet.SoftwareCategory, error) {

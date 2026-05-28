@@ -805,6 +805,14 @@ type Datastore interface {
 	// persistence/bookkeeping only and must not be used to trigger user-visible side effects.
 	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, error)
 
+	// Self-service categories — per-fleet, user-managed categories used to
+	// group software in the self-service UI.
+	ListSelfServiceCategories(ctx context.Context, fleetID uint) ([]*SelfServiceCategory, error)
+	SelfServiceCategory(ctx context.Context, id uint) (*SelfServiceCategory, error)
+	NewSelfServiceCategory(ctx context.Context, fleetID uint, name string) (*SelfServiceCategory, error)
+	UpdateSelfServiceCategory(ctx context.Context, id uint, name string) (*SelfServiceCategory, error)
+	DeleteSelfServiceCategory(ctx context.Context, id uint) error
+
 	// NewSoftwareCategory creates a new category for software.
 	NewSoftwareCategory(ctx context.Context, name string) (*SoftwareCategory, error)
 	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names.
