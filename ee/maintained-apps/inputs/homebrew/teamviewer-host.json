@@ -1,8 +1,0 @@
-{
-  "name": "TeamViewer Host",
-  "slug": "teamviewer-host/darwin",
-  "unique_identifier": "com.teamviewer.TeamViewerHost",
-  "token": "teamviewer-host",
-  "installer_format": "dmg",
-  "default_categories": ["Communication"]
-}

@@ -2123,20 +2123,6 @@
       "description": "Tailscale is mesh VPN based on WireGuard."
     },
     {
-      "name": "TeamViewer Host",
-      "slug": "teamviewer-host/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.teamviewer.TeamViewerHost",
-      "description": "TeamViewer Host sets up unattended remote access to a device."
-    },
-    {
-      "name": "TeamViewer Host",
-      "slug": "teamviewer-host/windows",
-      "platform": "windows",
-      "unique_identifier": "TeamViewer Host",
-      "description": "TeamViewer Host sets up unattended remote access to a device."
-    },
-    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
