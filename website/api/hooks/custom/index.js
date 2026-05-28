@@ -139,6 +139,25 @@ will be disabled and/or hidden in the UI.
       // ... Any other app-specific setup code that needs to run on lift,
       // even in production, goes here ...
 
+      // In non-production environments, make `builtStaticContent.testimonials` optional so pages that use the <scrollable-tweets> component still render before the build-static-content script has been run.
+      // To prevent the component from being empty whitespace on pages where it is used, we'll inject a single placeholder testimonial directing the user to run the build-static-content script.
+      if (sails.config.environment !== 'production') {
+        if (!_.isObject(sails.config.builtStaticContent)) {
+          sails.config.builtStaticContent = {};
+        }
+        if (!_.isArray(sails.config.builtStaticContent.testimonials) || sails.config.builtStaticContent.testimonials.length === 0) {
+          sails.config.builtStaticContent.testimonials = [{
+            quote: 'Run `sails run build-static-content` or `npm start-dev` to see real customer testimonials. This placeholder appears because the website\'s static content has not been built.',
+            quoteImageFilename: 'logo-blue-118x41@2x.png',
+            quoteAuthorName: 'Fleet',
+            quoteAuthorJobTitle: 'Placeholder testimonial',
+            quoteAuthorProfileImageFilename: 'fleet-profile-image.png',
+            quoteLinkUrl: '/',
+            productCategories: ['Device management', 'Observability', 'Software management'],
+          }];
+        }
+      }//ﬁ
+
     },
 
 
