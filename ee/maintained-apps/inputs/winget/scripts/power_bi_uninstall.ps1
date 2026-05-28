@@ -117,10 +117,14 @@ try {
     # on the install folder being absent so we never hide a real install. ---
     $productGone = -not ($installDirs | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
     foreach ($e in (Get-PowerBIEntries -Roots $roots)) {
-        if ($productGone) {
+        $isMachineKey = $e.KeyPath -like 'Microsoft.PowerShell.Core\Registry::HKEY_LOCAL_MACHINE\*'
+        if ($productGone -and $isMachineKey) {
             Write-Host "Removing orphaned registration: '$($e.DisplayName)' ($($e.KeyPath))"
             Remove-Item -Path $e.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
         } else {
+            Write-Host "WARNING: entry still present and product files remain: '$($e.DisplayName)'"
+            if ($exitCode -eq 0) { $exitCode = 1 }
+        }
             Write-Host "WARNING: entry still present and product files remain: '$($e.DisplayName)'"
             if ($exitCode -eq 0) { $exitCode = 1 }
         }
