@@ -7,7 +7,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 # Check if variable currently exists
 /usr/libexec/PlistBuddy -c "Print EnvironmentVariables:ORBIT_ENABLE_SCRIPTS" "/Library/LaunchDaemons/com.fleetdm.orbit.plist" 2>/dev/null
-# Set or add plist environment variable to enable scrippts in Orbit
+# Set or add plist environment variable to enable scripts in Orbit
 if [ $? -eq 0 ]; then
   /usr/libexec/PlistBuddy -c "set EnvironmentVariables:ORBIT_ENABLE_SCRIPTS true" "/Library/LaunchDaemons/com.fleetdm.orbit.plist"
 else
