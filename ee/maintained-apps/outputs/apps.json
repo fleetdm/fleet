@@ -244,7 +244,7 @@
       "slug": "aws-cli/windows",
       "platform": "windows",
       "unique_identifier": "AWS Command Line Interface v2",
-      "description": "AWS Command Line Interface provides an interface for interacting with all parts of Amazon Web Services."
+      "description": "AWS Command Line Interface provides a tool for interacting with all parts of Amazon Web Services."
     },
     {
       "name": "AWS Client VPN",
