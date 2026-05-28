@@ -52,19 +52,33 @@ module.exports = {
       description: 'The applican\'ts cover letter in plain text.',
     },
 
+    websiteUrl: {
+      type: 'string',
+      description: 'Honeypot field. If filled, the submission is silently discarded.'
+    }
+
   },
 
 
   exits: {
     success: {
       description: 'A job application was successfully submitted.',
-    }
+    },
+    invalidEmailDomain: {
+      description: 'This email address is on a denylist of domains and was not delivered.',
+      responseType: 'badRequest'
+    },
   },
 
 
-  fn: async function ({ firstName, lastName, emailAddress, position, linkedinProfileUrl, location, message,}) {
+  fn: async function ({ firstName, lastName, emailAddress, position, linkedinProfileUrl, location, message, websiteUrl}) {
 
+    if (websiteUrl) { return; }// Honeypot input provided — return a success response
 
+    let emailDomain = emailAddress.split('@')[1];
+    if(_.includes(sails.config.custom.bannedEmailDomainsForContactFormSubmissions, emailDomain.toLowerCase())){
+      throw 'invalidEmailDomain';
+    }
 
 
     // Send the submitted information to a Zapier webhook.
