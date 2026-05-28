@@ -16,7 +16,7 @@ import activitiesAPI, {
 } from "services/entities/activities";
 import hostAPI, {
   IGetHostCertificatesResponse,
-  IGetHostCertsRequestParams,
+  IGetHostCertsApiParams,
 } from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import commandAPI from "services/entities/command";
@@ -353,7 +353,7 @@ const HostDetailsPage = ({
     IGetHostCertificatesResponse,
     Error,
     IGetHostCertificatesResponse,
-    Array<IGetHostCertsRequestParams & { scope: "host-certificates" }>
+    Array<IGetHostCertsApiParams & { scope: "host-certificates" }>
   >(
     [
       {
@@ -1070,6 +1070,27 @@ const HostDetailsPage = ({
     }
   };
 
+  const onClickMyDevice = async () => {
+    if (!host) return;
+    try {
+      const { device_url } = await hostAPI.getDeviceURL(host.id);
+      // TODO: this sometimes flashes the "please allow pop-ups" error even when
+      // the popup successfully opens — `window.open` is returning null in cases
+      // where the new tab actually appears. Investigate (likely the async gap
+      // between the click and window.open is treated as non-user-initiated by
+      // some browsers, or the returned WindowProxy is filtered by noopener).
+      const opened = window.open(device_url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        renderFlash(
+          "error",
+          "Couldn't open My device page. Please allow pop-ups and try again."
+        );
+      }
+    } catch (e) {
+      renderFlash("error", "Couldn't open My device page. Please try again.");
+    }
+  };
+
   const onUpdateEndUser = async (username: string) => {
     setIsUpdating(true);
     try {
@@ -1235,6 +1256,13 @@ const HostDetailsPage = ({
       isHostTeamAdmin ||
       isHostTeamMaintainer ||
       isHostTeamTechnician);
+
+  // "My device" link points to that host's end-user My device page. The URL
+  // embeds the device auth token so it acts as a credential, hence global
+  // admin only. The endpoint guarantees a valid link on every fetch — it
+  // refreshes an expired token or generates one for a host that has never
+  // had one — so we don't gate visibility on orbit/MDM state.
+  const canViewMyDeviceLink = isGlobalAdmin;
 
   const showSoftwareLibraryTab = isPremiumTier;
   const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
@@ -1498,6 +1526,7 @@ const HostDetailsPage = ({
                     isGlobalAdmin ||
                     isGlobalMaintainer
                   }
+                  canViewMyDeviceLink={canViewMyDeviceLink}
                   onClickUpdateUser={(
                     e:
                       | React.MouseEvent<HTMLButtonElement>
@@ -1505,6 +1534,14 @@ const HostDetailsPage = ({
                   ) => {
                     e.preventDefault();
                     setShowUpdateEndUserModal(true);
+                  }}
+                  onClickMyDevice={(
+                    e:
+                      | React.MouseEvent<HTMLButtonElement>
+                      | React.KeyboardEvent<HTMLButtonElement>
+                  ) => {
+                    e.preventDefault();
+                    onClickMyDevice();
                   }}
                 />
                 <LabelsCard

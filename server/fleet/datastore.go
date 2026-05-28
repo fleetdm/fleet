@@ -395,6 +395,18 @@ type Datastore interface {
 	SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error
 	// GetDeviceAuthToken returns the current auth token for a given host
 	GetDeviceAuthToken(ctx context.Context, hostID uint) (string, error)
+	// GetDeviceAuthTokenIfFresh returns the host's current device auth token
+	// only if it is still within the TTL window (i.e., it would resolve
+	// successfully via LoadHostByDeviceAuthToken). Returns a NotFoundError
+	// if the host has no token row or the existing token is expired.
+	GetDeviceAuthTokenIfFresh(ctx context.Context, hostID uint, tokenTTL time.Duration) (string, error)
+	// HostIDByDeviceAuthToken returns the host_id that owns the given device
+	// auth token, with no TTL filter. Used to defend against random-token
+	// collisions when minting a new token — unlike LoadHostByDeviceAuthToken
+	// this matches rows whose token is expired but still in the table, since
+	// expired rows still cause UNIQUE-key conflicts on the host_device_auth
+	// upsert. Returns a NotFoundError if no row owns the token.
+	HostIDByDeviceAuthToken(ctx context.Context, authToken string) (uint, error)
 
 	// FailingPoliciesCount returns the number of failling policies for 'host'
 	FailingPoliciesCount(ctx context.Context, host *Host) (uint, error)
@@ -435,8 +447,11 @@ type Datastore interface {
 	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
 	// whose corresponding result is older than 1 hour.
 	CleanupWindowsMDMCommandQueue(ctx context.Context) error
-	// CleanupAllHostMDMProfilesForPlatform deletes all host MDM profile rows for the given platform.
-	// Used when MDM is toggled off globally to prevent stale pending profiles from persisting.
+	// CleanupAllHostMDMProfilesForPlatform deletes every row from the host MDM profile tables for the given platform
+	// (not just pending rows) and, for Apple, also soft-disables nano_enrollments. Used when MDM is toggled off globally
+	// so the profile reconciler does not recreate pending rows after MDM is turned back on. The Windows reconciler still
+	// gates on host_mdm.enrolled = 1, which osquery and the SOAP enrollment path maintain organically. The platform
+	// argument is a platform family: passing any of "darwin", "ios", or "ipados" cleans up all three Apple platforms.
 	CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error
 
 	// CleanupStaleNanoRefetchCommands deletes up to 3 nano_enrollment_queue and
@@ -453,7 +468,26 @@ type Datastore interface {
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificateRecord, *PaginationMetadata, error)
-	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord) error
+	// UpdateHostCertificates ingests certs reported by `origin`. Each call only
+	// soft-deletes existing rows whose origin matches, so osquery and MDM
+	// ingestion don't clobber each other's view.
+	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin) error
+
+	// SoftDeleteMDMHostCertificatesForUnenrolledHosts soft-deletes MDM-origin
+	// cert rows for hosts reporting host_mdm.enrolled=0 — the cron complement to
+	// the MDMTurnOff hook for hosts unenrolled without a CheckOut. Returns the
+	// count soft-deleted.
+	SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error)
+
+	// ProfileHasACMEPayloadForCommand returns the host/profile gating data
+	// needed to decide whether an InstallProfile ack should trigger a
+	// CertificateList refetch: host platform, profile UUID, whether the
+	// delivered profile contains a com.apple.security.acme payload, and
+	// whether a refetch is already pending. All gates are computed
+	// server-side in a single indexed lookup so the per-ack hot path stays
+	// cheap. Substring-matched on the mobileconfig blob; bounded false-
+	// positive risk (one redundant CertificateList per false match).
+	ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (ProfileACMECommandResult, error)
 
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean
@@ -908,6 +942,13 @@ type Datastore interface {
 	// GetPoliciesWithAssociatedVPP returns team policies that have an associated VPP app
 	GetPoliciesWithAssociatedVPP(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyVPPData, error)
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
+	// ResetPolicyAutomationRetryAttemptsForHost marks all prior policy automation
+	// script/install attempts on this host as "old sequence" (attempt_number=0)
+	// for the given policies. Used when continuous_automations_enabled triggers
+	// a new automation run while the policy is still failing, so that the new
+	// attempt restarts the retry sequence at 1 instead of inheriting the cap
+	// from the previous sequence.
+	ResetPolicyAutomationRetryAttemptsForHost(ctx context.Context, hostID uint, policyIDs []uint) error
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error)
@@ -3190,6 +3231,9 @@ type AndroidDatastore interface {
 	android.Datastore
 	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 	AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*AndroidHost, error)
+	// AndroidDeviceExistsByDeviceID reports whether an android_devices row exists for the given AMAPI device_id (the `Y` in
+	// `enterprises/X/devices/Y`).
+	AndroidDeviceExistsByDeviceID(ctx context.Context, deviceID string) (bool, error)
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error)
@@ -3215,6 +3259,37 @@ type AndroidDatastore interface {
 	// ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion returns a list of all android profiles that are pending or failed install, and where version is less than or equals to the policyVersion.
 	ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
 	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*android.MDMAndroidPolicyRequest, error)
+
+	// NewMDMAndroidCommand inserts a row into mdm_android_commands at the moment Fleet issues an AMAPI command (Lock, Wipe,
+	// Clear passcode) via EnterprisesDevicesService.IssueCommand. The caller must populate cmd.CommandUUID before invoking.
+	NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error
+
+	// GetMDMAndroidCommandByUUID looks up a row by its Fleet-generated command_uuid. This is the identifier
+	// host_mdm_actions.{lock_ref, wipe_ref} points to for Android hosts.
+	GetMDMAndroidCommandByUUID(ctx context.Context, commandUUID string) (*android.MDMAndroidCommand, error)
+
+	// GetMDMAndroidCommandByOperationName looks up a row by its AMAPI operation name
+	// (enterprises/X/devices/Y/operations/Z). Used by the Pub/Sub COMMAND handler to correlate an incoming notification
+	// back to the originating Fleet command.
+	GetMDMAndroidCommandByOperationName(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error)
+
+	// UpdateMDMAndroidCommandStatus updates the status (and optional error_code/error_message) of
+	// a previously-issued command. Called by the Pub/Sub COMMAND handler on ack/error.
+	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error
+
+	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the lock_ref on host_mdm_actions in a
+	// single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate cmd.CommandUUID and cmd.OperationName
+	// (returned by EnterprisesDevicesIssueCommand) before invoking.
+	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
+	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the wipe_ref on host_mdm_actions in a
+	// single transaction. This method is for COBO Wipe specifically (the host page surfaces it as PendingAction=wipe ->
+	// DeviceStatus=wiped); the service layer must reject BYO hosts before calling. BYO unenroll also issues an AMAPI WIPE
+	// (work-profile-only) but persists via NewMDMAndroidCommand without touching host_mdm_actions, because BYO unenroll
+	// surfaces as the mdm_unenrolled activity, not as a wipe. The caller must populate cmd.CommandUUID and cmd.OperationName
+	// before invoking.
+	WipeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
 	// slice, updating existing entries and inserting new entries.

@@ -36,6 +36,9 @@ spec:
       {{- if include "fleet.additionalCAs.enabled" . }}
       - name: install-trusted-cas
         image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
+        {{- with .Values.imagePullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
         securityContext:
           runAsUser: 0
           runAsNonRoot: false
@@ -74,6 +77,9 @@ spec:
         command: [/usr/bin/fleet]
         args: ["serve"]
         image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
+        {{- with .Values.imagePullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
         ports:
         - name: fleet
           containerPort: {{ .Values.fleet.listenPort }}

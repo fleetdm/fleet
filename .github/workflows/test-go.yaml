@@ -131,7 +131,7 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Install gotestsum
-        run: go install gotest.tools/gotestsum@latest
+        run: go install gotest.tools/gotestsum@c4a0df2e75a225d979a444342dd3db752b53619f # v1.13.0
 
       - name: verify mysql
         run: |

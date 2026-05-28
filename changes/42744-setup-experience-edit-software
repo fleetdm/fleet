@@ -1,0 +1,1 @@
+- Fixed software installer edits cancelling pending setup experience installs and causing setup experience to fail if all software is required.

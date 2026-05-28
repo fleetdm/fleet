@@ -97,6 +97,7 @@ interface IManagePoliciesPageProps {
       order_direction?: "asc" | "desc";
       page?: string;
       automation_type?: AutomationType;
+      manage_automations?: string;
     };
     search: string;
   };
@@ -566,6 +567,34 @@ const ManagePolicyPage = ({
     }
   };
 
+  // Open specific policy automation modal via query param (e.g. from command palette)
+  useEffect(() => {
+    const param = queryParams?.manage_automations;
+    if (!param) return;
+
+    switch (param) {
+      case "webhooks":
+        setShowOtherWorkflowsModal(true);
+        break;
+      case "install_software":
+        setShowInstallSoftwareModal(true);
+        break;
+      case "run_script":
+        setShowPolicyRunScriptModal(true);
+        break;
+      case "calendar":
+        setShowCalendarEventsModal(true);
+        break;
+      case "conditional_access":
+        setShowConditionalAccessModal(true);
+        break;
+      default:
+    }
+
+    const { manage_automations, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [queryParams?.manage_automations]);
+
   const onUpdateOtherWorkflows = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
     integrations: IZendeskJiraIntegrations;
@@ -976,8 +1005,8 @@ const ManagePolicyPage = ({
     : globalPoliciesError;
 
   const policyResults = !isAllTeamsSelected
-    ? teamPolicies && teamPolicies.length > 0
-    : globalPolicies && globalPolicies.length > 0;
+    ? teamPolicies !== undefined
+    : globalPolicies !== undefined;
 
   // Show CTA buttons if there are no errors
   const showCtaButtons = !policiesErrors;
@@ -1097,14 +1126,16 @@ const ManagePolicyPage = ({
 
   const renderAutomationFilter = isPremiumTier
     ? () => {
-        // Hide dropdown if there are errors OR there are no policy results with no filters (search or automation dropdown)
-        const hide =
-          policiesErrors ||
-          (!policyResults && searchQuery === "" && !automationFilter);
-
-        if (hide) {
+        // Hide dropdown only on errors
+        if (policiesErrors) {
           return null;
         }
+
+        const policiesCount = isAllTeamsSelected
+          ? globalPoliciesCount
+          : teamPoliciesCountMergeInherited;
+        const isTrulyEmpty =
+          (policiesCount ?? 0) === 0 && searchQuery === "" && !automationFilter;
 
         // No team ID = All fleets → only show "all" and "other" options
         const optionsForTeam = teamIdForApi
@@ -1122,6 +1153,7 @@ const ManagePolicyPage = ({
             placeholder="Filter by automation"
             options={optionsForTeam}
             variant="table-filter"
+            isDisabled={isTrulyEmpty}
           />
         );
       }
@@ -1142,6 +1174,7 @@ const ManagePolicyPage = ({
           policiesList={globalPolicies || []}
           isLoading={isFetchingGlobalPolicies || isFetchingGlobalConfig}
           onDeletePoliciesClick={onDeletePoliciesClick}
+          onAddPolicyClick={onAddPolicyClick}
           canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}
@@ -1181,6 +1214,7 @@ const ManagePolicyPage = ({
             isFetchingGlobalConfig
           }
           onDeletePoliciesClick={onDeletePoliciesClick}
+          onAddPolicyClick={onAddPolicyClick}
           canAddOrDeletePolicies={canAddOrDeletePolicies}
           hasPoliciesToDelete={hasPoliciesToDelete}
           currentTeam={currentTeamSummary}

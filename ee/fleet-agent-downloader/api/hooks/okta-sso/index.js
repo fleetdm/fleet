@@ -76,7 +76,17 @@ module.exports = function (sails){
             }
           },
         });
-        return oidc.router;
+        // Sails disables sessions for paths that look like static assets
+        // (see sails.config.session.isSessionDisabled). The Okta router runs
+        // passport.session() on every request, which throws "Login sessions
+        // require session support" when req.session is undefined — surfacing
+        // as a 500 on every static-asset GET for non-logged-in users.
+        // Skip the Okta middleware in that case and let the request flow
+        // through to the Sails router normally.
+        return function oktaSSOMiddleware(req, res, next) {
+          if (!req.session) { return next(); }
+          return oidc.router(req, res, next);
+        };
       })();
 
       var err;

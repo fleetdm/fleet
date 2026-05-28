@@ -1035,7 +1035,7 @@ func (s *integrationMDMTestSuite) TestClearPasscodeCommand() {
 	iosHost, iosMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ios", mdmtest.RandSerialNumber())
 
 	// Trigger ClearPasscode endpoint
-	var clearPasscodeResp clearPasscodeResponse
+	var clearPasscodeResp fleet.ClearPasscodeResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", iosHost.ID), nil, http.StatusOK, &clearPasscodeResp)
 	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, clearPasscodeResp.RequestType)
 	require.Equal(t, "ios", clearPasscodeResp.Platform)

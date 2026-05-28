@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner help dibble
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble help
 
 export GO111MODULE=on
 
@@ -229,11 +229,16 @@ lint-js:
 
 .help-short--lint-go:
 	@echo "Run the Go linters"
-lint-go:
+lint-go: check-no-testing-in-prod
 	golangci-lint run --allow-serial-runners --timeout 15m
 ifndef SKIP_INCREMENTAL
 	$(MAKE) lint-go-incremental
 endif
+
+.help-short--check-no-testing-in-prod:
+	@echo "Fail if any Fleet-owned package reachable from cmd/fleet, cmd/fleetctl, or orbit/cmd/orbit imports \"testing\". See https://github.com/fleetdm/fleet/issues/45220."
+check-no-testing-in-prod:
+	go run ./tools/check-no-testing-in-prod
 
 .help-short--lint-go-incremental:
 	@echo "Run the incremental Go linters"

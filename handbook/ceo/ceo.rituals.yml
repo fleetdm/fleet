@@ -78,3 +78,9 @@
   description: "Check for GitOps workshops that occurred during the week, pull the attendee list from Eventbrite, and send blank connect requests from the CEO to each attendee so they have an open line for communication for feedback and ideas."
   moreInfoUrl:
   dri: "SFriendLee"
+- task: "Check Eventbrite for upcoming GitOps workshops"
+  startedOn: "2026-05-27"
+  frequency: "Monthly"
+  description: "On the first Monday of every month, early in roundup, look at https://www.eventbrite.com/organizations/collections and make sure it has all upcoming GitOps workshops in the [event spreadsheet](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=692710204#gid=692710204)."
+  moreInfoUrl: "https://www.eventbrite.com/organizations/collections"
+  dri: "SFriendLee"

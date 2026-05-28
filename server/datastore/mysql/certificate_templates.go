@@ -171,7 +171,7 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
 	}
 
-	var templates []*fleet.CertificateTemplateResponseSummary
+	templates := []*fleet.CertificateTemplateResponseSummary{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &templates, stmtPaged, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "getting certificate_templates by team_id")
 	}

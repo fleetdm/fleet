@@ -111,6 +111,9 @@ tools/test_extensions/hello_world/linux-arm64
 tools/test_extensions/hello_world/windows
 tools/test_extensions/hello_world/windows-arm64
 
+# typical screencap output dir
+tools/screencap/screenshots
+
 # Residual files when building fleet_tables extension.
 fleet_tables_*.ext
 

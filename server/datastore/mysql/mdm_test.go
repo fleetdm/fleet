@@ -65,6 +65,8 @@ func TestMDMShared(t *testing.T) {
 		{"TestListNextPendingMDMWindowsHostUUIDsCursor", testListNextPendingMDMWindowsHostUUIDsCursor},
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
+		{"TestProfileHasACMEPayloadForCommand", testProfileHasACMEPayloadForCommand},
+		{"TestRenewMDMManagedCertificatesNullType", testRenewMDMManagedCertificatesNullType},
 	}
 
 	for _, c := range cases {
@@ -10122,16 +10124,33 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
 
-	// Verify CleanupAllHostMDMProfilesForPlatform removes all remaining profile rows when MDM is
-	// toggled off globally. At this point hosts still have pending remove profiles.
-
 	// Windows hosts have pending removes; cleanup should wipe them.
 	err = ds.CleanupAllHostMDMProfilesForPlatform(ctx, "windows")
 	require.NoError(t, err)
 	assertHostProfileOpStatus(t, ds, host3.UUID)
 	assertHostProfileOpStatus(t, ds, host4.UUID)
 
-	// Apple hosts still have pending removes; verify they survived the Windows cleanup, then clean them up too.
+	// Windows host_mdm rows must NOT be touched by global disable. Orbit's programmatic-unenrollment notification
+	// depends on host_mdm.enrolled = 1 to be able to tell the device to unenroll.
+	var winHostMDM struct {
+		Total    int `db:"total"`
+		Enrolled int `db:"enrolled"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &winHostMDM,
+			`SELECT
+				COUNT(*) AS total,
+				COALESCE(SUM(CASE WHEN hmdm.enrolled = 1 THEN 1 ELSE 0 END), 0) AS enrolled
+			 FROM host_mdm hmdm
+			 JOIN hosts h ON h.id = hmdm.host_id
+			 WHERE h.uuid IN (?, ?) AND h.platform = 'windows'`,
+			host3.UUID, host4.UUID)
+	})
+	require.Equal(t, 2, winHostMDM.Total, "Windows host_mdm rows must survive global disable")
+	require.Equal(t, 2, winHostMDM.Enrolled,
+		"Windows host_mdm.enrolled must be preserved so orbit can still send unenroll notifications")
+
+	// Apple hosts still have pending removes; verify they survived the Windows cleanup, then disable Apple MDM too.
 	appleProfsHost1, err := ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
 	require.NoError(t, err)
 	require.NotEmpty(t, appleProfsHost1)
@@ -10144,6 +10163,24 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assertHostProfileOpStatus(t, ds, host1.UUID)
 	assertHostProfileOpStatus(t, ds, host2.UUID)
+
+	// Apple nano_enrollments must be soft-disabled (rows survive, enabled = 0) so the reconciler does not recreate
+	// pending rows when a new APNS cert is uploaded.
+	var appleEnrollments struct {
+		Total    int `db:"total"`
+		Disabled int `db:"disabled"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &appleEnrollments,
+			`SELECT
+				COUNT(*) AS total,
+				COALESCE(SUM(CASE WHEN enabled = 0 THEN 1 ELSE 0 END), 0) AS disabled
+			 FROM nano_enrollments
+			 WHERE id IN (?, ?)`,
+			host1.UUID, host2.UUID)
+	})
+	require.Positive(t, appleEnrollments.Total, "nano_enrollments rows must survive global disable, not be deleted")
+	require.Equal(t, appleEnrollments.Total, appleEnrollments.Disabled, "nano_enrollments rows must be flipped to enabled = 0")
 }
 
 // testDeleteTeamCancelsWindowsProfileInstalls verifies that when a team is
@@ -10600,4 +10637,223 @@ func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, appleProfileUUID, uid)
 	})
+}
+
+func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("acme-probe-osq"),
+		NodeKey:         ptr.String("acme-probe-nk"),
+		UUID:            "acme-probe-host-uuid",
+		Hostname:        "acme-probe-host",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	mkProfile := func(t *testing.T, name string, mobileconfig []byte) string {
+		t.Helper()
+		teamID := uint(0)
+		profileUUID := uuid.NewString()
+		stmt := `
+			INSERT INTO mdm_apple_configuration_profiles
+				(profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at)
+			VALUES (?, ?, ?, ?, ?, ?, NOW())`
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, stmt,
+				profileUUID, teamID, name, name, mobileconfig, []byte("0123456789abcdef"))
+			return err
+		})
+		return profileUUID
+	}
+
+	mkHostProfileLink := func(t *testing.T, hostUUID, profileUUID, commandUUID string) {
+		t.Helper()
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:   profileUUID,
+			HostUUID:      hostUUID,
+			Checksum:      []byte("0123456789abcdef"),
+			Scope:         fleet.PayloadScopeSystem,
+			OperationType: fleet.MDMOperationTypeInstall,
+			CommandUUID:   commandUUID,
+		}}))
+	}
+
+	acmeXML := []byte(`<?xml version="1.0"?><plist><dict><key>PayloadContent</key><array><dict><key>PayloadType</key><string>com.apple.security.acme</string></dict></array></dict></plist>`)
+	scepXML := []byte(`<?xml version="1.0"?><plist><dict><key>PayloadContent</key><array><dict><key>PayloadType</key><string>com.apple.security.scep</string></dict></array></dict></plist>`)
+
+	t.Run("darwin host with ACME profile, no pending refetch", func(t *testing.T) {
+		profUUID := mkProfile(t, "acme-darwin", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, host.ID, got.HostID)
+		require.Equal(t, "darwin", got.Platform)
+		require.Equal(t, profUUID, got.ProfileUUID)
+		require.True(t, got.HasACMEPayload)
+	})
+
+	t.Run("darwin host with non-ACME profile reports has_acme_payload=false", func(t *testing.T) {
+		profUUID := mkProfile(t, "scep-darwin", scepXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, "darwin", got.Platform)
+		require.False(t, got.HasACMEPayload)
+	})
+
+	t.Run("unknown command returns not found", func(t *testing.T) {
+		_, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, "no-such-command")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("unknown host returns not found", func(t *testing.T) {
+		profUUID := mkProfile(t, "acme-unknown-host", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
+
+		_, err := ds.ProfileHasACMEPayloadForCommand(ctx, "no-such-host", cmdUUID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+}
+
+func testRenewMDMManagedCertificatesNullType(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("renew-null-osq"),
+		NodeKey:         ptr.String("renew-null-nk"),
+		UUID:            "renew-null-host-uuid",
+		Hostname:        "renew-null-host",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Helper: create an Apple config profile + a host_mdm_apple_profiles row
+	// in 'verified' state (eligible for renewal cron resend) and an associated
+	// host_mdm_managed_certificates row with the given type and an expiring
+	// not_valid_after. Returns the profile UUID.
+	mkExpiringRow := func(t *testing.T, name string, certType *string, caName string) string {
+		t.Helper()
+		profileUUID := uuid.NewString()
+		// Insert mdm_apple_configuration_profiles row.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO mdm_apple_configuration_profiles
+					(profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at)
+				VALUES (?, 0, ?, ?, ?, ?, NOW())`,
+				profileUUID, name, name, []byte("dummy"), []byte("0123456789abcdef"))
+			return err
+		})
+		// Insert host_mdm_apple_profiles row in verified state, eligible for renewal.
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:       profileUUID,
+			ProfileIdentifier: name,
+			ProfileName:       name,
+			HostUUID:          host.UUID,
+			Status:            &fleet.MDMDeliveryVerified,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       "cmd-" + profileUUID,
+			Checksum:          []byte("0123456789abcdef"),
+			Scope:             fleet.PayloadScopeSystem,
+		}}))
+		// Insert host_mdm_managed_certificates row with cert that expires soon
+		// (within the renewal cron's 30-day threshold, validity_period > 30).
+		notValidBefore := time.Now().AddDate(-1, 0, 0) // 1 year ago
+		notValidAfter := time.Now().AddDate(0, 0, 5)   // 5 days from now
+		serial := "0000000000000000000000000000000000000001"
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_mdm_managed_certificates
+					(host_uuid, profile_uuid, ca_name, type,
+					 not_valid_before, not_valid_after, serial)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				host.UUID, profileUUID, caName, certType, notValidBefore, notValidAfter, serial)
+			return err
+		})
+		return profileUUID
+	}
+
+	ndesStr := "ndes"
+
+	// Two rows expiring on the same schedule: one with NULL type
+	// (non-proxied flow) and one with type='ndes' (proxied flow).
+	// Both buckets must be picked up by the renewal cron.
+	nullProfile := mkExpiringRow(t, "null-prof", nil, "non-proxied-ca")
+	ndesProfile := mkExpiringRow(t, "ndes-prof", &ndesStr, "ndes-ca")
+
+	// Sanity: both start as 'verified'.
+	for _, profUUID := range []string{nullProfile, ndesProfile} {
+		var status *string
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &status, `
+			SELECT status FROM host_mdm_apple_profiles
+			WHERE host_uuid = ? AND profile_uuid = ?`,
+			host.UUID, profUUID))
+		require.NotNil(t, status)
+		require.Equal(t, fleet.MDMDeliveryVerified, fleet.MDMDeliveryStatus(*status))
+	}
+
+	require.NoError(t, ds.RenewMDMManagedCertificates(ctx))
+
+	// Both should now have status=NULL (queued for resend).
+	for _, profUUID := range []string{nullProfile, ndesProfile} {
+		var status *string
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &status, `
+			SELECT status FROM host_mdm_apple_profiles
+			WHERE host_uuid = ? AND profile_uuid = ?`,
+			host.UUID, profUUID))
+		require.Nil(t, status, "profile %s should be queued for resend", profUUID)
+	}
+
+	// Verify the read paths handle NULL `type` cleanly. The struct fields
+	// `MDMManagedCertificate.Type` and `HostMDMCertificateProfile.Type` are
+	// `CAConfigAssetType` (a string alias), not pointers. sqlx scans a NULL
+	// column into a string-aliased field as the empty string — no error, no
+	// special-case handling needed. This is the convention used throughout the
+	// non-proxied flow: NULL in the column == zero value in Go.
+	listed, err := ds.ListHostMDMManagedCertificates(ctx, host.UUID)
+	require.NoError(t, err, "ListHostMDMManagedCertificates must round-trip rows with NULL type")
+	var sawNullRow, sawNDESRow bool
+	for _, row := range listed {
+		switch row.ProfileUUID {
+		case nullProfile:
+			sawNullRow = true
+			require.Equal(t, fleet.CAConfigAssetType(""), row.Type,
+				"NULL type column should scan to empty CAConfigAssetType")
+			require.Equal(t, "non-proxied-ca", row.CAName)
+		case ndesProfile:
+			sawNDESRow = true
+			require.Equal(t, fleet.CAConfigNDES, row.Type,
+				"non-NULL type column should round-trip unchanged")
+		}
+	}
+	require.True(t, sawNullRow, "ListHostMDMManagedCertificates must return the NULL-type row")
+	require.True(t, sawNDESRow, "ListHostMDMManagedCertificates must return the existing ndes row")
+
+	// Same expectation via GetAppleHostMDMCertificateProfile, which returns
+	// HostMDMCertificateProfile (different struct, same nullable column).
+	nullProfileDetail, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, nullProfile, "non-proxied-ca")
+	require.NoError(t, err)
+	require.NotNil(t, nullProfileDetail)
+	require.Equal(t, fleet.CAConfigAssetType(""), nullProfileDetail.Type,
+		"HostMDMCertificateProfile.Type must scan a NULL column as empty string")
+
+	ndesProfileDetail, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, ndesProfile, "ndes-ca")
+	require.NoError(t, err)
+	require.NotNil(t, ndesProfileDetail)
+	require.Equal(t, fleet.CAConfigNDES, ndesProfileDetail.Type)
 }

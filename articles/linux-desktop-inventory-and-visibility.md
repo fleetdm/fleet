@@ -6,7 +6,7 @@ Taking stock of your current environment isn't easy. Modern environments are het
 
 In this article, we will discuss the importance of inventory and visibility when managing Linux desktops. Inventory and visibility involve more than simply keeping track of your hosts. Modern environments are dynamic, and they come with unique management challenges.
 
-# Background
+## Background
 
 You can't manage any type of infrastructure without an accurate picture of your environment. Developing policy, identifying drift, remediating misconfigurations, and enforcing security controls all rely on continuous visibility.
 
@@ -45,7 +45,7 @@ Consider the following questions when evaluating the visibility features of an M
 2. Does the system support continuous policy evaluation, ad-hoc, and scheduled reports? Can these be configured using consistent tooling, or do they each require very different approaches?
 3. Can you query heterogeneous systems, such as Windows, Mac, and different Linux distributions, using a consistent language and framework?
 
-# Using osquery
+## Using osquery
 
 The osquery utility is a cross-platform tool that exposes information about your systems as a SQL database. This provides a common, consistent language for inventory and visibility into the devices in your environment. It has a rich schema that exposes hundreds of tables and thousands of attributes about your devices.
 
@@ -59,15 +59,15 @@ Using osquery is uniquely appropriate for visibility in heterogeneous environmen
 
 The osquery project has been around for over a decade. It is a mature, actively maintained, open-source project with over 23,000 stars on GitHub. The osquery binary runs in a very lightweight footprint on your hosts and imposes minimal overhead. However, osquery enables you to get information about one host at a time.
 
-# Inventory and visibility in Fleet
+## Inventory and visibility in Fleet
 
-## Tracking inventory
+### Host inventory
 
 Fleet makes it easy to track host inventory over time and across tens, hundreds, or thousands of hosts. The Fleet agent, which includes osquery, is a lightweight software package that is installed on every device in your environment. Fleet provides packages for Windows, Mac, and Linux. The agent has a very small footprint, and it communicates with your Fleet server over TLS.
 
 Once a host is connected with your Fleet environment, you can begin managing it. Fleet provides two key features for tracking host inventory: Fleets and Labels. Let's take a closer look at each.
 
-### Fleets
+#### Fleets
 
 Fleets allow you to organize hosts into groups that you can report on, apply policies to, and configure. Fleets are tailored to your organization's specific tasks and compliance requirements. Since Fleet is cross-platform, you can manage Windows, Mac, and Linux workstations within a single fleet.
 
@@ -80,7 +80,7 @@ Manage fleets by clicking on your user icon in the top-right corner and navigati
 ![Hosts in a Workstations fleet](../website/assets/images/articles/linux-desktop-inventory-and-visibility-1-947x269@2x.png)
 *Hosts in a Workstations team*
 
-### Labels
+#### Labels
 
 Fleet also provides a mechanism for labeling hosts. Labels provide a method for targeted reporting and policy enforcement. For example, you can apply a "Docker" label to all of your workstations with Docker installed on them. This label can be used to target reports or policies (e.g., Ensure that all workstations running Docker have the latest version from your internal repositories).
 
@@ -91,9 +91,9 @@ You create new labels by clicking on your user icon in the top-right corner and 
 ![Labels can be dynamically applied to hosts based on reports](../website/assets/images/articles/linux-desktop-inventory-and-visibility-2-955x306@2x.png)
 *Labels can be dynamically applied to hosts based on reports*
 
-## Visibility
+### Reports and policies
 
-### Reports
+#### Reports
 
 Fleet's reporting capabilities are built on osquery. They allow you to quickly query your environment using a common language. Fleet lets you define reports to run on an as-needed or scheduled basis. You can also run ad-hoc reports directly against your environment without saving the reports for later use.
 
@@ -109,7 +109,7 @@ You can **Save** the report for later use. The **Save report** window allows you
 
 You don't have to save the report for later use. You can use a **Live report** to immediately execute your report against your environment without saving it. This is useful for exploratory or ad-hoc reports that you don't plan on reusing.
 
-### Policies
+#### Policies
 
 Policies are similar to reports (they both use osquery), but they are designed to answer "yes" or "no" questions about your environment. A regular report returns detailed information, but a Policy returns True or False. This allows you to define organizational policies and identify when hosts are failing those policies.
 
@@ -130,7 +130,7 @@ The **Save Policy** window is also where you specify the hosts that the policy a
 
 Policies are a versatile concept in Fleet. You can use policies to automatically take actions, such as running a script or triggering a webhook, based on compliance. This allows your IT teams to automate common management workflows and quickly address noncompliance with organizational rules.
 
-# Wrapping up
+## Wrapping up
 
 The very first step in managing an environment is understanding it. Nowhere is this more true than in Linux desktop management, where a heterogeneous environment introduces unique challenges.
 
@@ -138,7 +138,7 @@ Robust Linux desktop management requires a complete inventory of your hosts and 
 
 Fleet provides a cross-platform approach, built on osquery, that enables deep insight into your hosts. Inventory and visibility are only the first step in a complete Linux management strategy. The following chapters will build on these foundational concepts to enable drift management, automated software installation, and automatic remediation.
 
-To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/contact?utm_source=Fleet&utm_medium=OS&utm_campaign=2026_05-OS-Linux_desktop).
+To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/contact).
 
 <meta name="articleTitle" value="Linux desktop inventory and visibility">
 <meta name="authorFullName" value="Anthony Critelli">

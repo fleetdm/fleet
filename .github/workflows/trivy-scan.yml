@@ -104,6 +104,10 @@ jobs:
         with:
           ref: ${{ matrix.branch || github.ref }}
 
+      - name: Capture checked-out commit SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
           role-to-assume: ${{env.AWS_IAM_ROLE}}
@@ -114,30 +118,21 @@ jobs:
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+          TRIVY_SECRET_CONFIG: "./security/code/trivy-secret.yaml"
         with:
           scan-type: "fs"
           ignore-unfixed: false
-          # PR/push: print findings to the run log and fail the check so
-          # engineers see issues before merging. Schedule/manual matrix runs:
-          # emit SARIF for upload to the Security tab.
+          # PR/push: only scan for secrets (block leaked credentials before merge).
+          # Schedule/manual: full scan (vuln + secret + misconfig) with SARIF upload
+          # to the Security tab for triage. CVEs are tracked nightly, not per-PR.
+          scanners: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'vuln,secret,misconfig' || 'secret' }}
           format: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'sarif' || 'table' }}
           output: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'trivy-results.sarif' || '' }}
           exit-code: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '0' || '1' }}
           severity: "CRITICAL,HIGH,MEDIUM,LOW"
           trivyignores: "./security/code/.trivyignore"
-          # Skip private keys used only for local testing, not production:
-          # - tools/osquery/in-a-box/osquery/fleet.key: TLS key for the "Fleet in a box" demo
-          # - tools/osquery/fleet.key: TLS key for the standalone osquery dev sandbox
-          # - orbit/pkg/insecure/proxy.go: TLS key used when running orbit with `--insecure` mode for development/testing.
-          # - ee/orbit/pkg/httpsigproxy/httpsigproxy.go: TLS key only used for osquery to orbit _local_ communication
-          #   (for injection of HTTP signatures for the TPM-backed feature in Linux).
-          # - website/config/custom.js: commented-out Stripe test-mode placeholders shown as example config.
-          skip-files: |
-            tools/osquery/in-a-box/osquery/fleet.key
-            tools/osquery/fleet.key
-            orbit/pkg/insecure/proxy.go
-            ee/orbit/pkg/httpsigproxy/httpsigproxy.go
-            website/config/custom.js
+          # Test/dev keys and Sails placeholders are handled by trivy-secret.yaml.
+          # Production files use targeted path+regex allow-rules in trivy-secret.yaml.
 
       - name: Upload Trivy scan results to GitHub Security tab
         # Only upload on schedule/manual runs. PR/push uploads register
@@ -148,3 +143,6 @@ jobs:
         with:
           sarif_file: "trivy-results.sarif"
           category: trivy-${{ matrix.branch }}
+          ref: refs/heads/${{ matrix.branch }}
+          sha: ${{ steps.sha.outputs.sha }}
+          checkout_path: ${{ github.workspace }}

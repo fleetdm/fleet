@@ -12,6 +12,7 @@ export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
   "chrome",
   "ios",
   "ipados",
+  "android",
 ];
 
 export interface IGetOSVersionsQueryParams {

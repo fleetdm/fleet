@@ -61,6 +61,7 @@ interface IManageQueriesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       fleet_id?: string;
+      manage_automations?: string;
     };
     search: string;
   };
@@ -128,6 +129,15 @@ const ManageQueriesPage = ({
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
+
+  // Open manage automations modal via query param (e.g. from command palette)
+  useEffect(() => {
+    if (location.query.manage_automations === "1") {
+      setShowManageAutomationsModal(true);
+      const { manage_automations, ...rest } = location.query;
+      router.replace({ pathname: location.pathname, query: rest });
+    }
+  }, [location.query.manage_automations, location.pathname, router]);
 
   const curPageFromURL = location.query.page
     ? parseInt(location.query.page, 10)
@@ -265,6 +275,14 @@ const ManageQueriesPage = ({
     return <h1>Reports</h1>;
   };
 
+  // CTA button shows for all roles but global observers and current team's observers
+  const canCustomQuery =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isObserverPlus; // isObserverPlus checks global and selected team
+
   const renderQueriesTable = () => {
     if (queriesError) {
       return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
@@ -281,6 +299,8 @@ const ManageQueriesPage = ({
         }
         isLoading={isLoadingQueries || isFetchingQueries}
         onDeleteQueryClick={onDeleteQueryClick}
+        onAddReportClick={onCreateQueryClick}
+        canAddReport={canCustomQuery}
         isOnlyObserver={isOnlyObserver}
         isObserverPlus={isObserverPlus}
         isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
@@ -371,14 +391,6 @@ const ManageQueriesPage = ({
       </>
     );
   };
-
-  // CTA button shows for all roles but global observers and current team's observers
-  const canCustomQuery =
-    isGlobalAdmin ||
-    isGlobalMaintainer ||
-    isTeamAdmin ||
-    isTeamMaintainer ||
-    isObserverPlus; // isObserverPlus checks global and selected team
 
   const canManageAutomations = isGlobalAdmin || isTeamAdmin;
   const isManageAutomationsEnabled = isAnyTeamSelected

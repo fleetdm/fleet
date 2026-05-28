@@ -43,7 +43,7 @@ func GetIssuesByMilestoneWithTitles(name string, limit int) ([]MilestoneIssue, e
 	if limit <= 0 {
 		limit = 1000
 	}
-	cmd := fmt.Sprintf("gh issue list --state all --milestone %q --limit %d --json number,title,labels", name, limit)
+	cmd := fmt.Sprintf("gh issue list --state all --milestone %q --limit %d --json number,title,labels,assignees", name, limit)
 	out, err := RunCommandAndReturnOutput(cmd)
 	if err != nil {
 		return nil, err
@@ -68,6 +68,9 @@ type MilestoneIssue struct {
 	Labels []struct {
 		Name string `json:"name"`
 	} `json:"labels"`
+	Assignees []struct {
+		Login string `json:"login"`
+	} `json:"assignees"`
 }
 
 // GetIssueProjects returns projects (id->title) that a specific issue belongs to.

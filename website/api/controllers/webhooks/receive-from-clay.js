@@ -114,7 +114,7 @@ module.exports = {
     }
 
 
-    let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+    let recordDetails = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
       firstName,
       lastName,
       linkedinUrl,
@@ -131,8 +131,8 @@ module.exports = {
       }
     });
 
-    if(!recordIds.salesforceAccountId) {
-      sails.log.warn(`When the receive-from-clay received information about a user's activity (name: ${firstName} ${lastName}), activity: ${intentSignal}). A contact was successfully updated, but the webhook is unable to continue because this contact is not associated with any Salesforce account record. Contact ID: ${recordIds.salesforceContactId}`);
+    if(!recordDetails.salesforceAccountId) {
+      sails.log.warn(`When the receive-from-clay received information about a user's activity (name: ${firstName} ${lastName}), activity: ${intentSignal}). A contact was successfully updated, but the webhook is unable to continue because this contact is not associated with any Salesforce account record. Contact ID: ${recordDetails.salesforceContactId}`);
       throw 'couldNotCreateActivity';
     }
 
@@ -143,14 +143,14 @@ module.exports = {
 
     // Create the new Fleet website page view record.
     let newHistoricalRecordId = await sails.helpers.salesforce.createHistoricalEvent.with({
-      salesforceAccountId: recordIds.salesforceAccountId,
-      salesforceContactId: recordIds.salesforceContactId,
+      salesforceAccountId: recordDetails.salesforceAccountId,
+      salesforceContactId: recordDetails.salesforceContactId,
       eventType: 'Intent signal',
       intentSignal: intentSignal,
       eventContent: historicalContent,
       eventContentUrl: historicalContentUrl,
       linkedinUrl: trimmedLinkedinUrl,
-      relatedCampaign,
+      relatedCampaign: relatedCampaign || recordDetails.mostRecentCampaign,
     })
     .intercept((err)=>{
       sails.log.warn(`When the receive-from-clay webhook received information about LinkedIn activity, a historical event record could not be created. Full error: ${require('util').inspect(err)}`);
@@ -160,8 +160,8 @@ module.exports = {
     // All done.
     return {
       historicalRecordId: newHistoricalRecordId,
-      contactId: recordIds.salesforceContactId,
-      accountId: recordIds.salesforceAccountId
+      contactId: recordDetails.salesforceContactId,
+      accountId: recordDetails.salesforceAccountId
     };
 
   }

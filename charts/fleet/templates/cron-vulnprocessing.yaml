@@ -31,6 +31,9 @@ spec:
           {{- if include "fleet.additionalCAs.enabled" . }}
           - name: install-trusted-cas
             image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
+            {{- with .Values.imagePullPolicy }}
+            imagePullPolicy: {{ . }}
+            {{- end }}
             securityContext:
               runAsUser: 0
               runAsNonRoot: false
@@ -76,6 +79,9 @@ spec:
                 sql_proxy_pid=$(pgrep cloud_sql_proxy) && kill -INT $sql_proxy_pid;
                 {{- end }}
             image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
+            {{- with .Values.imagePullPolicy }}
+            imagePullPolicy: {{ . }}
+            {{- end }}
             resources:
               limits:
                 cpu: {{ .Values.vulnProcessing.resources.limits.cpu }}
