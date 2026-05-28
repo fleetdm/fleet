@@ -50,6 +50,15 @@ if ($existingArgs -notmatch '\b/S\b') {
     $existingArgs = ("$existingArgs /S").Trim()
 }
 
+# NSIS uninstallers copy themselves to %TEMP%\Au_.exe and exit the original
+# process immediately, so `Start-Process -Wait` returns in ~1s while the real
+# uninstall is still running. Two mitigations:
+#  1. Pass `_?=<install_dir>` (documented NSIS option) to disable the
+#     self-copy and keep the original process running synchronously.
+#  2. Wait afterward for any leftover Au_*.exe / Un_*.exe helpers to exit.
+$installDir = Split-Path -Path $exePath -Parent
+$existingArgs = "$existingArgs _?=`"$installDir`""
+
 Write-Host "Uninstall command: $exePath"
 Write-Host "Uninstall args: $existingArgs"
 
@@ -64,6 +73,17 @@ try {
 
     $process = Start-Process @processOptions
     $exitCode = $process.ExitCode
+
+    # Fallback: wait for any NSIS helper processes that the uninstaller may
+    # have spawned regardless of `_?=`. Cap at 5 minutes.
+    $deadline = (Get-Date).AddMinutes(5)
+    while ((Get-Date) -lt $deadline) {
+        $helpers = Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^(Au_|Un_).*' -or $_.Path -like "*\Evernote\*" }
+        if (-not $helpers) { break }
+        Start-Sleep -Seconds 2
+    }
+
     Write-Host "Uninstall exit code: $exitCode"
     Exit $exitCode
 } catch {

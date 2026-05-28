@@ -1255,13 +1255,6 @@
       "description": "LibreOffice is a free cross-platform office suite."
     },
     {
-      "name": "LibreOffice",
-      "slug": "libreoffice/windows",
-      "platform": "windows",
-      "unique_identifier": "LibreOffice",
-      "description": "LibreOffice is a free cross-platform office suite."
-    },
-    {
       "name": "Linear",
       "slug": "linear/darwin",
       "platform": "darwin",
