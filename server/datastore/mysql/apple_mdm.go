@@ -2075,7 +2075,7 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 		// Clear MDM-delivered certs dropped on unenroll. All platforms:
 		// iOS/iPadOS lose their refetch channel too.
 		if err := softDeleteMDMHostCertsDB(ctx, tx, host.ID); err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "clearing mdm host certificates for host")
 		}
 
 		// we may need to create corresponding "past" activities for "canceled" VPP
@@ -5110,7 +5110,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 		// Clear MDM-delivered certs for the same re-enroll-without-CheckOut
 		// cases (local wipe, restore from backup, manual MDM profile removal).
 		if err := softDeleteMDMHostCertsDB(ctx, tx, host.ID); err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "resetting mdm host certificates for host")
 		}
 
 		// Do platform-specific cleanup.
