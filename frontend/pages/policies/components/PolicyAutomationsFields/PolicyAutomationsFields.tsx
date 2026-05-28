@@ -309,9 +309,8 @@ const PolicyAutomationsFields = forwardRef<
     }
 
     return (
-      <>
-        <section className={`${baseClass}__section`}>
-          <h2 className={`${baseClass}__section-title`}>Automations</h2>
+      <div className={baseClass}>
+        <div className={`${baseClass}__section`}>
           <table className={`${baseClass}__table`}>
             <tbody>
               {rows.map((row) => (
@@ -358,10 +357,10 @@ const PolicyAutomationsFields = forwardRef<
             />{" "}
             about automation types and their supported platforms.
           </div>
-        </section>
+        </div>
 
         {!isGlobalPolicy && (
-          <section className={`${baseClass}__section`}>
+          <div className={`${baseClass}__section`}>
             <Checkbox
               name="continuous-automations-enabled"
               value={continuousEnabled}
@@ -376,9 +375,9 @@ const PolicyAutomationsFields = forwardRef<
               </TooltipWrapper>{" "}
               software &amp; script automations
             </Checkbox>
-          </section>
+          </div>
         )}
-      </>
+      </div>
     );
   }
 );

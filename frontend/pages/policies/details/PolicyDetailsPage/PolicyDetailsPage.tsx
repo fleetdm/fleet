@@ -37,7 +37,10 @@ import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Avatar from "components/Avatar";
 import ShowQueryModal from "components/modals/ShowQueryModal";
-import PolicyAutomations from "pages/policies/edit/components/PolicyAutomations";
+import {
+  PatchAutomationCta,
+  PolicyAutomationsList,
+} from "pages/policies/edit/components/PolicyAutomations";
 
 interface IPolicyDetailsPageProps {
   router: InjectedRouter;
@@ -446,14 +449,19 @@ const PolicyDetailsPage = ({
             {renderPlatforms()}
             {renderLabels()}
             {storedPolicy && (
-              <PolicyAutomations
-                storedPolicy={storedPolicy}
-                currentAutomatedPolicies={currentAutomatedPolicies}
-                canEditPolicy={canEditPolicy}
-                onAddAutomation={onAddPatchAutomation}
-                isAddingAutomation={isAddingAutomation}
-                otherAutomationType={otherAutomationType}
-              />
+              <>
+                <PatchAutomationCta
+                  storedPolicy={storedPolicy}
+                  canEditPolicy={canEditPolicy}
+                  onAddAutomation={onAddPatchAutomation}
+                  isAddingAutomation={isAddingAutomation}
+                />
+                <PolicyAutomationsList
+                  storedPolicy={storedPolicy}
+                  currentAutomatedPolicies={currentAutomatedPolicies}
+                  otherAutomationType={otherAutomationType}
+                />
+              </>
             )}
           </>
         )}

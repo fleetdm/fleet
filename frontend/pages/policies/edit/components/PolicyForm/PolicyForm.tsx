@@ -20,11 +20,7 @@ import {
 } from "components/TargetLabelSelector/labelScopes";
 import { getPathWithQueryParams } from "utilities/url";
 
-import {
-  IPolicy,
-  IPolicyFormData,
-  OtherAutomationType,
-} from "interfaces/policy";
+import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import {
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
   APP_CONTEXT_NO_TEAM_SUMMARY,
@@ -67,7 +63,7 @@ import PolicyAutomationsFields, {
 } from "pages/policies/components/PolicyAutomationsFields";
 
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
-import PolicyAutomations from "../PolicyAutomations";
+import { PatchAutomationCta } from "../PolicyAutomations";
 
 const baseClass = "policy-form";
 
@@ -92,8 +88,6 @@ interface IPolicyFormProps {
   onClickAutofillDescription: () => Promise<void>;
   onClickAutofillResolution: () => Promise<void>;
   resetAiAutofillData: () => void;
-  currentAutomatedPolicies: number[];
-  otherAutomationType?: OtherAutomationType;
 }
 
 const validateQuerySQL = (query: string) => {
@@ -129,8 +123,6 @@ const PolicyForm = ({
   onClickAutofillDescription,
   onClickAutofillResolution,
   resetAiAutofillData,
-  currentAutomatedPolicies,
-  otherAutomationType,
 }: IPolicyFormProps): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isSaveNewPolicyModalOpen, setIsSaveNewPolicyModalOpen] = useState(
@@ -466,6 +458,21 @@ const PolicyForm = ({
       });
     }
 
+    if (isEditMode) {
+      const automations = automationsRef.current?.getAutomationsPayload();
+      if (automations?.error) {
+        return renderFlash("error", automations.error);
+      }
+      // Per-policy automation fields + webhook/ticket config persist
+      // independently of the core policy update below
+      if (automations?.isDirty) {
+        saveAutomations({
+          policyUpdate: automations.policyUpdate,
+          webhookOrTicketUpdate: automations.webhookOrTicketUpdate,
+        });
+      }
+    }
+
     if (isPatchPolicy && isEditMode) {
       // Patch policies: only send editable fields, not query/platform
       const payload: IPolicyFormData = {
@@ -509,26 +516,6 @@ const PolicyForm = ({
     if (!isEditMode) {
       setIsSaveNewPolicyModalOpen(true);
     } else {
-      // Capture automation changes up front so an invalid selection (e.g. an
-      // enabled automation with no software/script chosen) blocks the whole
-      // save before anything is persisted. The ref is null when the section
-      // isn't rendered (e.g. config not yet loaded), so optional chaining
-      // gracefully yields undefined.
-      const automations = automationsRef.current?.getAutomationsPayload();
-      if (automations?.error) {
-        return renderFlash("error", automations.error);
-      }
-
-      // Persist automations (per-policy fields + webhook/ticket config), only
-      // when something changed. Independent of the core policy update below —
-      // a failure in one won't block the other.
-      if (automations?.isDirty) {
-        saveAutomations({
-          policyUpdate: automations.policyUpdate,
-          webhookOrTicketUpdate: automations.webhookOrTicketUpdate,
-        });
-      }
-
       const payload: IPolicyFormData = {
         name: lastEditedQueryName,
         description: lastEditedQueryDescription,
@@ -762,25 +749,27 @@ const PolicyForm = ({
             />
           )}
           {isEditMode && storedPolicy && (
-            <PolicyAutomations
+            <PatchAutomationCta
               storedPolicy={storedPolicy}
-              currentAutomatedPolicies={currentAutomatedPolicies}
               canEditPolicy={isEditMode}
               onAddAutomation={onAddPatchAutomation}
               isAddingAutomation={isAddingAutomation}
-              otherAutomationType={otherAutomationType}
             />
           )}
           {isEditMode && !!storedPolicy && !!automationsConfig && (
-            <PolicyAutomationsFields
-              ref={automationsRef}
-              policy={storedPolicy}
-              isGlobalPolicy={isGlobalPolicy}
-              teamIdForApi={automationsTeamId}
-              automationsConfig={automationsConfig}
-              globalConfig={config ?? undefined}
-              fleetName={automationsFleetName}
-            />
+            <div className="form-field">
+              <div className="form-field__label">Automations</div>
+              <PolicyAutomationsFields
+                key={storedPolicy.updated_at}
+                ref={automationsRef}
+                policy={storedPolicy}
+                isGlobalPolicy={isGlobalPolicy}
+                teamIdForApi={automationsTeamId}
+                automationsConfig={automationsConfig}
+                globalConfig={config ?? undefined}
+                fleetName={automationsFleetName}
+              />
+            </div>
           )}
           {isEditMode &&
             isPremiumTier &&

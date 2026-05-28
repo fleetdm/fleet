@@ -1,13 +1,12 @@
 .policy-automations-fields {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+
   &__section {
     display: flex;
     flex-direction: column;
     gap: $pad-small;
-  }
-
-  &__section-title {
-    font-size: $small;
-    margin: 0;
   }
 
   &__table {

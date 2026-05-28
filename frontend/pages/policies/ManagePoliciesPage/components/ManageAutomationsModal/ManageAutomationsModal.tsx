@@ -65,7 +65,8 @@ const ManageAutomationsModal = ({
     onError: () => renderFlash("error", ERR_MSG),
   });
 
-  const onSave = () => {
+  const handleSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
     const payload = automationsRef.current?.getAutomationsPayload();
     if (!payload) {
       return;
@@ -102,45 +103,50 @@ const ManageAutomationsModal = ({
       width="large"
       isContentDisabled={isSaving}
     >
-      <div className={`${baseClass}__body`}>
-        <div className={`${baseClass}__header`}>
-          Manage automations for the <b>{policy.name}</b> policy on{" "}
-          <b>{fleetName}</b>.
+      <form onSubmit={handleSubmit}>
+        <div className={`${baseClass}__body`}>
+          <div className={`${baseClass}__header`}>
+            Manage automations for the <b>{policy.name}</b> policy on{" "}
+            <b>{fleetName}</b>.
+          </div>
+
+          {displayedPlatforms.length > 0 && (
+            <section className={`${baseClass}__section`}>
+              <h2 className={`${baseClass}__section-title`}>Platforms</h2>
+              <div className={`${baseClass}__platforms`}>
+                {displayedPlatforms.map((p) => (
+                  <span key={p} className={`${baseClass}__platform`}>
+                    <Icon name={p} size="small" />
+                    {PLATFORM_DISPLAY_NAMES[p]}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className={`${baseClass}__section`}>
+            <h2 className={`${baseClass}__section-title`}>Automations</h2>
+            <PolicyAutomationsFields
+              ref={automationsRef}
+              policy={policy}
+              isGlobalPolicy={isGlobalPolicy}
+              teamIdForApi={teamIdForApi}
+              automationsConfig={automationsConfig}
+              globalConfig={globalConfig}
+              fleetName={fleetName}
+            />
+          </section>
         </div>
 
-        {displayedPlatforms.length > 0 && (
-          <section className={`${baseClass}__section`}>
-            <h2 className={`${baseClass}__section-title`}>Platforms</h2>
-            <div className={`${baseClass}__platforms`}>
-              {displayedPlatforms.map((p) => (
-                <span key={p} className={`${baseClass}__platform`}>
-                  <Icon name={p} size="small" />
-                  {PLATFORM_DISPLAY_NAMES[p]}
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
-
-        <PolicyAutomationsFields
-          ref={automationsRef}
-          policy={policy}
-          isGlobalPolicy={isGlobalPolicy}
-          teamIdForApi={teamIdForApi}
-          automationsConfig={automationsConfig}
-          globalConfig={globalConfig}
-          fleetName={fleetName}
-        />
-      </div>
-
-      <div className="modal-cta-wrap">
-        <Button onClick={onSave} isLoading={isSaving} disabled={isSaving}>
-          Save
-        </Button>
-        <Button onClick={onExit} variant="inverse">
-          Cancel
-        </Button>
-      </div>
+        <div className="modal-cta-wrap">
+          <Button type="submit" isLoading={isSaving} disabled={isSaving}>
+            Save
+          </Button>
+          <Button type="button" onClick={onExit} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };
