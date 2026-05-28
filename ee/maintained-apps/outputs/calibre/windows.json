@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "9.8.0",
+      "version": "9.9.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'calibre %' AND publisher = 'Kovid Goyal';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'calibre %' AND publisher = 'Kovid Goyal' AND version_compare(version, '9.8.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'calibre %' AND publisher = 'Kovid Goyal' AND version_compare(version, '9.9.0') < 0);"
       },
-      "installer_url": "https://download.calibre-ebook.com/9.8.0/calibre-64bit-9.8.0.msi",
+      "installer_url": "https://download.calibre-ebook.com/9.9.0/calibre-64bit-9.9.0.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "3169d6c2",
-      "sha256": "4a223b127d97abcdc9edcb4dd908020f0b48a09f537237a97ca518b3b94d37ac",
+      "sha256": "75583c5d16e16d9d7bbfb8fba89f94536a47618c525f34a4e80c00190fe9f4fb",
       "default_categories": [
         "Productivity"
       ],
