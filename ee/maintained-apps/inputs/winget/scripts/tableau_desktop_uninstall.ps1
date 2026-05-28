@@ -10,14 +10,21 @@
 $softwareNameLike = "Tableau 20*"
 $publisherLike = "*Tableau*"
 
-$paths = @(
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
-)
-
 $exitCode = 0
 
 try {
+
+# Match osquery's `programs` table: HKLM (both views) plus every user hive
+# under HKEY_USERS. Per-user installs land in HKCU/HKU and would otherwise be
+# invisible to a HKLM-only search even though detection still flags them.
+$paths = [System.Collections.Generic.List[string]]::new()
+$paths.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+$paths.Add('HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+    if ($hive.Name -match '_Classes$') { continue }
+    $paths.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+    $paths.Add("Registry::$($hive.Name)\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
+}
 
 [array]$uninstallKeys = Get-ChildItem `
     -Path $paths `
