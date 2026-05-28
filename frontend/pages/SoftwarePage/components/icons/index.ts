@@ -19,6 +19,7 @@ import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
 import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
+import GoToMeeting from "./GoToMeeting";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
@@ -29,6 +30,8 @@ import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
+import PowerBi from "./PowerBi";
+import Plugdata from "./Plugdata";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
@@ -251,6 +254,7 @@ import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
+import Winscp from "./Winscp";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
@@ -337,6 +341,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gemini: Gemini,
   "genesys cloud": GenesysCloud,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
+  gotomeeting: GoToMeeting,
   iina: Iina,
   insyncclient: DruvaInSync,
   kitty: Kitty,
@@ -452,8 +457,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
+  plugdata: Plugdata,
   "podman desktop": PodmanDesktop,
   postman: Postman,
+  "power bi": PowerBi,
   privileges: Privileges,
   pritunl: Pritunl,
   "proton mail": ProtonMail,
@@ -528,6 +535,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
+  winscp: Winscp,
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,

@@ -8,11 +8,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -287,4 +289,59 @@ func TestGetAppStoreAppsDoesNotWriteMetadata(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, apps, "already-assigned apps must be filtered out of the picker list")
 	require.False(t, batchInsertCalled, "picker must not write metadata back")
+}
+
+// A no-platform numeric Adam ID expands to multiple (AdamID, platform)
+// rows; the missing-asset error must surface each AdamID only once.
+func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"assets":[]}`))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
+		return &fleet.VPPTokenDB{
+			ID:          1,
+			OrgName:     "us-org",
+			Token:       "us-secret",
+			RenewDate:   time.Now().Add(24 * time.Hour),
+			CountryCode: "us",
+		}, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, _ []string) ([]uint, error) {
+		return nil, nil
+	}
+
+	svc := newTestService(t, ds)
+
+	// ValidateSoftwareLabels inside the loop requires a present authz context
+	// for Authorize to mark it checked.
+	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	const adamID = "1107542306"
+	_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+		{
+			AppStoreID:       adamID,
+			LabelsExcludeAny: []string{},
+			LabelsIncludeAny: []string{},
+			LabelsIncludeAll: []string{},
+			Categories:       []string{},
+			// Empty Platform triggers the auto-expansion to multiple
+			// (AdamID, platform) rows — the multiplier this test guards.
+		},
+	}, false)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "requested app not available on vpp account: "+adamID)
+	require.Equal(t, 1, strings.Count(err.Error(), adamID),
+		"missing-asset error must dedup by AdamID, got: %s", err.Error())
 }

@@ -162,6 +162,10 @@ type appleVPPConfigSrvConf struct {
 	Assets        []vpp.Asset
 	SerialNumbers []string
 	Location      string
+	// Disassociations records every /assets/disassociate request the mock
+	// server received, in order. Used by tests that assert Fleet released a
+	// previously-reserved VPP seat (e.g. on install failure or cancel).
+	Disassociations []vpp.DisassociateAssetsRequest
 }
 
 var defaultVPPAssetList = []vpp.Asset{
@@ -597,6 +601,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}
 
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Handle /assets/disassociate — must come before the /associate
+		// catch-all below (HasSuffix prevents the substring "associate" from
+		// swallowing this case). Records every call so tests can assert Fleet
+		// released a reserved seat.
+		if strings.HasSuffix(r.URL.Path, "/disassociate") {
+			var req vpp.DisassociateAssetsRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+			s.appleVPPConfigSrvConfig.Disassociations = append(s.appleVPPConfigSrvConfig.Disassociations, req)
+			_, _ = w.Write([]byte(`{"eventId": "disassociate-evt"}`))
+			return
+		}
 		// Handle /associate
 		if strings.Contains(r.URL.Path, "associate") {
 			var associations vpp.AssociateAssetsRequest
@@ -18500,7 +18518,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 
 		if res.Name == "file1" {
 			softwareFound = true
-			assert.Equal(t, fleet.SetupExperienceStatusFailure, res.Status)
+			assert.Equal(t, fleet.SetupExperienceStatusRunning, res.Status)
 		}
 		if res.Name == "vpp_app_1" {
 			vppFound = true

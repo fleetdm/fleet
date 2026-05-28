@@ -1,8 +1,6 @@
 .setup-experience-users {
   @include vertical-card-layout;
 
-  gap: $gap-page-component-inner;
-
   &__section-description {
     margin: 0;
   }

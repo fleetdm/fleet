@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "1.22.3",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Rancher Desktop' AND publisher = 'SUSE';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Rancher Desktop' AND publisher = 'SUSE' AND version_compare(version, '1.22.3') < 0);"
+      },
+      "installer_url": "https://github.com/rancher-sandbox/rancher-desktop/releases/download/v1.22.3/Rancher.Desktop.Setup.1.22.3.msi",
+      "install_script_ref": "5189ac09",
+      "uninstall_script_ref": "b21038db",
+      "sha256": "d0918c3e99d2918d84d739e47df12964b2d75ccdf3f9da769b6d4b47ede187cf",
+      "default_categories": [
+        "Developer tools"
+      ],
+      "upgrade_code": "{1F717D5A-A55B-5FE2-9103-C0D74F7FBDE3}"
+    }
+  ],
+  "refs": {
+    "5189ac09": "# Learn more about .msi install scripts:\n# http://fleetdm.com/learn-more-about/msi-install-scripts\n#\n# Rancher Desktop's winget manifest documents a Custom switch of\n# WSLINSTALLED=1 — this property tells the installer to skip the\n# WSL setup step (which requires a reboot). Pass it via msiexec.\n\n$msiFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"msiexec.exe\"\n  ArgumentList = \"/i `\"$msiFilePath`\" /quiet /norestart WSLINSTALLED=1\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nif ($exitCode -eq 3010) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "b21038db": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts('{1F717D5A-A55B-5FE2-9103-C0D74F7FBDE3}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n    \n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n    \n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n    \n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n"
+  }
+}

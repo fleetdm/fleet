@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useContext, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+} from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
@@ -46,6 +52,21 @@ const ManageFleetsPage = (): JSX.Element => {
 
   const [isUpdatingFleets, setIsUpdatingFleets] = useState(false);
   const [showCreateFleetModal, setShowCreateFleetModal] = useState(false);
+
+  // Open the create modal when arriving with ?create_fleet=1 (e.g., from
+  // the command palette). Then strip the param so refreshes don't reopen it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("create_fleet") === "1") {
+      setShowCreateFleetModal(true);
+      params.delete("create_fleet");
+      const qs = params.toString();
+      const next = qs
+        ? `${window.location.pathname}?${qs}`
+        : window.location.pathname;
+      window.history.replaceState(null, "", next);
+    }
+  }, []);
   const [showDeleteFleetModal, setShowDeleteFleetModal] = useState(false);
   const [showRenameFleetModal, setShowRenameFleetModal] = useState(false);
   const [fleetEditing, setFleetEditing] = useState<IFleet>();

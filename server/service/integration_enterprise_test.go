@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
@@ -23806,8 +23807,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
 		require.Equal(t, fleet.SetupExperienceStatusRunning, getDeviceStatusResponse.Results.Software[1].Status)
 
-		// Modify the vim installer, which should cause the setup experience item to fail.
-		// update should succeed
+		// Modify the vim installer. The in-flight setup experience install for vim must not be cancelled.
 		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 			SelfService:       new(true),
 			InstallScript:     new("some updated install script"),
@@ -23831,7 +23831,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.Equal(t, fleet.SetupExperienceStatusFailure, getDeviceStatusResponse.Results.Software[1].Status)
+		require.Equal(t, fleet.SetupExperienceStatusRunning, getDeviceStatusResponse.Results.Software[1].Status)
 
 		// Get execution ID for vim
 		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID, team.ID)
@@ -23845,15 +23845,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.NotEmpty(t, executionIDs["vim"])
 		require.NotEmpty(t, executionIDs["test.tar.gz"])
 
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledInstallSoftware{}.ActivityName(), fmt.Sprintf(`{
-			"host_id": %d,
-			"host_display_name": %q,
-			"software_title": %q,
-			"software_title_id": %d,
-			"from_setup_experience": true
-		}`, ubuntuHost.ID, ubuntuHost.DisplayName(), "vim", debVimTitleID), 0)
-
-		// Record a result for test.tar.gz.
+		// Record a result for vim. The setup experience should pick up the result and mark vim as success.
 		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
 			fmt.Sprintf(`{
 					"orbit_node_key": %q,
@@ -23862,12 +23854,10 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 					"install_script_output": "ok"
 				}`,
 				*ubuntuHost.OrbitNodeKey,
-				executionIDs["test.tar.gz"],
+				executionIDs["vim"],
 			),
 		), http.StatusNoContent)
 
-		// Get status of the "Setup experience" for the Ubuntu host.
-		// Editing the software causes the queued setup experience installation to be marked as failure.
 		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
 		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
 			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
@@ -23881,7 +23871,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() 
 		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, getDeviceStatusResponse.Results.Software[0].Status)
 		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
-		require.Equal(t, fleet.SetupExperienceStatusFailure, getDeviceStatusResponse.Results.Software[1].Status)
+		require.Equal(t, fleet.SetupExperienceStatusSuccess, getDeviceStatusResponse.Results.Software[1].Status)
 	})
 
 	// Transfer the Ubuntu host to "No team".
@@ -31687,4 +31677,75 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithEUAToken() {
 	require.Len(t, dms, 1, "host_emails must be populated after EUA-token orbit enrollment (issue #45066)")
 	require.Equal(t, idpEmail, dms[0].Email)
 	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dms[0].Source)
+}
+
+// TestTeamAdminCanReadHostPastActivities is a regression test for issue #46009:
+// after the OPA-tag fix, team-scoped users were still getting 403 on
+// GET /api/_version_/fleet/hosts/{id}/activities for any host with a
+// user-initiated past activity (locked_host being the common reproducer).
+// The cause was Service.UsersByIDs gating user enrichment behind an authz
+// check on an empty *fleet.User, which no team role can satisfy. The activity
+// ACL adapter now bypasses that check by going directly to the datastore.
+func (s *integrationEnterpriseTestSuite) TestTeamAdminCanReadHostPastActivities() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: t.Name(),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID))
+	})
+
+	teamAdminEmail := t.Name() + "_admin@example.com"
+	teamAdmin := &fleet.User{
+		Name:  teamAdminEmail,
+		Email: teamAdminEmail,
+		Teams: []fleet.UserTeam{
+			{Team: *team, Role: fleet.RoleAdmin},
+		},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	teamAdmin, err = s.ds.NewUser(ctx, teamAdmin)
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(t.Name() + "_host"),
+		NodeKey:         new(t.Name() + "_host"),
+		UUID:            t.Name() + "_host",
+		Hostname:        t.Name() + "_host.local",
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Insert a host-linked past activity attributed to the team admin. This
+	// mirrors what happens when the team admin locks one of their hosts —
+	// the activity row has user_id set, which forces enrichWithUserData to
+	// call the user lookup. Before the fix, that lookup went through
+	// Service.UsersByIDs and 403'd the team admin viewing the activity feed.
+	activitySvc := mysqltest.NewTestActivityService(t, s.ds)
+	apiUser := &activity_api.User{ID: teamAdmin.ID, Name: teamAdmin.Name, Email: teamAdmin.Email}
+	require.NoError(t, activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeLockedHost{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}))
+
+	t.Cleanup(func() { s.token = s.getTestAdminToken() })
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 1)
+	require.Equal(t, fleet.ActivityTypeLockedHost{}.ActivityName(), listResp.Activities[0].Type)
+	require.NotNil(t, listResp.Activities[0].ActorEmail)
+	require.Equal(t, teamAdmin.Email, *listResp.Activities[0].ActorEmail)
+	require.NotNil(t, listResp.Activities[0].ActorFullName)
+	require.Equal(t, teamAdmin.Name, *listResp.Activities[0].ActorFullName)
 }
