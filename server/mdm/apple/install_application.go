@@ -103,9 +103,16 @@ func SubstituteFleetVarsInAppConfig(
 				return nil, ctxerr.Wrap(ctx, err, "get host idp email for app config")
 			}
 			if len(emails) == 0 {
+				// The shared HostEndUserEmailIDPVariableReplacementFailedError
+				// embeds a "[Learn more](…)" markdown link for the
+				// configuration-profile surface, which has a frontend formatter
+				// for it. The install-details modal renders failure_reason
+				// inside a plain monospace block with no markdown processing,
+				// so we surface a plain-text reason mirroring the other IdP
+				// variables here.
 				return nil, &UnresolvableAppConfigVarError{
 					FleetVar: name,
-					Detail:   fleet.HostEndUserEmailIDPVariableReplacementFailedError,
+					Detail:   fmt.Sprintf("There is no IdP email for this host. Fleet couldn't populate $FLEET_VAR_%s.", name),
 				}
 			}
 			contents = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, contents, emails[0])

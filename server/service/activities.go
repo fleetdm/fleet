@@ -152,6 +152,15 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 		}
 	}
 
+	// Capture VPP release info BEFORE ds.CancelHostUpcomingActivity runs. For
+	// VPP installs that haven't yet been activated, the reservation info lives
+	// in upcoming_activities.payload + vpp_app_upcoming_activities, and the
+	// cancel transaction unconditionally deletes the upcoming row — so a
+	// post-cancel lookup would return notFound and we'd silently leak the seat.
+	// Best-effort: any lookup failure here is logged when the release path
+	// runs and doesn't block the cancel response.
+	releaseInfo, releaseLookupErr := svc.ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, executionID)
+
 	pastAct, err := svc.ds.CancelHostUpcomingActivity(ctx, hostID, executionID)
 	if err != nil {
 		return err
@@ -161,7 +170,7 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 		// If a VPP install was canceled, release the reserved license seat
 		// (if any). Best-effort: failures shouldn't block the cancel response.
 		if _, isVPPCancel := pastAct.(fleet.ActivityTypeCanceledInstallAppStoreApp); isVPPCancel {
-			if rErr := svc.releaseVPPSeatOnCancel(ctx, host, executionID); rErr != nil {
+			if rErr := svc.releaseVPPSeat(ctx, host, releaseInfo, releaseLookupErr); rErr != nil {
 				svc.logger.ErrorContext(ctx, "failed to release reserved VPP license on cancel",
 					"err", rErr, "host_id", host.ID, "execution_id", executionID)
 			}
@@ -173,22 +182,22 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 	return nil
 }
 
-// releaseVPPSeatOnCancel disassociates the VPP license seat reserved by the
-// canceled install, when applicable. The seat is released only when the
-// canceled install was the one that originally reserved it
-// (associated_event_id is non-empty) AND no other still-active install for
-// the same (host, adam_id) needs the seat. Personal-enrollment hosts are
-// disassociated by clientUserId (matching how they were assigned);
-// device-enrolled hosts by serial number.
-func (svc *Service) releaseVPPSeatOnCancel(ctx context.Context, host *fleet.Host, executionID string) error {
-	info, err := svc.ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, executionID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
+// releaseVPPSeat disassociates the VPP license seat reserved by the canceled
+// install, when applicable. The release info is captured by the caller before
+// ds.CancelHostUpcomingActivity runs (the pre-activation case relies on data
+// the cancel transaction deletes). The seat is released only when the canceled
+// install was the one that originally reserved it (associated_event_id is
+// non-empty) AND no other still-active install for the same (host, adam_id)
+// needs the seat. Personal-enrollment hosts are disassociated by clientUserId
+// (matching how they were assigned); device-enrolled hosts by serial number.
+func (svc *Service) releaseVPPSeat(ctx context.Context, host *fleet.Host, info *fleet.VPPInstallReleaseInfo, lookupErr error) error {
+	if lookupErr != nil {
+		if fleet.IsNotFound(lookupErr) {
 			return nil
 		}
-		return ctxerr.Wrap(ctx, err, "get vpp install release info")
+		return ctxerr.Wrap(ctx, lookupErr, "get vpp install release info")
 	}
-	if info.AssociatedEventID == "" || info.HasOtherActiveInstall {
+	if info == nil || info.AssociatedEventID == "" || info.HasOtherActiveInstall {
 		return nil
 	}
 

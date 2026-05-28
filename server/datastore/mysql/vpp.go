@@ -1458,23 +1458,44 @@ VALUES
 	return user, act, nil
 }
 
-// GetVPPInstallReleaseInfoForCancel looks up the canceled VPP install row by
-// (host_id, command_uuid) and reports whether the cancel path should release
-// the reserved VPP license seat. Returns NotFound if no matching VPP install
-// row exists.
+// GetVPPInstallReleaseInfoForCancel reports whether the cancel path should
+// release the reserved VPP license seat. Handles two cases:
+//
+//  1. Activated install — host_vpp_software_installs has a row keyed by
+//     command_uuid. Cancel marks it canceled but doesn't delete it, so the
+//     lookup works either before or after ds.CancelHostUpcomingActivity.
+//  2. Pre-activation install — host_vpp_software_installs has no row (it's
+//     created at activation time), and the reservation lives only in
+//     upcoming_activities.payload->>'$.associated_event_id' +
+//     vpp_app_upcoming_activities.adam_id. The cancel transaction
+//     unconditionally deletes the upcoming_activities row, so callers MUST
+//     invoke this BEFORE ds.CancelHostUpcomingActivity for the
+//     pre-activation case to find anything.
+//
+// Returns NotFound when no matching VPP install row exists in either table.
 func (ds *Datastore) GetVPPInstallReleaseInfoForCancel(ctx context.Context, hostID uint, executionID string) (*fleet.VPPInstallReleaseInfo, error) {
-	const stmt = `
+	// Activated case first — fast path that doesn't depend on call ordering.
+	const activatedStmt = `
 SELECT
 	hvsi.adam_id,
 	COALESCE(hvsi.associated_event_id, '') AS associated_event_id,
-	EXISTS(
+	(EXISTS(
 		SELECT 1 FROM host_vpp_software_installs other
 		WHERE other.host_id = hvsi.host_id
 		  AND other.adam_id = hvsi.adam_id
 		  AND other.command_uuid != hvsi.command_uuid
 		  AND other.canceled = 0
 		  AND other.verification_failed_at IS NULL
-	) AS has_other_active_install
+	) OR EXISTS(
+		SELECT 1 FROM upcoming_activities ua
+		JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+		WHERE ua.host_id = hvsi.host_id
+		  AND vaua.adam_id = hvsi.adam_id
+		  AND ua.activity_type = 'vpp_app_install'
+		  -- Exclude this install's own upcoming row, which is still present
+		  -- at lookup time (the cancel deletes it on the very next call).
+		  AND ua.execution_id != hvsi.command_uuid
+	)) AS has_other_active_install
 FROM host_vpp_software_installs hvsi
 WHERE hvsi.host_id = ? AND hvsi.command_uuid = ?`
 
@@ -1483,11 +1504,46 @@ WHERE hvsi.host_id = ? AND hvsi.command_uuid = ?`
 		AssociatedEventID     string `db:"associated_event_id"`
 		HasOtherActiveInstall bool   `db:"has_other_active_install"`
 	}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostID, executionID); err != nil {
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, activatedStmt, hostID, executionID)
+	if err == nil {
+		return &fleet.VPPInstallReleaseInfo{
+			AdamID:                row.AdamID,
+			AssociatedEventID:     row.AssociatedEventID,
+			HasOtherActiveInstall: row.HasOtherActiveInstall,
+		}, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "get vpp install release info (activated)")
+	}
+
+	// Pre-activation case — reservation info lives in upcoming_activities only.
+	const upcomingStmt = `
+SELECT
+	vaua.adam_id,
+	COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.associated_event_id')), '') AS associated_event_id,
+	(EXISTS(
+		SELECT 1 FROM host_vpp_software_installs hvsi
+		WHERE hvsi.host_id = ua.host_id
+		  AND hvsi.adam_id = vaua.adam_id
+		  AND hvsi.canceled = 0
+		  AND hvsi.verification_failed_at IS NULL
+	) OR EXISTS(
+		SELECT 1 FROM upcoming_activities ua2
+		JOIN vpp_app_upcoming_activities vaua2 ON vaua2.upcoming_activity_id = ua2.id
+		WHERE ua2.host_id = ua.host_id
+		  AND vaua2.adam_id = vaua.adam_id
+		  AND ua2.id != ua.id
+		  AND ua2.activity_type = 'vpp_app_install'
+	)) AS has_other_active_install
+FROM upcoming_activities ua
+JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+WHERE ua.host_id = ? AND ua.execution_id = ? AND ua.activity_type = 'vpp_app_install'`
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, upcomingStmt, hostID, executionID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, notFound("vpp_install")
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get vpp install release info")
+		return nil, ctxerr.Wrap(ctx, err, "get vpp install release info (upcoming)")
 	}
 	return &fleet.VPPInstallReleaseInfo{
 		AdamID:                row.AdamID,

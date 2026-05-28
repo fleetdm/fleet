@@ -1503,8 +1503,14 @@ func (svc *Service) precheckAppConfigResolvable(ctx context.Context, host *fleet
 }
 
 // recordFailedVPPInstall records a pre-flight-failed VPP install (no license
-// reserved, no command enqueued) and emits the failed-install activity. It
-// returns the generated command UUID so callers behave like a normal install.
+// reserved, no command enqueued) and emits the failed-install activity.
+//
+// For admin / self-service / policy / auto-update paths, returning a nil error
+// is intentional — the activity carries the outcome and the API responds 2xx.
+// For setup-experience (opts.ForSetupExperience=true) we have to surface a
+// non-nil error so the setup-experience driver transitions the step out of
+// Running; otherwise it would stash the unused command UUID and wait forever
+// for an MDM command result that will never arrive.
 func (svc *Service) recordFailedVPPInstall(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions, reason string) (string, error) {
 	cmdUUID := uuid.NewString()
 	user, act, err := svc.ds.RecordFailedVPPAppInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, reason, opts)
@@ -1515,6 +1521,9 @@ func (svc *Service) recordFailedVPPInstall(ctx context.Context, host *fleet.Host
 		if err := svc.NewActivity(ctx, user, act); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "create activity for failed vpp install")
 		}
+	}
+	if opts.ForSetupExperience {
+		return cmdUUID, &fleet.PreflightInstallFailedError{Reason: reason}
 	}
 	return cmdUUID, nil
 }
