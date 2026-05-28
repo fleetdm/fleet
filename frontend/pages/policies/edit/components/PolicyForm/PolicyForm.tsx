@@ -529,6 +529,26 @@ const PolicyForm = ({
     if (!isEditMode) {
       setIsSaveNewPolicyModalOpen(true);
     } else {
+      // Capture automation changes up front so an invalid selection (e.g. an
+      // enabled automation with no software/script chosen) blocks the whole
+      // save before anything is persisted. The ref is null when the section
+      // isn't rendered (e.g. config not yet loaded), so optional chaining
+      // gracefully yields undefined.
+      const automations = automationsRef.current?.getAutomationsPayload();
+      if (automations?.error) {
+        return renderFlash("error", automations.error);
+      }
+
+      // Persist automations (per-policy fields + webhook/ticket config), only
+      // when something changed. Independent of the core policy update below —
+      // a failure in one won't block the other.
+      if (automations?.isDirty) {
+        saveAutomations({
+          policyUpdate: automations.policyUpdate,
+          webhookOrTicketUpdate: automations.webhookOrTicketUpdate,
+        });
+      }
+
       const payload: IPolicyFormData = {
         name: lastEditedQueryName,
         description: lastEditedQueryDescription,
