@@ -118,6 +118,28 @@ func (svc *Service) getClientAuthenticationSecret(ctx context.Context) (string, 
 	return string(assets[fleet.MDMAssetAndroidFleetServerSecret].Value), nil
 }
 
+// clearAndroidBYOWipeRef drops host_mdm_actions for a BYO Android host whose work-profile AMAPI WIPE just completed (DELETED
+// state from STATUS_REPORT/ENROLLMENT). On BYO the device is not factory-reset (only the work profile is removed) so
+// HostLockWipeStatus.IsWiped() must return false post-unenroll, otherwise the host page shows a misleading "Wiped" badge.
+//
+// Returns nil on success, on NotFound, and on COBO (which is a no-op). Returns a wrapped error on transient DB issues so the
+// caller can decide whether to bubble (Pub/Sub retry) or swallow (reconcile janitor continues to next host).
+func clearAndroidBYOWipeRef(ctx context.Context, ds fleet.Datastore, hostID uint) error {
+	hostMDM, err := ds.GetHostMDM(ctx, hostID)
+	switch {
+	case fleet.IsNotFound(err):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "android byo wipe-ref cleanup: get host_mdm")
+	case hostMDM == nil || !hostMDM.IsPersonalEnrollment:
+		return nil
+	}
+	if err := ds.ClearHostMDMActions(ctx, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "android byo wipe-ref cleanup: clear host_mdm_actions")
+	}
+	return nil
+}
+
 // handlePubSubCommand processes an AMAPI COMMAND notification, which AMAPI delivers as an Operation envelope whose Name
 // is the operation_name we recorded at IssueCommand time. The envelope's Error field, when populated, indicates AMAPI
 // rejected the command (or the device rejected it); otherwise the device executed it successfully. We correlate the
@@ -165,8 +187,15 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 		return ctxerr.Wrap(ctx, err, "lookup android command by operation name")
 	}
 
-	// Already-terminal rows: don't re-transition. AMAPI may redeliver a notification at-least-once.
+	// Already-terminal rows. AMAPI may redeliver a notification at-least-once.
+	// For WIPE+acknowledged specifically, still re-run handleAndroidWipeAckUnenroll so transient DB
+	// failures on the original delivery recover on this retry.
 	if cmd.Status != string(android.MDMAndroidCommandStatusPending) {
+		if cmd.CommandType == string(android.MDMAndroidCommandTypeWipe) && cmd.Status == string(android.MDMAndroidCommandStatusAcknowledged) {
+			if err := svc.handleAndroidWipeAckUnenroll(ctx, cmd); err != nil {
+				return err
+			}
+		}
 		svc.logger.InfoContext(ctx, "android pub/sub COMMAND already terminal, ignoring",
 			"operation_name", op.Name, "command_uuid", cmd.CommandUUID, "current_status", cmd.Status)
 		return nil
@@ -186,12 +215,68 @@ func (svc *Service) handlePubSubCommand(ctx context.Context, token string, rawDa
 		return ctxerr.Wrap(ctx, err, "update android command status from pub/sub")
 	}
 
+	// WIPE ack is the authoritative signal that the device has been wiped (BYO: work profile removed; COBO: full factory reset). Flip
+	// host_mdm.enrolled to 0 here rather than waiting on a separate STATUS_REPORT / ENROLLMENT with state=DELETED, which AMAPI does
+	// not reliably send for a factory-reset COBO device (the agent is gone, nothing left to phone home). For BYO the DELETED
+	// notification typically arrives and is now a no-op because we already flipped state.
+	if cmd.CommandType == string(android.MDMAndroidCommandTypeWipe) && newStatus == string(android.MDMAndroidCommandStatusAcknowledged) {
+		if err := svc.handleAndroidWipeAckUnenroll(ctx, cmd); err != nil {
+			return err
+		}
+	}
+
 	svc.logger.InfoContext(ctx, "android pub/sub COMMAND processed",
 		"operation_name", op.Name,
 		"command_uuid", cmd.CommandUUID,
 		"command_type", cmd.CommandType,
 		"new_status", newStatus,
 	)
+	return nil
+}
+
+// handleAndroidWipeAckUnenroll runs after a successful WIPE ack: flips host_mdm.enrolled, clears host_mdm_actions for BYO (so the
+// "Wiped" badge does not stick on a host whose only the work profile was removed), and emits mdm_unenrolled if state actually
+// changed. Returns errors so Pub/Sub retries on transient DB failures.
+func (svc *Service) handleAndroidWipeAckUnenroll(ctx context.Context, cmd *android.MDMAndroidCommand) error {
+	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, cmd.HostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: lookup host by uuid")
+	}
+	if ah == nil || ah.Host == nil {
+		return nil
+	}
+
+	// BYO needs host_mdm_actions cleared so IsWiped() returns false post-ack -- only the work
+	// profile was removed, not the device. COBO leaves wipe_ref intact so the "Wiped" badge sticks.
+	if err := clearAndroidBYOWipeRef(ctx, svc.fleetDS, ah.Host.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: clear byo wipe-ref")
+	}
+
+	didUnenroll, err := svc.fleetDS.SetAndroidHostUnenrolled(ctx, ah.Host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: set host_mdm unenrolled")
+	}
+	if !didUnenroll {
+		// Already unenrolled (e.g. the API wrapper for BYO Unenroll already ran, a prior DELETED
+		// notification beat us, or a prior delivery flipped state and is now retrying). No state
+		// change, no activity. This also means activity emission is NOT retried on redelivery --
+		// the tradeoff is no duplicate activity rows after a successful first delivery, at the cost
+		// of losing the activity in the rare "flip succeeded then activity failed" race. The state
+		// flip is what matters; the activity loss is detectable via logs.
+		return nil
+	}
+
+	displayName := ""
+	if hosts, herr := svc.fleetDS.ListHostsLiteByIDs(ctx, []uint{ah.Host.ID}); herr == nil && len(hosts) == 1 && hosts[0] != nil {
+		displayName = hosts[0].DisplayName()
+	}
+	if err := svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+		HostDisplayName:  displayName,
+		InstalledFromDEP: false,
+		Platform:         "android",
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: emit mdm_unenrolled activity")
+	}
 	return nil
 }
 
@@ -300,6 +385,12 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			return ctxerr.Wrap(ctx, err, "get host for deleted android device")
 		}
 		if host != nil {
+			// Capture BYO-ness BEFORE flipping host_mdm.enrolled, then clear host_mdm_actions for BYO
+			// so the post-ack "Wiped" badge clears (BYO unenroll only wipes the work profile).
+			if err := clearAndroidBYOWipeRef(ctx, svc.fleetDS, host.Host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "clear byo wipe-ref on DELETED state")
+			}
+
 			didUnenroll, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state")
@@ -454,6 +545,12 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 			return ctxerr.Wrap(ctx, herr, "get host for deleted android device (ENROLLMENT)")
 		}
 		if host != nil {
+			// Capture BYO-ness BEFORE flipping host_mdm.enrolled, then clear host_mdm_actions for BYO
+			// so the post-ack "Wiped" badge clears (BYO unenroll only wipes the work profile).
+			if err := clearAndroidBYOWipeRef(ctx, svc.fleetDS, host.Host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "clear byo wipe-ref on DELETED state (ENROLLMENT)")
+			}
+
 			if _, err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
 			}
@@ -604,6 +701,12 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 		svc.verifyDevicePolicy(ctx, host.UUID, device)
 		svc.verifyDeviceSoftware(ctx, host.Host, device)
+	} else if fromEnroll {
+		// Re-enrollment of a previously-enrolled host: the freshly-enrolled device has not applied any policy yet.
+		// Clear stale data so that the host-specific policy is applied correctly.
+		host.Device.AppliedPolicyID = nil
+		host.Device.AppliedPolicyVersion = nil
+		host.Device.LastPolicySyncTime = nil
 	}
 
 	deviceID, err := svc.getDeviceID(ctx, device)
@@ -661,6 +764,12 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 
 	if fromEnroll {
+		// Drop stale host_mdm_actions from a previous enrollment cycle so the re-enrolled device starts in "unlocked" device status with
+		// no Lock/Wipe/Clear-passcode pending or Wiped badges.
+		if err := svc.fleetDS.ClearHostMDMActions(ctx, host.Host.ID); err != nil {
+			svc.logger.ErrorContext(ctx, "failed to clear host_mdm_actions on android re-enrollment", "host_id", host.Host.ID, "err", err)
+			return ctxerr.Wrap(ctx, err, "clear host_mdm_actions on android re-enrollment")
+		}
 		// Delete any existing certificate template records for this host. The device has
 		// lost all certificates on re-enrollment (work profile removed and re-installed, or
 		// unenrolled/re-enrolled). This also clears stale rows from a previous team if the

@@ -97,6 +97,7 @@ export type HostMdmDeviceStatusUIState =
   | "locking"
   | "wiped"
   | "wiping"
+  | "clearing_passcode"
   | "locating";
 
 // Exclude the empty string from HostPendingAction as that doesn't represent a
@@ -111,13 +112,19 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
   lock: "locking",
   wiped: "wiped",
   wipe: "wiping",
+  clear_passcode: "clearing_passcode",
   /** When device_status is "locked" and pending_action is "location", show "locating",
    * device_status is "unlocked" and pending_action is "location" is still "locking"
    */
   location: "locating",
 };
 
-const deviceUpdatingStates = ["unlocking", "locking", "wiping"] as const;
+const deviceUpdatingStates = [
+  "unlocking",
+  "locking",
+  "wiping",
+  "clearing_passcode",
+] as const;
 
 /**
  * Gets the current UI state for the host device status. This helps us know what

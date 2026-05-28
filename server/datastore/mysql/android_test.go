@@ -424,6 +424,34 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Equal(t, regressionESID, resultAfterFix.Host.UUID, "UUID should be restored after fix")
 	})
+
+	t.Run("COBO re-enroll restores installed_from_dep", func(t *testing.T) {
+		ctx := testCtx()
+		cobo, err := ds.NewAndroidHost(ctx, createAndroidHost("cobo-reenroll-installed-from-dep"), true /*companyOwned*/)
+		require.NoError(t, err)
+
+		hostMDM, err := ds.GetHostMDM(ctx, cobo.Host.ID)
+		require.NoError(t, err)
+		require.True(t, hostMDM.InstalledFromDep, "fresh COBO enrollment must set installed_from_dep")
+
+		// Simulate the unenroll cleanup that clears installed_from_dep so enrollment_status drops to "Off".
+		didUnenroll, err := ds.SetAndroidHostUnenrolled(ctx, cobo.Host.ID)
+		require.NoError(t, err)
+		require.True(t, didUnenroll)
+		hostMDM, err = ds.GetHostMDM(ctx, cobo.Host.ID)
+		require.NoError(t, err)
+		require.False(t, hostMDM.InstalledFromDep, "unenroll must clear installed_from_dep")
+
+		// Re-enroll via the same upsert path that fires from updateHost(fromEnroll=true).
+		cobo.Host.UUID = "cobo-reenroll-installed-from-dep"
+		require.NoError(t, ds.UpdateAndroidHost(ctx, cobo, true /*fromEnroll*/, true /*companyOwned*/))
+
+		hostMDM, err = ds.GetHostMDM(ctx, cobo.Host.ID)
+		require.NoError(t, err)
+		require.True(t, hostMDM.Enrolled)
+		require.True(t, hostMDM.InstalledFromDep, "re-enroll must refresh installed_from_dep so COBO lands at 'On (automatic)'")
+		require.False(t, hostMDM.IsPersonalEnrollment)
+	})
 }
 
 func testAndroidMDMStats(t *testing.T, ds *Datastore) {
@@ -2057,20 +2085,29 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 	})
 }
 
-func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	host, err := ds.NewHost(ctx, &fleet.Host{
+// newBareAndroidHostForTest inserts a minimal android-platform host row. Use this for tests
+// that exercise the host_mdm_actions layer and don't need a populated android_devices row
+// (use createAndroidHost + ds.NewAndroidHost for that).
+func newBareAndroidHostForTest(t *testing.T, ds *Datastore, hostname string) *fleet.Host {
+	t.Helper()
+	h, err := ds.NewHost(t.Context(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
 		NodeKey:         ptr.String(uuid.NewString()),
 		UUID:            uuid.NewString(),
-		Hostname:        "android-lockwipe-helper-test",
+		Hostname:        hostname,
 		Platform:        "android",
 	})
 	require.NoError(t, err)
+	return h
+}
+
+func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := newBareAndroidHostForTest(t, ds, "android-lockwipe-helper-test")
 
 	t.Run("Lock writes both rows atomically and reports pending", func(t *testing.T) {
 		cmd := &android.MDMAndroidCommand{
@@ -2123,6 +2160,32 @@ func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NotNil(t, status.WipeMDMCommand)
 		require.Equal(t, second.CommandUUID, status.WipeMDMCommand.CommandUUID)
+	})
+	t.Run("ClearPasscode writes the row and reports pending clear-passcode", func(t *testing.T) {
+		// Fresh host: the parent test has Lock + Wipe pending on `host`, which would dominate
+		// PendingAction() priority over clear_passcode.
+		cpHost := newBareAndroidHostForTest(t, ds, "android-clear-passcode-helper-test")
+
+		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      cpHost.UUID,
+			OperationName: "enterprises/E/devices/" + cpHost.UUID + "/operations/clear-passcode-1",
+			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.ClearPasscodeHostViaAndroidMDM(ctx, cpHost, cmd))
+
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandTypeResetPassword), got.CommandType)
+		require.Equal(t, string(android.MDMAndroidCommandStatusPending), got.Status)
+
+		status, err := ds.GetHostLockWipeStatus(ctx, cpHost)
+		require.NoError(t, err)
+		require.NotNil(t, status.ClearPasscodeMDMCommand)
+		require.Equal(t, cmd.CommandUUID, status.ClearPasscodeMDMCommand.CommandUUID)
+		require.True(t, status.IsPendingClearPasscode())
+		require.Equal(t, fleet.PendingActionClearPasscode, status.PendingAction())
 	})
 }
 
