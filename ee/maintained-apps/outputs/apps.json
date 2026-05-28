@@ -1493,6 +1493,13 @@
       "description": "PhpStorm is a PHP IDE by JetBrains."
     },
     {
+      "name": "PlugData",
+      "slug": "plugdata/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.plugdata.plugdata",
+      "description": "PlugData is a visual programming environment for audio."
+    },
+    {
       "name": "Podman Desktop",
       "slug": "podman-desktop/darwin",
       "platform": "darwin",
