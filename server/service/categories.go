@@ -31,6 +31,14 @@ func getSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, 
 	return getSelfServiceCategoriesResponse{SelfServiceCategories: categories}, nil
 }
 
+func (svc *Service) ListSelfServiceCategories(ctx context.Context, _ *uint) ([]*fleet.SelfServiceCategory, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
 //////////////////////////////////////////////////////////////////////////////
 // Add self-service category
 //////////////////////////////////////////////////////////////////////////////
@@ -54,6 +62,14 @@ func addSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, 
 		return addSelfServiceCategoriesResponse{Err: err}, nil
 	}
 	return addSelfServiceCategoriesResponse{SelfServiceCategory: category}, nil
+}
+
+func (svc *Service) NewSelfServiceCategory(ctx context.Context, _ *uint, _ string) (*fleet.SelfServiceCategory, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -81,6 +97,14 @@ func patchSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}
 	return patchSelfServiceCategoriesResponse{SelfServiceCategory: category}, nil
 }
 
+func (svc *Service) UpdateSelfServiceCategory(ctx context.Context, _ uint, _ string) (*fleet.SelfServiceCategory, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
 //////////////////////////////////////////////////////////////////////////////
 // Delete self-service category
 //////////////////////////////////////////////////////////////////////////////
@@ -102,4 +126,12 @@ func deleteSelfServiceCategoriesEndpoint(ctx context.Context, request interface{
 		return deleteSelfServiceCategoriesResponse{Err: err}, nil
 	}
 	return deleteSelfServiceCategoriesResponse{}, nil
+}
+
+func (svc *Service) DeleteSelfServiceCategory(ctx context.Context, _ uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }
