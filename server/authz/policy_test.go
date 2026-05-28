@@ -3197,7 +3197,8 @@ func TestAuthorizeSoftwareCategory(t *testing.T) {
 		{user: test.UserAdmin, object: fleet1, action: write, allow: true},
 		{user: test.UserMaintainer, object: fleet1, action: read, allow: true},
 		{user: test.UserMaintainer, object: fleet1, action: write, allow: true},
-		{user: test.UserGitOps, object: fleet1, action: write, allow: true},
+		{user: test.UserGitOps, object: fleet1, action: read, allow: false},
+		{user: test.UserGitOps, object: fleet1, action: write, allow: false},
 		{user: test.UserObserver, object: fleet1, action: read, allow: true},
 		{user: test.UserObserver, object: fleet1, action: write, allow: false},
 		{user: test.UserObserverPlus, object: fleet1, action: read, allow: true},
@@ -3218,8 +3219,9 @@ func TestAuthorizeSoftwareCategory(t *testing.T) {
 		{user: test.UserTeamMaintainerTeam1, object: fleet1, action: write, allow: true},
 		{user: test.UserTeamMaintainerTeam1, object: fleet2, action: write, allow: false},
 
-		// Team gitops (team1): read+write on own fleet, denied elsewhere.
-		{user: test.UserTeamGitOpsTeam1, object: fleet1, action: write, allow: true},
+		// Team gitops (team1): denied entirely (TODO(JK) reconsider for gitops).
+		{user: test.UserTeamGitOpsTeam1, object: fleet1, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: fleet1, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: fleet2, action: write, allow: false},
 
 		// Team read-only roles (observer/observer_plus/technician): read own fleet, not other.

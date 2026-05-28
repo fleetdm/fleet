@@ -31680,73 +31680,82 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithEUAToken() {
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	t := s.T()
+	ctx := t.Context()
+	const path = "/api/latest/fleet/software/self_service_categories"
 
-	// POST — create a category on the "Unassigned" (fleet_id=0) scope.
+	// create
 	var addResp addSelfServiceCategoriesResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/self_service_categories",
-		map[string]any{"fleet_id": 0, "name": "🌎 Browsers"},
-		http.StatusOK, &addResp)
-	require.NotNil(t, addResp.SelfServiceCategory)
+	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "🌎 Browsers"}, http.StatusOK, &addResp)
 	require.NotZero(t, addResp.SelfServiceCategory.ID)
 	require.Equal(t, "🌎 Browsers", addResp.SelfServiceCategory.Name)
 	require.Equal(t, uint(0), addResp.SelfServiceCategory.TeamID)
 	catID := addResp.SelfServiceCategory.ID
 
-	// GET — list should include the newly created category.
+	// list includes new category
 	var listResp getSelfServiceCategoriesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/self_service_categories",
-		nil, http.StatusOK, &listResp, "fleet_id", "0")
-	var found *fleet.SoftwareCategory
+	s.DoJSON("GET", path, nil, http.StatusOK, &listResp, "fleet_id", "0")
+	names := make([]string, 0, len(listResp.SelfServiceCategories))
 	for _, c := range listResp.SelfServiceCategories {
-		if c.ID == catID {
-			found = c
-			break
-		}
+		names = append(names, c.Name)
 	}
-	require.NotNil(t, found, "newly added category should appear in the list")
-	require.Equal(t, "🌎 Browsers", found.Name)
+	require.Contains(t, names, "🌎 Browsers")
 
-	// PATCH — rename the category.
+	// rename
 	var patchResp patchSelfServiceCategoriesResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", catID),
-		map[string]any{"name": "🌐 Browsers"},
-		http.StatusOK, &patchResp)
-	require.NotNil(t, patchResp.SelfServiceCategory)
+	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "🌐 Browsers"}, http.StatusOK, &patchResp)
 	require.Equal(t, catID, patchResp.SelfServiceCategory.ID)
 	require.Equal(t, "🌐 Browsers", patchResp.SelfServiceCategory.Name)
 
-	// DELETE — remove the category.
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", catID),
-		nil, http.StatusNoContent)
+	// delete then 404 on repeat
+	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNoContent)
+	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNotFound)
 
-	// DELETE again — now 404.
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", catID),
-		nil, http.StatusNotFound)
+	// patch unknown id returns 404
+	s.Do("PATCH", fmt.Sprintf("%s/9999999", path), map[string]any{"name": "ghost"}, http.StatusNotFound)
 
-	// Missing-input edge cases.
+	// post without name returns 422
+	s.Do("POST", path, map[string]any{"fleet_id": 0}, http.StatusUnprocessableEntity)
 
-	// POST without name → 422.
-	s.Do("POST", "/api/latest/fleet/software/self_service_categories",
-		map[string]any{"fleet_id": 0}, http.StatusUnprocessableEntity)
+	// post without fleet_id defaults to unassigned
+	var noFleet addSelfServiceCategoriesResponse
+	s.DoJSON("POST", path, map[string]any{"name": "no-fleet"}, http.StatusOK, &noFleet)
+	require.Equal(t, uint(0), noFleet.SelfServiceCategory.TeamID)
 
-	// POST without fleet_id silently treats it as 0 (Unassigned) — by design.
-	var addNoFleetResp addSelfServiceCategoriesResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/self_service_categories",
-		map[string]any{"name": "no-fleet-id"}, http.StatusOK, &addNoFleetResp)
-	require.NotNil(t, addNoFleetResp.SelfServiceCategory)
-	require.Equal(t, uint(0), addNoFleetResp.SelfServiceCategory.TeamID)
+	// get without fleet_id returns 400
+	s.Do("GET", path, nil, http.StatusBadRequest)
 
-	// GET without fleet_id → 400 from the required query-param parser.
-	s.Do("GET", "/api/latest/fleet/software/self_service_categories", nil, http.StatusBadRequest)
+	// patch without name returns 422
+	s.Do("PATCH", fmt.Sprintf("%s/%d", path, noFleet.SelfServiceCategory.ID), map[string]any{}, http.StatusUnprocessableEntity)
 
-	// PATCH without name → 422.
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", addNoFleetResp.SelfServiceCategory.ID),
-		map[string]any{}, http.StatusUnprocessableEntity)
+	// duplicate name within a fleet is rejected case-insensitively
+	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "UniqueCat"}, http.StatusOK, &addResp)
+	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": "uniquecat"}, http.StatusConflict)
 
-	// Verify augmenting fleet.SoftwareCategory (added TeamID + timestamps + JSON
-	// tags) hasn't changed the shape of existing endpoints that surface
-	// categories — they should still emit `categories: [strings]`, not objects.
-	ctx := t.Context()
+	// patch into an existing name returns 409
+	var another addSelfServiceCategoriesResponse
+	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "AnotherCat"}, http.StatusOK, &another)
+	s.Do("PATCH", fmt.Sprintf("%s/%d", path, another.SelfServiceCategory.ID),
+		map[string]any{"name": "UniqueCat"}, http.StatusConflict)
+
+	// same name is allowed across different fleets
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "SelfServiceCategoryCrossFleet"}, http.StatusOK, &teamResp)
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), teamResp.Team.ID)) })
+
+	var cf0, cf1 addSelfServiceCategoriesResponse
+	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "CrossFleet"}, http.StatusOK, &cf0)
+	s.DoJSON("POST", path, map[string]any{"fleet_id": teamResp.Team.ID, "name": "CrossFleet"}, http.StatusOK, &cf1)
+	require.NotEqual(t, cf0.SelfServiceCategory.ID, cf1.SelfServiceCategory.ID)
+
+	// list scoped to the new fleet returns only its own category
+	s.DoJSON("GET", path, nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(teamResp.Team.ID))
+	require.Len(t, listResp.SelfServiceCategories, 1)
+	require.Equal(t, "CrossFleet", listResp.SelfServiceCategories[0].Name)
+
+	// unknown fleet_id returns 404
+	s.Do("POST", path, map[string]any{"fleet_id": 9999999, "name": "ghost"}, http.StatusNotFound)
+
+	// existing endpoints still expose categories as strings
 	cat1, err := s.ds.NewSoftwareCategory(ctx, 0, "smoke-test-cat-1")
 	require.NoError(t, err)
 	cat2, err := s.ds.NewSoftwareCategory(ctx, 0, "smoke-test-cat-2")
@@ -31755,19 +31764,26 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
 		TeamID:        new(uint(0)),
 		Filename:      "dummy_installer.pkg",
-		Title:         "SmokeTestApp",
-		Source:        "apps",
-		Platform:      "darwin",
-		Version:       "1.0",
 		InstallScript: "echo install",
-		Categories:    []string{cat1.Name, cat2.Name},
 	}, http.StatusOK, "")
 
-	titleID := getSoftwareTitleID(t, s.ds, "SmokeTestApp", "apps")
+	titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+	titlePath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID)
+
+	// linking categories happens via PATCH, not upload
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TeamID:     new(uint(0)),
+		TitleID:    titleID,
+		Categories: []string{cat1.Name, cat2.Name},
+	}, http.StatusOK, "")
 
 	var titleResp getSoftwareTitleResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
-	require.NotNil(t, titleResp.SoftwareTitle)
-	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "team_id", "0")
 	require.ElementsMatch(t, []string{cat1.Name, cat2.Name}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
+
+	// deleting a category removes it from the linked title
+	s.Do("DELETE", fmt.Sprintf("%s/%d", path, cat1.ID), nil, http.StatusNoContent)
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "team_id", "0")
+	require.ElementsMatch(t, []string{cat2.Name}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
 }

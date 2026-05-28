@@ -9722,7 +9722,7 @@ func testSoftwareCategories(t *testing.T, ds *Datastore) {
 	require.Equal(t, "category2", cat2.Name)
 
 	// get the IDs
-	ids, err := ds.GetSoftwareCategoryIDs(ctx, []string{cat1.Name, cat2.Name})
+	ids, err := ds.GetSoftwareCategoryIDs(ctx, 0, []string{cat1.Name, cat2.Name})
 	require.NoError(t, err)
 	require.Len(t, ids, 2)
 	require.Contains(t, ids, cat1.ID)
