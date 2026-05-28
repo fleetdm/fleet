@@ -161,6 +161,8 @@ We tend to use explicit assignment of prop values, instead of object spread synt
 <ExampleComponent prop1={pop1Val} prop2={prop2Val} prop3={prop3Val} />
 ```
 
+There are a handful of legitimate exceptions — third-party library wrappers (react-select, react-table, react-markdown), typed SVG icon components, and locally-built factory/builder bags. These are catalogued, along with the security reasoning for each, in [spread-props-exceptions.md](./spread-props-exceptions.md). New spread usage should fit one of those categories or use explicit assignment.
+
 ### Naming handlers
 
 When defining component props for handlers, we prefer naming with a more general `onAction`. When
