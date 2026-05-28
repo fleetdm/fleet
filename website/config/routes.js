@@ -56,6 +56,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /press': {
+    action: 'view-press',
+    locals: {
+      pageTitleForMeta: 'Press',
+      pageDescriptionForMeta: 'Fleet in the news. Recent press coverage, announcements, and our media kit for journalists and analysts.'
+    }
+  },
+
   'GET /reports': {
     action: 'docs/view-report-library',
     locals: {

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fleet-website",
+      "runtimeExecutable": "/Users/ashish/Documents/GitHub/fleet/website/node_modules/sails/bin/sails.js",
+      "runtimeArgs": ["lift"],
+      "port": 2024
+    }
+  ]
+}

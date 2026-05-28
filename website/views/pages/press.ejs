@@ -1,0 +1,219 @@
+<div id="press-page" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content" class="mx-auto">
+
+      <%/* Hero */%>
+      <div purpose="hero">
+        <div purpose="page-headline">
+          <h4>Newsroom</h4>
+          <h1>Fleet in the news</h1>
+        </div>
+        <div purpose="hero-text">
+          <p>Coverage, announcements, and conversations about Fleet from journalists, analysts, and industry publications. We share the latest stories here so you can find them in one place.</p>
+        </div>
+        <div purpose="button-row" class="d-flex justify-content-start align-items-center">
+          <a purpose="cta-button" href="mailto:<%= mediaContactEmail %>">Contact media relations</a>
+          <animated-arrow-button href="#media-kit">Get the media kit</animated-arrow-button>
+        </div>
+      </div>
+
+      <%/* Featured in (publication wordmarks) */%>
+      <% if (featuredPublications && featuredPublications.length) { %>
+        <div purpose="featured-in">
+          <p purpose="featured-in-label">As featured in</p>
+          <div purpose="featured-in-list">
+            <% featuredPublications.forEach(function(pub){ %>
+              <span purpose="featured-in-item"><%= pub %></span>
+            <% }); %>
+          </div>
+        </div>
+      <% } %>
+
+      <%/* What's new — one story per recent month, max 4 */%>
+      <% if (whatsNewItems && whatsNewItems.length) { %>
+        <div purpose="page-section" class="pb-0">
+          <div purpose="section-heading">
+            <h4>Recent highlights</h4>
+            <h2>What's new</h2>
+            <p>The latest story from each of the most recent months.</p>
+          </div>
+          <div purpose="coverage-grid">
+            <% whatsNewItems.forEach(function(item){ %>
+              <a purpose="coverage-card" href="<%= item.url %>" target="_blank" rel="noopener noreferrer">
+                <div purpose="card-meta">
+                  <span purpose="date-pill"><%= item.shortDate %></span>
+                  <span purpose="card-publication"><%= item.publication %></span>
+                </div>
+                <p purpose="card-title"><%= item.title %></p>
+                <p purpose="card-month"><%= item.monthLabel %></p>
+              </a>
+            <% }); %>
+          </div>
+        </div>
+      <% } %>
+
+      <%/* All coverage */%>
+      <div purpose="page-section">
+        <div purpose="section-heading">
+          <h4>Press coverage</h4>
+          <h2>All coverage</h2>
+          <p>Sorted with the newest stories first. Click any item to read it on the publisher's site.</p>
+        </div>
+
+        <% if (pressCoverageByYear && pressCoverageByYear.length) { %>
+          <% pressCoverageByYear.forEach(function(yearGroup){ %>
+            <div purpose="coverage-year">
+              <div purpose="year-header">
+                <h3 purpose="year-label"><%= yearGroup.year %></h3>
+                <p purpose="year-count"><%= yearGroup.count %> <%= yearGroup.count === 1 ? 'story' : 'stories' %></p>
+              </div>
+              <% yearGroup.months.forEach(function(monthGroup){ %>
+                <div purpose="coverage-month">
+                  <p purpose="month-label"><%= monthGroup.name %> <%= yearGroup.year %></p>
+                  <div purpose="coverage-grid">
+                    <% monthGroup.items.forEach(function(item){ %>
+                      <a purpose="coverage-card" href="<%= item.url %>" target="_blank" rel="noopener noreferrer">
+                        <div purpose="card-meta">
+                          <span purpose="date-pill"><%= item.shortDate %></span>
+                          <span purpose="card-publication"><%= item.publication %></span>
+                        </div>
+                        <p purpose="card-title"><%= item.title %></p>
+                      </a>
+                    <% }); %>
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <p purpose="empty-state">Press coverage will appear here soon. In the meantime, reach out to <a href="mailto:<%= mediaContactEmail %>"><%= mediaContactEmail %></a>.</p>
+        <% } %>
+      </div>
+
+      <%/* Media kit */%>
+      <div id="media-kit" purpose="page-section">
+        <div purpose="section-heading">
+          <h4>Media kit</h4>
+          <h2>Everything you need to write about Fleet</h2>
+          <p>Official logos, screenshots, and wallpapers. For brand background and company history, visit the <a href="/handbook">Fleet handbook</a>.</p>
+        </div>
+
+        <div purpose="kit-grid">
+          <div purpose="kit-card">
+            <div purpose="kit-preview" class="dark">
+              <img src="/images/press-kit/press-kit-fleet-logo-dark-preview-600x336@2x.png" alt="Fleet logo with white text">
+            </div>
+            <div purpose="kit-body">
+              <h5>Logo on dark</h5>
+              <p>For dark backgrounds and accent treatments.</p>
+              <div purpose="kit-downloads">
+                <a href="/images/press-kit/fleet-logo-dark.svg" download>SVG</a>
+                <span purpose="dot"></span>
+                <a href="/images/press-kit/fleet-logo-dark-rgb.png" download>PNG</a>
+              </div>
+            </div>
+          </div>
+
+          <div purpose="kit-card">
+            <div purpose="kit-preview" class="light">
+              <img src="/images/press-kit/press-kit-fleet-logo-white-preview-600x336@2x.png" alt="Fleet logo with dark blue text">
+            </div>
+            <div purpose="kit-body">
+              <h5>Logo on light</h5>
+              <p>For white and light backgrounds.</p>
+              <div purpose="kit-downloads">
+                <a href="/images/press-kit/fleet-logo-white.svg" download>SVG</a>
+                <span purpose="dot"></span>
+                <a href="/images/press-kit/fleet-logo-white-rgb.png" download>PNG</a>
+              </div>
+            </div>
+          </div>
+
+          <div purpose="kit-card">
+            <div purpose="kit-preview" class="mark">
+              <img src="/images/press-kit/press-kit-fleet-logo-mark-preview-600x336@2x.png" alt="Fleet logo mark">
+            </div>
+            <div purpose="kit-body">
+              <h5>Logo mark</h5>
+              <p>The standalone mark for icons and avatars.</p>
+              <div purpose="kit-downloads">
+                <a href="/images/press-kit/fleet-logo-mark.svg" download>SVG</a>
+                <span purpose="dot"></span>
+                <a href="/images/press-kit/fleet-logo-mark-rgb.png" download>PNG</a>
+              </div>
+            </div>
+          </div>
+
+          <div purpose="kit-card">
+            <div purpose="kit-preview" class="screenshots">
+              <img src="/images/press-kit/press-kit-fleet-screenshots-preview-600x336@2x.png" alt="A preview of Fleet screenshots">
+            </div>
+            <div purpose="kit-body">
+              <h5>Product screenshots</h5>
+              <p>High-resolution screenshots of the Fleet product.</p>
+              <div purpose="kit-downloads">
+                <a href="/images/press-kit/Fleet-screenshots.zip" download="Fleet Screenshots" target="_blank">Download .zip</a>
+              </div>
+            </div>
+          </div>
+
+          <div purpose="kit-card">
+            <div purpose="kit-preview" class="wallpapers">
+              <img src="/images/press-kit/press-kit-fleet-wallpaper-preview-600x336@2x.png" alt="A preview of a Fleet desktop wallpaper">
+            </div>
+            <div purpose="kit-body">
+              <h5>Wallpapers</h5>
+              <p>Branded desktop wallpapers in multiple resolutions.</p>
+              <div purpose="kit-downloads">
+                <a href="/images/press-kit/Fleet-wallpapers.zip" download="Fleet wallpapers" target="_blank">Download .zip</a>
+              </div>
+            </div>
+          </div>
+
+          <a purpose="kit-card" class="more" href="/logos">
+            <div purpose="kit-body" class="more-body">
+              <h5>Full press kit</h5>
+              <p>More brand resources, pricing cards, and illustrations.</p>
+              <p purpose="more-link">Browse all assets</p>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <%/* Media contact */%>
+      <div purpose="page-section">
+        <div purpose="section-heading">
+          <h4>Media contact</h4>
+          <h2>Working on a story?</h2>
+          <p>For interviews, executive commentary, briefings, or review opportunities, reach out to our media relations lead.</p>
+        </div>
+        <div purpose="contact-card">
+          <div purpose="contact-info">
+            <p purpose="contact-name"><%= mediaContactName %></p>
+            <p purpose="contact-role"><%= mediaContactRole %></p>
+            <a purpose="contact-email" href="mailto:<%= mediaContactEmail %>"><%= mediaContactEmail %></a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <%/* Bottom CTA */%>
+  <div purpose="bottom-gradient">
+    <div purpose="page-container" class="container">
+      <div purpose="bottom-cta" class="text-center">
+        <h4>Press inquiries</h4>
+        <h2>Have a story idea?</h2>
+        <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" class="mr-0" href="mailto:<%= mediaContactEmail %>">Contact media relations</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%/* Cloud city banner */%>
+  <parallax-city></parallax-city>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

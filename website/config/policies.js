@@ -31,6 +31,7 @@ module.exports.policies = {
   'download-sitemap': true,
   'view-transparency': true,
   'view-press-kit': true,
+  'view-press': true,
   'deliver-demo-signup': true,
   'articles/*': true,
   'reports/*': true,
