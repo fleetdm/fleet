@@ -257,7 +257,13 @@ past AS (
 		hvsi2.id IS NULL
 		AND hvsi.adam_id = :adam_id
 		AND hvsi.platform = :platform
-		AND (ncr.id IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+		-- Allow rows with no nano_command_results — Android VPP never produces
+		-- one, and Fleet-side pre-flight failures (e.g. unresolvable
+		-- managed-config Fleet variable on iOS/iPadOS) record only the install
+		-- row with verification_failed_at set, no MDM command. The CASE above
+		-- maps verification_failed_at IS NOT NULL to failed ahead of the ncr
+		-- branches.
+		AND (ncr.id IS NOT NULL OR hvsi.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
 		AND hvsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 		AND hvsi.removed = 0
@@ -1393,6 +1399,157 @@ WHERE
 	}
 
 	return user, act, nil
+}
+
+// RecordFailedVPPAppInstall records a VPP app install that Fleet failed before
+// sending it to the device — currently, the managed app configuration
+// referenced a Fleet variable that can't be resolved for this host (e.g. an
+// IdP variable on a host with no IdP linkage). It writes a failed
+// host_vpp_software_installs row (verification_failed_at sentinel) without
+// enqueuing any MDM command or reserving a license, and returns the user +
+// failed-install activity to emit. failureReason is surfaced on the activity
+// (and the Install Details modal).
+func (ds *Datastore) RecordFailedVPPAppInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID,
+	commandUUID, failureReason string, opts fleet.HostSoftwareInstallOptions,
+) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	// Mirror the user attribution used by InsertHostVPPSoftwareInstall: a
+	// policy-driven install has no acting user (Fleet-initiated).
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && opts.PolicyID == nil {
+		userID = &ctxUser.ID
+	}
+
+	const insStmt = `
+INSERT INTO host_vpp_software_installs
+	(host_id, adam_id, platform, command_uuid, user_id, self_service, policy_id, verification_failed_at)
+VALUES
+	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6))`
+
+	var (
+		user *fleet.User
+		act  *fleet.ActivityInstalledAppStoreApp
+	)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, insStmt,
+			hostID, appID.AdamID, appID.Platform, commandUUID, userID, opts.SelfService, opts.PolicyID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert failed vpp install")
+		}
+
+		var err error
+		user, act, err = ds.getPastActivityDataForVPPAppInstallDB(ctx, tx,
+			&mdm.CommandResults{CommandUUID: commandUUID, Status: fleet.MDMAppleStatusError})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get failed vpp install activity data")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if act != nil {
+		// Status and SelfService are already set from the row; carry the
+		// trigger-source flags (not stored on the install row) and the reason.
+		act.FromAutoUpdate = opts.ForScheduledUpdates
+		act.FromSetupExperience = opts.ForSetupExperience
+		act.FailureReason = failureReason
+	}
+	return user, act, nil
+}
+
+// GetVPPInstallReleaseInfoForCancel reports whether the cancel path should
+// release the reserved VPP license seat. Handles two cases:
+//
+//  1. Activated install — host_vpp_software_installs has a row keyed by
+//     command_uuid. Cancel marks it canceled but doesn't delete it, so the
+//     lookup works either before or after ds.CancelHostUpcomingActivity.
+//  2. Pre-activation install — host_vpp_software_installs has no row (it's
+//     created at activation time), and the reservation lives only in
+//     upcoming_activities.payload->>'$.associated_event_id' +
+//     vpp_app_upcoming_activities.adam_id. The cancel transaction
+//     unconditionally deletes the upcoming_activities row, so callers MUST
+//     invoke this BEFORE ds.CancelHostUpcomingActivity for the
+//     pre-activation case to find anything.
+//
+// Returns NotFound when no matching VPP install row exists in either table.
+func (ds *Datastore) GetVPPInstallReleaseInfoForCancel(ctx context.Context, hostID uint, executionID string) (*fleet.VPPInstallReleaseInfo, error) {
+	// Activated case first — fast path that doesn't depend on call ordering.
+	const activatedStmt = `
+SELECT
+	hvsi.adam_id,
+	COALESCE(hvsi.associated_event_id, '') AS associated_event_id,
+	(EXISTS(
+		SELECT 1 FROM host_vpp_software_installs other
+		WHERE other.host_id = hvsi.host_id
+		  AND other.adam_id = hvsi.adam_id
+		  AND other.command_uuid != hvsi.command_uuid
+		  AND other.canceled = 0
+		  AND other.verification_failed_at IS NULL
+	) OR EXISTS(
+		SELECT 1 FROM upcoming_activities ua
+		JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+		WHERE ua.host_id = hvsi.host_id
+		  AND vaua.adam_id = hvsi.adam_id
+		  AND ua.activity_type = 'vpp_app_install'
+		  -- Exclude this install's own upcoming row, which is still present
+		  -- at lookup time (the cancel deletes it on the very next call).
+		  AND ua.execution_id != hvsi.command_uuid
+	)) AS has_other_active_install
+FROM host_vpp_software_installs hvsi
+WHERE hvsi.host_id = ? AND hvsi.command_uuid = ?`
+
+	var row struct {
+		AdamID                string `db:"adam_id"`
+		AssociatedEventID     string `db:"associated_event_id"`
+		HasOtherActiveInstall bool   `db:"has_other_active_install"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, activatedStmt, hostID, executionID)
+	if err == nil {
+		return &fleet.VPPInstallReleaseInfo{
+			AdamID:                row.AdamID,
+			AssociatedEventID:     row.AssociatedEventID,
+			HasOtherActiveInstall: row.HasOtherActiveInstall,
+		}, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "get vpp install release info (activated)")
+	}
+
+	// Pre-activation case — reservation info lives in upcoming_activities only.
+	const upcomingStmt = `
+SELECT
+	vaua.adam_id,
+	COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.associated_event_id')), '') AS associated_event_id,
+	(EXISTS(
+		SELECT 1 FROM host_vpp_software_installs hvsi
+		WHERE hvsi.host_id = ua.host_id
+		  AND hvsi.adam_id = vaua.adam_id
+		  AND hvsi.canceled = 0
+		  AND hvsi.verification_failed_at IS NULL
+	) OR EXISTS(
+		SELECT 1 FROM upcoming_activities ua2
+		JOIN vpp_app_upcoming_activities vaua2 ON vaua2.upcoming_activity_id = ua2.id
+		WHERE ua2.host_id = ua.host_id
+		  AND vaua2.adam_id = vaua.adam_id
+		  AND ua2.id != ua.id
+		  AND ua2.activity_type = 'vpp_app_install'
+	)) AS has_other_active_install
+FROM upcoming_activities ua
+JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+WHERE ua.host_id = ? AND ua.execution_id = ? AND ua.activity_type = 'vpp_app_install'`
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, upcomingStmt, hostID, executionID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("vpp_install")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get vpp install release info (upcoming)")
+	}
+	return &fleet.VPPInstallReleaseInfo{
+		AdamID:                row.AdamID,
+		AssociatedEventID:     row.AssociatedEventID,
+		HasOtherActiveInstall: row.HasOtherActiveInstall,
+	}, nil
 }
 
 // GetVPPAppInstallStatusByCommandUUID returns whether the VPP app from the given install command

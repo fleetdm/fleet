@@ -220,6 +220,47 @@ func AssociateAssets(token string, params *AssociateAssetsRequest) (string, erro
 	return respBody.EventID, nil
 }
 
+// DisassociateAssetsRequest is the body for Apple's disassociate-assets
+// endpoint. The shape is identical to AssociateAssetsRequest (same assets +
+// mutually-exclusive serialNumbers/clientUserIds contract), so it shares the
+// type and Validate.
+type DisassociateAssetsRequest = AssociateAssetsRequest
+
+// DisassociateAssets releases (un-reserves) assets previously associated to
+// serial numbers or client user IDs, returning the reserved seats to the
+// VPP location. Use this to avoid leaking a license when an install that
+// reserved a seat does not proceed (e.g. the activation failed or was
+// cancelled before reaching the device).
+//
+// https://developer.apple.com/documentation/devicemanagement/disassociate_assets
+func DisassociateAssets(token string, params *DisassociateAssetsRequest) (string, error) {
+	if err := params.Validate(); err != nil {
+		return "", err
+	}
+
+	var reqBody bytes.Buffer
+	if err := json.NewEncoder(&reqBody).Encode(params); err != nil {
+		return "", fmt.Errorf("encoding params as JSON: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, getBaseURL()+"/assets/disassociate", &reqBody)
+	if err != nil {
+		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	var respBody struct {
+		EventID string `json:"eventId"`
+	}
+
+	if err := do(req, token, &respBody); err != nil {
+		return "", fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+	}
+
+	return respBody.EventID, nil
+}
+
 // RegisterUserResponse mirrors Apple's synchronous v1 register-user response.
 //
 // Apple's v1 API responds synchronously with the full user record on success.
