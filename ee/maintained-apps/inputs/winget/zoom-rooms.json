@@ -1,0 +1,10 @@
+{
+  "name": "Zoom Rooms",
+  "slug": "zoom-rooms/windows",
+  "package_identifier": "Zoom.ZoomRooms",
+  "unique_identifier": "Zoom Rooms",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Communication"]
+}
