@@ -1118,6 +1118,7 @@ var OTASCEPTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`<?xml
 // than the previously-installed profile; rights can only narrow. Callers that
 // renew an existing host's profile must therefore compute the new bitmask as
 // (stored_rights AND current_fleet_max_rights) so they never widen.
+// https://developer.apple.com/documentation/devicemanagement/mdm#properties
 const (
 	MDMAccessRightAll         = 8191 // all 13 bits (2^13 - 1)
 	MDMAccessRightDeviceLock  = 512  // bit 9: Device Lock & Passcode Removal
