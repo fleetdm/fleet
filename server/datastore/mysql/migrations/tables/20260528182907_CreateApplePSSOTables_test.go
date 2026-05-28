@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260518160000(t *testing.T) {
+func TestUp_20260528182907(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	hostInsert := `INSERT INTO hosts (hardware_serial, osquery_host_id, node_key, uuid, platform) VALUES (?, ?, ?, ?, ?)`
