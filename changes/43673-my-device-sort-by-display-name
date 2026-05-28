@@ -1,0 +1,1 @@
+- Fixed "My device" page to sort software by display name instead of installer filename when a custom display name is set.
