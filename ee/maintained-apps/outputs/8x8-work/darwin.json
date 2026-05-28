@@ -4,7 +4,7 @@
       "version": "8.33.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.8x8---virtual-office';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.8x8---virtual-office' AND version_compare(bundle_short_version, '8.33.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.8x8---virtual-office') AND version_compare(bundle_short_version, '8.33.2') < 0);"
       },
       "installer_url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-arm64-dmg-v8.33.2-2.dmg",
       "install_script_ref": "4fae7a5b",

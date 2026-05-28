@@ -4,7 +4,7 @@
       "version": "1.28.13",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Linear %' AND publisher = 'Linear Orbit, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Linear %' AND publisher = 'Linear Orbit, Inc.' AND version_compare(version, '1.28.13') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name LIKE 'Linear %' AND publisher = 'Linear Orbit, Inc.') AND version_compare(version, '1.28.13') < 0);"
       },
       "installer_url": "https://download.todesktop.com/200315glz2793v6/Linear%20Setup%201.28.13%20-%20Build%20260318pho1bttxr-x64.exe",
       "install_script_ref": "166c7345",

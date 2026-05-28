@@ -30,7 +30,7 @@ permissions:
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-16core
+    runs-on: ubuntu-8core
     permissions:
       actions: read
       contents: read

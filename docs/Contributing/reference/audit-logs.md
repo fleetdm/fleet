@@ -946,6 +946,44 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_historical_dataset
+
+Generated when collection of a chart historical dataset is enabled, either globally or for a specific fleet.
+
+This activity contains the following fields:
+- "dataset": The public config sub-key of the dataset. One of `"uptime"`, `"vulnerabilities"`. 
+- "fleet_id": The ID of the fleet the toggle applies to, `null` if applied globally.
+- "fleet_name": The name of the fleet the toggle applies to, `null` if applied globally.
+
+#### Example
+
+```json
+{
+  "dataset": "uptime",
+  "fleet_id": 2,
+  "fleet_name": "EMEA"
+}
+```
+
+## disabled_historical_dataset
+
+Generated when collection of a chart historical dataset is disabled, either globally or for a specific fleet.
+
+This activity contains the following fields:
+- "dataset": The public config sub-key of the dataset. One of `"uptime"`, `"vulnerabilities"`.
+- "fleet_id": The ID of the fleet the toggle applies to, `null` if applied globally.
+- "fleet_name": The name of the fleet the toggle applies to, `null` if applied globally.
+
+#### Example
+
+```json
+{
+  "dataset": "vulnerabilities",
+  "fleet_id": 2,
+  "fleet_name": "EMEA"
+}
+```
+
 ## added_bootstrap_package
 
 Generated when a user adds a new bootstrap package to a team (or no team).
@@ -986,11 +1024,11 @@ This activity contains the following fields:
 
 ## enabled_macos_setup_end_user_auth
 
-Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).
+Generated when a user turns on IdP authentication for macOS hosts that automatically enroll to a team (or no team).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_id": The ID of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 
@@ -1003,11 +1041,11 @@ This activity contains the following fields:
 
 ## disabled_macos_setup_end_user_auth
 
-Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a team (or no team).
+Generated when a user turns off IdP authentication for macOS hosts that automatically enroll to a team (or no team).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_id": The ID of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 
@@ -1490,6 +1528,29 @@ This activity contains the following fields:
 }
 ```
 
+## installed_all_self_service_software
+
+Generated when an end user clicks **Install all** on the **My device > Self-service** page. A separate [`installed_software`](#installed_software) activity is also generated for each queued title.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service_category_id": ID of the self-service category the install was scoped to, or `null` if the end user installed across all categories.
+- "self_service_category_name": Name of the self-service category the install was scoped to, or `null` if the end user installed across all categories.
+- "software_titles_count": Number of software titles queued for install.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service_category_id": 12,
+  "self_service_category_name": "🌎 Browsers",
+  "software_titles_count": 3
+}
+```
+
 ## uninstalled_software
 
 Generated when a Fleet-maintained app or custom package is uninstalled on a host.
@@ -1627,6 +1688,63 @@ This activity contains the following fields:
       "id": 17
     }
   ]
+}
+```
+
+## added_self_service_category
+
+Generated when a self-service category is added to a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": Name of the self-service category that was added.
+- "fleet_name": Name of the fleet the category was added to.
+- "fleet_id": ID of the fleet the category was added to.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
+}
+```
+
+## edited_self_service_category
+
+Generated when a self-service category is renamed on a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": New name of the self-service category.
+- "fleet_name": Name of the fleet the category belongs to.
+- "fleet_id": ID of the fleet the category belongs to.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support utilities",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
+}
+```
+
+## deleted_self_service_category
+
+Generated when a self-service category is deleted from a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": Name of the self-service category that was deleted.
+- "fleet_name": Name of the fleet the category was deleted from.
+- "fleet_id": ID of the fleet the category was deleted from.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
 }
 ```
 
@@ -2524,6 +2642,55 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_managed_local_account
+
+Generated when a user turns on create managed local account for a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## disabled_managed_local_account
+
+Generated when a user turns off create managed local account for a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## read_managed_local_account
+
+Generated when a user reads the information for the local managed account for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 ## resent_certificate
 
 Generated when a user resends a certificate to a host.
@@ -2534,7 +2701,6 @@ This activity contains the following fields:
 - "certificate_template_id": The ID of the certificate template
 - "certificate_name": The name of the certificate
 
-
 #### Example
 
 ```json
@@ -2543,6 +2709,21 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "certificate_template_id": 123,
   "certificate_name": "Zero trust certificate"
+}
+```
+
+## cleared_passcode
+
+Generated when a user clears the passcode on a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 
@@ -2564,6 +2745,23 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
   "software_title_id": 1234
+}
+```
+
+## created_managed_local_account
+
+Generated when a local managed account and password is created for a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 

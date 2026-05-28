@@ -8,7 +8,7 @@ Fleet can map an end user's IdP username, groups, and department to their host(s
 
 Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace), as well as [any other IdP](#other-idps) that supports the [SCIM (System for Cross-domain Identity Management) protocol](https://scim.cloud/).
 
-Fleet automatically collects IdP host vitals when an [end user authenticates](https://fleetdm.com/guides/setup-experience#end-user-authentication) during these enrollment scenarios:
+Fleet automatically collects IdP host vitals when an [end user authenticates](https://fleetdm.com/guides/setup-experience#require-idp-authentication) during these enrollment scenarios:
 - Automatic enrollment for [Apple](https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm) (macOS, iOS, iPadOS) and [Windows](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) hosts.
 - Manual enrollment for Apple (macOS, iOS, iPadOS), Android, Windows, and Linux hosts.
 
@@ -43,7 +43,6 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 5. For the **Authentication Mode**, select **HTTP Header**.
 6. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in Okta's **Authorization** field.
 
-> For example, `fleetctl user create --name 'SCIM User' --email 'scim@example.com' --password 'hunter2' --api-only --global-role maintainer`
 
 7. Select the **Test Connector Configuration** button. You should see a success message pop up in Okta. You can close this message.
 8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from Okta.
@@ -260,7 +259,7 @@ To map users from Google Workspace to hosts in Fleet, we'll do the following ste
 1. From the side menu, select **Applications > Providers**, **Create**, **SCIM Provider**, and then **Next**.
 2. Add a friendly name (e.g. "Fleet SCIM provider").
 3. For the **URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
-4. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy the API token for that user. Paste your API token in the **Token** field.
+4. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in the **Secret token** field.
 5. Select **Finish** to save provider.
 6. Now, from the side menu, select **Applications > Applications**. Then, select **Create**.
 7. Add a friendly name (e.g. "Fleet SCIM app") and slug (e.g. "fleet-scim-app").
@@ -273,7 +272,7 @@ To map users from Google Workspace to hosts in Fleet, we'll do the following ste
 IdPs generally require a Fleet SCIM URL and API token:
 
 - SCIM URL - `https://<your_fleet_server_url>/api/v1/fleet/scim`
-- API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user.
+- API token - [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in the **Secret token** field.
 
 Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Make sure these attributes are correctly mapped in your IdP with `userName` as the unique identifier. Fleet uses the `userName` attribute to map to IdP groups and department.
 

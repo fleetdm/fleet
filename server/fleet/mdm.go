@@ -844,9 +844,13 @@ func labelCountMap(labels []string) map[string]int {
 	return counts
 }
 
-// MDMProfileSpecsMatch match checks if two slices contain the same spec
-// elements, regardless of order.
+// MDMProfileSpecsMatch checks if two slices contain the same spec elements,
+// regardless of order.
+//
+// Precondition: each slice must contain at most one entry per Path.
 func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
+	mustNotHaveDuplicatePaths("a", a)
+	mustNotHaveDuplicatePaths("b", b)
 	if len(a) != len(b) {
 		return false
 	}
@@ -928,6 +932,19 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	}
 
 	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
+}
+
+func mustNotHaveDuplicatePaths(name string, specs []MDMProfileSpec) {
+	if len(specs) < 2 {
+		return
+	}
+	seen := make(map[string]struct{}, len(specs))
+	for _, s := range specs {
+		if _, dup := seen[s.Path]; dup {
+			panic(fmt.Sprintf("MDMProfileSpecsMatch: %s contains duplicate Path %q; upstream validation should have rejected this", name, s.Path))
+		}
+		seen[s.Path] = struct{}{}
+	}
 }
 
 type MDMLabelsMode string

@@ -4,7 +4,7 @@
       "version": "3.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'co.zeit.hyper';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.zeit.hyper' AND version_compare(bundle_short_version, '3.4.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'co.zeit.hyper') AND version_compare(bundle_short_version, '3.4.1') < 0);"
       },
       "installer_url": "https://github.com/vercel/hyper/releases/download/v3.4.1/Hyper-3.4.1-mac-arm64.zip",
       "install_script_ref": "0d87a0d8",

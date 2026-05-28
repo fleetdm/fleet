@@ -4,7 +4,7 @@
       "version": "2.3.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'cc.arduino.IDE2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cc.arduino.IDE2' AND version_compare(bundle_short_version, '2.3.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'cc.arduino.IDE2') AND version_compare(bundle_short_version, '2.3.8') < 0);"
       },
       "installer_url": "https://github.com/arduino/arduino-ide/releases/download/2.3.8/arduino-ide_2.3.8_macOS_ARM64.dmg",
       "install_script_ref": "b8e694ce",

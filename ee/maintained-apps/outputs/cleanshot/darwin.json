@@ -4,7 +4,7 @@
       "version": "4.8.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.getcleanshot.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getcleanshot.app' AND version_compare(bundle_short_version, '4.8.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.getcleanshot.app') AND version_compare(bundle_short_version, '4.8.8') < 0);"
       },
       "installer_url": "https://updates.getcleanshot.com/v3/CleanShot-X-4.8.8.dmg",
       "install_script_ref": "ad9395c4",

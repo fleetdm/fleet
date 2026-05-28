@@ -652,6 +652,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 		} else {
 			multiError = parseSecrets(result, multiError)
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
+			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
@@ -680,6 +681,47 @@ func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Erro
 	}
 	check("dark", "org_logo_path_dark_mode", "org_logo_url_dark_mode")
 	check("light", "org_logo_path_light_mode", "org_logo_url_light_mode")
+	return multiError
+}
+
+// validateGitOpsConfig validates the `org_settings.gitops` block at parse time
+// to mirror the server-side checks in ModifyAppConfig. The `exceptions`
+// sub-block is not yet supported via YAML and is rejected here; the
+// server-side strip in DoGitOps remains as defense in depth.
+func validateGitOpsConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	gitops, _ := orgSettings["gitops"].(map[string]any)
+	if gitops == nil {
+		return multiError
+	}
+
+	if _, ok := gitops["exceptions"]; ok {
+		multiError = multierror.Append(multiError, errors.New(
+			"org_settings.gitops.exceptions is not supported via GitOps; set exceptions in the Fleet UI",
+		))
+	}
+
+	modeEnabled, _ := gitops["gitops_mode_enabled"].(bool)
+	repoURL, _ := gitops["repository_url"].(string)
+
+	if modeEnabled && repoURL == "" {
+		multiError = multierror.Append(multiError, errors.New(
+			"org_settings.gitops.repository_url is required when gitops_mode_enabled is true",
+		))
+	}
+
+	if repoURL != "" {
+		parsed, err := url.Parse(repoURL)
+		if err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf(
+				"org_settings.gitops.repository_url is invalid: %v", err,
+			))
+		} else if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			multiError = multierror.Append(multiError, errors.New(
+				"org_settings.gitops.repository_url must include protocol (e.g. https://)",
+			))
+		}
+	}
+
 	return multiError
 }
 
