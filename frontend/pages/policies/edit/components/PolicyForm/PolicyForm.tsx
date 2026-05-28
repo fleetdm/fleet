@@ -59,6 +59,7 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
+  IPolicyAutomationsPayload,
   useUpdatePolicyAutomations,
 } from "pages/policies/components/PolicyAutomationsFields";
 
@@ -79,7 +80,9 @@ interface IPolicyFormProps {
   onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
-  onUpdate: (formData: IPolicyFormData) => void;
+  // Returns a Promise so the form can sequence the automations save AFTER the
+  // core update completes (see the patch-policy save flow in promptSavePolicy).
+  onUpdate: (formData: IPolicyFormData) => Promise<unknown>;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
@@ -441,37 +444,48 @@ const PolicyForm = ({
     }
   };
 
-  const promptSavePolicy = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
+  const promptSavePolicy = () => async (
+    evt: React.MouseEvent<HTMLButtonElement>
+  ) => {
     evt.preventDefault();
 
     if (isEditMode && !lastEditedQueryName) {
-      return setErrors({
-        ...errors,
-        name: "Policy name must be present",
-      });
+      setErrors({ ...errors, name: "Policy name must be present" });
+      return;
     }
 
     if (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) {
-      return setErrors({
+      setErrors({
         ...errors,
         name: "At least one platform must be selected",
       });
+      return;
     }
 
+    // Capture + validate automation changes up front so an invalid selection
+    // blocks the whole save before anything is persisted.
+    let automations: IPolicyAutomationsPayload | undefined;
     if (isEditMode) {
-      const automations = automationsRef.current?.getAutomationsPayload();
+      automations = automationsRef.current?.getAutomationsPayload();
       if (automations?.error) {
-        return renderFlash("error", automations.error);
+        renderFlash("error", automations.error);
+        return;
       }
-      // Per-policy automation fields + webhook/ticket config persist
-      // independently of the core policy update below
+    }
+
+    // The core update (onUpdate) and the automations update both PATCH the policy.
+    // We `await` the core update before firing the automations one so the
+    // automations write is always the LAST write to the policy. This matters
+    // for patch policies, where the backend re-links install_software to
+    // patch_software whenever a patch policy is updated.
+    const persistAutomations = () => {
       if (automations?.isDirty) {
         saveAutomations({
           policyUpdate: automations.policyUpdate,
           webhookOrTicketUpdate: automations.webhookOrTicketUpdate,
         });
       }
-    }
+    };
 
     if (isPatchPolicy && isEditMode) {
       // Patch policies: only send editable fields, not query/platform
@@ -483,7 +497,8 @@ const PolicyForm = ({
       if (isPremiumTier) {
         payload.critical = lastEditedQueryCritical;
       }
-      onUpdate(payload);
+      await onUpdate(payload);
+      persistAutomations();
       return;
     }
 
@@ -492,10 +507,8 @@ const PolicyForm = ({
     // fires could otherwise submit an empty query. Mirrors the guard in
     // EditQueryForm's handleSaveQuery (see #38348).
     if (!lastEditedQueryBody?.trim()) {
-      return setErrors({
-        ...errors,
-        query: EMPTY_QUERY_ERR,
-      });
+      setErrors({ ...errors, query: EMPTY_QUERY_ERR });
+      return;
     }
 
     let selectedPlatforms = getSelectedPlatforms();
@@ -538,7 +551,8 @@ const PolicyForm = ({
           selectedCustomTarget === "labelsExcludeAny" ? customLabelNames : [];
         payload.critical = lastEditedQueryCritical;
       }
-      onUpdate(payload);
+      await onUpdate(payload);
+      persistAutomations();
     }
   };
 
