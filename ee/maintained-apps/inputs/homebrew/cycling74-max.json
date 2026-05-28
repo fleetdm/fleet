@@ -1,0 +1,8 @@
+{
+   "name": "Max",
+   "slug": "cycling74-max/darwin",
+   "unique_identifier": "com.cycling74.Max",
+   "token": "cycling74-max",
+   "installer_format": "dmg",
+   "default_categories": ["Developer tools"]
+}

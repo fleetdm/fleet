@@ -555,6 +555,13 @@
       "description": "Cyberduck is a server and cloud storage browser."
     },
     {
+      "name": "Max",
+      "slug": "cycling74-max/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cycling74.Max",
+      "description": "Max is a flexible space to create your own interactive software."
+    },
+    {
       "name": "Dash",
       "slug": "dash/darwin",
       "platform": "darwin",
