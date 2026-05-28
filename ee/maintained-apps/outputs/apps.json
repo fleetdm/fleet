@@ -240,6 +240,13 @@
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
     },
     {
+      "name": "AWS Client VPN",
+      "slug": "aws-vpn-client/windows",
+      "platform": "windows",
+      "unique_identifier": "AWS VPN Client",
+      "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
+    },
+    {
       "name": "Backblaze",
       "slug": "backblaze/darwin",
       "platform": "darwin",
@@ -2065,6 +2072,13 @@
       "platform": "darwin",
       "unique_identifier": "com.exafunction.windsurf",
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
+    },
+    {
+      "name": "WinSCP",
+      "slug": "winscp/windows",
+      "platform": "windows",
+      "unique_identifier": "WinSCP",
+      "description": "WinSCP is a free SFTP, SCP, S3, and FTP client for Windows."
     },
     {
       "name": "Wireshark",
