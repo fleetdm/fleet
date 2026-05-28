@@ -49,10 +49,13 @@ parasails.registerComponent('scrollableTweets', {
         <div purpose="logo" class="mb-4">
           <img :height="testimonial.imageHeight" v-if="testimonial.quoteImageFilename" :src="'/images/'+testimonial.quoteImageFilename"/>
         </div>
-        <p purpose="quote">
-          {{testimonial.quote}}
-          <a purpose="video-link" v-if="testimonial.youtubeVideoUrl" @click.prevent.self="clickOpenVideoModal(testimonial.quoteAuthorName)">See the video.</a>
-        </p>
+        <div purpose="quote-container" :class="{ overflowing: testimonial.isQuoteOverflowing && !testimonial.isQuoteExpanded, expanded: testimonial.isQuoteExpanded }">
+          <p purpose="quote">
+            {{testimonial.quote}}
+            <a purpose="video-link" v-if="testimonial.youtubeVideoUrl" @click.prevent.stop="clickOpenVideoModal(testimonial.quoteAuthorName)">See the video.</a>
+          </p>
+        </div>
+        <a purpose="show-full-quote-link" v-if="testimonial.isQuoteOverflowing && !testimonial.isQuoteExpanded" @click.prevent.stop="testimonial.isQuoteExpanded = true">Show full quote</a>
         <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
           <div purpose="profile-picture">
             <img :src="'/images/'+testimonial.quoteAuthorProfileImageFilename">
@@ -83,15 +86,16 @@ parasails.registerComponent('scrollableTweets', {
       throw new Error('Incomplete usage of <scrollable-tweets>:  The `testimonials` prop provided is an invalid type. Please provide an array of testimonial values.');
     }
     this.quotesToDisplay = _.clone(this.testimonials);
-    for(let quote of this.testimonials){
-      if(quote.youtubeVideoUrl){
+    for(let quote of this.quotesToDisplay) {
+      quote.isQuoteExpanded = false;
+      quote.isQuoteExpanded = false;
+      if(quote.youtubeVideoUrl) {
         this.quotesWithVideoLinks.push({
           modalId: _.kebabCase(quote.quoteAuthorName),
           embedId: quote.videoIdForEmbed,
         });
       }
     }
-
   },
   mounted: async function(){
     this.tweetsDiv = $('div[purpose="tweets"]')[0];
@@ -99,7 +103,9 @@ parasails.registerComponent('scrollableTweets', {
     this.firstCardPosition = this.tweetCards[0].getBoundingClientRect().x;
     this.numberOfTweetCardsDisplayedOnThisPage = this.tweetCards.length;
     this.calculateHowManyFullTweetsCanBeDisplayed();
+    this.checkQuoteOverflow();
     $(window).on('resize', this.calculateHowManyFullTweetsCanBeDisplayed);
+    $(window).on('resize', this.checkQuoteOverflow);
     $(window).on('wheel', this.updatePageIndicators);
   },
   beforeDestroy: function() {
@@ -157,6 +163,16 @@ parasails.registerComponent('scrollableTweets', {
 
     closeModal: function() {
       this.modal = undefined;
+    },
+
+    checkQuoteOverflow: function() {
+      // Check if a card's quote exceeds the set max-height, and set isQuoteOverflowing values on quote cards.
+      let containers = this.$el.querySelectorAll('[purpose="quote-container"]');
+      containers.forEach((el, i) => {
+        if (this.quotesToDisplay[i] && !this.quotesToDisplay[i].isQuoteExpanded) {
+          this.quotesToDisplay[i].isQuoteOverflowing = el.scrollHeight > el.clientHeight + 1;
+        }
+      });
     },
 
   }
