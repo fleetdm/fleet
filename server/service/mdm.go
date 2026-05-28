@@ -1734,15 +1734,13 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	isMobileConfig := strings.EqualFold(fileExt, ".mobileconfig")
 	isJSON := strings.EqualFold(fileExt, ".json")
 
+	// determine include mode; labels_exclude_any may be combined with any include mode
 	var labels []string
 	var labelsMode fleet.MDMLabelsMode
 	switch {
 	case len(req.LabelsIncludeAny) > 0:
 		labels = req.LabelsIncludeAny
 		labelsMode = fleet.LabelsIncludeAny
-	case len(req.LabelsExcludeAny) > 0:
-		labels = req.LabelsExcludeAny
-		labelsMode = fleet.LabelsExcludeAny
 	default:
 		// default include all
 		labels = req.LabelsIncludeAll
@@ -1770,7 +1768,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	if isMobileConfig || isAppleDeclarationJSON {
 		// Then it's an Apple configuration file
 		if isJSON {
-			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode)
+			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode, req.LabelsExcludeAny)
 			if err != nil {
 				errStr := err.Error()
 				if strings.Contains(errStr, "MDMAppleDeclaration.Name") && strings.Contains(errStr, "already exists") {
@@ -1787,7 +1785,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 		}
 
-		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, labels, labelsMode)
+		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, data, labels, labelsMode, req.LabelsExcludeAny)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1797,7 +1795,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isAndroidJSON {
-		cp, err := svc.NewMDMAndroidConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode)
+		cp, err := svc.NewMDMAndroidConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode, req.LabelsExcludeAny)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1807,7 +1805,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isWindows := strings.EqualFold(fileExt, ".xml"); isWindows {
-		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode)
+		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode, req.LabelsExcludeAny)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1842,7 +1840,7 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 	return &fleet.BadRequestError{Message: "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file."}
 }
 
-func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAndroidConfigProfile, error) {
+func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAndroidConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1884,11 +1882,16 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAny:
 		cp.LabelsIncludeAny = labelMap
-	case fleet.LabelsExcludeAny:
-		cp.LabelsExcludeAny = labelMap
 	default:
 		// default include all
 		cp.LabelsIncludeAll = labelMap
+	}
+	if len(labelsExcludeAny) > 0 {
+		excludeMap, err := svc.validateProfileLabels(ctx, &teamID, labelsExcludeAny)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validating exclude labels")
+		}
+		cp.LabelsExcludeAny = excludeMap
 	}
 
 	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
