@@ -2670,6 +2670,20 @@ type Datastore interface {
 	// InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool, policyID *uint) error
 	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, opts HostSoftwareInstallOptions) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
+	// RecordFailedVPPAppInstall records a VPP app install that Fleet failed
+	// before sending it to the device (e.g. the managed app configuration
+	// referenced a Fleet variable that can't be resolved for this host). It
+	// writes a failed host_vpp_software_installs row without enqueuing an MDM
+	// command or reserving a license, and returns the user + failed-install
+	// activity to emit.
+	RecordFailedVPPAppInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, failureReason string, opts HostSoftwareInstallOptions) (*User, *ActivityInstalledAppStoreApp, error)
+	// RecordFailedInHouseAppInstall is the in-house (.ipa) counterpart of
+	// RecordFailedVPPAppInstall.
+	RecordFailedInHouseAppInstall(ctx context.Context, hostID, inHouseAppID uint, commandUUID, failureReason string, opts HostSoftwareInstallOptions) (*User, *ActivityTypeInstalledSoftware, error)
+	// GetVPPInstallReleaseInfoForCancel looks up the canceled VPP install row
+	// to decide whether (and how) to release a reserved VPP license seat.
+	// Returns NotFound if no matching row exists.
+	GetVPPInstallReleaseInfoForCancel(ctx context.Context, hostID uint, executionID string) (*VPPInstallReleaseInfo, error)
 	// GetVPPAppInstallStatusByCommandUUID returns whether the VPP app from the given install command
 	// is currently installed. Returns false if the command doesn't exist or app is not installed.
 	GetVPPAppInstallStatusByCommandUUID(ctx context.Context, commandUUID string) (bool, error)
