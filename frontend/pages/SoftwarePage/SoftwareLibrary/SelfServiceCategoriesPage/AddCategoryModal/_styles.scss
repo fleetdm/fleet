@@ -1,7 +1,5 @@
 .add-category-modal {
   &__form {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
+    @include vertical-form-layout;
   }
 }
