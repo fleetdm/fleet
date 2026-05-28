@@ -3,7 +3,7 @@
   "slug": "dbeaver-community/windows",
   "package_identifier": "DBeaver.DBeaver.Community",
   "unique_identifier": "DBeaver",
-  "exists_query": "SELECT 1 FROM programs WHERE name = 'DBeaver' AND publisher = 'DBeaver Corp';",
+  "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/dbeaver_community_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/dbeaver_community_uninstall.ps1",
   "installer_arch": "x64",

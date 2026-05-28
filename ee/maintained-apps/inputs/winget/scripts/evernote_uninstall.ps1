@@ -41,6 +41,11 @@ if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
     Throw "Could not parse uninstall string: $uninstallCommand"
 }
 
+# Per silentinstallhq the documented silent uninstall flags are "/AllUsers /S"
+# for Evernote 10.x+ installs.
+if ($existingArgs -notmatch '/AllUsers') {
+    $existingArgs = ("/AllUsers $existingArgs").Trim()
+}
 if ($existingArgs -notmatch '\b/S\b') {
     $existingArgs = ("$existingArgs /S").Trim()
 }

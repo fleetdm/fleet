@@ -1,8 +1,10 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 #
-# Evernote ships as a Nullsoft (NSIS) installer; /S runs silent,
-# /allusers installs machine-wide per the winget manifest's machine-scope switch.
+# Evernote 10.x+ NSIS installer. Per silentinstallhq's Evernote guide the
+# documented silent machine-wide flags are "/AllUsers /S" in that exact order
+# and casing — using "/S /allusers" caused an access violation (0xc0000005)
+# in CI on Evernote 11.x. Honor the documented form.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
@@ -10,7 +12,7 @@ try {
 
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/S /allusers"
+  ArgumentList = "/AllUsers /S"
   PassThru = $true
   Wait = $true
 }

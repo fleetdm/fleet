@@ -1,8 +1,8 @@
 # Locates DBeaver's NSIS uninstaller from the registry and runs it silently.
-# Match by exact DisplayName + publisher; DBeaver does not embed the version
-# in the registry DisplayName, so use exact match rather than fuzzy.
+# DBeaver's NSIS DisplayName embeds the version (e.g. "DBeaver 26.0.5"), so
+# match by prefix.
 
-$displayName = "DBeaver"
+$displayNameLike = "DBeaver*"
 $publisher = "DBeaver Corp"
 
 $paths = @(
@@ -13,7 +13,7 @@ $paths = @(
 $uninstall = $null
 foreach ($p in $paths) {
   $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -eq $displayName -and $_.Publisher -eq $publisher
+    $_.DisplayName -like $displayNameLike -and $_.Publisher -eq $publisher
   }
   if ($items) { $uninstall = $items | Select-Object -First 1; break }
 }

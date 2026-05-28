@@ -156,13 +156,6 @@
       "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
     },
     {
-      "name": "Android Studio",
-      "slug": "android-studio/windows",
-      "platform": "windows",
-      "unique_identifier": "Android Studio",
-      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
-    },
-    {
       "name": "Anka",
       "slug": "anka-virtualization/darwin",
       "platform": "darwin",
@@ -174,13 +167,6 @@
       "slug": "anydesk/darwin",
       "platform": "darwin",
       "unique_identifier": "com.philandro.anydesk",
-      "description": "AnyDesk is an app that allows connection to a computer remotely."
-    },
-    {
-      "name": "AnyDesk",
-      "slug": "anydesk/windows",
-      "platform": "windows",
-      "unique_identifier": "AnyDesk",
       "description": "AnyDesk is an app that allows connection to a computer remotely."
     },
     {
@@ -688,13 +674,6 @@
       "description": "DeepL is an AI-powered translator."
     },
     {
-      "name": "DeepL",
-      "slug": "deepl/windows",
-      "platform": "windows",
-      "unique_identifier": "DeepL",
-      "description": "DeepL is an AI-powered translator."
-    },
-    {
       "name": "Dialpad",
       "slug": "dialpad/darwin",
       "platform": "darwin",
@@ -847,13 +826,6 @@
       "platform": "darwin",
       "unique_identifier": "com.expressvpn.ExpressVPN",
       "description": "ExpressVPN is a VPN client for secure internet access and private browsing."
-    },
-    {
-      "name": "ExpressVPN",
-      "slug": "expressvpn/windows",
-      "platform": "windows",
-      "unique_identifier": "ExpressVPN",
-      "description": "ExpressVPN is a commercial VPN service."
     },
     {
       "name": "Figma",
@@ -1070,13 +1042,6 @@
       "slug": "grammarly-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "com.grammarly.ProjectLlama",
-      "description": "Grammarly Desktop is an AI writing assistant."
-    },
-    {
-      "name": "Grammarly Desktop",
-      "slug": "grammarly-desktop/windows",
-      "platform": "windows",
-      "unique_identifier": "Grammarly for Windows",
       "description": "Grammarly Desktop is an AI writing assistant."
     },
     {
@@ -1371,13 +1336,6 @@
       "slug": "mattermost/darwin",
       "platform": "darwin",
       "unique_identifier": "Mattermost.Desktop",
-      "description": "Mattermost is an open-source, self-hosted Slack-alternative."
-    },
-    {
-      "name": "Mattermost",
-      "slug": "mattermost/windows",
-      "platform": "windows",
-      "unique_identifier": "Mattermost",
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
@@ -1773,13 +1731,6 @@
       "description": "Proton Mail is a client for Proton Mail and Proton Calendar."
     },
     {
-      "name": "Proton Mail",
-      "slug": "proton-mail/windows",
-      "platform": "windows",
-      "unique_identifier": "Proton Mail",
-      "description": "Proton Mail is an end-to-end encrypted email service."
-    },
-    {
       "name": "ProtonVPN",
       "slug": "protonvpn/darwin",
       "platform": "darwin",
@@ -2102,13 +2053,6 @@
       "description": "Surfshark is a VPN client for secure internet access and private browsing."
     },
     {
-      "name": "Surfshark",
-      "slug": "surfshark/windows",
-      "platform": "windows",
-      "unique_identifier": "Surfshark",
-      "description": "Surfshark is a commercial VPN service."
-    },
-    {
       "name": "Suspicious Package",
       "slug": "suspicious-package/darwin",
       "platform": "darwin",
@@ -2242,13 +2186,6 @@
       "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
     },
     {
-      "name": "Tor Browser",
-      "slug": "tor-browser/windows",
-      "platform": "windows",
-      "unique_identifier": "Tor Browser",
-      "description": "Tor Browser is a privacy-focused web browser that routes traffic through the Tor network."
-    },
-    {
       "name": "TortoiseGit",
       "slug": "tortoisegit/windows",
       "platform": "windows",
@@ -2310,13 +2247,6 @@
       "platform": "darwin",
       "unique_identifier": "org.virtualbox.app.VirtualBox",
       "description": "VirtualBox is a virtualiser for arm64 hardware."
-    },
-    {
-      "name": "VirtualBox",
-      "slug": "virtualbox/windows",
-      "platform": "windows",
-      "unique_identifier": "Oracle VirtualBox",
-      "description": "VirtualBox is a virtualiser for x86 and AMD64 hardware."
     },
     {
       "name": "Viscosity",
