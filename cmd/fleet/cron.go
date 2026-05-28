@@ -1701,9 +1701,11 @@ func verifyDiskEncryptionKeys(
 		return err
 	}
 
-	cert, err := assets.CAKeyPair(ctx, ds)
+	// Include previously-rolled-over CA certs so keys escrowed against an
+	// earlier CA still decrypt with the (unchanged) private key.
+	caCerts, caKey, err := assets.CACertsAndKeyForDecryption(ctx, ds)
 	if err != nil {
-		logger.ErrorContext(ctx, "unable to get CA keypair", "details", err)
+		logger.ErrorContext(ctx, "unable to get CA certs and key", "details", err)
 		return ctxerr.Wrap(ctx, err, "parsing SCEP keypair")
 	}
 
@@ -1714,7 +1716,7 @@ func verifyDiskEncryptionKeys(
 		if key.UpdatedAt.After(latest) {
 			latest = key.UpdatedAt
 		}
-		if _, err := mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
+		if _, err := mdm.DecryptBase64CMSWithCerts(key.Base64Encrypted, caKey, caCerts); err != nil {
 			undecryptable = append(undecryptable, key.HostID)
 			continue
 		}

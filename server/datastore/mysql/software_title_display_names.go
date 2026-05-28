@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -31,28 +32,38 @@ func (ds *Datastore) getDisplayNamesByTeamAndTitleIds(ctx context.Context, teamI
 		return map[uint]string{}, nil
 	}
 
-	var args []any
-	query := `
-		SELECT software_title_id, display_name
-		FROM software_title_display_names
-		WHERE software_title_id IN (?) AND team_id = ?
-	`
-	query, args, err := sqlx.In(query, titleIDs, teamID)
+	namesBySoftwareTitleID := make(map[uint]string, len(titleIDs))
+
+	// Process in batches to avoid exceeding MySQL's 65,535 prepared statement
+	// placeholder limit when the caller passes a large number of title IDs
+	// (e.g., when per_page is not specified and defaults to 1,000,000).
+	const batchSize = 32000
+	err := common_mysql.BatchProcessSimple(titleIDs, batchSize, func(batch []uint) error {
+		query := `
+			SELECT software_title_id, display_name
+			FROM software_title_display_names
+			WHERE software_title_id IN (?) AND team_id = ?
+		`
+		query, args, err := sqlx.In(query, batch, teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building query for get software title display names")
+		}
+
+		var results []struct {
+			SoftwareTitleID uint   `db:"software_title_id"`
+			DisplayName     string `db:"display_name"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "get software title display names")
+		}
+
+		for _, r := range results {
+			namesBySoftwareTitleID[r.SoftwareTitleID] = r.DisplayName
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query for get software title display names")
-	}
-
-	var results []struct {
-		SoftwareTitleID uint   `db:"software_title_id"`
-		DisplayName     string `db:"display_name"`
-	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get software title display names")
-	}
-
-	namesBySoftwareTitleID := make(map[uint]string, len(results))
-	for _, r := range results {
-		namesBySoftwareTitleID[r.SoftwareTitleID] = r.DisplayName
+		return nil, err
 	}
 
 	return namesBySoftwareTitleID, nil

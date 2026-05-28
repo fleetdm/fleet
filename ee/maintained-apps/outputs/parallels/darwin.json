@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.3.2",
+      "version": "26.3.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console' AND version_compare(bundle_short_version, '26.3.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.parallels.desktop.console' AND version_compare(bundle_short_version, '26.3.3') < 0);"
       },
-      "installer_url": "https://download.parallels.com/desktop/v26/26.3.2-57398/ParallelsDesktop-26.3.2-57398.dmg",
+      "installer_url": "https://download.parallels.com/desktop/v26/26.3.3-57507/ParallelsDesktop-26.3.3-57507.dmg",
       "install_script_ref": "1142d1f5",
       "uninstall_script_ref": "9c10ac4b",
-      "sha256": "2636d7404b4f29f0ac80ea6e7df9868e66b2a554ff24adeac7dd87594149ed52",
+      "sha256": "417af3750e9e6378a4830303d75ff312461abbf5f49a69b6ba4e8ef76afcc35a",
       "default_categories": [
         "Productivity"
       ]
