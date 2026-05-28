@@ -582,7 +582,14 @@ func ingestKubequeryInfo(ctx context.Context, logger *slog.Logger, host *fleet.H
 	return nil
 }
 
-const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1`
+// usesMacOSDiskEncryptionQuery probes whether FileVault is enabled on a macOS host.
+// It deliberately does not filter on `user_uuid` — that column reports the SecureToken
+// holder and can be empty for a short period after ADE setup completes, even when
+// FileVault is on and the recovery key has been escrowed. Gating on user_uuid here
+// previously caused the host to appear unencrypted (and the recovery key to remain
+// un-escrowed) until the user logged out/in to settle SecureToken propagation. See
+// https://github.com/fleetdm/fleet/issues/45369.
+const usesMacOSDiskEncryptionQuery = `SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1`
 
 // extraDetailQueries defines extra detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the hosts related tables
