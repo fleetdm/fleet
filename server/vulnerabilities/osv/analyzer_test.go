@@ -600,6 +600,53 @@ func TestFindLatestOSVArtifactForVersion(t *testing.T) {
 	}
 }
 
+// TestLoadOSVArtifactRejectsEmpty verifies that loadOSVArtifact refuses an artifact with
+// no vulnerability data. An empty artifact would cause every existing OSV vulnerability for
+// matching software to be marked as remediated.
+// See https://github.com/fleetdm/fleet/issues/45602.
+func TestLoadOSVArtifactRejectsEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "osv-ubuntu-2204-2026-03-30.json.gz")
+
+	f, err := os.Create(path)
+	require.NoError(t, err)
+	gz := gzip.NewWriter(f)
+	_, err = gz.Write([]byte(`{"schema_version":"1.0.0","ubuntu_version":"2204","generated":"2026-03-30T00:00:00Z","total_cves":0,"total_packages":0,"vulnerabilities":{}}`))
+	require.NoError(t, err)
+	gz.Close()
+	f.Close()
+
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ver := fleet.OSVersion{Name: "Ubuntu 22.04.8 LTS", Version: "22.04.8 LTS"}
+
+	_, err = loadOSVArtifact(ctx, ver, tmpDir, logger, time.Time{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no vulnerabilities")
+}
+
+// TestLoadRHELOSVArtifactRejectsEmpty mirrors the Ubuntu OSV check for the RHEL OSV artifact.
+func TestLoadRHELOSVArtifactRejectsEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "osv-rhel-9-2026-04-08.json.gz")
+
+	f, err := os.Create(path)
+	require.NoError(t, err)
+	gz := gzip.NewWriter(f)
+	_, err = gz.Write([]byte(`{"schema_version":"1.0.0","rhel_version":"9","generated":"2026-04-08T00:00:00Z","total_cves":0,"total_packages":0,"vulnerabilities":{}}`))
+	require.NoError(t, err)
+	gz.Close()
+	f.Close()
+
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ver := fleet.OSVersion{Name: "Red Hat Enterprise Linux 9.0.0", Version: "9.0.0"}
+
+	_, err = loadRHELOSVArtifact(ctx, ver, tmpDir, logger, time.Time{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no vulnerabilities")
+}
+
 func TestLoadOSVArtifactZeroTimeUsesLatest(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -620,7 +667,7 @@ func TestLoadOSVArtifactZeroTimeUsesLatest(t *testing.T) {
 		require.NoError(t, err)
 
 		gz := gzip.NewWriter(f)
-		_, err = gz.Write([]byte(`{"schema_version":"1.0.0","ubuntu_version":"2204","generated":"2026-03-30T00:00:00Z","total_cves":0,"total_packages":0,"vulnerabilities":{}}`))
+		_, err = gz.Write([]byte(`{"schema_version":"1.0.0","ubuntu_version":"2204","generated":"2026-03-30T00:00:00Z","total_cves":1,"total_packages":1,"vulnerabilities":{"openssl":[{"cve":"CVE-2024-0001","published":"2024-01-01T00:00:00Z","modified":"2024-01-01T00:00:00Z","details":"x","introduced":"0","fixed":"1.0"}]}}`))
 		require.NoError(t, err)
 		gz.Close()
 		f.Close()
