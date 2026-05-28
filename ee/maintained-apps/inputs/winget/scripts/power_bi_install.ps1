@@ -1,12 +1,8 @@
-# Learn more about .exe install scripts:
-# http://fleetdm.com/learn-more-about/exe-install-scripts
-
 $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
 
 # Add argument to install silently
-# Asana uses --silent for silent installation
 $processOptions = @{
   FilePath = "$exeFilePath"
   ArgumentList = "/silent", "/norestart", "ACCEPT_EULA=1"
