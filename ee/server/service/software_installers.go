@@ -402,7 +402,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if payload.Categories != nil {
 		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
 		}
@@ -2647,7 +2647,7 @@ func (svc *Service) softwareBatchUpload(
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
 
 			p.Categories = server.RemoveDuplicatesFromSlice(p.Categories)
-			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, p.Categories)
+			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, tmID, p.Categories)
 			if err != nil {
 				return err
 			}

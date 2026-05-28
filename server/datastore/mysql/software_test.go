@@ -9714,10 +9714,10 @@ func testSoftwareCategories(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "user1"+t.Name(), fmt.Sprintf("user1%s@example.com", t.Name()), false)
 
 	// create some categories
-	cat1, err := ds.NewSoftwareCategory(ctx, "category1")
+	cat1, err := ds.NewSoftwareCategory(ctx, 0, "category1")
 	require.NoError(t, err)
 	require.Equal(t, "category1", cat1.Name)
-	cat2, err := ds.NewSoftwareCategory(ctx, "category2")
+	cat2, err := ds.NewSoftwareCategory(ctx, 0, "category2")
 	require.NoError(t, err)
 	require.Equal(t, "category2", cat2.Name)
 

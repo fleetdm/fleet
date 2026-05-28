@@ -340,7 +340,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 
 			payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, ptr.ValOrZero(teamID), payload.Categories)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
 			}
@@ -928,7 +928,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		appID.ValidatedLabels = validatedLabels
 
 		appID.Categories = server.RemoveDuplicatesFromSlice(appID.Categories)
-		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, appID.Categories)
+		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, ptr.ValOrZero(teamID), appID.Categories)
 		if err != nil {
 			return 0, "", ctxerr.Wrap(ctx, err, "getting software category ids")
 		}
@@ -1268,7 +1268,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	if payload.Categories != nil {
 		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, ptr.ValOrZero(teamID), payload.Categories)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "getting software category ids")
 		}

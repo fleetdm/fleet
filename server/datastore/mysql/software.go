@@ -6749,25 +6749,78 @@ WHERE hvsi.host_id = ? AND st.id IN (?)
 	return nil
 }
 
-func (ds *Datastore) NewSoftwareCategory(ctx context.Context, name string) (*fleet.SoftwareCategory, error) {
-	stmt := `INSERT INTO software_categories (name) VALUES (?)`
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, name)
+func (ds *Datastore) ListSoftwareCategories(ctx context.Context, teamID uint) ([]*fleet.SoftwareCategory, error) {
+	const stmt = `
+SELECT id, name, team_id, created_at, updated_at
+FROM software_categories
+WHERE team_id = ?
+ORDER BY name
+`
+	var categories []*fleet.SoftwareCategory
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list software categories")
+	}
+	return categories, nil
+}
+
+func (ds *Datastore) SoftwareCategory(ctx context.Context, id uint) (*fleet.SoftwareCategory, error) {
+	return getSoftwareCategoryDB(ctx, ds.reader(ctx), id)
+}
+
+func (ds *Datastore) NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
+	const stmt = `INSERT INTO software_categories (name, team_id) VALUES (?, ?)`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, name, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new software category")
 	}
-
-	r, _ := res.LastInsertId()
-	id := uint(r) //nolint:gosec // dismiss G115
-	return &fleet.SoftwareCategory{Name: name, ID: id}, nil
+	id, _ := res.LastInsertId()
+	return getSoftwareCategoryDB(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
 }
 
-func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error) {
+func (ds *Datastore) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
+	const stmt = `UPDATE software_categories SET name = ? WHERE id = ?`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, name, id); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "update software category")
+	}
+	return getSoftwareCategoryDB(ctx, ds.writer(ctx), id)
+}
+
+func (ds *Datastore) DeleteSoftwareCategory(ctx context.Context, id uint) error {
+	const stmt = `DELETE FROM software_categories WHERE id = ?`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete software category")
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("SoftwareCategory").WithID(id))
+	}
+	return nil
+}
+
+func getSoftwareCategoryDB(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.SoftwareCategory, error) {
+	const stmt = `
+SELECT id, name, team_id, created_at, updated_at
+FROM software_categories
+WHERE id = ?
+`
+	var category fleet.SoftwareCategory
+	if err := sqlx.GetContext(ctx, q, &category, stmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("SoftwareCategory").WithID(id))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get software category")
+	}
+	return &category, nil
+}
+
+func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, teamID uint, names []string) ([]uint, error) {
 	if len(names) == 0 {
 		return []uint{}, nil
 	}
 
-	stmt := `SELECT id FROM software_categories WHERE name IN (?)`
-	stmt, args, err := sqlx.In(stmt, names)
+	stmt := `SELECT id FROM software_categories WHERE team_id = ? AND name IN (?)`
+	stmt, args, err := sqlx.In(stmt, teamID, names)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get software category ids")
 	}
@@ -6782,15 +6835,15 @@ func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, names []string)
 	return ids, nil
 }
 
-// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names.
+// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.
 // Only categories that exist in the database are included in the map.
-func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, names []string) (map[string]uint, error) {
+func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 	if len(names) == 0 {
 		return map[string]uint{}, nil
 	}
 
-	stmt := `SELECT id, name FROM software_categories WHERE name IN (?)`
-	stmt, args, err := sqlx.In(stmt, names)
+	stmt := `SELECT id, name FROM software_categories WHERE team_id = ? AND name IN (?)`
+	stmt, args, err := sqlx.In(stmt, teamID, names)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get software category name to id map")
 	}

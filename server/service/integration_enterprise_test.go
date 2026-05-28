@@ -20877,10 +20877,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, req.PostInstallScript, string(postinstall))
 
 	// Add some categories and validate them
-	cat1, err := s.ds.NewSoftwareCategory(ctx, "test_category_1")
+	cat1, err := s.ds.NewSoftwareCategory(ctx, 0, "test_category_1")
 	require.NoError(t, err)
 
-	cat2, err := s.ds.NewSoftwareCategory(ctx, "test_category_2")
+	cat2, err := s.ds.NewSoftwareCategory(ctx, 0, "test_category_2")
 	require.NoError(t, err)
 
 	updatePayload := &fleet.UpdateSoftwareInstallerPayload{
@@ -31697,4 +31697,34 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesEndpointsSmoke
 
 	// DELETE — same not-found expectation as PATCH.
 	s.Do("DELETE", "/api/latest/fleet/software/self_service_categories/1", nil, http.StatusNotFound)
+
+	// Verify augmenting fleet.SoftwareCategory (added TeamID + timestamps + JSON
+	// tags) hasn't changed the shape of existing endpoints that surface
+	// categories — they should still emit `categories: [strings]`, not objects.
+	t := s.T()
+	ctx := t.Context()
+
+	cat1, err := s.ds.NewSoftwareCategory(ctx, 0, "smoke-test-cat-1")
+	require.NoError(t, err)
+	cat2, err := s.ds.NewSoftwareCategory(ctx, 0, "smoke-test-cat-2")
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:        new(uint(0)),
+		Filename:      "dummy_installer.pkg",
+		Title:         "SmokeTestApp",
+		Source:        "apps",
+		Platform:      "darwin",
+		Version:       "1.0",
+		InstallScript: "echo install",
+		Categories:    []string{cat1.Name, cat2.Name},
+	}, http.StatusOK, "")
+
+	titleID := getSoftwareTitleID(t, s.ds, "SmokeTestApp", "apps")
+
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+	require.NotNil(t, titleResp.SoftwareTitle)
+	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+	require.ElementsMatch(t, []string{cat1.Name, cat2.Name}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
 }

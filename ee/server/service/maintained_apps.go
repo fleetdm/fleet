@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
@@ -184,7 +185,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	// Get the mapping of category names to IDs, filtering out categories that don't exist
 	// This allows apps to be added even if some categories (like "Security" or "Utilities")
 	// don't exist in older versions of Fleet.
-	categoryMap, err := svc.ds.GetSoftwareCategoryNameToIDMap(ctx, payload.Categories)
+	categoryMap, err := svc.ds.GetSoftwareCategoryNameToIDMap(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting software category name to id map")
 	}

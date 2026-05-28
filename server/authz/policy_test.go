@@ -3179,12 +3179,12 @@ func TestAuthorizeAPIEndpoint(t *testing.T) {
 	})
 }
 
-func TestAuthorizeSelfServiceCategory(t *testing.T) {
+func TestAuthorizeSoftwareCategory(t *testing.T) {
 	t.Parallel()
 
-	unassigned := &fleet.SelfServiceCategory{FleetID: 0}
-	fleet1 := &fleet.SelfServiceCategory{FleetID: 1}
-	fleet2 := &fleet.SelfServiceCategory{FleetID: 2}
+	unassigned := &fleet.SoftwareCategory{TeamID: 0}
+	fleet1 := &fleet.SoftwareCategory{TeamID: 1}
+	fleet2 := &fleet.SoftwareCategory{TeamID: 2}
 
 	runTestCases(t, []authTestCase{
 		// Anonymous and role-less users are denied.

@@ -7,69 +7,69 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (svc *Service) ListSelfServiceCategories(ctx context.Context, fleetID uint) ([]*fleet.SelfServiceCategory, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SelfServiceCategory{FleetID: fleetID}, fleet.ActionRead); err != nil {
+func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID uint) ([]*fleet.SoftwareCategory, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareCategory{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	categories, err := svc.ds.ListSelfServiceCategories(ctx, fleetID)
+	categories, err := svc.ds.ListSoftwareCategories(ctx, teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list self-service categories")
+		return nil, ctxerr.Wrap(ctx, err, "list software categories")
 	}
 	return categories, nil
 }
 
-func (svc *Service) NewSelfServiceCategory(ctx context.Context, fleetID uint, name string) (*fleet.SelfServiceCategory, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SelfServiceCategory{FleetID: fleetID}, fleet.ActionWrite); err != nil {
+func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareCategory{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-	category, err := svc.ds.NewSelfServiceCategory(ctx, fleetID, name)
+	category, err := svc.ds.NewSoftwareCategory(ctx, teamID, name)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new self-service category")
+		return nil, ctxerr.Wrap(ctx, err, "new software category")
 	}
 	return category, nil
 }
 
-func (svc *Service) UpdateSelfServiceCategory(ctx context.Context, id uint, name string) (*fleet.SelfServiceCategory, error) {
+func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
 	// we need to get the category first to find its fleet id for authorization
-	category, err := svc.ds.SelfServiceCategory(ctx, id)
+	category, err := svc.ds.SoftwareCategory(ctx, id)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			if authzErr := svc.authz.Authorize(ctx, &fleet.SelfServiceCategory{}, fleet.ActionWrite); authzErr != nil {
+			if authzErr := svc.authz.Authorize(ctx, &fleet.SoftwareCategory{}, fleet.ActionWrite); authzErr != nil {
 				return nil, authzErr
 			}
 		}
 		svc.authz.SkipAuthorization(ctx)
-		return nil, ctxerr.Wrap(ctx, err, "get self-service category")
+		return nil, ctxerr.Wrap(ctx, err, "get software category")
 	}
 	if err := svc.authz.Authorize(ctx, category, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
-	updated, err := svc.ds.UpdateSelfServiceCategory(ctx, id, name)
+	updated, err := svc.ds.UpdateSoftwareCategory(ctx, id, name)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "update self-service category")
+		return nil, ctxerr.Wrap(ctx, err, "update software category")
 	}
 	return updated, nil
 }
 
-func (svc *Service) DeleteSelfServiceCategory(ctx context.Context, id uint) error {
+func (svc *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 	// we need to get the category first to find its fleet id for authorization
-	category, err := svc.ds.SelfServiceCategory(ctx, id)
+	category, err := svc.ds.SoftwareCategory(ctx, id)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			if authzErr := svc.authz.Authorize(ctx, &fleet.SelfServiceCategory{}, fleet.ActionWrite); authzErr != nil {
+			if authzErr := svc.authz.Authorize(ctx, &fleet.SoftwareCategory{}, fleet.ActionWrite); authzErr != nil {
 				return authzErr
 			}
 		}
 		svc.authz.SkipAuthorization(ctx)
-		return ctxerr.Wrap(ctx, err, "get self-service category")
+		return ctxerr.Wrap(ctx, err, "get software category")
 	}
 
 	if err := svc.authz.Authorize(ctx, category, fleet.ActionWrite); err != nil {
 		return err
 	}
-	if err := svc.ds.DeleteSelfServiceCategory(ctx, id); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete self-service category")
+	if err := svc.ds.DeleteSoftwareCategory(ctx, id); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete software category")
 	}
 	return nil
 }

@@ -1318,19 +1318,19 @@ allow {
 }
 
 ##
-# Self-service categories
+# Software categories (used as self-service categories in the UI)
 ##
 
 # Global admins, maintainers, technicians, observer_plus and observers can read self-service categories.
 allow {
-  object.type == "self_service_category"
+  object.type == "software_category"
   subject.global_role == [admin, maintainer, technician, observer_plus, observer, gitops][_]
   action == read
 }
 
 # Team admins, maintainers, technicians, observer_plus and observers can read self-service categories on their fleet.
 allow {
-  object.type == "self_service_category"
+  object.type == "software_category"
   object.fleet_id != 0
   team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer_plus, observer, gitops][_]
   action == read
@@ -1338,14 +1338,14 @@ allow {
 
 # Global admins, maintainers, and gitops can write self-service categories.
 allow {
-  object.type == "self_service_category"
+  object.type == "software_category"
   subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
 
 # Team admins, maintainers, and gitops can write self-service categories on their fleet.
 allow {
-  object.type == "self_service_category"
+  object.type == "software_category"
   object.fleet_id != 0
   team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == write

@@ -20731,13 +20731,13 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	}
 
 	// Add some categories
-	cat1, err := s.ds.NewSoftwareCategory(ctx, "test_category_1")
+	cat1, err := s.ds.NewSoftwareCategory(ctx, 0, "test_category_1")
 	require.NoError(t, err)
 
-	cat2, err := s.ds.NewSoftwareCategory(ctx, "test_category_2")
+	cat2, err := s.ds.NewSoftwareCategory(ctx, 0, "test_category_2")
 	require.NoError(t, err)
 
-	cat3, err := s.ds.NewSoftwareCategory(ctx, "test_category_3")
+	cat3, err := s.ds.NewSoftwareCategory(ctx, 0, "test_category_3")
 	require.NoError(t, err)
 
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")

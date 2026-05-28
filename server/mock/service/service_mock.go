@@ -850,13 +850,13 @@ type UploadSoftwareTitleIconFunc func(ctx context.Context, payload *fleet.Upload
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
-type ListSelfServiceCategoriesFunc func(ctx context.Context, fleetID uint) ([]*fleet.SelfServiceCategory, error)
+type ListSoftwareCategoriesFunc func(ctx context.Context, teamID uint) ([]*fleet.SoftwareCategory, error)
 
-type NewSelfServiceCategoryFunc func(ctx context.Context, fleetID uint, name string) (*fleet.SelfServiceCategory, error)
+type NewSoftwareCategoryFunc func(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error)
 
-type UpdateSelfServiceCategoryFunc func(ctx context.Context, id uint, name string) (*fleet.SelfServiceCategory, error)
+type UpdateSoftwareCategoryFunc func(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error)
 
-type DeleteSelfServiceCategoryFunc func(ctx context.Context, id uint) error
+type DeleteSoftwareCategoryFunc func(ctx context.Context, id uint) error
 
 type UploadOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error
 
@@ -2182,17 +2182,17 @@ type Service struct {
 	DeleteSoftwareTitleIconFunc        DeleteSoftwareTitleIconFunc
 	DeleteSoftwareTitleIconFuncInvoked bool
 
-	ListSelfServiceCategoriesFunc        ListSelfServiceCategoriesFunc
-	ListSelfServiceCategoriesFuncInvoked bool
+	ListSoftwareCategoriesFunc        ListSoftwareCategoriesFunc
+	ListSoftwareCategoriesFuncInvoked bool
 
-	NewSelfServiceCategoryFunc        NewSelfServiceCategoryFunc
-	NewSelfServiceCategoryFuncInvoked bool
+	NewSoftwareCategoryFunc        NewSoftwareCategoryFunc
+	NewSoftwareCategoryFuncInvoked bool
 
-	UpdateSelfServiceCategoryFunc        UpdateSelfServiceCategoryFunc
-	UpdateSelfServiceCategoryFuncInvoked bool
+	UpdateSoftwareCategoryFunc        UpdateSoftwareCategoryFunc
+	UpdateSoftwareCategoryFuncInvoked bool
 
-	DeleteSelfServiceCategoryFunc        DeleteSelfServiceCategoryFunc
-	DeleteSelfServiceCategoryFuncInvoked bool
+	DeleteSoftwareCategoryFunc        DeleteSoftwareCategoryFunc
+	DeleteSoftwareCategoryFuncInvoked bool
 
 	UploadOrgLogoFunc        UploadOrgLogoFunc
 	UploadOrgLogoFuncInvoked bool
@@ -5219,32 +5219,32 @@ func (s *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	return s.DeleteSoftwareTitleIconFunc(ctx, teamID, titleID)
 }
 
-func (s *Service) ListSelfServiceCategories(ctx context.Context, fleetID uint) ([]*fleet.SelfServiceCategory, error) {
+func (s *Service) ListSoftwareCategories(ctx context.Context, teamID uint) ([]*fleet.SoftwareCategory, error) {
 	s.mu.Lock()
-	s.ListSelfServiceCategoriesFuncInvoked = true
+	s.ListSoftwareCategoriesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListSelfServiceCategoriesFunc(ctx, fleetID)
+	return s.ListSoftwareCategoriesFunc(ctx, teamID)
 }
 
-func (s *Service) NewSelfServiceCategory(ctx context.Context, fleetID uint, name string) (*fleet.SelfServiceCategory, error) {
+func (s *Service) NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
 	s.mu.Lock()
-	s.NewSelfServiceCategoryFuncInvoked = true
+	s.NewSoftwareCategoryFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewSelfServiceCategoryFunc(ctx, fleetID, name)
+	return s.NewSoftwareCategoryFunc(ctx, teamID, name)
 }
 
-func (s *Service) UpdateSelfServiceCategory(ctx context.Context, id uint, name string) (*fleet.SelfServiceCategory, error) {
+func (s *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
 	s.mu.Lock()
-	s.UpdateSelfServiceCategoryFuncInvoked = true
+	s.UpdateSoftwareCategoryFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateSelfServiceCategoryFunc(ctx, id, name)
+	return s.UpdateSoftwareCategoryFunc(ctx, id, name)
 }
 
-func (s *Service) DeleteSelfServiceCategory(ctx context.Context, id uint) error {
+func (s *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 	s.mu.Lock()
-	s.DeleteSelfServiceCategoryFuncInvoked = true
+	s.DeleteSoftwareCategoryFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteSelfServiceCategoryFunc(ctx, id)
+	return s.DeleteSoftwareCategoryFunc(ctx, id)
 }
 
 func (s *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error {

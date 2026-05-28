@@ -855,6 +855,12 @@ type VPPBatchPayloadWithPlatform struct {
 }
 
 type SoftwareCategory struct {
-	ID   uint   `db:"id"`
-	Name string `db:"name"`
+	ID      uint   `json:"id" db:"id"`
+	Name    string `json:"name" db:"name"`
+	TeamID  uint   `json:"fleet_id" db:"team_id"`
+	UpdateCreateTimestamps
+}
+
+func (c *SoftwareCategory) AuthzType() string {
+	return "software_category"
 }
