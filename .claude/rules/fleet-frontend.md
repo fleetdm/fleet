@@ -84,7 +84,7 @@ Use helpers from `frontend/utilities/strings/stringUtils.ts`:
 - Modifiers: `` className={`${baseClass}--modifier`} ``
 - Use `classnames()` for conditional classes
 - Style files use underscore prefix: `_styles.scss`
-- Prefer `gap` over `margin` for spacing between sibling elements. Use the layout mixins from `frontend/styles/var/mixins.scss`: `vertical-card-layout`, `vertical-form-layout`, `vertical-modal-layout`, `vertical-page-layout`, `vertical-page-tab-panel-layout`
+- Prefer `gap` over `margin` for spacing between sibling elements. Use the layout mixins from `frontend/styles/var/mixins.scss`: `vertical-card-layout`, `vertical-form-layout`, `vertical-modal-layout`, `vertical-page-layout`, `vertical-page-tab-panel-layout`, `vertical-data-set-layout`
 
 ## Interfaces & Types
 - Interface files live in `frontend/interfaces/` with `I` prefix: `IHost`, `IUser`, `IPack`

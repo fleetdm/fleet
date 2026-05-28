@@ -517,16 +517,17 @@ Below are a few need-to-knows about what's available in Fleet's CSS:
 Prefer `gap` over `margin` for spacing between sibling elements. We have layout mixins in
 `frontend/styles/var/mixins.scss` for common flex column patterns:
 
-| Mixin | Use for |
-|---|---|
-| `vertical-page-layout` | Top-level page content |
-| `vertical-card-layout` | Settings cards, OS settings panels |
-| `vertical-form-layout` | Form field groups |
-| `vertical-modal-layout` | Modal body content |
-| `vertical-page-tab-panel-layout` | Tab panel content |
+| Mixin | Gap | Use for |
+|---|---|---|
+| `vertical-page-layout` | 24px | Top-level page content |
+| `vertical-card-layout` | 24px | Settings cards, OS settings panels |
+| `vertical-form-layout` | 24px | Form field groups |
+| `vertical-modal-layout` | 24px | Modal body content |
+| `vertical-page-tab-panel-layout` | 24px | Tab panel content |
+| `vertical-data-set-layout` | 16px | Definition lists, key-value field sets |
 
-All use `flex-direction: column` with a 24px gap (`$gap-page-component`). For tighter spacing,
-use `flex-column-16px-gap`. For wider spacing, use `flex-column-32px-gap`.
+All use `flex-direction: column`; the 24px value is `$gap-page-component`. For arbitrary
+spacing without a semantic name, use `flex-column-16px-gap` or `flex-column-32px-gap`.
 
 ### Modals
 
