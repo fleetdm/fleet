@@ -126,7 +126,7 @@ func TestMaybeRunOktaCACleanupScript(t *testing.T) {
 			}
 			ds.NewInternalHostScriptExecutionRequestFunc = func(_ context.Context, req *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 				require.Equal(t, hostID, req.HostID)
-				require.Contains(t, req.ScriptContents, "set -- -y -u '"+shortName+"' 'Fleet conditional access for Okta'")
+				require.Contains(t, req.ScriptContents, "set -- -y -u '"+shortName+"' '"+fleet.ConditionalAccessOktaCertificateCN+"'")
 				require.Contains(t, req.ScriptContents, deleteDuplicateOktaSCEPScript)
 				require.False(t, req.SyncRequest)
 				require.Nil(t, req.UserID)
