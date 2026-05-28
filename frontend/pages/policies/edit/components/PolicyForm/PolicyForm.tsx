@@ -803,6 +803,17 @@ const PolicyForm = ({
               />
             </div>
           )}
+          {isEditMode && !!storedPolicy && !!automationsConfig && (
+            <PolicyAutomationsFields
+              ref={automationsRef}
+              policy={storedPolicy}
+              isGlobalPolicy={isGlobalPolicy}
+              teamIdForApi={automationsTeamId}
+              automationsConfig={automationsConfig}
+              globalConfig={config ?? undefined}
+              fleetName={automationsFleetName}
+            />
+          )}
           {isEditMode &&
             isPremiumTier &&
             !isPatchPolicy &&
