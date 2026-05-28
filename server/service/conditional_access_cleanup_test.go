@@ -52,7 +52,7 @@ func TestBuildOktaCACleanupScript(t *testing.T) {
 				assert.Empty(t, got)
 				return
 			}
-			assert.Contains(t, got, "set -- -y -u '"+c.username+"' 'Fleet conditional access for Okta'")
+			assert.Contains(t, got, "set -- -y -u '"+c.username+"' "+shellSingleQuote(fleet.ConditionalAccessOktaCertificateCN))
 			assert.Contains(t, got, deleteDuplicateOktaSCEPScript,
 				"wrapped script must contain the embedded cleanup script verbatim")
 		})
