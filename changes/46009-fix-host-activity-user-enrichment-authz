@@ -1,0 +1,1 @@
+* Fixed Fleet-scoped users getting a 403 when viewing past activities on a host that has user-initiated activities (e.g. lock/wipe/run script/install software).
