@@ -1696,6 +1696,13 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Power BI",
+      "slug": "power-bi/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Power BI Desktop (x64)",
+      "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
+    },
+    {
       "name": "Pritunl",
       "slug": "pritunl/darwin",
       "platform": "darwin",
