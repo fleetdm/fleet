@@ -1703,7 +1703,7 @@ SELECT
 		FROM nano_enrollments ne
 		INNER JOIN nano_users nu ON ne.user_id = nu.id
 		WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = h.uuid
-		ORDER BY ne.created_at ASC LIMIT 1
+		ORDER BY ne.created_at ASC, ne.id ASC LIMIT 1
 	), '') AS user_short_name
 FROM host_mdm_apple_profiles hmap
 JOIN hosts h ON h.uuid = hmap.host_uuid
