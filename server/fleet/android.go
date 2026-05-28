@@ -126,6 +126,7 @@ type MDMAndroidProfilePayload struct {
 	DeviceRequestUUID       *string            `db:"device_request_uuid"`
 	RequestFailCount        int                `db:"request_fail_count"`
 	IncludedInPolicyVersion *int               `db:"included_in_policy_version"`
+	Checksum                []byte             `db:"checksum"`
 	LastErrorDetails        string             `db:"last_error_details"`
 	CanReverify             bool               `db:"can_reverify"`
 }
