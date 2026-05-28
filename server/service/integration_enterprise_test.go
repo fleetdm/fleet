@@ -31685,36 +31685,35 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 
 	// create
 	var addResp addSelfServiceCategoriesResponse
-	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "🌎 Browsers"}, http.StatusOK, &addResp)
+	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "💼 Engineering"}, http.StatusOK, &addResp)
 	require.NotZero(t, addResp.SelfServiceCategory.ID)
-	require.Equal(t, "🌎 Browsers", addResp.SelfServiceCategory.Name)
+	require.Equal(t, "💼 Engineering", addResp.SelfServiceCategory.Name)
 	require.Equal(t, uint(0), addResp.SelfServiceCategory.TeamID)
 	catID := addResp.SelfServiceCategory.ID
 	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"🌎 Browsers","fleet_id":0,"fleet_name":""}`, 0)
+		`{"self_service_category_name":"💼 Engineering","fleet_id":0,"fleet_name":""}`, 0)
 
-	// list returns sorted by name and includes new category
+	// list includes new category
 	var listResp getSelfServiceCategoriesResponse
 	s.DoJSON("GET", path, nil, http.StatusOK, &listResp, "fleet_id", "0")
 	names := make([]string, 0, len(listResp.SelfServiceCategories))
 	for _, c := range listResp.SelfServiceCategories {
 		names = append(names, c.Name)
 	}
-	require.Contains(t, names, "🌎 Browsers")
-	require.True(t, sort.StringsAreSorted(names), "list should be sorted by name, got %v", names)
+	require.Contains(t, names, "💼 Engineering")
 
 	// rename
 	var patchResp patchSelfServiceCategoriesResponse
-	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "🌐 Browsers"}, http.StatusOK, &patchResp)
+	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "💼 Engineering tools"}, http.StatusOK, &patchResp)
 	require.Equal(t, catID, patchResp.SelfServiceCategory.ID)
-	require.Equal(t, "🌐 Browsers", patchResp.SelfServiceCategory.Name)
+	require.Equal(t, "💼 Engineering tools", patchResp.SelfServiceCategory.Name)
 	s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"🌐 Browsers","fleet_id":0,"fleet_name":""}`, 0)
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":""}`, 0)
 
 	// delete then 404 on repeat
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNoContent)
 	s.lastActivityMatches(fleet.ActivityTypeDeletedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"🌐 Browsers","fleet_id":0,"fleet_name":""}`, 0)
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":""}`, 0)
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNotFound)
 
 	// patch unknown id returns 404

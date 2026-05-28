@@ -2790,7 +2790,7 @@ CREATE TABLE `software_categories` (
   UNIQUE KEY `idx_software_categories_team_id_name` (`team_id`,`name`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `software_categories` VALUES (1,'Productivity',0,'2026-05-28 19:04:37','2026-05-28 19:04:37'),(2,'Browsers',0,'2026-05-28 19:04:37','2026-05-28 19:04:37'),(3,'Communication',0,'2026-05-28 19:04:37','2026-05-28 19:04:37'),(4,'Developer tools',0,'2026-05-28 19:04:37','2026-05-28 19:04:37'),(5,'Security',0,'2026-05-28 19:04:37','2026-05-28 19:04:37'),(6,'Utilities',0,'2026-05-28 19:04:37','2026-05-28 19:04:37');
+INSERT INTO `software_categories` VALUES (1,'💻 Productivity',0,'2026-05-28 20:58:59','2026-05-28 20:58:59'),(2,'🌎 Browsers',0,'2026-05-28 20:58:59','2026-05-28 20:58:59'),(3,'👬 Communication',0,'2026-05-28 20:58:59','2026-05-28 20:58:59'),(4,'🧰 Developer tools',0,'2026-05-28 20:58:59','2026-05-28 20:58:59'),(5,'🔐 Security',0,'2026-05-28 20:58:59','2026-05-28 20:58:59'),(6,'🛟 Support',0,'2026-05-28 20:58:59','2026-05-28 20:58:59');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `software_cpe` (
