@@ -1035,6 +1035,7 @@ SELECT
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
+WHERE path NOT LIKE '%%.app/Contents/%%'
 UNION
 SELECT
   name AS name,
@@ -2241,9 +2242,18 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			continue
 		}
 
-		software = append(software, *s)
-
 		installedPath := strings.TrimSpace(row["installed_path"])
+
+		// Filter out macOS app bundles embedded inside another .app (e.g., login helpers
+		// at Contents/Library/LoginItems/ or framework helpers at Contents/Frameworks/).
+		// These helpers often share the parent app's bundle_identifier, which causes
+		// the software title name to be set to the helper's name instead of the main app's.
+		// See https://github.com/fleetdm/fleet/issues/44199
+		if host.Platform == "darwin" && isEmbeddedMacOSAppBundle(installedPath) {
+			continue
+		}
+
+		software = append(software, *s)
 		if installedPath != "" &&
 			// NOTE: osquery is sometimes incorrectly returning the value "null" for some install paths.
 			// Thus, we explicitly ignore such value here.
@@ -2500,6 +2510,14 @@ func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
 	// host reporting that it has Notepad installed when this is just an app from the Windows VM
 	// under Parallels). We want to filter out those "applications" to avoid confusion.
 	return h.Platform == "darwin" && strings.HasPrefix(s.BundleIdentifier, "com.parallels.winapp")
+}
+
+// isEmbeddedMacOSAppBundle returns true if the given installed path indicates an app
+// bundle embedded inside another .app (e.g., a login helper at Contents/Library/LoginItems/
+// or a framework helper at Contents/Frameworks/). These embedded bundles often share the
+// parent app's bundle identifier, causing incorrect software title names.
+func isEmbeddedMacOSAppBundle(installedPath string) bool {
+	return strings.Contains(installedPath, ".app/Contents/")
 }
 
 func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {

@@ -1916,6 +1916,60 @@ func TestDirectIngestSoftware(t *testing.T) {
 
 		ds.UpdateHostSoftwareFuncInvoked = false
 	})
+
+	t.Run("embedded macOS app bundles are filtered out", func(t *testing.T) {
+		// Simulates the Amphetamine bug: both the main app and its login helper
+		// share the same bundle identifier. The helper (embedded inside the main
+		// .app's Contents/ directory) should be filtered out.
+		// See https://github.com/fleetdm/fleet/issues/44199
+		darwinHost := fleet.Host{ID: 2, Platform: "darwin"}
+		data := []map[string]string{
+			{
+				"name":              "Amphetamine",
+				"version":           "5.3.2",
+				"source":            "apps",
+				"bundle_identifier": "com.if.Amphetamine",
+				"vendor":            "",
+				"installed_path":    "/Applications/Amphetamine.app",
+			},
+			{
+				"name":              "AmphetamineLoginHelper",
+				"version":           "5.3.2",
+				"source":            "apps",
+				"bundle_identifier": "com.if.Amphetamine",
+				"vendor":            "",
+				"installed_path":    "/Applications/Amphetamine.app/Contents/Library/LoginItems/AmphetamineLoginHelper.app",
+			},
+			{
+				"name":              "Code Helper (GPU)",
+				"version":           "",
+				"source":            "apps",
+				"bundle_identifier": "com.microsoft.VSCode.helper",
+				"vendor":            "",
+				"installed_path":    "/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper (GPU).app",
+			},
+		}
+
+		var capturedSoftware []fleet.Software
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			capturedSoftware = make([]fleet.Software, len(software))
+			copy(capturedSoftware, software)
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &darwinHost, ds, data))
+		require.True(t, ds.UpdateHostSoftwareFuncInvoked)
+
+		// Only the main app should remain; both embedded helpers should be filtered out
+		require.Len(t, capturedSoftware, 1)
+		assert.Equal(t, "Amphetamine", capturedSoftware[0].Name)
+		assert.Equal(t, "com.if.Amphetamine", capturedSoftware[0].BundleIdentifier)
+
+		ds.UpdateHostSoftwareFuncInvoked = false
+	})
 }
 
 func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
@@ -2658,6 +2712,70 @@ func TestShouldRemoveSoftware(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.want, shouldRemoveSoftware(tt.h, tt.s))
+		})
+	}
+}
+
+func TestIsEmbeddedMacOSAppBundle(t *testing.T) {
+	tests := []struct {
+		name          string
+		installedPath string
+		want          bool
+	}{
+		{
+			name:          "main app in Applications",
+			installedPath: "/Applications/Amphetamine.app",
+			want:          false,
+		},
+		{
+			name:          "login helper embedded in app bundle",
+			installedPath: "/Applications/Amphetamine.app/Contents/Library/LoginItems/AmphetamineLoginHelper.app",
+			want:          true,
+		},
+		{
+			name:          "framework helper embedded in app bundle",
+			installedPath: "/Applications/Claude.app/Contents/Frameworks/Claude Helper.app",
+			want:          true,
+		},
+		{
+			name:          "VS Code GPU helper",
+			installedPath: "/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper (GPU).app",
+			want:          true,
+		},
+		{
+			name:          "Grammarly login helper",
+			installedPath: "/Applications/Grammarly Desktop.app/Contents/Library/LoginItems/GRLoginHelper.app",
+			want:          true,
+		},
+		{
+			name:          "launch agent helper",
+			installedPath: "/Applications/Grammarly Desktop.app/Contents/Library/LaunchAgents/Grammarly Desktop Helper.app",
+			want:          true,
+		},
+		{
+			name:          "system app",
+			installedPath: "/System/Applications/Preview.app",
+			want:          false,
+		},
+		{
+			name:          "user library app",
+			installedPath: "/Users/someone/Library/Application Support/com.grammarly.ProjectLlama/Grammarly Desktop Uninstaller.app",
+			want:          false,
+		},
+		{
+			name:          "Safari in Cryptexes",
+			installedPath: "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app",
+			want:          false,
+		},
+		{
+			name:          "empty path",
+			installedPath: "",
+			want:          false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, isEmbeddedMacOSAppBundle(tt.installedPath))
 		})
 	}
 }
