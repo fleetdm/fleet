@@ -375,6 +375,9 @@ func TestPubSubEnrollment(t *testing.T) {
 		mockDS.DeleteAllHostCertificateTemplatesFunc = func(ctx context.Context, hostUUID string) error {
 			return nil
 		}
+		mockDS.ClearHostMDMActionsFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
 
 		var capturedHostUUID, capturedIdpUUID string
 		mockDS.AssociateHostMDMIdPAccountFuncInvoked = false

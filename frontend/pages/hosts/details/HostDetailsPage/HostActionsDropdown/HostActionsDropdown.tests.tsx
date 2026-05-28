@@ -1752,9 +1752,9 @@ describe("Host Actions Dropdown", () => {
 
         await user.click(screen.getByText("Actions"));
 
-        for (const label of expectHidden) {
+        expectHidden.forEach((label) => {
           expect(screen.queryByText(label)).not.toBeInTheDocument();
-        }
+        });
       }
     );
   });
