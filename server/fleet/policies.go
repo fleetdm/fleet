@@ -654,7 +654,7 @@ const (
 )
 
 // PolicyRunRef is a lightweight (policy_id, host_id, run_id) triple used to
-// thread newly-inserted policy_runs row IDs from RecordPolicyTransitions into
+// thread newly-inserted host_policy_runs row IDs from RecordPolicyTransitions into
 // the synchronous downstream consumers (script/software/calendar/CA dispatch)
 // without re-querying the table.
 type PolicyRunRef struct {

@@ -12,7 +12,7 @@ import (
 
 const policyAutomationBatchSize = 1000
 
-// RecordPolicyTransitions is the single writer of policy_runs rows.
+// RecordPolicyTransitions is the single writer of host_policy_runs rows.
 //
 // Per-policy semantics (one row per policy_id/host_id pair is maintained):
 //   - New policy, fails first time: insert (old_status=NULL, new_status=false, consecutive_failures=1).
@@ -78,7 +78,7 @@ func (ds *Datastore) RecordPolicyTransitions(
 			placeholders = append(placeholders, "(?, ?, NULL, ?, ?)")
 			args = append(args, r.policyID, hostID, r.newStatus, r.consecutiveFailures)
 		}
-		query := `INSERT INTO policy_runs (policy_id, host_id, old_status, new_status, consecutive_failures)
+		query := `INSERT INTO host_policy_runs (policy_id, host_id, old_status, new_status, consecutive_failures)
 		           VALUES ` + strings.Join(placeholders, ",") + `
 		           ON DUPLICATE KEY UPDATE
 		             old_status = CASE
@@ -91,7 +91,7 @@ func (ds *Datastore) RecordPolicyTransitions(
 		             END,
 		             new_status = VALUES(new_status)`
 		if _, err := writer.ExecContext(ctx, query, args...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "upsert policy_runs")
+			return nil, ctxerr.Wrap(ctx, err, "upsert host_policy_runs")
 		}
 	}
 
@@ -99,7 +99,7 @@ func (ds *Datastore) RecordPolicyTransitions(
 	if len(newFailing) > 0 {
 		refs, err := lookupFailingPolicyRunRefs(ctx, writer, newFailing, []uint{hostID})
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "select failing policy_runs ids")
+			return nil, ctxerr.Wrap(ctx, err, "select failing host_policy_runs ids")
 		}
 		for _, r := range refs {
 			failingIDs[r.PolicyID] = r.RunID
@@ -108,7 +108,7 @@ func (ds *Datastore) RecordPolicyTransitions(
 	return failingIDs, nil
 }
 
-// lookupFailingPolicyRunRefs returns the failing policy_runs row (new_status=false)
+// lookupFailingPolicyRunRefs returns the failing host_policy_runs row (new_status=false)
 // for every (policy_id, host_id) pair in the cross-product policyIDs × hostIDs.
 // Callers that want a 1:N shape (e.g. one policy × N hosts, the webhook batch
 // pattern) should pass a singleton for the "1" side; pairs without a matching
@@ -161,7 +161,7 @@ func lookupFailingPolicyRunRefs(
 				args = append(args, v)
 			}
 
-			query := `SELECT id, policy_id, host_id FROM policy_runs WHERE ` +
+			query := `SELECT id, policy_id, host_id FROM host_policy_runs WHERE ` +
 				outerCol + ` IN (` + outerPlaceholders + `) AND ` +
 				innerCol + ` IN (` + innerPlaceholders + `) AND new_status = false`
 
@@ -197,7 +197,7 @@ func (ds *Datastore) GetFailingPolicyRuns(ctx context.Context, policyIDs, hostID
 	// don't get a recording, which the spec models as a best-effort contract.
 	out, err := lookupFailingPolicyRunRefs(ctx, ds.reader(ctx), policyIDs, hostIDs)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "query failing policy_run ids")
+		return nil, ctxerr.Wrap(ctx, err, "query failing host_policy_run ids")
 	}
 	return out, nil
 }
@@ -220,7 +220,7 @@ func createPolicyAutomationExecutionsTx(ctx context.Context, tx sqlx.ExtContext,
 	batchBytes := batchID[:]
 
 	// Link each policy_run to this batch via the join table. policy_id is
-	// not stored here — it is reachable through policy_runs.policy_id.
+	// not stored here — it is reachable through host_policy_runs.policy_id.
 	for chunkStart := 0; chunkStart < len(executions); chunkStart += policyAutomationBatchSize {
 		chunkEnd := min(chunkStart+policyAutomationBatchSize, len(executions))
 		chunk := executions[chunkStart:chunkEnd]
@@ -231,10 +231,10 @@ func createPolicyAutomationExecutionsTx(ctx context.Context, tx sqlx.ExtContext,
 			placeholders = append(placeholders, "(?, ?, ?)")
 			args = append(args, e.RunID, typ, batchBytes)
 		}
-		query := `INSERT INTO policy_runs_to_policy_automation_executions (policy_run_id, automation_type, batch_id) VALUES ` + strings.Join(placeholders, ",")
+		query := `INSERT INTO host_policy_runs_to_policy_automation_executions (policy_run_id, automation_type, batch_id) VALUES ` + strings.Join(placeholders, ",")
 
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert policy_runs_to_policy_automation_executions")
+			return ctxerr.Wrap(ctx, err, "insert host_policy_runs_to_policy_automation_executions")
 		}
 	}
 

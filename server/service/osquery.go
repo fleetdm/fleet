@@ -1212,7 +1212,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			newFailingSet[id] = struct{}{}
 		}
 
-		// Handle policy_runs
+		// Handle host_policy_runs
 		failingPolicyRunIDs := map[uint]uint{}
 		recorded, err := svc.ds.RecordPolicyTransitions(ctx, host.ID, policyResults, newFailing, newPassing)
 		if err != nil {
@@ -2097,7 +2097,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		if id, ok := failingPolicyRunIDs[policyID]; ok {
 			policyRunID = &id
 		}
-		
+
 		// On a continuous re-fire (policy still failing), reset prior
 		// attempt_number values for this host/policy to 0 so the new attempt
 		// restarts the retry sequence at 1 instead of inheriting the cap from

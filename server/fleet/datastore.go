@@ -1555,7 +1555,7 @@ type Datastore interface {
 	// OutdatedAutomationBatch returns a batch of hosts that had a failing policy.
 	OutdatedAutomationBatch(ctx context.Context) ([]PolicyFailure, error)
 
-	// RecordPolicyTransitions is the single writer of policy_runs rows. Called
+	// RecordPolicyTransitions is the single writer of host_policy_runs rows. Called
 	// by the osquery hot path once per check-in, immediately after
 	// FlippingPoliciesForHost reports the transitions.
 	//
@@ -1568,19 +1568,19 @@ type Datastore interface {
 	//   - Was failing, still failing: bump consecutive_failures by 1.
 	//
 	// Returns a map keyed by policy_id for newFailing entries with the
-	// assigned policy_runs.id, so the synchronous downstream consumers
+	// assigned host_policy_runs.id, so the synchronous downstream consumers
 	// (script/software/CA hot paths) can stamp their result rows. The
 	// passed=true row IDs are not returned — no caller needs them.
 	RecordPolicyTransitions(ctx context.Context, hostID uint, policyResults map[uint]*bool, newFailing, newPassing []uint) (failingRunIDs map[uint]uint, err error)
 
-	// GetFailingPolicyRuns returns the latest failed policy_runs of the pair
+	// GetFailingPolicyRuns returns the latest failed host_policy_runs of the pair
 	// found in the cross-product of policyIDs × hostIDs.
 	// Pairs without a matching row are simply absent from the returned slice.
 	GetFailingPolicyRuns(ctx context.Context, policyIDs, hostIDs []uint) ([]PolicyRunRef, error)
 
 	// CreatePolicyAutomationExecutions records a new dispatch batch for the
 	// supplied policy runs. It mints a fresh batch UUID, inserts one row per
-	// PolicyRunRef into policy_runs_to_policy_automation_executions (stamped
+	// PolicyRunRef into host_policy_runs_to_policy_automation_executions (stamped
 	// with the UUID + automation type), and inserts a single row into
 	// policy_automation_executions with status='pending' for the same
 	// batch_id. Returns (uuid.Nil, nil) on empty input. Each call mints a

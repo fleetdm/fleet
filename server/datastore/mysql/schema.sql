@@ -1166,7 +1166,7 @@ CREATE TABLE `host_script_results` (
   KEY `idx_host_script_canceled_created_at` (`host_id`,`script_id`,`canceled`,`created_at` DESC),
   KEY `idx_host_script_results_host_policy` (`host_id`,`policy_id`),
   KEY `idx_host_script_results_policy_run` (`policy_run_id`),
-  CONSTRAINT `fk_host_script_results_policy_run` FOREIGN KEY (`policy_run_id`) REFERENCES `policy_runs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_host_script_results_policy_run` FOREIGN KEY (`policy_run_id`) REFERENCES `host_policy_runs` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_host_script_results_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_host_script_results_setup_experience_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_host_script_results_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
@@ -1249,7 +1249,7 @@ CREATE TABLE `host_software_installs` (
   KEY `idx_host_software_installs_host_policy` (`host_id`,`policy_id`),
   KEY `idx_host_software_installs_policy_run` (`policy_run_id`),
   CONSTRAINT `fk_host_software_installs_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  CONSTRAINT `fk_host_software_installs_policy_run` FOREIGN KEY (`policy_run_id`) REFERENCES `policy_runs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_host_software_installs_policy_run` FOREIGN KEY (`policy_run_id`) REFERENCES `host_policy_runs` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_host_software_installs_software_title_id` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_host_software_installs_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `host_software_installs_ibfk_1` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL
@@ -2436,7 +2436,7 @@ CREATE TABLE `policy_membership` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `policy_runs` (
+CREATE TABLE `host_policy_runs` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `policy_id` int unsigned NOT NULL,
   `host_id` int unsigned NOT NULL,
@@ -2447,20 +2447,20 @@ CREATE TABLE `policy_runs` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_policy_run` (`policy_id`,`host_id`),
-  KEY `idx_policy_runs_host_id` (`host_id`),
-  CONSTRAINT `fk_policy_runs_policy` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE
+  KEY `idx_host_policy_runs_host_id` (`host_id`),
+  CONSTRAINT `fk_host_policy_runs_policy` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `policy_runs_to_policy_automation_executions` (
+CREATE TABLE `host_policy_runs_to_policy_automation_executions` (
   `policy_run_id` bigint unsigned NOT NULL,
   `automation_type` enum('webhook','jira','zendesk','calendar','conditional_access') COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch_id` binary(16) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`policy_run_id`,`automation_type`,`batch_id`),
   KEY `idx_batch_id` (`batch_id`),
-  CONSTRAINT `fk_policy_runs_join_tbl_policy` FOREIGN KEY (`policy_run_id`) REFERENCES `policy_runs` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_host_policy_runs_join_tbl_policy` FOREIGN KEY (`policy_run_id`) REFERENCES `host_policy_runs` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -2687,7 +2687,7 @@ CREATE TABLE `script_upcoming_activities` (
   KEY `fk_script_upcoming_activities_setup_experience_script_id` (`setup_experience_script_id`),
   KEY `idx_script_upcoming_activities_policy_run` (`policy_run_id`),
   CONSTRAINT `fk_script_upcoming_activities_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_script_upcoming_activities_policy_run` FOREIGN KEY (`policy_run_id`) REFERENCES `policy_runs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_script_upcoming_activities_policy_run` FOREIGN KEY (`policy_run_id`) REFERENCES `host_policy_runs` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_script_upcoming_activities_script_content_id` FOREIGN KEY (`script_content_id`) REFERENCES `script_contents` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_script_upcoming_activities_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_script_upcoming_activities_setup_experience_script_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE SET NULL,
@@ -2879,7 +2879,7 @@ CREATE TABLE `software_install_upcoming_activities` (
   KEY `fk_software_install_upcoming_activities_software_title_id` (`software_title_id`),
   KEY `idx_software_install_upcoming_activities_policy_run` (`policy_run_id`),
   CONSTRAINT `fk_software_install_upcoming_activities_policy_id` FOREIGN KEY (`policy_id`) REFERENCES `policies` (`id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_software_install_upcoming_activities_policy_run` FOREIGN KEY (`policy_run_id`) REFERENCES `policy_runs` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_software_install_upcoming_activities_policy_run` FOREIGN KEY (`policy_run_id`) REFERENCES `host_policy_runs` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_software_install_upcoming_activities_software_installer_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_software_install_upcoming_activities_software_title_id` FOREIGN KEY (`software_title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_software_install_upcoming_activities_upcoming_activity_id` FOREIGN KEY (`upcoming_activity_id`) REFERENCES `upcoming_activities` (`id`) ON DELETE CASCADE

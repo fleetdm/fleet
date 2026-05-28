@@ -1,3 +1,3 @@
 - Added `policy_automation_executions`, a batch-level table that records `batch_id`, `status`, and `error_message` for each dispatched failing-policy automation (webhook, Jira, Zendesk, calendar, conditional access).
-- Added `policy_runs` table — one row per `(policy, host)` pair — tracking `old_status`, `new_status`, and `consecutive_failures` as each host's policy state evolves.
+- Added `host_policy_runs` table — one row per `(policy, host)` pair — tracking `old_status`, `new_status`, and `consecutive_failures` as each host's policy state evolves.
 - Stamped a nullable `policy_run_id` on `host_script_results`, `host_software_installs`, `script_upcoming_activities`, and `software_install_upcoming_activities` so script and software installs triggered by a failing policy can be attributed back to a policy run.

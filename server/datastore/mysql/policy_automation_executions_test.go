@@ -17,7 +17,7 @@ import (
 )
 
 // policyRunRow holds the column values we care about when asserting the
-// post-transition state of a (policy, host) row in policy_runs.
+// post-transition state of a (policy, host) row in host_policy_runs.
 type policyRunRow struct {
 	ID                  uint
 	OldStatus           *bool
@@ -32,7 +32,7 @@ func readPolicyRun(t *testing.T, ds *Datastore, ctx context.Context, policyID, h
 	var row policyRunRow
 	err := ds.writer(ctx).QueryRowxContext(ctx,
 		`SELECT id, old_status, new_status, consecutive_failures, created_at, updated_at
-		   FROM policy_runs WHERE policy_id = ? AND host_id = ?`,
+		   FROM host_policy_runs WHERE policy_id = ? AND host_id = ?`,
 		policyID, hostID,
 	).Scan(&row.ID, &row.OldStatus, &row.NewStatus, &row.ConsecutiveFailures, &row.CreatedAt, &row.UpdatedAt)
 	if err != nil {
@@ -45,7 +45,7 @@ func countPolicyRuns(t *testing.T, ds *Datastore, ctx context.Context, policyID,
 	t.Helper()
 	var n int
 	require.NoError(t, ds.writer(ctx).GetContext(ctx, &n,
-		`SELECT COUNT(*) FROM policy_runs WHERE policy_id = ? AND host_id = ?`, policyID, hostID))
+		`SELECT COUNT(*) FROM host_policy_runs WHERE policy_id = ? AND host_id = ?`, policyID, hostID))
 	return n
 }
 
@@ -94,7 +94,7 @@ func TestRecordPolicyTransitions(t *testing.T) {
 		require.Equal(t, uint(1), row.ConsecutiveFailures)
 	})
 
-	// seedPassingRow creates a policy_runs row with new_status=true by running
+	// seedPassingRow creates a host_policy_runs row with new_status=true by running
 	// the fail→pass flip — the only production path that creates a passing
 	// row under Option A (first-time-passing takes the all-passing fast path).
 	seedPassingRow := func(h *fleet.Host) policyRunRow {
@@ -522,7 +522,7 @@ func TestCreatePolicyAutomationExecutions(t *testing.T) {
 		// automation_type and shared batch_id.
 		var joinCount int
 		require.NoError(t, ds.writer(ctx).GetContext(ctx, &joinCount,
-			`SELECT COUNT(*) FROM policy_runs_to_policy_automation_executions
+			`SELECT COUNT(*) FROM host_policy_runs_to_policy_automation_executions
 			   WHERE batch_id = ? AND automation_type = ?`, batchID[:], fleet.PolicyAutomationWebhook))
 		require.Equal(t, 2, joinCount)
 
@@ -549,7 +549,7 @@ func TestCreatePolicyAutomationExecutions(t *testing.T) {
 		// Join table now has two rows for this policy_run — one per type.
 		var n int
 		require.NoError(t, ds.writer(ctx).GetContext(ctx, &n,
-			`SELECT COUNT(*) FROM policy_runs_to_policy_automation_executions WHERE policy_run_id = ?`, run.RunID))
+			`SELECT COUNT(*) FROM host_policy_runs_to_policy_automation_executions WHERE policy_run_id = ?`, run.RunID))
 		require.Equal(t, 2, n)
 	})
 
@@ -570,7 +570,7 @@ func TestCreatePolicyAutomationExecutions(t *testing.T) {
 		// Two join rows accumulate, one per batch.
 		var joinCount int
 		require.NoError(t, ds.writer(ctx).GetContext(ctx, &joinCount,
-			`SELECT COUNT(*) FROM policy_runs_to_policy_automation_executions
+			`SELECT COUNT(*) FROM host_policy_runs_to_policy_automation_executions
 			   WHERE policy_run_id = ? AND automation_type = ?`, run.RunID, fleet.PolicyAutomationWebhook))
 		require.Equal(t, 2, joinCount)
 
@@ -725,7 +725,7 @@ func TestPolicyRunsForeignKeyBehavior(t *testing.T) {
 
 	user := test.NewUser(t, ds, "Test", "test@example.com", true)
 
-	t.Run("deleting a policy cascades to its policy_runs rows", func(t *testing.T) {
+	t.Run("deleting a policy cascades to its host_policy_runs rows", func(t *testing.T) {
 		policy := newTestPolicy(t, ds, user, "fk_cascade", "darwin", nil)
 		host := test.NewHost(t, ds, "fkCascadeHost", "10.2.0.1", "key-fkc", "uuid-fkc", time.Now())
 		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
@@ -737,11 +737,11 @@ func TestPolicyRunsForeignKeyBehavior(t *testing.T) {
 
 		var n int
 		require.NoError(t, ds.writer(ctx).GetContext(ctx, &n,
-			`SELECT COUNT(*) FROM policy_runs WHERE policy_id = ?`, policy.ID))
-		require.Equal(t, 0, n, "policy_runs rows must cascade-delete when the parent policy is removed")
+			`SELECT COUNT(*) FROM host_policy_runs WHERE policy_id = ?`, policy.ID))
+		require.Equal(t, 0, n, "host_policy_runs rows must cascade-delete when the parent policy is removed")
 	})
 
-	t.Run("deleting a policy_runs row sets host_script_results.policy_run_id to NULL", func(t *testing.T) {
+	t.Run("deleting a host_policy_runs row sets host_script_results.policy_run_id to NULL", func(t *testing.T) {
 		policy := newTestPolicy(t, ds, user, "fk_setnull", "darwin", nil)
 		host := test.NewHost(t, ds, "fkSetNullHost", "10.2.0.2", "key-fks", "uuid-fks", time.Now())
 		_, err := ds.RecordPolicyTransitions(ctx, host.ID, map[uint]*bool{policy.ID: new(false)}, []uint{policy.ID}, nil)
@@ -757,7 +757,7 @@ func TestPolicyRunsForeignKeyBehavior(t *testing.T) {
 		scriptResultID, err := res.LastInsertId()
 		require.NoError(t, err)
 
-		// Delete the policy (which cascades to delete the policy_runs row,
+		// Delete the policy (which cascades to delete the host_policy_runs row,
 		// which in turn must SET NULL the script row's policy_run_id).
 		_, err = ds.DeleteGlobalPolicies(ctx, []uint{policy.ID})
 		require.NoError(t, err)
@@ -765,7 +765,7 @@ func TestPolicyRunsForeignKeyBehavior(t *testing.T) {
 		var runID *uint
 		require.NoError(t, ds.writer(ctx).QueryRowxContext(ctx,
 			`SELECT policy_run_id FROM host_script_results WHERE id = ?`, scriptResultID).Scan(&runID))
-		require.Nil(t, runID, "host_script_results.policy_run_id must be SET NULL when the policy_run is deleted")
+		require.Nil(t, runID, "host_script_results.policy_run_id must be SET NULL when the host_policy_run is deleted")
 	})
 }
 

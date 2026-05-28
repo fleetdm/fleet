@@ -183,7 +183,7 @@ type HostScriptRequestPayload struct {
 	// payload, if such a script exists.
 	SetupExperienceScriptID *uint `json:"-"`
 	// PolicyRunID, when set, ties this script execution to a specific
-	// policy_runs row so the policy status page can attribute the run output
+	// host_policy_runs row so the policy status page can attribute the run output
 	// to the originating failure event. Only populated by the failing-policy
 	// automation path on a newly-recorded run.
 	PolicyRunID *uint `json:"-"`

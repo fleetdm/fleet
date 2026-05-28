@@ -1175,7 +1175,7 @@ type HostSoftwareInstallOptions struct {
 	// MaxSoftwareInstallAttempts total). Set by host details, self-service,
 	// and setup experience install paths.
 	WithRetries bool
-	// PolicyRunID, when set, ties this install to a specific policy_runs row
+	// PolicyRunID, when set, ties this install to a specific host_policy_runs row
 	// so the policy status page can attribute the install outcome to the
 	// originating failure event. Only populated by the failing-policy
 	// automation path on a newly-recorded run.

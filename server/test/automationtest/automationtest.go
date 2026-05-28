@@ -1,6 +1,6 @@
 // Package automationtest provides cross-package test helpers for code that
 // interacts with the policy-automation recording lifecycle (the methods on
-// fleet.Datastore that maintain the policy_runs and
+// fleet.Datastore that maintain the host_policy_runs and
 // policy_automation_executions tables).
 package automationtest
 

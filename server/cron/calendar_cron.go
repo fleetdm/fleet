@@ -639,7 +639,7 @@ func processFailingHostCreateCalendarEvent(
 	policyIDtoPolicy *sync.Map,
 	logger *slog.Logger,
 ) error {
-	// Look up the policy_runs rows for each failing policy this calendar event
+	// Look up the host_policy_runs rows for each failing policy this calendar event
 	// is reacting to and create pending policy_automation_executions rows.
 	var batchID uuid.UUID
 
