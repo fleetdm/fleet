@@ -278,6 +278,13 @@ func loadOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath string, 
 		return nil, fmt.Errorf("decoding OSV artifact: %w", err)
 	}
 
+	// Refuse to use an artifact that has no vulnerability data — an empty artifact would
+	// cause every existing OSV vulnerability for matching software to be marked as remediated.
+	// This usually indicates the artifact download from GitHub was corrupted.
+	if len(artifact.Vulnerabilities) == 0 {
+		return nil, fmt.Errorf("OSV artifact %q contains no vulnerabilities (possible corrupted feed)", artifactFile)
+	}
+
 	logger.DebugContext(ctx, "loaded osv artifact",
 		"file", filepath.Base(artifactFile),
 		"ubuntu_version", artifact.UbuntuVersion,
@@ -646,6 +653,13 @@ func loadRHELOSVArtifact(ctx context.Context, ver fleet.OSVersion, vulnPath stri
 	var artifact RHELOSVArtifact
 	if err := json.NewDecoder(gz).Decode(&artifact); err != nil {
 		return nil, fmt.Errorf("decoding RHEL OSV artifact: %w", err)
+	}
+
+	// Refuse to use an artifact that has no vulnerability data — an empty artifact would
+	// cause every existing RHEL OSV vulnerability for matching software to be marked as
+	// remediated. This usually indicates the artifact download from GitHub was corrupted.
+	if len(artifact.Vulnerabilities) == 0 {
+		return nil, fmt.Errorf("RHEL OSV artifact %q contains no vulnerabilities (possible corrupted feed)", artifactFile)
 	}
 
 	logger.DebugContext(ctx, "loaded rhel osv artifact",

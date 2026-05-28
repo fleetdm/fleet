@@ -5,6 +5,7 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import AmazonCorretto25 from "./AmazonCorretto25";
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
 import Bluej from "./Bluej";
@@ -16,7 +17,9 @@ import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
+import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
+import GoToMeeting from "./GoToMeeting";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
@@ -249,6 +252,7 @@ import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
+import Winscp from "./Winscp";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
@@ -281,6 +285,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   aircall: Aircall,
   airtame: Airtame,
   "amazon chime": AmazonChime,
+  "amazon corretto 25": AmazonCorretto25,
   "amazon dcv": AmazonDCV,
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
@@ -332,7 +337,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "duo desktop": DuoDesktop,
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
+  "genesys cloud": GenesysCloud,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
+  gotomeeting: GoToMeeting,
   iina: Iina,
   insyncclient: DruvaInSync,
   kitty: Kitty,
@@ -524,6 +531,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
+  winscp: Winscp,
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,

@@ -142,6 +142,13 @@
       "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
     },
     {
+      "name": "Amazon Corretto 25",
+      "slug": "amazon-corretto-25/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon Corretto (x64)",
+      "description": "Amazon Corretto 25 is a no-cost, multiplatform, production-ready distribution of OpenJDK 25."
+    },
+    {
       "name": "Android Studio",
       "slug": "android-studio/darwin",
       "platform": "darwin",
@@ -233,6 +240,13 @@
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
     },
     {
+      "name": "AWS Client VPN",
+      "slug": "aws-vpn-client/windows",
+      "platform": "windows",
+      "unique_identifier": "AWS VPN Client",
+      "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
+    },
+    {
       "name": "Backblaze",
       "slug": "backblaze/darwin",
       "platform": "darwin",
@@ -265,6 +279,13 @@
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
       "unique_identifier": "com.ScooterSoftware.BeyondCompare",
+      "description": "Beyond Compare is an app used to compare files and folders."
+    },
+    {
+      "name": "Beyond Compare",
+      "slug": "beyond-compare/windows",
+      "platform": "windows",
+      "unique_identifier": "Beyond Compare",
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
@@ -793,6 +814,20 @@
       "description": "Front is a customer communication platform."
     },
     {
+      "name": "Genesys Cloud",
+      "slug": "genesys-cloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.inin.purecloud.directory",
+      "description": "Genesys Cloud is a desktop app for running the Genesys Cloud contact center platform as a stand-alone program, separate from the web browser."
+    },
+    {
+      "name": "Genesys Cloud",
+      "slug": "genesys-cloud/windows",
+      "platform": "windows",
+      "unique_identifier": "GenesysCloud",
+      "description": "Genesys Cloud is a desktop app for running the Genesys Cloud contact center platform as a stand-alone program, separate from the web browser."
+    },
+    {
       "name": "Ghostty",
       "slug": "ghostty/darwin",
       "platform": "darwin",
@@ -884,6 +919,20 @@
       "description": "Gemini is a native desktop AI assistant from Google."
     },
     {
+      "name": "GoToMeeting",
+      "slug": "gotomeeting/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logmein.GoToMeeting",
+      "description": "GoToMeeting is a tool for online meetings, desktop sharing, and video conferencing."
+    },
+    {
+      "name": "GoToMeeting",
+      "slug": "gotomeeting/windows",
+      "platform": "windows",
+      "unique_identifier": "GoToMeeting",
+      "description": "GoToMeeting is a tool for online meetings, desktop sharing, and video conferencing."
+    },
+    {
       "name": "GPG Suite",
       "slug": "gpg-suite/darwin",
       "platform": "darwin",
@@ -968,10 +1017,24 @@
       "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
     },
     {
+      "name": "IntelliJ IDEA CE",
+      "slug": "intellij-idea-ce/windows",
+      "platform": "windows",
+      "unique_identifier": "IntelliJ IDEA Community Edition",
+      "description": "IntelliJ IDEA CE is a community edition IDE for Java development by JetBrains."
+    },
+    {
       "name": "IntelliJ IDEA Ultimate",
       "slug": "intellij-idea/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.intellij",
+      "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
+    },
+    {
+      "name": "IntelliJ IDEA Ultimate",
+      "slug": "intellij-idea/windows",
+      "platform": "windows",
+      "unique_identifier": "IntelliJ IDEA",
       "description": "IntelliJ IDEA Ultimate is a Java IDE by JetBrains."
     },
     {
@@ -1392,6 +1455,13 @@
       "slug": "p4v/darwin",
       "platform": "darwin",
       "unique_identifier": "com.perforce.p4v",
+      "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
+    },
+    {
+      "name": "P4V",
+      "slug": "p4v/windows",
+      "platform": "windows",
+      "unique_identifier": "P4 Apps",
       "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
     },
     {
@@ -2002,6 +2072,13 @@
       "platform": "darwin",
       "unique_identifier": "com.exafunction.windsurf",
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
+    },
+    {
+      "name": "WinSCP",
+      "slug": "winscp/windows",
+      "platform": "windows",
+      "unique_identifier": "WinSCP",
+      "description": "WinSCP is a free SFTP, SCP, S3, and FTP client for Windows."
     },
     {
       "name": "Wireshark",

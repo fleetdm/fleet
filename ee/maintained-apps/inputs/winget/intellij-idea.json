@@ -1,0 +1,13 @@
+{
+  "name": "IntelliJ IDEA Ultimate",
+  "slug": "intellij-idea/windows",
+  "package_identifier": "JetBrains.IntelliJIDEA.Ultimate",
+  "unique_identifier": "IntelliJ IDEA",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'IntelliJ IDEA %' AND name NOT LIKE 'IntelliJ IDEA Community%' AND name NOT LIKE 'IntelliJ IDEA Educational%' AND publisher = 'JetBrains s.r.o.';",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/intellij_idea_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/intellij_idea_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}
