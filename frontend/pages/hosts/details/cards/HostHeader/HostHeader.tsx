@@ -9,7 +9,7 @@ import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWith
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import TooltipWrapper from "components/TooltipWrapper";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { isAndroidBYO, MdmEnrollmentStatus } from "interfaces/mdm";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
@@ -77,7 +77,7 @@ interface IHostSummaryProps {
    * Falls back to "My device" if not provided. */
   deviceUserHeader?: string;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
-  hostMdmEnrollmentStatus?: MdmEnrollmentStatus;
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
 }
 
 const HostHeader = ({
@@ -168,7 +168,7 @@ const HostHeader = ({
     const isAndroidBYOWipe =
       isAndroid(platform) &&
       hostMdmDeviceStatus === "wiping" &&
-      hostMdmEnrollmentStatus === "On (personal)";
+      isAndroidBYO(hostMdmEnrollmentStatus);
     const title = isAndroidBYOWipe ? "Unenroll pending" : tag.title;
     const tipContent = isAndroidBYOWipe ? (
       <>

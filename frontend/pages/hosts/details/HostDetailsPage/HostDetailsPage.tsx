@@ -37,7 +37,10 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { FLEET_FILEVAULT_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
+import {
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  isAndroidBYO,
+} from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
@@ -1419,7 +1422,7 @@ const HostDetailsPage = ({
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
-              hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
+              hostMdmEnrollmentStatus={host.mdm?.enrollment_status ?? null}
             />
           </div>
           <TabNav className={`${baseClass}__tab-nav`}>
@@ -1713,7 +1716,7 @@ const HostDetailsPage = ({
                 // Optimistically flip the device state so the "Unenroll pending" badge shows immediately instead of waiting for the next host refetch.
                 if (
                   isAndroid(host.platform) &&
-                  host.mdm.enrollment_status === "On (personal)"
+                  isAndroidBYO(host.mdm.enrollment_status)
                 ) {
                   setHostMdmDeviceState("wiping");
                 }

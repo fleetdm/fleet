@@ -748,6 +748,7 @@ const DeviceUserPage = ({
             renderActionsDropdown={renderActionButtons}
             deviceUser
             deviceUserHeader={pageHeader}
+            hostMdmEnrollmentStatus={null}
           />
           <TabNav className={`${baseClass}__tab-nav`}>
             <Tabs

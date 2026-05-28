@@ -12,6 +12,8 @@ import {
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 import {
+  isAndroidBYO,
+  isAndroidCOBO,
   isAutomaticDeviceEnrollment,
   isBYODAccountDrivenUserEnrollment,
   MdmEnrollmentStatus,
@@ -148,11 +150,10 @@ const canTurnOffMdm = (config: IHostActionConfigOptions) => {
     isAndroidMdmEnabledAndConfigured,
   } = config;
   // Android: Unenroll is BYO-only per Figma (#41683). COBO admins use Wipe instead.
-  // BYO is detected via the "On (personal)" enrollment status.
   const isAndroidWithUnenroll =
     isAndroid(hostPlatform) &&
     isAndroidMdmEnabledAndConfigured &&
-    hostMdmEnrollmentStatus === "On (personal)";
+    isAndroidBYO(hostMdmEnrollmentStatus);
 
   // Per Figma dev note (#41683): hide Unenroll for Android while any of Lock / Unenroll / Wipe /
   // Clear passcode is pending. Apple Unenroll continues to ignore device_status as it does today.
@@ -257,16 +258,16 @@ const canWipeHost = ({
     isIPadOrIPhone(hostPlatform) &&
     isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus);
 
-  // Android: Wipe is COBO-only. The COBO Android enrollment_status is "On (automatic)" today --
-  // matching the generated-column rule (enrolled=1 AND installed_from_dep=1 AND
-  // is_personal_enrollment=0). Explicit allow-list rather than a negative check so unrelated
-  // statuses ("On (manual)", "Pending", "Off") aren't accidentally permitted.
+  // Android: Wipe is COBO-only. COBO maps to enrollment_status="On (automatic)" today (matching
+  // the generated-column rule enrolled=1 AND installed_from_dep=1 AND is_personal_enrollment=0).
+  // Explicit allow-list via isAndroidCOBO so unrelated statuses ("On (manual)", "Pending", "Off")
+  // aren't accidentally permitted.
   const canWipeAndroid =
     isAndroid(hostPlatform) &&
     isAndroidMdmEnabledAndConfigured &&
     isConnectedToFleetMdm &&
     isEnrolledInMdm &&
-    hostMdmEnrollmentStatus === "On (automatic)";
+    isAndroidCOBO(hostMdmEnrollmentStatus);
 
   return (
     isPremiumTier &&

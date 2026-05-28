@@ -22,6 +22,7 @@ describe("HostHeader", () => {
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
+        hostMdmEnrollmentStatus={null}
       />
     );
     expect(screen.getByText("Test Host")).toBeInTheDocument();
@@ -36,6 +37,7 @@ describe("HostHeader", () => {
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
         deviceUser
+        hostMdmEnrollmentStatus={null}
       />
     );
     expect(screen.getByText("My device")).toBeInTheDocument();
@@ -48,6 +50,7 @@ describe("HostHeader", () => {
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
+        hostMdmEnrollmentStatus={null}
       />
     );
     expect(screen.queryByText("Refetch")).not.toBeInTheDocument();
@@ -60,6 +63,7 @@ describe("HostHeader", () => {
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
+        hostMdmEnrollmentStatus={null}
       />
     );
     const refetchButton = screen.getByRole("button", { name: /refetch/i });
@@ -73,6 +77,7 @@ describe("HostHeader", () => {
         showRefetchSpinner
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
+        hostMdmEnrollmentStatus={null}
       />
     );
     expect(screen.getByText(/Fetching fresh vitals/i)).toBeInTheDocument();
@@ -86,6 +91,7 @@ describe("HostHeader", () => {
         showRefetchSpinner={false}
         onRefetchHost={onRefetchHost}
         renderActionsDropdown={renderActionDropdown}
+        hostMdmEnrollmentStatus={null}
       />
     );
     fireEvent.click(screen.getByText("Refetch"));
@@ -99,6 +105,7 @@ describe("HostHeader", () => {
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
+        hostMdmEnrollmentStatus={null}
       />
     );
 
@@ -115,6 +122,7 @@ describe("HostHeader", () => {
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
         hostMdmDeviceStatus={"locked" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus={null}
       />
     );
 
@@ -131,6 +139,7 @@ describe("HostHeader", () => {
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
         hostMdmDeviceStatus={"locked" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus={null}
       />
     );
 
@@ -147,6 +156,7 @@ describe("HostHeader", () => {
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
         hostMdmDeviceStatus={"locking" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus={null}
       />
     );
     expect(screen.getByText("Lock pending")).toBeInTheDocument();
@@ -158,6 +168,7 @@ describe("HostHeader", () => {
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
         hostMdmDeviceStatus={"wiped" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus={null}
       />
     );
     expect(screen.getByText("Wiped")).toBeInTheDocument();
@@ -204,6 +215,7 @@ describe("HostHeader", () => {
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
         hostMdmDeviceStatus={"clearing_passcode" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus={null}
       />
     );
     expect(screen.getByText("Clear passcode pending")).toBeInTheDocument();
