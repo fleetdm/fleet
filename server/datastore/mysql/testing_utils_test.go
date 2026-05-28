@@ -930,7 +930,7 @@ func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 
 	// Use the real ACL adapter with a testing lookup service
 	lookupSvc := &testingLookupService{ds: ds}
-	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc)
+	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc, ds)
 
 	// Create service via bootstrap (the public API for creating the bounded context)
 	discardLogger := slog.New(slog.DiscardHandler)
