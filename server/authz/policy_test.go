@@ -3178,3 +3178,55 @@ func TestAuthorizeAPIEndpoint(t *testing.T) {
 		{user: test.UserTeamAdminTeam2, object: endpoint, action: read, allow: true},
 	})
 }
+
+func TestAuthorizeSelfServiceCategory(t *testing.T) {
+	t.Parallel()
+
+	unassigned := &fleet.SelfServiceCategory{FleetID: 0}
+	fleet1 := &fleet.SelfServiceCategory{FleetID: 1}
+	fleet2 := &fleet.SelfServiceCategory{FleetID: 2}
+
+	runTestCases(t, []authTestCase{
+		// Anonymous and role-less users are denied.
+		{user: nil, object: fleet1, action: read, allow: false},
+		{user: nil, object: fleet1, action: write, allow: false},
+		{user: test.UserNoRoles, object: fleet1, action: read, allow: false},
+
+		// Global roles: fleet_id is irrelevant, behavior is uniform across fleets.
+		{user: test.UserAdmin, object: fleet1, action: read, allow: true},
+		{user: test.UserAdmin, object: fleet1, action: write, allow: true},
+		{user: test.UserMaintainer, object: fleet1, action: read, allow: true},
+		{user: test.UserMaintainer, object: fleet1, action: write, allow: true},
+		{user: test.UserGitOps, object: fleet1, action: write, allow: true},
+		{user: test.UserObserver, object: fleet1, action: read, allow: true},
+		{user: test.UserObserver, object: fleet1, action: write, allow: false},
+		{user: test.UserObserverPlus, object: fleet1, action: read, allow: true},
+		{user: test.UserTechnician, object: fleet1, action: read, allow: true},
+
+		// Unassigned (fleet_id=0): global roles still apply, team roles do not.
+		{user: test.UserAdmin, object: unassigned, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: unassigned, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: unassigned, action: write, allow: false},
+
+		// Team admin (team1): full access on own fleet, denied on other.
+		{user: test.UserTeamAdminTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: fleet2, action: write, allow: false},
+
+		// Team maintainer (team1): read+write on own fleet, denied elsewhere.
+		{user: test.UserTeamMaintainerTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: fleet2, action: write, allow: false},
+
+		// Team gitops (team1): read+write on own fleet, denied elsewhere.
+		{user: test.UserTeamGitOpsTeam1, object: fleet1, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: fleet2, action: write, allow: false},
+
+		// Team read-only roles (observer/observer_plus/technician): read own fleet, not other.
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: fleet1, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: fleet2, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: fleet1, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: fleet1, action: read, allow: true},
+	})
+}
