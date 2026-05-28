@@ -473,6 +473,12 @@ type Datastore interface {
 	// ingestion don't clobber each other's view.
 	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin) error
 
+	// SoftDeleteMDMHostCertificatesForUnenrolledHosts soft-deletes MDM-origin
+	// cert rows for hosts reporting host_mdm.enrolled=0 — the cron complement to
+	// the MDMTurnOff hook for hosts unenrolled without a CheckOut. Returns the
+	// count soft-deleted.
+	SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error)
+
 	// ProfileHasACMEPayloadForCommand returns the host/profile gating data
 	// needed to decide whether an InstallProfile ack should trigger a
 	// CertificateList refetch: host platform, profile UUID, whether the
