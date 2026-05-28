@@ -9426,6 +9426,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID)
 	require.NoError(t, err)
 
+	// Seed a row in host_mdm_apple_enrollment_permissions so the
+	// additionalHostRefsByUUID validation loop below finds one for this host
+	// (the table is keyed by host_uuid). 8191 = all rights, the value every
+	// existing enrollment carried before #23242.
+	err = ds.SetHostMDMAppleEnrollmentPermissions(ctx, host.UUID, 8191)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool

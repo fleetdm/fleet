@@ -636,6 +636,7 @@ var additionalHostRefsByUUID = map[string]string{
 	"setup_experience_status_results":       "host_uuid",
 	"host_mdm_android_profiles":             "host_uuid",
 	"host_certificate_templates":            "host_uuid",
+	"host_mdm_apple_enrollment_permissions": "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -4936,6 +4937,30 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
 	}
 	return &hmdm, nil
+}
+
+func (ds *Datastore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+	var p fleet.HostMDMApplePermissions
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &p, `
+		SELECT host_uuid, access_rights
+		FROM host_mdm_apple_enrollment_permissions
+		WHERE host_uuid = ?`, hostUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("HostMDMApplePermissions").WithName(hostUUID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host MDM Apple enrollment permissions")
+	}
+	return &p, nil
+}
+
+func (ds *Datastore) SetHostMDMAppleEnrollmentPermissions(ctx context.Context, hostUUID string, accessRights int) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_mdm_apple_enrollment_permissions (host_uuid, access_rights)
+		VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE access_rights = VALUES(access_rights), delivered_at = NOW()`,
+		hostUUID, accessRights)
+	return ctxerr.Wrap(ctx, err, "set host MDM Apple enrollment permissions")
 }
 
 func (ds *Datastore) GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error) {
