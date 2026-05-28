@@ -33,6 +33,8 @@ type InsertOrReplaceMDMConfigAssetFunc func(ctx context.Context, asset fleet.MDM
 
 type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName, queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
 
+type GetAllMDMConfigAssetsByNameIncludingDeletedFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error)
+
 type GetAllMDMConfigAssetsHashesFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error)
 
 type DeleteMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) error
@@ -1615,6 +1617,12 @@ type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, app
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
+type RecordFailedVPPAppInstallFunc func(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, failureReason string, opts fleet.HostSoftwareInstallOptions) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
+
+type RecordFailedInHouseAppInstallFunc func(ctx context.Context, hostID uint, inHouseAppID uint, commandUUID string, failureReason string, opts fleet.HostSoftwareInstallOptions) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error)
+
+type GetVPPInstallReleaseInfoForCancelFunc func(ctx context.Context, hostID uint, executionID string) (*fleet.VPPInstallReleaseInfo, error)
+
 type GetVPPAppInstallStatusByCommandUUIDFunc func(ctx context.Context, commandUUID string) (bool, error)
 
 type IsAutoUpdateVPPInstallFunc func(ctx context.Context, commandUUID string) (bool, error)
@@ -2026,6 +2034,9 @@ type DataStore struct {
 
 	GetAllMDMConfigAssetsByNameFunc        GetAllMDMConfigAssetsByNameFunc
 	GetAllMDMConfigAssetsByNameFuncInvoked bool
+
+	GetAllMDMConfigAssetsByNameIncludingDeletedFunc        GetAllMDMConfigAssetsByNameIncludingDeletedFunc
+	GetAllMDMConfigAssetsByNameIncludingDeletedFuncInvoked bool
 
 	GetAllMDMConfigAssetsHashesFunc        GetAllMDMConfigAssetsHashesFunc
 	GetAllMDMConfigAssetsHashesFuncInvoked bool
@@ -4400,6 +4411,15 @@ type DataStore struct {
 	GetPastActivityDataForVPPAppInstallFunc        GetPastActivityDataForVPPAppInstallFunc
 	GetPastActivityDataForVPPAppInstallFuncInvoked bool
 
+	RecordFailedVPPAppInstallFunc        RecordFailedVPPAppInstallFunc
+	RecordFailedVPPAppInstallFuncInvoked bool
+
+	RecordFailedInHouseAppInstallFunc        RecordFailedInHouseAppInstallFunc
+	RecordFailedInHouseAppInstallFuncInvoked bool
+
+	GetVPPInstallReleaseInfoForCancelFunc        GetVPPInstallReleaseInfoForCancelFunc
+	GetVPPInstallReleaseInfoForCancelFuncInvoked bool
+
 	GetVPPAppInstallStatusByCommandUUIDFunc        GetVPPAppInstallStatusByCommandUUIDFunc
 	GetVPPAppInstallStatusByCommandUUIDFuncInvoked bool
 
@@ -5030,6 +5050,13 @@ func (s *DataStore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames 
 	s.GetAllMDMConfigAssetsByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAllMDMConfigAssetsByNameFunc(ctx, assetNames, queryerContext)
+}
+
+func (s *DataStore) GetAllMDMConfigAssetsByNameIncludingDeleted(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+	s.mu.Lock()
+	s.GetAllMDMConfigAssetsByNameIncludingDeletedFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllMDMConfigAssetsByNameIncludingDeletedFunc(ctx, assetNames)
 }
 
 func (s *DataStore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
@@ -10567,6 +10594,27 @@ func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, com
 	s.GetPastActivityDataForVPPAppInstallFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandResults)
+}
+
+func (s *DataStore) RecordFailedVPPAppInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID, commandUUID string, failureReason string, opts fleet.HostSoftwareInstallOptions) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	s.mu.Lock()
+	s.RecordFailedVPPAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordFailedVPPAppInstallFunc(ctx, hostID, appID, commandUUID, failureReason, opts)
+}
+
+func (s *DataStore) RecordFailedInHouseAppInstall(ctx context.Context, hostID uint, inHouseAppID uint, commandUUID string, failureReason string, opts fleet.HostSoftwareInstallOptions) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
+	s.mu.Lock()
+	s.RecordFailedInHouseAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.RecordFailedInHouseAppInstallFunc(ctx, hostID, inHouseAppID, commandUUID, failureReason, opts)
+}
+
+func (s *DataStore) GetVPPInstallReleaseInfoForCancel(ctx context.Context, hostID uint, executionID string) (*fleet.VPPInstallReleaseInfo, error) {
+	s.mu.Lock()
+	s.GetVPPInstallReleaseInfoForCancelFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPInstallReleaseInfoForCancelFunc(ctx, hostID, executionID)
 }
 
 func (s *DataStore) GetVPPAppInstallStatusByCommandUUID(ctx context.Context, commandUUID string) (bool, error) {

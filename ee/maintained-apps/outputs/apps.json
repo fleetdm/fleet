@@ -415,6 +415,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "Canva",
+      "slug": "canva/windows",
+      "platform": "windows",
+      "unique_identifier": "Canva",
+      "description": "Canva is a popular online graphic design tool."
+    },
+    {
       "name": "Cavalry",
       "slug": "cavalry/darwin",
       "platform": "darwin",
@@ -1694,6 +1701,13 @@
       "platform": "windows",
       "unique_identifier": "Postman x64 11.75.4",
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
+    },
+    {
+      "name": "Power BI",
+      "slug": "power-bi/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Power BI Desktop (x64)",
+      "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
     },
     {
       "name": "Pritunl",

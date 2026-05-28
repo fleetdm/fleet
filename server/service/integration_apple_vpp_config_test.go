@@ -567,9 +567,11 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			"updated install must carry the latest stored config bytes")
 
 		// Updating to a config that references an IDP variable the host hasn't
-		// been linked to → install POST fails 400 with a user-facing message
-		// (substitution error surfaces in the response because
-		// activateNextUpcomingActivity runs in-tx with the upcoming-activity insert).
+		// been linked to → the install is RECORDED AS FAILED (visible in the
+		// activity feed + Install Details modal) instead of being rejected with
+		// a 400. A pre-flight substitution check in InstallVPPAppPostValidation
+		// catches this before reserving a license or enqueuing a command.
+		// Regression for #45851 / #45854.
 		s.DoJSON("PATCH",
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 			&updateAppStoreAppRequest{
@@ -584,18 +586,82 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 				`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, iosHost.ID)
 		})
 
-		res := s.Do("POST",
+		s.DoJSON("POST",
 			fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, titleID),
-			&installSoftwareRequest{}, http.StatusBadRequest)
-		require.Contains(t, extractServerErrorText(res.Body),
-			"managed app configuration references Fleet variables that can't be resolved")
+			&installSoftwareRequest{}, http.StatusAccepted, &installSoftwareResponse{})
 
-		var uaAfter int
+		// A failed install row is recorded (verification_failed_at set).
+		var failedCount int
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &uaAfter,
-				`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, iosHost.ID)
+			return sqlx.GetContext(ctx, q, &failedCount,
+				`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ? AND verification_failed_at IS NOT NULL`, iosHost.ID)
+		})
+		require.Equal(t, 1, failedCount, "a failed VPP install row must be recorded")
+
+		// No zombie upcoming activity and no enqueued MDM command.
+		var uaAfter, nanoCount int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &uaAfter,
+				`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, iosHost.ID); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &nanoCount,
+				`SELECT COUNT(*) FROM nano_commands nc
+				 JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = nc.command_uuid
+				 WHERE hvsi.host_id = ? AND hvsi.verification_failed_at IS NOT NULL`, iosHost.ID)
 		})
 		require.Equal(t, uaBefore, uaAfter, "failed install must not leave a zombie upcoming_activity row")
+		require.Zero(t, nanoCount, "failed install must not enqueue an MDM command")
+
+		// The failure is visible as a failed installed_app_store_app activity
+		// carrying the unresolvable variable as the reason.
+		var listActs listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActs,
+			"order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		var found bool
+		for _, act := range listActs.Activities {
+			if act.Type == (fleet.ActivityInstalledAppStoreApp{}).ActivityName() {
+				require.NotNil(t, act.Details)
+				require.Contains(t, string(*act.Details), string(fleet.SoftwareInstallFailed))
+				require.Contains(t, string(*act.Details), "$FLEET_VAR_HOST_END_USER_EMAIL_IDP")
+				found = true
+				break
+			}
+		}
+		require.True(t, found, "a failed installed_app_store_app activity must be in the feed")
+
+		// Regression: the per-team/per-app status summary (vpp.go
+		// GetSummaryHostVPPAppInstalls) and the host software list
+		// status=failed_install filter (software_installers.go
+		// vppHostSoftwareInstallJoin) must both count Fleet-side pre-flight
+		// failures. Before the SQL fix, the WHERE `ncr.id IS NOT NULL …`
+		// clause dropped these rows entirely (no nano_command_results is
+		// written when no MDM command is enqueued), so the install row
+		// existed in host_vpp_software_installs with verification_failed_at
+		// set but was invisible to both surfaces.
+		var titleSummary getSoftwareTitleResponse
+		s.DoJSON("GET",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID),
+			&getSoftwareTitleRequest{ID: titleID, TeamID: &team.ID},
+			http.StatusOK, &titleSummary, "fleet_id", fmt.Sprint(team.ID))
+		require.NotNil(t, titleSummary.SoftwareTitle.AppStoreApp)
+		require.NotNil(t, titleSummary.SoftwareTitle.AppStoreApp.Status)
+		require.GreaterOrEqual(t, titleSummary.SoftwareTitle.AppStoreApp.Status.Failed, uint(1),
+			"per-team/per-app failed-install summary must count the pre-flight failure")
+
+		var hostSw getHostSoftwareResponse
+		s.DoJSON("GET",
+			fmt.Sprintf("/api/latest/fleet/hosts/%d/software", iosHost.ID),
+			nil, http.StatusOK, &hostSw, "status", "failed_install")
+		var foundInList bool
+		for _, sw := range hostSw.Software {
+			if sw.ID == titleID {
+				foundInList = true
+				break
+			}
+		}
+		require.True(t, foundInList,
+			"host software list filtered by status=failed_install must include the pre-flight-failed title")
 	})
 
 	t.Run("self-service install carries Configuration with $FLEET_VAR_HOST_UUID resolved", func(t *testing.T) {
@@ -750,5 +816,69 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 
 		_, err = cfgDev.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
+	})
+
+	t.Run("canceling a pending VPP install releases the reserved VPP license seat", func(t *testing.T) {
+		// Regression for #45851 / #45854 (license-leak follow-up to Jonathan's
+		// note about activated VPP install activities leaking licenses).
+		//
+		// A fresh install on a not-yet-licensed device reserves a seat via
+		// AssociateAssets. If the admin then cancels the upcoming activity
+		// before it reaches the device, Fleet must release the seat via
+		// DisassociateAssets — otherwise the seat leaks.
+		cancelHost, cancelDev := s.createAppleMobileHostThenEnrollMDM("ios")
+		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, cancelDev.SerialNumber)
+		s.Do("POST", "/api/latest/fleet/hosts/transfer",
+			&addHostsToTeamRequest{HostIDs: []uint{cancelHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+		titleID := titleIDFor(adamMulti, fleet.IOSPlatform)
+
+		// Reset the managed config to a resolvable one so the install proceeds
+		// past the pre-flight check and actually reserves a seat.
+		s.DoJSON("PATCH",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+			&updateAppStoreAppRequest{
+				TeamID:        &team.ID,
+				Configuration: asJSONString(`<dict><key>UUID</key><string>$FLEET_VAR_HOST_UUID</string></dict>`),
+			},
+			http.StatusOK, &updateAppStoreAppResponse{})
+
+		// Snapshot the disassociate-call count so we can assert exactly one new
+		// release happens on cancel.
+		disassocBefore := len(s.appleVPPConfigSrvConfig.Disassociations)
+
+		s.DoJSON("POST",
+			fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", cancelHost.ID, titleID),
+			&installSoftwareRequest{}, http.StatusAccepted, &installSoftwareResponse{})
+
+		// Pull the activated install's command_uuid (== upcoming_activities.execution_id).
+		var row struct {
+			CommandUUID       string `db:"command_uuid"`
+			AssociatedEventID string `db:"associated_event_id"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT command_uuid, COALESCE(associated_event_id, '') AS associated_event_id
+				 FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`,
+				cancelHost.ID, adamMulti)
+		})
+		// Sanity: this install was the one that reserved a seat.
+		require.NotEmpty(t, row.AssociatedEventID, "test setup: this install should have reserved a license")
+		commandUUID := row.CommandUUID
+
+		// Cancel the upcoming activity (DELETE /hosts/{id}/activities/upcoming/{activity_id}).
+		s.Do("DELETE",
+			fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", cancelHost.ID, commandUUID),
+			nil, http.StatusNoContent)
+
+		// The mock VPP server must have received exactly one disassociate for
+		// this adam_id + serial.
+		require.Len(t, s.appleVPPConfigSrvConfig.Disassociations, disassocBefore+1,
+			"cancel must trigger exactly one DisassociateAssets call")
+		got := s.appleVPPConfigSrvConfig.Disassociations[disassocBefore]
+		require.Len(t, got.Assets, 1)
+		require.Equal(t, adamMulti, got.Assets[0].AdamID)
+		require.Equal(t, []string{cancelDev.SerialNumber}, got.SerialNumbers)
+		require.Empty(t, got.ClientUserIds, "device-enrolled host must disassociate by serial, not clientUserId")
 	})
 }

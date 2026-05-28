@@ -98,7 +98,12 @@ parasails.registerComponent('scrollableTweets', {
   mounted: async function(){
     this.tweetsDiv = $('div[purpose="tweets"]')[0];
     this.tweetCards = $('a[purpose="tweet-card"]');
-    this.firstCardPosition = this.tweetCards[0].getBoundingClientRect().x;
+    try {
+      this.firstCardPosition = this.tweetCards[0].getBoundingClientRect().x;
+    } catch (err) {
+      console.warn('Could not determine position of testimonials in scrollable-tweets component.  Using fake position, which may cause rendering issues.  Error details:',err);
+      this.firstCardPosition = 0;
+    }
     this.numberOfTweetCardsDisplayedOnThisPage = this.tweetCards.length;
     this.calculateHowManyFullTweetsCanBeDisplayed();
     this.checkQuoteOverflow();
@@ -117,8 +122,14 @@ parasails.registerComponent('scrollableTweets', {
     calculateHowManyFullTweetsCanBeDisplayed: function() {
       let firstTweetCard = this.tweetCards[0];
       let nextTweetCard = this.tweetCards[1];
-      this.tweetCardWidth =  nextTweetCard.getBoundingClientRect().x - firstTweetCard.getBoundingClientRect().x;
-      this.numberOfTweetsPerPage = Math.floor((document.body.clientWidth - this.firstCardPosition)/this.tweetCardWidth);
+      try {
+        this.tweetCardWidth =  nextTweetCard.getBoundingClientRect().x - firstTweetCard.getBoundingClientRect().x;
+        this.numberOfTweetsPerPage = Math.floor((document.body.clientWidth - this.firstCardPosition)/this.tweetCardWidth);
+      } catch (err) {
+        console.warn('Could not determine "per page" and "card width" for testimonials in scrollable-tweets component.  Using fake position, which may cause rendering issues.  Error details:',err);
+        this.numberOfTweetsPerPage = 1;
+        this.tweetCardWidth = 100;
+      }
       if(this.numberOfTweetsPerPage < 1){
         this.numberOfTweetsPerPage = 1;
       }

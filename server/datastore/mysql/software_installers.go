@@ -1834,7 +1834,11 @@ WHERE
 	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
 	AND hvsi.canceled = 0
-	AND (ncr.id IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+	-- Allow rows with no nano_command_results — Fleet-side pre-flight failures
+	-- (unresolvable managed-config Fleet variable) record only the install row
+	-- with verification_failed_at set, no MDM command. See same comment in
+	-- vpp.go GetSummaryHostVPPAppInstalls.
+	AND (ncr.id IS NOT NULL OR hvsi.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 	AND (%s) = :status
 	AND NOT EXISTS (
 		SELECT 1
@@ -1973,7 +1977,12 @@ SELECT
 	hihsi.host_id
 FROM
 	host_in_house_software_installs hihsi
-	INNER JOIN
+	-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable managed-config
+	-- Fleet variable) survive — those never enqueue an MDM command, so no ncr
+	-- row exists. The inHouseAppHostStatusNamedQuery CASE maps
+	-- verification_failed_at IS NOT NULL to failed before any ncr.status branch
+	-- is evaluated.
+	LEFT JOIN
 		nano_command_results ncr ON ncr.command_uuid = hihsi.command_uuid
 	LEFT JOIN host_in_house_software_installs hihsi2
 		ON hihsi.host_id = hihsi2.host_id AND
