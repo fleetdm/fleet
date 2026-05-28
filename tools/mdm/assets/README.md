@@ -72,8 +72,7 @@ Supported flags are:
 Re-signs the Apple MDM CA certificate (`ca_cert`) in place, reusing the existing CA
 private key so previously-issued SCEP client certificates remain valid. Use this when
 the CA cert is approaching (or has passed) its expiry. **Stop all Fleet server
-containers for the target deployment before running this** — running servers keep the
-old cert in memory until they restart.
+containers for the target deployment before running this**
 
 ```
 go run tools/mdm/assets/main.go rollover-ca-cert -key=E6Ow1t2dbKARxEF6O9GFI3DDQRMROhI8 -extend-years=5
