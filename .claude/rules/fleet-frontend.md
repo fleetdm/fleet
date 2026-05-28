@@ -62,6 +62,11 @@ Use the `useTeamIdParam` hook for team-scoped pages:
 - `handleTeamChange(newTeamId)` to switch teams
 - `isTeamAdmin`, `isTeamMaintainer`, `isObserverPlus` for role checks
 
+## Routing & URL state
+Use react-router, not `window.location` / `window.history`. Direct window mutation desyncs react-router's location state.
+- Read query params from `location.query`, not `URLSearchParams(window.location.search)`.
+- Mutate the URL with `router.replace`/`router.push` or `browserHistory.replace`/`.push`, not `window.history.replaceState`.
+
 ## Notifications
 - Use `renderFlash(alertType, message)` from `NotificationContext`
 - Types: `"success"`, `"error"`, `"warning-filled"`

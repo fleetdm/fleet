@@ -11,8 +11,7 @@ const buildAutomationsItems = (
     canAccessSettings,
     canManageSoftwareAutomations,
     canManagePolicyAutomations,
-    canWrite,
-    currentTeam,
+    canManageReportAutomations,
     hasTeamSelected,
     isPremiumTier,
     isPrimoMode,
@@ -50,8 +49,11 @@ const buildAutomationsItems = (
         ]
       : []),
 
-    // Manage automations — reports (anyone who can write)
-    ...(canWrite
+    // Manage automations — reports. Mirrors ManageQueriesPage's
+    // `canManageAutomations` (admin-only). The destination page opens
+    // the modal from `?manage_automations=1` without re-checking the
+    // role, so the palette must gate strictly here.
+    ...(canManageReportAutomations
       ? [
           {
             id: "manage-report-automations",
@@ -93,13 +95,17 @@ const buildAutomationsItems = (
                     {
                       id: "manage-policy-automations-install-software",
                       label: "Install software",
-                      path: `${paths.MANAGE_POLICIES}?fleet_id=${currentTeam?.id}&manage_automations=install_software`,
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=install_software`
+                      ),
                       keywords: ["resolve", "remediate"],
                     },
                     {
                       id: "manage-policy-automations-run-script",
                       label: "Run script",
-                      path: `${paths.MANAGE_POLICIES}?fleet_id=${currentTeam?.id}&manage_automations=run_script`,
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=run_script`
+                      ),
                       keywords: ["resolve", "remediate"],
                     },
                   ]
@@ -109,7 +115,9 @@ const buildAutomationsItems = (
                     {
                       id: "manage-policy-automations-calendar",
                       label: "Calendar events",
-                      path: `${paths.MANAGE_POLICIES}?fleet_id=${currentTeam?.id}&manage_automations=calendar`,
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=calendar`
+                      ),
                       keywords: [
                         "reserve time",
                         "maintenance window",
@@ -123,7 +131,9 @@ const buildAutomationsItems = (
                     {
                       id: "manage-policy-automations-conditional-access",
                       label: "Conditional access",
-                      path: `${paths.MANAGE_POLICIES}?fleet_id=${currentTeam?.id}&manage_automations=conditional_access`,
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=conditional_access`
+                      ),
                       keywords: [
                         "sso",
                         "okta",

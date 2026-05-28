@@ -172,15 +172,30 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     JSX.Element | string | null
   >();
 
-  // Open activity feed automations modal via query param (e.g. from command palette)
+  const canEnrollHosts =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
+  const canEditActivityFeedAutomations =
+    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
+
+  // Open activity feed automations modal via deep-link (e.g. from the
+  // command palette). Gate on the same predicate as the in-page action —
+  // the param must not bypass role/team checks. Strip the param either
+  // way so refreshes don't keep trying.
   useEffect(() => {
-    if (location.query.manage_automations === "1") {
+    if (location.query.manage_automations !== "1") return;
+    if (canEditActivityFeedAutomations) {
       setShowActivityFeedAutomationsModal(true);
-      // Clean up the query param from the URL, preserving other params
-      const { manage_automations, ...rest } = location.query;
-      router.replace({ pathname, query: rest });
     }
-  }, [location.query.manage_automations, pathname, router]);
+    const { manage_automations, ...rest } = location.query;
+    router.replace({ pathname, query: rest });
+  }, [
+    location.query,
+    pathname,
+    router,
+    canEditActivityFeedAutomations,
+    setShowActivityFeedAutomationsModal,
+  ]);
 
   useEffect(() => {
     const platformByPathname =
@@ -189,12 +204,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
     setSelectedPlatform(platformByPathname);
   }, [pathname]);
-
-  const canEnrollHosts =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
-  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canEditActivityFeedAutomations =
-    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
 
   const { data: config, refetch: refetchConfig } = useQuery<
     IConfig,

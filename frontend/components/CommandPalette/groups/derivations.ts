@@ -40,6 +40,7 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
     currentTeam,
     availableTeams,
     hasTeamSelected,
+    isPremiumTier,
     isPrimoMode,
   } = ctx;
 
@@ -74,8 +75,10 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
   };
   const switchesFromAllFleets = getDefaultTeamName();
 
+  // Free tier has no team concept — no Unassigned to switch to —
+  // so suppress the chip there too.
   const teamRequiredDestination =
-    !isPrimoMode && !hasTeamSelected && !isUnassigned
+    !!isPremiumTier && !isPrimoMode && !hasTeamSelected && !isUnassigned
       ? "Unassigned"
       : undefined;
 

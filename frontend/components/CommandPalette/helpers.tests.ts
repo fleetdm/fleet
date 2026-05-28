@@ -1,6 +1,12 @@
 import createMockConfig from "__mocks__/configMock";
+import paths from "router/paths";
 
-import { buildPaletteItems, GROUPS, ICommandPaletteContext } from "./helpers";
+import {
+  buildFleetSwitchUrl,
+  buildPaletteItems,
+  GROUPS,
+  ICommandPaletteContext,
+} from "./helpers";
 
 const BASE_CONTEXT: ICommandPaletteContext = {
   search: "",
@@ -12,6 +18,7 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   canAccessSettings: true,
   canManagePolicyAutomations: true,
   canManageSoftwareAutomations: true,
+  canManageReportAutomations: true,
   canEditCustomVariable: true,
   canAddSoftware: true,
   isTechnician: false,
@@ -23,6 +30,7 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   hasTeamSelected: false,
 
   withTeamId: (path: string) => path,
+  withTeamRequired: (path: string) => path,
   onToggleDarkMode: jest.fn(),
   onViewHost: jest.fn(),
   onViewSoftware: jest.fn(),
@@ -197,6 +205,24 @@ describe("CommandPalette helpers", () => {
 
       const addHosts = items.find((i) => i.id === "add-hosts");
       expect(addHosts?.teamName).toBeUndefined();
+    });
+
+    it("omits the 'Unassigned' chip for team-required commands on Free tier", () => {
+      // Free has no team concept — no Unassigned to switch to — so the
+      // chip should be hidden even when neither hasTeamSelected nor
+      // isUnassigned is true (the All-fleets-style sentinel state).
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isPremiumTier: false,
+        hasTeamSelected: false,
+        currentTeam: { id: -1, name: "All fleets" },
+      });
+
+      const addHosts = items.find((i) => i.id === "add-hosts");
+      expect(addHosts?.teamName).toBeUndefined();
+
+      const enrollSecrets = items.find((i) => i.id === "manage-enroll-secrets");
+      expect(enrollSecrets?.teamName).toBeUndefined();
     });
 
     it("shows 'Turn on' MDM when not configured", () => {
@@ -527,6 +553,25 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("run-live-policy");
     });
 
+    it("hides Manage report automations for non-admin writers (maintainers, technicians)", () => {
+      // A maintainer / technician: canWrite=true but not an admin anywhere,
+      // so the destination page won't expose Manage automations.
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        canWrite: true,
+        canManageReportAutomations: false,
+      });
+      expect(items.map((i) => i.id)).not.toContain("manage-report-automations");
+    });
+
+    it("shows Manage report automations when canManageReportAutomations is true", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        canManageReportAutomations: true,
+      });
+      expect(items.map((i) => i.id)).toContain("manage-report-automations");
+    });
+
     it("shows Create fleet only for admins", () => {
       const adminItems = buildPaletteItems(BASE_CONTEXT);
       expect(adminItems.map((i) => i.id)).toContain("create-fleet");
@@ -652,6 +697,151 @@ describe("CommandPalette helpers", () => {
       }).map((i) => i.id);
 
       expect(ids).not.toContain("create-fleet");
+    });
+  });
+
+  describe("buildFleetSwitchUrl", () => {
+    const parse = (url: string) => new URL(url, "http://localhost");
+
+    describe("team-required page fallback", () => {
+      it("redirects to /hosts/manage when switching to All from Controls", () => {
+        expect(
+          buildFleetSwitchUrl({
+            pathname: paths.CONTROLS,
+            currentSearch: "?fleet_id=1",
+            fleetId: -1,
+          })
+        ).toBe(paths.MANAGE_HOSTS);
+      });
+
+      it("keeps fleet_id=0 on the fallback URL when switching to Unassigned", () => {
+        expect(
+          buildFleetSwitchUrl({
+            pathname: paths.SOFTWARE_LIBRARY,
+            currentSearch: "?fleet_id=1&self_service=1",
+            fleetId: 0,
+          })
+        ).toBe(`${paths.MANAGE_HOSTS}?fleet_id=0`);
+      });
+
+      it("does not trigger the fallback on a non-team-required page", () => {
+        // /hosts/manage is not in TEAM_REQUIRED_PREFIXES.
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?fleet_id=1",
+            fleetId: -1,
+          })
+        );
+        expect(url.pathname).toBe(paths.MANAGE_HOSTS);
+        expect(url.searchParams.has("fleet_id")).toBe(false);
+      });
+    });
+
+    describe("else branch strip rules", () => {
+      it("sets fleet_id when switching between specific fleets", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?fleet_id=1",
+            fleetId: 2,
+          })
+        );
+        expect(url.searchParams.get("fleet_id")).toBe("2");
+      });
+
+      it("removes fleet_id when switching to All fleets", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?fleet_id=1",
+            fleetId: -1,
+          })
+        );
+        expect(url.searchParams.has("fleet_id")).toBe(false);
+      });
+
+      it("strips page on any fleet switch", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?fleet_id=1&page=3",
+            fleetId: 2,
+          })
+        );
+        expect(url.searchParams.has("page")).toBe(false);
+      });
+
+      it("strips legacy team_id on any fleet switch", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?team_id=1",
+            fleetId: 2,
+          })
+        );
+        expect(url.searchParams.has("team_id")).toBe(false);
+        expect(url.searchParams.get("fleet_id")).toBe("2");
+      });
+
+      it("strips script_batch_execution_id and script_batch_execution_status on any fleet switch", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch:
+              "?fleet_id=1&script_batch_execution_id=abc&script_batch_execution_status=ran",
+            fleetId: 2,
+          })
+        );
+        expect(url.searchParams.has("script_batch_execution_id")).toBe(false);
+        expect(url.searchParams.has("script_batch_execution_status")).toBe(
+          false
+        );
+      });
+
+      it("strips software_status when switching to All fleets", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?fleet_id=1&software_status=pending",
+            fleetId: -1,
+          })
+        );
+        expect(url.searchParams.has("software_status")).toBe(false);
+      });
+
+      it("preserves software_status when switching between specific fleets", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?fleet_id=1&software_status=pending",
+            fleetId: 2,
+          })
+        );
+        expect(url.searchParams.get("software_status")).toBe("pending");
+      });
+
+      it("preserves unrelated params across a fleet switch", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?fleet_id=1&query=foo&order_key=name",
+            fleetId: 2,
+          })
+        );
+        expect(url.searchParams.get("query")).toBe("foo");
+        expect(url.searchParams.get("order_key")).toBe("name");
+      });
+
+      it("returns a bare pathname when no params remain", () => {
+        expect(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?fleet_id=1",
+            fleetId: -1,
+          })
+        ).toBe(paths.MANAGE_HOSTS);
+      });
     });
   });
 });

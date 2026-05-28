@@ -382,6 +382,39 @@ describe("CommandPalette", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("does not intercept Cmd+K for isNoAccess users", async () => {
+      const noAccessRender = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isNoAccess: true,
+            currentUser: {
+              id: 1,
+              name: "No Access",
+              email: "noaccess@fleet.co",
+              global_role: null,
+            },
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      const { user } = noAccessRender(<CommandPalette />);
+      const onKeyDown = jest.fn();
+      document.addEventListener("keydown", onKeyDown);
+
+      await user.keyboard("{Meta>}k{/Meta}");
+
+      // If the palette had registered its handler, it would have called
+      // preventDefault on the synthetic event before our listener saw it.
+      expect(onKeyDown).toHaveBeenCalled();
+      expect(onKeyDown.mock.calls[0][0].defaultPrevented).toBe(false);
+      // And the palette must remain unrendered.
+      expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
+
+      document.removeEventListener("keydown", onKeyDown);
+    });
+
     it("hides Actions and Controls for observers", async () => {
       const { user } = observerRender(<CommandPalette />);
       await openPalette(user);

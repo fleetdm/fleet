@@ -19,6 +19,7 @@ const buildCommandsItems = (
     isPrimoMode,
     isDarkMode,
     withTeamId,
+    withTeamRequired,
     onToggleDarkMode,
     onViewHost,
     onViewSoftware,
@@ -159,7 +160,7 @@ const buildCommandsItems = (
             id: "add-hosts",
             label: "Add hosts",
             group: "Commands" as const,
-            path: withTeamId(`${paths.MANAGE_HOSTS}?add_hosts=1`),
+            path: withTeamRequired(`${paths.MANAGE_HOSTS}?add_hosts=1`),
             keywords: ["enroll", "install", "fleetd", "device"],
             teamName: teamRequiredDestination,
           },
@@ -308,7 +309,9 @@ const buildCommandsItems = (
             id: "manage-enroll-secrets",
             label: "Manage enroll secrets",
             group: "Commands" as const,
-            path: withTeamId(`${paths.MANAGE_HOSTS}?manage_enroll_secrets=1`),
+            path: withTeamRequired(
+              `${paths.MANAGE_HOSTS}?manage_enroll_secrets=1`
+            ),
             keywords: ["enrollment", "token", "fleetd", "enroll secret"],
             teamName: teamRequiredDestination,
           },

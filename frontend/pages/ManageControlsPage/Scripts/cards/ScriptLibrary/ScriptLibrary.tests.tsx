@@ -138,3 +138,69 @@ describe("ScriptLibrary empty state", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("ScriptLibrary ?add_script=1 deep-link", () => {
+  const deepLinkLocation: ScriptsLocation = {
+    pathname: "/controls/scripts/library",
+    query: { add_script: "1" },
+    search: "?add_script=1",
+  };
+
+  it("opens the Add script modal for admins and strips the param via router.replace", async () => {
+    mockServer.use(emptyScriptsHandler);
+    const router = createMockRouter();
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          config: { server_settings: { scripts_disabled: false } },
+        },
+      },
+    });
+
+    render(
+      <ScriptLibrary router={router} teamId={1} location={deepLinkLocation} />
+    );
+
+    // Modal opens — title and submit button both read "Add script"
+    await waitFor(() => {
+      expect(screen.getAllByText("Add script")).toHaveLength(2);
+    });
+
+    // Param is stripped via the router prop, not window.history
+    expect(router.replace).toHaveBeenCalledWith({
+      pathname: "/controls/scripts/library",
+      query: {},
+    });
+  });
+
+  it("does not open the modal for technicians but still strips the param", async () => {
+    mockServer.use(emptyScriptsHandler);
+    const router = createMockRouter();
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isGlobalTechnician: true,
+          config: { server_settings: { scripts_disabled: false } },
+        },
+      },
+    });
+
+    render(
+      <ScriptLibrary router={router} teamId={1} location={deepLinkLocation} />
+    );
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: "/controls/scripts/library",
+        query: {},
+      });
+    });
+
+    expect(screen.queryByText("Add script")).not.toBeInTheDocument();
+  });
+});

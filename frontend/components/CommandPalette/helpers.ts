@@ -1,5 +1,6 @@
-import { ITeamSummary } from "interfaces/team";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
 import { IConfig } from "interfaces/config";
+import paths from "router/paths";
 
 import { deriveContext } from "./groups/derivations";
 import buildPagesItems from "./groups/pages";
@@ -44,6 +45,11 @@ export interface ICommandPaletteContext {
   canAccessSettings?: boolean;
   canManagePolicyAutomations?: boolean;
   canManageSoftwareAutomations?: boolean;
+  /** Mirrors ManageQueriesPage `canManageAutomations`:
+   *  isGlobalAdmin || isTeamAdmin. canWrite includes maintainers and
+   *  technicians, whom the destination page won't let manage report
+   *  automations, so this narrower flag gates `manage-report-automations`. */
+  canManageReportAutomations?: boolean;
   /** Mirrors Variables.tsx `canEdit` — only global admins and global
    *  maintainers can create custom variables. canWrite includes team
    *  roles and technicians, which the destination page rejects, so
@@ -69,6 +75,10 @@ export interface ICommandPaletteContext {
   isVppEnabled?: boolean;
   hasTeamSelected?: boolean;
   withTeamId: (path: string) => string;
+  /** Like withTeamId, but for commands that require a specific team —
+   *  on "All fleets" this routes to Unassigned (fleet_id=0) so the
+   *  destination matches the "Unassigned" chip shown next to the item. */
+  withTeamRequired: (path: string) => string;
   onToggleDarkMode: () => void;
   onViewHost: () => void;
   onViewSoftware: () => void;
@@ -106,4 +116,62 @@ export const buildPaletteItems = (
     ...buildMdmItems(ctx, derived),
     ...buildAutomationsItems(ctx, derived),
   ];
+};
+
+// Pages that require a specific fleet — they can't render "All fleets" or
+// (with some overlap) "Unassigned". When switching to either of those from
+// one of these pages, fall back to Hosts which supports both.
+const TEAM_REQUIRED_PREFIXES = [
+  paths.CONTROLS,
+  paths.SOFTWARE_LIBRARY,
+  paths.NEW_REPORT,
+];
+
+/**
+ * Build the next URL for a fleet switch initiated from the command palette.
+ *
+ * This bypasses useTeamIdParam.handleTeamChange (which owns per-page
+ * `overrideParamsOnTeamChange` config), so it reproduces handleTeamChange's
+ * generic strip rules (page, legacy team_id) plus the fleet-scoped Hosts
+ * filter keys (script_batch_execution_*, software_status on switch to All).
+ */
+export const buildFleetSwitchUrl = ({
+  pathname,
+  currentSearch,
+  fleetId,
+}: {
+  pathname: string;
+  currentSearch: string;
+  fleetId: number;
+}): string => {
+  const isAll = fleetId === APP_CONTEXT_ALL_TEAMS_ID;
+  const isUnassignedTarget = fleetId === 0;
+  const isOnTeamRequiredPage = TEAM_REQUIRED_PREFIXES.some((p) =>
+    pathname.startsWith(p)
+  );
+
+  if ((isAll || isUnassignedTarget) && isOnTeamRequiredPage) {
+    // For Unassigned, keep fleet_id=0 on the fallback URL.
+    // useTeamIdParam coerces a missing param back to All fleets (-1),
+    // which would silently undo the setCurrentTeam({id:0}) caller.
+    return isUnassignedTarget
+      ? `${paths.MANAGE_HOSTS}?fleet_id=0`
+      : paths.MANAGE_HOSTS;
+  }
+
+  const params = new URLSearchParams(currentSearch);
+  if (isAll) {
+    params.delete("fleet_id");
+  } else {
+    params.set("fleet_id", String(fleetId));
+  }
+  params.delete("page");
+  params.delete("team_id");
+  params.delete("script_batch_execution_id");
+  params.delete("script_batch_execution_status");
+  if (isAll) {
+    params.delete("software_status");
+  }
+  const qs = params.toString();
+  return qs ? `${pathname}?${qs}` : pathname;
 };

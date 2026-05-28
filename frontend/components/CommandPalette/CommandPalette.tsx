@@ -21,6 +21,7 @@ import {
   ICommandSubItem,
   GROUPS,
   buildPaletteItems,
+  buildFleetSwitchUrl,
 } from "./helpers";
 import FleetPicker from "./components/FleetPicker";
 import HostPicker from "./components/HostPicker";
@@ -155,6 +156,11 @@ const CommandPalette = (): JSX.Element | null => {
   // Software automations require global admin (all fleets view)
   const canManageSoftwareAutomations = isGlobalAdmin;
 
+  // Report automations: mirrors ManageQueriesPage's `canManageAutomations`
+  // (isGlobalAdmin || isTeamAdmin). At the palette level we don't know
+  // which team the user will land on, so admit anyone admin somewhere.
+  const canManageReportAutomations = isGlobalAdmin || isAnyTeamAdmin;
+
   const canAccessSettings = isGlobalAdmin;
 
   // Whether a specific team is selected (not "All teams")
@@ -172,6 +178,22 @@ const CommandPalette = (): JSX.Element | null => {
       return `${path}${separator}fleet_id=${currentTeam?.id}`;
     },
     [hasTeamSelected, isUnassigned, currentTeam?.id]
+  );
+
+  // For team-required commands (add hosts, manage enroll secrets): on
+  // "All fleets" the destination chip says "Unassigned", so the URL
+  // must actually route there with fleet_id=0 — otherwise the modal
+  // would use global enroll secrets instead of the Unassigned team's.
+  // Free has no team concept, so emit the bare path; useTeamIdParam
+  // would otherwise redirect-strip fleet_id on Free anyway.
+  const withTeamRequired = useCallback(
+    (path: string) => {
+      if (!isPremiumTier) return path;
+      const targetId = hasTeamSelected || isUnassigned ? currentTeam?.id : 0;
+      const separator = path.includes("?") ? "&" : "?";
+      return `${path}${separator}fleet_id=${targetId}`;
+    },
+    [isPremiumTier, hasTeamSelected, isUnassigned, currentTeam?.id]
   );
 
   // Reset page and search when dialog opens/closes
@@ -214,17 +236,18 @@ const CommandPalette = (): JSX.Element | null => {
   // Toggle open on Cmd+K / Ctrl+K; jump to switch-fleet on Cmd+Shift+F.
   // Focus is handled by the [open, page] effect below — don't rAF here, the
   // input ref isn't set until Radix's portal mounts.
+  // Skip registration entirely for no-access users so we don't intercept
+  // (and preventDefault) keyboard shortcuts for a palette they can't open.
   useEffect(() => {
+    if (isNoAccess) return undefined;
     const onKeyDown = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
-      if (e.key === "k") {
+      // Normalize once so Caps Lock (or shift layouts) don't miss.
+      const key = e.key.toLowerCase();
+      if (key === "k") {
         e.preventDefault();
         setOpen((prev) => !prev);
-      } else if (
-        e.shiftKey &&
-        (e.key === "f" || e.key === "F") &&
-        canSwitchFleet
-      ) {
+      } else if (e.shiftKey && key === "f" && canSwitchFleet) {
         e.preventDefault();
         setOpen(true);
         setSearch("");
@@ -233,7 +256,7 @@ const CommandPalette = (): JSX.Element | null => {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [canSwitchFleet]);
+  }, [canSwitchFleet, isNoAccess]);
 
   const navigate = useCallback((path: string) => {
     setOpen(false);
@@ -287,7 +310,7 @@ const CommandPalette = (): JSX.Element | null => {
   pageRef.current = page;
 
   useLayoutEffect(() => {
-    if (!open) {
+    if (!open || isNoAccess) {
       return undefined;
     }
     const onDocKey = (e: KeyboardEvent) => {
@@ -299,7 +322,7 @@ const CommandPalette = (): JSX.Element | null => {
     };
     document.addEventListener("keydown", onDocKey, true);
     return () => document.removeEventListener("keydown", onDocKey, true);
-  }, [open, goBack]);
+  }, [open, goBack, isNoAccess]);
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -313,40 +336,9 @@ const CommandPalette = (): JSX.Element | null => {
       }
 
       const { pathname, search: currentSearch } = window.location;
-      const isAll = fleetId === APP_CONTEXT_ALL_TEAMS_ID;
-      const isUnassignedTarget = fleetId === 0;
-
-      // Pages that require a specific fleet — can't render "All fleets" or
-      // (with some overlap) "Unassigned". When switching to those contexts
-      // from one of these pages, fall back to Hosts which supports both.
-      const teamRequiredPrefixes = [
-        paths.CONTROLS,
-        paths.SOFTWARE_LIBRARY,
-        paths.NEW_REPORT,
-      ];
-      const isOnTeamRequiredPage = teamRequiredPrefixes.some((p) =>
-        pathname.startsWith(p)
+      browserHistory.push(
+        buildFleetSwitchUrl({ pathname, currentSearch, fleetId })
       );
-
-      if ((isAll || isUnassignedTarget) && isOnTeamRequiredPage) {
-        // For Unassigned, keep fleet_id=0 on the fallback URL.
-        // useTeamIdParam coerces a missing param back to All fleets (-1),
-        // which would silently undo the setCurrentTeam({id:0}) above.
-        browserHistory.push(
-          isUnassignedTarget
-            ? `${paths.MANAGE_HOSTS}?fleet_id=0`
-            : paths.MANAGE_HOSTS
-        );
-      } else {
-        const params = new URLSearchParams(currentSearch);
-        if (isAll) {
-          params.delete("fleet_id");
-        } else {
-          params.set("fleet_id", String(fleetId));
-        }
-        const qs = params.toString();
-        browserHistory.push(qs ? `${pathname}?${qs}` : pathname);
-      }
 
       // Return to root so the palette stays open on the main view.
       setSearch("");
@@ -384,6 +376,7 @@ const CommandPalette = (): JSX.Element | null => {
         canAccessSettings,
         canManagePolicyAutomations,
         canManageSoftwareAutomations,
+        canManageReportAutomations,
         canEditCustomVariable,
         canAddSoftware,
         isTechnician,
@@ -396,6 +389,7 @@ const CommandPalette = (): JSX.Element | null => {
         isVppEnabled,
         hasTeamSelected,
         withTeamId,
+        withTeamRequired,
         onToggleDarkMode: () => {
           setThemeMode(isDarkModeActive ? "light" : "dark");
           setOpen(false);
@@ -418,6 +412,7 @@ const CommandPalette = (): JSX.Element | null => {
       canAccessSettings,
       canManagePolicyAutomations,
       canManageSoftwareAutomations,
+      canManageReportAutomations,
       canEditCustomVariable,
       canAddSoftware,
       isTechnician,
@@ -430,6 +425,7 @@ const CommandPalette = (): JSX.Element | null => {
       isVppEnabled,
       hasTeamSelected,
       withTeamId,
+      withTeamRequired,
       goToPage,
     ]
   );
@@ -466,11 +462,13 @@ const CommandPalette = (): JSX.Element | null => {
     return map;
   }, [items]);
 
-  // Auto expand/collapse sub-items as the user arrows through items
+  // Auto expand/collapse sub-items as the user arrows through items.
+  // Normalize to match how valueToParentId stores its keys — cmdk
+  // hands back the raw `value` prop (preserves casing/whitespace).
   const handleHighlightChange = useCallback(
     (value: string) => {
       if (isSearching) return;
-      const parentId = valueToParentId.get(value);
+      const parentId = valueToParentId.get(value.toLowerCase().trim());
       setExpandedItems(parentId ? new Set([parentId]) : new Set());
     },
     [valueToParentId, isSearching]
@@ -704,9 +702,13 @@ const CommandPalette = (): JSX.Element | null => {
     >
       <div className={`${baseClass}__input-wrapper`}>
         {page !== "root" && (
+          // tabIndex=-1 so Radix's open-autofocus skips the back button
+          // and lands on Command.Input — Backspace and Escape already
+          // cover keyboard "go back" so we lose nothing.
           <button
             type="button"
             aria-label="Back"
+            tabIndex={-1}
             className={`${baseClass}__back-button`}
             onClick={goBack}
           >
