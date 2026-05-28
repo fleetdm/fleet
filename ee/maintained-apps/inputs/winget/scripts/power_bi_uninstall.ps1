@@ -1,124 +1,124 @@
-# Power BI Desktop registers MORE THAN ONE uninstall entry, and the spacing of
-# the DisplayName varies ("Microsoft Power BI Desktop (x64)" vs.
-# "Microsoft PowerBI Desktop (x64)"). We normalize the DisplayName (strip
-# spaces, lowercase) so every variant matches, and we uninstall EVERY matching
-# entry instead of stopping at the first one.
-$normalizedTarget = "microsoftpowerbidesktop"
+# Power BI Desktop's EXE installer is a WiX "Burn" bundle. It registers TWO
+# uninstall entries:
+#   * "Microsoft PowerBI Desktop (x64)"  -> the bundle bootstrapper
+#       (...\Package Cache\{afa18d15-...}\PBIDesktopSetup_x64.exe)
+#   * "Microsoft Power BI Desktop (x64)" -> the MSI the bundle installed
+#       (MsiExec.exe /X{c7d2053f-...})
+#
+# Removing the MSI directly orphans the bundle: its uninstall then no-ops
+# (returns 0) and leaves the "Microsoft PowerBI Desktop (x64)" registration
+# behind, which is what Fleet's osquery-based validator keeps detecting.
+# Correct approach: uninstall via the BUNDLE first; it removes the MSI and its
+# own registration. Burn relaunches a cached copy of itself + spawns msiexec
+# asynchronously, so wait for those to finish.
 
-# Silent flag used only if an uninstaller turns out to be a plain EXE.
-$defaultExeArgs = "/S"
-
-$machineKey = `
- 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
-$machineKey32on64 = `
- 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-
-# 0 = success; 1605 = product not installed (already gone); 3010/1641 = success
-# but reboot required.
 $ExpectedExitCodes = @(0, 1605, 1641, 3010)
-
 $exitCode = 0
 
-try {
+$installDirs = @(
+    (Join-Path $env:ProgramFiles 'Microsoft Power BI Desktop'),
+    (Join-Path ${env:ProgramFiles(x86)} 'Microsoft Power BI Desktop')
+)
 
-[array]$uninstallKeys = Get-ChildItem `
-    -Path @($machineKey, $machineKey32on64) `
-    -ErrorAction SilentlyContinue |
-        ForEach-Object { Get-ItemProperty $_.PSPath }
-
-# Stop running Power BI processes up front so locked files don't block any of
-# the uninstalls.
-foreach ($proc in @("PBIDesktop", "msmdsrv", "Microsoft.Mashup.Container")) {
-    Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue
+function Wait-ForProcessExit {
+    param([string[]]$Names, [int]$TimeoutSeconds = 240)
+    $elapsed = 0
+    while ($elapsed -lt $TimeoutSeconds) {
+        $running = $Names | Where-Object { Get-Process -Name $_ -ErrorAction SilentlyContinue }
+        if (-not $running) { break }
+        Start-Sleep -Seconds 3
+        $elapsed += 3
+    }
 }
 
-$foundUninstaller = $false
-foreach ($key in $uninstallKeys) {
-    if (-not $key.DisplayName) { continue }
-
-    $normalized = ($key.DisplayName -replace '\s', '').ToLower()
-    if (-not $normalized.StartsWith($normalizedTarget)) { continue }
-
-    $foundUninstaller = $true
-    Write-Host "Uninstalling entry: $($key.DisplayName)"
-
-    $uninstallCommand = if ($key.QuietUninstallString) {
-        $key.QuietUninstallString
-    } else {
-        $key.UninstallString
-    }
-
-    if (-not $uninstallCommand) {
-        Write-Host "  No uninstall string for '$($key.DisplayName)', skipping."
-        continue
-    }
-
-    $uninstallArgs = $defaultExeArgs
-
-    if ($uninstallCommand -match "(?i)MsiExec\.exe\s+/[IX]\s*(\{[A-F0-9-]+\})") {
-        # MSI-backed entry (the Power BI EXE installer registers this form).
-        $uninstallCommand = "MsiExec.exe"
-        $uninstallArgs = "/X $($Matches[1]) /qn /norestart"
-    } else {
-        # Plain EXE uninstaller. Split the quoted command from its args.
-        $splitArgs = $uninstallCommand.Split('"')
-        if ($splitArgs.Length -gt 1) {
-            if ($splitArgs.Length -eq 3) {
-                $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
-            } elseif ($splitArgs.Length -gt 3) {
-                Throw `
-                    "Uninstall command contains multiple quoted strings. " +
-                        "Please update the uninstall script.`n" +
-                        "Uninstall command: $uninstallCommand"
+function Get-PowerBIEntries {
+    param([string[]]$Roots)
+    $list = @()
+    foreach ($root in $Roots) {
+        foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
+            $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
+            if (-not $key.DisplayName) { continue }
+            if (-not (($key.DisplayName -replace '\s', '').ToLower().Contains("powerbidesktop"))) { continue }
+            $list += [PSCustomObject]@{
+                DisplayName = $key.DisplayName
+                KeyPath     = $sub.PSPath
+                KeyName     = $sub.PSChildName
+                Command     = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
             }
-            $uninstallCommand = $splitArgs[1]
         }
     }
-
-    Write-Host "  Uninstall command: $uninstallCommand"
-    Write-Host "  Uninstall args: $uninstallArgs"
-
-    $processOptions = @{
-        FilePath = $uninstallCommand
-        PassThru = $true
-        Wait     = $true
-    }
-    if ($uninstallArgs -ne '') {
-        $processOptions.ArgumentList = "$uninstallArgs"
-    }
-
-    $process = Start-Process @processOptions
-    $entryExit = $process.ExitCode
-    Write-Host "  Uninstall exit code: $entryExit"
-
-    # msiexec can return before the uninstall fully completes; wait it out.
-    $timeout = 120
-    $elapsed = 0
-    while ((Get-Process -Name "msiexec" -ErrorAction SilentlyContinue) -and ($elapsed -lt $timeout)) {
-        Start-Sleep -Seconds 2
-        $elapsed += 2
-    }
-
-    # Record the first failing (non-expected) exit code; keep going so every
-    # matching entry gets removed.
-    if (($ExpectedExitCodes -notcontains $entryExit) -and ($exitCode -eq 0)) {
-        $exitCode = $entryExit
-    }
+    return $list
 }
 
-if (-not $foundUninstaller) {
-    Write-Host "No Power BI Desktop uninstall entries found (already removed)."
-    $exitCode = 0
+function Get-ExePath {
+    param([string]$Command)
+    if ($Command -match '"([^"]+\.exe)"') { return $Matches[1] }
+    if ($Command -match '(?i)([A-Z]:\\[^"]+?\.exe)') { return $Matches[1] }
+    return $null
 }
+
+try {
+    $roots = [System.Collections.Generic.List[string]]::new()
+    $roots.Add('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')
+    $roots.Add('HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall')
+    foreach ($hive in (Get-ChildItem 'Registry::HKEY_USERS' -ErrorAction SilentlyContinue)) {
+        if ($hive.Name -match '_Classes$') { continue }
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall")
+        $roots.Add("Registry::$($hive.Name)\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall")
+    }
+
+    $entries = Get-PowerBIEntries -Roots $roots
+    if ($entries.Count -eq 0) {
+        Write-Host "No Power BI Desktop entries found (already removed)."
+        Exit 0
+    }
+
+    foreach ($proc in @("PBIDesktop", "msmdsrv", "Microsoft.Mashup.Container")) {
+        Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue
+    }
+
+    # Phase 1: uninstall via the Burn bundle bootstrapper(s) FIRST.
+    foreach ($e in ($entries | Where-Object { $_.Command -match "(?i)PBIDesktopSetup.*\.exe" })) {
+        $exe = Get-ExePath $e.Command
+        if (-not $exe) { Write-Host "Could not parse bundle exe from: $($e.Command)"; continue }
+        if (-not (Test-Path -LiteralPath $exe)) { Write-Host "Bundle exe missing: $exe"; continue }
+
+        Write-Host "Uninstalling bundle: '$($e.DisplayName)'"
+        $p = Start-Process -FilePath $exe -ArgumentList "/uninstall /quiet /norestart" -PassThru -Wait
+        Write-Host "  Exit code: $($p.ExitCode)"
+        if (($ExpectedExitCodes -notcontains $p.ExitCode) -and ($exitCode -eq 0)) { $exitCode = $p.ExitCode }
+        Wait-ForProcessExit -Names @("PBIDesktopSetup_x64", "PBIDesktopSetup", "msiexec") -TimeoutSeconds 240
+    }
+
+    # Phase 2: remove any MSI entries the bundle didn't clean up.
+    foreach ($e in (Get-PowerBIEntries -Roots $roots)) {
+        $msiCode = $null
+        if ($e.Command -match "(?i)MsiExec\.exe\s+/[IX]\s*(\{[A-F0-9-]+\})") { $msiCode = $Matches[1] }
+        elseif ($e.KeyName -match "(?i)^\{[A-F0-9-]+\}$") { $msiCode = $e.KeyName }
+        if (-not $msiCode) { continue }
+
+        Write-Host "Removing leftover MSI: '$($e.DisplayName)' ($msiCode)"
+        $p = Start-Process -FilePath "MsiExec.exe" -ArgumentList "/X $msiCode /qn /norestart" -PassThru -Wait
+        Write-Host "  Exit code: $($p.ExitCode)"
+        Wait-ForProcessExit -Names @("msiexec") -TimeoutSeconds 180
+        if (($ExpectedExitCodes -notcontains $p.ExitCode) -and ($exitCode -eq 0)) { $exitCode = $p.ExitCode }
+    }
+
+    # Phase 3: safety net for stale registration when product files are gone.
+    $productGone = -not ($installDirs | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
+    foreach ($e in (Get-PowerBIEntries -Roots $roots)) {
+        if ($productGone) {
+            Write-Host "Removing orphaned registration: '$($e.DisplayName)' ($($e.KeyPath))"
+            Remove-Item -Path $e.KeyPath -Recurse -Force -ErrorAction SilentlyContinue
+        } else {
+            Write-Host "WARNING: entry still present and product files remain: '$($e.DisplayName)'"
+            if ($exitCode -eq 0) { $exitCode = 1 }
+        }
+    }
 
 } catch {
     Write-Host "Error: $_"
     $exitCode = 1
 }
 
-# Treat acceptable exit codes as success.
-if ($ExpectedExitCodes -contains $exitCode) {
-    Exit 0
-} else {
-    Exit $exitCode
-}
+if ($ExpectedExitCodes -contains $exitCode) { Exit 0 } else { Exit $exitCode }
