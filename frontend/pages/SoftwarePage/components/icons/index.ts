@@ -30,6 +30,7 @@ import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
+import Pd0562 from "./Pd0562";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
@@ -452,6 +453,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   package: Package,
   "parallels desktop": ParallelsDesktop,
   p4v: P4V,
+  pd: Pd0562,
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,

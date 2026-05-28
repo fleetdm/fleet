@@ -1472,6 +1472,13 @@
       "description": "Parallels Desktop is virtualization software."
     },
     {
+      "name": "Pd",
+      "slug": "pd/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.puredata.pd.pd-gui",
+      "description": "Pd is a visual programming language for multimedia."
+    },
+    {
       "name": "pgAdmin4",
       "slug": "pgadmin4/darwin",
       "platform": "darwin",
