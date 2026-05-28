@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
 import variablesAPI, {
   IListVariablesResponse,
@@ -28,7 +29,15 @@ const baseClass = "variables";
 
 export const VARIABLES_PAGE_SIZE = 20;
 
-const Variables = () => {
+interface IVariablesProps {
+  router: InjectedRouter;
+  location: {
+    pathname: string;
+    query: { add_variable?: string };
+  };
+}
+
+const Variables = ({ router, location }: IVariablesProps) => {
   const paginatedListRef = useRef<IPaginatedListHandle<IVariable>>(null);
 
   const [copyMessage, setCopyMessage] = useState("");
@@ -55,20 +64,18 @@ const Variables = () => {
     IListVariablesResponse
   >(["variables", apiParams], () => variablesAPI.getVariables(apiParams));
 
-  // Open add modal via query param (e.g. from command palette)
+  // Open the Add variable modal via deep-link (e.g. from the command
+  // palette). Gate on the same predicate the in-page button uses — the
+  // param must not bypass admin/maintainer-only authoring. Strip the
+  // param either way so refreshes don't keep trying.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("add_variable") === "1") {
+    if (location.query.add_variable !== "1") return;
+    if (canEdit) {
       setShowAddModal(true);
-      params.delete("add_variable");
-      const qs = params.toString();
-      window.history.replaceState(
-        {},
-        "",
-        qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-      );
     }
-  }, []);
+    const { add_variable, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [location.query, location.pathname, router, canEdit]);
 
   const onClickAddVariable = () => {
     setShowAddModal(true);
