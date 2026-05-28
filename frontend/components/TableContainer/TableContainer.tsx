@@ -59,6 +59,7 @@ interface ITableContainerProps<T = any> {
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
+  totalCount?: number;
   searchable?: boolean;
   disableSearch?: boolean;
   wideSearch?: boolean;
@@ -152,6 +153,7 @@ const TableContainer = <T,>({
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
+  totalCount,
   searchable,
   disableSearch,
   wideSearch,
@@ -558,6 +560,7 @@ const TableContainer = <T,>({
                 showMarkAllPages={showMarkAllPages}
                 isAllPagesSelected={isAllPagesSelected}
                 toggleAllPagesSelected={toggleAllPagesSelected}
+                totalCount={totalCount}
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
                 defaultPageIndex={pageIndex}

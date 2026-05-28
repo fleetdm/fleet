@@ -1938,6 +1938,7 @@ const ManageHostsPage = ({
         secondarySelectActions={secondarySelectActions}
         showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}
+        totalCount={totalFilteredHostsCount}
         searchable
         disableSearch={isTrulyEmpty}
         renderCount={renderHostCountAndExport}
