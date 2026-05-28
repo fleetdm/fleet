@@ -17,7 +17,7 @@ Fleet's agent (fleetd) ships three components: `orbit`, `osqueryd`, and Fleet
 Desktop. Each one can be pinned to a specific version or channel in your agent
 options.
 
-Fleet publishes three channels:
+Fleet supports two update channels (and also allows pinning to a specific version):
 
 - `stable`: the current production release
 - `edge`: the next release, available before it ships to stable
@@ -84,7 +84,7 @@ Once your canary fleet is running `edge`, keep an eye on:
 
 ## One thing to know about downgrading
 
-Once `orbit` has been upgraded to 1.20.0 or later, don't configure `edge` to a
+Once `orbit` has been upgraded to 1.20.0 or later, don't configure `orbit` to a
 channel that contains a version older than 1.20.0. The auto-update system will
 get into a restart loop. If you need to roll back, downgrade the channel itself
 rather than changing the channel assignment. The
