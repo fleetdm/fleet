@@ -1,0 +1,79 @@
+:root {
+  /* Brand */
+  --core-fleet-black: #192147;
+  --core-fleet-green: #009a7d;
+  --core-fleet-green-over: #00886c;
+  --core-fleet-green-down: #00775f;
+  --core-fleet-white: #ffffff;
+
+  /* Accent */
+  --core-vibrant-blue: #6a67fe;
+  --core-vibrant-red: #ff5c83;
+  --core-fleet-purple: #ae6ddf;
+
+  /* Status */
+  --ui-success: #3db67b;
+  --ui-warning: #fbbf24;
+  --ui-error: #d66c7b;
+  --ui-info: #6a67fe;
+  --ui-offline: #8b8fa2;
+
+  /* Dark surface scale (default) */
+  --app-bg: #181a1f;
+  --app-surface: #1e2128;
+  --app-surface-2: #252830;
+  --app-surface-3: #32363e;
+  --app-border: #2e323c;
+  --app-text: #e8eaf0;
+  --app-text-dim: #9aa0b4;
+  --log-bg: #0e0f12;
+
+  /* Type */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "SourceCodePro", "Source Code Pro", ui-monospace, Menlo, monospace;
+
+  /* Font-size scale. Use the role hint to keep tabs visually consistent:
+   *   xxx-small (10px): caption / panel-label / status pill (e.g. the
+   *                     `.section-title` UPPERCASE caption)
+   *   xx-small  (12px): default body text, dense data, mono runs
+   *   x-small   (14px): bold inline labels, modal body, important toggles
+   *                     (also the document body size — see global.css)
+   *   medium    (20px): page-level section heading (`<PageHeading>` in
+   *                     Settings; the gear icon glyph)
+   *   large     (24px): hero / welcome only (FirstRunGate)
+   *
+   * fs-small (16px) is reserved for future use; don't introduce new
+   * call sites without a deliberate reason — picking between 14 and 20
+   * is almost always clearer than landing on 16.
+   */
+  --fs-xxx-small: 10px;
+  --fs-xx-small: 12px;
+  --fs-x-small: 14px;
+  --fs-small: 16px;
+  --fs-medium: 20px;
+  --fs-large: 24px;
+
+  /* Spacing */
+  --pad-xxsmall: 2px;
+  --pad-xsmall: 4px;
+  --pad-small: 8px;
+  --pad-smedium: 12px;
+  --pad-medium: 16px;
+  --pad-large: 24px;
+  --pad-xlarge: 32px;
+
+  /* Radius */
+  --radius-sm: 3px;
+  --radius: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+
+  /* Shadow */
+  --shadow-pop: 0 2px 6px rgba(0, 0, 0, 0.1);
+  --shadow-modal: 0 8px 24px rgba(25, 33, 71, 0.16);
+  --shadow-popover-dark: 0 12px 30px rgba(0, 0, 0, 0.45);
+
+  /* Motion */
+  --motion-fast: 0.2s ease-in-out;
+}
