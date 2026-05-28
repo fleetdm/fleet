@@ -1836,13 +1836,6 @@
       "description": "Sublime Merge is a git client."
     },
     {
-      "name": "Sublime Merge",
-      "slug": "sublime-merge/windows",
-      "platform": "windows",
-      "unique_identifier": "Sublime Merge",
-      "description": "Sublime Merge is a git client."
-    },
-    {
       "name": "Sublime Text",
       "slug": "sublime-text/darwin",
       "platform": "darwin",
