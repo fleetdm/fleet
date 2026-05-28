@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260525130443, Down_20260525130443)
+	MigrationClient.AddMigration(Up_20260528180444, Down_20260528180444)
 }
 
-func Up_20260525130443(tx *sql.Tx) error {
+func Up_20260528180444(tx *sql.Tx) error {
 	// host_policy_runs records a policy run, old_status stores the policy status
 	// before the run and new_status stores the status after the run.
 	//
@@ -155,6 +155,6 @@ func Up_20260525130443(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260525130443(tx *sql.Tx) error {
+func Down_20260528180444(tx *sql.Tx) error {
 	return nil
 }
