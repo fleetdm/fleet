@@ -82,15 +82,6 @@ Once your canary fleet is running `edge`, keep an eye on:
 - **Query failures.** If scheduled queries stop returning results, the osquery
   component may have a problem.
 
-## One thing to know about downgrading
-
-Once `orbit` has been upgraded to 1.20.0 or later, don't configure `orbit` to a
-channel that contains a version older than 1.20.0. The auto-update system will
-get into a restart loop. If you need to roll back, downgrade the channel itself
-rather than changing the channel assignment. The
-[agent configuration docs](https://fleetdm.com/docs/configuration/agent-configuration#update-channels)
-cover this edge case in detail.
-
 ## Start small, catch problems early
 
 A canary fleet costs almost nothing to set up and can save a lot of cleanup.
