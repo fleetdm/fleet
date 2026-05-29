@@ -22328,10 +22328,10 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && len(tc.categories) == 0 {
 					// if no categories are set on an FMA in GitOps, we set categories to
 					// default values
-					require.ElementsMatch(t, tc.fmaDefaultCategories, stResp.SoftwareTitle.SoftwarePackage.Categories)
+					require.ElementsMatch(t, fleet.TranslateLegacySoftwareCategoryNames(tc.fmaDefaultCategories), stResp.SoftwareTitle.SoftwarePackage.Categories)
 					continue
 				}
-				require.ElementsMatch(t, tc.categories, stResp.SoftwareTitle.SoftwarePackage.Categories)
+				require.ElementsMatch(t, fleet.TranslateLegacySoftwareCategoryNames(tc.categories), stResp.SoftwareTitle.SoftwarePackage.Categories)
 			}
 
 			// check that the categories come back on the My device page
@@ -22344,11 +22344,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 				if s.Name == maintained1.Name && len(tc.categories) == 0 {
 					// if no categories are set on an FMA in GitOps, we set categories to
 					// default values
-					require.ElementsMatch(t, tc.fmaDefaultCategories, s.SoftwarePackage.Categories)
+					require.ElementsMatch(t, fleet.TranslateLegacySoftwareCategoryNames(tc.fmaDefaultCategories), s.SoftwarePackage.Categories)
 					continue
 				}
 
-				require.ElementsMatch(t, tc.categories, s.SoftwarePackage.Categories)
+				require.ElementsMatch(t, fleet.TranslateLegacySoftwareCategoryNames(tc.categories), s.SoftwarePackage.Categories)
 			}
 		})
 	}

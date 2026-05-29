@@ -63,6 +63,9 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 	if err != nil {
 		return nil, err
 	}
+	if err := ds.BatchNewSoftwareCategories(ctx, team.ID, fleet.DefaultSelfServiceCategoryNames); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "seeding default self-service categories")
+	}
 	return team, nil
 }
 

@@ -874,3 +874,24 @@ var DefaultSelfServiceCategoryNames = []string{
 	"🔐 Security",
 	"🛟 Support",
 }
+
+var LegacySoftwareCategoryNames = map[string]string{
+	"Browsers":        "🌎 Browsers",
+	"Communication":   "👬 Communication",
+	"Developer tools": "🧰 Developer tools",
+	"Productivity":    "💻 Productivity",
+	"Security":        "🔐 Security",
+	"Utilities":       "🛟 Support",
+}
+
+func TranslateLegacySoftwareCategoryNames(names []string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		if newName, ok := LegacySoftwareCategoryNames[n]; ok {
+			out[i] = newName
+		} else {
+			out[i] = n
+		}
+	}
+	return out
+}
