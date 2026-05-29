@@ -356,4 +356,15 @@ func TestAzureDataFromClaims(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "invalid UPN claim")
 	})
+
+	t.Run("succeeds without unique_name (v2 token)", func(t *testing.T) {
+		// v2 access tokens omit the v1-only `unique_name` claim; that must not block enrollment.
+		c := validClaims()
+		c["upn"] = "user@example.com"
+		delete(c, "unique_name")
+		data, err := azureDataFromClaims(ctx, c)
+		require.NoError(t, err)
+		require.Empty(t, data.UniqueName)
+		require.Equal(t, "user@example.com", data.UPN)
+	})
 }

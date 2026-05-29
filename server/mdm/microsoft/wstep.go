@@ -462,11 +462,10 @@ func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, 
 		audience = append(audience, singleAudience)
 	}
 
-	// Get UniqueName claim
-	uniqueNameClaim, ok := claims["unique_name"].(string)
-	if !ok {
-		return AzureData{}, ctxerr.New(ctx, "invalid UniqueName claim")
-	}
+	// UniqueName comes from the v1-only `unique_name` claim (v2 tokens use `preferred_username` instead) and is not
+	// consumed anywhere downstream, so treat it as optional: capture it when present, but don't reject the token when
+	// it's absent (which is the case for v2 access tokens).
+	uniqueNameClaim, _ := claims["unique_name"].(string)
 
 	// Get SCP claim
 	azureSCPClaim, ok := claims["scp"].(string)
