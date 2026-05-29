@@ -136,8 +136,10 @@ func (svc *Service) processGoogleCloudIdentityForNewlyFailingPolicies(
 		return nil
 	}
 
+	// Detach from request cancellation but preserve trace metadata so the
+	// async PATCH outlives the osquery handler return.
+	bg := context.WithoutCancel(ctx)
 	go func() {
-		bg := context.Background()
 		if err := syncer.SyncHost(bg, host, mdmEnrolled, totalCAPolicies, failingNames, labelNames); err != nil {
 			svc.logger.ErrorContext(bg, "google_cloud_identity: SyncHost failed",
 				"host_id", host.ID,

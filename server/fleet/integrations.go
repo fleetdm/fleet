@@ -26,7 +26,7 @@ type TeamIntegrations struct {
 	// Identity ClientState PATCHes for hosts on this team. Off by default; the
 	// server-side `google_cloud_identity` config block must also be set for
 	// this to do anything.
-	GoogleCloudIdentityEnabled optjson.Bool `json:"google_cloud_identity_enabled,omitempty"`
+	GoogleCloudIdentityEnabled optjson.Bool `json:"google_cloud_identity_enabled,omitzero"`
 	// GoogleCloudIdentityPartnerSuffix optionally overrides the global
 	// `partner_suffix` for hosts on this team, enabling team-scoped CAA
 	// expressions like `device.vendors["fleet-engineering-{C-id}"]`. Empty

@@ -2239,12 +2239,7 @@ func domainAllowed(email string, allowed []string) bool {
 		return false
 	}
 	dom := email[at+1:]
-	for _, a := range allowed {
-		if dom == a {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(allowed, dom)
 }
 
 func directIngestScheduledQueryStats(ctx context.Context, logger *slog.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {

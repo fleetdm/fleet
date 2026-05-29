@@ -3,7 +3,6 @@ package google_cloud_identity
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -115,7 +114,9 @@ func TestPatchClientState(t *testing.T) {
 		assert.Equal(t, "complianceState,managed", r.URL.Query().Get("updateMask"))
 
 		var got cloudidentity.ClientState
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&got)) {
+			return
+		}
 		assert.Equal(t, "host-uuid-1", got.CustomId)
 		assert.Equal(t, "NON_COMPLIANT", got.ComplianceState)
 		assert.Equal(t, "MANAGED", got.Managed)
@@ -188,7 +189,8 @@ func TestPermissionDeniedSurfacing(t *testing.T) {
 	assert.True(t, IsPermissionDenied(err), "IsPermissionDenied should match 403 response")
 
 	var apiErr *googleapi.Error
-	require.True(t, errors.As(err, &apiErr))
+	require.ErrorAs(t, err, &apiErr)
+	require.NotNil(t, apiErr)
 	assert.Equal(t, http.StatusForbidden, apiErr.Code)
 	assert.Contains(t, apiErr.Body, "PERMISSION_DENIED")
 }
@@ -203,7 +205,8 @@ func TestNon200Surfacing(t *testing.T) {
 	assert.False(t, IsPermissionDenied(err), "500 must not be flagged as permission-denied")
 
 	var apiErr *googleapi.Error
-	require.True(t, errors.As(err, &apiErr))
+	require.ErrorAs(t, err, &apiErr)
+	require.NotNil(t, apiErr)
 	assert.Equal(t, http.StatusInternalServerError, apiErr.Code)
 	assert.Contains(t, strings.ToLower(apiErr.Body), "upstream error")
 }

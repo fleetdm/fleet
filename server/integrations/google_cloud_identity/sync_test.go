@@ -21,8 +21,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-func boolPtr(b bool) *bool    { return &b }
-func strPtr(s string) *string { return &s }
 func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
 }
@@ -192,11 +190,11 @@ func TestSyncHost_NoChangeNoPatch(t *testing.T) {
 				HostID:             hostID,
 				WorkspaceEmail:     "user@example.com",
 				PartnerSuffix:      "fleet",
-				DeviceUserResource: strPtr("devices/d/deviceUsers/u"),
-				LastCompliant:      boolPtr(true),
-				LastManaged:        boolPtr(true),
-				LastScoreReason:    strPtr("The 1 CA-flagged Fleet policy is passing."),
-				LastEtag:           strPtr("etag-old"),
+				DeviceUserResource: new("devices/d/deviceUsers/u"),
+				LastCompliant:      new(true),
+				LastManaged:        new(true),
+				LastScoreReason:    new("The 1 CA-flagged Fleet policy is passing."),
+				LastEtag:           new("etag-old"),
 			},
 		}, nil
 	}
@@ -218,11 +216,11 @@ func TestSyncHost_StateChangedPatches(t *testing.T) {
 				HostID:             hostID,
 				WorkspaceEmail:     "user@example.com",
 				PartnerSuffix:      "fleet",
-				DeviceUserResource: strPtr("devices/d/deviceUsers/u"),
-				LastCompliant:      boolPtr(true),
-				LastManaged:        boolPtr(true),
-				LastScoreReason:    strPtr("The 1 CA-flagged Fleet policy is passing."),
-				LastEtag:           strPtr("etag-old"),
+				DeviceUserResource: new("devices/d/deviceUsers/u"),
+				LastCompliant:      new(true),
+				LastManaged:        new(true),
+				LastScoreReason:    new("The 1 CA-flagged Fleet policy is passing."),
+				LastEtag:           new("etag-old"),
 			},
 		}, nil
 	}
@@ -308,8 +306,8 @@ func TestSyncHost_PerRowFailureDoesNotDropOthers(t *testing.T) {
 	ds := new(mock.Store)
 	ds.LoadHostGoogleCloudIdentityClientStatesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostGoogleCloudIdentityClientState, error) {
 		return []*fleet.HostGoogleCloudIdentityClientState{
-			{HostID: hostID, WorkspaceEmail: "good@example.com", PartnerSuffix: "fleet", DeviceUserResource: strPtr("devices/d/deviceUsers/good")},
-			{HostID: hostID, WorkspaceEmail: "bad@example.com", PartnerSuffix: "fleet", DeviceUserResource: strPtr("devices/d/deviceUsers/bad")},
+			{HostID: hostID, WorkspaceEmail: "good@example.com", PartnerSuffix: "fleet", DeviceUserResource: new("devices/d/deviceUsers/good")},
+			{HostID: hostID, WorkspaceEmail: "bad@example.com", PartnerSuffix: "fleet", DeviceUserResource: new("devices/d/deviceUsers/bad")},
 		}, nil
 	}
 	var goodSet int
@@ -476,7 +474,7 @@ func TestNormalizeLabelTags(t *testing.T) {
 
 	t.Run("max 50 labels caps the output", func(t *testing.T) {
 		names := make([]string, 0, 100)
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			names = append(names, fmt.Sprintf("label-%03d", i))
 		}
 		got := normalizeLabelTags(names)
