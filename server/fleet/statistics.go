@@ -79,9 +79,6 @@ type StatisticsPayload struct {
 	// GitOpsModeExceptions lists the configured GitOps mode exceptions (e.g. "labels", "software", "secrets").
 	// Exceptions are persisted independently of GitOpsModeEnabled.
 	GitOpsModeExceptions []string `json:"gitOpsModeExceptions"`
-	// NumWindowsEntraClientIDs is the number of Entra application client IDs configured for Windows MDM enrollment
-	// (windows_entra_client_ids). Tracks adoption of v2 access token support ahead of the 2026-07-01 Entra cutover.
-	NumWindowsEntraClientIDs int `json:"numWindowsEntraClientIDs"`
 }
 
 type HostsCountByOrbitVersion struct {
