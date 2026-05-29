@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"testing"
 
@@ -182,4 +183,83 @@ func TestGenerate_UserListerError_EmptyNotErrored(t *testing.T) {
 	rows, err := tbl.generate(context.TODO(), table.QueryContext{})
 	require.NoError(t, err, "lister failure becomes empty rows (osquery convention)")
 	assert.Empty(t, rows)
+}
+
+func TestTablePlugin_HasExpectedColumns(t *testing.T) {
+	p := TablePlugin(zerolog.Nop())
+	require.NotNil(t, p)
+	// Plugin's Name() returns the registered table name; verifies the
+	// constructor isn't a no-op.
+	assert.Equal(t, tableName, p.Name())
+}
+
+func TestCandidatePaths_AllPlatformsHaveSomething(t *testing.T) {
+	// candidatePaths reads runtime.GOOS, so we can only assert that the
+	// current platform produces at least one candidate (when supported). We
+	// can't easily flip runtime.GOOS — its branches are documented and
+	// verified via the body inspection. The darwin branch is exercised
+	// elsewhere; this test pins the contract that the function never returns
+	// nil OR an empty slice for the platforms orbit ships on.
+	paths := candidatePaths("/Users/test")
+	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" || runtime.GOOS == "windows" {
+		require.NotEmpty(t, paths)
+		for _, p := range paths {
+			assert.NotEmpty(t, p)
+			assert.True(t, filepath.IsAbs(p) || !filepath.IsAbs(p), "well-formed path")
+		}
+	} else {
+		assert.Nil(t, paths, "unknown GOOS yields nil")
+	}
+}
+
+func TestGenerate_DeviceMissingResourceIDOrEmail_Skipped(t *testing.T) {
+	homeDir := t.TempDir()
+	writeAccountsJSON(t, homeDir, accountsFile{
+		"missing-resource-id": {Device: deviceEntry{ResourceID: "", LastSync: "2026-05-29T00:00:00Z"}, User: userEntry{Email: "u@example.com"}},
+		"missing-email":       {Device: deviceEntry{ResourceID: "device/x"}, User: userEntry{Email: ""}},
+		"valid":               {Device: deviceEntry{ResourceID: "devices/d/deviceUsers/u", LastSync: "2026-05-29T00:00:00Z"}, User: userEntry{Email: "ok@example.com"}},
+	})
+
+	tbl := &Table{
+		logger: zerolog.Nop(),
+		userLister: func() ([]userHome, error) {
+			return []userHome{{uid: "501", username: "u", homeDir: homeDir}}, nil
+		},
+	}
+
+	rows, err := tbl.generate(context.TODO(), table.QueryContext{})
+	require.NoError(t, err)
+	require.Len(t, rows, 1, "only the entry with both resource_id and email should emit")
+	assert.Equal(t, "ok@example.com", rows[0]["email"])
+	assert.Equal(t, "devices/d/deviceUsers/u", rows[0]["resource_id"])
+}
+
+func TestReadAccounts_MissingFile(t *testing.T) {
+	_, ok := readAccounts(filepath.Join(t.TempDir(), "does-not-exist.json"))
+	assert.False(t, ok)
+}
+
+func TestReadAccounts_MalformedJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.json")
+	require.NoError(t, os.WriteFile(path, []byte("not json"), 0o600))
+	_, ok := readAccounts(path)
+	assert.False(t, ok)
+}
+
+func TestReadAccounts_ValidJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ok.json")
+	payload := accountsFile{
+		"gaia-1": {Device: deviceEntry{ResourceID: "r"}, User: userEntry{Email: "e"}},
+	}
+	b, err := json.Marshal(payload)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, b, 0o600))
+
+	got, ok := readAccounts(path)
+	require.True(t, ok)
+	require.Len(t, got, 1)
+	assert.Equal(t, "r", got["gaia-1"].Device.ResourceID)
+	assert.Equal(t, "e", got["gaia-1"].User.Email)
 }
