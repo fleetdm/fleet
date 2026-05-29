@@ -1947,7 +1947,7 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 		case "android":
 			profs, err := ds.GetHostMDMAndroidProfiles(ctx, h.UUID)
 			require.NoError(t, err)
-			require.Equal(t, len(wantProfs), len(profs), "host uuid: %s", h.UUID)
+			require.Len(t, profs, len(wantProfs), "host uuid: %s", h.UUID)
 			for _, p := range profs {
 				gotProfs = append(gotProfs, anyProfile{
 					ProfileUUID:      p.ProfileUUID,

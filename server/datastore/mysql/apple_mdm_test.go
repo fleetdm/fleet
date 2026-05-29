@@ -6551,10 +6551,6 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
-	mockKV := new(mock.AdvancedKVStore)
-	mockKV.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
-		return make(map[string]*string), nil
-	}
 	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, "not-exists")
@@ -6785,10 +6781,6 @@ func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastor
 	nanoEnroll(t, ds, host, true)
 
 	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
-	mockKV := new(mock.AdvancedKVStore)
-	mockKV.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
-		return make(map[string]*string), nil
-	}
 	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	// verify the correct state of the declaration for the host
