@@ -1393,6 +1393,28 @@ type GetMDMWindowsReconcileCursorFunc func(ctx context.Context) (string, error)
 
 type SetMDMWindowsReconcileCursorFunc func(ctx context.Context, cursor string) error
 
+type GetAppleMDMHostForReconcileFunc func(ctx context.Context, hostUUID string) (*fleet.AppleHostReconcileInfo, error)
+
+type ListAppleProfilesForReconcileByTeamFunc func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error)
+
+type BulkGetHostLabelMembershipsFunc func(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[uint]map[uint]struct{}, error)
+
+type BulkGetHostMDMAppleProfilesByUUIDsFunc func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMAppleProfilePayload, error)
+
+type GetAppleProfileReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, err error)
+
+type GetMDMAppleReconcileCursorFunc func(ctx context.Context) (string, error)
+
+type SetMDMAppleReconcileCursorFunc func(ctx context.Context, cursor string) error
+
+type GetAppleDeclarationReconcileSnapshotFunc func(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, err error)
+
+type BulkUpsertMDMAppleHostDeclarationsFunc func(ctx context.Context, rows []*fleet.MDMAppleHostDeclaration) error
+
+type GetMDMAppleDeclarationReconcileCursorFunc func(ctx context.Context) (string, error)
+
+type SetMDMAppleDeclarationReconcileCursorFunc func(ctx context.Context, cursor string) error
+
 type BulkUpsertMDMWindowsHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
 
 type GetMDMWindowsProfilesContentsFunc func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error)
@@ -4074,6 +4096,39 @@ type DataStore struct {
 
 	SetMDMWindowsReconcileCursorFunc        SetMDMWindowsReconcileCursorFunc
 	SetMDMWindowsReconcileCursorFuncInvoked bool
+
+	GetAppleMDMHostForReconcileFunc        GetAppleMDMHostForReconcileFunc
+	GetAppleMDMHostForReconcileFuncInvoked bool
+
+	ListAppleProfilesForReconcileByTeamFunc        ListAppleProfilesForReconcileByTeamFunc
+	ListAppleProfilesForReconcileByTeamFuncInvoked bool
+
+	BulkGetHostLabelMembershipsFunc        BulkGetHostLabelMembershipsFunc
+	BulkGetHostLabelMembershipsFuncInvoked bool
+
+	BulkGetHostMDMAppleProfilesByUUIDsFunc        BulkGetHostMDMAppleProfilesByUUIDsFunc
+	BulkGetHostMDMAppleProfilesByUUIDsFuncInvoked bool
+
+	GetAppleProfileReconcileSnapshotFunc        GetAppleProfileReconcileSnapshotFunc
+	GetAppleProfileReconcileSnapshotFuncInvoked bool
+
+	GetMDMAppleReconcileCursorFunc        GetMDMAppleReconcileCursorFunc
+	GetMDMAppleReconcileCursorFuncInvoked bool
+
+	SetMDMAppleReconcileCursorFunc        SetMDMAppleReconcileCursorFunc
+	SetMDMAppleReconcileCursorFuncInvoked bool
+
+	GetAppleDeclarationReconcileSnapshotFunc        GetAppleDeclarationReconcileSnapshotFunc
+	GetAppleDeclarationReconcileSnapshotFuncInvoked bool
+
+	BulkUpsertMDMAppleHostDeclarationsFunc        BulkUpsertMDMAppleHostDeclarationsFunc
+	BulkUpsertMDMAppleHostDeclarationsFuncInvoked bool
+
+	GetMDMAppleDeclarationReconcileCursorFunc        GetMDMAppleDeclarationReconcileCursorFunc
+	GetMDMAppleDeclarationReconcileCursorFuncInvoked bool
+
+	SetMDMAppleDeclarationReconcileCursorFunc        SetMDMAppleDeclarationReconcileCursorFunc
+	SetMDMAppleDeclarationReconcileCursorFuncInvoked bool
 
 	BulkUpsertMDMWindowsHostProfilesFunc        BulkUpsertMDMWindowsHostProfilesFunc
 	BulkUpsertMDMWindowsHostProfilesFuncInvoked bool
@@ -9810,6 +9865,83 @@ func (s *DataStore) SetMDMWindowsReconcileCursor(ctx context.Context, cursor str
 	s.SetMDMWindowsReconcileCursorFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMWindowsReconcileCursorFunc(ctx, cursor)
+}
+
+func (s *DataStore) GetAppleMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.AppleHostReconcileInfo, error) {
+	s.mu.Lock()
+	s.GetAppleMDMHostForReconcileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleMDMHostForReconcileFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ListAppleProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
+	s.mu.Lock()
+	s.ListAppleProfilesForReconcileByTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListAppleProfilesForReconcileByTeamFunc(ctx, teamID)
+}
+
+func (s *DataStore) BulkGetHostLabelMemberships(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[uint]map[uint]struct{}, error) {
+	s.mu.Lock()
+	s.BulkGetHostLabelMembershipsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkGetHostLabelMembershipsFunc(ctx, hostIDs, labelIDs)
+}
+
+func (s *DataStore) BulkGetHostMDMAppleProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMAppleProfilePayload, error) {
+	s.mu.Lock()
+	s.BulkGetHostMDMAppleProfilesByUUIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkGetHostMDMAppleProfilesByUUIDsFunc(ctx, hostUUIDs)
+}
+
+func (s *DataStore) GetAppleProfileReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allProfiles []*fleet.AppleProfileForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleProfilePayload, err error) {
+	s.mu.Lock()
+	s.GetAppleProfileReconcileSnapshotFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleProfileReconcileSnapshotFunc(ctx, afterHostUUID, batchSize)
+}
+
+func (s *DataStore) GetMDMAppleReconcileCursor(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	s.GetMDMAppleReconcileCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleReconcileCursorFunc(ctx)
+}
+
+func (s *DataStore) SetMDMAppleReconcileCursor(ctx context.Context, cursor string) error {
+	s.mu.Lock()
+	s.SetMDMAppleReconcileCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMAppleReconcileCursorFunc(ctx, cursor)
+}
+
+func (s *DataStore) GetAppleDeclarationReconcileSnapshot(ctx context.Context, afterHostUUID string, batchSize int) (hosts []*fleet.AppleHostReconcileInfo, allDecls []*fleet.AppleDeclarationForReconcile, hostLabels map[uint]map[uint]struct{}, currentByHost map[string][]*fleet.MDMAppleHostDeclaration, err error) {
+	s.mu.Lock()
+	s.GetAppleDeclarationReconcileSnapshotFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleDeclarationReconcileSnapshotFunc(ctx, afterHostUUID, batchSize)
+}
+
+func (s *DataStore) BulkUpsertMDMAppleHostDeclarations(ctx context.Context, rows []*fleet.MDMAppleHostDeclaration) error {
+	s.mu.Lock()
+	s.BulkUpsertMDMAppleHostDeclarationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertMDMAppleHostDeclarationsFunc(ctx, rows)
+}
+
+func (s *DataStore) GetMDMAppleDeclarationReconcileCursor(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	s.GetMDMAppleDeclarationReconcileCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleDeclarationReconcileCursorFunc(ctx)
+}
+
+func (s *DataStore) SetMDMAppleDeclarationReconcileCursor(ctx context.Context, cursor string) error {
+	s.mu.Lock()
+	s.SetMDMAppleDeclarationReconcileCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMAppleDeclarationReconcileCursorFunc(ctx, cursor)
 }
 
 func (s *DataStore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {

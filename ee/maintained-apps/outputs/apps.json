@@ -240,6 +240,13 @@
       "description": "Avast Secure Browser is a web browser focusing on privacy."
     },
     {
+      "name": "AWS Command Line Interface v2",
+      "slug": "aws-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "AWS Command Line Interface v2",
+      "description": "AWS Command Line Interface provides a tool for interacting with all parts of Amazon Web Services."
+    },
+    {
       "name": "AWS Client VPN",
       "slug": "aws-vpn-client/darwin",
       "platform": "darwin",
@@ -252,6 +259,20 @@
       "platform": "windows",
       "unique_identifier": "AWS VPN Client",
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
+    },
+    {
+      "name": "Azul Zulu JDK 25",
+      "slug": "azul-zulu-25-jdk/windows",
+      "platform": "windows",
+      "unique_identifier": "Azul Zulu JDK",
+      "description": "Azul Zulu JDK 25 is a free, certified build of OpenJDK 25 from Azul Systems."
+    },
+    {
+      "name": "Azul Zulu JRE 25",
+      "slug": "azul-zulu-25-jre/windows",
+      "platform": "windows",
+      "unique_identifier": "Azul Zulu JRE",
+      "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
     },
     {
       "name": "Backblaze",
@@ -378,6 +399,13 @@
       "platform": "windows",
       "unique_identifier": "Bruno",
       "description": "Bruno is an open source IDE for exploring and testing APIs."
+    },
+    {
+      "name": "Burp Suite Community Edition",
+      "slug": "burp-suite-community/windows",
+      "platform": "windows",
+      "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+      "description": "Burp Suite is a web security testing toolkit."
     },
     {
       "name": "calibre",
@@ -632,6 +660,13 @@
       "description": "DB Browser for SQLite is a high quality, visual, open source tool designed for people who want to create, search, and edit SQLite or SQLCipher databases."
     },
     {
+      "name": "DB Browser for SQLite",
+      "slug": "db-browser-for-sqlite/windows",
+      "platform": "windows",
+      "unique_identifier": "DB Browser for SQLite",
+      "description": "DB Browser for SQLite is a high quality, visual, open source tool designed for people who want to create, search, and edit SQLite or SQLCipher databases."
+    },
+    {
       "name": "DBeaver",
       "slug": "dbeaver-community/darwin",
       "platform": "darwin",
@@ -653,6 +688,13 @@
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
+      "name": "DBeaverEE",
+      "slug": "dbeaver-enterprise/windows",
+      "platform": "windows",
+      "unique_identifier": "DBeaverEE",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
       "name": "DBeaverLite",
       "slug": "dbeaverlite/darwin",
       "platform": "darwin",
@@ -660,10 +702,24 @@
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
+      "name": "DBeaverLite",
+      "slug": "dbeaverlite/windows",
+      "platform": "windows",
+      "unique_identifier": "DBeaverLite",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
       "name": "DBeaverUltimate",
       "slug": "dbeaverultimate/darwin",
       "platform": "darwin",
       "unique_identifier": "com.dbeaver.product.ultimate",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
+      "name": "DBeaverUltimate",
+      "slug": "dbeaverultimate/windows",
+      "platform": "windows",
+      "unique_identifier": "DBeaverUltimate",
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
@@ -888,6 +944,13 @@
       "slug": "fork/darwin",
       "platform": "darwin",
       "unique_identifier": "com.DanPristupov.Fork",
+      "description": "Fork is a git client."
+    },
+    {
+      "name": "Fork",
+      "slug": "fork/windows",
+      "platform": "windows",
+      "unique_identifier": "Fork",
       "description": "Fork is a git client."
     },
     {
@@ -1176,6 +1239,20 @@
       "platform": "windows",
       "unique_identifier": "JetBrains Toolbox",
       "description": "JetBrains tools manager."
+    },
+    {
+      "name": "Joplin",
+      "slug": "joplin/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.cozic.joplin-desktop",
+      "description": "Joplin is a note taking and to-do application with synchronisation capabilities."
+    },
+    {
+      "name": "Joplin",
+      "slug": "joplin/windows",
+      "platform": "windows",
+      "unique_identifier": "Joplin",
+      "description": "Joplin is a note taking and to-do application with synchronisation capabilities."
     },
     {
       "name": "KeePassXC",
@@ -1493,6 +1570,13 @@
       "description": "Notion Calendar is an app to manage your time and work, together."
     },
     {
+      "name": "Notion Calendar",
+      "slug": "notion-calendar/windows",
+      "platform": "windows",
+      "unique_identifier": "Notion Calendar",
+      "description": "Notion Calendar is an app to manage your time and work, together."
+    },
+    {
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
@@ -1647,7 +1731,7 @@
       "description": "Parallels Desktop is virtualization software."
     },
     {
-      "name": "pgAdmin4",
+      "name": "pgAdmin 4",
       "slug": "pgadmin4/darwin",
       "platform": "darwin",
       "unique_identifier": "org.pgadmin.pgadmin4",
@@ -1708,6 +1792,13 @@
       "platform": "windows",
       "unique_identifier": "Microsoft Power BI Desktop (x64)",
       "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
+    },
+    {
+      "name": "Prisma Browser",
+      "slug": "prisma-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Prisma Access Browser",
+      "description": "Prisma Browser is a SASE-native browser that empowers secure work."
     },
     {
       "name": "Pritunl",
@@ -1969,7 +2060,7 @@
       "description": "Snagit is screen capture software."
     },
     {
-      "name": "SourceTree",
+      "name": "Sourcetree",
       "slug": "sourcetree/darwin",
       "platform": "darwin",
       "unique_identifier": "com.torusknot.SourceTreeNotMAS",
@@ -2075,6 +2166,13 @@
     },
     {
       "name": "Tableau Desktop",
+      "slug": "tableau-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Desktop",
+      "description": "Tableau Desktop is a powerful data visualization and business intelligence platform for analyzing and presenting data insights."
+    },
+    {
+      "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tableausoftware.Desktop.app",
@@ -2148,7 +2246,14 @@
       "slug": "textexpander/darwin",
       "platform": "darwin",
       "unique_identifier": "com.smileonmymac.textexpander",
-      "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
+      "description": "TextExpander is an application that lets you create and insert pre-made snippets of text anywhere."
+    },
+    {
+      "name": "TextExpander",
+      "slug": "textexpander/windows",
+      "platform": "windows",
+      "unique_identifier": "TextExpander",
+      "description": "TextExpander is an application that lets you create and insert pre-made snippets of text anywhere."
     },
     {
       "name": "The Unarchiver",
@@ -2256,6 +2361,13 @@
       "description": "VirtualBox is a virtualiser for arm64 hardware."
     },
     {
+      "name": "VirtualBox",
+      "slug": "virtualbox/windows",
+      "platform": "windows",
+      "unique_identifier": "Oracle VirtualBox",
+      "description": "VirtualBox is a virtualiser for x86-64 hardware."
+    },
+    {
       "name": "Viscosity",
       "slug": "viscosity/darwin",
       "platform": "darwin",
@@ -2291,6 +2403,13 @@
       "description": "VLC media player is a free and open-source media player software."
     },
     {
+      "name": "VNC Server",
+      "slug": "vnc-server/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.realvnc.vncserver",
+      "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
+    },
+    {
       "name": "VNC Viewer",
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
@@ -2298,10 +2417,31 @@
       "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
+      "name": "VSCodium",
+      "slug": "vscodium/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vscodium",
+      "description": "VSCodium is a release of VS Code without MS branding, telemetry, and licensing."
+    },
+    {
+      "name": "VSCodium",
+      "slug": "vscodium/windows",
+      "platform": "windows",
+      "unique_identifier": "VSCodium",
+      "description": "VSCodium is a release of VS Code without MS branding, telemetry, and licensing."
+    },
+    {
       "name": "Wacom Tablet",
       "slug": "wacom-tablet/darwin",
       "platform": "darwin",
       "unique_identifier": "com.wacom.WacomCenter",
+      "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
+    },
+    {
+      "name": "Wacom Tablet",
+      "slug": "wacom-tablet/windows",
+      "platform": "windows",
+      "unique_identifier": "Wacom Tablet",
       "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
     },
     {
@@ -2358,6 +2498,13 @@
       "slug": "windsurf/darwin",
       "platform": "darwin",
       "unique_identifier": "com.exafunction.windsurf",
+      "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
+    },
+    {
+      "name": "Windsurf",
+      "slug": "windsurf/windows",
+      "platform": "windows",
+      "unique_identifier": "Windsurf",
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
@@ -2443,6 +2590,13 @@
       "platform": "darwin",
       "unique_identifier": "us.zoom.ZoomPresence",
       "description": "Zoom Rooms is conference room software for Zoom meetings."
+    },
+    {
+      "name": "Zoom Rooms",
+      "slug": "zoom-rooms/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Rooms",
+      "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     },
     {
       "name": "Zoom",

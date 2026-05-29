@@ -367,7 +367,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, keyValueStore, logger, 0)
+							err = ReconcileAppleProfilesBatched(ctx, ds, mdmCommander, keyValueStore, logger, 0)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -380,7 +380,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleDeclarations(ctx, ds, mdmCommander, logger)
+							err = ReconcileAppleDeclarationsBatched(ctx, ds, mdmCommander, logger)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -5918,7 +5918,7 @@ func (s *integrationMDMTestSuite) assertHostAppleConfigProfiles(want map[*fleet.
 		for _, gp := range gotProfs {
 			idents = append(idents, gp.Identifier)
 		}
-		require.Equal(t, len(wantProfs), len(gotProfs), "apple host uuid: %s, profiles: %v", h.UUID, idents)
+		require.Len(t, gotProfs, len(wantProfs), "apple host uuid: %s, profiles: %v - want %v", h.UUID, idents, wantProfs)
 
 		sort.Slice(gotProfs, func(i, j int) bool {
 			l, r := gotProfs[i], gotProfs[j]
