@@ -1931,6 +1931,16 @@ type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint
 
 type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
 
+type UpsertHostGoogleCloudIdentityResolutionFunc func(ctx context.Context, hostID uint, rawResourceID string, workspaceEmail string, partnerSuffix string) error
+
+type SetHostGoogleCloudIdentityResolvedDeviceUserFunc func(ctx context.Context, hostID uint, rawResourceID string, partnerSuffix string, deviceUserResource string) error
+
+type LoadHostGoogleCloudIdentityClientStatesFunc func(ctx context.Context, hostID uint) ([]*fleet.HostGoogleCloudIdentityClientState, error)
+
+type SetHostGoogleCloudIdentityClientStateFunc func(ctx context.Context, hostID uint, rawResourceID string, partnerSuffix string, managed bool, compliant bool, scoreReason string, etag string) error
+
+type DeleteHostGoogleCloudIdentityClientStatesFunc func(ctx context.Context, hostID uint) error
+
 type GetHostIdentityCertBySerialNumberFunc func(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error)
 
 type GetHostIdentityCertByNameFunc func(ctx context.Context, name string) (*types.HostIdentityCertificate, error)
@@ -4903,6 +4913,21 @@ type DataStore struct {
 
 	SetHostConditionalAccessStatusFunc        SetHostConditionalAccessStatusFunc
 	SetHostConditionalAccessStatusFuncInvoked bool
+
+	UpsertHostGoogleCloudIdentityResolutionFunc        UpsertHostGoogleCloudIdentityResolutionFunc
+	UpsertHostGoogleCloudIdentityResolutionFuncInvoked bool
+
+	SetHostGoogleCloudIdentityResolvedDeviceUserFunc        SetHostGoogleCloudIdentityResolvedDeviceUserFunc
+	SetHostGoogleCloudIdentityResolvedDeviceUserFuncInvoked bool
+
+	LoadHostGoogleCloudIdentityClientStatesFunc        LoadHostGoogleCloudIdentityClientStatesFunc
+	LoadHostGoogleCloudIdentityClientStatesFuncInvoked bool
+
+	SetHostGoogleCloudIdentityClientStateFunc        SetHostGoogleCloudIdentityClientStateFunc
+	SetHostGoogleCloudIdentityClientStateFuncInvoked bool
+
+	DeleteHostGoogleCloudIdentityClientStatesFunc        DeleteHostGoogleCloudIdentityClientStatesFunc
+	DeleteHostGoogleCloudIdentityClientStatesFuncInvoked bool
 
 	GetHostIdentityCertBySerialNumberFunc        GetHostIdentityCertBySerialNumberFunc
 	GetHostIdentityCertBySerialNumberFuncInvoked bool
@@ -11748,6 +11773,41 @@ func (s *DataStore) SetHostConditionalAccessStatus(ctx context.Context, hostID u
 	s.SetHostConditionalAccessStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostConditionalAccessStatusFunc(ctx, hostID, managed, compliant)
+}
+
+func (s *DataStore) UpsertHostGoogleCloudIdentityResolution(ctx context.Context, hostID uint, rawResourceID string, workspaceEmail string, partnerSuffix string) error {
+	s.mu.Lock()
+	s.UpsertHostGoogleCloudIdentityResolutionFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpsertHostGoogleCloudIdentityResolutionFunc(ctx, hostID, rawResourceID, workspaceEmail, partnerSuffix)
+}
+
+func (s *DataStore) SetHostGoogleCloudIdentityResolvedDeviceUser(ctx context.Context, hostID uint, rawResourceID string, partnerSuffix string, deviceUserResource string) error {
+	s.mu.Lock()
+	s.SetHostGoogleCloudIdentityResolvedDeviceUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostGoogleCloudIdentityResolvedDeviceUserFunc(ctx, hostID, rawResourceID, partnerSuffix, deviceUserResource)
+}
+
+func (s *DataStore) LoadHostGoogleCloudIdentityClientStates(ctx context.Context, hostID uint) ([]*fleet.HostGoogleCloudIdentityClientState, error) {
+	s.mu.Lock()
+	s.LoadHostGoogleCloudIdentityClientStatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.LoadHostGoogleCloudIdentityClientStatesFunc(ctx, hostID)
+}
+
+func (s *DataStore) SetHostGoogleCloudIdentityClientState(ctx context.Context, hostID uint, rawResourceID string, partnerSuffix string, managed bool, compliant bool, scoreReason string, etag string) error {
+	s.mu.Lock()
+	s.SetHostGoogleCloudIdentityClientStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostGoogleCloudIdentityClientStateFunc(ctx, hostID, rawResourceID, partnerSuffix, managed, compliant, scoreReason, etag)
+}
+
+func (s *DataStore) DeleteHostGoogleCloudIdentityClientStates(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.DeleteHostGoogleCloudIdentityClientStatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostGoogleCloudIdentityClientStatesFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetHostIdentityCertBySerialNumber(ctx context.Context, serialNumber uint64) (*types.HostIdentityCertificate, error) {

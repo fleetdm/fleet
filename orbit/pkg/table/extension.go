@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/endpoint_verification_accounts"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filecontents"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firefox_preferences"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
@@ -155,6 +156,7 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		// orbit/cmd/orbit/orbit.go.
 		firefox_preferences.TablePlugin(log.Logger),
 		cryptoinfotable.TablePlugin(log.Logger),
+		endpoint_verification_accounts.TablePlugin(log.Logger),
 
 		// Additional data format tables
 		dataflattentable.TablePlugin(log.Logger, dataflattentable.JsonType),  // table name is "parse_json"

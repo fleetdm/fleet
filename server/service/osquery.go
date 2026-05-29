@@ -739,6 +739,7 @@ func (svc *Service) loadHostDetailQueryConfig(ctx context.Context, host *fleet.H
 		features,
 		osquery_utils.Integrations{
 			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+			GoogleCloudIdentity:        svc.hostRequiresGoogleCloudIdentityIngestion(ctx, host),
 		},
 		mdmTeamConfig,
 	)
@@ -832,6 +833,56 @@ func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.
 	}
 
 	return conditionalAccessConfigured && conditionalAccessEnabledForTeam
+}
+
+// hostRequiresGoogleCloudIdentityIngestion returns true when the host should
+// have the endpoint_verification_accounts detail query run against it: the
+// host is macOS (the only platform with an implemented EV-reader table in v1),
+// server config has Cloud Identity credentials set, and the host's team has
+// google_cloud_identity_enabled = true.
+func (svc *Service) hostRequiresGoogleCloudIdentityIngestion(ctx context.Context, host *fleet.Host) bool {
+	if host.Platform != "darwin" {
+		return false
+	}
+	configured, enabledForTeam, err := svc.googleCloudIdentityConfiguredAndEnabledForTeam(ctx, host.TeamID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "load google cloud identity configured and enabled, skipping ingestion",
+			"host_id", host.ID,
+			"err", err,
+		)
+		return false
+	}
+	return configured && enabledForTeam
+}
+
+// googleCloudIdentityConfiguredAndEnabledForTeam mirrors
+// conditionalAccessConfiguredAndEnabledForTeam: server-level credentials must
+// be set AND the host's team (or "no team" via AppConfig) must have the
+// integration enabled.
+func (svc *Service) googleCloudIdentityConfiguredAndEnabledForTeam(ctx context.Context, hostTeamID *uint) (configured bool, enabledForTeam bool, err error) {
+	if !svc.config.GoogleCloudIdentity.IsSet() {
+		return false, false, nil
+	}
+	if hostTeamID == nil {
+		cfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return false, false, ctxerr.Wrap(ctx, err, "load appconfig for google cloud identity")
+		}
+		var enabled bool
+		if cfg.Integrations.GoogleCloudIdentityEnabled.Set {
+			enabled = cfg.Integrations.GoogleCloudIdentityEnabled.Value
+		}
+		return true, enabled, nil
+	}
+	team, err := svc.ds.TeamLite(ctx, *hostTeamID)
+	if err != nil {
+		return false, false, ctxerr.Wrap(ctx, err, "load team config for google cloud identity")
+	}
+	var enabled bool
+	if team.Config.Integrations.GoogleCloudIdentityEnabled.Set {
+		enabled = team.Config.Integrations.GoogleCloudIdentityEnabled.Value
+	}
+	return true, enabled, nil
 }
 
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
@@ -1221,6 +1272,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 		if host.Platform == "darwin" || host.Platform == "windows" {
 			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, host.Platform, policyResults); err != nil {
+				logging.WithErr(ctx, err)
+			}
+		}
+
+		if host.Platform == "darwin" {
+			if err := svc.processGoogleCloudIdentityForNewlyFailingPolicies(ctx, host, policyResults); err != nil {
 				logging.WithErr(ctx, err)
 			}
 		}
