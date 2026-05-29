@@ -131,10 +131,21 @@ func (d *Datastore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 }
 
 // invalidateAfterHostUpdate is the common tail for write paths that update an already-existing host
-// (UpdateHost, SerialUpdateHost). Clears the cache by DEL'ing the known node keys directly.
+// (UpdateHost, SerialUpdateHost). DELs the known node keys directly via pipelinedDEL, skipping the two
+// id2nk/id2onk reverse-index GETs that hostCacheDeleteByID would perform.
 //
-// If neither NodeKey nor OrbitNodeKey is set on the struct we fall back to hostCacheDeleteByID so callers
-// that pass a sparsely-populated host still get correct invalidation.
+// Fallback rule is asymmetric and follows real host shapes in the hosts table:
+//   - NodeKey absent: anomalous. Every osquery-capable platform (darwin/windows/linux/android) has a
+//     non-null node_key, and hosts without a node_key never enter this cache (iOS/iPad authenticate via
+//     MDM cert, not LoadHostByNodeKey/LoadHostByOrbitNodeKey). A caller arriving here with no NodeKey
+//     is loading a sparsely-populated host, so fall back to hostCacheDeleteByID and let the reverse
+//     indices resolve whatever is cached.
+//   - OrbitNodeKey absent: normal. Roughly a quarter of hosts run osquery without Orbit. Their DB row
+//     truthfully has orbit_node_key NULL, and no LoadHostByOrbitNodeKey ever populated an onk:* entry
+//     for them, so there is nothing in the orbit family to orphan. Direct-DEL stays safe.
+//
+// EnrollOrbit (the only normal path that rotates orbit_node_key) goes through invalidateAfterHostEnroll,
+// not here, so we don't need to worry about a stale onk:OLD entry surviving a rotation.
 //
 // This path does NOT clear by direct keys to cover the pre-enrollment-negative-cache race that motivates
 // invalidateAfterHostEnroll's direct-keys clear: that race cannot apply to UpdateHost callers (you cannot
@@ -153,21 +164,22 @@ func (d *Datastore) invalidateAfterHostUpdate(ctx context.Context, host *fleet.H
 		onk = *host.OrbitNodeKey
 	}
 
-	if nk == "" && onk == "" {
-		// No node-key info on the struct; fall through to the by-ID path so we still pick up cached
-		// entries via the reverse indices.
+	if nk == "" {
 		d.hostCacheDeleteByID(ctx, host.ID, reason)
 		return
 	}
 
-	keys := make([]string, 0, 6)
-	if nk != "" {
-		keys = append(keys, hostCacheKeyByNodeKey(nk), hostCacheKeyMiss(nk))
+	keys := []string{
+		hostCacheKeyByNodeKey(nk),
+		hostCacheKeyMiss(nk),
+		hostCacheIndexByID(host.ID),
 	}
 	if onk != "" {
 		keys = append(keys, hostCacheKeyByOrbitNodeKey(onk), hostCacheKeyOrbitMiss(onk))
 	}
-	keys = append(keys, hostCacheIndexByID(host.ID), hostCacheOrbitIndexByID(host.ID))
+	// Always include id2onk in the DEL list. If the host has an orbit_node_key the index needs to be
+	// cleared along with the rest; if it doesn't, the DEL is a no-op (DEL on a missing key returns 0).
+	keys = append(keys, hostCacheOrbitIndexByID(host.ID))
 
 	d.pipelinedDEL(ctx, keys)
 	d.recordHostCacheInvalidation(ctx, reason)
