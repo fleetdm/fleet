@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -242,7 +243,7 @@ func TestGenerateEnrollmentProfileMobileconfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := GenerateEnrollmentProfileMobileconfig(tt.orgName, tt.fleetURL, tt.scepChallenge, "com.foo.bar")
+			result, err := GenerateEnrollmentProfileMobileconfig(tt.orgName, tt.fleetURL, tt.scepChallenge, "com.foo.bar", MDMAccessRightAll)
 			if tt.expectError {
 				require.Error(t, err)
 			} else {
@@ -269,6 +270,97 @@ func TestGenerateEnrollmentProfileMobileconfig(t *testing.T) {
 					}
 				}
 			}
+		})
+	}
+}
+
+func TestAppleEnrollmentAccessRights(t *testing.T) {
+	cases := []struct {
+		name      string
+		allowWipe bool
+		allowLock bool
+		want      int
+	}{
+		{"both allowed", true, true, 8191},
+		{"no wipe", false, true, 8191 - MDMAccessRightDeviceErase},                             // 8183
+		{"no lock", true, false, 8191 - MDMAccessRightDeviceLock},                              // 8187
+		{"neither", false, false, 8191 - MDMAccessRightDeviceErase - MDMAccessRightDeviceLock}, // 8179
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, AppleEnrollmentAccessRights(tc.allowWipe, tc.allowLock))
+		})
+	}
+}
+
+func TestComputeAppleEnrollmentAccessRights(t *testing.T) {
+	intPtr := func(v int) *int { return &v }
+
+	// Worked examples from the BYOD permissions plan:
+	cases := []struct {
+		name      string
+		allowWipe bool
+		allowLock bool
+		stored    *int
+		want      int
+		summary   string
+	}{
+		{"initial all-allowed", true, true, nil, MDMAccessRightAll,
+			"new host, fleet permits both → all rights"},
+		{"initial wipe disabled", false, true, nil, AppleEnrollmentAccessRights(false, true),
+			"new host, fleet disallows wipe → 7167"},
+		{"initial both disabled", false, false, nil, AppleEnrollmentAccessRights(false, false),
+			"new host, fleet disallows both → 6655"},
+
+		{"renewal narrows wipe (example 1)", false, true, intPtr(MDMAccessRightAll), AppleEnrollmentAccessRights(false, true),
+			"host enrolled with all (8191), admin disabled wipe → next renewal sends 7167"},
+		{"renewal cannot widen (example 2)", true, true, intPtr(AppleEnrollmentAccessRights(false, false)), AppleEnrollmentAccessRights(false, false),
+			"host enrolled with neither (6655), admin re-enabled both → bitwise AND with 8191 still 6655; profile unchanged"},
+		{"renewal further narrows", false, false, intPtr(AppleEnrollmentAccessRights(false, true)), AppleEnrollmentAccessRights(false, false),
+			"host had only-lock (7679), admin disabled lock too → 6655"},
+
+		// Identity check: AND with self yields self.
+		{"renewal unchanged", true, true, intPtr(MDMAccessRightAll), MDMAccessRightAll, ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ComputeAppleEnrollmentAccessRights(tc.allowWipe, tc.allowLock, tc.stored)
+			require.Equal(t, tc.want, got, tc.summary)
+		})
+	}
+}
+
+func TestGenerateEnrollmentProfileMobileconfig_AccessRights(t *testing.T) {
+	// The SCEP/manual enrollment profile must template the AccessRights bitmask
+	// caller-supplied (rather than hard-coding 8191) so that BYOD permission
+	// changes can narrow what Fleet can do to the device on subsequent renewals.
+	type mdmPayload struct {
+		PayloadType  string
+		AccessRights int
+	}
+	type prof struct {
+		PayloadContent []mdmPayload
+	}
+	for _, rights := range []int{
+		MDMAccessRightAll,
+		AppleEnrollmentAccessRights(false, true),
+		AppleEnrollmentAccessRights(true, false),
+		AppleEnrollmentAccessRights(false, false),
+	} {
+		t.Run(fmt.Sprintf("rights=%d", rights), func(t *testing.T) {
+			out, err := GenerateEnrollmentProfileMobileconfig("Fleet", "https://example.com", "c", "com.foo.bar", rights)
+			require.NoError(t, err)
+			var p prof
+			require.NoError(t, plist.Unmarshal(out, &p))
+			var got int
+			for _, payload := range p.PayloadContent {
+				if payload.PayloadType == "com.apple.mdm" {
+					got = payload.AccessRights
+					break
+				}
+			}
+			require.Equal(t, rights, got, "AccessRights in generated mobileconfig must match the value passed in")
 		})
 	}
 }
