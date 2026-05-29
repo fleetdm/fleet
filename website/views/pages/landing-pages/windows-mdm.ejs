@@ -1,0 +1,416 @@
+<div id="windows-mdm" v-cloak>
+  <div purpose="landing-page-container">
+    <div purpose="landing-page-content">
+      <div purpose="landing-page-hero">
+        <div purpose="hero-row">
+          <div purpose="page-hero-content">
+            <div purpose="page-hero-headings">
+              <h4>Windows Device Management</h4>
+              <h1>Open source Windows MDM for modern IT teams</h1>
+            </div>
+            <div purpose="page-hero-text">
+              <p>Enroll, configure, and secure Windows 10 and 11 at enterprise scale. Manage Windows alongside macOS, Linux, iOS, iPadOS, Android, and ChromeOS in one place.</p>
+            </div>
+            <div purpose="button-row">
+              <a purpose="cta-button" class="btn btn-primary" href="/contact">Get a demo</a>
+              <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
+            </div>
+          </div>
+          <a purpose="hero-quote" href="https://www.reddit.com/r/Intune/comments/1jkzxyl/comment/mk02c2k/" target="_blank" no-icon>
+            <div purpose="hero-quote-profile-image">
+              <img alt="u/Heteronymous, commenting on r/Intune" src="/images/testimonial-author-redditor-48x48@2x.png">
+            </div>
+            <div purpose="quote-author-info">
+              <p purpose="quote-text">“If I needed a single pane of glass for all OS endpoints, starting fresh, I'd push for the paid version of FleetDM.”</p>
+              <p purpose="quote-author-name">u/Heteronymous</p>
+              <p purpose="quote-author-title">via r/Intune</p>
+            </div>
+          </a>
+        </div>
+        <div purpose="hero-logos">
+          <logo-carousel></logo-carousel>
+        </div>
+      </div><%/* landing-page-hero */%>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>What is Windows MDM?</h2>
+          <p>Windows mobile device management (MDM) is the software and protocols IT teams use to enroll, configure, secure, and report on Windows 10 and Windows 11 endpoints at scale. A Windows MDM platform applies configuration through <a href="/guides/creating-windows-csps">Windows Configuration Service Providers (CSPs)</a>, enforces disk encryption with BitLocker, distributes software and OS updates, and reports back on device posture. Fleet is an open source Windows MDM that does this across Windows, macOS, Linux, iOS, iPadOS, Android, and ChromeOS from a single platform, with policies version-controlled in Git instead of clicked through a console.</p>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>Managing Windows shouldn’t mean choosing a silo</h3>
+          <p>Most Windows management tools assume your fleet is Microsoft-only. They make it harder to enforce posture, prove compliance, and work across the rest of the operating systems your business actually runs.</p>
+        </div>
+        <div purpose="four-column-feature-row">
+          <div purpose="feature-item">
+            <h5>Windows-only silos</h5>
+            <p>Single-platform tools force IT to run separate consoles for Macs, Linux, and mobile, with separate inventories.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>ClickOps and config drift</h5>
+            <p>Changes happen in a GUI with no version history. One bad policy silently rolls out, and rollback is a ticket, not a revert.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Cached, stale visibility</h5>
+            <p>Periodic check-ins miss the real-time posture security teams and auditors need to see across every endpoint.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Cloud-only lock-in</h5>
+            <p>Proprietary, vendor-hosted platforms keep your device data outside your network, with limited export and steep renewals.</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="feature-with-image">
+          <div purpose="feature-image">
+            <img alt="A screenshot of Fleet managing Windows OS settings across a fleet of devices." src="/images/articles/fleet-windows-mdm-launch-os-settings-800x640@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>Manage Windows with the visibility and control modern IT teams need</h3>
+            <p>Fleet is <a href="/lp/open-source">open source</a> Windows device management built on the <a href="/guides/windows-mdm-setup">Windows MDM protocol</a> and osquery. Enroll, configure, encrypt, and patch every Windows endpoint in your fleet without giving up transparency or cross-platform support.</p>
+            <div purpose="checklist">
+              <p>Zero-touch enrollment with <a href="/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id">Microsoft Entra ID</a> and Windows Autopilot.</p>
+              <p>Enforce BitLocker, configuration profiles, and OS settings from version-controlled YAML.</p>
+              <p>Patch Windows, install Fleet-maintained apps, and run remediation scripts on demand.</p>
+              <p>Continuously evaluate CIS Benchmarks for Windows and surface vulnerabilities in real time.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-quote">
+          <div purpose="quote-image">
+            <img alt="Benchling logo" src="/images/social-proof-logo-benchling-143x32@2x.png">
+          </div>
+          <p purpose="quote-text">"Seeing industry-standard tools like osquery and git combined with MDM and CI/CD to manage endpoints was impressive. With support for Linux, macOS, Windows, iOS, iPadOS, and Chrome OS, managing everything from a single codebase is a game-changer."</p>
+          <div purpose="quote-author-info">
+            <div purpose="quote-author-image">
+              <img alt="Justin LaBo" src="/images/testimonial-author-justin-labo-48x48@2x.png">
+            </div>
+            <div purpose="name-and-title">
+              <p purpose="author-name">Justin LaBo</p>
+              <p purpose="author-title">Head of Core BT Engineering</p>
+              <p purpose="author-title">Benchling</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Built for Windows-first and mixed-fleet teams</h2>
+          <p>Whether you manage 500 Windows laptops or 50,000, Fleet gives Windows admins the depth Microsoft endpoints require and the cross-platform reach the rest of the business needs.</p>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <h5>Microsoft Entra ID integration</h5>
+            <p>Connect Fleet to <a href="/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id">Entra ID</a> so end users self-enroll the first time they sign in. IdP identities map to hosts automatically.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Windows Autopilot support</h5>
+            <p>Layer Fleet onto Autopilot for zero-touch provisioning. Devices arrive ready, with profiles and apps applied during setup.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>BitLocker disk encryption</h5>
+            <p>Enforce BitLocker, escrow recovery keys to Fleet, and verify encryption status across every Windows device from one dashboard.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Windows OS settings and CSPs</h5>
+            <p>Apply OS settings and configuration profiles through <a href="/guides/creating-windows-csps">Windows Configuration Service Providers</a>. Author them once, review them in Git.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Software and patching</h5>
+            <p>Deploy Fleet-maintained apps, Microsoft Store apps, and custom packages. Self-service installs keep users moving without tickets.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Windows Update enforcement</h5>
+            <p>Set deadlines and grace periods for OS updates. Track install state across every device without waiting on a check-in cycle.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Live reports for every Windows device</h5>
+            <p>Powered by osquery, Fleet surfaces hardware, software, patch state, and security posture in seconds, not on the next inventory cycle.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>CIS Benchmarks for Windows</h5>
+            <p>Run the complete Windows CIS Benchmark out of the box. Track compliance continuously and remediate with policies.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Scripts, lock, and wipe</h5>
+            <p>Run PowerShell scripts on demand from the Fleet UI or API. Remotely lock or wipe lost or compromised Windows devices.</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="feature-with-image">
+          <div purpose="feature-text">
+            <h3>GitOps and AI-ready Windows device management</h3>
+            <p>Every Fleet configuration is a file. Store your Windows OS settings, BitLocker policies, scripts, and software in your own Git repository. Review device changes the way you review code, ship them through CI, and roll back with a single revert. Walk through it live at a <a href="/gitops-workshop">GitOps workshop</a>.</p>
+            <div purpose="checklist">
+              <p>Version-controlled OS settings, configuration profiles, and policies in YAML.</p>
+              <p>Peer-review device changes in pull requests before they reach production.</p>
+              <p>Manage Windows and macOS profiles in the same commit, in the same repo.</p>
+              <p>Generate Fleet config with any LLM, from ChatGPT and Claude to private models.</p>
+            </div>
+          </div>
+          <div purpose="feature-image">
+            <img alt="A diagram showing Fleet's GitOps workflow for Windows MDM configuration profiles." src="/images/articles/fleet-windows-mdm-launch-gitops-flow-800x640@2x.png">
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>How Fleet is different from Intune and other Windows MDMs</h2>
+          <p>Microsoft Intune covers Windows. Fleet covers Windows the same way, then adds the things Intune structurally can’t: version-controlled configuration, live osquery data, real cross-platform parity, and an open source codebase you can run on your own infrastructure.</p>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <h5>GitOps for every change</h5>
+            <p>Windows MDM policies, BitLocker settings, and Windows Update deadlines live in YAML, reviewed via pull request before any device sees a change.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Live osquery, not cached check-ins</h5>
+            <p>Ask any Windows device a question right now and get an answer in seconds. Patch state, installed software, processes, and BitLocker status are live, not stale.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Same depth across macOS and Linux</h5>
+            <p>Manage Windows, <a href="/lp/apple-mdm">Macs</a>, and <a href="/linux-management">Linux servers</a> with the same API, the same policies, and the same dashboard. No second tool for the other half of your fleet.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Open source and self-hostable</h5>
+            <p><a href="/lp/open-source">Fleet is MIT-licensed</a>. Audit the code, run it in your own VPC, or use Fleet Cloud with 100% feature parity. No Microsoft cloud dependency.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>One API for every endpoint</h5>
+            <p>Every feature in the Fleet UI is available over the REST API. Integrate Windows posture with Okta, Jira, Slack, Snowflake, and your SIEM.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Scope transparency for end users</h5>
+            <p>Fleet does not collect keystrokes, screen contents, or personal files. <a href="/transparency">See exactly what Fleet can and cannot see</a> on a managed Windows device.</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Windows MDM frequently asked questions</h2>
+        </div>
+        <div purpose="faq" class="d-flex flex-column">
+          <div purpose="accordion" class="d-flex flex-column justify-content-start">
+            <div purpose="accordion-body">
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="win-faq__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#win-faq__body1" aria-controls="win-faq__body1">
+                  What is Windows MDM?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="win-faq__body1" class="collapse" aria-labelledby="win-faq__header1">
+                  Windows mobile device management (MDM) is the software and protocols IT teams use to enroll, configure, secure, and report on Windows 10 and Windows 11 endpoints at scale. A Windows MDM platform applies settings through Windows Configuration Service Providers (CSPs), enforces disk encryption with BitLocker, distributes software and OS updates, and reports back on device posture. Fleet does this across Windows, macOS, Linux, iOS, iPadOS, Android, and ChromeOS from a single open source platform.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="win-faq__header2" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#win-faq__body2" aria-controls="win-faq__body2">
+                  Does Fleet replace Microsoft Intune?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="win-faq__body2" class="collapse" aria-labelledby="win-faq__header2">
+                  Yes. Fleet covers the core Windows MDM workload that Intune handles: device enrollment, configuration profiles, BitLocker disk encryption, Windows Update enforcement, software deployment, and compliance reporting. Fleet adds GitOps-based change control, live osquery data instead of cached check-ins, an open source codebase you can self-host, and the same depth of management for macOS, Linux, iOS, iPadOS, Android, and ChromeOS. Teams typically migrate from Intune to consolidate onto a single cross-platform tool. See the <a href="/guides/windows-mdm-setup#automatic-windows-mdm-migration">Windows MDM migration guide</a> for the process.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="win-faq__header3" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#win-faq__body3" aria-controls="win-faq__body3">
+                  Can Fleet manage Windows and macOS together?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="win-faq__body3" class="collapse" aria-labelledby="win-faq__header3">
+                  Yes. Fleet manages <a href="/lp/apple-mdm">macOS</a>, <a href="/linux-management">Linux</a>, Windows, iOS, iPadOS, Android, and ChromeOS from a single console, with the same API, the same GitOps workflow, and the same policy engine. Windows configuration profiles and macOS configuration profiles can live in the same Git repository and be deployed in the same commit.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="win-faq__header4" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#win-faq__body4" aria-controls="win-faq__body4">
+                  Which versions of Windows does Fleet support?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="win-faq__body4" class="collapse" aria-labelledby="win-faq__header4">
+                  Fleet supports Windows 10 and Windows 11 for full MDM enrollment, configuration, BitLocker enforcement, software management, and Windows Update control. Fleet also provides osquery-based visibility, vulnerability reporting, and remote script execution on Windows Server.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="win-faq__header5" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#win-faq__body5" aria-controls="win-faq__body5">
+                  How does Fleet enroll Windows devices?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="win-faq__body5" class="collapse" aria-labelledby="win-faq__header5">
+                  Fleet supports both manual enrollment and automatic (zero-touch) enrollment for Windows. For zero-touch, connect Fleet to Microsoft Entra ID so new devices self-enroll the first time the end user signs in. Fleet also layers cleanly onto Windows Autopilot. The full setup process is documented in the <a href="/guides/windows-mdm-setup">Windows MDM setup guide</a>.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="win-faq__header6" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#win-faq__body6" aria-controls="win-faq__body6">
+                  How does Fleet handle BitLocker on Windows?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="win-faq__body6" class="collapse" aria-labelledby="win-faq__header6">
+                  Fleet enforces BitLocker disk encryption on Windows endpoints, escrows the recovery keys, and reports encryption status across the fleet. Recovery keys are retrievable through the Fleet UI or REST API, and BitLocker state is visible alongside every other device attribute on the host details page.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="win-faq__header7" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#win-faq__body7" aria-controls="win-faq__body7">
+                  Is Fleet open source?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="win-faq__body7" class="collapse" aria-labelledby="win-faq__header7">
+                  Yes. The majority of Fleet is released under the MIT license, and all of Fleet's source code is public on GitHub at <a href="https://github.com/fleetdm/fleet" target="_blank">github.com/fleetdm/fleet</a>. A separate set of paid features lives in an <code>/ee</code> directory under a commercial license. See the <a href="/lp/open-source">open source MDM page</a> for the full breakdown.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="win-faq__header8" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#win-faq__body8" aria-controls="win-faq__body8">
+                  Can Fleet be self-hosted?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="win-faq__body8" class="collapse" aria-labelledby="win-faq__header8">
+                  Yes. Fleet can be deployed <a href="/lp/on-premise">on-premises</a>, in any major cloud (AWS, Azure, GCP, DigitalOcean), in containers (Docker, or Kubernetes via Helm or Terraform), or in air-gapped environments. Teams that prefer a managed option can choose Fleet Cloud and get the same Windows MDM features either way.
+                </p>
+              </div>
+            </div>
+            <div class="d-flex flex-row justify-content-start">
+              <p purpose="contact-note">Have another question? <a href="/docs/get-started/faq">Read the full FAQ</a> or <a href="/contact">talk to an engineer</a>.</p>
+            </div>
+          </div>
+        </div>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is Windows MDM?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Windows mobile device management (MDM) is the software and protocols IT teams use to enroll, configure, secure, and report on Windows 10 and Windows 11 endpoints at scale. A Windows MDM platform applies settings through Windows Configuration Service Providers (CSPs), enforces disk encryption with BitLocker, distributes software and OS updates, and reports back on device posture. Fleet does this across Windows, macOS, Linux, iOS, iPadOS, Android, and ChromeOS from a single open source platform."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does Fleet replace Microsoft Intune?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Fleet covers the core Windows MDM workload that Intune handles: device enrollment, configuration profiles, BitLocker disk encryption, Windows Update enforcement, software deployment, and compliance reporting. Fleet adds GitOps-based change control, live osquery data instead of cached check-ins, an open source codebase you can self-host, and the same depth of management for macOS, Linux, iOS, iPadOS, Android, and ChromeOS. Teams typically migrate from Intune to consolidate onto a single cross-platform tool."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can Fleet manage Windows and macOS together?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Fleet manages macOS, Linux, Windows, iOS, iPadOS, Android, and ChromeOS from a single console, with the same API, the same GitOps workflow, and the same policy engine. Windows configuration profiles and macOS configuration profiles can live in the same Git repository and be deployed in the same commit."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Which versions of Windows does Fleet support?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Fleet supports Windows 10 and Windows 11 for full MDM enrollment, configuration, BitLocker enforcement, software management, and Windows Update control. Fleet also provides osquery-based visibility, vulnerability reporting, and remote script execution on Windows Server."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does Fleet enroll Windows devices?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Fleet supports both manual enrollment and automatic (zero-touch) enrollment for Windows. For zero-touch, connect Fleet to Microsoft Entra ID so new devices self-enroll the first time the end user signs in. Fleet also layers cleanly onto Windows Autopilot."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does Fleet handle BitLocker on Windows?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Fleet enforces BitLocker disk encryption on Windows endpoints, escrows the recovery keys, and reports encryption status across the fleet. Recovery keys are retrievable through the Fleet UI or REST API, and BitLocker state is visible alongside every other device attribute on the host details page."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Fleet open source?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. The majority of Fleet is released under the MIT license, and all of Fleet's source code is public on GitHub at github.com/fleetdm/fleet. A separate set of paid features lives in an /ee directory under a commercial license."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can Fleet be self-hosted?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Fleet can be deployed on-premises, in any major cloud (AWS, Azure, GCP, DigitalOcean), in containers (Docker, or Kubernetes via Helm or Terraform), or in air-gapped environments. Teams that prefer a managed option can choose Fleet Cloud and get the same Windows MDM features either way."
+              }
+            }
+          ]
+        }
+        </script>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Self-hosted, Fleet-hosted, or air-gapped</h2>
+          <p>Run Fleet wherever your security and compliance teams need it, with the same features either way. Your Windows device data stays inside your network.</p>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <h5>Open source core</h5>
+            <p>Fleet is MIT-licensed open source. Read the code, audit how Windows devices are managed, and adapt it to your needs.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Run it where you want</h5>
+            <p>Deploy Fleet <a href="/lp/on-premise">on-premises</a>, on AWS, Azure, GCP, or use Fleet Cloud with 100% feature parity.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>One console, every platform</h5>
+            <p>See Windows, macOS, iOS, iPadOS, Linux, Android, and ChromeOS in one inventory and one policy engine.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>API-first by design</h5>
+            <p>Every feature in the Fleet UI is available over the REST API. Integrate with Okta, Jira, Slack, Snowflake, and your SIEM.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Smooth migration from Intune</h5>
+            <p>Bring Windows hosts over without losing user state. Follow our <a href="/guides/windows-mdm-setup#automatic-windows-mdm-migration">Windows MDM migration guide</a>, or get free migration support for qualifying teams.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Built with the IT community</h5>
+            <p>Fleet’s contributors are practicing IT and security engineers. New Windows releases and CSPs are supported as they ship.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
+    <div purpose="section-heading" class="mx-auto text-center">
+      <h2 class="mb-3">What IT and security teams are saying</h2>
+    </div>
+  </div>
+  <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
+  <div purpose="bottom-gradient">
+
+    <div purpose="page-container" class="container">
+      <div purpose="bottom-cta" class="text-center">
+        <h4>Windows Device Management</h4>
+        <h2>Modern, open source MDM for every Windows device</h2>
+        <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" class="btn btn-primary" href="/contact">Get a demo</a>
+          <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <%/* Cloud city banner */%>
+  <parallax-city></parallax-city>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

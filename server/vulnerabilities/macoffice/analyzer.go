@@ -3,6 +3,7 @@ package macoffice
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -141,6 +142,20 @@ func Analyze(
 
 	if len(relNotes) == 0 {
 		return nil, nil
+	}
+
+	// Refuse to proceed if the loaded release notes contain no valid security updates —
+	// without them every existing MacOffice vulnerability would be marked as remediated.
+	// This usually indicates the bulletin file is corrupted or partially downloaded.
+	hasValid := false
+	for i := range relNotes {
+		if relNotes[i].Valid() {
+			hasValid = true
+			break
+		}
+	}
+	if !hasValid {
+		return nil, errors.New("MacOffice release notes contain no valid security updates (possible corrupted feed)")
 	}
 
 	queryParams := fleet.SoftwareIterQueryOptions{IncludedSources: []string{"apps"}}

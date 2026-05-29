@@ -1,0 +1,1 @@
+- Fixed `List certificate templates` API docs: query parameter was incorrectly documented as `fleet` instead of `fleet_id`, causing the parameter to be silently ignored and returning no results.

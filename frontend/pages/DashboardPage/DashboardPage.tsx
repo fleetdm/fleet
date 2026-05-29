@@ -97,6 +97,7 @@ interface IDashboardProps {
     hash?: string;
     query: {
       fleet_id?: string;
+      manage_automations?: string;
     };
   };
 }
@@ -171,6 +172,36 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     JSX.Element | string | null
   >();
 
+  const canEnrollHosts =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
+  const canEditActivityFeedAutomations =
+    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
+
+  // Open activity feed automations modal via deep-link (e.g. from the
+  // command palette). Gate on the same predicate as the in-page action —
+  // the param must not bypass role/team checks. Wait for the user's role
+  // flags and the team route to resolve before evaluating, so an
+  // authorized global admin isn't denied the modal on direct page load
+  // while AppContext is still hydrating.
+  useEffect(() => {
+    if (location.query.manage_automations !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
+    if (canEditActivityFeedAutomations) {
+      setShowActivityFeedAutomationsModal(true);
+    }
+    const { manage_automations, ...rest } = location.query;
+    router.replace({ pathname, query: rest });
+  }, [
+    location.query,
+    pathname,
+    router,
+    canEditActivityFeedAutomations,
+    setShowActivityFeedAutomationsModal,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
+
   useEffect(() => {
     const platformByPathname =
       PLATFORM_DROPDOWN_OPTIONS?.find((platform) => platform.path === pathname)
@@ -178,12 +209,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
     setSelectedPlatform(platformByPathname);
   }, [pathname]);
-
-  const canEnrollHosts =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
-  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canEditActivityFeedAutomations =
-    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
 
   const { data: config, refetch: refetchConfig } = useQuery<
     IConfig,

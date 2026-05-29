@@ -39,7 +39,7 @@ const policyCols = `
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
 	p.vpp_apps_teams_id, p.conditional_access_enabled, p.type,
-	p.patch_software_title_id
+	p.patch_software_title_id, p.continuous_automations_enabled
 `
 
 const (
@@ -393,11 +393,12 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p 
 			SET name = ?, query = ?, description = ?, resolution = ?,
 			platforms = ?, critical = ?, calendar_events_enabled = ?,
 			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
-			conditional_access_enabled = ?, checksum = ` + policiesChecksumComputedColumn() + `
+			conditional_access_enabled = ?, continuous_automations_enabled = ?,
+			checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
 	result, err := db.ExecContext(
-		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ID,
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ContinuousAutomationsEnabled, p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -422,6 +423,33 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p 
 	return cleanupPolicy(
 		ctx, db, db, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, logger,
 	)
+}
+
+// ResetPolicyAutomationRetryAttemptsForHost marks all prior script and software
+// install attempts on this host (across the given policies) as "old sequence" by
+// setting attempt_number=0. The retry gate counts attempt_number > 0 OR NULL, so
+// after this reset the next attempt restarts the sequence at 1.
+func (ds *Datastore) ResetPolicyAutomationRetryAttemptsForHost(ctx context.Context, hostID uint, policyIDs []uint) error {
+	if len(policyIDs) == 0 {
+		return nil
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		q, args, err := sqlx.In(resetScriptAttemptsStmt, hostID, policyIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building reset host script attempts query")
+		}
+		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset host script attempts")
+		}
+		q, args, err = sqlx.In(resetInstallAttemptsStmt, hostID, policyIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building reset host install attempts query")
+		}
+		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset host install attempts")
+		}
+		return nil
+	})
 }
 
 // resetPolicyAutomationAttempts resets all attempt numbers for script and software install executions
@@ -1167,13 +1195,13 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
 				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum,
-				type, patch_software_title_id
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?)`,
+				type, patch_software_title_id, continuous_automations_enabled
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
 		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
-		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID,
+		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID, args.ContinuousAutomationsEnabled,
 	)
 	switch {
 	case err == nil:
@@ -1373,7 +1401,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			VPPAppsTeamsID      *uint `db:"vat_id"`
 		}
 		err := sqlx.GetContext(ctx, queryerContext, &ids,
-			`SELECT id si_id, NULL vat_id FROM software_installers WHERE global_or_team_id = ? AND title_id = ?
+			`SELECT id si_id, NULL vat_id FROM software_installers
+				WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1
 				UNION
 				SELECT NULL si_id, vat.id vat_id FROM vpp_apps_teams vat
 				JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
@@ -1464,8 +1493,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			conditional_access_enabled,
 			checksum,
 			type,
-			patch_software_title_id
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?)
+			patch_software_title_id,
+			continuous_automations_enabled
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1479,7 +1509,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			script_id = VALUES(script_id),
 			conditional_access_enabled = VALUES(conditional_access_enabled),
 			type = VALUES(type),
-			patch_software_title_id = VALUES(patch_software_title_id)
+			patch_software_title_id = VALUES(patch_software_title_id),
+			continuous_automations_enabled = VALUES(continuous_automations_enabled)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1545,7 +1576,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
-					spec.Type, patchSoftwareTitleIDArg,
+					spec.Type, patchSoftwareTitleIDArg, spec.ContinuousAutomationsEnabled,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -2520,7 +2551,7 @@ func (ds *Datastore) GetPoliciesWithAssociatedInstaller(ctx context.Context, tea
 	if len(policyIDs) == 0 {
 		return nil, nil
 	}
-	query := `SELECT id, software_installer_id FROM policies WHERE team_id = ? AND software_installer_id IS NOT NULL AND id IN (?);`
+	query := `SELECT id, software_installer_id, continuous_automations_enabled FROM policies WHERE team_id = ? AND software_installer_id IS NOT NULL AND id IN (?);`
 	query, args, err := sqlx.In(query, teamID, policyIDs)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build sqlx.In for get policies with associated installer")
@@ -2536,7 +2567,7 @@ func (ds *Datastore) GetPoliciesWithAssociatedVPP(ctx context.Context, teamID ui
 	if len(policyIDs) == 0 {
 		return nil, nil
 	}
-	query := `SELECT p.id, vat.adam_id, vat.platform FROM policies p JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id WHERE p.team_id = ? AND p.id IN (?);`
+	query := `SELECT p.id, vat.adam_id, vat.platform, p.continuous_automations_enabled FROM policies p JOIN vpp_apps_teams vat ON vat.id = p.vpp_apps_teams_id WHERE p.team_id = ? AND p.id IN (?);`
 	query, args, err := sqlx.In(query, teamID, policyIDs)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build sqlx.In for get policies with associated installer")
@@ -2552,7 +2583,7 @@ func (ds *Datastore) GetPoliciesWithAssociatedScript(ctx context.Context, teamID
 	if len(policyIDs) == 0 {
 		return nil, nil
 	}
-	query := `SELECT id, script_id FROM policies WHERE team_id = ? AND script_id IS NOT NULL AND id IN (?);`
+	query := `SELECT id, script_id, continuous_automations_enabled FROM policies WHERE team_id = ? AND script_id IS NOT NULL AND id IN (?);`
 	query, args, err := sqlx.In(query, teamID, policyIDs)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build sqlx.In for get policies with associated script")

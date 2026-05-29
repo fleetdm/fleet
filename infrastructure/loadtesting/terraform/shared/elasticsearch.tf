@@ -217,7 +217,7 @@ resource "aws_alb_listener" "elasticsearch" {
   load_balancer_arn = aws_alb.main.arn
   port              = 9200
   protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
   certificate_arn   = aws_acm_certificate_validation.fleetdm_com.certificate_arn
 
   default_action {
@@ -240,7 +240,7 @@ resource "aws_alb_listener" "elasticapm" {
   load_balancer_arn = aws_alb.main.arn
   port              = 8200
   protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
   certificate_arn   = aws_acm_certificate_validation.fleetdm_com.certificate_arn
 
   default_action {
@@ -260,7 +260,7 @@ resource "aws_alb_listener" "kibana" {
   load_balancer_arn = aws_alb.main.arn
   port              = 5601
   protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
   certificate_arn   = aws_acm_certificate_validation.fleetdm_com.certificate_arn
 
   default_action {
