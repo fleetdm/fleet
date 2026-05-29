@@ -2108,6 +2108,10 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 
+	// MDMWindowsSetEnrolledDeviceChannelURI stores the WNS push ChannelURI (and Push/Status code) reported by
+	// the device for the given MDM device id, on its most recent enrollment.
+	MDMWindowsSetEnrolledDeviceChannelURI(ctx context.Context, mdmDeviceID, channelURI string, status *int) error
+
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 

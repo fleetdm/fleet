@@ -861,8 +861,14 @@ type MDMWindowsEnrolledDevice struct {
 	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
 	CredentialsHash         *[]byte                         `db:"credentials_hash"`
 	CredentialsAcknowledged bool                            `db:"credentials_acknowledged"`
-	CreatedAt               time.Time                       `db:"created_at"`
-	UpdatedAt               time.Time                       `db:"updated_at"`
+	// WNSChannelURI is the WNS push channel the device negotiated for its provisioned PFN, reported via a Get
+	// on the DMClient Push CSP nodes during a management session. WNSChannelURIStatus is the Push/Status code
+	// (0 = success). All three are nil until the device reports a channel (and when WNS push is not configured).
+	WNSChannelURI          *string    `db:"wns_channel_uri"`
+	WNSChannelURIStatus    *int       `db:"wns_channel_uri_status"`
+	WNSChannelURIUpdatedAt *time.Time `db:"wns_channel_uri_updated_at"`
+	CreatedAt              time.Time  `db:"created_at"`
+	UpdatedAt              time.Time  `db:"updated_at"`
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {

@@ -71,6 +71,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
+		{"TestMDMWindowsSetEnrolledDeviceChannelURI", testMDMWindowsSetEnrolledDeviceChannelURI},
 	}
 
 	for _, c := range cases {
@@ -6279,6 +6280,52 @@ func testMDMWindowsHasSetupExperienceItems(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.False(t, hasItemsB, "team-A installer must not appear for team-B")
 	})
+}
+
+func testMDMWindowsSetEnrolledDeviceChannelURI(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-WNS",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice))
+
+	// Channel fields start out empty.
+	got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
+	require.NoError(t, err)
+	require.Nil(t, got.WNSChannelURI)
+	require.Nil(t, got.WNSChannelURIStatus)
+	require.Nil(t, got.WNSChannelURIUpdatedAt)
+
+	// Storing the channel URI and status round-trips.
+	const uri = "https://db5.notify.windows.com/?token=AwYAAAB"
+	require.NoError(t, ds.MDMWindowsSetEnrolledDeviceChannelURI(ctx, enrolledDevice.MDMDeviceID, uri, new(0)))
+
+	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
+	require.NoError(t, err)
+	require.NotNil(t, got.WNSChannelURI)
+	require.Equal(t, uri, *got.WNSChannelURI)
+	require.NotNil(t, got.WNSChannelURIStatus)
+	require.Equal(t, 0, *got.WNSChannelURIStatus)
+	require.NotNil(t, got.WNSChannelURIUpdatedAt)
+
+	// A later report with a non-zero status (e.g. expired channel) overwrites the stored values.
+	const newURI = "https://db5.notify.windows.com/?token=ZZZ"
+	require.NoError(t, ds.MDMWindowsSetEnrolledDeviceChannelURI(ctx, enrolledDevice.MDMDeviceID, newURI, new(5)))
+	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
+	require.NoError(t, err)
+	require.Equal(t, newURI, *got.WNSChannelURI)
+	require.Equal(t, 5, *got.WNSChannelURIStatus)
+
+	// Setting for an unknown device id is a no-op, not an error.
+	require.NoError(t, ds.MDMWindowsSetEnrolledDeviceChannelURI(ctx, "does-not-exist", uri, nil))
 }
 
 func testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(t *testing.T, ds *Datastore) {

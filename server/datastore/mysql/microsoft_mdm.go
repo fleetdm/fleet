@@ -82,6 +82,9 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		awaiting_configuration_at,
 		credentials_hash,
 		credentials_acknowledged,
+		wns_channel_uri,
+		wns_channel_uri_status,
+		wns_channel_uri_updated_at,
 		created_at,
 		updated_at,
 		host_uuid
@@ -95,6 +98,22 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetEnrolledDeviceWithDeviceID")
 	}
 	return &winMDMDevice, nil
+}
+
+// MDMWindowsSetEnrolledDeviceChannelURI stores the WNS push ChannelURI (and Push/Status code) that the device
+// reported for the given MDM device id, on its most recent enrollment. It is a no-op (no rows affected) if no
+// enrollment matches. The status may be nil when the device did not report it.
+func (ds *Datastore) MDMWindowsSetEnrolledDeviceChannelURI(ctx context.Context, mdmDeviceID, channelURI string, status *int) error {
+	const stmt = `
+		UPDATE mdm_windows_enrollments
+		SET wns_channel_uri = ?, wns_channel_uri_status = ?, wns_channel_uri_updated_at = NOW(6)
+		WHERE mdm_device_id = ?
+		ORDER BY created_at DESC, id DESC
+		LIMIT 1`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, channelURI, status, mdmDeviceID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set WNS channel URI for enrolled device")
+	}
+	return nil
 }
 
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
