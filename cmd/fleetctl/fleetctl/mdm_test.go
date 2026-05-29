@@ -226,6 +226,13 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 				return &fleet.HostLockWipeStatus{}, nil
 			}
+			// getHostDetails now resolves wipe_allowed / lock_allowed for the
+			// MDMHostData payload via the BYOD permission gate (#23242).
+			// Return NotFound so the gate falls back to the fleet ceiling
+			// alone — these tests are not exercising BYOD restrictions.
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+				return nil, &notFoundError{}
+			}
 			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 				if len(uuids) == 0 {
 					return nil, nil
@@ -1414,6 +1421,13 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
+	}
+	// LockHost / WipeHost run the BYOD permission gate from #23242 on
+	// manually-enrolled Apple hosts after the MDM-configured + connected
+	// checks succeed. Return NotFound so the gate falls back to the fleet
+	// ceiling alone (default-true allow_byod_*) — i.e. no restriction.
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return nil, &notFoundError{}
 	}
 }
 

@@ -1,0 +1,20 @@
+.byod-permissions {
+  @include vertical-card-layout;
+
+  .byod-permissions-content {
+    gap: px-to-rem(18);
+    animation: fade-in 250ms ease-out;
+  }
+
+  &__group-header {
+    font-size: $small;
+    font-weight: 600;
+    color: $core-fleet-black;
+  }
+
+  &__checkbox {
+    & + & {
+      margin-top: px-to-rem(8);
+    }
+  }
+}
