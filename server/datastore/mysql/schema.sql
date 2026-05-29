@@ -1862,7 +1862,7 @@ CREATE TABLE `mdm_configuration_profile_update_settings` (
   UNIQUE KEY `idx_mdm_config_profile_update_settings_windows_profile` (`windows_profile_uuid`),
   CONSTRAINT `fk_mdm_config_profile_update_settings_apple_decl_uuid` FOREIGN KEY (`apple_declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE,
   CONSTRAINT `fk_mdm_config_profile_update_settings_windows_profile_uuid` FOREIGN KEY (`windows_profile_uuid`) REFERENCES `mdm_windows_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
-  CONSTRAINT `fk_mdm_config_profile_update_settings_exactly_one` CHECK (((if((`apple_declaration_uuid` is null),0,1) + if((`windows_profile_uuid` is null),0,1)) = 1))
+  CONSTRAINT `ck_mdm_config_profile_update_settings_exactly_one` CHECK (((if((`apple_declaration_uuid` is null),0,1) + if((`windows_profile_uuid` is null),0,1)) = 1))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

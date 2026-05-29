@@ -15,7 +15,8 @@ func TestUp_20260529091823(t *testing.T) {
 	decl1UUID := uuid.NewString()
 	decl2 := `{"declaration": {"identifier": "com.apple.configuration.someotherdeclaration"}}`
 	decl2UUID := uuid.NewString()
-	if _, err := db.Exec(`INSERT INTO mdm_apple_declarations (declaration_uuid, identifier, name, raw_json) VALUES (?, "id-1", "id-1-name", ?), (?, "id-2", "id-2-name", ?)`, decl1UUID, decl1, decl2UUID, decl2); err != nil {
+	decl3UUID := uuid.NewString() // Fleet uploaded
+	if _, err := db.Exec(`INSERT INTO mdm_apple_declarations (declaration_uuid, identifier, name, raw_json) VALUES (?, "id-1", "id-1-name", ?), (?, "id-2", "id-2-name", ?), (?, "id-3", "Fleet macOS OS Updates", ?)`, decl1UUID, decl1, decl2UUID, decl2, decl3UUID, decl1); err != nil {
 		t.Fatalf("insert apple declarations: %v", err)
 	}
 
@@ -23,7 +24,8 @@ func TestUp_20260529091823(t *testing.T) {
 	profile1UUID := uuid.NewString()
 	profile2 := `<SyncML><Target><LocURI>./Vendor/MSFT/Policy/Config/SomeOtherSetting/</LocURI></Target></SyncML>`
 	profile2UUID := uuid.NewString()
-	if _, err := db.Exec(`INSERT INTO mdm_windows_configuration_profiles (profile_uuid, name, syncml) VALUES (?, "profile-1", ?), (?, "profile-2", ?)`, profile1UUID, profile1, profile2UUID, profile2); err != nil {
+	profile3UUID := uuid.NewString() // Fleet uploaded
+	if _, err := db.Exec(`INSERT INTO mdm_windows_configuration_profiles (profile_uuid, name, syncml) VALUES (?, "profile-1", ?), (?, "profile-2", ?), (?, "Windows OS Updates", ?)`, profile1UUID, profile1, profile2UUID, profile2, profile3UUID, profile1); err != nil {
 		t.Fatalf("insert windows profiles: %v", err)
 	}
 
@@ -31,27 +33,41 @@ func TestUp_20260529091823(t *testing.T) {
 	applyNext(t, db)
 
 	// Now we check that decl1 and profile1 made it into the table, but not decl2 and profile2.
-
 	var count int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM mdm_configuration_profile_update_settings WHERE apple_declaration_uuid = ?`, decl1UUID).Scan(&count); err != nil {
 		t.Fatalf("query for decl1: %v", err)
 	}
 	require.Equal(t, 1, count, "expected decl1 to be in the update settings table, but it was not")
 
+	// decl2
 	if err := db.QueryRow(`SELECT COUNT(*) FROM mdm_configuration_profile_update_settings WHERE apple_declaration_uuid = ?`, decl2UUID).Scan(&count); err != nil {
 		t.Fatalf("query for decl2: %v", err)
 	}
 	require.Equal(t, 0, count, "expected decl2 to not be in the update settings table, but it was")
 
+	// decl3
+	if err := db.QueryRow(`SELECT COUNT(*) FROM mdm_configuration_profile_update_settings WHERE apple_declaration_uuid = ?`, decl3UUID).Scan(&count); err != nil {
+		t.Fatalf("query for decl3: %v", err)
+	}
+	require.Equal(t, 0, count, "expected decl3 to not be in the update settings table, but it was")
+
+	// profile1
 	if err := db.QueryRow(`SELECT COUNT(*) FROM mdm_configuration_profile_update_settings WHERE windows_profile_uuid = ?`, profile1UUID).Scan(&count); err != nil {
 		t.Fatalf("query for profile1: %v", err)
 	}
 	require.Equal(t, 1, count, "expected profile1 to be in the update settings table, but it was not")
 
+	// profile2
 	if err := db.QueryRow(`SELECT COUNT(*) FROM mdm_configuration_profile_update_settings WHERE windows_profile_uuid = ?`, profile2UUID).Scan(&count); err != nil {
 		t.Fatalf("query for profile2: %v", err)
 	}
 	require.Equal(t, 0, count, "expected profile2 to not be in the update settings table, but it was")
+
+	// profile3
+	if err := db.QueryRow(`SELECT COUNT(*) FROM mdm_configuration_profile_update_settings WHERE windows_profile_uuid = ?`, profile3UUID).Scan(&count); err != nil {
+		t.Fatalf("query for profile3: %v", err)
+	}
+	require.Equal(t, 0, count, "expected profile3 to not be in the update settings table, but it was")
 
 	// We test the constraint
 	if _, err := db.Exec(`INSERT INTO mdm_configuration_profile_update_settings (apple_declaration_uuid, windows_profile_uuid) VALUES (?, ?)`, decl1UUID, profile1UUID); err == nil {
