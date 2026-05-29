@@ -77,8 +77,8 @@ It depends on fleet size, platform diversity, and existing tooling. Starting wit
 Automated solutions handle known configuration issues and evidence collection well, but they have limits. Novel attack vectors, business logic flaws, and risks that need contextual judgment still benefit from human review. Automation handles routine compliance validation, while manual review covers high-risk changes, exception requests, and assessments that go beyond configuration checking. Teams using Fleet often pair its automated checks with periodic manual reviews focused on the harder questions.
 
 <meta name="articleTitle" value="How security compliance automation works for device fleets">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-25">
-<meta name="description" value="Security compliance automation replaces manual compliance checks. Learn how MDM, compliance-as-code, and GitOps-driven workflows work">
+<meta name="publishedOn" value="2026-05-06">
+<meta name="description" value="Security compliance automation replaces manual compliance checks. Learn how MDM, compliance-as-code, and GitOps-driven workflows work.">
