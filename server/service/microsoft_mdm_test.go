@@ -329,6 +329,139 @@ func TestProvisioningDocGeneration(t *testing.T) {
 	}
 }
 
+func TestWNSChannelNeedsRefresh(t *testing.T) {
+	now := time.Now()
+	cases := []struct {
+		name string
+		dev  *fleet.MDMWindowsEnrolledDevice
+		want bool
+	}{
+		{"no channel stored", &fleet.MDMWindowsEnrolledDevice{}, true},
+		{"empty channel", &fleet.MDMWindowsEnrolledDevice{WNSChannelURI: new("")}, true},
+		{
+			"channel but no timestamp",
+			&fleet.MDMWindowsEnrolledDevice{WNSChannelURI: new("https://x")},
+			true,
+		},
+		{
+			"fresh channel",
+			&fleet.MDMWindowsEnrolledDevice{WNSChannelURI: new("https://x"), WNSChannelURIUpdatedAt: new(now.Add(-time.Hour))},
+			false,
+		},
+		{
+			"stale channel",
+			&fleet.MDMWindowsEnrolledDevice{WNSChannelURI: new("https://x"), WNSChannelURIUpdatedAt: new(now.Add(-25 * time.Hour))},
+			true,
+		},
+		{
+			// A device with no PFN reports an empty URI; once checked we back off to the daily cadence.
+			"empty channel but recently checked",
+			&fleet.MDMWindowsEnrolledDevice{WNSChannelURI: new(""), WNSChannelURIUpdatedAt: new(now.Add(-time.Hour))},
+			false,
+		},
+		{
+			"exactly at the refresh interval",
+			&fleet.MDMWindowsEnrolledDevice{WNSChannelURI: new("https://x"), WNSChannelURIUpdatedAt: new(now.Add(-wnsChannelRefreshInterval))},
+			true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, wnsChannelNeedsRefresh(c.dev, now))
+		})
+	}
+}
+
+func TestWNSPushGetCommands(t *testing.T) {
+	cmds := wnsPushGetCommands()
+	require.Len(t, cmds, 2)
+
+	wantSuffixes := []string{"/Push/ChannelURI", "/Push/Status"}
+	for i, cmd := range cmds {
+		assert.Equal(t, fleet.CmdGet, cmd.XMLName.Local)
+		assert.NotEmpty(t, cmd.CmdID.Value, "each Get must carry a CmdID")
+		require.Len(t, cmd.Items, 1)
+		require.NotNil(t, cmd.Items[0].Target)
+		assert.Nil(t, cmd.Items[0].Source, "a Get targets a node, it has no Source")
+		assert.True(t, strings.HasSuffix(*cmd.Items[0].Target, wantSuffixes[i]), "got %q", *cmd.Items[0].Target)
+		assert.Contains(t, *cmd.Items[0].Target, syncml.DocProvisioningAppProviderID)
+
+		// It serializes to a <Get> element with the target LocURI.
+		out, err := xml.Marshal(cmd)
+		require.NoError(t, err)
+		assert.Contains(t, string(out), "<Get>")
+		assert.Contains(t, string(out), "<LocURI>"+*cmd.Items[0].Target+"</LocURI>")
+	}
+}
+
+func TestExtractWNSChannelFromResults(t *testing.T) {
+	results := func(loc, data string) fleet.ProtoCmdOperation {
+		return fleet.ProtoCmdOperation{
+			Verb: fleet.CmdResults,
+			Cmd: fleet.SyncMLCmd{
+				Items: []fleet.CmdItem{{Source: &loc, Data: &fleet.RawXmlData{Content: data}}},
+			},
+		}
+	}
+	const channel = "./Device/Vendor/MSFT/DMClient/Provider/Fleet/Push/ChannelURI"
+	const statusURI = "./Device/Vendor/MSFT/DMClient/Provider/Fleet/Push/Status"
+
+	t.Run("channel and status", func(t *testing.T) {
+		uri, status, found := extractWNSChannelFromResults([]fleet.ProtoCmdOperation{
+			results(channel, "https://db5.notify.windows.com/?token=abc"),
+			results(statusURI, "0"),
+		})
+		assert.True(t, found)
+		assert.Equal(t, "https://db5.notify.windows.com/?token=abc", uri)
+		require.NotNil(t, status)
+		assert.Equal(t, 0, *status)
+	})
+
+	t.Run("empty channel from device with no PFN is still found", func(t *testing.T) {
+		uri, status, found := extractWNSChannelFromResults([]fleet.ProtoCmdOperation{
+			results(channel, ""),
+			results(statusURI, "1"),
+		})
+		assert.True(t, found)
+		assert.Empty(t, uri)
+		require.NotNil(t, status)
+		assert.Equal(t, 1, *status)
+	})
+
+	t.Run("channel only, no status", func(t *testing.T) {
+		uri, status, found := extractWNSChannelFromResults([]fleet.ProtoCmdOperation{
+			results(channel, "https://x"),
+		})
+		assert.True(t, found)
+		assert.Equal(t, "https://x", uri)
+		assert.Nil(t, status)
+	})
+
+	t.Run("non-numeric status is ignored", func(t *testing.T) {
+		_, status, found := extractWNSChannelFromResults([]fleet.ProtoCmdOperation{
+			results(channel, "https://x"),
+			results(statusURI, "oops"),
+		})
+		assert.True(t, found)
+		assert.Nil(t, status)
+	})
+
+	t.Run("unrelated results are ignored", func(t *testing.T) {
+		_, _, found := extractWNSChannelFromResults([]fleet.ProtoCmdOperation{
+			results("./Device/Vendor/MSFT/DeviceStatus/OS/Edition", "Enterprise"),
+		})
+		assert.False(t, found)
+	})
+
+	t.Run("non-Results verbs are ignored", func(t *testing.T) {
+		loc := channel
+		_, _, found := extractWNSChannelFromResults([]fleet.ProtoCmdOperation{
+			{Verb: fleet.CmdGet, Cmd: fleet.SyncMLCmd{Items: []fleet.CmdItem{{Source: &loc}}}},
+		})
+		assert.False(t, found)
+	})
+}
+
 func TestValidSyncMLCmdStatus(t *testing.T) {
 	testMsgRef := "testmsgref"
 	testCmdRef := "testcmdref"

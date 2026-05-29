@@ -1821,7 +1821,8 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	alreadyExistsCmdIDs := []string{}
 
 	// Iterate over the operations and process them
-	for _, protoCMD := range reqMsg.GetOrderedCmds() {
+	orderedCmds := reqMsg.GetOrderedCmds()
+	for _, protoCMD := range orderedCmds {
 		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" && protoCMD.Cmd.CmdRef != nil {
 			// 418 = Already exists, and indicate that an <Add> failed due to the item already existing on the device
 			// We need to re-issue a <Replace> command for this item
@@ -1842,6 +1843,18 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 
 		// CmdStatusOK is returned for the rest of the operations
 		responseCmds = append(responseCmds, NewSyncMLCmdStatus(reqMessageID, protoCMD.Cmd.CmdID.Value, protoCMD.Verb, syncml.CmdStatusOK))
+	}
+
+	// If WNS push is configured and the device reported its push channel (in response to our Get from a prior
+	// message in this session), persist it. We persist even an empty URI (device without a valid PFN) so the
+	// last-checked timestamp advances and we back off to the daily refresh cadence. Failures here must not
+	// abort the management session.
+	if svc.config.MDM.IsMicrosoftWNSSet() {
+		if uri, status, found := extractWNSChannelFromResults(orderedCmds); found {
+			if err := svc.ds.MDMWindowsSetEnrolledDeviceChannelURI(ctx, deviceID, uri, status); err != nil {
+				svc.logger.WarnContext(ctx, "store WNS channel URI from device results", "device_id", deviceID, "err", err)
+			}
+		}
 	}
 
 	// We gain an additional benefit of doing this here, which is since we processIncoming before grabbing Pending CMDs,
@@ -1990,7 +2003,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
-	var resPendingCmds, espCmds []*mdm_types.SyncMLCmd
+	var resPendingCmds, espCmds, wnsCmds []*mdm_types.SyncMLCmd
 
 	if requestAuthState == RequestAuthStateTrusted {
 		// Process the pending operations and get the MDM response protocol commands
@@ -2008,12 +2021,21 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 				return nil, fmt.Errorf("ESP commands error: %w", err)
 			}
 		}
+
+		// When WNS push is configured, periodically query the device's WNS ChannelURI so the server can wake it
+		// with a raw push instead of relying on polling. Microsoft recommends querying every session; we refresh
+		// daily (see wnsChannelRefreshInterval) to avoid a Get on every short poll. The device replies with
+		// Results in the next message of the session, which processIncomingMDMCmds persists.
+		if svc.config.MDM.IsMicrosoftWNSSet() && wnsChannelNeedsRefresh(enrolledDevice, time.Now()) {
+			wnsCmds = wnsPushGetCommands()
+		}
 	}
 
-	allCmds := make([]*mdm_types.SyncMLCmd, 0, len(resIncomingCmds)+len(resPendingCmds)+len(espCmds))
+	allCmds := make([]*mdm_types.SyncMLCmd, 0, len(resIncomingCmds)+len(resPendingCmds)+len(espCmds)+len(wnsCmds))
 	allCmds = append(allCmds, resIncomingCmds...)
 	allCmds = append(allCmds, resPendingCmds...)
 	allCmds = append(allCmds, espCmds...)
+	allCmds = append(allCmds, wnsCmds...)
 
 	// Create the response SyncML message
 	msg, err := svc.createResponseSyncML(ctx, reqMsg, allCmds)
@@ -2022,6 +2044,76 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	}
 
 	return msg, nil
+}
+
+// wnsChannelRefreshInterval is how often the server re-queries the device's WNS push ChannelURI. Microsoft
+// recommends querying every management session; devices renew the channel ~every 15 days, so a daily refresh
+// keeps the stored value current while avoiding a Get on every short poll.
+const wnsChannelRefreshInterval = 24 * time.Hour
+
+// wnsChannelNeedsRefresh reports whether the server should query the device's WNS ChannelURI this session:
+// when we have never recorded a response, or the last response is older than wnsChannelRefreshInterval. The gate
+// is the last-checked timestamp, NOT whether a URI is present: a device with no valid PFN reports an empty
+// ChannelURI, which we still persist (updating the timestamp) so we back off to the daily cadence instead of
+// re-querying on every session.
+func wnsChannelNeedsRefresh(device *fleet.MDMWindowsEnrolledDevice, now time.Time) bool {
+	if device.WNSChannelURIUpdatedAt == nil {
+		return true
+	}
+	return now.Sub(*device.WNSChannelURIUpdatedAt) >= wnsChannelRefreshInterval
+}
+
+// wnsPushGetCommands returns Get commands that ask the device for its current WNS push ChannelURI and the Push
+// channel status, via the DMClient Push CSP nodes. The device replies with Results in the next message of the
+// session, which processIncomingMDMCmds persists.
+func wnsPushGetCommands() []*mdm_types.SyncMLCmd {
+	providerID := syncml.DocProvisioningAppProviderID
+	uris := []string{
+		fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/Push/ChannelURI", providerID),
+		fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/Push/Status", providerID),
+	}
+	cmds := make([]*mdm_types.SyncMLCmd, 0, len(uris))
+	for _, uri := range uris {
+		cmd := newSyncMLNoFormat(fleet.CmdGet, uri)
+		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+		cmds = append(cmds, cmd)
+	}
+	return cmds
+}
+
+// extractWNSChannelFromResults scans the device's Results commands for the WNS Push/ChannelURI and Push/Status
+// values reported in response to wnsPushGetCommands. found is true when a ChannelURI Result item was present
+// (even if its value is empty, which the device returns when no valid PFN is set).
+func extractWNSChannelFromResults(cmds []mdm_types.ProtoCmdOperation) (channelURI string, status *int, found bool) {
+	providerID := syncml.DocProvisioningAppProviderID
+	// Match on a provider-specific suffix so we only capture our own Push nodes (not some unrelated Get a
+	// future subsystem might issue), while tolerating device normalization of the leading scope (./Device).
+	channelSuffix := fmt.Sprintf("/DMClient/Provider/%s/Push/ChannelURI", providerID)
+	statusSuffix := fmt.Sprintf("/DMClient/Provider/%s/Push/Status", providerID)
+	for _, c := range cmds {
+		if c.Verb != mdm_types.CmdResults {
+			continue
+		}
+		for _, item := range c.Cmd.Items {
+			if item.Source == nil {
+				continue
+			}
+			var data string
+			if item.Data != nil {
+				data = strings.TrimSpace(item.Data.Content)
+			}
+			switch {
+			case strings.HasSuffix(*item.Source, channelSuffix):
+				channelURI = data
+				found = true
+			case strings.HasSuffix(*item.Source, statusSuffix):
+				if n, err := strconv.Atoi(data); err == nil {
+					status = &n
+				}
+			}
+		}
+	}
+	return channelURI, status, found
 }
 
 // getESPCommands dispatches ESP coordination for a Windows Autopilot device.
