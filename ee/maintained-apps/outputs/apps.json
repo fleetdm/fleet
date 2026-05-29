@@ -744,6 +744,13 @@
       "description": "DeepL is an AI-powered translator."
     },
     {
+      "name": "DeepL",
+      "slug": "deepl/windows",
+      "platform": "windows",
+      "unique_identifier": "DeepL",
+      "description": "DeepL is an AI-powered translator."
+    },
+    {
       "name": "Dialpad",
       "slug": "dialpad/darwin",
       "platform": "darwin",
