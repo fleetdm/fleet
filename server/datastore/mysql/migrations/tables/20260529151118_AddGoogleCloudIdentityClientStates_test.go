@@ -60,11 +60,12 @@ func TestUp_20260529151118(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 3, count)
 
-	// ON DELETE CASCADE: deleting the host removes the rows.
+	// Note: no FK to hosts(id) — see the migration comment about Fleet's
+	// scaling convention. Rows persist after host deletion; application-side
+	// cleanup is the contract (DeleteHostGoogleCloudIdentityClientStates).
 	_, err = db.Exec(`DELETE FROM hosts WHERE id = ?`, hostID)
 	require.NoError(t, err)
-
 	err = db.QueryRow(`SELECT COUNT(*) FROM host_google_cloud_identity_clientstates WHERE host_id = ?`, hostID).Scan(&count)
 	require.NoError(t, err)
-	assert.Equal(t, 0, count, "rows should cascade-delete with host")
+	assert.Equal(t, 3, count, "rows do NOT cascade-delete; application cleanup is responsible")
 }

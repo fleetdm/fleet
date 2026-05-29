@@ -43,9 +43,14 @@ func Up_20260529151118(tx *sql.Tx) error {
 			updated_at              TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (id),
 			UNIQUE KEY idx_hgcic_host_email_suffix (host_id, workspace_email, partner_suffix),
-			KEY idx_hgcic_host (host_id),
-			CONSTRAINT fk_hgcic_host_id FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
+			KEY idx_hgcic_host (host_id)
 		)
+		-- Intentionally no FOREIGN KEY to hosts(id). Per Fleet's scaling
+		-- conventions (see handbook/engineering/scaling-fleet.md
+		-- #foreign-keys-and-locking), host_id refs are not enforced at the
+		-- DB layer because they cause excessive InnoDB locking during the
+		-- bulk host operations Fleet runs. Cleanup is handled application-side
+		-- when hosts are deleted; see DeleteHostGoogleCloudIdentityClientStates.
 	`); err != nil {
 		return fmt.Errorf("creating host_google_cloud_identity_clientstates table: %w", err)
 	}

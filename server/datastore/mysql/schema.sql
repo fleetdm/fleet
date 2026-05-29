@@ -772,8 +772,7 @@ CREATE TABLE `host_google_cloud_identity_clientstates` (
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_hgcic_host_email_suffix` (`host_id`,`workspace_email`,`partner_suffix`),
-  KEY `idx_hgcic_host` (`host_id`),
-  CONSTRAINT `fk_hgcic_host_id` FOREIGN KEY (`host_id`) REFERENCES `hosts` (`id`) ON DELETE CASCADE
+  KEY `idx_hgcic_host` (`host_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

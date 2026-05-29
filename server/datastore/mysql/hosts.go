@@ -597,6 +597,7 @@ var hostRefs = []string{
 	"batch_activity_host_results",
 	"host_mdm_commands",
 	"microsoft_compliance_partner_host_statuses",
+	"host_google_cloud_identity_clientstates",
 	"host_identity_scep_certificates",
 	"conditional_access_scep_certificates",
 	"host_conditional_access",
