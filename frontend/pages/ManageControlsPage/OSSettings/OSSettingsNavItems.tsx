@@ -7,6 +7,7 @@ import DiskEncryption from "./cards/DiskEncryption";
 import ConfigurationProfiles from "./cards/ConfigurationProfiles";
 import Certificates from "./cards/Certificates";
 import Passwords from "./cards/Passwords";
+import BYODPermissions from "./cards/BYODPermissions";
 import { IConfigurationProfilesProps } from "./cards/ConfigurationProfiles/ConfigurationProfiles";
 import { IDiskEncryptionProps } from "./cards/DiskEncryption/DiskEncryption";
 
@@ -50,6 +51,13 @@ const getOSSettingsNavItems = (
       Card: Passwords,
       urlSection: "passwords",
       path: PATHS.CONTROLS_PASSWORDS,
+      exclude: isTechnician,
+    },
+    {
+      title: "BYOD permissions",
+      Card: BYODPermissions,
+      urlSection: "byod-permissions",
+      path: PATHS.CONTROLS_BYOD_PERMISSIONS,
       exclude: isTechnician,
     },
   ];

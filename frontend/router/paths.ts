@@ -15,6 +15,7 @@ export default {
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
+  CONTROLS_BYOD_PERMISSIONS: `${URL_PREFIX}/controls/os-settings/byod-permissions`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_USERS: `${URL_PREFIX}/controls/setup-experience/users`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
