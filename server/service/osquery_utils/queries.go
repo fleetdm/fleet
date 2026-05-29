@@ -3065,6 +3065,7 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 	if device == nil || !microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
 		return updated, nil
 	}
+	device.HostUUID = hostUUID // in case the read was stale due to replication lag
 	// Update the host's MDM enrolled flags to show it as a manual enrollment so it doesn't take two full refreshes to
 	// reflect this state.
 	if device.MDMNotInOOBE {
