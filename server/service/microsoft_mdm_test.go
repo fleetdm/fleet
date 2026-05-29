@@ -293,17 +293,40 @@ func TestProvisioningDocGeneration(t *testing.T) {
 
 	// Preparing the WAP Provisioning Doc response
 	appConfigData := NewApplicationProvisioningData(microsoft_mdm.MDE2EnrollPath, "testuser", "testpassword")
-	appDMClientData := NewDMClientProvisioningData()
-	provDoc := NewProvisioningDoc(certStoreData, appConfigData, appDMClientData)
 
-	outXML, err := xml.MarshalIndent(provDoc, "", "  ")
-	require.NoError(t, err)
-	require.NotEmpty(t, outXML)
-	require.Contains(t, string(outXML), deviceIdentityFingerprint)
-	require.Contains(t, string(outXML), serverIdentityFingerprint)
-	require.Contains(t, string(outXML), microsoft_mdm.MDE2EnrollPath)
-	require.Contains(t, string(outXML), "testuser")
-	require.Contains(t, string(outXML), "testpassword")
+	for _, tc := range []struct {
+		name    string
+		pushPFN string
+		wantPFN bool
+	}{
+		{name: "without WNS push", pushPFN: "", wantPFN: false},
+		{name: "with WNS push", pushPFN: "Fleet.WNSPush_abc123", wantPFN: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			appDMClientData := NewDMClientProvisioningData(tc.pushPFN)
+			provDoc := NewProvisioningDoc(certStoreData, appConfigData, appDMClientData)
+
+			outXML, err := xml.MarshalIndent(provDoc, "", "  ")
+			require.NoError(t, err)
+			require.NotEmpty(t, outXML)
+			xmlStr := string(outXML)
+			require.Contains(t, xmlStr, deviceIdentityFingerprint)
+			require.Contains(t, xmlStr, serverIdentityFingerprint)
+			require.Contains(t, xmlStr, microsoft_mdm.MDE2EnrollPath)
+			require.Contains(t, xmlStr, "testuser")
+			require.Contains(t, xmlStr, "testpassword")
+			// The polling configuration is always provisioned.
+			require.Contains(t, xmlStr, `type="Poll"`)
+
+			if tc.wantPFN {
+				require.Contains(t, xmlStr, `type="Push"`)
+				require.Contains(t, xmlStr, `name="PFN" value="Fleet.WNSPush_abc123"`)
+			} else {
+				require.NotContains(t, xmlStr, `type="Push"`)
+				require.NotContains(t, xmlStr, "PFN")
+			}
+		})
+	}
 }
 
 func TestValidSyncMLCmdStatus(t *testing.T) {

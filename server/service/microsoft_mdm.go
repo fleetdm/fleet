@@ -705,45 +705,60 @@ func NewApplicationProvisioningData(mdmEndpoint string, username string, secret 
 // The provisioning information in NewCertStoreProvisioningData includes various properties that the device management client uses to communicate with the MDM Server.
 // c2DeviceName is the device name used by the IT admin console
 // listOfMSIAppToInstall contains a list of LocURIs that expected to be provision via EnterpriseDesktopAppManagement CSP
-func NewDMClientProvisioningData() mdm_types.Characteristic {
+//
+// pushPFN is the WNS Package Family Name. When non-empty, a Push characteristic is provisioned so the
+// device registers a persistent WNS channel and reports a ChannelURI back to the server, enabling
+// push-initiated management sessions. When empty (WNS not configured), only the polling schedule is sent.
+func NewDMClientProvisioningData(pushPFN string) mdm_types.Characteristic {
+	providerChildren := []mdm_types.Characteristic{
+		newCharacteristic("Poll", []mdm_types.Param{
+			// AllUsersPollOnFirstLogin - enabled
+			// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollalluserspollonfirstlogin
+			newParm("AllUsersPollOnFirstLogin", "true", syncml.DmClientBoolType),
+
+			// PollOnLogin - enabled
+			// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollpollonlogin
+			newParm("PollOnLogin", "true", syncml.DmClientBoolType),
+
+			// NumberOfFirstRetries - 0 (meaning repeat infinitely, Second and Remaining retries will not be used)
+			// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollnumberoffirstretries
+			//
+			// Note that the docs do mention:
+			//
+			//   The total time for first set of retries shouldn't be more than
+			//   a few hours. The server shouldn't set NumberOfFirstRetries to
+			//   be 0. RemainingScheduledRetries is used for the long run
+			//   device polling schedule.
+			//
+			// but we really want to keep polling regularly at short intervals
+			// and it seems like the way to do it (and they do support infinite
+			// retries, so...).
+			newParm("NumberOfFirstRetries", "0", syncml.DmClientIntType),
+			// IntervalForFirstSetOfRetries - 1 minute (we can't go lower than that)
+			// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollintervalforfirstsetofretries
+			newParm("IntervalForFirstSetOfRetries", "1", syncml.DmClientIntType),
+
+			// Second and Remaining retries are disabled (0).
+			newParm("NumberOfSecondRetries", "0", syncml.DmClientIntType),
+			newParm("IntervalForSecondSetOfRetries", "0", syncml.DmClientIntType),
+			newParm("NumberOfRemainingScheduledRetries", "0", syncml.DmClientIntType),
+			newParm("IntervalForRemainingScheduledRetries", "0", syncml.DmClientIntType),
+		}, nil),
+	}
+
+	if pushPFN != "" {
+		// Push/PFN - the Package Family Name used to register the device for WNS push notifications.
+		// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpushpfn
+		// The device uses this to negotiate a ChannelURI with WNS, which the server then reads (via Get on
+		// Push/ChannelURI) and uses to wake the device with a raw push instead of waiting for the next poll.
+		providerChildren = append(providerChildren, newCharacteristic("Push", []mdm_types.Param{
+			newParm("PFN", pushPFN, ""),
+		}, nil))
+	}
+
 	dmClient := newCharacteristic("DMClient", nil, []mdm_types.Characteristic{
 		newCharacteristic("Provider", nil, []mdm_types.Characteristic{
-			newCharacteristic(syncml.DocProvisioningAppProviderID,
-				[]mdm_types.Param{}, []mdm_types.Characteristic{
-					newCharacteristic("Poll", []mdm_types.Param{
-						// AllUsersPollOnFirstLogin - enabled
-						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollalluserspollonfirstlogin
-						newParm("AllUsersPollOnFirstLogin", "true", syncml.DmClientBoolType),
-
-						// PollOnLogin - enabled
-						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollpollonlogin
-						newParm("PollOnLogin", "true", syncml.DmClientBoolType),
-
-						// NumberOfFirstRetries - 0 (meaning repeat infinitely, Second and Remaining retries will not be used)
-						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollnumberoffirstretries
-						//
-						// Note that the docs do mention:
-						//
-						//   The total time for first set of retries shouldn't be more than
-						//   a few hours. The server shouldn't set NumberOfFirstRetries to
-						//   be 0. RemainingScheduledRetries is used for the long run
-						//   device polling schedule.
-						//
-						// but we really want to keep polling regularly at short intervals
-						// and it seems like the way to do it (and they do support infinite
-						// retries, so...).
-						newParm("NumberOfFirstRetries", "0", syncml.DmClientIntType),
-						// IntervalForFirstSetOfRetries - 1 minute (we can't go lower than that)
-						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollintervalforfirstsetofretries
-						newParm("IntervalForFirstSetOfRetries", "1", syncml.DmClientIntType),
-
-						// Second and Remaining retries are disabled (0).
-						newParm("NumberOfSecondRetries", "0", syncml.DmClientIntType),
-						newParm("IntervalForSecondSetOfRetries", "0", syncml.DmClientIntType),
-						newParm("NumberOfRemainingScheduledRetries", "0", syncml.DmClientIntType),
-						newParm("IntervalForRemainingScheduledRetries", "0", syncml.DmClientIntType),
-					}, nil),
-				}),
+			newCharacteristic(syncml.DocProvisioningAppProviderID, []mdm_types.Param{}, providerChildren),
 		}),
 	})
 
@@ -2677,8 +2692,13 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	// Preparing the Application Provisioning information
 	appConfigProvisioningData := NewApplicationProvisioningData(urlManagementEndpoint, username, password)
 
-	// Preparing the DM Client Provisioning information
-	appDMClientProvisioningData := NewDMClientProvisioningData()
+	// Preparing the DM Client Provisioning information. When WNS push is fully configured, provision the
+	// Package Family Name so the device registers a WNS channel for push-initiated management sessions.
+	var pushPFN string
+	if svc.config.MDM.IsMicrosoftWNSSet() {
+		pushPFN = svc.config.MDM.WindowsWNSPFN
+	}
+	appDMClientProvisioningData := NewDMClientProvisioningData(pushPFN)
 
 	// And finally returning the Base64 encoded representation of the Provisioning Doc XML
 	provDoc := NewProvisioningDoc(certStoreProvisioningData, appConfigProvisioningData, appDMClientProvisioningData)
