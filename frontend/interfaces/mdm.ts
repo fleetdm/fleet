@@ -281,6 +281,12 @@ export enum BootstrapPackageStatus {
   FAILED = "failed",
 }
 
+export enum EndUserLocalAccountType {
+  ADMIN = "admin",
+  STANDARD = "standard",
+  NONE = "none",
+}
+
 export const isEnrolledInMdm = (
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null
 ): hostMdmEnrollmentStatus is MdmEnrollmentStatus => {
