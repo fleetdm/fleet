@@ -890,11 +890,6 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		teamName = tm.Name
 	}
 
-	var tmID *uint
-	if teamID > 0 {
-		tmID = &teamID
-	}
-
 	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels, teamID)
 	if err != nil {
 		return nil, err
@@ -933,7 +928,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		}
 	}
 
-	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
+	d := fleet.NewMDMAppleDeclaration(data, &teamID, name, rawDecl.Type, rawDecl.Identifier)
 	d.SecretsUpdatedAt = secretsUpdatedAt
 
 	switch labelsMembershipMode {
@@ -949,6 +944,17 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
 	if err != nil {
 		return nil, err
+	}
+
+	// After we uploaded, check for Software Update type
+	if err := svc.handleDeclarationSoftwareUpdate(ctx, rawDecl, decl, teamID); err != nil {
+		if mdm_types.IsSoftwareUpdateProfileError(err) {
+			if delErr := svc.ds.DeleteMDMAppleDeclaration(ctx, decl.DeclarationUUID); delErr != nil {
+				return nil, ctxerr.Wrap(ctx, delErr, "deleting declaration after software update validation failure")
+			}
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "handling declaration software update")
 	}
 
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
@@ -997,6 +1003,75 @@ func validateDeclarationFleetVariables(contents string, lic license.LicenseCheck
 	}
 
 	return fleetVars, nil
+}
+
+// handleDeclarationSoftwareUpdate checks validation requirements, verifies OS updates is not configured
+// and lastly inserts the declaration into the tracking table.
+func (svc *Service) handleDeclarationSoftwareUpdate(
+	ctx context.Context,
+	rawDecl *fleet.MDMAppleRawDeclaration,
+	decl *fleet.MDMAppleDeclaration,
+	teamID uint,
+) error {
+	// First we check the raw declaration type, if not software update, no-op.
+	if rawDecl.Type != "com.apple.configuration.softwareupdate.enforcement.specific" {
+		return nil
+	}
+
+	lic, _ := license.FromContext(ctx)
+	if lic == nil || !lic.IsPremium() {
+		return fleet.ErrMissingLicense
+	}
+
+	type AppleOSUpdates struct {
+		// MacOSUpdates defines the OS update settings for macOS devices.
+		MacOSUpdates fleet.AppleOSUpdateSettings
+		// IOSUpdates defines the OS update settings for iOS devices.
+		IOSUpdates fleet.AppleOSUpdateSettings
+		// IPadOSUpdates defines the OS update settings for iPadOS devices.
+		IPadOSUpdates fleet.AppleOSUpdateSettings
+	}
+
+	// Get the relevant team-config, to check for OS updates being configured
+	var appleOSUpdates AppleOSUpdates
+	if teamID > 0 {
+		teamConfig, err := svc.ds.TeamMDMConfig(ctx, teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting team config")
+		}
+		appleOSUpdates = AppleOSUpdates{
+			MacOSUpdates:  teamConfig.MacOSUpdates,
+			IOSUpdates:    teamConfig.IOSUpdates,
+			IPadOSUpdates: teamConfig.IPadOSUpdates,
+		}
+	} else {
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		appleOSUpdates = AppleOSUpdates{
+			MacOSUpdates:  appConfig.MDM.MacOSUpdates,
+			IOSUpdates:    appConfig.MDM.IOSUpdates,
+			IPadOSUpdates: appConfig.MDM.IPadOSUpdates,
+		}
+	}
+
+	// Fail if OS updates is configured for any platform.
+	if appleOSUpdates.MacOSUpdates.Configured() || appleOSUpdates.IOSUpdates.Configured() || appleOSUpdates.IPadOSUpdates.Configured() {
+		return mdm_types.NewAppleSoftwareUpdateProfileError(true)
+	}
+
+	if alreadyConfigured, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, teamID); err != nil {
+		return ctxerr.Wrap(ctx, mdm_types.NewSoftwareUpdateProfileError(err), "checking for existing software update profile")
+	} else if alreadyConfigured {
+		return mdm_types.NewAppleSoftwareUpdateProfileError(false)
+	}
+
+	if err := svc.ds.InsertAppleUpdateConfigProfile(ctx, decl); err != nil {
+		return ctxerr.Wrap(ctx, mdm_types.NewSoftwareUpdateProfileError(err), "inserting software update profile")
+	}
+
+	return nil
 }
 
 // jsonEscapeString returns the JSON-escaped interior of a string value

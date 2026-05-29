@@ -3331,6 +3331,9 @@ type Datastore interface {
 	// has a different scope than the incoming profile. If we don't do this we must implement some sort of "move" semantics
 	// to allow for scope changes when a host switches teams or when a profile is updated.
 	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
+
+	HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
+	InsertAppleUpdateConfigProfile(ctx context.Context, decl *MDMAppleDeclaration) error
 }
 
 type AndroidDatastore interface {

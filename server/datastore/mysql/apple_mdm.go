@@ -8579,3 +8579,26 @@ func (ds *Datastore) clearHostActivitiesForAppleMDMReset(ctx context.Context, tx
 
 	return nil
 }
+
+func (ds *Datastore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
+	const stmt = `
+	SELECT COUNT(*) > 0 FROM mdm_configuration_profile_update_settings mcpus
+    	INNER JOIN mdm_apple_declarations mad ON mad.declaration_uuid = mcpus.apple_declaration_uuid
+	WHERE mad.team_id = ?`
+
+	var configured bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &configured, stmt, teamID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check if apple update config profile is configured")
+	}
+
+	return configured, nil
+}
+
+func (ds *Datastore) InsertAppleUpdateConfigProfile(ctx context.Context, decl *fleet.MDMAppleDeclaration) error {
+	const stmt = `INSERT INTO mdm_configuration_profile_update_settings (apple_declaration_uuid) VALUES (?)`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, decl.DeclarationUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert apple update config profile")
+	}
+	return nil
+}

@@ -261,6 +261,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, fleet.NewInvalidArgumentError("ipados_updates.minimum_version", v)
 		}
 
+		if macOSMinVersionUpdated || iOSMinVersionUpdated || iPadOSMinVersionUpdated {
+			// Verify that we don't have a custom OS updates declaration
+			hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check for existing custom OS updates declaration profile")
+			}
+			if hasProfile {
+				return nil, &fleet.BadRequestError{
+					Message: "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first.",
+				}
+			}
+		}
+
 		if payload.MDM.WindowsUpdates != nil {
 			if err := payload.MDM.WindowsUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("windows_updates", err.Error())
@@ -1609,6 +1622,20 @@ func (svc *Service) editTeamFromSpec(
 			team.Config.MDM.IPadOSUpdates.Deadline.Value != spec.MDM.IPadOSUpdates.Deadline.Value
 		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
 	}
+
+	if mdmMacOSUpdatesEdited || mdmIOSUpdatesEdited || mdmIPadOSUpdatesEdited {
+		// Verify that we don't have a custom OS updates declaration
+		hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, team.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check for existing custom OS updates declaration profile")
+		}
+		if hasProfile {
+			return &fleet.BadRequestError{
+				Message: "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first.",
+			}
+		}
+	}
+
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
 		mdmWindowsUpdatesEdited = team.Config.MDM.WindowsUpdates.DeadlineDays.Value != spec.MDM.WindowsUpdates.DeadlineDays.Value ||
 			team.Config.MDM.WindowsUpdates.GracePeriodDays.Value != spec.MDM.WindowsUpdates.GracePeriodDays.Value

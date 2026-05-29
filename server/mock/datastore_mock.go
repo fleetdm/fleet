@@ -2041,6 +2041,10 @@ type MDMAppleResetOnReenrollmentFunc func(ctx context.Context, hostUUID string, 
 
 type VerifyAppleConfigProfileScopesDoNotConflictFunc func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error
 
+type HasAppleUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
+
+type InsertAppleUpdateConfigProfileFunc func(ctx context.Context, decl *fleet.MDMAppleDeclaration) error
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -5068,6 +5072,12 @@ type DataStore struct {
 
 	VerifyAppleConfigProfileScopesDoNotConflictFunc        VerifyAppleConfigProfileScopesDoNotConflictFunc
 	VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked bool
+
+	HasAppleUpdateConfigProfileConfiguredFunc        HasAppleUpdateConfigProfileConfiguredFunc
+	HasAppleUpdateConfigProfileConfiguredFuncInvoked bool
+
+	InsertAppleUpdateConfigProfileFunc        InsertAppleUpdateConfigProfileFunc
+	InsertAppleUpdateConfigProfileFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -12133,4 +12143,18 @@ func (s *DataStore) VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Cont
 	s.VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyAppleConfigProfileScopesDoNotConflictFunc(ctx, cps)
+}
+
+func (s *DataStore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.HasAppleUpdateConfigProfileConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasAppleUpdateConfigProfileConfiguredFunc(ctx, teamID)
+}
+
+func (s *DataStore) InsertAppleUpdateConfigProfile(ctx context.Context, decl *fleet.MDMAppleDeclaration) error {
+	s.mu.Lock()
+	s.InsertAppleUpdateConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertAppleUpdateConfigProfileFunc(ctx, decl)
 }

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"unicode"
 
 	"github.com/smallstep/pkcs7"
@@ -323,4 +324,65 @@ func ListFleetReservedMacOSDeclarationNames() []string {
 		FleetIOSUpdatesProfileName,
 		FleetIPadOSUpdatesProfileName,
 	}
+}
+
+// softwareUpdateProfileError is an error type indicating OS updates is already configured
+// and a new profile cannot be added until the existing OS updates configuration is removed.
+// This signals to the caller that they should rollback/delete the recently saved profile.
+type softwareUpdateProfileError struct {
+	// OSUpdatesAlreadyConfigured sets the error message returned,
+	// if true, then we report back OS updates are configured
+	// if false, an existing custom OS updates profile exists.
+	OSUpdatesAlreadyConfigured bool
+	profileType                string
+
+	// When set means something else went wrong, but we still want to rollback the upserted profile.
+	internalErr error
+}
+
+// Use platform specific if possible, and only this for generic errors that requires a deletion of the upserted profile.
+func NewSoftwareUpdateProfileError(internalErr error) *softwareUpdateProfileError {
+	return &softwareUpdateProfileError{
+		internalErr: internalErr,
+	}
+}
+
+func NewAppleSoftwareUpdateProfileError(osUpdatesAlreadyConfigured bool) *softwareUpdateProfileError {
+	return &softwareUpdateProfileError{
+		OSUpdatesAlreadyConfigured: osUpdatesAlreadyConfigured,
+		profileType:                "declaration",
+	}
+}
+
+func IsSoftwareUpdateProfileError(err error) bool {
+	var target *softwareUpdateProfileError
+	return errors.As(err, &target)
+}
+
+func (e *softwareUpdateProfileError) Error() string {
+	if e.internalErr != nil {
+		return e.internalErr.Error()
+	}
+
+	if !e.OSUpdatesAlreadyConfigured {
+		extraText := ""
+		if e.profileType == "declaration" {
+			extraText = " declaration"
+		}
+		return fmt.Sprintf("Couldn't add profile. A custom OS updates%s profile already exists.", extraText)
+	}
+
+	return "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
+}
+
+func (e *softwareUpdateProfileError) IsClientError() bool {
+	return e.internalErr == nil
+}
+
+func (e *softwareUpdateProfileError) StatusCode() int {
+	if e.internalErr != nil {
+		return http.StatusInternalServerError
+	}
+
+	return http.StatusBadRequest
 }
