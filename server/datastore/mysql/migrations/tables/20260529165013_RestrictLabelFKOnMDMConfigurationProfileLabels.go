@@ -12,6 +12,22 @@ func init() {
 }
 
 func Up_20260529165013(tx *sql.Tx) error {
+	// Pre-check: ensure no orphaned label_id values exist that would cause the
+	// new RESTRICT constraint to fail. In practice this shouldn't happen since
+	// the previous ON DELETE SET NULL would have nulled them out, but guard
+	// against any unexpected data inconsistency.
+	for _, table := range []string{"mdm_configuration_profile_labels", "mdm_declaration_labels"} {
+		var count int
+		if err := tx.QueryRow(fmt.Sprintf(`
+			SELECT COUNT(*) FROM %s WHERE label_id IS NOT NULL AND label_id NOT IN (SELECT id FROM labels)
+		`, table)).Scan(&count); err != nil {
+			return fmt.Errorf("checking orphaned label_id in %s: %w", table, err)
+		}
+		if count > 0 {
+			return fmt.Errorf("cannot migrate: %s has %d row(s) with a label_id that no longer exists in labels", table, count)
+		}
+	}
+
 	// mdm_configuration_profile_labels
 	cpConstraints, err := constraintsForTable(tx, "mdm_configuration_profile_labels", map[string]struct{}{"labels": {}})
 	if err != nil {
