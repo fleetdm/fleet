@@ -1,0 +1,11 @@
+{
+  "name": "AWS Command Line Interface v2",
+  "slug": "aws-cli/windows",
+  "package_identifier": "Amazon.AWSCLI",
+  "unique_identifier": "AWS Command Line Interface v2",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

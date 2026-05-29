@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2605.0.4",
+      "version": "2605.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Dialpad' AND publisher = 'Dialpad';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dialpad' AND publisher = 'Dialpad' AND version_compare(version, '2605.0.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dialpad' AND publisher = 'Dialpad' AND version_compare(version, '2605.1.0') < 0);"
       },
-      "installer_url": "https://storage.googleapis.com/dialpad_native/stable/win32/x64/DialpadSetup-2605.0.4_x64.exe",
+      "installer_url": "https://storage.googleapis.com/dialpad_native/stable/win32/x64/DialpadSetup-2605.1.0_x64.exe",
       "install_script_ref": "47c0fae4",
       "uninstall_script_ref": "97ee5c57",
-      "sha256": "2c2df8760e5cb95f1cb0af7ee1e0f75d060abb588503c8782f97830d178a8022",
+      "sha256": "e8c5bbeb1dedf732dfb0287013a87c6308988a5b1eba8709bd08f44a81684043",
       "default_categories": [
         "Communication"
       ]
