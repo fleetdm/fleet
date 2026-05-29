@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260526192801, Down_20260526192801)
+	MigrationClient.AddMigration(Up_20260529165013, Down_20260529165013)
 }
 
-func Up_20260526192801(tx *sql.Tx) error {
+func Up_20260529165013(tx *sql.Tx) error {
 	// mdm_configuration_profile_labels
 	cpConstraints, err := constraintsForTable(tx, "mdm_configuration_profile_labels", map[string]struct{}{"labels": {}})
 	if err != nil {
@@ -47,6 +47,6 @@ func Up_20260526192801(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260526192801(tx *sql.Tx) error {
+func Down_20260529165013(tx *sql.Tx) error {
 	return nil
 }
