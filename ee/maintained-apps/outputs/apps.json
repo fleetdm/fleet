@@ -1234,6 +1234,20 @@
       "description": "JetBrains tools manager."
     },
     {
+      "name": "Joplin",
+      "slug": "joplin/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.cozic.joplin-desktop",
+      "description": "Joplin is a note taking and to-do application with synchronisation capabilities."
+    },
+    {
+      "name": "Joplin",
+      "slug": "joplin/windows",
+      "platform": "windows",
+      "unique_identifier": "Joplin",
+      "description": "Joplin is a note taking and to-do application with synchronisation capabilities."
+    },
+    {
       "name": "KeePassXC",
       "slug": "keepassxc/darwin",
       "platform": "darwin",

@@ -23,6 +23,7 @@ import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoToMeeting from "./GoToMeeting";
 import Iina from "./Iina";
+import Joplin from "./Joplin";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
@@ -350,6 +351,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gotomeeting: GoToMeeting,
   iina: Iina,
   insyncclient: DruvaInSync,
+  joplin: Joplin,
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
