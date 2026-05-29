@@ -178,20 +178,17 @@
           ╩ ╩   ╚═╝╚═╝╩ ╩╩  ╩ ╩╩╚═╩╚═╝╚═╝╝╚╝   ╩ ╩ ╩╚═╝╩═╝╚═╝
           */ %>
         <div purpose="desktop-comparison-table" class="d-none d-sm-block">
+          <div purpose="comparison-table-tabs">
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'jamf' ? 'active' : '']" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')"><strong>Jamf Pro</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'omnissa' ? 'active' : '']" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')"><strong>Workspace ONE</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'sccm' ? 'active' : '']" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')"><strong>SCCM</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'intune' ? 'active' : '']" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')"><strong>Intune</strong></div>
+            <div purpose="comparison-tab" :class="[comparisonModeForIt === 'patchmypc' ? 'active' : '']" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')"><strong>PatchMyPC</strong></div>
+          </div>
           <div purpose="comparison-table-header" class="d-sm-flex d-none flex-row justify-content-end">
             <div purpose="fleet-column" class="justify-content-center"><strong>Fleet</strong></div>
             <div purpose="comparison-column" class="d-flex">
-              <div purpose="comparison-selector" class="d-flex flex-row justify-content-between align-items-center"
-                id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                {{comparisonModeFriendlyNames[comparisonModeForIt]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
-              </div>
-              <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
-                <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
-                <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Workspace ONE</div>
-                <div class="dropdown-item" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
-                <div class="dropdown-item" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
-                <div class="dropdown-item" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')">PatchMyPC</div>
-              </div>
+                <strong>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</strong>
             </div>
           </div>
           <div purpose="comparison-table" class="d-sm-flex d-none flex-column"> 
