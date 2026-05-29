@@ -208,6 +208,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2026-05-28">
+<meta name="publishedOn" value="2026-05-29">
 <meta name="articleTitle" value="Fleet 4.86.0 | Rotate local admin password, Windows setup experience, Platform SSO, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.86.0-1600x900@2x.png">
