@@ -11,6 +11,7 @@ import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
 import Bluej from "./Bluej";
+import BurpSuiteCommunity from "./BurpSuiteCommunity";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
@@ -321,6 +322,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   box: Box,
   brave: Brave,
   bruno: Bruno,
+  "burp suite community": BurpSuiteCommunity,
   calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
