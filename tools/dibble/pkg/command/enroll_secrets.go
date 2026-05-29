@@ -25,7 +25,10 @@ The global enroll secret is intentionally left alone.`,
 			if err != nil {
 				return err
 			}
-			teams, _ := listExistingTeams(c)
+			teams, err := listExistingTeams(c)
+			if err != nil {
+				return err
+			}
 			res := seed.EnrollSecrets(c, seederLogger{}, teams)
 			printf("%s", res.Summary())
 			return reportErrors(res.Errors)

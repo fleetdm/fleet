@@ -97,7 +97,10 @@ func (c *Client) do(method, path string, body io.Reader, contentType string, out
 		return err
 	}
 	defer resp.Body.Close()
-	rb, _ := io.ReadAll(resp.Body)
+	rb, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		return fmt.Errorf("read response body for %s %s: %w", method, req.URL.Path, readErr)
+	}
 	if resp.StatusCode == http.StatusConflict || (resp.StatusCode == http.StatusUnprocessableEntity && bytes.Contains(rb, []byte("already exists"))) {
 		return &AlreadyExistsError{Msg: strings.TrimSpace(string(rb))}
 	}

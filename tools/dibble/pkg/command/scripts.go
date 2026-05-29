@@ -23,7 +23,10 @@ func newScriptsCmd() *cobra.Command {
 				return err
 			}
 			count, _ := cmd.Flags().GetInt("count")
-			teams, _ := listExistingTeams(c)
+			teams, err := listExistingTeams(c)
+			if err != nil {
+				return err
+			}
 			res := seed.Scripts(c, seederLogger{}, theme, teams, count)
 			printf("%s", res.Summary())
 			return reportErrors(res.Errors)

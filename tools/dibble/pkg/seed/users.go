@@ -25,9 +25,15 @@ func Users(c Client, log Logger, theme themes.Theme, count int) Result {
 		body := map[string]any{
 			"name":                        name,
 			"email":                       email,
-			"password":                    SeededUserPassword,
 			"global_role":                 role,
 			"admin_forced_password_reset": false,
+		}
+		// Fleet rejects GitOps users that aren't API-only — they can't sign
+		// in interactively and shouldn't have a password.
+		if role == "gitops" {
+			body["api_only"] = true
+		} else {
+			body["password"] = SeededUserPassword
 		}
 		err := c.Post("/api/latest/fleet/users/admin", body, nil)
 		switch {

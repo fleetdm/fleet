@@ -11,22 +11,28 @@ import (
 
 // installerFiles bundles a curated set of installer fixtures into the dibble
 // binary so `dibble software custom` can upload real package files without
-// the user pointing at a checkout. Files are sourced from
-// server/service/testdata/software-installers/ — the same fixtures Fleet's
-// own tests use. .exe and vim.deb are excluded for size.
+// the user pointing at a checkout. Most fixtures come from
+// server/service/testdata/software-installers/ — the same ones Fleet's own
+// tests use. The .msi and .exe entries use upstream-signed installers
+// (python-manager, 7-Zip) so we exercise the Windows code paths without
+// surfacing the Fleet agent itself as a custom software item. vim.deb is
+// excluded for size.
 //
 //go:embed data/installers/*
 var installerFiles embed.FS
 
 // extensionInstallers lists the curated 2-3 installer fixtures per
 // extension. Order matters for display; the first entry per extension is
-// uploaded first which keeps log output readable.
+// uploaded first which keeps log output readable. fleet-osquery.msi is
+// intentionally NOT listed: it's the agent installer and must not appear
+// as a custom software item.
 var extensionInstallers = map[string][]string{
 	".pkg":    {"dummy_installer.pkg", "EchoApp.pkg", "no_version.pkg"},
 	".deb":    {"emacs.deb", "ruby.deb", "ruby_arm64.deb"},
-	".msi":    {"fleet-osquery.msi"}, // only fixture available
-	".rpm":    {"ruby.rpm"},          // only fixture available
-	".tar.gz": {"test.tar.gz"},       // only fixture available
+	".msi":    {"python-manager-26.2.msi"},
+	".exe":    {"7z2601.exe", "7z2601-x64.exe", "7z2601-arm64.exe"},
+	".rpm":    {"ruby.rpm"},    // only fixture available
+	".tar.gz": {"test.tar.gz"}, // only fixture available
 	".ipa":    {"ipa_test.ipa", "ipa_test2.ipa"},
 }
 

@@ -1,6 +1,9 @@
 package seed
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/themes"
 )
 
@@ -44,9 +47,20 @@ func Teams(c Client, log Logger, theme themes.Theme, count int) ([]Team, Result)
 			log.Printf("team %s (id=%d)", name, id)
 		case IsAlreadyExists(err):
 			res.Skipped++
-			// Best-effort lookup so downstream seeders can scope by team.
-			if got, lookupErr := findTeamByName(c, name); lookupErr == nil {
+			// Look up the existing team so downstream seeders can scope by
+			// team id. A genuine lookup failure (network, auth) is a hard
+			// error; "not found" is silently ignored so a renamed/deleted
+			// team doesn't block the rest of the run.
+			got, lookupErr := findTeamByName(c, name)
+			switch {
+			case lookupErr == nil:
 				teams = append(teams, got)
+			case errors.As(lookupErr, new(errTeamNotFound)):
+				// Team exists by name conflict but not in the list — odd,
+				// but treat as a no-op rather than failing the run.
+			default:
+				res.Errors = append(res.Errors,
+					fmt.Errorf("lookup existing team %q: %w", name, lookupErr))
 			}
 		default:
 			res.Errors = append(res.Errors, err)

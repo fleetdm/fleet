@@ -167,8 +167,11 @@ Out-of-scope and **not** absorbed (those tools still live in `tools/`):
   prefixed with `*` and tagged with the current run id, so seeded rows are
   obvious in the UI and don't conflate across runs.
 - **Custom-package software upload** uploads a curated set of installer
-  fixtures (`.pkg`, `.deb`, `.msi`, `.rpm`, `.tar.gz`, `.ipa`) bundled into
-  the dibble binary. `.exe` and large fixtures are excluded for size.
+  fixtures (`.pkg`, `.deb`, `.msi`, `.exe`, `.rpm`, `.tar.gz`, `.ipa`)
+  bundled into the dibble binary. The `.msi` and `.exe` slots use
+  upstream-signed installers (python-manager, 7-Zip) so the Fleet osquery
+  agent installer is never surfaced as a custom software item. `vim.deb`
+  is excluded for size.
 - **Fleet-maintained apps** are added via the catalog endpoint
   (`/api/latest/fleet/software/fleet_maintained_apps`) — `dibble software
   maintained` POSTs the first N entries the server returns.

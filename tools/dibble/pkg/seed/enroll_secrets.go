@@ -26,7 +26,10 @@ func EnrollSecrets(c Client, log Logger, teams []Team) Result {
 		switch {
 		case err == nil:
 			res.Created++
-			log.Printf("enroll secret for team=%s (id=%d): %s", t.Name, t.ID, secret)
+			// Don't log the secret itself — credentials in logs/shell
+			// history are an avoidable leak. Find seeded values in the
+			// UI under Settings → [team] → Add hosts → Show enroll secret.
+			log.Printf("enroll secret created for team=%s (id=%d)", t.Name, t.ID)
 		case IsAlreadyExists(err):
 			res.Skipped++
 		default:

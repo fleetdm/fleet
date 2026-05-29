@@ -22,7 +22,7 @@ func newCAsCmd() *cobra.Command {
 			count, _ := cmd.Flags().GetInt("count")
 			res := seed.CAs(nil, seederLogger{}, count)
 			printf("%s", res.Summary())
-			return nil
+			return reportErrors(res.Errors)
 		},
 	}
 	cmd.Flags().Int("count", 1, "How many CAs to seed")

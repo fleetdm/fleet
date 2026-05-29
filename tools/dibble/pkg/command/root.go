@@ -27,6 +27,14 @@ var (
 func Execute(args []string) error {
 	rootCmd := newRootCmd()
 	if shouldRunWizard(args) {
+		// Parse persistent flags so values like
+		//   dibble --fleet-url X --api-token Y
+		// are honored by the wizard (and bound into viper via
+		// BindPFlag in newRootCmd). Without this, the wizard would
+		// prompt for values the user already provided.
+		if err := rootCmd.ParseFlags(args); err != nil {
+			return err
+		}
 		return runWizard(rootCmd)
 	}
 	return rootCmd.Execute()
@@ -95,12 +103,18 @@ Hosts are intentionally out of scope — use cmd/osquery-perf for that.`,
 	root.PersistentFlags().BoolP("insecure", "k", false, "Skip TLS certificate verification (for self-signed dev certs)")
 	root.PersistentFlags().StringP("suffix", "s", "", `Append to every generated name to avoid collisions on re-run. Use "auto" for a random 4-char suffix per run.`)
 
-	// Bind to viper so env / config-file values flow through.
+	// Bind to viper so env / config-file values flow through. The
+	// config/dry-run/verbose flags are read via viper.Get* in initConfig
+	// and the HTTP client; without explicit binding they'd silently
+	// default to zero values regardless of what the user passed.
 	_ = viper.BindPFlag(keyFleetURL, root.PersistentFlags().Lookup("fleet-url"))
 	_ = viper.BindPFlag(keyAPIToken, root.PersistentFlags().Lookup("api-token"))
 	_ = viper.BindPFlag(keyTheme, root.PersistentFlags().Lookup("theme"))
 	_ = viper.BindPFlag(keyInsecure, root.PersistentFlags().Lookup("insecure"))
 	_ = viper.BindPFlag(keySuffix, root.PersistentFlags().Lookup("suffix"))
+	_ = viper.BindPFlag("config", root.PersistentFlags().Lookup("config"))
+	_ = viper.BindPFlag("dry-run", root.PersistentFlags().Lookup("dry-run"))
+	_ = viper.BindPFlag("verbose", root.PersistentFlags().Lookup("verbose"))
 
 	// Env mapping. FLEET_URL / FLEET_API_TOKEN feel natural to people coming
 	// from fleetctl, even though the dibble prefix would be more consistent.

@@ -43,10 +43,6 @@ type ActivitiesOptions struct {
 // against this constant.
 const fakePrefix = "*"
 
-// runTag is recomputed per Activities call. Appended to name-like fields so
-// repeated runs don't collide into the same display strings.
-var runTag string
-
 // hostIDer matches fleet activities that report associated hosts. The
 // interface mirrors what NewActivity does internally; defining it here
 // avoids pulling in the fleet-internal activity bounded context.
@@ -57,11 +53,12 @@ type hostIDer interface {
 // stringExample returns a deterministic example value for the given field,
 // based on the json tag (preferred) or Go field name. Returned strings are
 // prefixed with fakePrefix and tagged with runTag so the rendered UI copy
-// makes it obvious the row is faked.
+// makes it obvious the row is faked. Passing runTag explicitly (instead of
+// reading a package-level global) keeps Activities reentrant.
 //
 // Lifted from tools/seed-activities/main.go (PR #45713) and adapted to
 // always include the fake marker.
-func stringExample(jsonTag, fieldName string) string {
+func stringExample(jsonTag, fieldName, runTag string) string {
 	name := strings.ToLower(jsonTag)
 	if name == "" {
 		name = strings.ToLower(fieldName)
@@ -133,8 +130,9 @@ func stringExample(jsonTag, fieldName string) string {
 
 // setExampleFields walks the activity's struct fields and assigns
 // deterministic example values to anything left at its zero value. Hosts
-// get the configured seed host id wired in.
-func setExampleFields(activity any, hostID uint) {
+// get the configured seed host id wired in; runTag is appended to
+// name-like strings via stringExample.
+func setExampleFields(activity any, hostID uint, runTag string) {
 	v := reflect.ValueOf(activity)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
 		return
@@ -156,7 +154,7 @@ func setExampleFields(activity any, hostID uint) {
 		switch f.Kind() {
 		case reflect.String:
 			if f.String() == "" {
-				f.SetString(stringExample(jsonTag, ft.Name))
+				f.SetString(stringExample(jsonTag, ft.Name, runTag))
 			}
 		case reflect.Bool:
 			// Self-service software activities are flipped to true so the
@@ -183,7 +181,7 @@ func setExampleFields(activity any, hostID uint) {
 			elem := f.Type().Elem()
 			switch elem.Kind() {
 			case reflect.String:
-				val := stringExample(jsonTag, ft.Name)
+				val := stringExample(jsonTag, ft.Name, runTag)
 				f.Set(reflect.ValueOf(&val))
 			case reflect.Bool:
 				val := false
@@ -464,8 +462,9 @@ func templatesForCategory(category string) ([]fleet.ActivityDetails, error) {
 }
 
 // insertActivity writes one row to activity_past plus one row per host id
-// reported by the activity into activity_host_past. Returns the new
-// activity_past.id.
+// reported by the activity into activity_host_past. Both writes go through
+// a single transaction so a host-mapping failure can't leave behind a
+// partially-seeded activity row. Returns the new activity_past.id.
 func insertActivity(
 	ctx context.Context, db *sql.DB,
 	actorID uint, actorName, actorEmail string,
@@ -476,10 +475,22 @@ func insertActivity(
 		return 0, fmt.Errorf("marshal %T: %w", activity, err)
 	}
 
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	// Defer a rollback that's a no-op once we've committed.
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
 	const insert = `INSERT INTO activity_past
 		(user_id, user_name, user_email, activity_type, details, fleet_initiated)
 		VALUES (?, ?, ?, ?, ?, 0)`
-	res, err := db.ExecContext(ctx, insert,
+	res, err := tx.ExecContext(ctx, insert,
 		actorID, actorName, actorEmail, activity.ActivityName(), details)
 	if err != nil {
 		return 0, fmt.Errorf("insert %s: %w", activity.ActivityName(), err)
@@ -491,12 +502,17 @@ func insertActivity(
 		if len(ids) > 0 {
 			const insertHost = `INSERT INTO activity_host_past (host_id, activity_id) VALUES (?, ?)`
 			for _, hid := range ids {
-				if _, err := db.ExecContext(ctx, insertHost, hid, actID); err != nil {
-					return actID, fmt.Errorf("insert activity_host_past %d/%d: %w", hid, actID, err)
+				if _, err := tx.ExecContext(ctx, insertHost, hid, actID); err != nil {
+					return 0, fmt.Errorf("insert activity_host_past %d/%d: %w", hid, actID, err)
 				}
 			}
 		}
 	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit activity %s: %w", activity.ActivityName(), err)
+	}
+	committed = true
 	return actID, nil
 }
 
@@ -526,7 +542,12 @@ func Activities(ctx context.Context, log Logger, opt ActivitiesOptions) Result {
 		opt.ActorID = 1
 	}
 
-	db, err := sql.Open("mysql", opt.DSN+"?parseTime=true")
+	dsn, err := mysqlDSN(opt.DSN, false)
+	if err != nil {
+		res.Errors = append(res.Errors, fmt.Errorf("parse DSN: %w", err))
+		return res
+	}
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		res.Errors = append(res.Errors, fmt.Errorf("open mysql: %w", err))
 		return res
@@ -558,11 +579,11 @@ func Activities(ctx context.Context, log Logger, opt ActivitiesOptions) Result {
 	}
 
 	for b := 0; b < opt.Batches; b++ {
-		runTag = fmt.Sprintf("%d-%d", time.Now().UnixNano()%1_000_000, b+1)
+		runTag := fmt.Sprintf("%d-%d", time.Now().UnixNano()%1_000_000, b+1)
 		for _, tmpl := range templates {
 			ptr := reflect.New(reflect.TypeOf(tmpl))
 			ptr.Elem().Set(reflect.ValueOf(tmpl))
-			setExampleFields(ptr.Interface(), opt.HostID)
+			setExampleFields(ptr.Interface(), opt.HostID, runTag)
 			filled := ptr.Elem().Interface().(fleet.ActivityDetails)
 			if _, err := insertActivity(ctx, db,
 				opt.ActorID, opt.ActorName, opt.ActorEmail, filled); err != nil {

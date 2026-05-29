@@ -23,7 +23,7 @@ func newSoftwareCmd() *cobra.Command {
   dibble software custom       — upload curated installers (2-3 per extension)
   dibble software maintained   — add Fleet-maintained apps from the server's catalog
 
-Custom uploads cover .pkg / .deb / .msi / .rpm / .tar.gz / .ipa fixtures bundled
+Custom uploads cover .pkg / .deb / .msi / .exe / .rpm / .tar.gz / .ipa fixtures bundled
 into the dibble binary. Maintained-app entries are read from
 /api/latest/fleet/software/fleet_maintained_apps and POSTed in catalog order.
 

@@ -31,26 +31,12 @@ func runWizard(root *cobra.Command) error {
 	if err != nil {
 		return err
 	}
+	// We defer the "save config?" prompt until after theme and the
+	// optional --insecure toggle so the persisted file reflects ALL of
+	// the user's final choices, not just URL+token.
+	shouldOfferSave := urlAsked || tokenAsked
 
-	// Step 2: offer to persist whatever was just typed in.
-	if urlAsked || tokenAsked {
-		save := true
-		if err := survey.AskOne(
-			&survey.Confirm{Message: fmt.Sprintf("Save these to %s?", configPath()), Default: true},
-			&save,
-		); err != nil {
-			return err
-		}
-		if save {
-			if err := writeConfigFile(); err != nil {
-				warnf("could not save config: %v", err)
-			} else {
-				printf("config saved to %s", configPath())
-			}
-		}
-	}
-
-	// Step 3: ping. Fail fast so the user knows their config is wrong before
+	// Step 2: ping. Fail fast so the user knows their config is wrong before
 	// they spend time picking themes. If a TLS verification error trips us
 	// up against a self-signed dev cert, offer to flip --insecure.
 	client, err := newClientFromViper()
@@ -83,7 +69,7 @@ func runWizard(root *cobra.Command) error {
 	}
 	printf("connected to Fleet %s ✓", ver.Version)
 
-	// Step 4: theme picker.
+	// Step 3: theme picker.
 	chosenTheme := viper.GetString(keyTheme)
 	if err := survey.AskOne(
 		&survey.Select{
@@ -101,6 +87,27 @@ func runWizard(root *cobra.Command) error {
 		return err
 	}
 
+	// Step 4: persist final config (URL, token, theme, insecure) if we
+	// collected anything new. Doing this after the TLS toggle and theme
+	// pick means the saved file actually matches the run the user is
+	// about to do.
+	if shouldOfferSave {
+		save := true
+		if err := survey.AskOne(
+			&survey.Confirm{Message: fmt.Sprintf("Save these to %s?", configPath()), Default: true},
+			&save,
+		); err != nil {
+			return err
+		}
+		if save {
+			if err := writeConfigFile(); err != nil {
+				warnf("could not save config: %v", err)
+			} else {
+				printf("config saved to %s", configPath())
+			}
+		}
+	}
+
 	// Step 5: entity multi-select.
 	type entity struct {
 		Label   string
@@ -108,6 +115,9 @@ func runWizard(root *cobra.Command) error {
 		Slow    bool
 		Default bool
 	}
+	// Note: `vulns` is intentionally NOT offered here. It needs direct
+	// MySQL access (a DSN) that the wizard doesn't collect — run
+	// `dibble vulns --dsn ... --macos N --ubuntu N --windows N` directly.
 	entities := []entity{
 		{"users", "users", false, true},
 		{"teams", "teams", false, true},
@@ -118,7 +128,6 @@ func runWizard(root *cobra.Command) error {
 		{"scripts", "scripts", false, false},
 		{"profiles (Apple + Windows MDM)", "profiles", false, false},
 		{"software (titles, no upload)", "software", false, false},
-		{"vulns (direct MySQL, slow)", "vulns", true, false},
 		{"activities (direct MySQL, non-idempotent)", "activities", true, false},
 		{"cas (placeholder)", "cas", false, false},
 	}
@@ -230,9 +239,9 @@ func writeConfigFile() error {
 	existing[keyFleetURL] = viper.GetString(keyFleetURL)
 	existing[keyAPIToken] = viper.GetString(keyAPIToken)
 	existing[keyTheme] = viper.GetString(keyTheme)
-	if viper.GetBool(keyInsecure) {
-		existing[keyInsecure] = true
-	}
+	// Always write the current insecure value (not just when true) so that
+	// toggling it off in a later run actually clears the persisted setting.
+	existing[keyInsecure] = viper.GetBool(keyInsecure)
 	data, err := yaml.Marshal(existing)
 	if err != nil {
 		return err

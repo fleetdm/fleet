@@ -58,32 +58,30 @@ func runAll(c *Client, theme themes.Theme, counts allCounts) error {
 	start := time.Now()
 	log := seederLogger{}
 
-	// Teams first — many other seeders want a team list.
-	teams, tRes := seed.Teams(c, log, theme, counts.Teams)
-	printf("%s", tRes.Summary())
-
-	uRes := seed.Users(c, log, theme, counts.Users)
-	printf("%s", uRes.Summary())
-
-	if counts.EnrollSecrets {
-		esRes := seed.EnrollSecrets(c, log, teams)
-		printf("%s", esRes.Summary())
+	// Collect every seeder's errors so `dibble all` exits non-zero when any
+	// step failed. Without this, CI / scripted runs treat a half-broken run
+	// as success.
+	var allErrs []error
+	report := func(res seed.Result) {
+		printf("%s", res.Summary())
+		allErrs = append(allErrs, res.Errors...)
 	}
 
-	lRes := seed.Labels(c, log, theme, counts.Labels)
-	printf("%s", lRes.Summary())
+	// Teams first — many other seeders want a team list.
+	teams, tRes := seed.Teams(c, log, theme, counts.Teams)
+	report(tRes)
 
-	pRes := seed.Policies(c, log, theme, teams, counts.Policies)
-	printf("%s", pRes.Summary())
+	report(seed.Users(c, log, theme, counts.Users))
 
-	rRes := seed.Reports(c, log, theme, teams, counts.Reports)
-	printf("%s", rRes.Summary())
+	if counts.EnrollSecrets {
+		report(seed.EnrollSecrets(c, log, teams))
+	}
 
-	scRes := seed.Scripts(c, log, theme, teams, counts.Scripts)
-	printf("%s", scRes.Summary())
-
-	prRes := seed.Profiles(c, log, theme, teams, counts.Profiles)
-	printf("%s", prRes.Summary())
+	report(seed.Labels(c, log, theme, counts.Labels))
+	report(seed.Policies(c, log, theme, teams, counts.Policies))
+	report(seed.Reports(c, log, theme, teams, counts.Reports))
+	report(seed.Scripts(c, log, theme, teams, counts.Scripts))
+	report(seed.Profiles(c, log, theme, teams, counts.Profiles))
 
 	if counts.Software > 0 {
 		// `dibble all` lands software under the first existing team if any,
@@ -93,29 +91,25 @@ func runAll(c *Client, theme themes.Theme, counts allCounts) error {
 		if len(teams) > 0 {
 			swOpt.TeamID = teams[0].ID
 		}
-		soRes := seed.SoftwareCustom(c, log, swOpt)
-		printf("%s", soRes.Summary())
-		fmRes := seed.SoftwareMaintained(c, log, swOpt)
-		printf("%s", fmRes.Summary())
+		report(seed.SoftwareCustom(c, log, swOpt))
+		report(seed.SoftwareMaintained(c, log, swOpt))
 	}
 
 	if counts.CAs > 0 {
-		caRes := seed.CAs(nil, log, counts.CAs)
-		printf("%s", caRes.Summary())
+		report(seed.CAs(nil, log, counts.CAs))
 	}
 
 	if counts.ActivityBatches > 0 {
-		acRes := seed.Activities(context.Background(), log, seed.ActivitiesOptions{
+		report(seed.Activities(context.Background(), log, seed.ActivitiesOptions{
 			DSN:     counts.ActivityDSN,
 			HostID:  counts.ActivityHostID,
 			Batches: counts.ActivityBatches,
-		})
-		printf("%s", acRes.Summary())
+		}))
 	}
 
 	elapsed := time.Since(start).Round(time.Millisecond)
 	fmt.Fprintf(stdoutish, "\n🌱  dibble done in %s (theme: %s).\n", elapsed, theme.Name)
-	return nil
+	return reportErrors(allErrs)
 }
 
 func newAllCmd() *cobra.Command {
