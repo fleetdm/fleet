@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -52,7 +53,7 @@ func downloadDecompressed(client *http.Client) func(string, string) error {
 	}
 }
 
-func whatToDownload(osVers *fleet.OSVersions, existing map[string]bool, date time.Time) []Platform {
+func whatToDownload(osVers *fleet.OSVersions, existing map[string]struct{}, date time.Time) []Platform {
 	var r []Platform
 	for _, os := range osVers.OSVersions {
 		platform := NewPlatform(os.Platform, os.Name)
@@ -65,15 +66,19 @@ func whatToDownload(osVers *fleet.OSVersions, existing map[string]bool, date tim
 }
 
 // removeOldDefs walks 'path' removing any old oval definitions, returns a set containing
-// definitions that are up to date according to 'date'
-func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
+// definitions that are up to date according to 'date'.
+//
+// Prefer listUpToDateDefs + removeOutdatedDefs for the Refresh flow so that outdated files
+// stay on disk when a sync fails (used as a fallback). This combined remove+list is kept
+// for backwards compatibility with existing tests.
+func removeOldDefs(date time.Time, path string) (map[string]struct{}, error) {
 	dateSuffix := fmt.Sprintf("-%d_%02d_%02d.json", date.Year(), date.Month(), date.Day())
-	upToDate := make(map[string]bool)
+	upToDate := make(map[string]struct{})
 
 	err := filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
 		if strings.HasPrefix(filepath.Base(path), OvalFilePrefix) {
 			if strings.HasSuffix(path, dateSuffix) {
-				upToDate[filepath.Base(path)] = true
+				upToDate[filepath.Base(path)] = struct{}{}
 			} else {
 				err := os.Remove(path)
 				if err != nil {
@@ -88,6 +93,55 @@ func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
 	}
 
 	return upToDate, nil
+}
+
+// listUpToDateDefs walks 'path' returning the set of OVAL definition filenames that match
+// 'date'. Unlike removeOldDefs, it does NOT delete outdated files. Use this when the
+// outdated files may still be needed as a fallback (e.g., when a fresh sync might fail).
+func listUpToDateDefs(date time.Time, path string) (map[string]struct{}, error) {
+	dateSuffix := fmt.Sprintf("-%d_%02d_%02d.json", date.Year(), date.Month(), date.Day())
+	upToDate := make(map[string]struct{})
+
+	err := filepath.WalkDir(path, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if strings.HasPrefix(filepath.Base(p), OvalFilePrefix) && strings.HasSuffix(p, dateSuffix) {
+			upToDate[filepath.Base(p)] = struct{}{}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return upToDate, nil
+}
+
+// removeOutdatedDefs walks 'path' removing any OVAL definition files that do not match 'date'.
+// Should be called only after a successful Sync so that yesterday's files remain available
+// when today's download fails.
+func removeOutdatedDefs(date time.Time, path string) error {
+	dateSuffix := fmt.Sprintf("-%d_%02d_%02d.json", date.Year(), date.Month(), date.Day())
+
+	root, err := os.OpenRoot(path)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = root.Close() }()
+
+	return fs.WalkDir(root.FS(), ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !strings.HasPrefix(filepath.Base(p), OvalFilePrefix) {
+			return nil
+		}
+		if strings.HasSuffix(p, dateSuffix) {
+			return nil
+		}
+		return root.Remove(p)
+	})
 }
 
 // Sync syncs the oval definitions for one or more platforms.
@@ -127,8 +181,10 @@ func Sync(dstDir string, platforms []Platform) error {
 	return nil
 }
 
-// Refresh checks all local OVAL artifacts contained in 'vulnPath' deleting the old and downloading
-// any missing definitions based on today's date and all the hosts' platforms/os versions contained in 'osVersions'.
+// Refresh checks all local OVAL artifacts contained in 'vulnPath' and downloads any missing
+// definitions based on today's date and the hosts' platforms/os versions contained in 'osVersions'.
+// Outdated (non-today) definition files are only removed AFTER a successful sync, so that a
+// failed sync leaves yesterday's files in place as a fallback.
 // Returns a slice of Platforms of the newly downloaded OVAL files.
 func Refresh(
 	ctx context.Context,
@@ -137,17 +193,22 @@ func Refresh(
 ) ([]Platform, error) {
 	now := time.Now()
 
-	existing, err := removeOldDefs(now, vulnPath)
+	existing, err := listUpToDateDefs(now, vulnPath)
 	if err != nil {
 		return nil, err
 	}
 
 	toDownload := whatToDownload(versions, existing, now)
 	if len(toDownload) > 0 {
-		err = Sync(vulnPath, toDownload)
-		if err != nil {
+		if err := Sync(vulnPath, toDownload); err != nil {
+			// Sync failed — leave outdated files on disk so the analyzer can fall back to them.
 			return nil, err
 		}
+	}
+
+	// Sync succeeded (or nothing needed to be downloaded). Now safe to remove outdated files.
+	if err := removeOutdatedDefs(now, vulnPath); err != nil {
+		return toDownload, fmt.Errorf("removing outdated OVAL definitions: %w", err)
 	}
 
 	return toDownload, nil

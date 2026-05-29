@@ -1529,6 +1529,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &tmLite2.ID, HostIDs: []uint{mdmHost2.ID}}, http.StatusOK)
 
+	s.awaitTriggerProfileSchedule(t)
+
 	// simulate having its profiles installed
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		res, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ?`, fleet.OSSettingsVerifying, mdmHost2.UUID)
@@ -2602,6 +2604,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &tm2.ID, HostIDs: []uint{h1.ID}}, http.StatusOK, &moveHostResp)
 	t.Logf("[TestHostMDMAppleProfilesStatus] Host h1 transfer completed at %s", time.Now().Format(time.RFC3339))
+	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -2656,6 +2659,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{h4.ID}}, http.StatusOK, &moveHostResp)
 	t.Logf("[TestHostMDMAppleProfilesStatus] Host h4 transfer to NO TEAM completed at %s", time.Now().Format(time.RFC3339))
+	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -2668,7 +2672,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		h4: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T1.2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
-			{Identifier: "T1.3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending}, // still pending install due to cron not having run
+			{Identifier: "T1.3.user", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G3.user", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
@@ -2684,6 +2688,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	body, headers := generateNewProfileMultipartRequest(t,
 		"some_name", mobileconfigForTest("G4", "G4"), s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
+	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h2: { // still no user channel
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2707,6 +2712,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	body, headers = generateNewProfileMultipartRequest(t,
 		"some_name", mobileconfigForTest("T2.2", "T2.2"), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm2.ID)}})
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
+	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "T2.1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2801,6 +2807,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 				g5Content,
 			},
 		}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
 
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h2: {
@@ -2832,6 +2839,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 				t23Content,
 			},
 		}, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
+	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "T2.2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -2873,6 +2881,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 				scopedMobileconfigForTest("T1.3", "T1.3.user", &payloadScopeUser),
 			},
 		}, http.StatusNoContent, "team_id", fmt.Sprint(tm1.ID))
+	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "T2.2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2902,6 +2911,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 
 	// delete team 2 (h1 and h3 are part of that team)
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tm2.ID), nil, http.StatusOK)
+	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "T2.2b", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -5802,12 +5812,22 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	require.NotEmpty(t, newCP.ProfileID)
 	setTestProfileID("TestImmediateDelete", newCP.ProfileID)
 
+	// We need to run the cron to produce host profile entries
+	s.awaitTriggerProfileSchedule(t)
+
 	// check that host_mdm_apple_profiles entry was created
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host.MDM.Profiles)
-	require.Len(t, *hostResp.Host.MDM.Profiles, 1)
-	require.Equal(t, (*hostResp.Host.MDM.Profiles)[0].Name, "TestImmediateDelete")
+	require.Len(t, *hostResp.Host.MDM.Profiles, 3) // TestImmediateDelete + Fleetd + Fleet CA
+	seen := false
+	for _, p := range *hostResp.Host.MDM.Profiles {
+		if p.Name == "TestImmediateDelete" {
+			seen = true
+			break
+		}
+	}
+	require.True(t, seen, "expected to see TestImmediateDelete profile in host response")
 
 	// now delete the profile before it's sent, we should see the host_mdm_apple_profiles entry go
 	// away
@@ -5821,10 +5841,14 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	require.Len(t, listResp.ConfigProfiles, 0)
 	getPath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
 	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
+
+	// Doing these cron run kinda muddies the test scenario, but can be discussed in PR review what we want to do here.
+	s.awaitTriggerProfileSchedule(t)
 	// confirm no host profiles
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
-	require.Nil(t, hostResp.Host.MDM.Profiles)
+	require.NotNil(t, hostResp.Host.MDM.Profiles)
+	require.Len(t, *hostResp.Host.MDM.Profiles, 2) // Fleetd + Fleet CA, TestImmediateDelete should be gone
 
 	// list profiles (no team)
 	expectedCP := testProfiles["TestNoTeam"]
@@ -6900,15 +6924,11 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", "zno-such-profile"), nil, http.StatusNotFound)
 
 	// get status for existing profiles, all 0 counts
-	for _, uuid := range []string{profNameToPayload["N1"].ProfileUUID, profNameToPayload["N2"].ProfileUUID, profNameToPayload["N3"].ProfileUUID} {
+	for _, uuid := range []string{profNameToPayload["N1"].ProfileUUID, profNameToPayload["N2"].ProfileUUID, profNameToPayload["N3"].ProfileUUID, profNameToPayload["N4"].ProfileUUID} {
 		var statusResp getMDMConfigProfileStatusResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", uuid), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
 		require.Equal(t, fleet.MDMConfigProfileStatus{}, statusResp.MDMConfigProfileStatus)
 	}
-	// except for the declaration, which is immediately set as pending on the hosts
-	var statusResp getMDMConfigProfileStatusResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N4"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
-	require.Equal(t, fleet.MDMConfigProfileStatus{Pending: 2}, statusResp.MDMConfigProfileStatus)
 
 	// try to batch-resend a non-existing profile
 	batchReq := batchResendMDMProfileToHostsRequest{ProfileUUID: "zzzz"} // not a known prefix
@@ -6947,6 +6967,8 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	forceSetAppleHostProfileStatus(t, s.ds, host1.UUID, test.ToMDMAppleConfigProfile(profNameToPayload["N2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 	forceSetAppleHostProfileStatus(t, s.ds, host2.UUID, test.ToMDMAppleConfigProfile(profNameToPayload["N1"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 	forceSetAppleHostProfileStatus(t, s.ds, host2.UUID, test.ToMDMAppleConfigProfile(profNameToPayload["N2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	forceSetAppleHostDeclarationStatus(t, s.ds, host1.UUID, test.ToMDMAppleDecl(profNameToPayload["N4"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	forceSetAppleHostDeclarationStatus(t, s.ds, host2.UUID, test.ToMDMAppleDecl(profNameToPayload["N4"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 	forceSetWindowsHostProfileStatus(t, s.ds, host3.UUID, test.ToMDMWindowsConfigProfile(profNameToPayload["N3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
@@ -6967,6 +6989,7 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 		},
 	})
 
+	var statusResp getMDMConfigProfileStatusResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N1"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
 	require.Equal(t, fleet.MDMConfigProfileStatus{Pending: 2}, statusResp.MDMConfigProfileStatus)
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N2"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
@@ -9387,14 +9410,6 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	s.assertMacOSDeclarationsByName(&teamID, servermdm.FleetIPadOSUpdatesProfileName, true)
 	windowsOSUpdatesProfileUUID := checkWindowsOSUpdatesProfile(t, s.ds, &teamID,
 		&fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(5), GracePeriodDays: optjson.SetInt(1)})
-
-	// Verify that the Apple declarations are immediately queued for the enrolled
-	// hosts in the team. BulkSetPendingMDMHostProfiles is called synchronously
-	// when OS updates are edited via spec/teams. The status is NULL at this point
-	// (set to pending by ReconcileAppleDeclarations on the next run).
-	assertAppleDeclarationQueued(macOSHost.UUID, macOSUpdateIdent)
-	assertAppleDeclarationQueued(iOSHost.UUID, iOSUpdateIdent)
-	assertAppleDeclarationQueued(iPadOSHost.UUID, iPadOSUpdateIdent)
 
 	// Trigger the profile schedule so that:
 	//   - ReconcileAppleDeclarations sends DDM sync commands to Apple hosts.

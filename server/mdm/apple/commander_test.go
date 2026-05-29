@@ -828,6 +828,42 @@ func TestAccountConfigurationWithAdminAccount(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	})
+
+	t.Run("SSO + admin with none primary account", func(t *testing.T) {
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			raw := string(cmd.Raw)
+			require.NotContains(t, raw, "PrimaryAccountFullName")
+			require.Contains(t, raw, "AutoSetupAdminAccounts")
+			require.Contains(t, raw, "SkipPrimarySetupAccountCreation")
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID,
+			&SSOAccountConfig{FullName: "SSO User", UserName: "ssouser", LockPrimaryAccountInfo: false},
+			&AdminAccountConfig{ShortName: "_fleetadmin", FullName: "Fleet Admin", PasswordHash: []byte("fake-hash"), Hidden: true, PrimaryAccountType: fleet.PrimaryAccountTypeNone},
+		)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	})
+
+	t.Run("SSO + admin with standard primary account", func(t *testing.T) {
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			raw := string(cmd.Raw)
+			require.Contains(t, raw, "PrimaryAccountFullName")
+			require.Contains(t, raw, "AutoSetupAdminAccounts")
+			require.Contains(t, raw, "SetPrimarySetupAccountAsRegularUser")
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID,
+			&SSOAccountConfig{FullName: "SSO User", UserName: "ssouser", LockPrimaryAccountInfo: false},
+			&AdminAccountConfig{ShortName: "_fleetadmin", FullName: "Fleet Admin", PasswordHash: []byte("fake-hash"), Hidden: true, PrimaryAccountType: fleet.PrimaryAccountTypeStandard},
+		)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	})
 }
 
 func TestMDMAppleCommanderPassesCommandName(t *testing.T) {

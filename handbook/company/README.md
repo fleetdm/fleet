@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Fleet Device Management is the [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
+Fleet Device Management is the open-core company behind the leading open-source device management platform for Apple, Linux, Windows, Android, and more. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
 
 Fleet is dedicated to a comprehensive strategy against [whatever this is](https://chat.openai.com/share/e44ba6f3-b3ed-488a-a15e-a5a723f20c98): 
 - 🔌 helping IT and cybersecurity teams move more quickly on strategic projects.
@@ -145,7 +145,7 @@ To provide clarity about decision-making, [responsibility](https://fleetdm.com/h
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including  
-[Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, [Alexandr Wang](https://www.businessofbusiness.com/articles/scale-ai-machine-learning-startup-alexandr-wang/) _(Scale AI)_, [Sanjay](https://www.zdnet.com/article/vmware-buys-airwatch-for-1-54-billion-acquires-mobility-strategy/) [Poonen](https://www.businessinsider.com/vmware-carbon-black-acquisition-sanjay-poonen-cybersecurity-2019-10?op=1) _(VMware, Cohesity)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/leadership#contact-the-ceo).)
+[Sid Sijbrandij](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, [Suresh Batchu](https://www.linkedin.com/posts/sureshbatchu_im-excited-to-share-that-ive-joined-the-share-7453227064599449600-3_DB/?utm_source=share&utm_medium=member_ios&rcm=ACoAAAOYKwIBtKBLvbxqgjD2fs4ScGobCzMbCvg) _(MobileIron)_, Kevin Mahaffey _(Lookout)_, Scott Lundgren _(Carbon Black)_, [Sanjay Poonen](https://www.zdnet.com/article/vmware-buys-airwatch-for-1-54-billion-acquires-mobility-strategy/) _(Workspace ONE)_, John Marcante _(Vanguard)_, Guillermo Rauch _(socket.io)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/leadership#contact-the-ceo).)
 
 
 <meta name="maintainedBy" value="mikermcneil">
