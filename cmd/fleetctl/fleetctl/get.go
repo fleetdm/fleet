@@ -389,7 +389,6 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 				}
 				fmas = append(fmas, fleet.MaintainedAppSpec{
 					Slug:               slug,
-					Version:            pkg.Version,
 					SelfService:        pkg.SelfService,
 					LabelsIncludeAny:   scopeLabelNames(pkg.LabelsIncludeAny),
 					LabelsExcludeAny:   scopeLabelNames(pkg.LabelsExcludeAny),
@@ -408,7 +407,6 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 				LabelsIncludeAll:   scopeLabelNames(pkg.LabelsIncludeAll),
 				Categories:         pkg.Categories,
 				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
-				DisplayName:        pkg.DisplayName,
 			})
 		case detail.AppStoreApp != nil:
 			app := detail.AppStoreApp
@@ -425,14 +423,6 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 				LabelsIncludeAll:   scopeLabelNames(app.LabelsIncludeAll),
 				Categories:         app.Categories,
 				InstallDuringSetup: installDuringSetup,
-				DisplayName:        app.DisplayName,
-			}
-			// Auto-update schedule settings are only supported for iOS/iPadOS VPP
-			// apps; mirror generate-gitops by only emitting them in that case.
-			if app.Platform == fleet.IOSPlatform || app.Platform == fleet.IPadOSPlatform {
-				appStoreAppSpec.AutoUpdateEnabled = detail.AutoUpdateEnabled
-				appStoreAppSpec.AutoUpdateStartTime = detail.AutoUpdateStartTime
-				appStoreAppSpec.AutoUpdateEndTime = detail.AutoUpdateEndTime
 			}
 			appStoreApps = append(appStoreApps, appStoreAppSpec)
 		}
