@@ -457,3 +457,15 @@
   automations_enabled: true
   logging: snapshot
   interval: 14400
+- name: DEX - System experience - security posture
+  description: Verifying the following components are enabled on the host - filevault, sip, gatekeeper, firewall
+  query: |
+    SELECT
+      (SELECT 1 FROM filevault_status WHERE status LIKE '%on%')   AS filevault,
+      (SELECT 1 FROM alf WHERE global_state >= 1)                 AS firewall,
+      (SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1)    AS gatekeeper,
+      (SELECT 1 FROM sip_config WHERE config_flag = 'sip')        AS sip;
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 3600

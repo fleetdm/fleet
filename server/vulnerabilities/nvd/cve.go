@@ -322,21 +322,31 @@ func TranslateCPEToCVE(
 		osInsertErr = true
 	}
 
+	// Detect corrupted/empty CVE feeds. If we had CPE/OS inputs to match against but produced
+	// zero results across every feed file, the feed is almost certainly empty or corrupted
+	// (e.g., a failed/corrupted artifact from GitHub) — skip the deletes so we don't wipe
+	// legitimate existing software_cve rows that will be re-matched on the next good sync.
+	feedProducedNoData := len(allSoftwareVulns) == 0 && len(allOSVulns) == 0
+
 	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was
 	// updated was more than `2 * periodicity` ago. This assumes that the whole vulnerability
 	// process completes in less than `periodicity` units of time.
 	//
 	// This is used to get rid of false positives once they are fixed and no longer detected as vulnerabilities.
 	// Skip cleanup when the corresponding insert failed to avoid deleting data with nothing to replace it.
-	if softwareInsertErr == nil {
+	if softwareInsertErr == nil && !feedProducedNoData {
 		if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
 			logger.ErrorContext(ctx, "error deleting out of date vulnerabilities", "err", err)
 		}
 	}
-	if !osInsertErr {
+	if !osInsertErr && !feedProducedNoData {
 		if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, startTime); err != nil {
 			logger.ErrorContext(ctx, "error deleting out of date OS vulnerabilities", "err", err)
 		}
+	}
+	if feedProducedNoData {
+		logger.ErrorContext(ctx, "NVD scan produced no matches with non-empty input; skipping deletes to preserve existing software_cve rows (feed may be corrupted)",
+			"software_cpes", len(parsed), "os_cpes", len(cpes), "feed_files", len(files))
 	}
 
 	return newVulns, nil

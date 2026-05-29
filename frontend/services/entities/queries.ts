@@ -4,8 +4,8 @@ import endpoints from "utilities/endpoints";
 import { getErrorReason } from "interfaces/errors";
 import { ISelectedTargetsForApi } from "interfaces/target";
 import {
-  ICreateQueryRequestBody,
-  IModifyQueryRequestBody,
+  ICreateQueryFormData,
+  IEditQueryFormData,
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
@@ -44,7 +44,7 @@ export interface IQueriesResponse {
 
 export default {
   create: (
-    createQueryRequestBody: ICreateQueryRequestBody
+    createQueryRequestBody: ICreateQueryFormData
   ): Promise<ICreateQueryResponse> => {
     const { QUERIES } = endpoints;
     if (createQueryRequestBody.name) {
@@ -135,7 +135,7 @@ export default {
       );
     }
   },
-  update: (id: number, updateParams: IModifyQueryRequestBody) => {
+  update: (id: number, updateParams: IEditQueryFormData) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
     if (updateParams.name) {

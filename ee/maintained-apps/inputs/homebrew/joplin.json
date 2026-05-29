@@ -1,0 +1,8 @@
+{
+  "name": "Joplin",
+  "unique_identifier": "net.cozic.joplin-desktop",
+  "token": "joplin",
+  "installer_format": "dmg",
+  "slug": "joplin/darwin",
+  "default_categories": ["Productivity"]
+}

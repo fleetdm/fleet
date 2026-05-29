@@ -181,6 +181,7 @@ org_settings:
 policies:
 - calendar_events_enabled: false
   conditional_access_enabled: true
+  continuous_automations_enabled: false
   critical: false
   description: This is a global policy
   install_software:
@@ -196,6 +197,7 @@ policies:
   webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a global policy with include_all scope
   labels_include_all:

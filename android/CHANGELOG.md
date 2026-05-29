@@ -1,3 +1,7 @@
+## Android agent 1.6.0 (May 19, 2026)
+
+* Added subject alternative name (SAN) support to SCEP certificate requests on Android. When a certificate template carries a `subject_alternative_name` value, the agent now includes a non-critical SAN extension on the PKCS#10 CSR, supporting `DNS`, `EMAIL`, `URI`, `IP`, and `UPN` (Microsoft otherName, OID 1.3.6.1.4.1.311.20.2.3) attribute types.
+
 ## Android agent 1.5.0 (May 14, 2026)
 
 * Fixed certificate serial number truncation by sending serials to Fleet as hexadecimal.

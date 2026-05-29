@@ -123,6 +123,10 @@ func Analyze(
 }
 
 // LoadDb returns the latest goval_dictionary database for the given platform.
+// Returns an error if the database contains no definitions, since an empty database
+// would cause every existing vulnerability for the platform to be deleted (every host
+// would appear to be patched). An empty DB usually means the artifact download was
+// corrupted or partially failed.
 func LoadDb(platform oval.Platform, vulnPath string) (*Database, error) {
 	if !platform.IsGovalDictionarySupported() {
 		return nil, fmt.Errorf("platform %q not supported", platform)
@@ -137,6 +141,16 @@ func LoadDb(platform oval.Platform, vulnPath string) (*Database, error) {
 	sqlite, err := sql.Open("sqlite3", latest)
 	if err != nil {
 		return nil, err
+	}
+
+	var defCount int
+	if err := sqlite.QueryRow("SELECT COUNT(*) FROM definitions").Scan(&defCount); err != nil {
+		sqlite.Close()
+		return nil, fmt.Errorf("checking definitions count in %s: %w", latest, err)
+	}
+	if defCount == 0 {
+		sqlite.Close()
+		return nil, fmt.Errorf("goval_dictionary database %q contains no definitions (possible corrupted feed)", latest)
 	}
 
 	db := NewDB(sqlite, platform)

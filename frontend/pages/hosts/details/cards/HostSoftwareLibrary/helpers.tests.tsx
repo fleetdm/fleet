@@ -35,6 +35,17 @@ describe("getInstallErrorMessage", () => {
     expect(result).toBe("No available licenses");
   });
 
+  it("surfaces the missing Managed Apple ID message as-is", () => {
+    const result = getInstallErrorMessage(
+      makeErr(
+        "Couldn't install. Fleet hasn't received a Managed Apple ID for this host yet. Please wait a few minutes after enrollment and try again."
+      )
+    );
+    expect(result).toBe(
+      "Couldn't install. Fleet hasn't received a Managed Apple ID for this host yet. Please wait a few minutes after enrollment and try again"
+    );
+  });
+
   it("returns unresolvable Fleet variable message", () => {
     const result = getInstallErrorMessage(
       makeErr(

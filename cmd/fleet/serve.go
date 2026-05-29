@@ -111,21 +111,9 @@ import (
 	"go.elastic.co/apm/module/apmhttp/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	otelsdklog "go.opentelemetry.io/otel/sdk/log"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
-
-var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
 const (
 	liveQueryMemCacheDuration = 1 * time.Second
@@ -191,109 +179,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	// Validate OTEL server options
-	if config.Logging.OtelLogsEnabled && !config.Logging.TracingEnabled {
-		initFatal(
-			errors.New("logging.otel_logs_enabled requires logging.tracing_enabled to be true"),
-			"OTEL logs require tracing for trace correlation",
-		)
-	}
+	config.Logging.Validate(initFatal)
 
 	// Init OTEL providers (traces, metrics, logs)
-	var loggerProvider *otelsdklog.LoggerProvider
-	var tracerProvider *sdktrace.TracerProvider
-	var meterProvider *sdkmetric.MeterProvider
-	if config.OTELEnabled() {
-		// Create shared resource with service identification attributes.
-		// OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES env vars can override
-		// the defaults below.
-		res, err := resource.New(context.Background(),
-			resource.WithSchemaURL(semconv.SchemaURL),
-			resource.WithAttributes(
-				semconv.ServiceName("fleet"),
-				semconv.ServiceVersion(version.Version().Version),
-			),
-			resource.WithFromEnv(),
-			resource.WithTelemetrySDK(),
-		)
-		if err != nil {
-			initFatal(err, "Failed to create OTEL resource")
-		}
-
-		// Initialize OTEL traces
-		otlpTraceExporter, err := otlptrace.New(context.Background(), otlptracegrpc.NewClient(
-			otlptracegrpc.WithCompressor("gzip"),
-		))
-		if err != nil {
-			initFatal(err, "Failed to initialize OTEL trace exporter")
-		}
-		// Configure batch span processor with smaller batch size to avoid exceeding message size limits (4MB default limit)
-		batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
-			sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
-		)
-		tracerProvider = sdktrace.NewTracerProvider(
-			sdktrace.WithResource(res),
-			sdktrace.WithSpanProcessor(batchSpanProcessor),
-		)
-		otel.SetTracerProvider(tracerProvider)
-
-		// Initialize OTEL metrics
-		metricExporter, err := otlpmetricgrpc.New(context.Background(),
-			otlpmetricgrpc.WithCompressor("gzip"),
-		)
-		if err != nil {
-			initFatal(err, "Failed to initialize OTEL metrics exporter")
-		}
-
-		// Create views to rename otelsql metrics to match what OpenTelemetry Signoz expects
-		// Reference: https://opentelemetry.io/docs/specs/semconv/db/database-metrics/
-		dbMetricViews := []sdkmetric.View{
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.open"},
-				sdkmetric.Stream{Name: "db.client.connection.count"},
-			),
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.max_open"},
-				sdkmetric.Stream{Name: "db.client.connection.max"},
-			),
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.wait"},
-				sdkmetric.Stream{Name: "db.client.connection.wait_count"},
-			),
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.wait_duration"},
-				sdkmetric.Stream{Name: "db.client.connection.wait_time"},
-			),
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.closed_max_idle"},
-				sdkmetric.Stream{Name: "db.client.connection.closed.max_idle"},
-			),
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.closed_max_idle_time"},
-				sdkmetric.Stream{Name: "db.client.connection.closed.max_idle_time"},
-			),
-		}
-
-		meterProvider = sdkmetric.NewMeterProvider(
-			sdkmetric.WithResource(res),
-			sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter)),
-			sdkmetric.WithView(dbMetricViews...),
-		)
-		otel.SetMeterProvider(meterProvider)
-
-		// Initialize OTEL logs
-		if config.Logging.OtelLogsEnabled {
-			logExporter, err := otlploggrpc.New(context.Background(),
-				otlploggrpc.WithCompressor("gzip"),
-			)
-			if err != nil {
-				initFatal(err, "Failed to initialize OTEL log exporter")
-			}
-			loggerProvider = otelsdklog.NewLoggerProvider(
-				otelsdklog.WithResource(res),
-				otelsdklog.WithProcessor(otelsdklog.NewBatchProcessor(logExporter)),
-			)
-		}
-	}
+	loggerProvider, tracerProvider, meterProvider := initOTELProviders(config, initFatal)
 
 	logger := initLogger(config, loggerProvider)
 
@@ -317,37 +206,15 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		createTestBuckets(cmd.Context(), &config, logger)
 	}
 
-	allowedHostIdentifiers := map[string]bool{
-		"provided": true,
-		"instance": true,
-		"uuid":     true,
-		"hostname": true,
-	}
-	if !allowedHostIdentifiers[config.Osquery.HostIdentifier] {
-		initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", config.Osquery.HostIdentifier), "set host identifier")
-	}
+	config.Osquery.Validate(initFatal)
 
 	config.ConditionalAccess.Validate(initFatal)
 
-	if len(config.Server.URLPrefix) > 0 {
-		// Massage provided prefix to match expected format
-		config.Server.URLPrefix = strings.TrimSuffix(config.Server.URLPrefix, "/")
-		if len(config.Server.URLPrefix) > 0 && !strings.HasPrefix(config.Server.URLPrefix, "/") {
-			config.Server.URLPrefix = "/" + config.Server.URLPrefix
-		}
+	config.Server.NormalizeURLPrefix()
+	config.Server.ValidateURLPrefix(initFatal)
 
-		if !allowedURLPrefixRegexp.MatchString(config.Server.URLPrefix) {
-			initFatal(
-				fmt.Errorf("prefix must match regexp \"%s\"", allowedURLPrefixRegexp.String()),
-				"setting server URL prefix",
-			)
-		}
-	}
-
-	// Handle server private key configuration - either direct or via AWS Secrets Manager
-	if config.Server.PrivateKey != "" && config.Server.PrivateKeySecretArn != "" {
-		initFatal(errors.New("cannot specify both private_key and private_key_secret_arn"), "validate private key configuration")
-	}
+	// Handle server private key configuration - either direct or via AWS Secrets Manager.
+	config.Server.Validate(initFatal)
 
 	// Retrieve private key from AWS Secrets Manager if specified
 	if config.Server.PrivateKeySecretArn != "" {
@@ -364,13 +231,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		config.Server.PrivateKey = privateKey
 	}
 
+	config.Server.ValidatePrivateKeyLength(initFatal)
 	if len(config.Server.PrivateKey) > 0 {
-		if len(config.Server.PrivateKey) < 32 {
-			initFatal(errors.New("private key must be at least 32 bytes long"), "validate private key")
-		}
-
-		// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
-		// infra setups generate keys that are longer than 32 bytes.
+		// Truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK;
+		// some infra setups generate keys that are longer than 32 bytes.
 		config.Server.PrivateKey = config.Server.PrivateKey[:32]
 	}
 
@@ -743,13 +607,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 
 		if len(toInsert) > 0 {
-			if !config.MDM.IsAppleAPNsSet() {
-				initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"),
-					"validate Apple MDM")
-			} else if !config.MDM.IsAppleSCEPSet() {
-				initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"),
-					"validate Apple MDM")
-			}
+			config.MDM.ValidateAppleAPNSAndSCEPPair(initFatal)
 
 			// parse the APNs and SCEP assets from the config
 			_, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
@@ -1122,7 +980,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	logger.InfoContext(ctx, "instance info", "instanceID", instanceID)
 
 	// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
-	activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
+	activitySvc, activityRoutes := createActivityBoundedContext(svc, ds, dbConns, logger)
 	// Inject the activity bounded context into the main service
 	svc.SetActivityService(activitySvc)
 
@@ -2016,13 +1874,13 @@ func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *
 	return store
 }
 
-func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
+func createActivityBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
 	legacyAuthorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		initFatal(err, "initializing activity authorizer")
 	}
 	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
+	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc, ds)
 	activitySvc, activityRoutesFn := activity_bootstrap.New(
 		dbConns,
 		activityAuthorizer,
