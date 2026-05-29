@@ -1,9 +1,10 @@
 {
   "versions": [
     {
-      "version": "11.1.2",
+      "version": "11.17.3",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.evernote.Evernote';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.evernote.Evernote';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.evernote.Evernote' AND version_compare(bundle_short_version, '11.17.3') < 0);"
       },
       "installer_url": "https://mac.desktop.evernote.com/builds/Evernote-latest.dmg",
       "install_script_ref": "a83831d7",

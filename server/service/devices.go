@@ -108,10 +108,14 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 }
 
 type getDeviceHostResponse struct {
-	Host                      *HostDetailResponse      `json:"host"`
-	SelfService               bool                     `json:"self_service"`
-	OrgLogoURL                string                   `json:"org_logo_url"`
+	Host *fleet.HostDetailResponse `json:"host"`
+	// Deprecated: use OrgLogoURLDarkMode.
+	OrgLogoURL string `json:"org_logo_url"`
+	// Deprecated: use OrgLogoURLLightMode.
 	OrgLogoURLLightBackground string                   `json:"org_logo_url_light_background"`
+	OrgLogoURLDarkMode        string                   `json:"org_logo_url_dark_mode"`
+	OrgLogoURLLightMode       string                   `json:"org_logo_url_light_mode"`
+	SelfService               bool                     `json:"self_service"`
 	OrgContactURL             string                   `json:"org_contact_url"`
 	Err                       error                    `json:"error,omitempty"`
 	License                   fleet.LicenseInfo        `json:"license"`
@@ -237,6 +241,8 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		Host:                      resp,
 		OrgLogoURL:                ac.OrgInfo.OrgLogoURL,
 		OrgLogoURLLightBackground: ac.OrgInfo.OrgLogoURLLightBackground,
+		OrgLogoURLDarkMode:        ac.OrgInfo.OrgLogoURLDarkMode,
+		OrgLogoURLLightMode:       ac.OrgInfo.OrgLogoURLLightMode,
 		OrgContactURL:             ac.OrgInfo.ContactURL,
 		License:                   *license,
 		GlobalConfig:              deviceGlobalConfig,

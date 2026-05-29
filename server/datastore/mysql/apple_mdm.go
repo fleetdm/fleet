@@ -1311,7 +1311,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 
 	// MDM is necessarily enabled if this gets called, always pass true for that
 	// parameter.
-	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial)
+	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial, "")
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, fromPersonalEnrollment)
@@ -1454,8 +1454,11 @@ func insertMDMAppleHostDB(
 
 	mdmHost.ID = uint(id)
 
-	if err := upsertHostDisplayNames(ctx, tx, *mdmHost); err != nil {
-		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
+	// Preserve any pre-existing display name (e.g. set by a prior fleetd
+	// enrollment) so that the mdm_enrolled activity uses the most accurate
+	// name and matches the fleet_enrolled activity for the same host.
+	if err := insertHostDisplayNamesIfAbsent(ctx, tx, *mdmHost); err != nil {
+		return ctxerr.Wrap(ctx, err, "ingest mdm apple host insert display names")
 	}
 
 	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, *mdmHost); err != nil {
@@ -1605,8 +1608,11 @@ func createHostFromMDMDB(
 		}
 	}
 
-	if err := upsertHostDisplayNames(ctx, tx, hosts...); err != nil {
-		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
+	// Preserve any pre-existing display name (e.g. set by a prior fleetd
+	// enrollment) so that the mdm_enrolled activity uses the most accurate
+	// name and matches the fleet_enrolled activity for the same host.
+	if err := insertHostDisplayNamesIfAbsent(ctx, tx, hosts...); err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host insert display names")
 	}
 
 	if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, logger, hosts...); err != nil {
@@ -1840,6 +1846,36 @@ func upsertHostDisplayNames(ctx context.Context, tx sqlx.ExtContext, hosts ...fl
 	return nil
 }
 
+// insertHostDisplayNamesIfAbsent inserts host_display_names rows for the given
+// hosts but does NOT overwrite an existing row. This is used by MDM enrollment
+// paths so that a display name previously set by a fleetd enrollment (which is
+// considered the most accurate source) is preserved when the host later
+// enrolls into MDM.
+func insertHostDisplayNamesIfAbsent(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
+	if len(hosts) == 0 {
+		return nil
+	}
+	// Insert a row even when DisplayName() is empty so that downstream
+	// callers (e.g. GetHostMDMCheckinInfo) can scan display_name as a
+	// non-nullable string from a LEFT JOIN on host_display_names.
+	var args []any
+	var parts []string
+	for _, h := range hosts {
+		args = append(args, h.ID, h.DisplayName())
+		parts = append(parts, "(?, ?)")
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(
+		`INSERT IGNORE INTO host_display_names (host_id, display_name) VALUES %s`,
+		strings.Join(parts, ",")),
+		args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert host display names if absent")
+	}
+
+	return nil
+}
+
 func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg *fleet.AppConfig, fromSync, fromPersonalEnrollment bool, hostIDs ...uint) error {
 	if len(hostIDs) == 0 {
 		return nil
@@ -2034,6 +2070,12 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 		// contains darwin/Apple-silicon rows.
 		if err := softDeleteHostRecoveryLockPassword(ctx, tx, uuid); err != nil {
 			return err
+		}
+
+		// Clear MDM-delivered certs dropped on unenroll. All platforms:
+		// iOS/iPadOS lose their refetch channel too.
+		if err := softDeleteMDMHostCertsDB(ctx, tx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing mdm host certificates for host")
 		}
 
 		// we may need to create corresponding "past" activities for "canceled" VPP
@@ -2620,7 +2662,8 @@ func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context
 // NOTE If onlyProfileUUIDs is provided (not nil), only profiles with
 // those UUIDs will be update instead of rebuilding all pending
 // profiles for hosts
-func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
+// TODO(MHJ): Marked for deletion
+func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB( //nolint:unused // Will be cleaned up in a follow up PR.
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostUUIDs []string,
@@ -3879,6 +3922,17 @@ func (ds *Datastore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*
 }
 
 func subqueryFileVaultVerifying() (string, []interface{}) {
+	// A host is "verifying" when the FileVault profile is verifying or verified and
+	// a key row exists with decryptability not yet confirmed (decryptable IS NULL),
+	// or when the profile is verifying and the key is decryptable. The previous
+	// version only matched the verified-status branch, missing the equivalent
+	// verifying-status case that PopulateOSSettingsAndMacOSSettings (server/fleet/
+	// hosts.go) reports as Verifying. See https://github.com/fleetdm/fleet/issues/45369.
+	//
+	// Note: hdek.host_id IS NOT NULL distinguishes "row exists with NULL decryptable"
+	// from "no key row at all" — the latter is intentionally not matched here because
+	// raw_decryptable is mapped to -1 for missing rows (see server/datastore/mysql/
+	// hosts.go), and the Go logic classifies that as Action Required.
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -3887,15 +3941,16 @@ func subqueryFileVaultVerifying() (string, []interface{}) {
                 AND hmap.profile_identifier = ?
                 AND hmap.operation_type = ?
                 AND (
-		  (hmap.status = ? AND hdek.decryptable IS NULL AND hdek.host_id IS NOT NULL)
+		  (hmap.status IN (?, ?) AND hdek.decryptable IS NULL AND hdek.host_id IS NOT NULL)
 		  OR
 		  (hmap.status = ? AND hdek.decryptable = 1)
 		)`
 	args := []interface{}{
-		mobileconfig.FleetFileVaultPayloadIdentifier,
-		fleet.MDMOperationTypeInstall,
-		fleet.MDMDeliveryVerified,
-		fleet.MDMDeliveryVerifying,
+		mobileconfig.FleetFileVaultPayloadIdentifier, // profile_identifier
+		fleet.MDMOperationTypeInstall,                // operation_type
+		fleet.MDMDeliveryVerifying,                   // branch 1: status IN
+		fleet.MDMDeliveryVerified,                    // branch 1: status IN
+		fleet.MDMDeliveryVerifying,                   // branch 2: status =
 	}
 	return sql, args
 }
@@ -5063,6 +5118,12 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
                     WHERE host_id = ?`, host.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "resetting disk encryption key information for host")
+		}
+
+		// Clear MDM-delivered certs for the same re-enroll-without-CheckOut
+		// cases (local wipe, restore from backup, manual MDM profile removal).
+		if err := softDeleteMDMHostCertsDB(ctx, tx, host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting mdm host certificates for host")
 		}
 
 		// Do platform-specific cleanup.
@@ -6495,6 +6556,41 @@ WHERE
 	}
 
 	return assetMap, nil
+}
+
+func (ds *Datastore) GetAllMDMConfigAssetsByNameIncludingDeleted(ctx context.Context, assetNames []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+	if len(assetNames) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+SELECT
+    name, value, HEX(md5_checksum) as md5_checksum
+FROM
+   mdm_config_assets
+WHERE
+    name IN (?)
+ORDER BY id DESC`
+
+	stmt, args, err := sqlx.In(stmt, assetNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In statement")
+	}
+
+	var res []fleet.MDMConfigAsset
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name including deleted")
+	}
+
+	for i, asset := range res {
+		decryptedVal, err := decrypt(asset.Value, ds.serverPrivateKey)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "decrypting mdm config asset %s", asset.Name)
+		}
+		res[i].Value = decryptedVal
+	}
+
+	return res, nil
 }
 
 func (ds *Datastore) GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {

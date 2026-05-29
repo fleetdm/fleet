@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "12.6.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Insomnia' AND publisher = 'Kong';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Insomnia' AND publisher = 'Kong' AND version_compare(version, '12.6.0') < 0);"
+      },
+      "installer_url": "https://github.com/Kong/insomnia/releases/download/core@12.6.0/Insomnia.Core-12.6.0.exe",
+      "install_script_ref": "a20529f5",
+      "uninstall_script_ref": "b9ba50cf",
+      "sha256": "bec143adc50fcc78a838641af6593f585874856629fb5f1b8a6b62be058be714",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "a20529f5": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Insomnia ships as a Squirrel (Electron) installer; --silent per winget manifest.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"--silent\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "b9ba50cf": "# Attempts to locate Insomnia's uninstaller from registry and execute it silently.\n# Insomnia is a per-user Squirrel install — uninstall entry lives under HKCU.\n\n$displayName = \"Insomnia\"\n$publisher = \"Kong\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\") -and ($publisher -eq \"\" -or $_.Publisher -like \"$publisher*\")\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"Insomnia\" -Force -ErrorAction SilentlyContinue\n\n$uninstallString = $uninstall.UninstallString\n$exePath = \"\"\n$arguments = \"\"\n\nif ($uninstallString -match '^\"([^\"]+)\"(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n} elseif ($uninstallString -match '^([^\\s]+)(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n} else {\n    Write-Host \"Error: Could not parse uninstall string: $uninstallString\"\n    Exit 1\n}\n\n$argumentList = @()\nif ($arguments -ne '') {\n    $argumentList += $arguments -split '\\s+'\n}\n$argumentList += \"--silent\"\n\nWrite-Host \"Uninstall executable: $exePath\"\nWrite-Host \"Uninstall arguments: $($argumentList -join ' ')\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $argumentList\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

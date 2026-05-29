@@ -283,25 +283,39 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 		return nil
 	}
 
-	// Windows BYOD enrollments do not participate in the setup-experience cancel flow.
-	// The primary lookup matches on mdm_windows_enrollments.host_uuid (populated by osquery's
-	// directIngestMDMDeviceIDWindows). Fast-failing installs can race that ingest, so when the primary
-	// lookup misses we fall back to the most-recent enrollment with an empty host_uuid whose device_name
-	// matches host.ComputerName. Without the fallback a BYOD host that fails an install in the seconds
-	// before osquery links the enrollment would still trigger cancellation, contradicting the gate.
+	// Gate the cancel cascade on the host being actively in a Fleet-tracked ESP. The authoritative
+	// signal is mdm_windows_enrollments.awaiting_configuration: it transitions to Pending only when
+	// the device enrolls via WindowsMDMEnrollTypeAutomatic while the device is in OOBE, advances to Active once ESP commands are enqueued, and returns to
+	// None on completion/failure/timeout. All non-ESP enrollment paths stay at None, which is
+	// exactly the set of cases that must skip the cancellation cascade and activity emission:
+	//   - post-OOBE BYOD via work/school account in Settings
+	//   - post-OOBE manual orbit install that triggers programmatic Windows MDM enrollment
+	//   - post-OOBE manual orbit install with no Windows MDM at all (no enrollment row)
+	//   - any host that previously completed/timed-out ESP
+	//
+	// The primary lookup is keyed on mdm_windows_enrollments.host_uuid, which osquery's
+	// directIngestMDMDeviceIDWindows populates lazily on its first poll after enrollment. A
+	// fast-failing install can race that ingest, so when the primary lookup misses we fall back
+	// to the most-recent unlinked enrollment whose device_name matches host.ComputerName. Without
+	// the fallback an OOBE host that fails an install before osquery links the enrollment would
+	// be misread as having no MDM enrollment and would skip cancellation when it should fire.
 	// Follow-up bug: https://github.com/fleetdm/fleet/issues/45380
 	if host.Platform == "windows" {
-		device, err := ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
+		awaiting, err := ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "load windows enrollment for byod check")
+			return ctxerr.Wrap(ctx, err, "load windows awaiting_configuration for setup-experience cancel gate")
 		}
-		if device == nil && host.ComputerName != "" {
-			device, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, host.ComputerName)
+		if fleet.IsNotFound(err) && host.ComputerName != "" {
+			device, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, host.ComputerName)
 			if err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "load windows enrollment by device name for byod check")
+				return ctxerr.Wrap(ctx, err, "load windows enrollment by device name for awaiting_configuration fallback")
+			}
+			if device != nil {
+				awaiting = device.AwaitingConfiguration
 			}
 		}
-		if device != nil && device.MDMNotInOOBE {
+		if awaiting != fleet.WindowsMDMAwaitingConfigurationPending &&
+			awaiting != fleet.WindowsMDMAwaitingConfigurationActive {
 			return nil
 		}
 	}

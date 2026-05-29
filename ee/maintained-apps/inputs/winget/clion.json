@@ -1,0 +1,13 @@
+{
+  "name": "CLion",
+  "slug": "clion/windows",
+  "package_identifier": "JetBrains.CLion",
+  "unique_identifier": "CLion",
+  "fuzzy_match_name": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/clion_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/clion_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

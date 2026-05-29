@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 
 import { IVariable } from "interfaces/variables";
 import { UserEvent } from "@testing-library/user-event";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 
@@ -11,6 +11,11 @@ import Variables from "./Variables";
 
 const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
+};
+
+const baseProps = {
+  router: createMockRouter(),
+  location: { pathname: "/controls/variables", query: {} },
 };
 
 describe("Custom variables", () => {
@@ -56,7 +61,7 @@ describe("Custom variables", () => {
     it("renders with Add CTA and edit info when user can edit", async () => {
       mockServer.use(emptyVariablesHandler);
 
-      render(<Variables />);
+      render(<Variables {...baseProps} />);
       await waitFor(() => {
         expect(screen.getByText(/No custom variables/i)).toBeInTheDocument();
         expect(
@@ -64,9 +69,11 @@ describe("Custom variables", () => {
             "Add a custom variable to make it available in scripts and profiles."
           )
         ).toBeInTheDocument();
-        expect(
-          screen.getByRole("button", { name: "Add custom variable" })
-        ).toBeInTheDocument();
+        // Header button and EmptyState CTA button both render
+        const addButtons = screen.getAllByRole("button", {
+          name: /Add custom variable/,
+        });
+        expect(addButtons).toHaveLength(2);
       });
     });
 
@@ -83,7 +90,7 @@ describe("Custom variables", () => {
         },
       });
 
-      renderReadOnly(<Variables />);
+      renderReadOnly(<Variables {...baseProps} />);
       await waitFor(() => {
         expect(screen.getByText("No custom variables")).toBeInTheDocument();
         expect(
@@ -168,7 +175,7 @@ describe("Custom variables", () => {
     });
 
     it("renders when variables are saved", async () => {
-      render(<Variables />);
+      render(<Variables {...baseProps} />);
       await waitFor(
         () => {
           expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
@@ -182,7 +189,7 @@ describe("Custom variables", () => {
 
     describe("gitops mode", () => {
       it("renders the add button disabled in GitOps mode", async () => {
-        renderInGOM(<Variables />);
+        renderInGOM(<Variables {...baseProps} />);
 
         let addVariableButton;
         await waitFor(() => {
@@ -203,7 +210,7 @@ describe("Custom variables", () => {
       });
 
       it("deleting a variable is successful in GitOps mode", async () => {
-        const { user } = renderInGOM(<Variables />);
+        const { user } = renderInGOM(<Variables {...baseProps} />);
         await waitFor(() => {
           expect(screen.getByText("Add custom variable")).toBeInTheDocument();
         });
@@ -274,7 +281,7 @@ describe("Custom variables", () => {
 
       let user: UserEvent;
       beforeEach(async () => {
-        ({ user } = render(<Variables />));
+        ({ user } = render(<Variables {...baseProps} />));
         let addVariableButton;
         await waitFor(() => {
           addVariableButton = screen.getByRole("button", {
@@ -345,7 +352,7 @@ describe("Custom variables", () => {
     });
 
     it("deleting a variable is successful", async () => {
-      const { user } = render(<Variables />);
+      const { user } = render(<Variables {...baseProps} />);
       await waitFor(() => {
         expect(screen.getByText("Add custom variable")).toBeInTheDocument();
       });
