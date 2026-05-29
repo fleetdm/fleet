@@ -1456,8 +1456,22 @@ org_settings:
 		return config
 	}
 
-	withMDMEUA := func(body string) string {
-		config := getGlobalConfig([]string{"org_settings"})
+	// withMDMEUA composes a YAML where:
+	//   controls.macos_setup.enable_end_user_authentication = euaEnabled
+	//   org_settings.mdm.end_user_authentication = euaBody
+	// This matches the actual GitOps surface: the *enable* flag lives in the
+	// controls block, the *IdP settings* live under org_settings.mdm.
+	withMDMEUA := func(euaEnabled bool, euaBody string) string {
+		config := getGlobalConfig([]string{"org_settings", "controls"})
+		if euaEnabled {
+			config += `
+controls:
+  macos_setup:
+    enable_end_user_authentication: true
+`
+		} else {
+			config += "\ncontrols:\n"
+		}
 		config += `
 org_settings:
   server_settings:
@@ -1468,7 +1482,7 @@ org_settings:
   secrets:
   mdm:
     end_user_authentication:
-` + body
+` + euaBody
 		return config
 	}
 
@@ -1510,27 +1524,61 @@ org_settings:
 		require.NoError(t, err)
 	})
 
-	t.Run("MDM EUA with provider fields but no metadata is rejected", func(t *testing.T) {
-		config := withMDMEUA("      idp_name: Okta\n      entity_id: https://example.com\n      metadata: \"\"\n      metadata_url: \"\"\n")
+	t.Run("MDM EUA enabled with no metadata is rejected", func(t *testing.T) {
+		config := withMDMEUA(true, "      idp_name: Okta\n      entity_id: https://example.com\n      metadata: \"\"\n      metadata_url: \"\"\n")
 		_, err := gitOpsFromString(t, config)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "When mdm.end_user_authentication has SSO provider settings configured, either metadata or metadata_url must be set")
+		assert.ErrorContains(t, err, "When controls.macos_setup.enable_end_user_authentication is true, mdm.end_user_authentication.metadata or mdm.end_user_authentication.metadata_url must be set")
 	})
 
-	t.Run("MDM EUA with metadata only is accepted", func(t *testing.T) {
-		config := withMDMEUA("      idp_name: Okta\n      entity_id: https://example.com\n      metadata: \"<xml/>\"\n")
+	t.Run("MDM EUA enabled with setup_experience alias is also rejected", func(t *testing.T) {
+		// setup_experience is the YAML rename for macos_setup; the parser
+		// normalizes it before reaching validation, so the same check fires.
+		config := getGlobalConfig([]string{"org_settings", "controls"})
+		config += `
+controls:
+  setup_experience:
+    enable_end_user_authentication: true
+
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+  mdm:
+    end_user_authentication:
+      idp_name: Okta
+      entity_id: https://example.com
+`
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When controls.macos_setup.enable_end_user_authentication is true")
+	})
+
+	t.Run("MDM EUA enabled with metadata is accepted", func(t *testing.T) {
+		config := withMDMEUA(true, "      idp_name: Okta\n      entity_id: https://example.com\n      metadata: \"<xml/>\"\n")
 		_, err := gitOpsFromString(t, config)
 		require.NoError(t, err)
 	})
 
-	t.Run("MDM EUA with metadata_url only is accepted", func(t *testing.T) {
-		config := withMDMEUA("      idp_name: Okta\n      entity_id: https://example.com\n      metadata_url: https://idp.example.com/metadata\n")
+	t.Run("MDM EUA enabled with metadata_url is accepted", func(t *testing.T) {
+		config := withMDMEUA(true, "      idp_name: Okta\n      entity_id: https://example.com\n      metadata_url: https://idp.example.com/metadata\n")
 		_, err := gitOpsFromString(t, config)
 		require.NoError(t, err)
 	})
 
-	t.Run("MDM EUA fully empty is accepted", func(t *testing.T) {
-		config := withMDMEUA("      idp_name: \"\"\n      entity_id: \"\"\n      metadata: \"\"\n      metadata_url: \"\"\n")
+	t.Run("MDM EUA disabled with empty IdP settings is accepted", func(t *testing.T) {
+		config := withMDMEUA(false, "      idp_name: \"\"\n      entity_id: \"\"\n      metadata: \"\"\n      metadata_url: \"\"\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("MDM EUA disabled with IdP settings present is accepted", func(t *testing.T) {
+		// IdP settings sitting in org_settings without the enable flag is
+		// benign — the IdP isn't being used yet. Don't reject.
+		config := withMDMEUA(false, "      idp_name: Okta\n      entity_id: https://example.com\n")
 		_, err := gitOpsFromString(t, config)
 		require.NoError(t, err)
 	})

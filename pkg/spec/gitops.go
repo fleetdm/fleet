@@ -544,6 +544,8 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	}
 	// Get other top-level entities.
 	multiError = parseControls(top, result, logFn, filePath, multiError)
+	// Cross-block check: needs both org_settings (parsed above) and controls.
+	multiError = validateMDMEndUserAuthConfig(result, multiError)
 	multiError = parseAgentOptions(top, result, baseDir, logFn, filePath, multiError)
 	multiError = parseReports(top, result, baseDir, logFn, filePath, multiError)
 
@@ -688,7 +690,16 @@ func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Erro
 	return multiError
 }
 
-// Validate that if SSO (or MDM EUA) is enabled, either metadata or metadata_url is set.
+// validateSSOConfig rejects YAML payloads that declare SSO intent without the
+// metadata needed to make SSO work. The server's REST PATCH validator allows
+// empty incoming metadata when the existing server value is set (partial
+// update semantics), but GitOps is declarative — the YAML is the full state —
+// so we reject the broken declaration before it reaches the server and
+// silently wipes the working SSO config. See issue #43371.
+//
+// MDM end-user authentication is checked separately in
+// validateMDMEndUserAuthConfig because the enable flag lives in a different
+// top-level block (`controls`) than the IdP settings (`org_settings.mdm`).
 func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
 	if sso, ok := orgSettings["sso_settings"].(map[string]any); ok {
 		enabled, _ := sso["enable_sso"].(bool)
@@ -700,24 +711,31 @@ func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error)
 			))
 		}
 	}
+	return multiError
+}
 
-	// MDM end-user authentication embeds SSOProviderSettings flat (no nested
-	// sso_settings, no explicit enable flag — the presence of provider fields
-	// is the declaration of intent).
-	if mdm, ok := orgSettings["mdm"].(map[string]any); ok {
-		if eua, ok := mdm["end_user_authentication"].(map[string]any); ok {
-			entityID, _ := eua["entity_id"].(string)
-			idpName, _ := eua["idp_name"].(string)
-			metadata, _ := eua["metadata"].(string)
-			metadataURL, _ := eua["metadata_url"].(string)
-			if (entityID != "" || idpName != "") && metadata == "" && metadataURL == "" {
-				multiError = multierror.Append(multiError, errors.New(
-					"When mdm.end_user_authentication has SSO provider settings configured, either metadata or metadata_url must be set",
-				))
-			}
-		}
+// validateMDMEndUserAuthConfig checks the cross-block invariant: when
+// `controls.macos_setup.enable_end_user_authentication` (alias
+// `setup_experience.enable_end_user_authentication`) is true, the IdP
+// settings under `org_settings.mdm.end_user_authentication` must include
+// metadata or metadata_url. Without that, ADE enrollment can't complete.
+// By the time this runs, key renames in the `controls` block have already
+// been normalized into result.Controls.MacOSSetup, so the check is the same
+// regardless of which YAML alias the user wrote.
+func validateMDMEndUserAuthConfig(result *GitOps, multiError *multierror.Error) *multierror.Error {
+	if result.Controls.MacOSSetup == nil || !result.Controls.MacOSSetup.EnableEndUserAuthentication {
+		return multiError
 	}
-
+	// The flag is enabled — the IdP settings must be present in org_settings.
+	mdm, _ := result.OrgSettings["mdm"].(map[string]any)
+	eua, _ := mdm["end_user_authentication"].(map[string]any)
+	metadata, _ := eua["metadata"].(string)
+	metadataURL, _ := eua["metadata_url"].(string)
+	if metadata == "" && metadataURL == "" {
+		multiError = multierror.Append(multiError, errors.New(
+			"When controls.macos_setup.enable_end_user_authentication is true, mdm.end_user_authentication.metadata or mdm.end_user_authentication.metadata_url must be set on org_settings",
+		))
+	}
 	return multiError
 }
 
