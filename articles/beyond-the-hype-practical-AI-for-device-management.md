@@ -1,4 +1,4 @@
-## Moving from manual engineering workflows to AI
+## Real lessons on cutting tool sprawl, using GitOps to manage change safely, and getting more from AI without adding headcount.
 
 AI promises to transform IT—but what does that actually look like for teams managing devices at scale? This session brings together practitioners from Fleet and Foursquare to share hard-won lessons from modernizing their device management practices: consolidating tools for radical visibility across platforms, adopting GitOps to bring stability and accountability to fleet operations, and using AI to accelerate engineering output without adding headcount.
 
