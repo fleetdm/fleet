@@ -46,14 +46,18 @@ func NewSyncer(ds fleet.Datastore, client *Client, cfg config.GoogleCloudIdentit
 // workspace_emails by querying Cloud Identity, diffs against last-known
 // state, and PATCHes Cloud Identity only when something changed.
 //
-// `managed` = MDM enrolled, `compliant` = all CA-flagged policies passing,
-// `scoreReason` = comma-joined failing-policy names (or "" when compliant).
+// Args:
+//   - managed: whether the host is MDM-enrolled in Fleet.
+//   - totalCAPolicies: count of policies on the host's team flagged for
+//     conditional access (used as the denominator for HealthScore).
+//   - failingPolicyNames: human-readable names of the failing CA-flagged
+//     policies (used as the numerator and to build scoreReason).
 func (s *Syncer) SyncHost(
 	ctx context.Context,
 	host *fleet.Host,
 	managed bool,
-	compliant bool,
-	scoreReason string,
+	totalCAPolicies int,
+	failingPolicyNames []string,
 ) error {
 	rows, err := s.ds.LoadHostGoogleCloudIdentityClientStates(ctx, host.ID)
 	if err != nil {
@@ -65,7 +69,7 @@ func (s *Syncer) SyncHost(
 	}
 
 	for _, row := range rows {
-		if err := s.syncRow(ctx, host, row, managed, compliant, scoreReason); err != nil {
+		if err := s.syncRow(ctx, host, row, managed, totalCAPolicies, failingPolicyNames); err != nil {
 			// One row failing shouldn't drop the others. Log and continue.
 			s.logger.ErrorContext(ctx, "google_cloud_identity: sync row failed",
 				"host_id", host.ID,
@@ -82,9 +86,11 @@ func (s *Syncer) syncRow(
 	host *fleet.Host,
 	row *fleet.HostGoogleCloudIdentityClientState,
 	managed bool,
-	compliant bool,
-	scoreReason string,
+	totalCAPolicies int,
+	failingPolicyNames []string,
 ) error {
+	compliant := len(failingPolicyNames) == 0
+	scoreReason := buildScoreReason(totalCAPolicies, failingPolicyNames)
 	// Step 1: lazy-resolve workspace_email -> canonical deviceUser name via
 	// Cloud Identity. Cached after first success.
 	deviceUserResource, err := s.ensureDeviceUserResolved(ctx, host, row)
@@ -108,7 +114,7 @@ func (s *Syncer) syncRow(
 	}
 
 	// Step 3: build desired ClientState and PATCH.
-	desired := buildClientState(host, managed, compliant, scoreReason)
+	desired := buildClientState(host, managed, totalCAPolicies, len(failingPolicyNames), scoreReason)
 	if row.LastEtag != nil {
 		desired.Etag = *row.LastEtag
 	}
@@ -118,7 +124,7 @@ func (s *Syncer) syncRow(
 		deviceUserResource,
 		partner,
 		desired,
-		"complianceState,managed,scoreReason,customId,assetTags",
+		"complianceState,managed,healthScore,scoreReason,customId,assetTags",
 	)
 	if err != nil {
 		if IsPermissionDenied(err) {
@@ -225,16 +231,17 @@ func (s *Syncer) partnerSegment(suffix string) string {
 
 // buildClientState assembles the desired ClientState to write.
 //
-// Note on field visibility in admin.google.com: for non-Alliance partners,
-// Google's admin UI only renders `complianceState` in the device-detail
-// "Third-party services" section — `managed`, `healthScore`, `scoreReason`,
-// `assetTags`, etc. are stored and CEL-accessible but not eyeballable until
-// Fleet joins the BeyondCorp Alliance (verified empirically against
-// C010vzyp5). Customer-side CAA expressions can still read every field via
-// `device.vendors["fleet-{C-id-without-C}"].is_compliant_device`,
-// `.is_managed_device`, `.device_health_score`, `.data["key"]`, and the
-// `assetTags` field.
-func buildClientState(host *fleet.Host, managed, compliant bool, scoreReason string) *cloudidentity.ClientState {
+// All fields Fleet writes are rendered in admin.google.com under
+// Devices > Mobile & endpoints > Endpoints > device > Third-party services >
+// fleet (custom), with a few minutes of render-cache lag after the PATCH.
+// CAA expressions evaluate against the underlying data immediately. See the
+// "Available signals" section of the customer documentation for the full
+// CAA accessor surface.
+//
+// HealthScore is computed as a graduated function of the failing/total
+// policy ratio rather than the binary COMPLIANT/NON_COMPLIANT signal — see
+// healthScoreFor() for the mapping.
+func buildClientState(host *fleet.Host, managed bool, totalCAPolicies, failingCount int, scoreReason string) *cloudidentity.ClientState {
 	state := &cloudidentity.ClientState{
 		CustomId: host.UUID,
 	}
@@ -243,13 +250,12 @@ func buildClientState(host *fleet.Host, managed, compliant bool, scoreReason str
 	} else {
 		state.Managed = "UNMANAGED"
 	}
-	if compliant {
+	if failingCount == 0 {
 		state.ComplianceState = "COMPLIANT"
-		state.HealthScore = "VERY_GOOD"
 	} else {
 		state.ComplianceState = "NON_COMPLIANT"
-		state.HealthScore = "POOR"
 	}
+	state.HealthScore = healthScoreFor(totalCAPolicies, failingCount)
 	if scoreReason != "" {
 		state.ScoreReason = scoreReason
 	}
@@ -266,6 +272,65 @@ func buildClientState(host *fleet.Host, managed, compliant bool, scoreReason str
 	}
 	state.AssetTags = tags
 	return state
+}
+
+// healthScoreFor maps the failing/total policy ratio to one of Cloud
+// Identity's five HealthScore enum values:
+//
+//	0% failing                  -> VERY_GOOD  (every CA-flagged policy passes)
+//	(0%, 20%] failing           -> GOOD       (a handful failing on a host with many policies)
+//	(20%, 50%] failing          -> NEUTRAL
+//	(50%, 100%) failing         -> POOR
+//	100% failing OR no policies -> VERY_POOR  (everything failing, or no signal at all)
+//
+// The 100%-failing-or-no-policies → VERY_POOR convention matters for hosts
+// that have CA enabled at the team level but no CA-flagged policies — we
+// don't want them rendering as "VERY_GOOD" since Fleet hasn't actually
+// validated anything.
+func healthScoreFor(total, failing int) string {
+	if total == 0 {
+		return "VERY_POOR"
+	}
+	ratio := float64(failing) / float64(total)
+	switch {
+	case ratio == 0:
+		return "VERY_GOOD"
+	case ratio <= 0.20:
+		return "GOOD"
+	case ratio <= 0.50:
+		return "NEUTRAL"
+	case ratio < 1.0:
+		return "POOR"
+	default:
+		return "VERY_POOR"
+	}
+}
+
+// buildScoreReason formats a human-readable explanation of the host's
+// compliance state for the admin-console scoreReason field.
+//
+// Compliant: "All N CA-flagged Fleet policies passed."
+// Non-compliant: "M of N CA-flagged Fleet policies failed: name1, name2, ..."
+//
+// The output is capped at 1024 characters (Google's silent limit).
+func buildScoreReason(totalCAPolicies int, failingNames []string) string {
+	const maxLen = 1024
+	if len(failingNames) == 0 {
+		if totalCAPolicies == 0 {
+			return "No Fleet policies are configured for conditional access."
+		}
+		if totalCAPolicies == 1 {
+			return "The 1 CA-flagged Fleet policy is passing."
+		}
+		return fmt.Sprintf("All %d CA-flagged Fleet policies are passing.", totalCAPolicies)
+	}
+	prefix := fmt.Sprintf("%d of %d CA-flagged Fleet policies are failing: ",
+		len(failingNames), totalCAPolicies)
+	out := prefix + strings.Join(failingNames, ", ")
+	if len(out) > maxLen {
+		out = out[:maxLen-1] + "…"
+	}
+	return out
 }
 
 // etagFromOperation extracts the etag from the response embedded in a

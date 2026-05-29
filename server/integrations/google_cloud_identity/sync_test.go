@@ -101,7 +101,7 @@ func TestSyncHost_NoRows_NoOp(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "host-uuid", HardwareSerial: "H176YH"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, true, ""))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
 	assert.Empty(t, h.recordedRequests())
 }
 
@@ -137,7 +137,7 @@ func TestSyncHost_FirstSync_ResolvesAndPatches(t *testing.T) {
 		assert.Equal(t, "robbie@example.com", workspaceEmail)
 		assert.True(t, managed)
 		assert.True(t, compliant)
-		assert.Equal(t, "", scoreReason)
+		assert.Equal(t, "The 1 CA-flagged Fleet policy is passing.", scoreReason)
 		assert.Equal(t, "etag-after-patch", etag)
 		return nil
 	}
@@ -172,7 +172,7 @@ func TestSyncHost_FirstSync_ResolvesAndPatches(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 7, UUID: "host-uuid", HardwareSerial: serial}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, true, ""))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
 
 	assert.Equal(t, 1, resolvedCalls, "deviceUser cached once")
 	assert.Equal(t, 1, setStateCalls, "last-known state recorded once")
@@ -192,7 +192,7 @@ func TestSyncHost_NoChangeNoPatch(t *testing.T) {
 				DeviceUserResource: strPtr("devices/d/deviceUsers/u"),
 				LastCompliant:      boolPtr(true),
 				LastManaged:        boolPtr(true),
-				LastScoreReason:    strPtr(""),
+				LastScoreReason:    strPtr("The 1 CA-flagged Fleet policy is passing."),
 				LastEtag:           strPtr("etag-old"),
 			},
 		}, nil
@@ -203,7 +203,7 @@ func TestSyncHost_NoChangeNoPatch(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "host-uuid", HardwareSerial: "X"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, true, ""))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
 	assert.Empty(t, h.recordedRequests())
 }
 
@@ -218,16 +218,17 @@ func TestSyncHost_StateChangedPatches(t *testing.T) {
 				DeviceUserResource: strPtr("devices/d/deviceUsers/u"),
 				LastCompliant:      boolPtr(true),
 				LastManaged:        boolPtr(true),
-				LastScoreReason:    strPtr(""),
+				LastScoreReason:    strPtr("The 1 CA-flagged Fleet policy is passing."),
 				LastEtag:           strPtr("etag-old"),
 			},
 		}, nil
 	}
+	const expectedReason = "1 of 1 CA-flagged Fleet policies are failing: Mac OS check"
 	var setCalls int
 	ds.SetHostGoogleCloudIdentityClientStateFunc = func(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix string, managed, compliant bool, scoreReason, etag string) error {
 		setCalls++
 		assert.False(t, compliant)
-		assert.Equal(t, "policy failed", scoreReason)
+		assert.Equal(t, expectedReason, scoreReason)
 		return nil
 	}
 
@@ -236,13 +237,15 @@ func TestSyncHost_StateChangedPatches(t *testing.T) {
 		var got cloudidentity.ClientState
 		require.NoError(t, json.Unmarshal(body, &got))
 		assert.Equal(t, "NON_COMPLIANT", got.ComplianceState)
-		assert.Equal(t, "policy failed", got.ScoreReason)
+		assert.Equal(t, expectedReason, got.ScoreReason)
+		// 1/1 failing == 100% failing == VERY_POOR.
+		assert.Equal(t, "VERY_POOR", got.HealthScore)
 		assert.Equal(t, "etag-old", got.Etag)
 		encodeOperation(w, "etag-new")
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "host-uuid", HardwareSerial: "X"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, false, "policy failed"))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, []string{"Mac OS check"}))
 
 	assert.Equal(t, 1, setCalls)
 	assert.Len(t, h.recordedRequests(), 1, "single PATCH; deviceUser already resolved")
@@ -261,7 +264,7 @@ func TestSyncHost_DeviceNotInCloudIdentity_SkipsPatch(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "u", HardwareSerial: "UNKNOWN"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, true, ""))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
 
 	reqs := h.recordedRequests()
 	require.Len(t, reqs, 1)
@@ -292,7 +295,7 @@ func TestSyncHost_UserNotOnDevice_SkipsPatch(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "u", HardwareSerial: "S"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, true, ""))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
 
 	reqs := h.recordedRequests()
 	require.Len(t, reqs, 2, "list + listDeviceUsers; no PATCH because no email match")
@@ -323,6 +326,103 @@ func TestSyncHost_PerRowFailureDoesNotDropOthers(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "u", HardwareSerial: "S"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, true, ""))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
 	assert.Equal(t, 1, goodSet, "good row patched despite bad row failing")
+}
+
+func TestHealthScoreFor(t *testing.T) {
+	cases := []struct {
+		total, failing int
+		want           string
+	}{
+		// All passing → VERY_GOOD
+		{1, 0, "VERY_GOOD"},
+		{5, 0, "VERY_GOOD"},
+		{100, 0, "VERY_GOOD"},
+
+		// 0% < ratio ≤ 20% → GOOD
+		{10, 1, "GOOD"},  // 10%
+		{10, 2, "GOOD"},  // 20%
+		{100, 5, "GOOD"}, // 5%
+
+		// 20% < ratio ≤ 50% → NEUTRAL
+		{10, 3, "NEUTRAL"}, // 30%
+		{10, 5, "NEUTRAL"}, // 50%
+		{4, 2, "NEUTRAL"},  // 50% exact
+
+		// 50% < ratio < 100% → POOR
+		{10, 6, "POOR"}, // 60%
+		{10, 9, "POOR"}, // 90%
+		{4, 3, "POOR"},  // 75%
+
+		// 100% failing → VERY_POOR
+		{1, 1, "VERY_POOR"},
+		{10, 10, "VERY_POOR"},
+
+		// No policies configured → VERY_POOR (we haven't validated anything)
+		{0, 0, "VERY_POOR"},
+	}
+	for _, c := range cases {
+		got := healthScoreFor(c.total, c.failing)
+		if got != c.want {
+			t.Errorf("healthScoreFor(total=%d, failing=%d) = %q; want %q",
+				c.total, c.failing, got, c.want)
+		}
+	}
+}
+
+func TestBuildScoreReason(t *testing.T) {
+	cases := []struct {
+		name           string
+		total          int
+		failingNames   []string
+		wantPrefix     string
+		wantContains   []string
+	}{
+		{
+			name:         "no policies configured",
+			total:        0,
+			failingNames: nil,
+			wantPrefix:   "No Fleet policies",
+		},
+		{
+			name:         "single policy passing",
+			total:        1,
+			failingNames: nil,
+			wantPrefix:   "The 1 CA-flagged Fleet policy is passing.",
+		},
+		{
+			name:         "multiple policies passing",
+			total:        5,
+			failingNames: nil,
+			wantPrefix:   "All 5 CA-flagged Fleet policies are passing.",
+		},
+		{
+			name:         "one of one failing",
+			total:        1,
+			failingNames: []string{"Disk encryption"},
+			wantPrefix:   "1 of 1",
+			wantContains: []string{"Disk encryption"},
+		},
+		{
+			name:         "two of five failing — names sorted",
+			total:        5,
+			failingNames: []string{"Disk encryption", "Screen lock"},
+			wantPrefix:   "2 of 5",
+			wantContains: []string{"Disk encryption", "Screen lock"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := buildScoreReason(c.total, c.failingNames)
+			if !strings.HasPrefix(got, c.wantPrefix) {
+				t.Errorf("buildScoreReason() = %q; want prefix %q", got, c.wantPrefix)
+			}
+			for _, sub := range c.wantContains {
+				if !strings.Contains(got, sub) {
+					t.Errorf("buildScoreReason() = %q; want substring %q", got, sub)
+				}
+			}
+		})
+	}
 }

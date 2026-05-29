@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
+
 
 	google_cloud_identity "github.com/fleetdm/fleet/v4/server/integrations/google_cloud_identity"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -66,19 +66,39 @@ func (svc *Service) processGoogleCloudIdentityForNewlyFailingPolicies(
 		caSet[id] = struct{}{}
 	}
 
-	hostCompliant := true
-	var failing []string
+	totalCAPolicies := len(caSet)
+
+	var failingIDs []uint
 	for incomingID, result := range incomingPolicyResults {
 		if _, ok := caSet[incomingID]; !ok {
 			continue
 		}
 		if result != nil && !*result {
-			hostCompliant = false
-			failing = append(failing, fmt.Sprintf("policy_%d", incomingID))
+			failingIDs = append(failingIDs, incomingID)
 		}
 	}
-	// Stable ordering so the scoreReason field is deterministic across runs.
-	sort.Strings(failing)
+
+	// Resolve failing policy IDs to human-readable names for scoreReason.
+	// Admins triaging "why is this host blocked" should see real names, not
+	// internal IDs.
+	var failingNames []string
+	if len(failingIDs) > 0 {
+		policiesByID, err := svc.ds.PoliciesByID(ctx, failingIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "google cloud identity: load policy names")
+		}
+		failingNames = make([]string, 0, len(failingIDs))
+		for _, id := range failingIDs {
+			p, ok := policiesByID[id]
+			if !ok || p == nil {
+				failingNames = append(failingNames, fmt.Sprintf("policy_%d", id))
+				continue
+			}
+			failingNames = append(failingNames, p.Name)
+		}
+		// Stable ordering so scoreReason is deterministic across runs.
+		sort.Strings(failingNames)
+	}
 
 	var mdmEnrolled bool
 	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
@@ -89,15 +109,6 @@ func (svc *Service) processGoogleCloudIdentityForNewlyFailingPolicies(
 		mdmEnrolled = hostMDM.Enrolled
 	}
 
-	scoreReason := ""
-	if !hostCompliant {
-		scoreReason = "Failing Fleet policies: " + strings.Join(failing, ", ")
-		const maxReason = 1024
-		if len(scoreReason) > maxReason {
-			scoreReason = scoreReason[:maxReason]
-		}
-	}
-
 	// Hand off to the Syncer in a goroutine so the osquery write path
 	// returns quickly. The Syncer is lazy-constructed and reused.
 	syncer, err := svc.googleCloudIdentitySyncerOrNil(ctx)
@@ -105,16 +116,12 @@ func (svc *Service) processGoogleCloudIdentityForNewlyFailingPolicies(
 		return ctxerr.Wrap(ctx, err, "google cloud identity: build syncer")
 	}
 	if syncer == nil {
-		// Not yet able to construct a syncer (auth not configured, e.g.).
-		// Silent skip per the configured behavior.
 		return nil
 	}
 
 	go func() {
-		// Detach from the request ctx; we don't want client disconnect to
-		// cancel a PATCH we've decided to make.
 		bg := context.Background()
-		if err := syncer.SyncHost(bg, host, mdmEnrolled, hostCompliant, scoreReason); err != nil {
+		if err := syncer.SyncHost(bg, host, mdmEnrolled, totalCAPolicies, failingNames); err != nil {
 			svc.logger.ErrorContext(bg, "google_cloud_identity: SyncHost failed",
 				"host_id", host.ID,
 				"err", err,
