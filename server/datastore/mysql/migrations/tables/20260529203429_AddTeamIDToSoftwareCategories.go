@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260529201240, Down_20260529201240)
+	MigrationClient.AddMigration(Up_20260529203429, Down_20260529203429)
 }
 
-func Up_20260529201240(tx *sql.Tx) error {
+func Up_20260529203429(tx *sql.Tx) error {
 	return withSteps([]migrationStep{
 		// Table update: add team scoping columns, swap unique index, rename defaults.
 		func(tx *sql.Tx) error {
@@ -18,8 +18,8 @@ func Up_20260529201240(tx *sql.Tx) error {
 ALTER TABLE software_categories
 	MODIFY COLUMN name VARCHAR(255) NOT NULL,
 	ADD COLUMN team_id INT UNSIGNED NOT NULL DEFAULT 0,
-	ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+	ADD COLUMN created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+	ADD COLUMN updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)
 `); err != nil {
 				return errors.Wrap(err, "adding team scoping columns to software_categories")
 			}
@@ -50,6 +50,13 @@ END
 WHERE team_id = 0
 `); err != nil {
 				return errors.Wrap(err, "renaming default categories to emoji-prefixed names")
+			}
+			// Pin both timestamps to a constant so the generated schema is
+			// deterministic across repeated runs of make dump-test-schema.
+			// The previous UPDATE bumped updated_at via ON UPDATE CURRENT_TIMESTAMP
+			// and the ADD COLUMN filled created_at with the migration run time.
+			if _, err := tx.Exec(`UPDATE software_categories SET created_at = '2026-05-29 00:00:00', updated_at = '2026-05-29 00:00:00' WHERE team_id = 0`); err != nil {
+				return errors.Wrap(err, "pinning timestamps for schema dump stability")
 			}
 			return nil
 		},
@@ -115,6 +122,6 @@ WHERE iha.global_or_team_id != 0 AND old_sc.team_id = 0
 	}, tx)
 }
 
-func Down_20260529201240(tx *sql.Tx) error {
+func Down_20260529203429(tx *sql.Tx) error {
 	return nil
 }

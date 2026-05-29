@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260529201240(t *testing.T) {
+func TestUp_20260529203429(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	type seededCategory struct {
@@ -82,9 +82,6 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		require.Equal(t, uint(0), row.TeamID, "renamed row should be at team_id=0")
 	}
 
-	// canonicalNames is the order new fleet category rows should be inserted in
-	// (matches fleet.DefaultSelfServiceCategoryNames and the FIELD(...) in the
-	// backfill SQL).
 	canonicalNames := []string{
 		"🌎 Browsers",
 		"👬 Communication",
@@ -145,9 +142,6 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	require.Equal(t, teamARows[3].ID, inHouseLinkedCatID, "team A in-house app should link to team A's 💻 Productivity")
 	require.Equal(t, "💻 Productivity", teamARows[3].Name)
 
-	// Deleting a category cascades to every linking-table row that pointed at
-	// it (FK ON DELETE CASCADE was on the linking tables before this migration;
-	// confirm it still holds across all three).
 	assertLinkGone := func(query string, parentID uint, label string) {
 		var dummy uint
 		err := db.Get(&dummy, query, parentID)
