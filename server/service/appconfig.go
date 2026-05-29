@@ -504,15 +504,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
-	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
-		!appConfig.MDM.WindowsEnabledAndConfigured && len(newAppConfig.MDM.WindowsEntraTenantIDs.Value) == 0 {
-		appConfig.MDM.WindowsEntraTenantIDs.Value = []string{}
+	// When Windows MDM is being turned off and the incoming payload doesn't set the Entra allowlists, clear them. Use
+	// SetSlice (Set+Valid+empty), not just .Value: optjson.Slice marshals to null when Valid is false (e.g. after a
+	// `null` PATCH), which would defeat the migrations' goal of returning [] from GET /config.
+	clearEntraIDsIfWindowsTurnedOff := func(field *optjson.Slice[string], incomingLen int) {
+		if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
+			!appConfig.MDM.WindowsEnabledAndConfigured && incomingLen == 0 {
+			*field = optjson.SetSlice([]string{})
+		}
 	}
-
-	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
-		!appConfig.MDM.WindowsEnabledAndConfigured && len(newAppConfig.MDM.WindowsEntraClientIDs.Value) == 0 {
-		appConfig.MDM.WindowsEntraClientIDs.Value = []string{}
-	}
+	clearEntraIDsIfWindowsTurnedOff(&appConfig.MDM.WindowsEntraTenantIDs, len(newAppConfig.MDM.WindowsEntraTenantIDs.Value))
+	clearEntraIDsIfWindowsTurnedOff(&appConfig.MDM.WindowsEntraClientIDs, len(newAppConfig.MDM.WindowsEntraClientIDs.Value))
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
@@ -1001,25 +1003,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err)
 	}
 
-	addedEntraTenantIDs := make([]string, 0)
-	removedEntraTenantIDs := make([]string, 0)
-	oldTenantIDSet := make(map[string]struct{})
-	newTenantIDSet := make(map[string]struct{})
-
-	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
-		oldTenantIDSet[tenantID] = struct{}{}
-	}
-	for _, tenantID := range appConfig.MDM.WindowsEntraTenantIDs.Value {
-		newTenantIDSet[tenantID] = struct{}{}
-		if _, found := oldTenantIDSet[tenantID]; !found {
-			addedEntraTenantIDs = append(addedEntraTenantIDs, tenantID)
-		}
-	}
-	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
-		if _, found := newTenantIDSet[tenantID]; !found {
-			removedEntraTenantIDs = append(removedEntraTenantIDs, tenantID)
-		}
-	}
+	// Emit one activity per Entra tenant ID / client ID added or removed. diffStringSlices deduplicates, so a payload
+	// that repeats an ID does not produce duplicate activities.
+	addedEntraTenantIDs, removedEntraTenantIDs := diffStringSlices(oldAppConfig.MDM.WindowsEntraTenantIDs.Value, appConfig.MDM.WindowsEntraTenantIDs.Value)
 	for _, tenantID := range addedEntraTenantIDs {
 		act := fleet.ActivityTypeAddedMicrosoftEntraTenant{TenantID: tenantID}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
@@ -1033,25 +1019,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	addedEntraClientIDs := make([]string, 0)
-	removedEntraClientIDs := make([]string, 0)
-	oldClientIDSet := make(map[string]struct{})
-	newClientIDSet := make(map[string]struct{})
-
-	for _, clientID := range oldAppConfig.MDM.WindowsEntraClientIDs.Value {
-		oldClientIDSet[clientID] = struct{}{}
-	}
-	for _, clientID := range appConfig.MDM.WindowsEntraClientIDs.Value {
-		newClientIDSet[clientID] = struct{}{}
-		if _, found := oldClientIDSet[clientID]; !found {
-			addedEntraClientIDs = append(addedEntraClientIDs, clientID)
-		}
-	}
-	for _, clientID := range oldAppConfig.MDM.WindowsEntraClientIDs.Value {
-		if _, found := newClientIDSet[clientID]; !found {
-			removedEntraClientIDs = append(removedEntraClientIDs, clientID)
-		}
-	}
+	addedEntraClientIDs, removedEntraClientIDs := diffStringSlices(oldAppConfig.MDM.WindowsEntraClientIDs.Value, appConfig.MDM.WindowsEntraClientIDs.Value)
 	for _, clientID := range addedEntraClientIDs {
 		act := fleet.ActivityTypeAddedMicrosoftEntraClientID{ClientID: clientID}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
@@ -1555,6 +1523,38 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 // standard UUID parser here as it accepts non-standard forms; Entra tenant IDs and application client IDs are both
 // validated against this so the two checks cannot drift.
 var windowsEntraGUIDRegex = regexp.MustCompile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
+
+// diffStringSlices returns the elements added (present in current but not old) and removed (present in old but not
+// current), each deduplicated and in first-seen order. Used to emit exactly one activity per changed value even when
+// the incoming payload repeats an entry.
+func diffStringSlices(old, current []string) (added, removed []string) {
+	oldSet := make(map[string]struct{}, len(old))
+	for _, v := range old {
+		oldSet[v] = struct{}{}
+	}
+	currentSet := make(map[string]struct{}, len(current))
+	for _, v := range current {
+		if _, seen := currentSet[v]; seen {
+			continue
+		}
+		currentSet[v] = struct{}{}
+		if _, found := oldSet[v]; !found {
+			added = append(added, v)
+		}
+	}
+	removedSeen := make(map[string]struct{})
+	for _, v := range old {
+		if _, found := currentSet[v]; found {
+			continue
+		}
+		if _, seen := removedSeen[v]; seen {
+			continue
+		}
+		removedSeen[v] = struct{}{}
+		removed = append(removed, v)
+	}
+	return added, removed
+}
 
 func (svc *Service) validateMDM(
 	ctx context.Context,

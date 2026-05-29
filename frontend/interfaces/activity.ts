@@ -166,6 +166,8 @@ export enum ActivityType {
   EditedEnrollSecrets = "edited_enroll_secrets",
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
+  AddedMicrosoftEntraClientId = "added_microsoft_entra_client_id",
+  DeletedMicrosoftEntraClientId = "deleted_microsoft_entra_client_id",
   ClearedPasscode = "cleared_passcode",
   EnabledManagedLocalAccount = "enabled_managed_local_account",
   DisabledManagedLocalAccount = "disabled_managed_local_account",
@@ -327,6 +329,7 @@ export interface IActivityDetails {
   host_idp_username?: string;
   idp_full_name?: string;
   tenant_id?: string;
+  client_id?: string;
   certificate_name?: string;
   certificate_template_id?: number;
   detail?: string;
@@ -357,6 +360,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_custom_scep_proxy: "Added certificate authority (CA): custom SCEP",
   added_digicert: "Added certificate authority (CA): DigiCert",
   added_microsoft_entra_tenant: "Added Microsoft Entra tenant",
+  added_microsoft_entra_client_id: "Added Microsoft Entra client ID",
   added_ndes_scep_proxy: "Added certificate authority (CA): NDES",
   added_script: "Added script",
   added_software: "Added software",
@@ -392,6 +396,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_macos_profile: "Deleted configuration profile: Apple",
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
   deleted_microsoft_entra_tenant: "Deleted Microsoft Entra tenant",
+  deleted_microsoft_entra_client_id: "Deleted Microsoft Entra client ID",
   deleted_multiple_saved_query: "Bulk deleted reports",
   deleted_ndes_scep_proxy: "Deleted certificate authority (CA): NDES",
   deleted_org_logo: "Deleted organization logo",

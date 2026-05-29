@@ -13,8 +13,10 @@ func TestUp_20260529120000(t *testing.T) {
 
 	applyNext(t, db)
 
+	// app_config_json is a singleton (id PRIMARY KEY DEFAULT '1'); target it explicitly so the assertion can't pick a
+	// stray row if one is ever introduced.
 	var raw json.RawMessage
-	require.NoError(t, sqlx.Get(db, &raw, `SELECT json_value FROM app_config_json LIMIT 1;`))
+	require.NoError(t, sqlx.Get(db, &raw, `SELECT json_value FROM app_config_json WHERE id = 1;`))
 
 	var cfg map[string]any
 	require.NoError(t, json.Unmarshal(raw, &cfg))

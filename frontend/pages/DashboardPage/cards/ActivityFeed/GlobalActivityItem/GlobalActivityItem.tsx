@@ -2095,6 +2095,16 @@ const TAGGED_TEMPLATES = {
       <> deleted Microsoft Entra tenant ({activity.details?.tenant_id}).</>
     );
   },
+  addedMicrosoftEntraClientId: (activity: IActivity) => {
+    return (
+      <> added Microsoft Entra client ID ({activity.details?.client_id}).</>
+    );
+  },
+  deletedMicrosoftEntraClientId: (activity: IActivity) => {
+    return (
+      <> deleted Microsoft Entra client ID ({activity.details?.client_id}).</>
+    );
+  },
   clearedPasscode: (activity: IActivity) => {
     return (
       <>
@@ -2566,6 +2576,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMicrosoftEntraTenant: {
       return TAGGED_TEMPLATES.deletedMicrosoftEntraTenant(activity);
+    }
+    case ActivityType.AddedMicrosoftEntraClientId: {
+      return TAGGED_TEMPLATES.addedMicrosoftEntraClientId(activity);
+    }
+    case ActivityType.DeletedMicrosoftEntraClientId: {
+      return TAGGED_TEMPLATES.deletedMicrosoftEntraClientId(activity);
     }
     case ActivityType.ClearedPasscode: {
       return TAGGED_TEMPLATES.clearedPasscode(activity);

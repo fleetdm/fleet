@@ -1741,6 +1741,8 @@ func TestHasAuthorizedAzureAudience(t *testing.T) {
 		// v1 (server URL) path - unchanged behavior, no client IDs configured.
 		{"v1 server URL, no client IDs", []string{serverURL}, nil, true},
 		{"v1 server URL with path", []string{serverURL + "/some/path"}, nil, true},
+		{"v1 host case-insensitive (RFC 3986)", []string{"https://Fleet.Example.COM"}, nil, true},
+		{"v1 host with explicit default port", []string{"https://fleet.example.com:443"}, nil, true},
 		{"v1 different host", []string{"https://evil.example.com"}, nil, false},
 
 		// v2 (client ID) path.
