@@ -278,7 +278,17 @@ module.exports = {
         // If no medium was provided via utm parameter, set the source channel to "Organic".
         attributionDetails.sourceChannel = 'Organic';
 
-        if(!marketingAttributionCookie.referrer || marketingAttributionCookie.referrer.startsWith('https://fleetdm.com')) {
+        let isFleetReferrer = false;
+        if(marketingAttributionCookie.referrer) {
+          try {
+            let parsedReferrerUrl = new URL(marketingAttributionCookie.referrer);
+            let referrerHost = parsedReferrerUrl.hostname.toLowerCase();
+            isFleetReferrer = (referrerHost === 'fleetdm.com' || referrerHost.endsWith('.fleetdm.com'));
+          } catch (err) {
+            isFleetReferrer = false;
+          }
+        }
+        if(!marketingAttributionCookie.referrer || isFleetReferrer) {
           // If no referrer is set, or the referrer is any fleetdm.com page, we'll assume this user came to the website directly
           attributionDetails.sourceChannelDetails = 'Direct traffic (DT)';
           attributionDetails.campaign = 'Default-DT-Direct';
