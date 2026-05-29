@@ -9,18 +9,18 @@ import scriptsAPI, {
 const SCRIPTS_PAGE_SIZE = 1000;
 
 interface IUseScriptsArgs {
-  teamId: number;
+  fleetId: number;
   enabled: boolean;
 }
 
-const useScripts = ({ teamId, enabled }: IUseScriptsArgs) =>
+const useScripts = ({ fleetId, enabled }: IUseScriptsArgs) =>
   useQuery<IScriptsResponse, Error, IScriptsResponse, [IListScriptsQueryKey]>(
     [
       {
         scope: "scripts",
         page: 0,
         per_page: SCRIPTS_PAGE_SIZE,
-        fleet_id: teamId,
+        fleet_id: fleetId,
       },
     ],
     ({ queryKey: [key] }) => scriptsAPI.getScripts(omit(key, "scope")),

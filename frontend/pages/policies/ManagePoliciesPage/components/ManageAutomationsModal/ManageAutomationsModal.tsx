@@ -115,11 +115,11 @@ const ManageAutomationsModal = ({
 
   const canFetchTeamScopedLists = !isGlobalPolicy && teamIdForApi !== undefined;
   const { data: softwareTitlesData } = useSoftwareTitles({
-    teamId: teamIdForApi ?? 0,
+    fleetId: teamIdForApi ?? 0,
     enabled: canFetchTeamScopedLists && installSoftware,
   });
   const { data: scriptsData } = useScripts({
-    teamId: teamIdForApi ?? 0,
+    fleetId: teamIdForApi ?? 0,
     enabled: canFetchTeamScopedLists && runScript,
   });
 
@@ -296,8 +296,16 @@ const ManageAutomationsModal = ({
         ? {
             software_title_id: installSoftware ? softwareTitleId : null,
             script_id: runScript ? scriptId : null,
-            calendar_events_enabled: calendarEvent,
-            conditional_access_enabled: conditionalAccess,
+            // When the feature disabled, the row is locked and the
+            // user can't toggle it — so we omit the field instead of carrying
+            // the stale state through to the PATCH. That preserves the policy's
+            // stored intent for if/when the fleet admin re-enables the feature.
+            ...(isCalendarEnabledForTeam && {
+              calendar_events_enabled: calendarEvent,
+            }),
+            ...(isConditionalAccessEnabledForTeam && {
+              conditional_access_enabled: conditionalAccess,
+            }),
             continuous_automations_enabled: continuousEnabled,
           }
         : undefined,
@@ -406,11 +414,11 @@ const ManageAutomationsModal = ({
       </div>
 
       <div className="modal-cta-wrap">
-        <Button onClick={onExit} variant="inverse">
-          Cancel
-        </Button>
         <Button onClick={onSave} isLoading={isSaving} disabled={isSaving}>
           Save
+        </Button>
+        <Button onClick={onExit} variant="inverse">
+          Cancel
         </Button>
       </div>
     </Modal>

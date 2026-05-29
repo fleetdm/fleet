@@ -962,9 +962,7 @@ const ManagePolicyPage = ({
         {selectedPolicyForAutomations && (
           <ManageAutomationsModal
             policy={selectedPolicyForAutomations}
-            fleetName={
-              isAllTeamsSelected ? "All fleets" : currentTeamSummary?.name ?? ""
-            }
+            fleetName={currentTeamSummary?.name ?? ""}
             isGlobalPolicy={isAllTeamsSelected}
             teamIdForApi={teamIdForApi}
             automationsConfig={automationsConfig}
