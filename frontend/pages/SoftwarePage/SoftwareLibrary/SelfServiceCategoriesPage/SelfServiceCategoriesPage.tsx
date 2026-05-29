@@ -31,9 +31,6 @@ import DeleteCategoryModal from "./DeleteCategoryModal";
 
 const baseClass = "self-service-categories-page";
 
-const LEARN_MORE_URL =
-  "https://fleetdm.com/guides/self-service-software-categories";
-
 interface ISelfServiceCategoriesPageProps {
   router: InjectedRouter;
   location: {
@@ -99,7 +96,7 @@ const SelfServiceCategoriesPage = ({
     Error
   >(
     ["selfServiceCategories", fleetId],
-    () => selfServiceCategoriesAPI.list(fleetId),
+    () => selfServiceCategoriesAPI.getCategories(fleetId),
     {
       enabled: !!isPremiumTier && isRouteOk,
       refetchOnWindowFocus: false,
@@ -146,7 +143,11 @@ const SelfServiceCategoriesPage = ({
         content={
           <>
             Manage self-service categories.{" "}
-            <CustomLink url={LEARN_MORE_URL} text="Learn more" newTab />
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/self-service-software-categories"
+              text="Learn more"
+              newTab
+            />
           </>
         }
       />

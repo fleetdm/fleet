@@ -68,10 +68,10 @@ let mockNextId = 100;
 
 // Ignore fleetId in the mock list so any fleet the user picks shows seeded
 // data — the BE will scope by fleet for real.
-const mockList = (): Promise<ISelfServiceCategoriesResponse> =>
+const mockGetCategories = (): Promise<ISelfServiceCategoriesResponse> =>
   delay({ self_service_categories: [...mockStore] });
 
-const mockAdd = (
+const mockAddCategory = (
   formData: ICreateSelfServiceCategoryFormData
 ): Promise<ISelfServiceCategoryResponse> => {
   const conflict = mockStore.find(
@@ -94,7 +94,7 @@ const mockAdd = (
   return delay({ self_service_category: newCategory });
 };
 
-const mockEdit = (
+const mockUpdateCategory = (
   id: number,
   formData: IEditSelfServiceCategoryFormData
 ): Promise<ISelfServiceCategoryResponse> => {
@@ -115,7 +115,7 @@ const mockEdit = (
   return delay({ self_service_category: mockStore[idx] });
 };
 
-const mockDestroy = (id: number): Promise<void> => {
+const mockDeleteCategory = (id: number): Promise<void> => {
   const idx = mockStore.findIndex((c) => c.id === id);
   if (idx !== -1) mockStore.splice(idx, 1);
   return delay(undefined);
@@ -125,32 +125,32 @@ const mockDestroy = (id: number): Promise<void> => {
 // -----------------------------------------------------------------------------
 
 export default {
-  list: (fleetId: number): Promise<ISelfServiceCategoriesResponse> => {
-    if (USE_FE_MOCKS) return mockList();
+  getCategories: (fleetId: number): Promise<ISelfServiceCategoriesResponse> => {
+    if (USE_FE_MOCKS) return mockGetCategories();
     const { SELF_SERVICE_CATEGORIES } = endpoints;
     const queryString = buildQueryStringFromParams({ fleet_id: fleetId });
     return sendRequest("GET", `${SELF_SERVICE_CATEGORIES}?${queryString}`);
   },
 
-  add: (
+  addCategory: (
     formData: ICreateSelfServiceCategoryFormData
   ): Promise<ISelfServiceCategoryResponse> => {
-    if (USE_FE_MOCKS) return mockAdd(formData);
+    if (USE_FE_MOCKS) return mockAddCategory(formData);
     const { SELF_SERVICE_CATEGORIES } = endpoints;
     return sendRequest("POST", SELF_SERVICE_CATEGORIES, formData);
   },
 
-  edit: (
+  updateCategory: (
     id: number,
     formData: IEditSelfServiceCategoryFormData
   ): Promise<ISelfServiceCategoryResponse> => {
-    if (USE_FE_MOCKS) return mockEdit(id, formData);
+    if (USE_FE_MOCKS) return mockUpdateCategory(id, formData);
     const { SELF_SERVICE_CATEGORY } = endpoints;
     return sendRequest("PATCH", SELF_SERVICE_CATEGORY(id), formData);
   },
 
-  destroy: (id: number) => {
-    if (USE_FE_MOCKS) return mockDestroy(id);
+  deleteCategory: (id: number) => {
+    if (USE_FE_MOCKS) return mockDeleteCategory(id);
     const { SELF_SERVICE_CATEGORY } = endpoints;
     return sendRequest("DELETE", SELF_SERVICE_CATEGORY(id));
   },

@@ -35,12 +35,13 @@ const AddCategoryModal = ({
     if (error) setError(null);
   };
 
-  const onSubmit = async () => {
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (isDisabled) return;
 
     setIsSubmitting(true);
     try {
-      await selfServiceCategoriesAPI.add({
+      await selfServiceCategoriesAPI.addCategory({
         fleet_id: fleetId,
         name: trimmedName,
       });
@@ -59,13 +60,7 @@ const AddCategoryModal = ({
 
   return (
     <Modal title="Add category" onExit={onExit} className={baseClass}>
-      <form
-        className={`${baseClass}__form`}
-        onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit();
-        }}
-      >
+      <form className={`${baseClass}__form`} onSubmit={onSubmit}>
         <InputField
           label="Name"
           name="name"
@@ -77,12 +72,7 @@ const AddCategoryModal = ({
           inputOptions={{ maxLength: NAME_MAX_LENGTH }}
         />
         <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            disabled={isDisabled}
-            isLoading={isSubmitting}
-            onClick={onSubmit}
-          >
+          <Button type="submit" disabled={isDisabled} isLoading={isSubmitting}>
             Add
           </Button>
           <Button variant="inverse" onClick={onExit}>

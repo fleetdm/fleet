@@ -27,7 +27,7 @@ const DeleteCategoryModal = ({
     if (isDeleting) return;
     setIsDeleting(true);
     try {
-      await selfServiceCategoriesAPI.destroy(category.id);
+      await selfServiceCategoriesAPI.deleteCategory(category.id);
       onSuccess();
     } catch (e) {
       renderFlash("error", "Couldn’t delete self-service category.");
