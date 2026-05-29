@@ -962,12 +962,12 @@ func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet
 //   - it equals a configured Entra application client ID (v2 access tokens, whose `aud` is the app's client ID, a
 //     GUID), compared case-insensitively after trimming - validation stores client IDs as lower-case GUIDs and Entra
 //     emits them lower-cased, but the token is untrusted input; or
-//   - it parses as a URL whose hostname matches serverHostname (v1 access tokens, whose `aud` is the Fleet server URL).
+//   - it parses as a URL whose host (host:port) matches serverHost (v1 access tokens, whose `aud` is the Fleet server URL).
 //
 // The client-ID (v2) path is additive: it does not change the v1 server-URL behavior. An audience that is neither a
 // known client ID nor a URL is ignored, so a token with multiple audiences is authorized if any one of them matches.
-// serverHostname must be a bare hostname (no port); callers pass url.URL.Hostname().
-func hasAuthorizedAzureAudience(audiences []string, serverHostname string, clientIDs []string) bool {
+// serverHost is the expected host including any port; callers pass url.URL.Host.
+func hasAuthorizedAzureAudience(audiences []string, serverHost string, clientIDs []string) bool {
 	clientIDSet := make(map[string]struct{}, len(clientIDs))
 	for _, id := range clientIDs {
 		clientIDSet[strings.ToLower(strings.TrimSpace(id))] = struct{}{}
@@ -977,15 +977,16 @@ func hasAuthorizedAzureAudience(audiences []string, serverHostname string, clien
 		if _, ok := clientIDSet[strings.ToLower(strings.TrimSpace(aud))]; ok {
 			return true
 		}
-		// v1 token: `aud` is a URL whose hostname must match the Fleet server URL's. The audience may have multiple
-		// values and not everything in it will be a URL, and that's OK. Compare hostnames (no port) case-insensitively
-		// per RFC 3986. Hostname() also guards the degenerate empty-host case: a GUID `aud` yields an empty hostname,
-		// which never matches a real server hostname.
+		// v1 token: `aud` is a URL whose host must match the Fleet server URL's. The audience may have multiple values
+		// and not everything in it will be a URL, and that's OK. Compare the full host (host:port) case-insensitively:
+		// per RFC 3986 the host is case-insensitive, but the port must match so a token for a different port on the same
+		// hostname is not authorized. The Host != "" guard rejects the degenerate empty-host case (a GUID `aud` parses
+		// to an empty host, which must never match a misconfigured empty serverHost).
 		audURL, err := url.Parse(aud)
 		if err != nil {
 			continue
 		}
-		if h := audURL.Hostname(); h != "" && strings.EqualFold(h, serverHostname) {
+		if audURL.Host != "" && strings.EqualFold(audURL.Host, serverHost) {
 			return true
 		}
 	}
@@ -1079,7 +1080,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			return "", "", 0, fmt.Errorf("binary security token claim failed: %v", err)
 		}
 
-		if !hasAuthorizedAzureAudience(tokenData.Audience, expectedURLParsed.Hostname(), appConfig.MDM.WindowsEntraClientIDs.Value) {
+		if !hasAuthorizedAzureAudience(tokenData.Audience, expectedURLParsed.Host, appConfig.MDM.WindowsEntraClientIDs.Value) {
 			// Log bad audiences here for debugging. token_audiences includes the unexpected client ID (for v2 tokens)
 			// so admins can copy it into windows_entra_client_ids.
 			svc.logger.ErrorContext(ctx, "unexpected token audience in AzureAD Binary Security Token",

@@ -29,6 +29,7 @@ const EntraClientIDsListItem = ({
               onClick={onClickDelete}
               className={`${baseClass}__action-button`}
               variant="icon"
+              ariaLabel={`Delete Microsoft Entra client ID ${clientId}`}
             >
               <Icon name="trash" />
             </Button>

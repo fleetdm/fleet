@@ -2088,21 +2088,27 @@ const TAGGED_TEMPLATES = {
     return <>edited enroll secret{postFix}.</>;
   },
   addedMicrosoftEntraTenant: (activity: IActivity) => {
-    return <> added Microsoft Entra tenant ({activity.details?.tenant_id}).</>;
+    const tenantId = activity.details?.tenant_id;
+    return (
+      <> added Microsoft Entra tenant{tenantId ? ` (${tenantId})` : ""}.</>
+    );
   },
   deletedMicrosoftEntraTenant: (activity: IActivity) => {
+    const tenantId = activity.details?.tenant_id;
     return (
-      <> deleted Microsoft Entra tenant ({activity.details?.tenant_id}).</>
+      <> deleted Microsoft Entra tenant{tenantId ? ` (${tenantId})` : ""}.</>
     );
   },
   addedMicrosoftEntraClientId: (activity: IActivity) => {
+    const clientId = activity.details?.client_id;
     return (
-      <> added Microsoft Entra client ID ({activity.details?.client_id}).</>
+      <> added Microsoft Entra client ID{clientId ? ` (${clientId})` : ""}.</>
     );
   },
   deletedMicrosoftEntraClientId: (activity: IActivity) => {
+    const clientId = activity.details?.client_id;
     return (
-      <> deleted Microsoft Entra client ID ({activity.details?.client_id}).</>
+      <> deleted Microsoft Entra client ID{clientId ? ` (${clientId})` : ""}.</>
     );
   },
   clearedPasscode: (activity: IActivity) => {

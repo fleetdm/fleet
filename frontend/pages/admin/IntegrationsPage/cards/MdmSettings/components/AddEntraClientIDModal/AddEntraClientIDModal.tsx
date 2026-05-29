@@ -7,6 +7,7 @@ import configAPI from "services/entities/config";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 
 import { IAddClientIdFormValidation, validateFormData } from "./helpers";
 
@@ -45,7 +46,10 @@ const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
   };
 
   const onAddClientId = async () => {
-    const { clientId } = formData;
+    // Normalize to a canonical lower-case GUID before validating, de-duplicating, and sending. The backend validates
+    // client IDs against a lower-case-only GUID regex and compares them case-insensitively, so uppercase input would
+    // otherwise pass UI (isUUID) validation but be rejected on save.
+    const clientId = formData.clientId?.trim().toLowerCase();
 
     const validation = validateFormData({ clientId });
 
@@ -96,9 +100,13 @@ const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
           error={formValidation.clientId?.message}
           helpText={
             <>
-              Find your <b>Application (client) ID</b> on Microsoft Entra ID
-              &gt; App registrations &gt; your MDM application &gt; Overview.
-              Required for applications that issue v2 access tokens.
+              Find your <b>Application (client) ID</b> on{" "}
+              <CustomLink
+                text="Microsoft Entra ID > App registrations"
+                url="https://fleetdm.com/learn-more-about/microsoft-entra-tenant-id"
+                newTab
+              />
+              . Required for applications that issue v2 access tokens.
             </>
           }
         />
