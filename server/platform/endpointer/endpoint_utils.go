@@ -89,35 +89,17 @@ func allFields(ifv reflect.Value) []fieldPair {
 // request.
 var aliasRulesCache sync.Map // reflect.Type → []AliasRule
 
-// relativeRulesCache caches the relative (un-rooted) rules per struct type so
-// that shared sub-structs are walked only once across all containing types.
-var relativeRulesCache sync.Map // reflect.Type → []relativeRule
-
-// relativeRule is an alias rule annotated with the JSON object-key path from
-// the root of the struct in which it was found, down to the object that
-// directly contains the renamed field.
-type relativeRule struct {
-	oldKey string
-	newKey string
-	path   []string
-}
-
 // ExtractAliasRules inspects the struct type of iface (recursively, including
 // embedded structs) and builds an []AliasRule from fields that carry a
 // `renameto` struct tag. For each such field the json tag's field name
 // becomes OldKey (the current/deprecated name) and the renameto value becomes
 // NewKey (the target name).
 //
-// Each returned rule is scoped (Scoped=true) to the JSON object-key path at
-// which its field lives, so that a rename's NewKey applied at one location
-// does not clobber an unrelated, literal field of the same name elsewhere in
-// the document. Path is the pathSep-joined chain of (old/canonical) object
-// keys from the document root; the root itself is the empty path.
-//
 // Only `json` tags are considered; `url` and `query` tags are ignored for now.
 //
-// The returned slice is deduplicated by (OldKey, NewKey, Path): the same alias
-// reachable via multiple distinct paths yields one rule per path.
+// The returned slice is deduplicated: if the same alias pair appears on
+// multiple fields (e.g. in both a request and an embedded struct) it is
+// included only once.
 //
 // Results are cached by type so that the reflection walk only happens once.
 func ExtractAliasRules(iface any) []AliasRule {
@@ -136,23 +118,18 @@ func ExtractAliasRules(iface any) []AliasRule {
 		return cached.([]AliasRule)
 	}
 
-	rel := relativeRules(t, make(map[reflect.Type]bool))
-	seen := make(map[AliasRule]struct{}, len(rel))
-	rules := make([]AliasRule, 0, len(rel))
-	for _, rr := range rel {
-		rule := AliasRule{
-			OldKey: rr.oldKey,
-			NewKey: rr.newKey,
-			Path:   strings.Join(rr.path, pathSep),
-			Scoped: true,
-		}
-		if _, ok := seen[rule]; !ok {
-			seen[rule] = struct{}{}
-			rules = append(rules, rule)
-		}
-	}
+	seen := make(map[AliasRule]bool)
+	var rules []AliasRule
+	extractAliasRulesFromType(t, seen, &rules)
 	aliasRulesCache.Store(t, rules)
 	return rules
+}
+
+func extractAliasRulesFromType(t reflect.Type, seen map[AliasRule]bool, rules *[]AliasRule) {
+	// visited tracks types we've already walked to avoid infinite recursion
+	// from cyclic type references (e.g. type Node struct { Children []Node }).
+	visited := make(map[reflect.Type]bool)
+	extractAliasRulesRecursive(t, seen, rules, visited)
 }
 
 // elemType dereferences pointer, slice, array, and map types to find the
@@ -164,96 +141,41 @@ func elemType(t reflect.Type) reflect.Type {
 	return t
 }
 
-// jsonFieldName returns the JSON field name declared by an explicit, usable
-// `json` tag on f, suitable for use as a rule's OldKey. It returns false when
-// the field has no json tag or is excluded (json:"-").
-func jsonFieldName(f reflect.StructField) (string, bool) {
-	tag, ok := f.Tag.Lookup("json")
-	if !ok || tag == "" || tag == "-" {
-		return "", false
+// Recursively extract alias rules from the type t.
+// This should only be called on struct types.
+func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *[]AliasRule, visited map[reflect.Type]bool) {
+	if visited[t] {
+		return
 	}
-	name, _, _ := strings.Cut(tag, ",")
-	if name == "" || name == "-" {
-		return "", false
-	}
-	return name, true
-}
+	visited[t] = true
 
-// pathSegment returns the JSON object key under which field f's value nests,
-// and whether it contributes a path segment at all. Embedded (anonymous)
-// fields whose contents are promoted to the parent object contribute no
-// segment; fields excluded from JSON (json:"-") likewise contribute none.
-func pathSegment(f reflect.StructField) (string, bool) {
-	if tag, ok := f.Tag.Lookup("json"); ok && tag != "" {
-		name, _, _ := strings.Cut(tag, ",")
-		if name == "-" {
-			return "", false
-		}
-		if name != "" {
-			return name, true
-		}
-		// Empty name (e.g. json:",inline"): promoted if embedded.
-		if f.Anonymous {
-			return "", false
-		}
-		return f.Name, true
-	}
-	// No json tag: embedded structs are promoted to the parent scope.
-	if f.Anonymous {
-		return "", false
-	}
-	return f.Name, true
-}
-
-// relativeRules returns the alias rules declared within struct type t, each
-// annotated with its JSON object-key path relative to t's own root. Results
-// are memoized per type so shared sub-structs are walked only once. inProgress
-// guards against infinite recursion on self-referential types.
-func relativeRules(t reflect.Type, inProgress map[reflect.Type]bool) []relativeRule {
-	if t.Kind() != reflect.Struct {
-		return nil
-	}
-	if cached, ok := relativeRulesCache.Load(t); ok {
-		return cached.([]relativeRule)
-	}
-	if inProgress[t] {
-		// Cyclic reference: rules for t are being collected higher in the
-		// stack. Returning nil here breaks the cycle.
-		return nil
-	}
-	inProgress[t] = true
-
-	var out []relativeRule
 	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
+		structField := t.Field(i)
 
-		// A renameto tag declares an alias rooted at this struct (empty path).
-		if renameTo, ok := f.Tag.Lookup("renameto"); ok && renameTo != "" {
-			if name, ok := jsonFieldName(f); ok {
-				out = append(out, relativeRule{oldKey: name, newKey: renameTo})
+		// Check this field for a renameto tag.
+		renameTo, hasRenameTo := structField.Tag.Lookup("renameto")
+		if hasRenameTo && renameTo != "" {
+			jsonTag, hasJSON := structField.Tag.Lookup("json")
+			if hasJSON && jsonTag != "" && jsonTag != "-" {
+				// Strip options like ",omitempty" from the json tag.
+				jsonFieldName, _, _ := strings.Cut(jsonTag, ",")
+				if jsonFieldName != "" && jsonFieldName != "-" {
+					rule := AliasRule{OldKey: jsonFieldName, NewKey: renameTo}
+					if !seen[rule] {
+						seen[rule] = true
+						*rules = append(*rules, rule)
+					}
+				}
 			}
 		}
 
-		// Recurse into any struct type reachable from this field (through
-		// pointers, slices, arrays, maps, or directly), extending the path.
-		fieldType := elemType(f.Type)
+		// Recurse into any struct type reachable from this field
+		// (through pointers, slices, arrays, maps, or directly).
+		fieldType := elemType(structField.Type)
 		if fieldType.Kind() == reflect.Struct {
-			seg, hasSeg := pathSegment(f)
-			for _, cr := range relativeRules(fieldType, inProgress) {
-				path := cr.path
-				if hasSeg {
-					path = make([]string, 0, len(cr.path)+1)
-					path = append(path, seg)
-					path = append(path, cr.path...)
-				}
-				out = append(out, relativeRule{oldKey: cr.oldKey, newKey: cr.newKey, path: path})
-			}
+			extractAliasRulesRecursive(fieldType, seen, rules, visited)
 		}
 	}
-
-	delete(inProgress, t)
-	relativeRulesCache.Store(t, out)
-	return out
 }
 
 func BadRequestErr(publicMsg string, internalErr error) error {
