@@ -154,7 +154,9 @@ const AddCertModal = ({
       if (sanReason) {
         setServerErrors({ subjectAlternativeName: sanReason });
       } else if (nameConflict) {
-        setServerErrors({ name: "Name is already used by another certificate." });
+        setServerErrors({
+          name: "Name is already used by another certificate.",
+        });
       } else {
         renderFlash("error", "Couldn't add certificate. Please try again.");
       }
