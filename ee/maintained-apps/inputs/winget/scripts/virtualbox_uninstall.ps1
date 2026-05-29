@@ -33,7 +33,7 @@ foreach ($key in $uninstallKeys) {
     }
 }
 
-if (-not $selected -or -not $selected.UninstallString) {
+if (-not $selected -or (-not $selected.UninstallString -and -not $selected.QuietUninstallString)) {
     Write-Host "Uninstall entry not found for $softwareNameLike"
     Exit 0
 }
