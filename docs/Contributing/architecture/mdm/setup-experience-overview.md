@@ -22,7 +22,7 @@ These activities run in order, but they don't directly interact with the setup e
 
 ### Windows
 
-Windows enrollment goes through the Enrollment Status Page (ESP) rather than Apple's Setup Assistant, and Fleet does not push profiles, a bootstrap package, or account configuration as part of setup experience on Windows. Setup experience is driven by orbit, and the device is held in OOBE (Out Of Box Experience) until orbit calls `/api/fleet/orbit/setup_experience/init`. Only software installers are supported on Windows, scripts are macOS-only.
+Windows enrollment goes through the Enrollment Status Page (ESP). Setup experience is driven by orbit: when a Windows host is awaiting configuration, Fleet sets `RunSetupExperience` in orbit's config response, and orbit calls `/api/fleet/orbit/setup_experience/init` to enqueue items. Fleet does not push profiles as part of setup experience on Windows. The device is held in the ESP based on the enrollment's `awaiting_configuration` state until the installs complete (or fail/time out), not merely until `init` is called. Only software installers are supported on Windows; scripts are macOS-only.
 
 ### Linux
 
