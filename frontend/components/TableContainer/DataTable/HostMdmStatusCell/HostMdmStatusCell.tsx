@@ -17,7 +17,7 @@ const HostMdmStatusCell = ({
   cell: { value },
 }: {
   row: { original: IHost };
-  cell: { value: string };
+  cell: { value: MdmEnrollmentStatus };
 }): JSX.Element => {
   if (platform === "chrome") {
     return NotSupported;
@@ -28,17 +28,16 @@ const HostMdmStatusCell = ({
   }
 
   const displayValue =
-    MDM_ENROLLMENT_STATUS_UI_MAP[value as MdmEnrollmentStatus]?.displayName ??
-    value;
+    MDM_ENROLLMENT_STATUS_UI_MAP[value]?.displayName ?? value;
 
   return (
     <span className={`${baseClass}`}>
-      {!MDM_STATUS_TOOLTIP[value as MdmEnrollmentStatus] ? (
+      {!MDM_STATUS_TOOLTIP[value] ? (
         displayValue
       ) : (
         <TooltipWrapper
           className="mdm-status-tooltip"
-          tipContent={MDM_STATUS_TOOLTIP[value as MdmEnrollmentStatus]}
+          tipContent={MDM_STATUS_TOOLTIP[value]}
         >
           {displayValue}
         </TooltipWrapper>
