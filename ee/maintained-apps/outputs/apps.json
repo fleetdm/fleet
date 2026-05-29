@@ -2228,6 +2228,13 @@
       "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
     },
     {
+      "name": "TextExpander",
+      "slug": "textexpander/windows",
+      "platform": "windows",
+      "unique_identifier": "TextExpander",
+      "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
+    },
+    {
       "name": "The Unarchiver",
       "slug": "the-unarchiver/darwin",
       "platform": "darwin",
