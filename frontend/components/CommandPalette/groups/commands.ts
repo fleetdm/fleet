@@ -30,7 +30,6 @@ const buildCommandsItems = (
     hasTeamOrUnassigned,
     isGitOpsMode,
     switchesFromUnassigned,
-    teamRequiredDestination,
     defaultDestination,
   } = derived;
 
@@ -161,7 +160,6 @@ const buildCommandsItems = (
             group: "Commands" as const,
             path: withTeamId(`${paths.MANAGE_HOSTS}?add_hosts=1`),
             keywords: ["enroll", "install", "fleetd", "device"],
-            teamName: teamRequiredDestination,
           },
           {
             id: "add-report",
@@ -310,7 +308,6 @@ const buildCommandsItems = (
             group: "Commands" as const,
             path: withTeamId(`${paths.MANAGE_HOSTS}?manage_enroll_secrets=1`),
             keywords: ["enrollment", "token", "fleetd", "enroll secret"],
-            teamName: teamRequiredDestination,
           },
         ]
       : []),

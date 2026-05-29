@@ -22,11 +22,6 @@ export interface IDerivedContext {
    */
   switchesFromAllFleets: string | undefined;
   /**
-   * Chip label for team-required commands (add-hosts, manage-enroll-secrets)
-   * — set to "Unassigned" only when on "All fleets" and would switch context.
-   */
-  teamRequiredDestination: string | undefined;
-  /**
    * Chip label for default-context commands (add-report, software automations)
    * — set to "All fleets" only when on Unassigned and would switch context.
    */
@@ -74,11 +69,6 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
   };
   const switchesFromAllFleets = getDefaultTeamName();
 
-  const teamRequiredDestination =
-    !isPrimoMode && !hasTeamSelected && !isUnassigned
-      ? "Unassigned"
-      : undefined;
-
   const defaultDestination =
     !isPrimoMode && isUnassigned ? "All fleets" : undefined;
 
@@ -89,7 +79,6 @@ export const deriveContext = (ctx: ICommandPaletteContext): IDerivedContext => {
     hasTeamOrUnassigned,
     switchesFromUnassigned,
     switchesFromAllFleets,
-    teamRequiredDestination,
     defaultDestination,
   };
 };
