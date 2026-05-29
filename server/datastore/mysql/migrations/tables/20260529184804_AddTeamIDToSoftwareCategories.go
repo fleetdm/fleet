@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260528165528, Down_20260528165528)
+	MigrationClient.AddMigration(Up_20260529184804, Down_20260529184804)
 }
 
-func Up_20260528165528(tx *sql.Tx) error {
+func Up_20260529184804(tx *sql.Tx) error {
 	return withSteps([]migrationStep{
 		// Table update: add team scoping columns, swap unique index, rename defaults.
 		func(tx *sql.Tx) error {
@@ -115,6 +115,6 @@ WHERE iha.global_or_team_id != 0 AND old_sc.team_id = 0
 	}, tx)
 }
 
-func Down_20260528165528(tx *sql.Tx) error {
+func Down_20260529184804(tx *sql.Tx) error {
 	return nil
 }

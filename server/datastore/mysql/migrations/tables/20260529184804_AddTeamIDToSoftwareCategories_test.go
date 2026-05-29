@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260528165528(t *testing.T) {
+func TestUp_20260529184804(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	type seededCategory struct {
