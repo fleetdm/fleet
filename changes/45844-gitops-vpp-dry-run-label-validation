@@ -1,1 +1,0 @@
-- Fixed GitOps dry runs failing when a VPP app references a label that was added in the same run.

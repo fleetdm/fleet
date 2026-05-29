@@ -1,1 +1,0 @@
-* Fixed filtering in `/api/v1/fleet/labels/:id/hosts` endpoint.
