@@ -3,12 +3,10 @@
 ### IT Admins
 
 - Added automatic rotation of managed local admin account passwords after they have been viewed.
-- Added support for installing VPP and in-house (`.ipa`) apps on iOS and iPadOS hosts enrolled via Account-Driven User Enrollment with a Managed Apple Account. Previously Fleet returned "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts."
+- Added support for installing VPP and in-house (`.ipa`) apps on iOS and iPadOS hosts enrolled via Account-Driven User Enrollment with a Managed Apple Account.
 - Enabled self-service software installs from the My device page for user-enrolled iOS and iPadOS hosts.
 - Enabled setup experience software in Controls > Setup experience to install automatically on user-enrolled iOS and iPadOS hosts at enrollment.
 - Provisioned a VPP client user per Managed Apple Account on first install, and associated VPP licenses to the user rather than the device, supporting Apple's up-to-5-devices-per-user licensing semantics.
-- Scoped install commands for user-enrolled hosts to the host's Managed Apple Account (`clientUserIds`) instead of `serialNumbers`, so apps install on the correct user account on the device.
-- Surfaced a clear host-level error when license association fails during install (for example, no licenses available or the user has reached the 5-device limit) instead of failing silently.
 - Added managed app configuration for iOS and iPadOS apps (VPP and in-house), configurable via UI, REST API, and GitOps, with `$FLEET_VAR_*` substitution.
 - Added support for VPP apps purchased from non-US-based Apple Business accounts.
 - Added the ability to upload a custom organization logo for light and dark modes, hosted by Fleet, replacing the previous URL-only flow on the setup screen and organization settings page.
@@ -23,8 +21,6 @@
 - Added activity entries for retried software installs and script runs from policy automations.
 - Added an activity when hosts fail enrollment profile renewal.
 - Added activities when users create, edit, or delete labels (`created_label`, `edited_label`, and `deleted_label`).
-- Added the `orbit.debug_logging_on_enroll_duration` agent option to enable orbit debug logging for a specified time period after enrollment.
-- Added a missing uninstall option on the host software library even when an installer has no matching software in the host's inventory.
 - Added "Hosts online", "Hosts enrolled", and "Vulnerability exposure" charts to the dashboard.
 - Added an option to convert and return a PEM-encoded X.509 certificate instead of a PEM-encoded PKCS7 envelope from the Request a Certificate endpoint.
 - Added a deprecation warning when using `setup_experience.software` or `macos_setup.software` keys in config.
@@ -51,9 +47,10 @@
 
 - Updated Go to 1.26.3.
 - Removed debug symbols from fleet and fleetctl executables to reduce binary size.
-- Added a Redis-backed cache for host lookups on the osquery and orbit authentication paths. Successful lookups are cached for 60s (±10% jitter) and invalidated on writes that mutate cached host fields. Reduces reader-side DB load at scale without changing the HTTP contract. Requires Redis 6.2 or later.
 - Reduced database load from `GET /api/latest/fleet/device/{token}/desktop` and other Fleet Desktop endpoints when invalid or expired device auth tokens are presented, by resolving the token to a host ID with a single-table indexed lookup before running the multi-join host-details query.
 - Improved Windows MDM performance when transferring large numbers of hosts between teams or applying bulk profile changes. These operations now return quickly and roll out profile updates to Windows hosts in the background, so host check-ins and other MDM activity are no longer slowed down while a large change is in progress.
+- Added a Redis-backed cache for host lookups on the osquery and orbit authentication paths. Successful lookups are cached for 60s (±10% jitter) and invalidated on writes that mutate cached host fields. Reduces reader-side DB load at scale without changing the HTTP contract. Requires Redis 6.2 or later.
+- Added a missing uninstall option on the host software library even when an installer has no matching software in the host's inventory.
 - Improved Windows MDM profile removal performance by scoping the desired-state subquery.
 - Improved Windows MDM profile removal performance by skipping redundant database writes for verified-remove ACKs.
 - Consolidated non-variable templated Windows MDM profile command inserts from one per-profile to a single bulk insert.
@@ -61,6 +58,7 @@
 - Made host team assignment sticky across orbit and osquery re-enrollments.
 - Improved errors returned from the API when running fleetctl commands by dropping path and status code.
 - Improved validation of order parameters on list endpoints.
+- Added the `orbit.debug_logging_on_enroll_duration` agent option to enable orbit debug logging for a specified time period after enrollment.
 - Improved validation for invalid `order_key` values in `/api/v1/fleet/commands`, `/api/v1/fleet/mdm/commands`, and `/api/v1/fleet/mdm/apple/commands` endpoints.
 - Improved the error message when the `name` key is omitted from a GitOps YAML file.
 - Improved the error message when deleting a label used for targeting a software installation.
@@ -75,6 +73,8 @@
 - Updated timestamps with tooltips on the host Vitals component to always use `cursor: pointer`.
 - Updated the version of the checkout action in the `fleetctl new` template to avoid Node warnings.
 - Updated the MSI builder to skip packaging the unusable "dummy" secret value when building `fleetd-base.msi` for Autopilot installs.
+- Scoped install commands for user-enrolled hosts to the host's Managed Apple Account (`clientUserIds`) instead of `serialNumbers`, so apps install on the correct user account on the device.
+- Surfaced a clear host-level error when license association fails during install (for example, no licenses available or the user has reached the 5-device limit) instead of failing silently.
 - Made `created_at` upper-bound filtering consistent on the list activities API. The endpoint now caps results at `now` by default whether or not `start_created_at` is provided, matching the documented behavior of `end_created_at`.
 - Unified access to global and team policies in the UI by using the now-generic `GET /api/latest/fleet/policies/:id` endpoint.
 - Wrapped `Get-ItemProperty` calls in try/catch blocks during registry enumeration to gracefully handle terminating exceptions (e.g. `System.InvalidCastException`) from malformed registry entries, logging the offending path instead of aborting.
