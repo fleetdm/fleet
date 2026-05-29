@@ -682,17 +682,23 @@ const trashFunc = `trash() {
   local trash="/Users/$logged_in_user/.Trash"
 
   # If the target contains glob characters, expand it and move each match.
-  # The expansion is intentionally unquoted so the shell can glob; each
-  # resolved path is quoted when moved.
   if [[ "$target_file" == *[*?[]* ]]; then
+    local file file_name
     local matched=false
-    for f in $target_file; do
-      [[ -e "$f" ]] || continue
+    local i=0
+    # compgen -G expands the (quoted) pattern itself, so paths containing
+    # spaces glob correctly; reading line by line keeps each match intact.
+    while IFS= read -r file; do
+      [[ -n "$file" ]] || continue
+      [[ -e "$file" || -L "$file" ]] || continue
       matched=true
-      local file_name="$(basename "$f")"
-      echo "removing $f."
-      mv -f "$f" "$trash/${file_name}_${timestamp}_${rand}"
-    done
+      i=$((i + 1))
+      file_name="$(basename "$file")"
+      echo "removing $file."
+      # The per-match counter keeps matches that share a basename from
+      # overwriting each other in the trash.
+      mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}"
+    done < <(compgen -G "$target_file" 2>/dev/null)
     if [[ "$matched" == false ]]; then
       echo "$target_file doesn't exist."
     fi
