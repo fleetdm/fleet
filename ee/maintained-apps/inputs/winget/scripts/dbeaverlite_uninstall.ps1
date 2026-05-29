@@ -47,9 +47,11 @@ if ($existingArgs -notmatch '\b/S\b') {
     $existingArgs = ("$existingArgs /S").Trim()
 }
 
-# Per skill pitfall #14: pass _?=<install_dir> to disable NSIS self-fork.
-$installDir = Split-Path -Path $exePath -Parent
-$existingArgs = "$existingArgs _?=`"$installDir`""
+# NOTE: do NOT add `_?=<install_dir>` here. DBeaver's NSIS uninstaller
+# returns exit 2 ("user cancelled") when invoked with `_?=`. Per
+# silentinstallhq.com/dbeaver-silent-install-how-to-guide the documented
+# silent uninstall is just `Uninstall.exe /allusers /S` — the existing
+# DBeaver Community FMA also uses this form successfully.
 
 Write-Host "Uninstall command: $exePath"
 Write-Host "Uninstall args: $existingArgs"

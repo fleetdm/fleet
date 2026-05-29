@@ -19,7 +19,11 @@ $process = Start-Process @processOptions
 $exitCode = $process.ExitCode
 
 Write-Host "Install exit code: $exitCode"
-if ($exitCode -eq 3010) { Exit 0 }
+# Wacom's InstallShield-based installer returns exit code 2 to signal
+# "reboot required" (non-standard — most installers use 3010). The driver
+# is fully installed and visible in Add/Remove Programs at that point.
+# Treat 2 and 3010 as success.
+if ($exitCode -eq 2 -or $exitCode -eq 3010) { Exit 0 }
 Exit $exitCode
 
 } catch {

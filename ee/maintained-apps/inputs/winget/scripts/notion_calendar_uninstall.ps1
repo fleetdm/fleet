@@ -48,10 +48,10 @@ if ($existingArgs -notmatch '\b/S\b') {
     $existingArgs = ("$existingArgs /S").Trim()
 }
 
-# Per skill pitfall #14: pass _?=<install_dir> to disable NSIS self-fork
-# so Start-Process -Wait actually waits for the uninstall to finish.
-$installDir = Split-Path -Path $exePath -Parent
-$existingArgs = "$existingArgs _?=`"$installDir`""
+# NOTE: do NOT add `_?=<install_dir>` here. The electron-builder NSIS
+# uninstaller (Notion Calendar uses electron-builder) returns exit 2
+# when invoked with `_?=`. The `_?=` trick only helps for vanilla NSIS
+# multi-user installers (skill pitfall #14 / Evernote).
 
 Write-Host "Uninstall command: $exePath"
 Write-Host "Uninstall args: $existingArgs"

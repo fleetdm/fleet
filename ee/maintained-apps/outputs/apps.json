@@ -471,13 +471,6 @@
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
-      "name": "Citrix Workspace",
-      "slug": "citrix-workspace/windows",
-      "platform": "windows",
-      "unique_identifier": "Citrix Workspace",
-      "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
-    },
-    {
       "name": "Claude",
       "slug": "claude/darwin",
       "platform": "darwin",

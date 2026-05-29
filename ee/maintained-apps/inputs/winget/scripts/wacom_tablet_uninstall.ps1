@@ -61,7 +61,8 @@ try {
     $process = Start-Process @processOptions
     $exitCode = $process.ExitCode
     Write-Host "Uninstall exit code: $exitCode"
-    if ($exitCode -eq 3010) { Exit 0 }
+    # Wacom's uninstaller mirrors the install behavior: exit 2 = reboot required.
+    if ($exitCode -eq 2 -or $exitCode -eq 3010) { Exit 0 }
     Exit $exitCode
 } catch {
     Write-Host "Error running uninstaller: $_"
