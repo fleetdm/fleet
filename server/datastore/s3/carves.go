@@ -138,7 +138,6 @@ func (c *CarveStore) listS3Carves(ctx context.Context, lastPrefix string, maxKey
 // metadata present in the database and mark as expired the carves no longer
 // available in S3 (ignores the `now` argument)
 func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, error) {
-	var err error
 	// Get the 1000 oldest carves
 	nonExpiredCarves, err := c.ListCarves(ctx, fleet.CarveListOptions{
 		ListOptions: fleet.ListOptions{PerPage: cleanupSize},
@@ -146,6 +145,9 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 	})
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "s3 carve cleanup")
+	}
+	if len(nonExpiredCarves) == 0 {
+		return 0, nil
 	}
 	// List carves in S3 up to a hour+1 prefix
 	lastCarveNextHour := nonExpiredCarves[len(nonExpiredCarves)-1].CreatedAt.Add(time.Hour)
@@ -156,14 +158,18 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 	}
 	// Compare carve metadata in DB with S3 listing and update expiration flag
 	cleanCount := 0
+	var retErr error
 	for _, carve := range nonExpiredCarves {
 		if _, ok := carveKeys[c.generateS3Key(carve)]; !ok {
 			carve.Expired = true
-			err = c.UpdateCarve(ctx, carve)
+			if uerr := c.UpdateCarve(ctx, carve); uerr != nil {
+				retErr = errors.Join(retErr, ctxerr.Wrap(ctx, uerr, "marking carve expired"))
+				continue
+			}
 			cleanCount++
 		}
 	}
-	return cleanCount, err
+	return cleanCount, retErr
 }
 
 // Carve returns carve metadata by ID
