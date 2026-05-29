@@ -202,15 +202,38 @@ func (s *Syncer) ensureDeviceUserResolved(
 }
 
 // partnerSegment assembles the partner portion of the ClientState resource
-// name. Non-Alliance form: `{suffix}-{customer_id_without_C}`.
+// name. Non-Alliance write form per Google's REST reference:
+// `{customer_id_without_C}-{suffix}`.
+//
+// Empirically verified against C010vzyp5: when we PATCH against
+// `clientStates/010vzyp5-fleet`, Google accepts the write and returns the
+// resource canonicalized as `clientStates/my_customer-fleet` (the customer
+// portion gets aliased to the literal `my_customer` keyword on read-back).
+// Reversing the order (`fleet-010vzyp5`) returns HTTP 403 PERMISSION_DENIED.
+//
+// Note: the CAA expression key (read side) is the SUFFIX-FIRST form
+// `device.vendors["fleet-010vzyp5"].is_compliant_device` per the Access
+// Context Manager spec. Both forms refer to the same underlying record;
+// the resource-name (write) and CEL accessor (read) just disagree on
+// ordering. Customer docs need to call this out.
 func (s *Syncer) partnerSegment(suffix string) string {
 	if suffix == "" {
 		suffix = "fleet"
 	}
-	return fmt.Sprintf("%s-%s", suffix, s.customerID)
+	return fmt.Sprintf("%s-%s", s.customerID, suffix)
 }
 
 // buildClientState assembles the desired ClientState to write.
+//
+// Note on field visibility in admin.google.com: for non-Alliance partners,
+// Google's admin UI only renders `complianceState` in the device-detail
+// "Third-party services" section — `managed`, `healthScore`, `scoreReason`,
+// `assetTags`, etc. are stored and CEL-accessible but not eyeballable until
+// Fleet joins the BeyondCorp Alliance (verified empirically against
+// C010vzyp5). Customer-side CAA expressions can still read every field via
+// `device.vendors["fleet-{C-id-without-C}"].is_compliant_device`,
+// `.is_managed_device`, `.device_health_score`, `.data["key"]`, and the
+// `assetTags` field.
 func buildClientState(host *fleet.Host, managed, compliant bool, scoreReason string) *cloudidentity.ClientState {
 	state := &cloudidentity.ClientState{
 		CustomId: host.UUID,
@@ -222,15 +245,26 @@ func buildClientState(host *fleet.Host, managed, compliant bool, scoreReason str
 	}
 	if compliant {
 		state.ComplianceState = "COMPLIANT"
+		state.HealthScore = "VERY_GOOD"
 	} else {
 		state.ComplianceState = "NON_COMPLIANT"
+		state.HealthScore = "POOR"
 	}
 	if scoreReason != "" {
 		state.ScoreReason = scoreReason
 	}
+
+	// Always emit a `source:fleet` tag so customer CAA expressions can
+	// branch on "this signal came from Fleet" regardless of team
+	// assignment. Add team-specific and serial tags when available.
+	tags := []string{"source:fleet"}
 	if host.TeamID != nil {
-		state.AssetTags = []string{fmt.Sprintf("fleet_team_id:%d", *host.TeamID)}
+		tags = append(tags, fmt.Sprintf("fleet_team_id:%d", *host.TeamID))
 	}
+	if host.HardwareSerial != "" {
+		tags = append(tags, fmt.Sprintf("fleet_serial:%s", host.HardwareSerial))
+	}
+	state.AssetTags = tags
 	return state
 }
 

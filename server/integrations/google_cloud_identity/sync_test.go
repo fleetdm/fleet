@@ -157,7 +157,9 @@ func TestSyncHost_FirstSync_ResolvesAndPatches(t *testing.T) {
 				},
 			})
 		case r.Method == http.MethodPatch:
-			assert.Contains(t, r.URL.Path, "/clientStates/fleet-0xxxxxxx")
+			// Partner segment is customer-id-first per Google's REST docs
+			// (verified empirically; suffix-first returns 403).
+			assert.Contains(t, r.URL.Path, "/clientStates/0xxxxxxx-fleet")
 			var got cloudidentity.ClientState
 			require.NoError(t, json.Unmarshal(body, &got))
 			assert.Equal(t, "MANAGED", got.Managed)
