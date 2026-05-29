@@ -149,8 +149,8 @@ func testSetHostGoogleCloudIdentityClientState(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.SetHostGoogleCloudIdentityClientState(ctx,
 		host.ID, "u@example.com", "fleet",
-		true,            // managed
-		true,            // compliant
+		true, // managed
+		true, // compliant
 		"all CA policies passing",
 		"etag-1",
 	))
