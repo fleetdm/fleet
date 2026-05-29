@@ -582,11 +582,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if newAppConfig.SSOSettings != nil {
-		// In GitOps (Overwrite=true), the YAML is the full declared state, so
-		// disallow the "existing-state has it" fallback that REST PATCH relies
-		// on. This rejects `enable_sso: true` with empty metadata regardless of
-		// what's currently stored on the server — preventing the silent SSO
-		// wipe described in issue #43371.
 		validateSSOSettings(newAppConfig, appConfig, invalid, lic, applyOpts.Overwrite)
 		if invalid.HasErrors() {
 			return nil, ctxerr.Wrap(ctx, invalid)
@@ -2115,18 +2110,10 @@ func (svc *Service) validateVPPAssignments(
 	return tokensToSave, nil
 }
 
-// validateSSOProviderSettings validates an incoming SSOProviderSettings payload.
-//
-// When overwrite is false (REST PATCH partial-update semantics), required
-// fields are permitted to be empty in the incoming payload if the
-// corresponding existing server value is non-empty — the partial update
-// inherits them.
-//
-// When overwrite is true (the GitOps code path, where the YAML is the full
-// declared state), the existing-state fallback is skipped: empty required
-// fields fail validation regardless of existing server state. This closes
-// the `enable_sso: true` + empty metadata footgun that would otherwise
-// silently wipe the working SSO config on apply.
+// Validate incoming SSO provider settings.
+// If this is a GitOps run (overwrite=true), all required fields must be present.
+// Otherwise we're doing a patch, so it's ok for fields to be missing as long
+// as we have persisted values for them.
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
 	if incoming.Metadata == "" && incoming.MetadataURL == "" {
 		if overwrite || (existing.Metadata == "" && existing.MetadataURL == "") {
