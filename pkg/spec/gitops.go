@@ -656,6 +656,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = parseSecrets(result, multiError)
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
+			multiError = validateSSOConfig(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
@@ -684,6 +685,39 @@ func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Erro
 	}
 	check("dark", "org_logo_path_dark_mode", "org_logo_url_dark_mode")
 	check("light", "org_logo_path_light_mode", "org_logo_url_light_mode")
+	return multiError
+}
+
+// Validate that if SSO (or MDM EUA) is enabled, either metadata or metadata_url is set.
+func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	if sso, ok := orgSettings["sso_settings"].(map[string]any); ok {
+		enabled, _ := sso["enable_sso"].(bool)
+		metadata, _ := sso["metadata"].(string)
+		metadataURL, _ := sso["metadata_url"].(string)
+		if enabled && metadata == "" && metadataURL == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set",
+			))
+		}
+	}
+
+	// MDM end-user authentication embeds SSOProviderSettings flat (no nested
+	// sso_settings, no explicit enable flag — the presence of provider fields
+	// is the declaration of intent).
+	if mdm, ok := orgSettings["mdm"].(map[string]any); ok {
+		if eua, ok := mdm["end_user_authentication"].(map[string]any); ok {
+			entityID, _ := eua["entity_id"].(string)
+			idpName, _ := eua["idp_name"].(string)
+			metadata, _ := eua["metadata"].(string)
+			metadataURL, _ := eua["metadata_url"].(string)
+			if (entityID != "" || idpName != "") && metadata == "" && metadataURL == "" {
+				multiError = multierror.Append(multiError, errors.New(
+					"When mdm.end_user_authentication has SSO provider settings configured, either metadata or metadata_url must be set",
+				))
+			}
+		}
+	}
+
 	return multiError
 }
 

@@ -1438,6 +1438,117 @@ org_settings:
 	})
 }
 
+func TestGitOpsSSOValidation(t *testing.T) {
+	t.Parallel()
+
+	withSSO := func(body string) string {
+		config := getGlobalConfig([]string{"org_settings"})
+		config += `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+  sso_settings:
+` + body
+		return config
+	}
+
+	withMDMEUA := func(body string) string {
+		config := getGlobalConfig([]string{"org_settings"})
+		config += `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+  mdm:
+    end_user_authentication:
+` + body
+		return config
+	}
+
+	t.Run("sso_settings absent is accepted", func(t *testing.T) {
+		config := getGlobalConfig(nil)
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("enable_sso true with both metadata fields empty is rejected", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: https://example.com\n    metadata: \"\"\n    metadata_url: \"\"\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set")
+	})
+
+	t.Run("enable_sso true with both metadata fields absent is rejected", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: https://example.com\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set")
+	})
+
+	t.Run("enable_sso true with metadata only is accepted", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: https://example.com\n    metadata: \"<xml/>\"\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("enable_sso true with metadata_url only is accepted", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: https://example.com\n    metadata_url: https://idp.example.com/metadata\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("enable_sso false with empty metadata is accepted", func(t *testing.T) {
+		config := withSSO("    enable_sso: false\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("MDM EUA with provider fields but no metadata is rejected", func(t *testing.T) {
+		config := withMDMEUA("      idp_name: Okta\n      entity_id: https://example.com\n      metadata: \"\"\n      metadata_url: \"\"\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When mdm.end_user_authentication has SSO provider settings configured, either metadata or metadata_url must be set")
+	})
+
+	t.Run("MDM EUA with metadata only is accepted", func(t *testing.T) {
+		config := withMDMEUA("      idp_name: Okta\n      entity_id: https://example.com\n      metadata: \"<xml/>\"\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("MDM EUA with metadata_url only is accepted", func(t *testing.T) {
+		config := withMDMEUA("      idp_name: Okta\n      entity_id: https://example.com\n      metadata_url: https://idp.example.com/metadata\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("MDM EUA fully empty is accepted", func(t *testing.T) {
+		config := withMDMEUA("      idp_name: \"\"\n      entity_id: \"\"\n      metadata: \"\"\n      metadata_url: \"\"\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	// Regression guard: the YAML that `fleetctl generate-gitops` produces
+	// renders the metadata fields as `metadata: # TODO: ...` (a YAML key with
+	// a trailing comment, which parses to nil/empty). This is exactly the
+	// state that nearly locked out the reporter in issue #43371 — and is
+	// what the validation here is designed to catch. If this test ever
+	// stops failing, the safety net is gone.
+	t.Run("generate-gitops rendered TODO comment form is rejected", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: https://example.com\n    metadata: # TODO: Add your SSO metadata here\n    metadata_url: # TODO: Add your SSO metadata URL here\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set")
+	})
+}
+
 func TestGitOpsPaths(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {

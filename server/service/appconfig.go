@@ -582,7 +582,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	if newAppConfig.SSOSettings != nil {
-		validateSSOSettings(newAppConfig, appConfig, invalid, lic)
+		// In GitOps (Overwrite=true), the YAML is the full declared state, so
+		// disallow the "existing-state has it" fallback that REST PATCH relies
+		// on. This rejects `enable_sso: true` with empty metadata regardless of
+		// what's currently stored on the server — preventing the silent SSO
+		// wipe described in issue #43371.
+		allowExistingFallback := !applyOpts.Overwrite
+		validateSSOSettings(newAppConfig, appConfig, invalid, lic, allowExistingFallback)
 		if invalid.HasErrors() {
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
@@ -842,7 +848,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.ConditionalAccessEnabled = newAppConfig.Integrations.ConditionalAccessEnabled
 	}
 
-	if err := svc.validateMDM(ctx, lic, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
+	if err := svc.validateMDM(ctx, lic, &oldAppConfig.MDM, &appConfig.MDM, invalid, !applyOpts.Overwrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
 	}
 
@@ -1626,6 +1632,7 @@ func (svc *Service) validateMDM(
 	oldMdm *fleet.MDM,
 	mdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
+	allowExistingFallback bool,
 ) error {
 	if mdm.EnableDiskEncryption.Value && !lic.IsPremium() {
 		invalid.Append("apple_settings.enable_disk_encryption", ErrMissingLicense.Error())
@@ -1794,7 +1801,7 @@ func (svc *Service) validateMDM(
 			invalid.Append("end_user_authentication", ErrMissingLicense.Error())
 			return nil
 		}
-		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid)
+		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, allowExistingFallback)
 	}
 
 	// MacOSSetup validation
@@ -2105,19 +2112,29 @@ func (svc *Service) validateVPPAssignments(
 	return tokensToSave, nil
 }
 
-func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {
+// validateSSOProviderSettings validates an incoming SSOProviderSettings payload.
+//
+// When allowExistingFallback is true (the default for REST PATCH partial-update
+// semantics), required fields are permitted to be empty in the incoming payload
+// if the corresponding existing server value is non-empty — the partial update
+// inherits them.
+//
+// When allowExistingFallback is false (the GitOps code path, where the YAML is
+// the full declared state), empty required fields always fail validation,
+// since GitOps is declarative and overwrites existing state.
+func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, allowExistingFallback bool) {
 	if incoming.Metadata == "" && incoming.MetadataURL == "" {
-		if existing.Metadata == "" && existing.MetadataURL == "" {
+		if !allowExistingFallback || (existing.Metadata == "" && existing.MetadataURL == "") {
 			invalid.Append("metadata", "either metadata or metadata_url must be defined")
 		}
 	}
 	if incoming.EntityID == "" {
-		if existing.EntityID == "" {
+		if !allowExistingFallback || existing.EntityID == "" {
 			invalid.Append("entity_id", "required")
 		}
 	}
 	if incoming.IDPName == "" {
-		if existing.IDPName == "" {
+		if !allowExistingFallback || existing.IDPName == "" {
 			invalid.Append("idp_name", "required")
 		}
 	}
@@ -2131,14 +2148,14 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 	}
 }
 
-func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, lic *fleet.LicenseInfo) {
+func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, lic *fleet.LicenseInfo, allowExistingFallback bool) {
 	if p.SSOSettings != nil && p.SSOSettings.EnableSSO {
 
 		var existingSSOProviderSettings fleet.SSOProviderSettings
 		if existing.SSOSettings != nil {
 			existingSSOProviderSettings = existing.SSOSettings.SSOProviderSettings
 		}
-		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid)
+		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, allowExistingFallback)
 
 		if !lic.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {
