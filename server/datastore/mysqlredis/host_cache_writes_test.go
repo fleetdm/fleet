@@ -329,6 +329,55 @@ func TestWritePathInvalidation(t *testing.T) {
 			assert.Equal(t, hostCacheLookupMiss, res)
 		})
 
+		t.Run("UpdateHost with only orbit_node_key clears orbit cache", func(t *testing.T) {
+			// Mirror of the dual-key test for the orbit-only side: a host running only Orbit (no osquery
+			// node_key, or one that the caller didn't populate) should still get its onk entry cleared via
+			// the direct-DEL path in invalidateAfterHostUpdate.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			onk := "onk-orbit-only"
+			host := &fleet.Host{ID: 110, OrbitNodeKey: &onk, Hostname: "orbit-only"}
+			d.hostCachePutByOrbitNodeKey(ctx, host)
+			_, res := d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			require.Equal(t, hostCacheLookupHit, res)
+
+			require.NoError(t, d.UpdateHost(ctx, host))
+
+			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+		})
+
+		t.Run("UpdateHost with no node keys falls back to by-ID invalidation", func(t *testing.T) {
+			// When the caller passes a sparse *fleet.Host (no NodeKey, no OrbitNodeKey) we cannot DEL
+			// directly because we do not know the cached keys. invalidateAfterHostUpdate must fall back to
+			// hostCacheDeleteByID, which resolves the cached keys via the id2nk/id2onk reverse indices.
+			// Cache is primed via the helpers, then UpdateHost is called with a host struct that has only
+			// ID populated.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk := "nk-sparse"
+			onk := "onk-sparse"
+			d.hostCachePutByNodeKey(ctx, &fleet.Host{ID: 120, NodeKey: &nk})
+			d.hostCachePutByOrbitNodeKey(ctx, &fleet.Host{ID: 120, OrbitNodeKey: &onk})
+			_, res := d.hostCacheGetByNodeKey(ctx, nk)
+			require.Equal(t, hostCacheLookupHit, res)
+			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			require.Equal(t, hostCacheLookupHit, res)
+
+			require.NoError(t, d.UpdateHost(ctx, &fleet.Host{ID: 120}))
+
+			_, res = d.hostCacheGetByNodeKey(ctx, nk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+		})
+
 		t.Run("inner error preserves cache", func(t *testing.T) {
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ds := new(mock.Store)

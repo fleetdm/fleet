@@ -131,18 +131,46 @@ func (d *Datastore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 }
 
 // invalidateAfterHostUpdate is the common tail for write paths that update an already-existing host
-// (UpdateHost, SerialUpdateHost). Clears the cache via the reverse index on the host's ID, which covers
-// both osquery and orbit families.
+// (UpdateHost, SerialUpdateHost). Clears the cache by DEL'ing the known node keys directly.
 //
-// This path does NOT clear by direct keys: an already-cached host's reverse index is populated, so the
-// by-ID path finds and DELs every related key. The pre-enrollment-negative-cache race that motivates
-// invalidateAfterHostEnroll's direct-keys clear cannot apply to UpdateHost callers (you cannot UPDATE a
-// host that doesn't exist yet), so the extra DELs would be wasted Redis ops.
+// If neither NodeKey nor OrbitNodeKey is set on the struct we fall back to hostCacheDeleteByID so callers
+// that pass a sparsely-populated host still get correct invalidation.
+//
+// This path does NOT clear by direct keys to cover the pre-enrollment-negative-cache race that motivates
+// invalidateAfterHostEnroll's direct-keys clear: that race cannot apply to UpdateHost callers (you cannot
+// UPDATE a host that doesn't exist yet), so no negative entry from a probe-before-row can survive here.
 func (d *Datastore) invalidateAfterHostUpdate(ctx context.Context, host *fleet.Host, reason string) {
-	if host == nil || host.ID == 0 {
+	if host == nil || host.ID == 0 || !d.hostCacheEnabled {
 		return
 	}
-	d.hostCacheDeleteByID(ctx, host.ID, reason)
+
+	nk := ""
+	if host.NodeKey != nil {
+		nk = *host.NodeKey
+	}
+	onk := ""
+	if host.OrbitNodeKey != nil {
+		onk = *host.OrbitNodeKey
+	}
+
+	if nk == "" && onk == "" {
+		// No node-key info on the struct; fall through to the by-ID path so we still pick up cached
+		// entries via the reverse indices.
+		d.hostCacheDeleteByID(ctx, host.ID, reason)
+		return
+	}
+
+	keys := make([]string, 0, 6)
+	if nk != "" {
+		keys = append(keys, hostCacheKeyByNodeKey(nk), hostCacheKeyMiss(nk))
+	}
+	if onk != "" {
+		keys = append(keys, hostCacheKeyByOrbitNodeKey(onk), hostCacheKeyOrbitMiss(onk))
+	}
+	keys = append(keys, hostCacheIndexByID(host.ID), hostCacheOrbitIndexByID(host.ID))
+
+	d.pipelinedDEL(ctx, keys)
+	d.recordHostCacheInvalidation(ctx, reason)
 }
 
 // invalidateAfterHostEnroll is the common tail for write paths that may CREATE a host or rotate its
