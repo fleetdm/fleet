@@ -10,7 +10,7 @@ module.exports = {
     slug: {
       type: 'string',
       description: 'The slug of the whitepaper article that will be displayed to the user',
-      required: true,
+      defaultsTo: 'mac-admins-guide-to-switching-from-jamf-to-fleet',
     }
   },
 
