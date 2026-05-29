@@ -2312,6 +2312,13 @@
       "description": "VirtualBox is a virtualiser for arm64 hardware."
     },
     {
+      "name": "VirtualBox",
+      "slug": "virtualbox/windows",
+      "platform": "windows",
+      "unique_identifier": "Oracle VirtualBox",
+      "description": "VirtualBox is a virtualiser for x86-64 hardware."
+    },
+    {
       "name": "Viscosity",
       "slug": "viscosity/darwin",
       "platform": "darwin",
