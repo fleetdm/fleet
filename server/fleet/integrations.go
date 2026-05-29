@@ -493,7 +493,7 @@ type Integrations struct {
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
 	// GoogleCloudIdentityEnabled indicates whether Cloud Identity ClientState
 	// PATCHes are enabled for hosts on "No team".
-	GoogleCloudIdentityEnabled optjson.Bool `json:"google_cloud_identity_enabled"`
+	GoogleCloudIdentityEnabled optjson.Bool `json:"google_cloud_identity_enabled,omitzero"`
 	// GoogleCloudIdentity holds the runtime-editable settings for the Cloud
 	// Identity integration (partner suffix, workspace domain allowlist,
 	// customer ID). Auth credentials live in server config, not here, since
