@@ -238,13 +238,12 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // palette). Mirror the in-page action's gate: software automations
   // are global-admin only, and only available on All fleets (or the
   // single fleet in Primo). Wait for config to load before deciding,
-  // and only strip the param once we've actually evaluated the gate
-  // so a refresh on a team-scoped page doesn't drop it permanently.
+  // then always strip the param so a team-scoped or unauthorized load
+  // doesn't leave it stuck in the URL.
   useEffect(() => {
     if (queryParams?.manage_automations !== "1") return;
     if (!isSoftwareConfigLoaded) return;
-    if (!isAllTeamsSelected && !isPrimoMode) return;
-    if (isGlobalAdmin) {
+    if (isGlobalAdmin && (isAllTeamsSelected || isPrimoMode)) {
       setShowManageAutomationsModal(true);
     }
     const { manage_automations, ...rest } = queryParams;

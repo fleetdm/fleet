@@ -242,26 +242,44 @@ const ManageHostsPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   // Open add hosts modal via query param (e.g. from command palette).
-  // Strip the param either way so refreshes don't keep trying.
+  // Wait until role flags and the team route have resolved before
+  // evaluating, so an authorized admin/maintainer landing directly on
+  // ?add_hosts=1 isn't denied while AppContext is still hydrating.
   useEffect(() => {
     if (queryParams?.add_hosts !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
     if (canEnrollHosts) {
       setShowAddHostsModal(true);
     }
     const { add_hosts, ...rest } = queryParams;
     router.replace({ pathname: location.pathname, query: rest });
-  }, [queryParams, location.pathname, router, canEnrollHosts]);
+  }, [
+    queryParams,
+    location.pathname,
+    router,
+    canEnrollHosts,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
 
   // Open enroll secrets modal via query param (e.g. from command palette).
-  // Strip the param either way so refreshes don't keep trying.
+  // Same hydration gate as the add-hosts effect above.
   useEffect(() => {
     if (queryParams?.manage_enroll_secrets !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
     if (canEnrollHosts) {
       setShowEnrollSecretModal(true);
     }
     const { manage_enroll_secrets, ...rest } = queryParams;
     router.replace({ pathname: location.pathname, query: rest });
-  }, [queryParams, location.pathname, router, canEnrollHosts]);
+  }, [
+    queryParams,
+    location.pathname,
+    router,
+    canEnrollHosts,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
 
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     userSettings?.hidden_host_columns || defaultHiddenColumns

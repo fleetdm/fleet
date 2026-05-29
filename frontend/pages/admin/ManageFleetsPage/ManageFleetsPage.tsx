@@ -74,15 +74,23 @@ const ManageFleetsPage = ({
   // Open the create modal when arriving with ?create_fleet=1 (e.g., from
   // the command palette). Gate on the same predicate as the in-page
   // button — the param alone must not bypass Primo/GitOps restrictions.
-  // Strip the param either way so refreshes don't keep trying.
+  // Wait for config to load before evaluating so the deep link can't
+  // slip through while isCreateFleetDisabled is still a stale false.
   useEffect(() => {
     if (location.query.create_fleet !== "1") return;
+    if (!config) return;
     if (!isCreateFleetDisabled) {
       setShowCreateFleetModal(true);
     }
     const { create_fleet, ...rest } = location.query;
     router.replace({ pathname: location.pathname, query: rest });
-  }, [location.query, location.pathname, router, isCreateFleetDisabled]);
+  }, [
+    location.query,
+    location.pathname,
+    router,
+    isCreateFleetDisabled,
+    config,
+  ]);
   const [showDeleteFleetModal, setShowDeleteFleetModal] = useState(false);
   const [showRenameFleetModal, setShowRenameFleetModal] = useState(false);
   const [fleetEditing, setFleetEditing] = useState<IFleet>();
