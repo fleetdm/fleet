@@ -60,7 +60,7 @@ const ProfileLabelsModal = ({
     labels_exclude_any,
   } = profile;
 
-  const includeLabels = labels_include_all || labels_include_any;
+  const includeLabels = labels_include_all ?? labels_include_any;
   const excludeLabels = labels_exclude_any;
 
   if (!includeLabels?.length && !excludeLabels?.length) {
@@ -68,7 +68,7 @@ const ProfileLabelsModal = ({
     return null;
   }
 
-  const allLabels = [...(includeLabels || []), ...(excludeLabels || [])];
+  const allLabels = [...(includeLabels ?? []), ...(excludeLabels ?? [])];
 
   return (
     <Modal

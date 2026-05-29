@@ -170,7 +170,7 @@ const ProfileListItem = ({
           >
             <Icon name="info" size="medium" />
           </Button>
-          {isPremium && labels !== undefined && labels.length && (
+          {isPremium && labels.length > 0 && (
             <Button
               className={`${subClass}__action-button`}
               variant="icon"
