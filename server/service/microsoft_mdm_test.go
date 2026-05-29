@@ -1774,3 +1774,33 @@ func TestHasAuthorizedAzureAudience(t *testing.T) {
 		assert.False(t, hasAuthorizedAzureAudience([]string{clientID}, "", nil))
 	})
 }
+
+// TestHasAuthorizedAzureTenant covers the tenant-matching logic that authorizes Entra-issued tokens by the `tid`
+// claim. The comparison is case-insensitive (issue #46388): the GUID validator accepts upper-case tenant IDs, and
+// Entra emits `tid` lower-cased, so a tenant ID stored with upper-case hex must still authorize enrollment.
+func TestHasAuthorizedAzureTenant(t *testing.T) {
+	const (
+		tenantA = "1a86b496-e2a4-43ef-ba00-20004e29b13b"
+		tenantB = "6dca58c4-c817-4730-831b-f3348931df05"
+	)
+	for _, tc := range []struct {
+		name      string
+		tenantIDs []string
+		token     string
+		want      bool
+	}{
+		{"exact match", []string{tenantA}, tenantA, true},
+		{"matches second configured", []string{tenantA, tenantB}, tenantB, true},
+		{"configured upper, token lower", []string{strings.ToUpper(tenantB)}, tenantB, true},
+		{"configured lower, token upper", []string{tenantB}, strings.ToUpper(tenantB), true},
+		{"surrounding whitespace", []string{"  " + tenantA + "  "}, tenantA, true},
+		{"not configured", []string{tenantA}, tenantB, false},
+		{"empty configured", nil, tenantA, false},
+		{"empty token", []string{tenantA}, "", false},
+		{"empty token with whitespace", []string{tenantA}, "   ", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, hasAuthorizedAzureTenant(tc.tenantIDs, tc.token))
+		})
+	}
+}

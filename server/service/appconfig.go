@@ -1519,10 +1519,12 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 	return ok, nil
 }
 
-// windowsEntraGUIDRegex matches an Azure/Entra GUID in the canonical lower-case 8-4-4-4-12 form. We can't use the
-// standard UUID parser here as it accepts non-standard forms; Entra tenant IDs and application client IDs are both
-// validated against this so the two checks cannot drift.
-var windowsEntraGUIDRegex = regexp.MustCompile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
+// windowsEntraGUIDRegex matches an Azure/Entra GUID in 8-4-4-4-12 form, case-insensitively. Entra emits IDs in
+// lower-case, but admins may paste them in upper-case, so we accept either case here and normalize at comparison
+// time instead (hasAuthorizedAzureTenant for the `tid` claim, hasAuthorizedAzureAudience for the v2 `aud` claim)
+// rather than rewriting the stored value. We can't use the standard UUID parser here as it accepts non-standard
+// forms; Entra tenant IDs and application client IDs are both validated against this so the two checks cannot drift.
+var windowsEntraGUIDRegex = regexp.MustCompile("^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$")
 
 // diffStringSlices returns the elements added (present in current but not old) and removed (present in old but not
 // current), each deduplicated and in first-seen order. Used to emit exactly one activity per changed value even when

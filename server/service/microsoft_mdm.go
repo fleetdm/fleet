@@ -960,8 +960,8 @@ func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet
 // hasAuthorizedAzureAudience reports whether any audience value in an Entra-issued JWT is authorized for Windows
 // automatic enrollment. An audience is authorized if either:
 //   - it equals a configured Entra application client ID (v2 access tokens, whose `aud` is the app's client ID, a
-//     GUID), compared case-insensitively after trimming - validation stores client IDs as lower-case GUIDs and Entra
-//     emits them lower-cased, but the token is untrusted input; or
+//     GUID), compared case-insensitively after trimming - validation accepts client IDs in either case without
+//     normalizing them, and the token is untrusted input, so both sides are lower-cased here before comparing; or
 //   - it parses as a URL whose host (host:port) matches serverHost (v1 access tokens, whose `aud` is the Fleet server URL).
 //
 // The client-ID (v2) path is additive: it does not change the v1 server-URL behavior. An audience that is neither a
@@ -987,6 +987,23 @@ func hasAuthorizedAzureAudience(audiences []string, serverHost string, clientIDs
 			continue
 		}
 		if audURL.Host != "" && strings.EqualFold(audURL.Host, serverHost) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasAuthorizedAzureTenant reports whether the token's tenant (the `tid` claim) matches one of the configured Entra
+// tenant IDs. The comparison is case-insensitive after trimming: Entra emits `tid` in lower-case, but validation
+// accepts configured tenant IDs in either case (it does not normalize them), so a tenant ID pasted with upper-case
+// hex digits must still authorize enrollment instead of silently failing to match the lower-cased claim.
+func hasAuthorizedAzureTenant(tenantIDs []string, tokenTenant string) bool {
+	tokenTenant = strings.TrimSpace(tokenTenant)
+	if tokenTenant == "" {
+		return false
+	}
+	for _, id := range tenantIDs {
+		if strings.EqualFold(strings.TrimSpace(id), tokenTenant) {
 			return true
 		}
 	}
@@ -1090,7 +1107,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			)
 			return "", "", 0, ctxerr.Errorf(ctx, "token audience is not authorized")
 		}
-		if !slices.Contains(entraTenantIDs, tokenData.TenantID) {
+		if !hasAuthorizedAzureTenant(entraTenantIDs, tokenData.TenantID) {
 			svc.logger.ErrorContext(ctx, "unexpected token tenant in AzureAD Binary Security Token",
 				"token_tenant", tokenData.TenantID,
 			)

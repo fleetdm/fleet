@@ -1515,6 +1515,31 @@ func TestMDMConfig(t *testing.T) {
 	}
 }
 
+// TestWindowsEntraGUIDRegex covers windowsEntraGUIDRegex, the shared validator for Entra tenant IDs and application
+// client IDs (issue #46388). It accepts the 8-4-4-4-12 GUID form in either case: Entra emits IDs lower-cased, but
+// admins may paste upper-case, and case is reconciled at comparison time rather than rejected at validation.
+func TestWindowsEntraGUIDRegex(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"lowercase digits", "11111111-1111-1111-1111-111111111111", true},
+		{"lowercase hex", "abcdefab-cdef-abcd-efab-cdefabcdefab", true},
+		{"uppercase hex", "ABCDEFAB-CDEF-ABCD-EFAB-CDEFABCDEFAB", true},
+		{"mixed case", "AbCdEfAb-1111-2222-3333-444444444444", true},
+		{"not a guid", "not-a-guid", false},
+		{"too short", "11111111-1111-1111-1111-11111111111", false},
+		{"non-hex digit g", "gggggggg-1111-1111-1111-111111111111", false},
+		{"empty", "", false},
+		{"missing hyphens", "11111111111111111111111111111111", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, windowsEntraGUIDRegex.MatchString(tc.in))
+		})
+	}
+}
+
 func TestDiskEncryptionSetting(t *testing.T) {
 	ds := new(mock.Store)
 
