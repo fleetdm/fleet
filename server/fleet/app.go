@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -851,6 +852,13 @@ func (c *AppConfig) Copy() *AppConfig {
 				maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey.Values, g.ApiKey.Values)
 			}
 		}
+	}
+	if c.Integrations.GoogleCloudIdentity != nil {
+		gci := *c.Integrations.GoogleCloudIdentity
+		if len(c.Integrations.GoogleCloudIdentity.WorkspaceDomains) > 0 {
+			gci.WorkspaceDomains = slices.Clone(c.Integrations.GoogleCloudIdentity.WorkspaceDomains)
+		}
+		clone.Integrations.GoogleCloudIdentity = &gci
 	}
 	// // TODO(hca): do we want to cache the new grouped CAs datastore method?
 	// if len(c.Integrations.DigiCert.Value) > 0 {
