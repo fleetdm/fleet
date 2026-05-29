@@ -240,6 +240,13 @@
       "description": "Avast Secure Browser is a web browser focusing on privacy."
     },
     {
+      "name": "AWS Command Line Interface v2",
+      "slug": "aws-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "AWS Command Line Interface v2",
+      "description": "AWS Command Line Interface provides a tool for interacting with all parts of Amazon Web Services."
+    },
+    {
       "name": "AWS Client VPN",
       "slug": "aws-vpn-client/darwin",
       "platform": "darwin",
