@@ -1,1 +1,1 @@
-* Fixed `fleetctl gitops` silently wiping working SSO config when applying a YAML that enables SSO without `metadata` or `metadata_url`. Such payloads now fail validation with a clear error at apply time, both client-side and on the server.
+- Fixed `fleetctl gitops` silently wiping working SSO config when applying a YAML that enables SSO without `metadata` or `metadata_url`.
