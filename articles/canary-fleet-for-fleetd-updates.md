@@ -102,7 +102,7 @@ If something breaks, you find out before it matters. If nothing breaks, your
 production devices get a battle-tested update.
 
 <meta name="articleTitle" value="Use a canary fleet to catch fleetd conflicts before they reach production">
-<meta name="authorFullName" value="Kathy Satterlee">
+<meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="publishedOn" value="2026-05-28">
 <meta name="category" value="guides">
