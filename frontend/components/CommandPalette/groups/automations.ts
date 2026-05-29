@@ -31,7 +31,13 @@ const buildAutomationsItems = (
             label: "Manage software automations",
             group: "Automations" as const,
             path: `${paths.SOFTWARE_INVENTORY}?manage_automations=1`,
-            keywords: ["vulnerability", "webhook", "jira", "zendesk"],
+            keywords: [
+              "manage automations",
+              "vulnerability",
+              "webhook",
+              "jira",
+              "zendesk",
+            ],
           },
         ]
       : []),
@@ -44,7 +50,12 @@ const buildAutomationsItems = (
             label: "Manage activity automations",
             group: "Automations" as const,
             path: `${paths.DASHBOARD}?manage_automations=1`,
-            keywords: ["activity feed", "webhook", "audit log"],
+            keywords: [
+              "manage automations",
+              "activity feed",
+              "webhook",
+              "audit log",
+            ],
           },
         ]
       : []),
@@ -60,7 +71,12 @@ const buildAutomationsItems = (
             label: "Manage report automations",
             group: "Automations" as const,
             path: withTeamId(`${paths.MANAGE_REPORTS}?manage_automations=1`),
-            keywords: ["report", "logging", "destination"],
+            keywords: [
+              "manage automations",
+              "report",
+              "logging",
+              "destination",
+            ],
             teamName: switchesFromUnassigned,
           },
         ]
@@ -74,7 +90,13 @@ const buildAutomationsItems = (
             label: "Manage policy automations",
             group: "Automations" as const,
             path: withTeamId(paths.MANAGE_POLICIES),
-            keywords: ["failing", "webhook", "jira", "zendesk"],
+            keywords: [
+              "manage automations",
+              "failing",
+              "webhook",
+              "jira",
+              "zendesk",
+            ],
             subItems: [
               {
                 id: "manage-policy-automations-webhooks",
@@ -82,7 +104,13 @@ const buildAutomationsItems = (
                 path: withTeamId(
                   `${paths.MANAGE_POLICIES}?manage_automations=webhooks`
                 ),
-                keywords: ["jira", "zendesk", "failing"],
+                keywords: [
+                  "manage policy automations",
+                  "manage automations",
+                  "jira",
+                  "zendesk",
+                  "failing",
+                ],
               },
               // Team-scoped policy automations (Premium-only). The
               // policies page allows install_software / run_script /
@@ -98,7 +126,12 @@ const buildAutomationsItems = (
                       path: withTeamId(
                         `${paths.MANAGE_POLICIES}?manage_automations=install_software`
                       ),
-                      keywords: ["resolve", "remediate"],
+                      keywords: [
+                        "manage policy automations",
+                        "manage automations",
+                        "resolve",
+                        "remediate",
+                      ],
                     },
                     {
                       id: "manage-policy-automations-run-script",
@@ -106,7 +139,12 @@ const buildAutomationsItems = (
                       path: withTeamId(
                         `${paths.MANAGE_POLICIES}?manage_automations=run_script`
                       ),
-                      keywords: ["resolve", "remediate"],
+                      keywords: [
+                        "manage policy automations",
+                        "manage automations",
+                        "resolve",
+                        "remediate",
+                      ],
                     },
                   ]
                 : []),
@@ -119,6 +157,8 @@ const buildAutomationsItems = (
                         `${paths.MANAGE_POLICIES}?manage_automations=calendar`
                       ),
                       keywords: [
+                        "manage policy automations",
+                        "manage automations",
                         "reserve time",
                         "maintenance window",
                         "google calendar",
@@ -135,6 +175,8 @@ const buildAutomationsItems = (
                         `${paths.MANAGE_POLICIES}?manage_automations=conditional_access`
                       ),
                       keywords: [
+                        "manage policy automations",
+                        "manage automations",
                         "sso",
                         "okta",
                         "entra",
