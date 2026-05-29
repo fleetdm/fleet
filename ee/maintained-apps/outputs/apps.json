@@ -2550,6 +2550,13 @@
       "description": "Zoom Rooms is conference room software for Zoom meetings."
     },
     {
+      "name": "Zoom Rooms",
+      "slug": "zoom-rooms/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Rooms",
+      "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
       "name": "Zoom",
       "slug": "zoom/darwin",
       "platform": "darwin",
