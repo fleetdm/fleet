@@ -397,7 +397,7 @@ func setupCertificateChain(t *testing.T) (server *httptest.Server, teardown func
 func TestSSONotPresent(t *testing.T) {
 	invalid := &fleet.InvalidArgumentError{}
 	var p fleet.AppConfig
-	validateSSOSettings(p, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, true)
+	validateSSOSettings(p, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, false)
 	assert.False(t, invalid.HasErrors())
 }
 
@@ -413,7 +413,7 @@ func TestNeedFieldsPresent(t *testing.T) {
 			},
 		},
 	}
-	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, true)
+	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, false)
 	assert.False(t, invalid.HasErrors())
 }
 
@@ -430,7 +430,7 @@ func TestShortIDPName(t *testing.T) {
 			},
 		},
 	}
-	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, true)
+	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, false)
 	assert.False(t, invalid.HasErrors())
 }
 
@@ -445,19 +445,19 @@ func TestMissingMetadata(t *testing.T) {
 			},
 		},
 	}
-	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, true)
+	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, false)
 	require.True(t, invalid.HasErrors())
 	assert.Contains(t, invalid.Error(), "metadata")
 	assert.Contains(t, invalid.Error(), "either metadata or metadata_url must be defined")
 }
 
-// TestSSOAllowExistingFallback verifies the partial-update vs declarative-
-// overwrite split introduced for issue #43371. REST PATCH (fallback=true)
-// permits empty incoming required fields when the existing server value is
-// set — that's how the UI can send {enable_sso_idp_login: true} without
-// repeating metadata. GitOps (fallback=false) rejects them, preventing the
-// silent SSO wipe described in the issue.
-func TestSSOAllowExistingFallback(t *testing.T) {
+// TestSSOOverwrite verifies the partial-update vs declarative-overwrite split
+// introduced for issue #43371. REST PATCH (overwrite=false) permits empty
+// incoming required fields when the existing server value is set — that's
+// how the UI can send {enable_sso_idp_login: true} without repeating
+// metadata. GitOps (overwrite=true) rejects them, preventing the silent
+// SSO wipe described in the issue.
+func TestSSOOverwrite(t *testing.T) {
 	existing := &fleet.AppConfig{
 		SSOSettings: &fleet.SSOSettings{
 			EnableSSO: true,
@@ -478,13 +478,13 @@ func TestSSOAllowExistingFallback(t *testing.T) {
 
 	t.Run("REST PATCH preserves partial-update behavior", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(incomingMissingMetadata, existing, invalid, &fleet.LicenseInfo{}, true /* allowExistingFallback */)
+		validateSSOSettings(incomingMissingMetadata, existing, invalid, &fleet.LicenseInfo{}, false /* overwrite */)
 		assert.False(t, invalid.HasErrors(), "PATCH with partial update should succeed; existing metadata fills the gap")
 	})
 
 	t.Run("GitOps overwrite rejects empty metadata", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(incomingMissingMetadata, existing, invalid, &fleet.LicenseInfo{}, false /* allowExistingFallback */)
+		validateSSOSettings(incomingMissingMetadata, existing, invalid, &fleet.LicenseInfo{}, true /* overwrite */)
 		require.True(t, invalid.HasErrors(), "GitOps overwrite must reject the broken declaration")
 		// InvalidArgumentError.Error() truncates after the first error; check the
 		// underlying field list via Invalid() so we can assert all three required
@@ -506,7 +506,7 @@ func TestSSOAllowExistingFallback(t *testing.T) {
 		// translates to "validator is a no-op when SSOSettings is nil"; assert
 		// that contract here.
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(fleet.AppConfig{SSOSettings: nil}, existing, invalid, &fleet.LicenseInfo{}, false)
+		validateSSOSettings(fleet.AppConfig{SSOSettings: nil}, existing, invalid, &fleet.LicenseInfo{}, true /* overwrite */)
 		assert.False(t, invalid.HasErrors())
 	})
 
@@ -522,15 +522,15 @@ func TestSSOAllowExistingFallback(t *testing.T) {
 				},
 			},
 		}
-		validateSSOSettings(fullConfig, existing, invalid, &fleet.LicenseInfo{}, false /* allowExistingFallback */)
+		validateSSOSettings(fullConfig, existing, invalid, &fleet.LicenseInfo{}, true /* overwrite */)
 		assert.False(t, invalid.HasErrors())
 	})
 }
 
-// TestSSOProviderSettingsAllowExistingFallbackMDM exercises the same split for
-// the MDM end-user authentication SSO code path, which goes through
+// TestSSOProviderSettingsOverwriteMDM exercises the same split for the MDM
+// end-user authentication SSO code path, which goes through
 // validateSSOProviderSettings directly (no validateSSOSettings wrapper).
-func TestSSOProviderSettingsAllowExistingFallbackMDM(t *testing.T) {
+func TestSSOProviderSettingsOverwriteMDM(t *testing.T) {
 	existing := fleet.SSOProviderSettings{
 		EntityID:    "fleet",
 		IDPName:     "onelogin",
@@ -543,13 +543,13 @@ func TestSSOProviderSettingsAllowExistingFallbackMDM(t *testing.T) {
 
 	t.Run("REST PATCH preserves partial-update behavior", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOProviderSettings(incomingMissingMetadata, existing, invalid, true /* allowExistingFallback */)
+		validateSSOProviderSettings(incomingMissingMetadata, existing, invalid, false /* overwrite */)
 		assert.False(t, invalid.HasErrors())
 	})
 
 	t.Run("GitOps overwrite rejects empty metadata", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOProviderSettings(incomingMissingMetadata, existing, invalid, false /* allowExistingFallback */)
+		validateSSOProviderSettings(incomingMissingMetadata, existing, invalid, true /* overwrite */)
 		require.True(t, invalid.HasErrors())
 		assert.Contains(t, invalid.Error(), "either metadata or metadata_url must be defined")
 	})
@@ -573,7 +573,7 @@ func TestSSOValidationValidatesSchemaInMetadataURL(t *testing.T) {
 			},
 		}
 
-		validateSSOSettings(sut, &fleet.AppConfig{}, actual, &fleet.LicenseInfo{}, true)
+		validateSSOSettings(sut, &fleet.AppConfig{}, actual, &fleet.LicenseInfo{}, false)
 
 		require.Equal(t, scheme == "http" || scheme == "https", !actual.HasErrors())
 		require.Equal(t, scheme == "http" || scheme == "https", !strings.Contains(actual.Error(), "metadata_url"))
@@ -596,7 +596,7 @@ func TestJITProvisioning(t *testing.T) {
 
 	t.Run("doesn't allow to enable JIT provisioning without a premium license", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, true)
+		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{}, false)
 		require.True(t, invalid.HasErrors())
 		assert.Contains(t, invalid.Error(), "enable_jit_provisioning")
 		assert.Contains(t, invalid.Error(), "missing or invalid license")
@@ -604,7 +604,7 @@ func TestJITProvisioning(t *testing.T) {
 
 	t.Run("allows JIT provisioning to be enabled with a premium license", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{Tier: fleet.TierPremium}, true)
+		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{Tier: fleet.TierPremium}, false)
 		require.False(t, invalid.HasErrors())
 	})
 
@@ -616,7 +616,7 @@ func TestJITProvisioning(t *testing.T) {
 			},
 		}
 		config.SSOSettings.EnableJITProvisioning = false
-		validateSSOSettings(config, oldConfig, invalid, &fleet.LicenseInfo{}, true)
+		validateSSOSettings(config, oldConfig, invalid, &fleet.LicenseInfo{}, false)
 		require.False(t, invalid.HasErrors())
 	})
 }
