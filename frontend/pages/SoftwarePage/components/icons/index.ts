@@ -14,6 +14,7 @@ import Bluej from "./Bluej";
 import BurpSuiteCommunity from "./BurpSuiteCommunity";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
+import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import DruvaInSync from "./DruvaInSync";
@@ -332,6 +333,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   charles: Charles,
   "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
+  "chrome remote desktop": ChromeRemoteDesktop,
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,

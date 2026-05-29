@@ -478,6 +478,13 @@
       "description": "ChatGPT Desktop is OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
     },
     {
+      "name": "Chrome Remote Desktop",
+      "slug": "chrome-remote-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Chrome Remote Desktop Host",
+      "description": ""
+    },
+    {
       "name": "Cisco Jabber",
       "slug": "cisco-jabber/darwin",
       "platform": "darwin",
