@@ -534,6 +534,15 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  retrievedHostMyDeviceURL: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        retrieved the My device URL for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   viewedHostRecoveryLockPassword: (activity: IActivity) => {
     return (
       <>
@@ -1724,7 +1733,10 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         canceled <b>{title}</b> install on <b>{hostName}</b>
-        {fromSetupExperience ? " during setup experience" : ""}.
+        {fromSetupExperience
+          ? " during setup experience. End user was asked to restart."
+          : ""}
+        .
       </>
     );
   },
@@ -2179,6 +2191,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
+    }
+    case ActivityType.RetrievedHostMyDeviceURL: {
+      return TAGGED_TEMPLATES.retrievedHostMyDeviceURL(activity);
     }
     case ActivityType.ViewedHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.viewedHostRecoveryLockPassword(activity);

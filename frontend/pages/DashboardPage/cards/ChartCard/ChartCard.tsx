@@ -5,7 +5,7 @@ import { SingleValue } from "react-select-5";
 
 import chartsAPI, {
   IChartResponse,
-  IChartRequestParams,
+  IChartApiParams,
   IChartQueryKey,
 } from "services/entities/charts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -150,7 +150,7 @@ const ChartCard = ({
       ? true
       : historicalDataEnabled?.[datasetConfigKey] ?? true;
 
-  const queryParams: IChartRequestParams = useMemo(() => {
+  const queryParams: IChartApiParams = useMemo(() => {
     return {
       // Add an extra day to ensure we get the full # of calendar days
       // represented in the chart, regardless of timezone.

@@ -1,7 +1,9 @@
 package winoffice
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -235,4 +237,26 @@ func TestCheckVersionResolvedVersionPointer(t *testing.T) {
 	require.NotNil(t, vulns[0].ResolvedInVersion)
 	assert.Equal(t, "16.0.19725.20200", *vulns[0].ResolvedInVersion)
 	assert.Equal(t, uint(0), vulns[0].SoftwareID)
+}
+
+// TestAnalyzeRejectsEmptyBulletin is a regression test for
+// https://github.com/fleetdm/fleet/issues/45602: a bulletin with no security updates
+// (e.g., a corrupted artifact) must NOT cause every existing WinOffice vulnerability
+// to be marked as remediated. Analyze should return an error in that case so the cron
+// skips the analysis (and therefore the deletes that would happen during it).
+func TestAnalyzeRejectsEmptyBulletin(t *testing.T) {
+	vulnPath := t.TempDir()
+	// Serialize a bulletin where every version branch has no security updates.
+	bulletin := &BulletinFile{
+		Version:       1,
+		BuildPrefixes: map[string]string{"19725": "2602"},
+		Versions: map[string]*VersionBulletin{
+			"2602": {SecurityUpdates: nil},
+		},
+	}
+	require.NoError(t, bulletin.Serialize(time.Now(), vulnPath))
+
+	_, err := Analyze(context.Background(), nil, vulnPath, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no security updates")
 }

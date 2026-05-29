@@ -936,7 +936,7 @@ List certificate added to Fleet. Currently, they can only be added via GitOps.
 
 | Name      | Type    | In   | Description                                                    |
 | ----------| ------- | ---- | -------------------------------------------------------------- |
-| fleet      | string  | query | _Available in Fleet Premium_. The fleet ID to filter profiles. |
+| fleet_id   | integer | query | _Available in Fleet Premium_. The fleet ID to filter certificate templates. If not specified, this defaults to "Unassigned". |
 | page      | integer | query | Page number of the results to fetch.                          |
 | per_page  | integer | query | Results per page.                                             |
 | order_key | string  | query | What to order results by. Allowed field is `id`. |
@@ -4443,8 +4443,6 @@ _Available in Fleet Premium_
 
 
 ### Update hosts' fleet by filter
-
-> If you're using Windows MDM features with 10,000+ hosts and 10+ configuration profiles, the best practice is to transfer hosts in 1,000 hosts batches instead of 10,000+ at once because Fleet saw performance issues. Performance improvements are coming soon.
 
 _Available in Fleet Premium_
 
@@ -12185,8 +12183,6 @@ Body: <blob>
 ```
 
 ### Install software
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 

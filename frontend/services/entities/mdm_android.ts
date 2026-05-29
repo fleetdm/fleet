@@ -39,6 +39,7 @@ export default {
           method: "GET",
           headers: {
             Authorization: `Bearer ${authToken.get()}`,
+            Accept: "text/event-stream",
           },
           signal: abortSignal,
         });
@@ -49,11 +50,13 @@ export default {
           return;
         }
         const decoder = new TextDecoder();
-        const successSignal = "Android Enterprise successfully connected";
-        // Buffer accumulates decoded text so a success message split across
-        // multiple chunks (valid with chunked transfer encoding) is still
-        // detected.
+        const successSignal = "data: Android Enterprise successfully connected";
+        const errorMarker = "event: error";
+        // Buffer accumulates decoded text so a frame split across multiple
+        // chunks (valid with chunked transfer encoding) is still detected.
+        const tailLen = Math.max(successSignal.length, errorMarker.length);
         let buffer = "";
+        let loggedError = false;
 
         while (true) {
           // eslint-disable-next-line no-await-in-loop
@@ -65,11 +68,19 @@ export default {
             return;
           }
           buffer += decoder.decode(value, { stream: true });
+          // Surface backend-emitted error events. Chrome's EventStream tab
+          // doesn't attach to fetch-based SSE reliably, so without this log
+          // the only signal of a server-side failure is the generic UI
+          // toast.
+          if (!loggedError && buffer.includes(errorMarker)) {
+            console.error("[android-sse]:", buffer);
+            loggedError = true;
+          }
           if (buffer.includes(successSignal)) {
             resolve();
             return;
           }
-          buffer = buffer.slice(-successSignal.length);
+          buffer = buffer.slice(-tailLen);
         }
       } catch (error) {
         if ((error as Error).name === "AbortError") {

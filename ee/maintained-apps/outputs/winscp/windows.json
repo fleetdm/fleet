@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "6.5.6",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'WinSCP %' AND publisher = 'Martin Prikryl';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinSCP %' AND publisher = 'Martin Prikryl' AND version_compare(version, '6.5.6') < 0);"
+      },
+      "installer_url": "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe/download",
+      "install_script_ref": "d07f6d6d",
+      "uninstall_script_ref": "24fcb8df",
+      "sha256": "4488c493bafca6af4e7ae54ed39cb71479e65dc192c4d1a471647bf9cb9d6db0",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "24fcb8df": "# Uninstalls WinSCP (Inno Setup installer).\n# Looks up the registry UninstallString and runs it with Inno's silent flags.\n\n$softwareNameLike = \"WinSCP*\"\n$silentArgs = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n\n$machineKey      = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -like $softwareNameLike) {\n        $foundUninstaller = $true\n\n        # Prefer QuietUninstallString when present; otherwise use UninstallString.\n        $uninstallCommand = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        # Defensive parser for the three UninstallString shapes:\n        #   \"C:\\path with spaces\\unins000.exe\" /ARG    -> quoted\n        #   C:\\Program Files\\WinSCP\\unins000.exe /ARG  -> unquoted with spaces (Inno default)\n        #   MsiExec.exe /X{GUID}                       -> bare token\n        $uninstallPath = $null\n        $existingArgs  = ''\n        if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            $uninstallPath = $matches[1]\n            $existingArgs  = $matches[2]\n        } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n            $uninstallPath = $matches[1]\n            $existingArgs  = $matches[2]\n        } elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n            $uninstallPath = $matches[1]\n            $existingArgs  = $matches[2]\n        }\n\n        $finalArgs = ($existingArgs.Trim() + ' ' + $silentArgs).Trim()\n\n        Write-Host \"Uninstall command: $uninstallPath\"\n        Write-Host \"Uninstall args: $finalArgs\"\n\n        $processOptions = @{\n            FilePath     = $uninstallPath\n            ArgumentList = $finalArgs\n            PassThru     = $true\n            Wait         = $true\n        }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n\n        Write-Host \"Uninstall exit code: $exitCode\"\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstaller for WinSCP not found.\"\n    $exitCode = 1\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    $exitCode = 1\n}\n\nExit $exitCode\n",
+    "d07f6d6d": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# WinSCP uses an Inno Setup installer. /ALLUSERS forces a machine-wide install\n# (the default is per-user, which would land in the SYSTEM profile when Fleet\n# runs as SYSTEM). /VERYSILENT /SUPPRESSMSGBOXES /NORESTART are the standard\n# Inno Setup silent switches.\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/ALLUSERS /VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

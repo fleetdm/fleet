@@ -97,6 +97,7 @@ interface IDashboardProps {
     hash?: string;
     query: {
       fleet_id?: string;
+      manage_automations?: string;
     };
   };
 }
@@ -170,6 +171,16 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [mdmTitleDetail, setMdmTitleDetail] = useState<
     JSX.Element | string | null
   >();
+
+  // Open activity feed automations modal via query param (e.g. from command palette)
+  useEffect(() => {
+    if (location.query.manage_automations === "1") {
+      setShowActivityFeedAutomationsModal(true);
+      // Clean up the query param from the URL, preserving other params
+      const { manage_automations, ...rest } = location.query;
+      router.replace({ pathname, query: rest });
+    }
+  }, [location.query.manage_automations, pathname, router]);
 
   useEffect(() => {
     const platformByPathname =

@@ -113,5 +113,5 @@ The most useful indicators tend to be time-to-remediate for critical vulnerabili
 <meta name="authorFullName" value="Dan Gordon">
 <meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-21">
+<meta name="publishedOn" value="2026-03-24">
 <meta name="description" value="Automate patching across macOS, Windows, and Linux. Covers the full lifecycle, compliance frameworks like NIST and PCI DSS, and rollout strategies.">

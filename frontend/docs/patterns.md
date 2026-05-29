@@ -94,22 +94,39 @@ const functionWithTableName = (tableName: string)=> {
 
 ```typescript
 // API interfaces should live in the relevant entities file.
-// Their names should be named to clarify what they are used for when interacting
-// with the API
+// Their names should clarify what they are used for when interacting with the
+// API. In service functions, prefer `formData` as the variable name for request
+// bodies to stay consistent with the *FormData interface naming convention.
 
 // should be defined in service/entities/hosts.ts
-interface IHostDetailsReponse {
+interface IHostDetailsResponse {
   ...
 }
 interface IGetHostsQueryParams {
   ...
 }
 
-// should be defined in service/entities/fleets.ts
-interface ICreateFleetPostBody {
+// should be defined in service/entities/users.ts
+interface IUpdateUserFormData {
   ...
 }
 
+// should be defined in service/entities/software.ts
+interface IGetSoftwareApiParams {
+  ...
+}
+interface ISoftwareCountResponse {
+  ...
+}
+
+// Use *FormData for form-driven bodies, *ApiParams/*QueryParams for request
+// params, *Response for responses, *QueryKey when typing a React Query key.
+// Avoid *Body, *PostBody, *Payload, *Request for API request bodies — use
+// *FormData instead, even for programmatic request bodies (e.g.
+// IDeleteQueriesFormData). One consistent suffix is easier to follow than
+// asking each dev to judge "is this form-driven enough?"
+// *PreviewPayload is fine for outgoing webhook shapes (matches the
+// "Preview payload" UI terminology).
 ```
 
 ## Utilities
@@ -319,9 +336,28 @@ const PageOrComponent = (props) => {
 
 ## React context
 
-[React context](https://reactjs.org/docs/context.html) is a state management store. It stores
-data that is desired and allows for retrieval of that data in whatever component is in need.
-View currently working contexts in the [context directory](../context).
+[React context](https://reactjs.org/docs/context.html) is a way to share values across the
+component tree. Use context for app-wide state or derived UI state that multiple components
+need. For server state, use React Query for fetching, caching, and synchronization; some
+server-derived values may still be exposed through context after they are fetched or
+initialized. View currently working contexts in the [context directory](../context).
+
+```typescript
+// Consuming a context — destructure what you need from useContext
+const { renderFlash } = useContext(NotificationContext);
+const { currentUser, isPremiumTier } = useContext(AppContext);
+```
+
+### Context catalog
+
+| Context | Purpose | Use this when |
+|---|---|---|
+| `AppContext` | Global app state: current user, config, team selection, role flags, license info | You need user identity, permissions, feature flags, or the active fleet |
+| `NotificationContext` | Flash message banners (`renderFlash`, `renderMultiFlash`, `hideFlash`) | You need to show success/error/warning notifications after an action |
+| `PolicyContext` | In-progress policy editing state: name, query, resolution, platform, labels | You're on the policy edit/create flow and need to persist form state across steps |
+| `QueryContext` | In-progress report editing state: name, query body, frequency, targets, logging | You're on the report edit/create flow and need to persist form state across steps |
+| `RoutingContext` | Stores a redirect location for post-auth navigation | You need to redirect the user after login (e.g., deep link they hit while logged out) |
+| `TableContext` | Coordinates table row selection resets across components | You need to clear selected rows in a data table after a bulk action |
 
 ## Fleet API calls
 
@@ -395,6 +431,23 @@ const PageOrComponent = (props) => {
     // ...
   );
 };
+```
+
+##### Query keys
+
+The `queryKey` must list every parameter that the `queryFn` passes to the API. The `QueryClient` is a singleton shared across the app, so any parameter missing from the key causes cross-entity cache bleed (for example, data fetched for team A being served to team B).
+
+Rules:
+- Always use an array, even when there are no parameters — `useQuery(["me"], ...)`, not `useQuery("me", ...)`.
+- Every argument the `queryFn` forwards to the API must also appear in the key.
+
+Example:
+
+```ts
+useQuery(
+  ["aggregateProfileStatuses", teamId], // teamId is in the key...
+  () => mdmAPI.getProfilesStatusSummary(teamId) // ...because the API call receives it
+);
 ```
 
 ### Handling API errors

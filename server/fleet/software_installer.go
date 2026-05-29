@@ -1194,6 +1194,25 @@ func (o HostSoftwareInstallOptions) Priority() int {
 	return 0
 }
 
+// PreflightInstallFailedError signals that Fleet failed an install before
+// reaching the device (e.g. an unresolvable Fleet variable in the managed app
+// configuration). The corresponding failed-install activity has already been
+// emitted by the time this is returned.
+//
+// Admin/self-service/policy/auto-update entry points treat the pre-flight
+// failure as success at the API layer (the activity records the outcome), so
+// the install service returns nil there. The setup-experience drivers
+// (ee/server/service/setup_experience.go, server/worker/apple_mdm.go) branch
+// only on err != nil to transition a step out of Running — without an error
+// signal they'd stash the install's command UUID and wait indefinitely for an
+// MDM command result that will never arrive. For ForSetupExperience=true the
+// install service returns this error so those drivers transition to Failure.
+type PreflightInstallFailedError struct {
+	Reason string
+}
+
+func (e *PreflightInstallFailedError) Error() string { return e.Reason }
+
 const (
 	BatchDownloadMaxRetries = 3
 	BatchUploadMaxRetries   = 3

@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 
 import { IUser } from "interfaces/user";
-import { IVersionData } from "interfaces/version";
+import { IVersionResponse } from "interfaces/version";
 
 import { AppContext } from "context/app";
 
@@ -31,7 +31,7 @@ const AccountSidePanel = ({
   onGetApiToken,
 }: IAccountSidePanelProps): JSX.Element => {
   const { isPremiumTier, config } = useContext(AppContext);
-  const [versionData, setVersionData] = useState<IVersionData>();
+  const [versionData, setVersionData] = useState<IVersionResponse>();
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() =>
     getThemeMode()
   );

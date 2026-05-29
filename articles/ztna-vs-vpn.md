@@ -87,5 +87,5 @@ Ongoing posture verification introduces some latency from policy evaluation, but
 <meta name="authorFullName" value="Dan Gordon">
 <meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-08">
+<meta name="publishedOn" value="2026-03-03">
 <meta name="description" value="Compare ZTNA and VPN architectures, when each model fits your environment, and how device posture verification shapes modern access decisions.">

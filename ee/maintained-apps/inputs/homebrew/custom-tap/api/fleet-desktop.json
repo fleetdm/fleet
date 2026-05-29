@@ -6,9 +6,9 @@
   ],
   "desc": "End-user client for Fleet device management",
   "homepage": "https://github.com/allenhouchins/fleet-desktop",
-  "url": "https://github.com/allenhouchins/fleet-desktop/releases/download/v1.2.1/fleet_desktop-v1.2.1.pkg",
+  "url": "https://github.com/allenhouchins/fleet-desktop/releases/download/v1.3.0/fleet_desktop-v1.3.0.pkg",
   "url_specs": {},
-  "version": "1.2.1",
+  "version": "1.3.0",
   "autobump": true,
   "no_autobump_message": null,
   "skip_livecheck": false,
@@ -16,7 +16,7 @@
   "bundle_short_version": null,
   "pinned": false,
   "pinned_version": null,
-  "sha256": "a6c29ee908baa46a6eae76b38141435043135919d958b2d2cf546ba72d2a8911",
+  "sha256": "9f3205fee95f406976adf12d71b046d7d49efa4548e2f0f40628fc5cb1a3bfd7",
   "artifacts": [
     {
       "uninstall": [
@@ -28,7 +28,7 @@
     },
     {
       "pkg": [
-        "fleet_desktop-v1.2.1.pkg"
+        "fleet_desktop-v1.3.0.pkg"
       ]
     },
     {
@@ -74,6 +74,6 @@
   "languages": [],
   "ruby_source_path": "Casks/fleet-desktop.rb",
   "ruby_source_checksum": {
-    "sha256": "dcc8f6940f331ff7a2182b7479f3ccb3f7f12672294122ba337f777431caf63e"
+    "sha256": "f6b8d1f7db32b762e9a46e9aa023f15e34eb5a2f42a96e1176180ad376e689dc"
   }
 }

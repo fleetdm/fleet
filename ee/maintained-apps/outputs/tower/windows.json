@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "12.1.557",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Tower %' AND publisher = 'SaaS.Group';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Tower %' AND publisher = 'SaaS.Group' AND version_compare(version, '12.1.557') < 0);"
+      },
+      "installer_url": "https://www.git-tower.com/apps/tower3-win/557-ca9adea2/Tower-12.1.557.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "b860e6c9",
+      "sha256": "6afcb63f8d98d207ad59ebbef222a5f26e82e2a50e7ef763ea9a78e46ae58b30",
+      "default_categories": [
+        "Developer tools"
+      ],
+      "upgrade_code": "{3B1FBA9F-260D-5585-9DF1-C642CA263F35}"
+    }
+  ],
+  "refs": {
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "b860e6c9": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts('{3B1FBA9F-260D-5585-9DF1-C642CA263F35}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n    \n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n    \n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n    \n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n"
+  }
+}

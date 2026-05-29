@@ -40,6 +40,12 @@ type Client interface {
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/delete
 	EnterprisesDevicesDelete(ctx context.Context, deviceName string) error
 
+	// EnterprisesDevicesIssueCommand issues a command (LOCK, RESET_PASSWORD, WIPE, ...) to a
+	// device. Returns the Operation whose metadata wraps the Command; the device-side result
+	// arrives later as a Pub/Sub COMMAND notification correlated by operation name. See:
+	// https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand
+	EnterprisesDevicesIssueCommand(ctx context.Context, deviceName string, command *androidmanagement.Command) (*androidmanagement.Operation, error)
+
 	// EnterprisesDevicesListPartial lists devices for the given enterprise with partial fields.
 	// Page size of 100 devices
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/list

@@ -116,5 +116,5 @@ Three criteria worth applying to any BYOD tool you evaluate. First, whether it s
 <meta name="authorFullName" value="Dan Gordon">
 <meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-21">
+<meta name="publishedOn" value="2026-03-26">
 <meta name="description" value="BYOD security risks include data leakage, unpatched devices, and compliance gaps. Learn how enrollment type sets your security boundary.">
