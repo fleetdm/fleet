@@ -761,7 +761,7 @@ func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfi
 		}
 		if !idpConfigured {
 			return fmt.Errorf(
-				"%s: controls.macos_setup.enable_end_user_authentication is true but no IdP is configured. Set org_settings.mdm.end_user_authentication.metadata or metadata_url in your global config, or configure it on the server first.",
+				"%s: controls.setup_experience.enable_end_user_authentication is true but no IdP is configured. Set org_settings.mdm.end_user_authentication.metadata or metadata_url in your global config, or configure it on the server first.",
 				cf.Filename,
 			)
 		}
