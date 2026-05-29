@@ -577,17 +577,27 @@ const quitApplicationFunc = `quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
-  # check if the application is running
-  local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
-  if [[ "$app_running" != "true" ]]; then
-    return
-  fi
-
+  # Determine the console user up front. osascript must target the logged-in
+  # user's GUI session; when this script runs as root, Apple Events won't reach
+  # the user's apps unless we bootstrap into their session with
+  # 'launchctl asuser' + 'sudo -u'.
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
   if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
+    return
+  fi
+  local console_uid
+  console_uid=$(id -u "$console_user")
+
+  # check if the application is running
+  local app_running
+  if [[ $EUID -eq 0 ]]; then
+    app_running=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  else
+    app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  fi
+  if [[ "$app_running" != "true" ]]; then
     return
   fi
 
@@ -597,7 +607,13 @@ const quitApplicationFunc = `quit_application() {
   local quit_success=false
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
+    local quit_ok=false
+    if [[ $EUID -eq 0 ]]; then
+      /bin/launchctl asuser "$console_uid" sudo -u "$console_user" osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 && quit_ok=true
+    else
+      osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 && quit_ok=true
+    fi
+    if [[ "$quit_ok" = true ]]; then
       if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
         echo "Application '$bundle_id' quit successfully."
         quit_success=true
@@ -620,18 +636,28 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
   local timeout_duration=10
 
-  # check if the application is running
-  local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
-  if [[ "$app_running" != "true" ]]; then
-    eval "export $var_name=0"
-    return
-  fi
-
+  # Determine the console user up front. osascript must target the logged-in
+  # user's GUI session; when this script runs as root, Apple Events won't reach
+  # the user's apps unless we bootstrap into their session with
+  # 'launchctl asuser' + 'sudo -u' (the same wrapper relaunch_application uses).
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
   if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
+    eval "export $var_name=0"
+    return
+  fi
+  local console_uid
+  console_uid=$(id -u "$console_user")
+
+  # check if the application is running
+  local app_running
+  if [[ $EUID -eq 0 ]]; then
+    app_running=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  else
+    app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  fi
+  if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
     return
   fi
@@ -646,7 +672,13 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local quit_success=false
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
+    local quit_ok=false
+    if [[ $EUID -eq 0 ]]; then
+      /bin/launchctl asuser "$console_uid" sudo -u "$console_user" osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 && quit_ok=true
+    else
+      osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 && quit_ok=true
+    fi
+    if [[ "$quit_ok" = true ]]; then
       if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
         echo "Application '$bundle_id' quit successfully."
         quit_success=true
