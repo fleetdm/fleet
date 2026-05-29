@@ -1,12 +1,18 @@
 import React from "react";
-import { DEFAULT_EMPTY_CELL_VALUE, MDM_STATUS_TOOLTIP } from "utilities/constants";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  MDM_STATUS_TOOLTIP,
+} from "utilities/constants";
 import paths from "router/paths";
 import Icon from "components/Icon";
 import CustomLink from "components/CustomLink";
 import NotSupported from "components/NotSupported";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IHost } from "interfaces/host";
-import { MDM_ENROLLMENT_STATUS_UI_MAP, MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  MDM_ENROLLMENT_STATUS_UI_MAP,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
 
 const baseClass = "host-mdm-status-cell";
 
