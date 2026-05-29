@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "react-query";
 
 import { AppContext } from "context/app";
 import { IConfig } from "interfaces/config";
-import { IPolicyFormData, IPolicyStats } from "interfaces/policy";
+import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
 import configAPI from "services/entities/config";
 import teamPoliciesAPI from "services/entities/team_policies";
@@ -28,7 +28,7 @@ export interface IUpdatePolicyAutomationsVars {
 }
 
 interface IUseUpdatePolicyAutomationsArgs {
-  policy: IPolicyStats;
+  policy: IPolicy;
   teamIdForApi: number | undefined;
   isGlobalPolicy: boolean;
   automationsConfig: IConfig | ITeamConfig | undefined;

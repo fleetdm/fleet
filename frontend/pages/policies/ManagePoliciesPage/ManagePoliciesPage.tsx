@@ -61,6 +61,8 @@ import PageDescription from "components/PageDescription";
 import LastUpdatedText from "components/LastUpdatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 
+import { getTicketOrWebhookInfo } from "pages/policies/components/PolicyAutomationsFields";
+
 import PoliciesTable from "./components/PoliciesTable";
 import DeletePoliciesModal from "./components/DeletePoliciesModal";
 import { DEFAULT_POLICY } from "../constants";
@@ -99,23 +101,6 @@ const AUTOMATION_TYPES: AutomationType[] = [
 ];
 
 const GLOBAL_AUTOMATION_TYPES: GlobalPoliciesAutomationType[] = ["other"];
-
-// NOTE: backend uses webhook_settings to store automated policy ids for both
-// webhooks and integrations.
-const getWebhookOrTicketPolicyIds = (
-  config: IConfig | ITeamConfig | undefined
-): number[] => {
-  if (!config) return [];
-  const webhook = config.webhook_settings?.failing_policies_webhook;
-  const { jira, zendesk } = config.integrations ?? {};
-  const isIntegrationEnabled =
-    !!jira?.some((j) => j.enable_failing_policies) ||
-    !!zendesk?.some((z) => z.enable_failing_policies);
-  if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
-    return webhook?.policy_ids || [];
-  }
-  return [];
-};
 
 const baseClass = "manage-policies-page";
 
@@ -630,42 +615,26 @@ const ManagePolicyPage = ({
   const hasPoliciesToDelete =
     hasPoliciesToAutomate || (isPrimoMode && (teamPolicies?.length ?? 0) > 0); // in Primo mode, allow deleting inherited policies, which will be included in teamPolicies, from this view
 
-  // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
-  const getAutomationInfoFromConfig = (
-    cfg: IConfig | ITeamConfig | undefined
-  ): { policyIds: number[]; type: OtherAutomationType | undefined } => {
-    if (!cfg) return { policyIds: [], type: undefined };
-    const {
-      webhook_settings: { failing_policies_webhook: webhook } = {},
-      integrations,
-    } = cfg;
-    const isIntegrationEnabled =
-      !!integrations?.jira?.find((j) => j.enable_failing_policies) ||
-      !!integrations?.zendesk?.find((z) => z.enable_failing_policies);
-    const isWebhookEnabled = !!webhook?.enable_failing_policies_webhook;
-    const policyIds =
-      isIntegrationEnabled || isWebhookEnabled ? webhook?.policy_ids ?? [] : [];
-    let type: OtherAutomationType | undefined;
-    if (isIntegrationEnabled) type = "ticket";
-    else if (isWebhookEnabled) type = "webhook";
-    return { policyIds, type };
-  };
-  const fleetAutomationInfo = getAutomationInfoFromConfig(automationsConfig);
+  const fleetAutomationInfo = getTicketOrWebhookInfo(automationsConfig);
   // Inherited (global) policies are listed in team views, but their webhook
-  // membership lives on the *global* config — not the team's.
-  // Union both so an inherited policy with a global-config webhook/ticket
-  // still shows the correct data.
+  // membership lives on the *global* config — not the team's. Union both
+  // so an inherited policy with a global-config webhook/ticket still shows
+  // the correct data.
   const inheritedAutomationInfo = !isAllTeamsSelected
-    ? getAutomationInfoFromConfig(globalConfig)
-    : { policyIds: [], type: undefined as OtherAutomationType | undefined };
+    ? getTicketOrWebhookInfo(globalConfig)
+    : { state: "disabled" as const, policyIds: [] };
   const currentAutomatedPolicies: number[] = Array.from(
     new Set([
       ...fleetAutomationInfo.policyIds,
       ...inheritedAutomationInfo.policyIds,
     ])
   );
+  const ticketOrWebhookState =
+    fleetAutomationInfo.state !== "disabled"
+      ? fleetAutomationInfo.state
+      : inheritedAutomationInfo.state;
   const otherAutomationType: OtherAutomationType | undefined =
-    fleetAutomationInfo.type ?? inheritedAutomationInfo.type;
+    ticketOrWebhookState === "disabled" ? undefined : ticketOrWebhookState;
 
   const renderPoliciesCountAndLastUpdated = (
     count?: number,
@@ -1011,9 +980,6 @@ const ManagePolicyPage = ({
                 teamIdForApi={teamIdForApi}
                 automationsConfig={modalAutomationsConfig}
                 globalConfig={globalConfig}
-                webhookOrTicketPolicyIds={getWebhookOrTicketPolicyIds(
-                  modalAutomationsConfig
-                )}
                 refetchPolicies={() => refetchPolicies(teamIdForApi)}
                 onExit={onCloseManageAutomationsModal}
               />

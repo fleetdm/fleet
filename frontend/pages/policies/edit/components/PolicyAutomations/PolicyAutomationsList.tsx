@@ -5,24 +5,11 @@ import { IPolicy, OtherAutomationType } from "interfaces/policy";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
-import Button from "components/buttons/Button";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
 import { GraphicNames } from "components/graphics";
-import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
-const baseClass = "policy-automations";
-
-interface IPolicyAutomationsProps {
-  storedPolicy: IPolicy;
-  currentAutomatedPolicies: number[];
-  /** Some users only have access to read-only view */
-  canEditPolicy: boolean;
-  onAddAutomation: () => void;
-  isAddingAutomation?: boolean;
-  otherAutomationType?: OtherAutomationType;
-}
+const baseClass = "policy-automations-list";
 
 const OTHER_AUTOMATION_NAMES: Record<OtherAutomationType, string> = {
   webhook: "Webhook",
@@ -39,23 +26,20 @@ interface IAutomationRow {
   sortName: string;
 }
 
-const PolicyAutomations = ({
+interface IPolicyAutomationsListProps {
+  storedPolicy: IPolicy;
+  currentAutomatedPolicies: number[];
+  otherAutomationType?: OtherAutomationType;
+}
+
+/** Read-only summary of the automations currently configured on a policy:
+ *  the "Automations" header, a row per active automation (or an empty state),
+ *  and the footer text explaining when they run. */
+const PolicyAutomationsList = ({
   storedPolicy,
   currentAutomatedPolicies,
-  canEditPolicy,
-  onAddAutomation,
-  isAddingAutomation,
   otherAutomationType,
-}: IPolicyAutomationsProps): JSX.Element => {
-  const isPatchPolicy = storedPolicy.type === "patch";
-  const hasPatchSoftware = !!storedPolicy.patch_software;
-  const hasSoftwareAutomation = !!storedPolicy.install_software;
-  const showCtaCard =
-    isPatchPolicy &&
-    hasPatchSoftware &&
-    !hasSoftwareAutomation &&
-    canEditPolicy;
-
+}: IPolicyAutomationsListProps): JSX.Element => {
   const automationRows: IAutomationRow[] = [];
 
   if (storedPolicy.install_software) {
@@ -124,39 +108,9 @@ const PolicyAutomations = ({
     return a.sortName.localeCompare(b.sortName);
   });
 
-  const patchSoftwareName =
-    storedPolicy.patch_software?.display_name ||
-    storedPolicy.patch_software?.name ||
-    "";
-
   return (
     <div className={baseClass}>
-      {showCtaCard && (
-        <div className={`${baseClass}__cta-card`}>
-          <span className={`${baseClass}__cta-label`}>
-            Automatically patch {patchSoftwareName}
-          </span>
-          <GitOpsModeTooltipWrapper
-            position="top"
-            renderChildren={(disableChildren) => (
-              <Button
-                onClick={onAddAutomation}
-                variant="text-icon"
-                disabled={disableChildren || isAddingAutomation}
-              >
-                {isAddingAutomation ? (
-                  "Adding..."
-                ) : (
-                  <>
-                    <Icon name="plus" /> Add automation
-                  </>
-                )}
-              </Button>
-            )}
-          />
-        </div>
-      )}
-      <div className={`${baseClass}__list-label`}>Automations</div>
+      <div className={`${baseClass}__header`}>Automations</div>
       {automationRows.length > 0 ? (
         <div className={`${baseClass}__list`}>
           {automationRows.map((row) => (
@@ -206,4 +160,4 @@ const PolicyAutomations = ({
   );
 };
 
-export default PolicyAutomations;
+export default PolicyAutomationsList;
