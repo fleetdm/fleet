@@ -5,10 +5,12 @@ import (
 	"regexp"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type LuksDump struct {
 	Keyslots map[string]Keyslot `json:"keyslots"` // keyslot -> salt
+	Tokens   map[string]Token   `json:"tokens"`
 }
 
 type Keyslot struct {
@@ -17,6 +19,50 @@ type Keyslot struct {
 
 type KDF struct {
 	Salt string `json:"salt"`
+}
+
+// Token represents an entry from the LUKS2 "tokens" object. We only need the
+// type field to identify TPM2/FIDO2/recovery setups; other fields are ignored.
+type Token struct {
+	Type string `json:"type"`
+}
+
+// LUKS2 token type identifiers emitted by systemd-cryptenroll.
+const (
+	tokenTypeSystemdTPM2     = "systemd-tpm2"
+	tokenTypeSystemdFIDO2    = "systemd-fido2"
+	tokenTypeSystemdRecovery = "systemd-recovery"
+)
+
+// DetectEncryptionType inspects a LUKS2 dump's tokens and returns the
+// best-matching encryption type for the volume. Priority order when multiple
+// tokens are present is tpm2 > fido2 > recovery > passphrase. A nil dump, an
+// empty tokens map, or unrecognized token types all map to
+// DiskEncryptionTypePassphrase.
+func DetectEncryptionType(dump *LuksDump) string {
+	if dump == nil {
+		return fleet.DiskEncryptionTypePassphrase
+	}
+
+	var hasFIDO2, hasRecovery bool
+	for _, tok := range dump.Tokens {
+		switch tok.Type {
+		case tokenTypeSystemdTPM2:
+			return fleet.DiskEncryptionTypeTPM2
+		case tokenTypeSystemdFIDO2:
+			hasFIDO2 = true
+		case tokenTypeSystemdRecovery:
+			hasRecovery = true
+		}
+	}
+
+	switch {
+	case hasFIDO2:
+		return fleet.DiskEncryptionTypeFIDO2
+	case hasRecovery:
+		return fleet.DiskEncryptionTypeRecovery
+	}
+	return fleet.DiskEncryptionTypePassphrase
 }
 
 type KeyEscrower interface {
@@ -39,6 +85,11 @@ type LuksResponse struct {
 
 	// Salt is the salt used to generate the LUKS key.
 	Salt string
+
+	// EncryptionType describes how the underlying LUKS2 volume key is protected
+	// (passphrase, tpm2, fido2, recovery). Derived from the LUKS2 tokens
+	// metadata before escrow.
+	EncryptionType string
 
 	// Err is the error message that occurred during the escrow process.
 	Err string

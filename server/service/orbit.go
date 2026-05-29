@@ -1358,13 +1358,13 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 
 func postOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.OrbitPostLUKSRequest)
-	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.ClientError); err != nil {
+	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.EncryptionType, req.ClientError); err != nil {
 		return fleet.OrbitPostLUKSResponse{Err: err}, nil
 	}
 	return fleet.OrbitPostLUKSResponse{}, nil
 }
 
-func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error {
+func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, encryptionType string, clientError string) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1386,13 +1386,23 @@ func (svc *Service) EscrowLUKSData(ctx context.Context, passphrase string, salt 
 		return nil
 	}
 
+	// Empty encryption_type comes from older orbit versions that pre-date
+	// TPM2 detection; assume passphrase. Anything else must be in the known
+	// set so we don't persist arbitrary client-supplied values.
+	if encryptionType == "" {
+		encryptionType = fleet.DiskEncryptionTypePassphrase
+	} else if !fleet.IsValidDiskEncryptionType(encryptionType) {
+		return fleet.NewInvalidArgumentError("encryption_type",
+			"must be one of: passphrase, tpm2, fido2, recovery")
+	}
+
 	encryptedPassphrase, encryptedSalt, validatedKeySlot, err := svc.validateAndEncrypt(ctx, passphrase, salt, keySlot)
 	if err != nil {
 		_ = svc.ds.ReportEscrowError(ctx, host.ID, err.Error())
 		return err
 	}
 
-	keyArchived, err := svc.ds.SaveLUKSData(ctx, host, encryptedPassphrase, encryptedSalt, validatedKeySlot)
+	keyArchived, err := svc.ds.SaveLUKSData(ctx, host, encryptedPassphrase, encryptedSalt, validatedKeySlot, encryptionType)
 	if err != nil {
 		return err
 	}

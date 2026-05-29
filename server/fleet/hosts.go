@@ -680,6 +680,29 @@ const (
 	DiskEncryptionRemovingEnforcement DiskEncryptionStatus = "removing_enforcement"
 )
 
+// DiskEncryptionType identifies how a Linux LUKS2 volume key is protected,
+// derived from the LUKS2 tokens metadata. "passphrase" covers both
+// passphrase-only volumes and any LUKS2 setup whose tokens we don't recognize.
+const (
+	DiskEncryptionTypePassphrase = "passphrase"
+	DiskEncryptionTypeTPM2       = "tpm2"
+	DiskEncryptionTypeFIDO2      = "fido2"
+	DiskEncryptionTypeRecovery   = "recovery"
+)
+
+// IsValidDiskEncryptionType reports whether s is one of the known disk
+// encryption type values accepted by the LUKS escrow endpoint.
+func IsValidDiskEncryptionType(s string) bool {
+	switch s {
+	case DiskEncryptionTypePassphrase,
+		DiskEncryptionTypeTPM2,
+		DiskEncryptionTypeFIDO2,
+		DiskEncryptionTypeRecovery:
+		return true
+	}
+	return false
+}
+
 // BitLocker conversion status values from the Win32_EncryptableVolume WMI class.
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
 //
@@ -1563,10 +1586,14 @@ type HostDiskEncryptionKey struct {
 	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`
 	Base64EncryptedSalt string    `json:"-" db:"base64_encrypted_salt"`
 	KeySlot             *uint     `json:"-" db:"key_slot"`
-	Decryptable         *bool     `json:"-" db:"decryptable"`
-	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
-	DecryptedValue      string    `json:"key" db:"-"`
-	ClientError         string    `json:"-" db:"client_error"`
+	// EncryptionType identifies how the underlying volume key is protected
+	// on the host (passphrase, tpm2, fido2, recovery). Linux-only today;
+	// macOS/Windows rows persist the default "passphrase" value.
+	EncryptionType string    `json:"encryption_type" db:"encryption_type"`
+	Decryptable    *bool     `json:"-" db:"decryptable"`
+	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
+	DecryptedValue string    `json:"key" db:"-"`
+	ClientError    string    `json:"-" db:"client_error"`
 }
 
 type HostArchivedDiskEncryptionKey struct {
@@ -1574,6 +1601,7 @@ type HostArchivedDiskEncryptionKey struct {
 	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`
 	Base64EncryptedSalt string    `json:"-" db:"base64_encrypted_salt"`
 	KeySlot             *uint     `json:"-" db:"key_slot"`
+	EncryptionType      string    `json:"encryption_type" db:"encryption_type"`
 	CreatedAt           time.Time `json:"created_at" db:"created_at"`
 }
 

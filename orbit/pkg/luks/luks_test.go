@@ -1,9 +1,12 @@
 package luks
 
 import (
+	"encoding/json"
 	"testing"
 
-	"github.com/tj/assert"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // output from cryptsetup luksDump /dev/sda3 --debug-json command
@@ -206,10 +209,145 @@ var extractedJSON = `{
 }`
 
 func TestExtractJson(t *testing.T) {
-	json, err := extractJSON([]byte(output))
+	extracted, err := extractJSON([]byte(output))
 	assert.NoError(t, err)
-	assert.Equal(t, extractedJSON, string(json))
+	assert.Equal(t, extractedJSON, string(extracted))
 
 	_, err = extractJSON([]byte("no json"))
 	assert.Error(t, err)
+}
+
+// dumpWithTokens is a LUKS2 luksDump JSON fragment that includes a
+// systemd-tpm2 token alongside a recovery token, matching what
+// systemd-cryptenroll writes on a TPM-backed Ubuntu install. Used to assert
+// that the Tokens field of LuksDump parses correctly.
+const dumpWithTokens = `{
+  "keyslots":{
+    "0":{
+      "type":"luks2",
+      "kdf":{"type":"argon2id","salt":"abc"}
+    },
+    "1":{
+      "type":"luks2",
+      "kdf":{"type":"argon2id","salt":"def"}
+    }
+  },
+  "tokens":{
+    "0":{
+      "type":"systemd-tpm2",
+      "keyslots":["1"],
+      "tpm2-blob":"blob",
+      "tpm2-pcrs":[7]
+    },
+    "1":{
+      "type":"systemd-recovery",
+      "keyslots":["0"]
+    }
+  },
+  "segments":{},
+  "digests":{},
+  "config":{}
+}`
+
+func TestLuksDumpTokensUnmarshal(t *testing.T) {
+	t.Run("cryptsetup <2.4 debug output has empty tokens", func(t *testing.T) {
+		raw, err := extractJSON([]byte(output))
+		require.NoError(t, err)
+
+		var dump LuksDump
+		require.NoError(t, json.Unmarshal(raw, &dump))
+		assert.Empty(t, dump.Tokens)
+		assert.NotEmpty(t, dump.Keyslots, "keyslots should still parse")
+	})
+
+	t.Run("tpm2 + recovery tokens parse with type field", func(t *testing.T) {
+		var dump LuksDump
+		require.NoError(t, json.Unmarshal([]byte(dumpWithTokens), &dump))
+		require.Len(t, dump.Tokens, 2)
+		assert.Equal(t, tokenTypeSystemdTPM2, dump.Tokens["0"].Type)
+		assert.Equal(t, tokenTypeSystemdRecovery, dump.Tokens["1"].Type)
+	})
+}
+
+func TestDetectEncryptionType(t *testing.T) {
+	cases := []struct {
+		name string
+		dump *LuksDump
+		want string
+	}{
+		{
+			name: "nil dump",
+			dump: nil,
+			want: fleet.DiskEncryptionTypePassphrase,
+		},
+		{
+			name: "no tokens map (nil)",
+			dump: &LuksDump{},
+			want: fleet.DiskEncryptionTypePassphrase,
+		},
+		{
+			name: "empty tokens map",
+			dump: &LuksDump{Tokens: map[string]Token{}},
+			want: fleet.DiskEncryptionTypePassphrase,
+		},
+		{
+			name: "only tpm2",
+			dump: &LuksDump{Tokens: map[string]Token{
+				"0": {Type: tokenTypeSystemdTPM2},
+			}},
+			want: fleet.DiskEncryptionTypeTPM2,
+		},
+		{
+			name: "only fido2",
+			dump: &LuksDump{Tokens: map[string]Token{
+				"0": {Type: tokenTypeSystemdFIDO2},
+			}},
+			want: fleet.DiskEncryptionTypeFIDO2,
+		},
+		{
+			name: "only recovery",
+			dump: &LuksDump{Tokens: map[string]Token{
+				"0": {Type: tokenTypeSystemdRecovery},
+			}},
+			want: fleet.DiskEncryptionTypeRecovery,
+		},
+		{
+			name: "tpm2 + recovery -> tpm2",
+			dump: &LuksDump{Tokens: map[string]Token{
+				"0": {Type: tokenTypeSystemdTPM2},
+				"1": {Type: tokenTypeSystemdRecovery},
+			}},
+			want: fleet.DiskEncryptionTypeTPM2,
+		},
+		{
+			name: "fido2 + recovery -> fido2",
+			dump: &LuksDump{Tokens: map[string]Token{
+				"0": {Type: tokenTypeSystemdFIDO2},
+				"1": {Type: tokenTypeSystemdRecovery},
+			}},
+			want: fleet.DiskEncryptionTypeFIDO2,
+		},
+		{
+			name: "tpm2 + fido2 + recovery -> tpm2",
+			dump: &LuksDump{Tokens: map[string]Token{
+				"0": {Type: tokenTypeSystemdRecovery},
+				"1": {Type: tokenTypeSystemdFIDO2},
+				"2": {Type: tokenTypeSystemdTPM2},
+			}},
+			want: fleet.DiskEncryptionTypeTPM2,
+		},
+		{
+			name: "unknown token type -> passphrase",
+			dump: &LuksDump{Tokens: map[string]Token{
+				"0": {Type: "some-future-thing"},
+			}},
+			want: fleet.DiskEncryptionTypePassphrase,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, DetectEncryptionType(tc.dump))
+		})
+	}
 }
