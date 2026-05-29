@@ -1,8 +1,0 @@
-{
-  "name": "Another Redis Desktop Manager",
-  "slug": "another-redis-desktop-manager/darwin",
-  "unique_identifier": "me.qii404.another-redis-desktop-manager",
-  "token": "another-redis-desktop-manager",
-  "installer_format": "dmg",
-  "default_categories": ["Developer tools"]
-}
