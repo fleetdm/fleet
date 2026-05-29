@@ -22,7 +22,9 @@ import { getPathWithQueryParams } from "utilities/url";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import {
+  APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
+  APP_CONTEXT_NO_TEAM_ID,
   APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
@@ -77,7 +79,10 @@ interface IPolicyFormProps {
   isStoredPolicyLoading: boolean;
   isTeamObserver: boolean;
   isUpdatingPolicy: boolean;
-  onCreatePolicy: (formData: IPolicyFormData) => void;
+  onCreatePolicy: (
+    formData: IPolicyFormData,
+    saveAutomations?: (newPolicy: IPolicy) => Promise<void>
+  ) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   // Returns a Promise so the form can sequence the automations save AFTER the
@@ -260,14 +265,25 @@ const PolicyForm = ({
     !policyIdForEdit &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
-  const isGlobalPolicy = storedPolicy?.team_id == null;
-  const automationsTeamId = storedPolicy?.team_id ?? undefined;
+  // For an existing policy, ownership comes from the policy's stored team_id.
+  // For a new policy, it comes from the team the user is currently viewing,
+  // since that's where the policy will be created.
+  const newPolicyTeamId =
+    currentTeam?.id !== undefined && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID
+      ? currentTeam.id
+      : undefined;
+  const isGlobalPolicy = isEditMode
+    ? storedPolicy?.team_id == null
+    : newPolicyTeamId === undefined;
+  const automationsTeamId = isEditMode
+    ? storedPolicy?.team_id ?? undefined
+    : newPolicyTeamId;
 
   const { data: automationsTeamData } = useQuery<ILoadTeamResponse, Error>(
     ["teams", automationsTeamId],
     () => teamsAPI.load(automationsTeamId as number),
     {
-      enabled: isEditMode && !!storedPolicy && !isGlobalPolicy,
+      enabled: !isGlobalPolicy && automationsTeamId !== undefined,
       staleTime: 5000,
     }
   );
@@ -278,7 +294,7 @@ const PolicyForm = ({
   let automationsFleetName = "";
   if (isGlobalPolicy) {
     automationsFleetName = APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
-  } else if (storedPolicy?.team_id === 0) {
+  } else if (automationsTeamId === APP_CONTEXT_NO_TEAM_ID) {
     automationsFleetName = APP_CONTEXT_NO_TEAM_SUMMARY.name;
   } else {
     automationsFleetName =
@@ -901,6 +917,11 @@ const PolicyForm = ({
             onClickAutofillDescription={onClickAutofillDescription}
             onClickAutofillResolution={onClickAutofillResolution}
             labels={labels}
+            isGlobalPolicy={isGlobalPolicy}
+            policyTeamId={automationsTeamId}
+            automationsConfig={automationsConfig}
+            globalConfig={config ?? undefined}
+            fleetName={automationsFleetName}
           />
         )}
       </>
