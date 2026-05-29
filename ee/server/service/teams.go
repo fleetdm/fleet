@@ -324,6 +324,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if !team.Config.MDM.MacOSSetup.EnableEndUserAuthentication && team.Config.MDM.MacOSSetup.LockEndUserInfo.Value {
 				return nil, fleet.NewInvalidArgumentError("setup_experience.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`)
 			}
+
+			if err := payload.MDM.MacOSSetup.Validate(); err != nil {
+				return nil, err
+			}
+
+			// move over values that we just validated, so they get updated.
+			team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = payload.MDM.MacOSSetup.EnableManagedLocalAccount
+			team.Config.MDM.MacOSSetup.EndUserLocalAccountType = payload.MDM.MacOSSetup.EndUserLocalAccountType
 		}
 	}
 
@@ -2233,14 +2241,10 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
-	if payload.EndUserLocalAccountType != nil {
-		if *payload.EndUserLocalAccountType != "admin" {
-			return fleet.NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
-		}
-		if !tm.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid || tm.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value != *payload.EndUserLocalAccountType {
-			tm.Config.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString(*payload.EndUserLocalAccountType)
-			didUpdate = true
-		}
+	if didUpdateFromValidation, err := payload.Validate(&tm.Config.MDM.MacOSSetup); err != nil {
+		return err
+	} else if didUpdateFromValidation {
+		didUpdate = true
 	}
 
 	if didUpdate {

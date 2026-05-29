@@ -213,6 +213,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUIDs...)
 
 	var ssoEnabled, managedAdminAccountEnabled, lockPrimaryAccountInfo bool
+	var primaryAccountType fleet.PrimaryAccountType
 	var ssoAccount *fleet.MDMIdPAccount
 	var adminAccount *apple_mdm.AdminAccountConfig
 
@@ -244,11 +245,13 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 				return err
 			}
 			managedAdminAccountEnabled = appCfg.MDM.MacOSSetup.EnableManagedLocalAccount.Value
+			primaryAccountType = fleet.PrimaryAccountType(appCfg.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 		} else {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
 				return err
 			}
 			managedAdminAccountEnabled = team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value
+			primaryAccountType = fleet.PrimaryAccountType(team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 		}
 	}
 
@@ -264,11 +267,13 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			if err != nil {
 				return err
 			}
+
 			adminAccount = &apple_mdm.AdminAccountConfig{
-				ShortName:    fleet.ManagedLocalAccountUsername,
-				FullName:     fleetAdminFullName,
-				PasswordHash: passwordHash,
-				Hidden:       true,
+				ShortName:          fleet.ManagedLocalAccountUsername,
+				FullName:           fleetAdminFullName,
+				PasswordHash:       passwordHash,
+				Hidden:             true,
+				PrimaryAccountType: primaryAccountType,
 			}
 			// Save the password before sending the command so the plaintext is
 			// escrowed even if the command enqueue succeeds but a later step fails.

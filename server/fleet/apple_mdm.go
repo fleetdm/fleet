@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -540,13 +541,32 @@ type MDMAppleSetupPayload struct {
 	RequireAllSoftware          *bool   `json:"require_all_software_macos"`
 	RequireAllSoftwareWindows   *bool   `json:"require_all_software_windows"`
 	LockEndUserInfo             *bool   `json:"lock_end_user_info"`
-	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account"`
+	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
 	EndUserLocalAccountType     *string `json:"end_user_local_account_type"`
 }
 
 // AuthzType implements authz.AuthzTyper.
 func (p MDMAppleSetupPayload) AuthzType() string {
 	return "mdm_apple_settings"
+}
+
+// Validate validates the MDMAppleSetupPayload and updates the provided MacOSSetup with the new values if they are valid.
+// It returns an error if any of the values are invalid, and a boolean indicating whether any updates were made to the MacOSSetup.
+func (p MDMAppleSetupPayload) Validate(macOSSetupConfig *MacOSSetup) (didUpdate bool, err error) {
+	if p.EndUserLocalAccountType != nil {
+		if !IsValidPrimaryAccountType(*p.EndUserLocalAccountType) {
+			return false, NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+		}
+		if PrimaryAccountType(*p.EndUserLocalAccountType).RequiresLocalAdminAccount() && (!macOSSetupConfig.EnableManagedLocalAccount.Valid || !macOSSetupConfig.EnableManagedLocalAccount.Value) {
+			return false, NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, *p.EndUserLocalAccountType))
+		}
+
+		if !macOSSetupConfig.EndUserLocalAccountType.Valid || macOSSetupConfig.EndUserLocalAccountType.Value != *p.EndUserLocalAccountType {
+			macOSSetupConfig.EndUserLocalAccountType = optjson.SetString(*p.EndUserLocalAccountType)
+			didUpdate = true
+		}
+	}
+	return didUpdate, nil
 }
 
 // HostDEPAssignment represents a row in the host_dep_assignments table.
@@ -1269,6 +1289,33 @@ const (
 // via the AccountConfiguration MDM command when the managed local account
 // feature is enabled.
 const ManagedLocalAccountUsername = "_fleetadmin"
+
+// PrimaryAccountType represents the type of the primary account for MacOS going through setup experience.
+// Documented at https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary
+// if `SetPrimarySetupAccountAsRegularUser` or `SkipPrimarySetupAccountCreation` is true, you must configure a local admin account.
+type PrimaryAccountType string
+
+const (
+	// The end user account will be created as an admin
+	PrimaryAccountTypeAdmin PrimaryAccountType = "admin"
+	// The end user account will be created as a standard user, but requires a local admin account to be configured.
+	PrimaryAccountTypeStandard PrimaryAccountType = "standard"
+	// The screen to setup a primary account will be skipped, and a local admin account must be configured.
+	PrimaryAccountTypeNone PrimaryAccountType = "none"
+)
+
+func IsValidPrimaryAccountType(accountType string) bool {
+	switch PrimaryAccountType(accountType) {
+	case PrimaryAccountTypeAdmin, PrimaryAccountTypeStandard, PrimaryAccountTypeNone:
+		return true
+	default:
+		return false
+	}
+}
+
+func (t PrimaryAccountType) RequiresLocalAdminAccount() bool {
+	return t == PrimaryAccountTypeStandard || t == PrimaryAccountTypeNone
+}
 
 type HostLocationData struct {
 	HostID    uint    `db:"host_id"`
