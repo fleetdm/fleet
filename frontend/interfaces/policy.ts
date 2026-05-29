@@ -120,6 +120,7 @@ export interface IPolicyFormData {
   id?: number;
   calendar_events_enabled?: boolean;
   conditional_access_enabled?: boolean;
+  continuous_automations_enabled?: boolean;
   software_title_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;

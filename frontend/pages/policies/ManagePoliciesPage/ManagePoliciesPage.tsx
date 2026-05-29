@@ -962,6 +962,13 @@ const ManagePolicyPage = ({
         {selectedPolicyForAutomations && (
           <ManageAutomationsModal
             policy={selectedPolicyForAutomations}
+            fleetName={currentTeamSummary?.name ?? ""}
+            isGlobalPolicy={isAllTeamsSelected}
+            teamIdForApi={teamIdForApi}
+            automationsConfig={automationsConfig}
+            globalConfig={globalConfig}
+            webhookOrTicketPolicyIds={currentAutomatedPolicies}
+            refetchPolicies={() => refetchPolicies(teamIdForApi)}
             onExit={onCloseManageAutomationsModal}
           />
         )}
