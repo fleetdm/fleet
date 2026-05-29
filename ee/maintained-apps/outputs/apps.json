@@ -1906,6 +1906,13 @@
       "description": "Raycast is an app that allows you to control your tools with a few keystrokes."
     },
     {
+      "name": "REAPER",
+      "slug": "reaper/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cockos.reaper",
+      "description": "REAPER is a digital audio production application."
+    },
+    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
