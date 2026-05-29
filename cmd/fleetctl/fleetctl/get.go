@@ -282,7 +282,7 @@ func printTeams(c *cli.Context, client *service.Client, teams []fleet.Team) erro
 			}
 		}
 
-		var teamItem interface{} = team
+		var teamItem any
 		if c.Bool(yamlFlagName) {
 			teamSpec, err := fleet.TeamSpecFromTeam(&team)
 			if err != nil {
