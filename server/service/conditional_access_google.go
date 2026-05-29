@@ -109,6 +109,24 @@ func (svc *Service) processGoogleCloudIdentityForNewlyFailingPolicies(
 		mdmEnrolled = hostMDM.Enrolled
 	}
 
+	// Load the host's labels so we can surface them as assetTags. Admins
+	// can branch CAA expressions on these (e.g.
+	// `"label:engineering" in device.vendors["fleet-{C-id}"].asset_tags`).
+	// Failures here are non-fatal — labels are nice-to-have; we still want
+	// to PATCH the compliance signal.
+	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "google_cloud_identity: load labels for host failed; proceeding without label tags",
+			"host_id", host.ID, "err", err)
+		labels = nil
+	}
+	labelNames := make([]string, 0, len(labels))
+	for _, l := range labels {
+		if l != nil && l.Name != "" {
+			labelNames = append(labelNames, l.Name)
+		}
+	}
+
 	// Hand off to the Syncer in a goroutine so the osquery write path
 	// returns quickly. The Syncer is lazy-constructed and reused.
 	syncer, err := svc.googleCloudIdentitySyncerOrNil(ctx)
@@ -121,7 +139,7 @@ func (svc *Service) processGoogleCloudIdentityForNewlyFailingPolicies(
 
 	go func() {
 		bg := context.Background()
-		if err := syncer.SyncHost(bg, host, mdmEnrolled, totalCAPolicies, failingNames); err != nil {
+		if err := syncer.SyncHost(bg, host, mdmEnrolled, totalCAPolicies, failingNames, labelNames); err != nil {
 			svc.logger.ErrorContext(bg, "google_cloud_identity: SyncHost failed",
 				"host_id", host.ID,
 				"err", err,

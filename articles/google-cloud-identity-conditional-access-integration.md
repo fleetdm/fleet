@@ -157,7 +157,7 @@ Fleet writes the following fields, all of which are accessible from CAA expressi
 | Health score | Graduated — see below | `device.vendors["fleet-{C-id}"].device_health_score` |
 | Score reason | Human-readable summary including failing policy names | (admin-console only) |
 | Custom ID | Fleet's `host.uuid` | (admin-console only) |
-| Asset tags | `source:fleet`, `fleet_team_id:N` when assigned, `fleet_serial:SERIAL` | `"source:fleet" in device.vendors["fleet-{C-id}"].asset_tags` |
+| Asset tags | `source:fleet`, `fleet_team_id:N` when assigned, `fleet_serial:SERIAL`, plus `label:NAME` for every Fleet label the host belongs to | `"label:engineering" in device.vendors["fleet-{C-id}"].asset_tags` |
 
 ### Health score mapping
 
@@ -172,6 +172,25 @@ Fleet maps the ratio of failing CA-flagged policies to one of Cloud Identity's f
 | 100% failing, or no CA-flagged policies configured | `VERY_POOR` |
 
 The "no CA-flagged policies configured → `VERY_POOR`" convention applies when the integration is enabled for a team but no policies are flagged for conditional access — Fleet hasn't actually validated anything, so the device shouldn't render as healthy.
+
+### Label asset tags
+
+Every Fleet label the host is in is surfaced as a `label:NAME` entry in `asset_tags`. Admins can branch CAA expressions on team / region / role membership, e.g.:
+
+```cel
+device.vendors["fleet-0xxxxxxx"].is_compliant_device == true &&
+"label:engineering" in device.vendors["fleet-0xxxxxxx"].asset_tags
+```
+
+Label name normalization:
+
+- Names are lowercased and trimmed of leading/trailing whitespace.
+- Internal whitespace runs collapse to a single dash. `"All Hosts"` becomes `label:all-hosts`; `"NYC2 - Engineering"` becomes `label:nyc2---engineering`.
+- Empty names and names longer than 128 characters are dropped.
+- Duplicates after normalization are deduplicated.
+- A host with more than 50 labels has the alphabetically first 50 emitted; the rest are dropped. (Google does not document an `assetTags` limit; this cap keeps the PATCH body bounded.)
+
+The built-in Fleet labels — `All Hosts`, `macOS`, `macOS 14`, etc. — are all surfaced. Custom team-scoped labels work the same way.
 
 ### Score reason examples
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -52,12 +53,16 @@ func NewSyncer(ds fleet.Datastore, client *Client, cfg config.GoogleCloudIdentit
 //     conditional access (used as the denominator for HealthScore).
 //   - failingPolicyNames: human-readable names of the failing CA-flagged
 //     policies (used as the numerator and to build scoreReason).
+//   - labelNames: names of every label the host belongs to. Emitted as
+//     `label:NAME` asset tags so admins can branch CAA expressions on
+//     team / region / role membership.
 func (s *Syncer) SyncHost(
 	ctx context.Context,
 	host *fleet.Host,
 	managed bool,
 	totalCAPolicies int,
 	failingPolicyNames []string,
+	labelNames []string,
 ) error {
 	rows, err := s.ds.LoadHostGoogleCloudIdentityClientStates(ctx, host.ID)
 	if err != nil {
@@ -69,7 +74,7 @@ func (s *Syncer) SyncHost(
 	}
 
 	for _, row := range rows {
-		if err := s.syncRow(ctx, host, row, managed, totalCAPolicies, failingPolicyNames); err != nil {
+		if err := s.syncRow(ctx, host, row, managed, totalCAPolicies, failingPolicyNames, labelNames); err != nil {
 			// One row failing shouldn't drop the others. Log and continue.
 			s.logger.ErrorContext(ctx, "google_cloud_identity: sync row failed",
 				"host_id", host.ID,
@@ -88,6 +93,7 @@ func (s *Syncer) syncRow(
 	managed bool,
 	totalCAPolicies int,
 	failingPolicyNames []string,
+	labelNames []string,
 ) error {
 	compliant := len(failingPolicyNames) == 0
 	scoreReason := buildScoreReason(totalCAPolicies, failingPolicyNames)
@@ -114,7 +120,7 @@ func (s *Syncer) syncRow(
 	}
 
 	// Step 3: build desired ClientState and PATCH.
-	desired := buildClientState(host, managed, totalCAPolicies, len(failingPolicyNames), scoreReason)
+	desired := buildClientState(host, managed, totalCAPolicies, len(failingPolicyNames), scoreReason, labelNames)
 	if row.LastEtag != nil {
 		desired.Etag = *row.LastEtag
 	}
@@ -241,7 +247,7 @@ func (s *Syncer) partnerSegment(suffix string) string {
 // HealthScore is computed as a graduated function of the failing/total
 // policy ratio rather than the binary COMPLIANT/NON_COMPLIANT signal — see
 // healthScoreFor() for the mapping.
-func buildClientState(host *fleet.Host, managed bool, totalCAPolicies, failingCount int, scoreReason string) *cloudidentity.ClientState {
+func buildClientState(host *fleet.Host, managed bool, totalCAPolicies, failingCount int, scoreReason string, labelNames []string) *cloudidentity.ClientState {
 	state := &cloudidentity.ClientState{
 		CustomId: host.UUID,
 	}
@@ -270,8 +276,60 @@ func buildClientState(host *fleet.Host, managed bool, totalCAPolicies, failingCo
 	if host.HardwareSerial != "" {
 		tags = append(tags, fmt.Sprintf("fleet_serial:%s", host.HardwareSerial))
 	}
+	tags = append(tags, normalizeLabelTags(labelNames)...)
 	state.AssetTags = tags
 	return state
+}
+
+// Asset-tag caps for label entries. Google's docs don't document a hard
+// limit on assetTags. These caps keep the total payload bounded so a
+// pathological customer with thousands of labels per host doesn't blow up
+// the PATCH body.
+const (
+	maxLabelTags    = 50
+	maxLabelNameLen = 128
+)
+
+// normalizeLabelTags converts a list of Fleet label names into
+// `label:NAME` asset tags suitable for inclusion in ClientState.AssetTags.
+//
+// Normalization:
+//   - The name is lowercased and stripped of leading/trailing whitespace.
+//   - Internal whitespace runs are collapsed to a single dash.
+//   - Empty names and names longer than maxLabelNameLen characters are
+//     dropped.
+//   - Duplicates after normalization are deduplicated.
+//   - The result is sorted alphabetically for deterministic output across
+//     runs (so an unchanged host produces an unchanged ClientState).
+//   - If more than maxLabelTags labels remain, the alphabetically first
+//     maxLabelTags win.
+func normalizeLabelTags(names []string) []string {
+	if len(names) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(names))
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		n = strings.ToLower(strings.TrimSpace(n))
+		if n == "" || len(n) > maxLabelNameLen {
+			continue
+		}
+		// Collapse whitespace runs into single dashes (CAA admins
+		// commonly want to do exact-match comparisons like
+		// `"label:engineering-team" in ...`).
+		n = strings.Join(strings.Fields(n), "-")
+		tag := "label:" + n
+		if _, ok := seen[tag]; ok {
+			continue
+		}
+		seen[tag] = struct{}{}
+		out = append(out, tag)
+	}
+	sort.Strings(out)
+	if len(out) > maxLabelTags {
+		out = out[:maxLabelTags]
+	}
+	return out
 }
 
 // healthScoreFor maps the failing/total policy ratio to one of Cloud

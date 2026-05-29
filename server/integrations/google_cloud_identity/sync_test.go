@@ -3,6 +3,7 @@ package google_cloud_identity
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -101,7 +102,7 @@ func TestSyncHost_NoRows_NoOp(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "host-uuid", HardwareSerial: "H176YH"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil, nil))
 	assert.Empty(t, h.recordedRequests())
 }
 
@@ -172,7 +173,7 @@ func TestSyncHost_FirstSync_ResolvesAndPatches(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 7, UUID: "host-uuid", HardwareSerial: serial}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil, nil))
 
 	assert.Equal(t, 1, resolvedCalls, "deviceUser cached once")
 	assert.Equal(t, 1, setStateCalls, "last-known state recorded once")
@@ -203,7 +204,7 @@ func TestSyncHost_NoChangeNoPatch(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "host-uuid", HardwareSerial: "X"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil, nil))
 	assert.Empty(t, h.recordedRequests())
 }
 
@@ -245,7 +246,7 @@ func TestSyncHost_StateChangedPatches(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "host-uuid", HardwareSerial: "X"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, []string{"Mac OS check"}))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, []string{"Mac OS check"}, nil))
 
 	assert.Equal(t, 1, setCalls)
 	assert.Len(t, h.recordedRequests(), 1, "single PATCH; deviceUser already resolved")
@@ -264,7 +265,7 @@ func TestSyncHost_DeviceNotInCloudIdentity_SkipsPatch(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "u", HardwareSerial: "UNKNOWN"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil, nil))
 
 	reqs := h.recordedRequests()
 	require.Len(t, reqs, 1)
@@ -295,7 +296,7 @@ func TestSyncHost_UserNotOnDevice_SkipsPatch(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "u", HardwareSerial: "S"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil, nil))
 
 	reqs := h.recordedRequests()
 	require.Len(t, reqs, 2, "list + listDeviceUsers; no PATCH because no email match")
@@ -326,7 +327,7 @@ func TestSyncHost_PerRowFailureDoesNotDropOthers(t *testing.T) {
 	})
 
 	host := &fleet.Host{ID: 1, UUID: "u", HardwareSerial: "S"}
-	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil))
+	require.NoError(t, s.SyncHost(context.Background(), host, true, 1, nil, nil))
 	assert.Equal(t, 1, goodSet, "good row patched despite bad row failing")
 }
 
@@ -425,4 +426,72 @@ func TestBuildScoreReason(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNormalizeLabelTags(t *testing.T) {
+	t.Run("empty input returns nil", func(t *testing.T) {
+		if got := normalizeLabelTags(nil); got != nil {
+			t.Errorf("expected nil, got %v", got)
+		}
+	})
+
+	t.Run("basic normalization", func(t *testing.T) {
+		got := normalizeLabelTags([]string{
+			"Engineering",
+			"All Hosts",       // multi-word -> dash
+			"  macOS  ",        // trim + lowercase
+			"",                 // dropped
+			"Engineering",      // dedup
+		})
+		want := []string{"label:all-hosts", "label:engineering", "label:macos"}
+		if len(got) != len(want) {
+			t.Fatalf("expected %d tags, got %d: %v", len(want), len(got), got)
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("got[%d]=%q want %q", i, got[i], want[i])
+			}
+		}
+	})
+
+	t.Run("alphabetical ordering", func(t *testing.T) {
+		got := normalizeLabelTags([]string{"zebra", "alpha", "mike"})
+		want := []string{"label:alpha", "label:mike", "label:zebra"}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Errorf("got[%d]=%q want %q", i, got[i], want[i])
+			}
+		}
+	})
+
+	t.Run("over-long names are dropped", func(t *testing.T) {
+		longName := strings.Repeat("x", 129)
+		got := normalizeLabelTags([]string{longName, "ok"})
+		if len(got) != 1 || got[0] != "label:ok" {
+			t.Errorf("expected only label:ok, got %v", got)
+		}
+	})
+
+	t.Run("max 50 labels caps the output", func(t *testing.T) {
+		names := make([]string, 0, 100)
+		for i := 0; i < 100; i++ {
+			names = append(names, fmt.Sprintf("label-%03d", i))
+		}
+		got := normalizeLabelTags(names)
+		if len(got) != 50 {
+			t.Fatalf("expected 50 tags, got %d", len(got))
+		}
+		// Alphabetically first 50 must win: label-000 through label-049.
+		if got[0] != "label:label-000" || got[49] != "label:label-049" {
+			t.Errorf("expected alphabetically first 50; got first=%q last=%q",
+				got[0], got[49])
+		}
+	})
+
+	t.Run("whitespace runs collapse to single dash", func(t *testing.T) {
+		got := normalizeLabelTags([]string{"hello   world   group"})
+		if len(got) != 1 || got[0] != "label:hello-world-group" {
+			t.Errorf("expected label:hello-world-group, got %v", got)
+		}
+	})
 }
