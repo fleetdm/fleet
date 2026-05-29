@@ -41,6 +41,7 @@ import {
   PatchAutomationCta,
   PolicyAutomationsList,
 } from "pages/policies/edit/components/PolicyAutomations";
+import { getTicketOrWebhookInfo } from "pages/policies/components/PolicyAutomationsFields";
 
 interface IPolicyDetailsPageProps {
   router: InjectedRouter;
@@ -183,26 +184,14 @@ const PolicyDetailsPage = ({
 
   const policyFleetName = getPolicyFleetName(storedPolicy, teamData);
 
-  let currentAutomatedPolicies: number[] = [];
-  let otherAutomationType: OtherAutomationType | undefined;
-  if (teamData?.team) {
-    const {
-      webhook_settings: { failing_policies_webhook: webhook },
-      integrations,
-    } = teamData.team;
-    const isIntegrationEnabled =
-      (integrations?.jira?.some((j) => j.enable_failing_policies) ||
-        integrations?.zendesk?.some((z) => z.enable_failing_policies)) ??
-      false;
-    if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
-      currentAutomatedPolicies = webhook?.policy_ids || [];
-    }
-    if (isIntegrationEnabled) {
-      otherAutomationType = "ticket";
-    } else if (webhook?.enable_failing_policies_webhook) {
-      otherAutomationType = "webhook";
-    }
-  }
+  const {
+    state: ticketOrWebhookState,
+    policyIds: currentAutomatedPolicies,
+  } = getTicketOrWebhookInfo(
+    storedPolicy?.team_id == null ? config ?? undefined : teamData?.team
+  );
+  const otherAutomationType: OtherAutomationType | undefined =
+    ticketOrWebhookState === "disabled" ? undefined : ticketOrWebhookState;
 
   useEffect(() => {
     if (storedPolicy?.name) {

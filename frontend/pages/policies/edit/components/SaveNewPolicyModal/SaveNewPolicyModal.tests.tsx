@@ -58,6 +58,11 @@ describe("SaveNewPolicyModal", () => {
     onClickAutofillDescription: jest.fn(),
     onClickAutofillResolution: jest.fn(),
     labels: mockLabels,
+    isGlobalPolicy: true,
+    policyTeamId: undefined,
+    automationsConfig: createMockConfig(),
+    globalConfig: createMockConfig(),
+    fleetName: "All fleets",
   };
 
   it("should not show the target selector in the free tier", async () => {
