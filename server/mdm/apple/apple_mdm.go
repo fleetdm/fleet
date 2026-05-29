@@ -1,7 +1,5 @@
 package apple_mdm
 
-// this is just a test
-
 import (
 	"bytes"
 	"context"
