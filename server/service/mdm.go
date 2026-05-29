@@ -1683,7 +1683,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	var deprecatedLabels []string
 	decoded.LabelsIncludeAll, existsInclAll = r.MultipartForm.Value[string(fleet.LabelsIncludeAll)]
 	decoded.LabelsIncludeAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
-	decoded.LabelsExcludeAny, _ = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
+	decoded.LabelsExcludeAny = r.MultipartForm.Value[string(fleet.LabelsExcludeAny)]
 	deprecatedLabels, existsDepr = r.MultipartForm.Value["labels"]
 
 	// validate that at most one include mode is provided; labels_exclude_any may be combined with any include mode
@@ -1700,7 +1700,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 		decoded.LabelsIncludeAll = deprecatedLabels
 	}
 
-	includeLabels := append(decoded.LabelsIncludeAll, decoded.LabelsIncludeAny...)
+	includeLabels := append(decoded.LabelsIncludeAll, decoded.LabelsIncludeAny...) //nolint:gocritic
 	if overlap := fleet.ProfileLabelOverlap(includeLabels, decoded.LabelsExcludeAny); overlap != "" {
 		return nil, &fleet.BadRequestError{Message: fmt.Sprintf(`Label %q cannot appear in both include and exclude lists.`, overlap)}
 	}

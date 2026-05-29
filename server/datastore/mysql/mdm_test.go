@@ -1667,10 +1667,16 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp)
 		require.NoError(t, err)
 	}
-	// null label references to simulate profiles D, E and G being broken
-	// (FK is now RESTRICT so we can no longer delete a referenced label)
-	for _, lbl := range []*fleet.Label{labels[3], labels[4], labels[8]} {
-		simulateBrokenLabel(t, ds, ctx, lbl.Name)
+	// simulate broken labels for profiles D, E and G by nullifying label_id in the
+	// join tables (direct DeleteLabel is now blocked when referenced by a profile)
+	for _, lblID := range []uint{labels[3].ID, labels[4].ID, labels[8].ID} {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, lblID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, lblID)
+			return err
+		})
 	}
 	profLabels := map[string][]fleet.ConfigurationProfileLabel{
 		"C": {
@@ -2383,11 +2389,15 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		// Null label reference first (FK is now RESTRICT), then delete — the profile
-		// will appear broken and we shouldn't see it in the results
-		simulateBrokenLabel(t, ds, ctx, testLabel4.Name)
-		err = ds.DeleteLabel(ctx, testLabel4.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		require.NoError(t, err)
+		// Simulate the label being broken — direct DeleteLabel is now blocked when
+		// referenced by a profile, so we nullify label_id in the join tables instead.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, testLabel4.ID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, testLabel4.ID)
+			return err
+		})
 
 		return team.ID, host
 	}
@@ -2886,11 +2896,15 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		// Null label reference first (FK is now RESTRICT), then delete — the profile
-		// will appear broken and we shouldn't see it in the results
-		simulateBrokenLabel(t, ds, ctx, label.Name)
-		err = ds.DeleteLabel(ctx, label.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		require.NoError(t, err)
+		// Simulate the label being broken — direct DeleteLabel is now blocked when
+		// referenced by a profile, so we nullify label_id in the join tables instead.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, label.ID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, label.ID)
+			return err
+		})
 
 		return team.ID, host
 	}
@@ -4711,9 +4725,16 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 		},
 	})
 
-	// null label references to break all profiles (FK is now RESTRICT so we can no longer delete referenced labels)
-	for _, lbl := range []*fleet.Label{labels[0], labels[2], labels[3], labels[6]} {
-		simulateBrokenLabel(t, ds, ctx, lbl.Name)
+	// Simulate broken labels by nullifying label_id in the join tables instead of
+	// calling DeleteLabel (which is now blocked when a label is referenced by a profile).
+	for _, lblID := range []uint{labels[0].ID, labels[2].ID, labels[3].ID, labels[6].ID} {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, lblID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, lblID)
+			return err
+		})
 	}
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{androidHost.ID}, nil, nil, nil)
