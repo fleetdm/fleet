@@ -6881,6 +6881,11 @@ func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID 
 	for _, cat := range categories {
 		result[cat.Name] = cat.ID
 	}
+	for plain, emoji := range fleet.LegacySoftwareCategoryNames {
+		if id, ok := result[emoji]; ok {
+			result[plain] = id
+		}
+	}
 
 	return result, nil
 }

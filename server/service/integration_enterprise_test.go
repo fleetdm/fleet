@@ -22282,27 +22282,27 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	}{
 		{
 			desc:       "duplicate categories provided",
-			categories: []string{"Developer tools", "Browsers", "Browsers"},
+			categories: []string{"🧰 Developer tools", "🌎 Browsers", "🌎 Browsers"},
 		},
 		{
 			desc:       "valid categories 1",
-			categories: []string{"Developer tools", "Browsers"},
+			categories: []string{"🧰 Developer tools", "🌎 Browsers"},
 		},
 		{
 			desc:       "valid categories 2",
-			categories: []string{"Communication", "Productivity"},
+			categories: []string{"👬 Communication", "💻 Productivity"},
 		},
 		{
-			desc:       "valid categories 3 - Security and Utilities",
-			categories: []string{"Security", "Utilities"},
+			desc:       "valid categories 3 - Security and Support",
+			categories: []string{"🔐 Security", "🛟 Support"},
 		},
 		{
 			desc:       "valid categories 4 - mixed with new categories",
-			categories: []string{"Security", "Developer tools", "Utilities"},
+			categories: []string{"🔐 Security", "🧰 Developer tools", "🛟 Support"},
 		},
 		{
 			desc:                 "empty categories",
-			fmaDefaultCategories: []string{"Productivity"},
+			fmaDefaultCategories: []string{"💻 Productivity"},
 		},
 	}
 	for _, tc := range testCases {
@@ -22328,10 +22328,10 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && len(tc.categories) == 0 {
 					// if no categories are set on an FMA in GitOps, we set categories to
 					// default values
-					require.ElementsMatch(t, fleet.TranslateLegacySoftwareCategoryNames(tc.fmaDefaultCategories), stResp.SoftwareTitle.SoftwarePackage.Categories)
+					require.ElementsMatch(t, tc.fmaDefaultCategories, stResp.SoftwareTitle.SoftwarePackage.Categories)
 					continue
 				}
-				require.ElementsMatch(t, fleet.TranslateLegacySoftwareCategoryNames(tc.categories), stResp.SoftwareTitle.SoftwarePackage.Categories)
+				require.ElementsMatch(t, tc.categories, stResp.SoftwareTitle.SoftwarePackage.Categories)
 			}
 
 			// check that the categories come back on the My device page
@@ -22344,11 +22344,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 				if s.Name == maintained1.Name && len(tc.categories) == 0 {
 					// if no categories are set on an FMA in GitOps, we set categories to
 					// default values
-					require.ElementsMatch(t, fleet.TranslateLegacySoftwareCategoryNames(tc.fmaDefaultCategories), s.SoftwarePackage.Categories)
+					require.ElementsMatch(t, tc.fmaDefaultCategories, s.SoftwarePackage.Categories)
 					continue
 				}
 
-				require.ElementsMatch(t, fleet.TranslateLegacySoftwareCategoryNames(tc.categories), s.SoftwarePackage.Categories)
+				require.ElementsMatch(t, tc.categories, s.SoftwarePackage.Categories)
 			}
 		})
 	}

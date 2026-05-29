@@ -17,12 +17,12 @@ type getSelfServiceCategoriesRequest struct {
 
 type getSelfServiceCategoriesResponse struct {
 	SelfServiceCategories []fleet.SoftwareCategory `json:"self_service_categories"`
-	Err                   error                     `json:"error,omitempty"`
+	Err                   error                    `json:"error,omitempty"`
 }
 
 func (r getSelfServiceCategoriesResponse) Error() error { return r.Err }
 
-func getSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getSelfServiceCategoriesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSelfServiceCategoriesRequest)
 	categories, err := svc.ListSoftwareCategories(ctx, req.FleetID)
 	if err != nil {
@@ -55,7 +55,7 @@ type addSelfServiceCategoriesResponse struct {
 
 func (r addSelfServiceCategoriesResponse) Error() error { return r.Err }
 
-func addSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func addSelfServiceCategoriesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addSelfServiceCategoriesRequest)
 	category, err := svc.NewSoftwareCategory(ctx, req.FleetID, req.Name)
 	if err != nil {
@@ -88,7 +88,7 @@ type patchSelfServiceCategoriesResponse struct {
 
 func (r patchSelfServiceCategoriesResponse) Error() error { return r.Err }
 
-func patchSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func patchSelfServiceCategoriesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*patchSelfServiceCategoriesRequest)
 	category, err := svc.UpdateSoftwareCategory(ctx, req.ID, req.Name)
 	if err != nil {
@@ -120,7 +120,7 @@ type deleteSelfServiceCategoriesResponse struct {
 func (r deleteSelfServiceCategoriesResponse) Error() error { return r.Err }
 func (r deleteSelfServiceCategoriesResponse) Status() int  { return http.StatusNoContent }
 
-func deleteSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deleteSelfServiceCategoriesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSelfServiceCategoriesRequest)
 	if err := svc.DeleteSoftwareCategory(ctx, req.ID); err != nil {
 		return deleteSelfServiceCategoriesResponse{Err: err}, nil
