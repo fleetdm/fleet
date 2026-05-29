@@ -1,0 +1,62 @@
+<div id="basic-whitepaper-ungated" v-cloak>
+  <div purpose="page-container" class="container-fluid">
+    <div purpose="article-title-and-image">
+      <div purpose="article-title-and-introduction">
+        <div>
+          <h4>Whitepaper</h4>
+          <h1><%=thisPage.meta.articleTitle %></h1>
+        </div>
+        <div purpose="article-introduction">
+          <%if(thisPage.meta.introductionTextBlockOne){%><p><%- thisPage.meta.introductionTextBlockOne %></p><%}%>
+          <%if(thisPage.meta.introductionTextBlockTwo){%><p><%- thisPage.meta.introductionTextBlockTwo %></p><%}%>
+        </div>
+      </div>
+      <%if(thisPage.meta.articleImageUrl){%>
+        <div purpose="article-image">
+          <img alt="A preview image of the whitepaper" src="<%= thisPage.meta.articleImageUrl %>">
+        </div>
+      <% } %>
+    </div>
+    <div purpose="article-and-sidebar" class="d-flex flex-lg-row-reverse flex-column justify-content-lg-between">
+      <div purpose="sidebar-container">
+        <div purpose="right-sidebar" class="d-flex flex-column">
+          <div purpose="form-container">
+            <div id="download-form" purpose="whitepaper-download-form-ungated">
+              <h4>Get the guide</h4>
+              <p>Download the guide. No form, no email required.</p>
+              <a purpose="download-button" class="btn btn-primary" href="/pdfs/<%- thisPage.meta.whitepaperFilename %>" download="<%- thisPage.meta.whitepaperFilename %>" @click="trackDownload('whitepaper-page')">Download whitepaper</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div purpose="article-container">
+        <div purpose="article-content" parasails-has-no-page-script>
+          <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
+          <div purpose="download-cta" class="d-lg-none d-flex">
+            <a purpose="download-button" class="btn btn-primary" href="/pdfs/<%- thisPage.meta.whitepaperFilename %>" download="<%- thisPage.meta.whitepaperFilename %>" @click="trackDownload('whitepaper-page')">Download whitepaper</a>
+          </div>
+          <div purpose="about-fleet-section">
+            <h3>About Fleet</h3>
+
+            <p>Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.</p>
+
+            <p>By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.</p>
+
+            <p>Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.</p>
+          </div>
+          <div purpose="social-share-and-edit-buttons" class="d-flex flex-row justify-content-between align-items-center">
+            <div purpose="social-share-buttons" class="d-flex flex-row">
+              <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com${encodeURIComponent(thisPage.url)}&t=${encodeURIComponent(thisPage.meta.articleTitle)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
+              <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com'+thisPage.url)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
+              <a :href="`https://twitter.com/intent/tweet?url=${encodeURIComponent('https://fleetdm.com'+thisPage.url)}`"><img src="/images/social-share-icon-twitter-20x20@2x.png" alt="Share this article on Twitter"></a>
+            </div>
+            <div purpose="edit-link">
+              <a :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

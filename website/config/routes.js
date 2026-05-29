@@ -593,6 +593,10 @@ module.exports.routes = {
     }
   },
 
+  'GET /whitepapers/mac-admins-guide-to-switching-from-jamf-to-fleet': {
+    action: 'articles/view-basic-whitepaper-ungated'
+  },
+
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
   },

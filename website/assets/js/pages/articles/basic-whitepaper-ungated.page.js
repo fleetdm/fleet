@@ -1,39 +1,45 @@
-parasails.registerPage('replace-jamf', {
+parasails.registerPage('basic-whitepaper-ungated', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    modal: '',
+    scrollDistance: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
-  beforeMount: function() {
-    //…
-  },
   mounted: async function() {
-    //…
+    window.addEventListener('scroll', this.handleScrollingInArticle);
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    clickOpenVideoModal: function(modalName) {
-      this.modal = modalName;
-    },
-    closeModal: function() {
-      this.modal = undefined;
-    },
-    trackMigrationGuideDownload: function() {
+    trackDownload: function(source) {
       if (typeof gtag !== 'undefined') {
         gtag('event', 'fleet_website__whitepaper_download', {
           asset_name: 'mac-admins-guide-to-switching-from-jamf-to-fleet',
           event_type: 'whitepaper_download',
-          source: 'replace-jamf',
+          source: source,
         });
       }
+    },
+    handleScrollingInArticle: function () {
+      let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
+      let scrollTop = window.pageYOffset;
+      let windowHeight = window.innerHeight;
+      if (rightNavBar) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
+          rightNavBar.classList.add('header-hidden');
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
+          rightNavBar.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
+        }
+      }
+      this.scrollDistance = scrollTop;
     },
   }
 });

@@ -1,0 +1,29 @@
+#basic-whitepaper-ungated {
+  &:extend(#basic-whitepaper all);
+
+  [purpose='whitepaper-download-form-ungated'] {
+    display: flex;
+    scroll-margin-top: 130px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 16px;
+    h4 {
+      color: #192147;
+      font-family: Inter;
+      font-size: 20px;
+      font-style: normal;
+      font-weight: 700;
+      line-height: 120%;
+      margin-bottom: 0;
+    }
+    p {
+      margin-bottom: 0;
+      font-size: 14px;
+      color: #515774;
+    }
+    [purpose='download-button'] {
+      width: 100%;
+    }
+  }
+}
