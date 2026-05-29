@@ -1409,6 +1409,13 @@
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
+      "name": "Mattermost",
+      "slug": "mattermost/windows",
+      "platform": "windows",
+      "unique_identifier": "Mattermost",
+      "description": "Mattermost is an open-source, self-hosted Slack-alternative."
+    },
+    {
       "name": "Messenger",
       "slug": "messenger/darwin",
       "platform": "darwin",
