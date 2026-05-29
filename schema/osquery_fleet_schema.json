@@ -546,6 +546,24 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apfs_volumes.yml"
   },
   {
+    "name": "apple_hardware_info",
+    "description": "Maps the Apple hardware model identifier to its marketing name.",
+    "notes": "This table is a fleetd table. Fleetd tables are built into Fleet's agent (fleetd).",
+    "evented": false,
+    "platforms": [
+      "darwin"
+    ],
+    "examples": "Get the marketing name for the current Mac.\n\n```\nSELECT marketing_name FROM apple_hardware_info;\n```\n\nJoin with `system_info` to get both the identifier and the marketing name.\n\n```\nSELECT si.hardware_model, ahi.marketing_name FROM system_info si, apple_hardware_info ahi;\n```",
+    "columns": [
+      {
+        "name": "marketing_name",
+        "description": "The Apple marketing name for the hardware (e.g. MacBook Pro (16-inch, Nov 2023)). Falls back to the hardware model identifier if unknown.",
+        "type": "text",
+        "required": false
+      }
+    ]
+  },
+  {
     "name": "app_icons",
     "description": "Icons and their locations for macOS applications.",
     "evented": false,
