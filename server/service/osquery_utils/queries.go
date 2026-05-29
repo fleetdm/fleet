@@ -2184,10 +2184,17 @@ func directIngestGoogleEndpointVerificationDetails(
 	// TODO(google_cloud_identity): apply team-level partner_suffix override
 	// once team.Config plumbing is wired. For v1 prototype using org default.
 
+	// One row per (signed-in Workspace identity on the host). The
+	// endpoint_verification_accounts table returns a `resource_id` per row
+	// — useful as evidence EV is installed and the user is signed in, but
+	// no longer load-bearing for resolution: the sync layer queries Cloud
+	// Identity by `host.hardware_serial` (via Devices.List + DeviceUsers.List)
+	// and matches by `workspace_email`, since that flow works with a
+	// DWD service account whereas the rawResourceId lookup endpoint
+	// requires end-user creds.
 	for _, row := range rows {
 		email := strings.TrimSpace(strings.ToLower(row["email"]))
-		resourceID := strings.TrimSpace(row["resource_id"])
-		if email == "" || resourceID == "" {
+		if email == "" {
 			continue
 		}
 		if !domainAllowed(email, allowedDomains) {
@@ -2195,7 +2202,7 @@ func directIngestGoogleEndpointVerificationDetails(
 		}
 
 		if err := ds.UpsertHostGoogleCloudIdentityResolution(
-			ctx, host.ID, resourceID, email, partnerSuffix,
+			ctx, host.ID, email, partnerSuffix,
 		); err != nil {
 			// Log and continue — one bad row shouldn't drop the whole batch.
 			logger.ErrorContext(ctx, "google_cloud_identity: upsert resolution",

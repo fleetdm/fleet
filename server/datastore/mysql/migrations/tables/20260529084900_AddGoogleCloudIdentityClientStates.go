@@ -20,27 +20,20 @@ func Up_20260529084900(tx *sql.Tx) error {
 	// (Microsoft Entra): on every osquery distributed-query result that updates
 	// policy compliance, the integration loads the row, compares desired vs.
 	// last_* fields, and only PATCHes Google when something changed.
-	// Note on raw_resource_id vs device_user_resource:
-	//
-	// The osquery ingest layer writes `raw_resource_id` (from Endpoint
-	// Verification's local accounts.json) but doesn't know the canonical
-	// `devices/{deviceId}/deviceUsers/{deviceUserId}` resource name — that
-	// requires a Cloud Identity lookup which can't run inside the
-	// distributed-query write path.
-	//
-	// The resolution layer (called from processConditionalAccess) fills
-	// `device_user_resource` lazily: on the first sync for a row, it calls
-	// `devices.deviceUsers.lookup?rawResourceId=…`, caches the result, then
-	// proceeds to PATCH. Subsequent syncs short-circuit using the cached
-	// name.
+	// Resolution shape: the canonical `devices/{deviceId}/deviceUsers/{deviceUserId}`
+	// name is filled lazily by the sync layer's first
+	// `devices.list?filter=serial_number:"{serial}" → deviceUsers.list →
+	// match-by-email` flow. The osquery ingest layer only stages
+	// `workspace_email` (one row per EV-resolved signed-in Workspace
+	// identity on the host); the (host_id, workspace_email, partner_suffix)
+	// triple uniquely identifies the ClientState Fleet emits.
 	if _, err := tx.Exec(`
 		CREATE TABLE host_google_cloud_identity_clientstates (
 			id                      INT UNSIGNED NOT NULL AUTO_INCREMENT,
 			host_id                 INT UNSIGNED NOT NULL,
-			raw_resource_id         VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-			device_user_resource    VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 			workspace_email         VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 			partner_suffix          VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+			device_user_resource    VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 			last_compliant          TINYINT(1) DEFAULT NULL,
 			last_managed            TINYINT(1) DEFAULT NULL,
 			last_score_reason       VARCHAR(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -49,7 +42,7 @@ func Up_20260529084900(tx *sql.Tx) error {
 			created_at              TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 			updated_at              TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (id),
-			UNIQUE KEY idx_hgcic_host_resource_suffix (host_id, raw_resource_id, partner_suffix),
+			UNIQUE KEY idx_hgcic_host_email_suffix (host_id, workspace_email, partner_suffix),
 			KEY idx_hgcic_host (host_id),
 			CONSTRAINT fk_hgcic_host_id FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
 		)

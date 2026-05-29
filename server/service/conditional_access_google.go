@@ -6,9 +6,10 @@ import (
 	"sort"
 	"strings"
 
-	google_cloud_identity "github.com/fleetdm/fleet/v4/ee/server/integrations/google_cloud_identity"
+	google_cloud_identity "github.com/fleetdm/fleet/v4/server/integrations/google_cloud_identity"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"google.golang.org/api/option"
 )
 
 // processGoogleCloudIdentityForNewlyFailingPolicies is the Google analog of
@@ -138,7 +139,11 @@ func (svc *Service) googleCloudIdentitySyncerOrNil(ctx context.Context) (*google
 			svc.googleCloudIdentitySyncerErr = fmt.Errorf("google cloud identity token source: %w", err)
 			return
 		}
-		client := google_cloud_identity.NewClient(ctx, ts)
+		client, err := google_cloud_identity.NewClient(ctx, option.WithTokenSource(ts))
+		if err != nil {
+			svc.googleCloudIdentitySyncerErr = fmt.Errorf("google cloud identity client: %w", err)
+			return
+		}
 		svc.googleCloudIdentitySyncerMu.Lock()
 		svc.googleCloudIdentitySyncer = google_cloud_identity.NewSyncer(
 			svc.ds, client, svc.config.GoogleCloudIdentity, svc.logger,

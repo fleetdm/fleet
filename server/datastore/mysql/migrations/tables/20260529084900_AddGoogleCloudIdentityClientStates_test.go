@@ -21,36 +21,36 @@ func TestUp_20260529084900(t *testing.T) {
 	// Insert a row with explicit values.
 	_, err := db.Exec(`
 		INSERT INTO host_google_cloud_identity_clientstates
-			(host_id, raw_resource_id, device_user_resource, workspace_email, partner_suffix, last_compliant, last_managed, last_score_reason, last_etag)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		hostID, "f60acecb-c136-4965-9b1b-ba089f75eede", "devices/abc/deviceUsers/xyz", "user@example.com", "fleet", true, true, "all good", "etag123",
+			(host_id, workspace_email, partner_suffix, device_user_resource, last_compliant, last_managed, last_score_reason, last_etag)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		hostID, "user@example.com", "fleet", "devices/abc/deviceUsers/xyz", true, true, "all good", "etag123",
 	)
 	require.NoError(t, err)
 
-	// Insert before lookup resolves: device_user_resource is NULL.
+	// Insert before resolution: device_user_resource is NULL.
 	_, err = db.Exec(`
 		INSERT INTO host_google_cloud_identity_clientstates
-			(host_id, raw_resource_id, workspace_email, partner_suffix)
-		VALUES (?, ?, ?, ?)`,
-		hostID, "10727d85-717f-4af7-97f1-eaff22b68c02", "other@example.com", "fleet",
+			(host_id, workspace_email, partner_suffix)
+		VALUES (?, ?, ?)`,
+		hostID, "other@example.com", "fleet",
 	)
 	require.NoError(t, err)
 
-	// Unique key (host_id, raw_resource_id, partner_suffix) must reject duplicates.
+	// Unique key (host_id, workspace_email, partner_suffix) must reject duplicates.
 	_, err = db.Exec(`
 		INSERT INTO host_google_cloud_identity_clientstates
-			(host_id, raw_resource_id, workspace_email, partner_suffix)
-		VALUES (?, ?, ?, ?)`,
-		hostID, "f60acecb-c136-4965-9b1b-ba089f75eede", "user@example.com", "fleet",
+			(host_id, workspace_email, partner_suffix)
+		VALUES (?, ?, ?)`,
+		hostID, "user@example.com", "fleet",
 	)
-	require.Error(t, err, "duplicate (host_id, raw_resource_id, partner_suffix) should violate unique key")
+	require.Error(t, err, "duplicate (host_id, workspace_email, partner_suffix) should violate unique key")
 
-	// Different suffix for same host+resource should succeed (per-team suffix override).
+	// Different suffix for same host+email succeeds (per-team suffix override).
 	_, err = db.Exec(`
 		INSERT INTO host_google_cloud_identity_clientstates
-			(host_id, raw_resource_id, workspace_email, partner_suffix)
-		VALUES (?, ?, ?, ?)`,
-		hostID, "f60acecb-c136-4965-9b1b-ba089f75eede", "user@example.com", "fleet-engineering",
+			(host_id, workspace_email, partner_suffix)
+		VALUES (?, ?, ?)`,
+		hostID, "user@example.com", "fleet-engineering",
 	)
 	require.NoError(t, err)
 

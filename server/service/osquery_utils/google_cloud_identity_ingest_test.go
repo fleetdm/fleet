@@ -33,15 +33,9 @@ func TestDirectIngestGoogleEV_FiltersByDomain(t *testing.T) {
 		return appConfigWith([]string{"example.com"}, "fleet"), nil
 	}
 
-	var upserts []struct {
-		email string
-		raw   string
-	}
-	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, rawResourceID, workspaceEmail, partnerSuffix string) error {
-		upserts = append(upserts, struct {
-			email string
-			raw   string
-		}{workspaceEmail, rawResourceID})
+	var emails []string
+	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix string) error {
+		emails = append(emails, workspaceEmail)
 		assert.Equal(t, "fleet", partnerSuffix)
 		return nil
 	}
@@ -60,10 +54,9 @@ func TestDirectIngestGoogleEV_FiltersByDomain(t *testing.T) {
 
 	require.NoError(t, directIngestGoogleEndpointVerificationDetails(context.Background(), nopLogger(), host, ds, rows))
 
-	require.Len(t, upserts, 2, "only corporate-domain rows survive filter")
-	assert.Equal(t, "r1", upserts[0].raw)
-	assert.Equal(t, "robbie@example.com", upserts[0].email)
-	assert.Equal(t, "r4", upserts[1].raw)
+	require.Len(t, emails, 2, "only corporate-domain rows survive filter")
+	assert.Equal(t, "robbie@example.com", emails[0])
+	assert.Equal(t, "alice@example.com", emails[1])
 }
 
 func TestDirectIngestGoogleEV_CaseInsensitiveDomainMatch(t *testing.T) {
@@ -72,7 +65,7 @@ func TestDirectIngestGoogleEV_CaseInsensitiveDomainMatch(t *testing.T) {
 		return appConfigWith([]string{"Example.COM"}, "fleet"), nil
 	}
 	var upserts int
-	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, rawResourceID, workspaceEmail, partnerSuffix string) error {
+	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix string) error {
 		upserts++
 		return nil
 	}
@@ -94,7 +87,7 @@ func TestDirectIngestGoogleEV_MultipleDomains(t *testing.T) {
 		return appConfigWith([]string{"example.com", "sub.example.com"}, "fleet"), nil
 	}
 	var upserts int
-	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, rawResourceID, workspaceEmail, partnerSuffix string) error {
+	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix string) error {
 		upserts++
 		return nil
 	}
@@ -129,19 +122,21 @@ func TestDirectIngestGoogleEV_SkipsRowsMissingFields(t *testing.T) {
 		return appConfigWith([]string{"example.com"}, "fleet"), nil
 	}
 	var upserts int
-	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, rawResourceID, workspaceEmail, partnerSuffix string) error {
+	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix string) error {
 		upserts++
 		return nil
 	}
 
 	host := &fleet.Host{ID: 1, Platform: "darwin"}
 	rows := []map[string]string{
-		{"email": "user@example.com"},                  // missing resource_id
-		{"resource_id": "r"},                           // missing email
-		{"resource_id": "r1", "email": "u@example.com"}, // complete
+		{"resource_id": "r"},                            // missing email — skipped
+		{"resource_id": "r1", "email": "u@example.com"}, // complete — kept
+		{"email": "u2@example.com"},                     // missing resource_id but has email — kept (resource_id is no longer load-bearing)
 	}
 	require.NoError(t, directIngestGoogleEndpointVerificationDetails(context.Background(), nopLogger(), host, ds, rows))
-	assert.Equal(t, 1, upserts)
+	// 2 rows have valid emails; resource_id is informational only since the
+	// resolution layer now uses serial+email rather than rawResourceId lookup.
+	assert.Equal(t, 2, upserts)
 }
 
 func TestDirectIngestGoogleEV_NoDomainsConfiguredSkips(t *testing.T) {
@@ -155,7 +150,7 @@ func TestDirectIngestGoogleEV_NoDomainsConfiguredSkips(t *testing.T) {
 		}
 		return c, nil
 	}
-	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, rawResourceID, workspaceEmail, partnerSuffix string) error {
+	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix string) error {
 		t.Fatal("upsert should not run without configured domains")
 		return nil
 	}
@@ -171,7 +166,7 @@ func TestDirectIngestGoogleEV_SettingsNilSkips(t *testing.T) {
 		// Settings literally nil — initial install before admin configured anything.
 		return &fleet.AppConfig{}, nil
 	}
-	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, rawResourceID, workspaceEmail, partnerSuffix string) error {
+	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix string) error {
 		t.Fatal("upsert should not run without configured settings")
 		return nil
 	}
@@ -191,7 +186,7 @@ func TestDirectIngestGoogleEV_DefaultSuffixApplied(t *testing.T) {
 		return c, nil
 	}
 	var gotSuffix string
-	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, rawResourceID, workspaceEmail, partnerSuffix string) error {
+	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix string) error {
 		gotSuffix = partnerSuffix
 		return nil
 	}
@@ -208,7 +203,7 @@ func TestDirectIngestGoogleEV_LowercaseEmailNormalization(t *testing.T) {
 		return appConfigWith([]string{"example.com"}, "fleet"), nil
 	}
 	var gotEmail string
-	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, rawResourceID, workspaceEmail, partnerSuffix string) error {
+	ds.UpsertHostGoogleCloudIdentityResolutionFunc = func(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix string) error {
 		gotEmail = workspaceEmail
 		return nil
 	}

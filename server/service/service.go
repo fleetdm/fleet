@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	google_cloud_identity "github.com/fleetdm/fleet/v4/ee/server/integrations/google_cloud_identity"
+	google_cloud_identity "github.com/fleetdm/fleet/v4/server/integrations/google_cloud_identity"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
