@@ -6749,14 +6749,14 @@ WHERE hvsi.host_id = ? AND st.id IN (?)
 	return nil
 }
 
-func (ds *Datastore) ListSoftwareCategories(ctx context.Context, teamID uint) ([]*fleet.SoftwareCategory, error) {
+func (ds *Datastore) ListSoftwareCategories(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
 	const stmt = `
 SELECT id, name, team_id, created_at, updated_at
 FROM software_categories
 WHERE team_id = ?
 ORDER BY name
 `
-	var categories []*fleet.SoftwareCategory
+	var categories []fleet.SoftwareCategory
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list software categories")
 	}

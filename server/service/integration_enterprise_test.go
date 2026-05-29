@@ -31691,7 +31691,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	require.Equal(t, uint(0), addResp.SelfServiceCategory.TeamID)
 	catID := addResp.SelfServiceCategory.ID
 	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering","fleet_id":null,"fleet_name":null}`, 0)
+		`{"self_service_category_name":"💼 Engineering","fleet_id":0,"fleet_name":null}`, 0)
 
 	// list includes new category
 	var listResp getSelfServiceCategoriesResponse
@@ -31708,21 +31708,17 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	require.Equal(t, catID, patchResp.SelfServiceCategory.ID)
 	require.Equal(t, "💼 Engineering tools", patchResp.SelfServiceCategory.Name)
 	editActID := s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering tools","fleet_id":null,"fleet_name":null}`, 0)
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":null}`, 0)
 
 	// patch with the same name is a no-op — no new activity emitted
 	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "💼 Engineering tools"}, http.StatusOK, &patchResp)
 	require.Equal(t, editActID, s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(), "", 0),
 		"no-op PATCH should not emit a new activity")
 
-	// delete then 404 on repeat
+	// delete + activity
 	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNoContent)
 	s.lastActivityMatches(fleet.ActivityTypeDeletedSelfServiceCategory{}.ActivityName(),
-		`{"self_service_category_name":"💼 Engineering tools","fleet_id":null,"fleet_name":null}`, 0)
-	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNotFound)
-
-	// patch unknown id returns 404
-	s.Do("PATCH", fmt.Sprintf("%s/9999999", path), map[string]any{"name": "ghost"}, http.StatusNotFound)
+		`{"self_service_category_name":"💼 Engineering tools","fleet_id":0,"fleet_name":null}`, 0)
 
 	// post without name returns 422
 	s.Do("POST", path, map[string]any{"fleet_id": 0}, http.StatusUnprocessableEntity)
@@ -31748,16 +31744,6 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	// 255-rune name succeeds; 256-rune name returns 422
 	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": strings.Repeat("a", 255)}, http.StatusOK)
 	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": strings.Repeat("a", 256)}, http.StatusUnprocessableEntity)
-
-	// case-insensitive dup returns 409
-	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "UniqueCat"}, http.StatusOK, &addResp)
-	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": "uniquecat"}, http.StatusConflict)
-
-	// rename into existing name returns 409
-	var another addSelfServiceCategoriesResponse
-	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "AnotherCat"}, http.StatusOK, &another)
-	s.Do("PATCH", fmt.Sprintf("%s/%d", path, another.SelfServiceCategory.ID),
-		map[string]any{"name": "UniqueCat"}, http.StatusConflict)
 
 	// duplicate across fleets allowed
 	var teamResp teamResponse

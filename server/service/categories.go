@@ -16,7 +16,7 @@ type getSelfServiceCategoriesRequest struct {
 }
 
 type getSelfServiceCategoriesResponse struct {
-	SelfServiceCategories []*fleet.SoftwareCategory `json:"self_service_categories"`
+	SelfServiceCategories []fleet.SoftwareCategory `json:"self_service_categories"`
 	Err                   error                     `json:"error,omitempty"`
 }
 
@@ -31,7 +31,7 @@ func getSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, 
 	return getSelfServiceCategoriesResponse{SelfServiceCategories: categories}, nil
 }
 
-func (svc *Service) ListSoftwareCategories(ctx context.Context, _ uint) ([]*fleet.SoftwareCategory, error) {
+func (svc *Service) ListSoftwareCategories(ctx context.Context, _ uint) ([]fleet.SoftwareCategory, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

@@ -807,7 +807,7 @@ type Datastore interface {
 
 	// Software categories — per-fleet, user-managed categories used to group
 	// software (e.g. for the self-service UI).
-	ListSoftwareCategories(ctx context.Context, teamID uint) ([]*SoftwareCategory, error)
+	ListSoftwareCategories(ctx context.Context, teamID uint) ([]SoftwareCategory, error)
 	SoftwareCategory(ctx context.Context, id uint) (*SoftwareCategory, error)
 	// NewSoftwareCategory creates a new category for software.
 	NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*SoftwareCategory, error)
