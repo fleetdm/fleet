@@ -186,7 +186,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
 			// Clear profile label associations first so DeleteLabel isn't blocked
 			// by the FK constraint that prevents deleting referenced labels.
-			mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 				if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, lbl.ID); err != nil {
 					return err
 				}
