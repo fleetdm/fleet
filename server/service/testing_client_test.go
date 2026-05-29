@@ -29,7 +29,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
 	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
@@ -391,7 +390,7 @@ func (ts *withServer) getTestToken(email string, password string) string {
 }
 
 func GetToken(t *testing.T, email string, password string, serverURL string) string {
-	params := contract.LoginRequest{
+	params := fleet.LoginRequest{
 		Email:    email,
 		Password: password,
 	}

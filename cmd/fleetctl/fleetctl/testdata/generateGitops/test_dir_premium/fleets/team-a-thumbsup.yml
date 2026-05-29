@@ -53,6 +53,7 @@ name: "Team A 👍"
 policies:
 - calendar_events_enabled: false
   conditional_access_enabled: true
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy
   name: Team Policy
@@ -63,6 +64,7 @@ policies:
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: true
+  continuous_automations_enabled: false
   critical: false
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
@@ -73,6 +75,7 @@ policies:
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy with VPP app automation
   install_software:
@@ -85,6 +88,7 @@ policies:
   webhooks_and_tickets_enabled: true
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy with FMA install automation
   install_software:
@@ -97,6 +101,7 @@ policies:
   webhooks_and_tickets_enabled: false
 - calendar_events_enabled: false
   conditional_access_enabled: false
+  continuous_automations_enabled: false
   critical: false
   description: This is a team policy with custom package install automation
   install_software:

@@ -3,7 +3,7 @@ import { IInstallerType } from "interfaces/installer";
 import sendRequest from "services";
 import ENDPOINTS from "utilities/endpoints";
 
-export interface ICheckInstallerExistenceRequestParams {
+export interface ICheckInstallerExistenceApiParams {
   enrollSecret: string;
   includeDesktop: boolean;
   installerType: IInstallerType;
@@ -14,7 +14,7 @@ export default {
     enrollSecret,
     includeDesktop,
     installerType,
-  }: ICheckInstallerExistenceRequestParams): Promise<BlobPart> => {
+  }: ICheckInstallerExistenceApiParams): Promise<BlobPart> => {
     const path = `${
       ENDPOINTS.DOWNLOAD_INSTALLER
     }/${installerType}?desktop=${includeDesktop}&enroll_secret=${encodeURIComponent(

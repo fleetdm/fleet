@@ -1,0 +1,1 @@
+* Reject Windows MDM configuration profiles that don't contain at least one supported SyncML top-level element (`<Replace>`, `<Add>`, `<Exec>`, or `<Atomic>`), so non-XML or empty payloads are caught at upload instead of failing on devices.

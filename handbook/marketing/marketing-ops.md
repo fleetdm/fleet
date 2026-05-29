@@ -104,6 +104,7 @@ For all unpaid, inbound traffic and brand-driven interest.
 | Direct traffic | DT | Default-DT |
 | Web referral | WR | Default-WR |
 | Organic social | SOC | Default-SOC |
+| Organic AI | AI | Default-AI, Default-AI-ChatGPT |
 
 
 #### 🗣️ Word-of-mouth

@@ -15,7 +15,7 @@ type packResponse struct {
 	fleet.Pack
 	QueryCount uint `json:"query_count" renameto:"report_count"`
 
-	// All current hosts in the pack. Hosts which are selected explicty and
+	// All current hosts in the pack. Hosts which are selected explicitly and
 	// hosts which are part of a label.
 	TotalHostsCount uint `json:"total_hosts_count"`
 

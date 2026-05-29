@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.4.2",
+      "version": "1.4.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.colliderli.iina';",
-        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.colliderli.iina') AND version_compare(bundle_short_version, '1.4.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.colliderli.iina' AND version_compare(bundle_short_version, '1.4.3') < 0);"
       },
-      "installer_url": "https://dl-portal.iina.io/IINA.v1.4.2-build164.dmg",
+      "installer_url": "https://dl.iina.io/IINA.v1.4.3.dmg",
       "install_script_ref": "ac168c5b",
       "uninstall_script_ref": "02a16561",
-      "sha256": "804e3368518f19039ebfbc3d698e1fabc9cd20f15fc4e42de635456cdf6a7f58",
+      "sha256": "899a15c3cee499d6e5d1a47bce02194a5a2709b3aa1c7ba82fb16a002fa81e02",
       "default_categories": [
         "Utilities"
       ]

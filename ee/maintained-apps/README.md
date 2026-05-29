@@ -1,5 +1,7 @@
 # Fleet-maintained apps (FMA)
 
+> **Using Claude Code?** The `new-fma` skill ([.claude/skills/new-fma/SKILL.md](../../.claude/skills/new-fma/SKILL.md)) automates this workflow and bakes in the gotchas this README doesn't cover — verifying the installed app's identity with `msiinfo`/`PlistBuddy` instead of trusting winget/cask metadata, handling bootstrapper installers, parsing unquoted `UninstallString`s, version-matching quirks, and more. Just ask it to "add X as a macOS/Windows FMA."
+
 ## Adding a new app (macOS)
 
 1. Find the app's metadata in its [Homebrew formulae](https://formulae.brew.sh/)

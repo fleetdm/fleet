@@ -2131,6 +2131,17 @@ func TestDirectDiskEncryption(t *testing.T) {
 	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
 }
 
+// TestUsesMacOSDiskEncryptionQueryDoesNotGateOnSecureToken guards against reintroducing
+// the user_uuid predicate that caused https://github.com/fleetdm/fleet/issues/45369.
+// In the post-ADE window the disk_encryption.user_uuid column can be empty while
+// FileVault is on; filtering on it makes the host appear unencrypted and blocks
+// recovery-key escrow until the user logs out/in.
+func TestUsesMacOSDiskEncryptionQueryDoesNotGateOnSecureToken(t *testing.T) {
+	require.NotContains(t, usesMacOSDiskEncryptionQuery, "user_uuid",
+		"usesMacOSDiskEncryptionQuery must not filter on user_uuid; see issue #45369")
+	require.Contains(t, usesMacOSDiskEncryptionQuery, "filevault_status = 'on'")
+}
+
 func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
 	ds := new(mock.Store)
 	var gotEncrypted bool
@@ -2776,9 +2787,10 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"path":              "/Library/Keychains/System.keychain",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
+		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 2)
 		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31", hex.EncodeToString(certs[0].SHA1Sum))
 		require.Equal(t, "Cert 1 Common Name", certs[0].CommonName)
@@ -2855,7 +2867,8 @@ func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
 		"path":              "/Library/Keychains/System.keychain",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
+		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 1)
 		cert := certs[0]
 
@@ -2938,9 +2951,10 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 
 	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
+		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 3)
 
 		// We expect that the ingest function will deduplicate certs based on SHA1+username

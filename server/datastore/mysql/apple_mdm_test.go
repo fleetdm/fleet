@@ -5,11 +5,16 @@ import (
 	"context"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
+	mathrand "math/rand/v2"
 	"slices"
 	"sort"
 	"strings"
@@ -27,9 +32,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
@@ -136,6 +143,7 @@ func TestMDMApple(t *testing.T) {
 		{"HostRecoveryLockStatusMatrix", testHostRecoveryLockStatusMatrix},
 		{"RecoveryLockReadersReturnNotFoundForSoftDeleted", testRecoveryLockReadersReturnNotFoundForSoftDeleted},
 		{"MDMTurnOffSoftDeletesRecoveryLockPassword", testMDMTurnOffSoftDeletesRecoveryLockPassword},
+		{"MDMTurnOffSoftDeletesMDMCertificates", testMDMTurnOffSoftDeletesMDMCertificates},
 	}
 
 	for _, c := range cases {
@@ -1124,6 +1132,7 @@ func TestMDMEnrollment(t *testing.T) {
 		{"TestMultipleIngest", testIngestMDMAppleCheckinMultipleIngest},
 		{"TestCheckOut", testUpdateHostTablesOnMDMUnenroll},
 		{"TestNonDarwinHostAlreadyExistsInFleet", testIngestMDMNonDarwinHostAlreadyExistsInFleet},
+		{"TestPreserveDisplayNameAfterFleetdEnroll", testPreserveDisplayNameAfterFleetdEnroll},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1215,6 +1224,69 @@ func testIngestMDMNonDarwinHostAlreadyExistsInFleet(t *testing.T, ds *Datastore)
 	require.NotEqual(t, id0, id1)
 	require.NotEqual(t, platform0, platform1)
 	require.ElementsMatch(t, []string{"darwin", "linux"}, []string{platform0, platform1})
+}
+
+// testPreserveDisplayNameAfterFleetdEnroll verifies that when a host has
+// already enrolled via fleetd (and host_display_names was populated with the
+// accurate computer/host name), a subsequent MDM enrollment does NOT overwrite
+// the existing display name. This ensures the mdm_enrolled and fleet_enrolled
+// activities show the same name for the same host.
+func testPreserveDisplayNameAfterFleetdEnroll(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	testSerial := "test-serial"
+	testUUID := "test-uuid"
+	fleetdDisplayName := "Foobar's MacBook Pro"
+
+	// Simulate fleetd enrollment: host exists with an accurate computer_name
+	// and host_display_names has the corresponding good display name.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "foobar.local",
+		ComputerName:    fleetdDisplayName,
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("osquery-id"),
+		NodeKey:         ptr.String("node-key"),
+		UUID:            testUUID,
+		HardwareSerial:  testSerial,
+		HardwareModel:   "MacBookPro18,1",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	var displayName string
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &displayName,
+		`SELECT display_name FROM host_display_names WHERE host_id = ?`, host.ID))
+	require.Equal(t, fleetdDisplayName, displayName)
+
+	// Now the host enrolls via MDM (e.g., manual MDM enrollment via downloaded
+	// profile). MDMAppleUpsertHost is called via the Apple Authenticate flow.
+	// The mdmHost struct from the MDM checkin does not carry computer_name, so
+	// without preservation the display name would be overwritten with
+	// "model (serial)" or similar.
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           testUUID,
+		HardwareSerial: testSerial,
+		HardwareModel:  "MacBookPro18,1",
+		Platform:       "darwin",
+	}, false)
+	require.NoError(t, err)
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &displayName,
+		`SELECT display_name FROM host_display_names WHERE host_id = ?`, host.ID))
+	require.Equal(t, fleetdDisplayName, displayName,
+		"MDM enrollment must not overwrite a display name previously set by fleetd")
+
+	// Repeat for the OTA enrollment path which goes through createHostFromMDMDB.
+	err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "",
+		fleet.MDMAppleMachineInfo{Serial: testSerial, UDID: testUUID, Product: "MacBookPro18,1"})
+	require.NoError(t, err)
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &displayName,
+		`SELECT display_name FROM host_display_names WHERE host_id = ?`, host.ID))
+	require.Equal(t, fleetdDisplayName, displayName,
+		"OTA MDM enrollment must not overwrite a display name previously set by fleetd")
 }
 
 func testIngestMDMAppleIngestAfterDEPSync(t *testing.T, ds *Datastore) {
@@ -4960,6 +5032,66 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	checkHostMDMProfileStatuses()
 }
 
+// TestMDMAppleFileVaultSummary_NullDecryptableKey is a regression test for the
+// SQL aggregate gap surfaced while investigating
+// https://github.com/fleetdm/fleet/issues/45369. When a host has a key row in
+// host_disk_encryption_keys with decryptable=NULL (the host reported its key but
+// the decryption-verifier hasn't run yet) and the FileVault profile is verifying
+// or verified, PopulateOSSettingsAndMacOSSettings (server/fleet/hosts.go) classifies
+// the host as Verifying. The previous subqueryFileVaultVerifying only matched the
+// Verified-status case, so dashboard aggregates miscounted a Verifying-status host
+// in this state.
+func TestMDMAppleFileVaultSummary_NullDecryptableKey(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	fvProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP(fleetmdm.FleetFileVaultProfileName, mobileconfig.FleetFileVaultPayloadIdentifier, 0), nil)
+	require.NoError(t, err)
+
+	// Two hosts: one with profile in Verifying status, one in Verified. Both have
+	// a key row with NULL decryptable. Both should be classified as Verifying.
+	verifyingHost := test.NewHost(t, ds, "fv-verifying.local", "1.1.1.1", "fv-verifying-key", "fv-verifying-uuid", time.Now())
+	verifiedHost := test.NewHost(t, ds, "fv-verified.local", "1.1.1.2", "fv-verified-key", "fv-verified-uuid", time.Now())
+	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, verifyingHost)
+	nanoEnrollUserDeviceAndSetHostMDMData(t, ds, verifiedHost)
+
+	upsertHostCPs([]*fleet.Host{verifyingHost}, []*fleet.MDMAppleConfigProfile{fvProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
+	upsertHostCPs([]*fleet.Host{verifiedHost}, []*fleet.MDMAppleConfigProfile{fvProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
+	// Key rows exist, decryptability has not been confirmed (nil → NULL).
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, verifyingHost, "key-a", "", nil)
+	require.NoError(t, err)
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, verifiedHost, "key-b", "", nil)
+	require.NoError(t, err)
+
+	summary, err := ds.GetMDMAppleFileVaultSummary(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, summary)
+	assert.Equal(t, uint(2), summary.Verifying, "both hosts must count as verifying")
+	assert.Equal(t, uint(0), summary.ActionRequired)
+	assert.Equal(t, uint(0), summary.Verified)
+	assert.Equal(t, uint(0), summary.Enforcing)
+	assert.Equal(t, uint(0), summary.Failed)
+
+	gotVerifying, err := ds.ListHosts(ctx,
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+		fleet.HostListOptions{OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerifying},
+	)
+	require.NoError(t, err)
+	assert.Len(t, gotVerifying, 2)
+
+	// Host-details classification agrees for both hosts.
+	for _, h := range []*fleet.Host{verifyingHost, verifiedHost} {
+		profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		mdmData := fleet.MDMHostData{}
+		mdmData.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
+		require.NotNil(t, mdmData.MacOSSettings)
+		require.NotNil(t, mdmData.MacOSSettings.DiskEncryption)
+		assert.Equal(t, fleet.DiskEncryptionVerifying, *mdmData.MacOSSettings.DiskEncryption,
+			"host %s details must report verifying", h.Hostname)
+	}
+}
+
 func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	ds := CreateMySQLDS(t)
 	defer ds.Close()
@@ -6406,6 +6538,8 @@ func testScreenDEPAssignProfileSerialsForCooldown(t *testing.T, ds *Datastore) {
 
 func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	SetTestABMAssets(t, ds, "fleet")
+
 	toks, err := ds.MDMAppleDDMDeclarationsToken(ctx, "not-exists")
 	require.NoError(t, err)
 	require.Empty(t, toks.DeclarationsToken)
@@ -6416,11 +6550,8 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-1"}`),
 	}, nil)
 	require.NoError(t, err)
-	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
-	require.NoError(t, err)
-	assert.False(t, updates.AppleConfigProfile)
-	assert.False(t, updates.AppleDeclaration)
-	assert.False(t, updates.WindowsConfigProfile)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, "not-exists")
 	require.NoError(t, err)
@@ -6437,11 +6568,8 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host1, true)
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
-	require.NoError(t, err)
-	assert.False(t, updates.AppleConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
-	assert.False(t, updates.WindowsConfigProfile)
+
+	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
 	require.NoError(t, err)
@@ -6449,17 +6577,13 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	require.NotZero(t, toks.Timestamp)
 	oldTok := toks.DeclarationsToken
 
-	decl2, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+	_, err = ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 		Identifier: "decl-2",
 		Name:       "decl-2",
 		RawJSON:    json.RawMessage(`{"Identifier": "decl-2"}`),
 	}, nil)
 	require.NoError(t, err)
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
-	require.NoError(t, err)
-	assert.False(t, updates.AppleConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
-	assert.False(t, updates.WindowsConfigProfile)
+	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
 	require.NoError(t, err)
@@ -6470,11 +6594,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteMDMAppleDeclaration(ctx, decl.DeclarationUUID)
 	require.NoError(t, err)
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
-	require.NoError(t, err)
-	assert.False(t, updates.AppleConfigProfile)
-	assert.False(t, updates.AppleDeclaration) // This is false because we delete references in `host_mdm_apple_declarations` for declarations that aren't sent to the host
-	assert.False(t, updates.WindowsConfigProfile)
+	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	toks, err = ds.MDMAppleDDMDeclarationsToken(ctx, host1.UUID)
 	require.NoError(t, err)
@@ -6640,6 +6760,7 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 
 func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	SetTestABMAssets(t, ds, "fleet")
 
 	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 		Identifier: "decl-1",
@@ -6659,8 +6780,8 @@ func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastor
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, true)
 
-	_, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil)
-	require.NoError(t, err)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
 
 	// verify the correct state of the declaration for the host
 	profs, err := ds.GetHostMDMAppleProfiles(ctx, host.UUID)
@@ -7428,6 +7549,16 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, h)
 
+	// GetAllMDMConfigAssetsByNameIncludingDeleted returns soft-deleted rows,
+	// newest first, with decrypted values. Both ca_cert rows ("a", then its
+	// replacement "c") are now soft-deleted.
+	deleted, err := ds.GetAllMDMConfigAssetsByNameIncludingDeleted(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert})
+	require.NoError(t, err)
+	require.Len(t, deleted, 2)
+	require.Equal(t, fleet.MDMAssetCACert, deleted[0].Name)
+	require.Equal(t, []byte("c"), deleted[0].Value)
+	require.Equal(t, []byte("a"), deleted[1].Value)
+
 	// Verify that they're still in the DB. Values should be encrypted.
 
 	type assetRow struct {
@@ -7772,6 +7903,7 @@ func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) 
 
 func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	SetTestABMAssets(t, ds, "fleet")
 
 	// Add the Fleetd configuration and  profile that are only for macOS.
 	params := mobileconfig.FleetdProfileOptions{
@@ -7837,11 +7969,12 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	someProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
 	require.NoError(t, err)
 
-	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{0}, nil, nil)
-	require.NoError(t, err)
-	assert.True(t, updates.AppleConfigProfile)
-	assert.False(t, updates.AppleDeclaration)
-	assert.False(t, updates.WindowsConfigProfile)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	mockKV := new(mock.AdvancedKVStore)
+	mockKV.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
+		return make(map[string]*string), nil
+	}
+	require.NoError(t, service.ReconcileAppleProfilesBatched(ctx, ds, commander, mockKV, ds.logger, 0))
 
 	profiles, err := ds.GetHostMDMAppleProfiles(ctx, "iOS0_UUID")
 	require.NoError(t, err)
@@ -13111,6 +13244,52 @@ func testMDMTurnOffSoftDeletesRecoveryLockPassword(t *testing.T, ds *Datastore) 
 		row := readRaw(t, host.UUID)
 		assert.Nil(t, row, "no row should be created by MDMTurnOff")
 	})
+}
+
+// testMDMTurnOffSoftDeletesMDMCertificates verifies unenroll clears MDM-origin
+// certs but leaves osquery-origin certs intact.
+func testMDMTurnOffSoftDeletesMDMCertificates(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	mkCert := func(hostID uint, commonName string) *fleet.HostCertificateRecord {
+		template := x509.Certificate{
+			Subject:               pkix.Name{CommonName: commonName},
+			Issuer:                pkix.Name{CommonName: "issuer.test.example.com"},
+			SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+		certBytes, _, err := GenerateTestCertBytes(&template)
+		require.NoError(t, err)
+		block, _ := pem.Decode(certBytes)
+		parsed, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		return fleet.NewHostCertificateRecord(hostID, parsed)
+	}
+
+	host := test.NewHost(t, ds, "turnoff-certs", "1.2.3.45", "turnoffcertskey", "turnoffcertsuuid", time.Now())
+	nanoEnroll(t, ds, host, false)
+	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://mdm.example.com", false, "Fleet", "", false))
+
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{mkCert(host.ID, "osquery.example.com")}, fleet.HostCertificateOriginOsquery))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{mkCert(host.ID, "mdm-acme.example.com")}, fleet.HostCertificateOriginMDM))
+
+	certs, _, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{OrderKey: "common_name"})
+	require.NoError(t, err)
+	require.Len(t, certs, 2)
+
+	_, _, err = ds.MDMTurnOff(ctx, host.UUID)
+	require.NoError(t, err)
+
+	// Only the osquery-origin cert remains; the MDM-origin cert is soft-deleted.
+	certs, _, err = ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{OrderKey: "common_name"})
+	require.NoError(t, err)
+	require.Len(t, certs, 1)
+	require.Equal(t, "osquery.example.com", certs[0].CommonName)
 }
 
 // testRecoveryLockReadersReturnNotFoundForSoftDeleted verifies that view-password and

@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IAddCertAuthorityBody } from "services/entities/certificates";
+import { IAddCertAuthorityFormData } from "services/entities/certificates";
 import { ICertificateAuthorityType } from "interfaces/certificates";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -68,7 +68,7 @@ export const generateDropdownOptions = (hasNDESCert: boolean) => {
 export const generateAddCertAuthorityData = (
   certAuthorityType: ICertificateAuthorityType,
   formData: ICertFormData
-): IAddCertAuthorityBody | undefined => {
+): IAddCertAuthorityFormData | undefined => {
   switch (certAuthorityType) {
     case "ndes_scep_proxy": {
       const {

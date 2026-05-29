@@ -680,6 +680,22 @@ module.exports.routes = {
     }
   },
 
+  'GET /lp/android-mdm': {
+    action: 'landing-pages/view-android-mdm',
+    locals: {
+      pageTitleForMeta: 'Android MDM: open source Android device management at enterprise scale',
+      pageDescriptionForMeta: 'Fleet is open source Android MDM for modern IT and security teams. Enroll, configure, and secure Android phones and tablets with Android Enterprise, Work Profile, managed Google Play, and GitOps. Self-hosted or Fleet-hosted.',
+    }
+  },
+
+  'GET /lp/windows-mdm': {
+    action: 'landing-pages/view-windows-mdm',
+    locals: {
+      pageTitleForMeta: 'Windows MDM: open source Windows device management at enterprise scale',
+      pageDescriptionForMeta: 'Fleet is open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with Microsoft Entra ID, Windows Autopilot, BitLocker, and GitOps. Self-hosted or Fleet-hosted.',
+    }
+  },
+
   'GET /lp/on-premise': {
     action: 'landing-pages/view-on-premise',
     locals: {

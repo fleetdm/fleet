@@ -7,6 +7,12 @@
     justify-content: space-between;
   }
 
+  &__header-actions {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
   &__content {
     display: inline-grid;
     gap: $pad-medium $pad-xxlarge;
