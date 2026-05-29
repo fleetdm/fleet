@@ -132,9 +132,12 @@ integrations:
 
 In Fleet, go to **Policies**, edit the policies you want to enforce as conditional access signals, and enable **Conditional access**. Hosts will be marked compliant only when every flagged policy passes for that host.
 
-Fleet shares the per-policy **Conditional access** flag between the Microsoft Entra and Google Cloud Identity integrations — both providers receive an API-pushed compliance signal driven by the same set of flagged policies, so a single policy can drive both.
+Fleet shares the per-policy **Conditional access** flag across all three of its conditional access providers — Microsoft Entra, Google Cloud Identity, and Okta. The same flagged policy set drives every provider, so admins flag policies once and don't need to manage parallel lists per integration.
 
-> **Note on Fleet's Okta integration.** Fleet's [Okta conditional access integration](./okta-conditional-access-integration) is structurally different. Okta does not have a partner-write compliance API, so Fleet enforces device trust on Okta via a per-device certificate that the host presents over mTLS during sign-in. There is no per-policy gating; the cert is either present and trusted or it isn't. The per-policy **Conditional access** flag described above does not apply to the Okta path.
+The mechanism each provider uses to enforce compliance differs:
+
+- **Microsoft Entra** and **Google Cloud Identity** are API-push: Fleet writes the per-policy compliance result into the provider's device record so the provider's own conditional-access engine can evaluate it.
+- **Okta** is cert-presentation: Fleet issues a per-device certificate that the host presents over mTLS during sign-in, and the Okta integration validates that cert against the same flagged-policy set before letting the device through.
 
 ## Step 8: Create a Context-Aware Access policy in Workspace
 

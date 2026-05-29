@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260529084900, Down_20260529084900)
+	MigrationClient.AddMigration(Up_20260529151118, Down_20260529151118)
 }
 
-func Up_20260529084900(tx *sql.Tx) error {
+func Up_20260529151118(tx *sql.Tx) error {
 	// host_google_cloud_identity_clientstates tracks the last-known Google Cloud
 	// Identity ClientState that Fleet has PATCHed for a (host, signed-in Workspace
 	// deviceUser) pair. Cardinality is per-deviceUser (not per-host) because a
@@ -52,6 +52,6 @@ func Up_20260529084900(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260529084900(tx *sql.Tx) error {
+func Down_20260529151118(tx *sql.Tx) error {
 	return nil
 }

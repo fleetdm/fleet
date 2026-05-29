@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260529084900(t *testing.T) {
+func TestUp_20260529151118(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Create a host to satisfy the FK.
