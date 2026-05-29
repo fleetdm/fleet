@@ -1,11 +1,38 @@
 package main
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	otelsdklog "go.opentelemetry.io/otel/sdk/log"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+
 	"github.com/stretchr/testify/require"
 )
+
+// shutdownOTELProviders releases the background goroutines and exporters held
+// by the providers initOTELProviders constructs. A short context timeout keeps
+// the cleanup fast even when no OTLP collector is listening — the periodic
+// exporters would otherwise block trying to flush in-flight batches.
+func shutdownOTELProviders(t *testing.T, lp *otelsdklog.LoggerProvider, tp *sdktrace.TracerProvider, mp *sdkmetric.MeterProvider) {
+	t.Helper()
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		if tp != nil {
+			_ = tp.Shutdown(ctx)
+		}
+		if mp != nil {
+			_ = mp.Shutdown(ctx)
+		}
+		if lp != nil {
+			_ = lp.Shutdown(ctx)
+		}
+	})
+}
 
 func TestInitOTELProviders_DisabledReturnsNilProviders(t *testing.T) {
 	// Default config has OTEL disabled. The init function should be a no-op
@@ -34,6 +61,7 @@ func TestInitOTELProviders_EnabledReturnsTracerAndMeterProviders(t *testing.T) {
 
 	called := false
 	lp, tp, mp := initOTELProviders(cfg, func(err error, msg string) { called = true })
+	shutdownOTELProviders(t, lp, tp, mp)
 
 	require.False(t, called, "initFatal must not be called for a healthy enabled config")
 	require.Nil(t, lp, "logger provider should be nil when OtelLogsEnabled is false")
@@ -48,6 +76,7 @@ func TestInitOTELProviders_LogExportEnabledReturnsLoggerProvider(t *testing.T) {
 
 	called := false
 	lp, tp, mp := initOTELProviders(cfg, func(err error, msg string) { called = true })
+	shutdownOTELProviders(t, lp, tp, mp)
 
 	require.False(t, called)
 	require.NotNil(t, lp, "logger provider should be set when OtelLogsEnabled is true")

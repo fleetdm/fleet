@@ -48,6 +48,9 @@ func initOTELProviders(cfg config.FleetConfig, initFatal func(err error, msg str
 	)
 	if err != nil {
 		initFatal(err, "Failed to create OTEL resource")
+		// Returning here makes the function safe even if a caller's
+		// initFatal does not terminate (e.g., tests using a recorder).
+		return nil, nil, nil
 	}
 
 	// Initialize OTEL traces.
@@ -56,6 +59,7 @@ func initOTELProviders(cfg config.FleetConfig, initFatal func(err error, msg str
 	))
 	if err != nil {
 		initFatal(err, "Failed to initialize OTEL trace exporter")
+		return nil, nil, nil
 	}
 	// Configure batch span processor with smaller batch size to avoid exceeding
 	// message size limits (4MB default limit).
@@ -74,6 +78,7 @@ func initOTELProviders(cfg config.FleetConfig, initFatal func(err error, msg str
 	)
 	if err != nil {
 		initFatal(err, "Failed to initialize OTEL metrics exporter")
+		return nil, nil, nil
 	}
 
 	// Create views to rename otelsql metrics to match what OpenTelemetry Signoz expects.
@@ -120,6 +125,7 @@ func initOTELProviders(cfg config.FleetConfig, initFatal func(err error, msg str
 		)
 		if err != nil {
 			initFatal(err, "Failed to initialize OTEL log exporter")
+			return nil, nil, nil
 		}
 		loggerProvider = otelsdklog.NewLoggerProvider(
 			otelsdklog.WithResource(res),
