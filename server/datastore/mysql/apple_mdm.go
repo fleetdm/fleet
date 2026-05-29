@@ -2662,7 +2662,8 @@ func (ds *Datastore) bulkDeleteMDMAppleHostsConfigProfilesDB(ctx context.Context
 // NOTE If onlyProfileUUIDs is provided (not nil), only profiles with
 // those UUIDs will be update instead of rebuilding all pending
 // profiles for hosts
-func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
+// TODO(MHJ): Marked for deletion
+func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB( //nolint:unused // Will be cleaned up in a follow up PR.
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostUUIDs []string,
