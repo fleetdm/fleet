@@ -23,6 +23,7 @@ import {
   type Settings,
 } from "./lib/tauri";
 import { useSystemHealth } from "./lib/useSystemHealth";
+import { useApplyTheme } from "./lib/useTheme";
 import { startAll, stopAll } from "./lib/orchestration";
 
 export default function App() {
@@ -48,6 +49,8 @@ export default function App() {
   useEffect(() => {
     api.getSettings().then(setSettings);
   }, []);
+
+  useApplyTheme(settings?.theme);
 
   const refreshBranchStatus = useCallback(async () => {
     if (!settings?.repo_path) {
@@ -381,7 +384,7 @@ function QuitModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: "var(--overlay-modal)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

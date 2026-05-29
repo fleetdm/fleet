@@ -748,7 +748,7 @@ function RepoCard({
         padding: "8px 10px",
         borderRadius: "var(--radius-md)",
         background: selected
-          ? "rgba(0,194,139,0.12)"
+          ? "var(--tint-success-soft)"
           : "var(--app-surface-2)",
         border: `1px solid ${selected ? "var(--core-fleet-green)" : "transparent"}`,
         display: "flex",
@@ -941,7 +941,7 @@ function RepoPanel({
                   gap: 10,
                   padding: "6px 10px",
                   background: isChecked(f.name)
-                    ? "rgba(0,194,139,0.05)"
+                    ? "var(--tint-success-soft)"
                     : undefined,
                   borderTop: i > 0 ? "1px solid var(--app-border)" : "none",
                   cursor: "pointer",
@@ -1286,7 +1286,7 @@ function GenerateCard({
           alignItems: "center",
           gap: 8,
           padding: "6px 10px",
-          background: exists ? "rgba(255,170,0,0.08)" : "var(--app-surface-2)",
+          background: exists ? "var(--tint-warning-soft)" : "var(--app-surface-2)",
           border: `1px solid ${exists ? "var(--ui-warning)" : "var(--app-border)"}`,
           borderRadius: "var(--radius-md)",
           opacity: exists ? 1 : 0.55,

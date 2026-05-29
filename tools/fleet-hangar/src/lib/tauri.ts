@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
+export type ThemePreference = "system" | "light" | "dark";
+
 export interface Settings {
   repo_path: string | null;
   fleetctl_path: string | null;
@@ -8,6 +10,7 @@ export interface Settings {
   ngrok: NgrokConfig;
   python_server: PythonConfig;
   fleet_serve: FleetServeConfig;
+  theme: ThemePreference;
 }
 
 export interface GitopsFile {

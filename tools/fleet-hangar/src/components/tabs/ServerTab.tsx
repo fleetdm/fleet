@@ -531,7 +531,7 @@ function SegmentButton({
 function HealthChip({ label, up }: { label: string; up: boolean }) {
   const state = up ? "up" : "down";
   const color = up ? "var(--core-fleet-green)" : "var(--ui-error)";
-  const bg = up ? "rgba(0,194,139,0.12)" : "rgba(255,122,154,0.10)";
+  const bg = up ? "var(--tint-success-soft)" : "var(--tint-danger-soft)";
   return (
     <div
       style={{
@@ -933,7 +933,7 @@ function StepRow({
         padding: "6px 10px",
         minWidth: 0,
         background: failed
-          ? "rgba(224, 120, 136, 0.08)"
+          ? "var(--tint-error-soft)"
           : "var(--app-surface-2)",
         border: failed ? "1px solid var(--ui-error)" : "1px solid transparent",
         borderRadius: "var(--radius-md)",
@@ -1725,9 +1725,9 @@ function RecentRow({
   return (
     <div
       style={{
-        background: failed ? "rgba(224, 120, 136, 0.06)" : "var(--app-surface)",
+        background: failed ? "var(--tint-error-soft)" : "var(--app-surface)",
         border: failed
-          ? "1px solid rgba(255, 122, 154, 0.4)"
+          ? "1px solid var(--tint-danger-border)"
           : "1px solid var(--app-border)",
         borderRadius: "var(--radius-md)",
         padding: "10px 12px",

@@ -22,6 +22,26 @@ pub struct Settings {
     pub python_server: PythonConfig,
     #[serde(default)]
     pub fleet_serve: FleetServeConfig,
+    /// "system" follows the OS appearance via prefers-color-scheme;
+    /// "light" / "dark" pin to one mode regardless of OS. Stored as a
+    /// string so future modes (e.g. high-contrast) don't break old
+    /// configs. Defaults to "system" — see ThemePreference::default.
+    #[serde(default)]
+    pub theme: ThemePreference,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ThemePreference {
+    System,
+    Light,
+    Dark,
+}
+
+impl Default for ThemePreference {
+    fn default() -> Self {
+        Self::System
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

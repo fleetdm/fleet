@@ -282,7 +282,7 @@ function ProbeRow({
         alignItems: "center",
         gap: 12,
         padding: "10px 12px",
-        background: selected ? "rgba(0, 194, 139, 0.1)" : "var(--app-surface-2)",
+        background: selected ? "var(--tint-success-soft)" : "var(--app-surface-2)",
         border: selected
           ? "1px solid var(--core-fleet-green)"
           : "1px solid var(--app-border)",

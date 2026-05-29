@@ -152,7 +152,7 @@ export function DatabaseTab({
             color: "var(--ui-error)",
             fontSize: "var(--fs-xx-small)",
             padding: "6px 10px",
-            background: "rgba(224,120,136,0.08)",
+            background: "var(--tint-error-soft)",
             border: "1px solid var(--ui-error)",
             borderRadius: "var(--radius-md)",
           }}
@@ -531,7 +531,7 @@ function BackupRow({
         borderRadius: 6,
         cursor: "pointer",
         background: selected
-          ? "rgba(0,194,139,0.12)"
+          ? "var(--tint-success-soft)"
           : "var(--app-surface-2)",
         border: `1px solid ${selected ? "var(--core-fleet-green)" : "transparent"}`,
         display: "flex",
@@ -937,8 +937,8 @@ function ResetPanel({
       <div
         className="card"
         style={{
-          background: "rgba(224,120,136,0.06)",
-          border: "1px solid rgba(224,120,136,0.4)",
+          background: "var(--tint-error-soft)",
+          border: "1px solid var(--tint-error-border)",
           padding: 14,
           marginTop: "auto",
         }}
@@ -1038,7 +1038,7 @@ function ResetConfirmModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: "var(--overlay-modal)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

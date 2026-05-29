@@ -438,7 +438,7 @@ function FilterPill({
         padding: "4px 10px",
         fontSize: "var(--fs-xx-small)",
         borderRadius: 999,
-        background: active ? "rgba(0, 194, 139, 0.15)" : undefined,
+        background: active ? "var(--tint-success-strong)" : undefined,
         borderColor: active
           ? "var(--core-fleet-green)"
           : "var(--app-border)",
@@ -553,7 +553,7 @@ function DirtyConfirm({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(25, 33, 71, 0.4)",
+        background: "var(--overlay-modal)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

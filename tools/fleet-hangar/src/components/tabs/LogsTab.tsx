@@ -217,7 +217,7 @@ export function LogsTab() {
             style={{
               padding: "4px 10px",
               fontSize: "var(--fs-xx-small)",
-              background: follow ? "rgba(0,194,139,0.12)" : undefined,
+              background: follow ? "var(--tint-success-soft)" : undefined,
               borderColor: follow
                 ? "var(--core-fleet-green)"
                 : "var(--app-border)",
@@ -413,7 +413,7 @@ function SnapshotToast({
         display: "flex",
         alignItems: "center",
         gap: 10,
-        boxShadow: "0 6px 18px rgba(0,0,0,0.35)",
+        boxShadow: "var(--shadow-popover)",
         fontSize: "var(--fs-xx-small)",
         zIndex: 20,
       }}
@@ -615,7 +615,7 @@ function LogRow({
         ...style,
         width: rowWidth,
         padding: "1px 12px 1px 8px",
-        background: isErr ? "rgba(224, 120, 136, 0.10)" : undefined,
+        background: isErr ? "var(--tint-error-soft)" : undefined,
         borderLeft: isErr
           ? "2px solid var(--ui-error)"
           : "2px solid transparent",

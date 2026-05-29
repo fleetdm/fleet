@@ -9,6 +9,7 @@ import {
   type GitopsDirScan,
   type NgrokYamlInfo,
   type Settings,
+  type ThemePreference,
 } from "../../lib/tauri";
 import { noAutocorrect } from "../../lib/noAutocorrect";
 
@@ -32,9 +33,26 @@ export function SettingsTab({
   section: SettingsSection;
   onSectionChange: (s: SettingsSection) => void;
 }) {
+  const setTheme = useCallback(
+    (theme: ThemePreference) => {
+      const next: Settings = { ...settings, theme };
+      // Apply the in-memory change first so the body class flips on
+      // the same tick the user clicked. The IPC save runs in the
+      // background — if it fails the user just loses the preference
+      // on the next launch.
+      onChange(next);
+      api.saveSettings(next).catch((e) => console.error("saveSettings(theme) failed", e));
+    },
+    [settings, onChange],
+  );
   return (
     <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
-      <Sidebar value={section} onChange={onSectionChange} />
+      <Sidebar
+        value={section}
+        onChange={onSectionChange}
+        theme={settings.theme}
+        onThemeChange={setTheme}
+      />
       <div
         style={{
           flex: 1,
@@ -71,9 +89,13 @@ export function SettingsTab({
 function Sidebar({
   value,
   onChange,
+  theme,
+  onThemeChange,
 }: {
   value: SettingsSection;
   onChange: (s: SettingsSection) => void;
+  theme: ThemePreference;
+  onThemeChange: (t: ThemePreference) => void;
 }) {
   const Group = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <div style={{ marginBottom: 18 }}>
@@ -106,7 +128,7 @@ function Sidebar({
           padding: "6px 12px",
           fontSize: "var(--fs-x-small)",
           color: active ? "var(--core-fleet-green)" : "var(--app-text)",
-          background: active ? "rgba(0,194,139,0.10)" : undefined,
+          background: active ? "var(--tint-success-soft)" : undefined,
           borderLeft: active
             ? "2px solid var(--core-fleet-green)"
             : "2px solid transparent",
@@ -119,27 +141,113 @@ function Sidebar({
   return (
     <div
       style={{
-        width: 200,
+        width: 220,
         flexShrink: 0,
         borderRight: "1px solid var(--app-border)",
         background: "var(--app-surface)",
-        padding: "var(--pad-medium) 0",
-        overflow: "auto",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
       }}
     >
-      <Group title="Setup">
-        <Item id="paths" label="Paths" />
-        <Item id="fleet-server" label="Fleet server" />
-        <Item id="fleetctl" label="fleetctl contexts" />
-        <Item id="gitops" label="GitOps directory" />
-      </Group>
-      <Group title="Optional services">
-        <Item id="ngrok" label="ngrok" />
-        <Item id="python" label="python http.server" />
-      </Group>
-      <Group title="Diagnostics">
-        <Item id="troubleshoot" label="Troubleshoot" />
-      </Group>
+      <div style={{ flex: 1, overflow: "auto", padding: "var(--pad-medium) 0" }}>
+        <Group title="Setup">
+          <Item id="paths" label="Paths" />
+          <Item id="fleet-server" label="Fleet server" />
+          <Item id="fleetctl" label="fleetctl contexts" />
+          <Item id="gitops" label="GitOps directory" />
+        </Group>
+        <Group title="Optional services">
+          <Item id="ngrok" label="ngrok" />
+          <Item id="python" label="python http.server" />
+        </Group>
+        <Group title="Diagnostics">
+          <Item id="troubleshoot" label="Troubleshoot" />
+        </Group>
+      </div>
+      <ThemeToggle value={theme} onChange={onThemeChange} />
+    </div>
+  );
+}
+
+/// Three-segment Light / Auto / Dark control pinned to the bottom of
+/// the Settings sidebar. "Auto" follows the OS via prefers-color-scheme.
+/// The active segment uses the same success-tint treatment as a selected
+/// sidebar item so the visual vocabulary stays consistent.
+function ThemeToggle({
+  value,
+  onChange,
+}: {
+  value: ThemePreference;
+  onChange: (t: ThemePreference) => void;
+}) {
+  const options: { id: ThemePreference; label: string; glyph: string }[] = [
+    { id: "light", label: "Light", glyph: "☀" },
+    { id: "system", label: "Auto", glyph: "◐" },
+    { id: "dark", label: "Dark", glyph: "☾" },
+  ];
+  return (
+    <div
+      style={{
+        borderTop: "1px solid var(--app-border)",
+        padding: "var(--pad-smedium) var(--pad-medium)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "var(--fs-xxx-small)",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          color: "var(--app-text-dim)",
+          marginBottom: 6,
+        }}
+      >
+        Appearance
+      </div>
+      <div
+        role="radiogroup"
+        aria-label="Theme"
+        style={{
+          display: "flex",
+          background: "var(--app-surface-2)",
+          border: "1px solid var(--app-border)",
+          borderRadius: "var(--radius-md)",
+          padding: 2,
+          gap: 2,
+        }}
+      >
+        {options.map((opt) => {
+          const active = opt.id === value;
+          return (
+            <button
+              key={opt.id}
+              role="radio"
+              aria-checked={active}
+              onClick={() => onChange(opt.id)}
+              title={opt.label}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                padding: "4px 6px",
+                fontSize: "var(--fs-xx-small)",
+                border: "none",
+                borderRadius: "var(--radius-sm)",
+                background: active ? "var(--tint-success-soft)" : "transparent",
+                color: active ? "var(--core-fleet-green)" : "var(--app-text-dim)",
+                fontWeight: active ? 600 : 400,
+              }}
+            >
+              <span aria-hidden style={{ fontSize: "var(--fs-x-small)" }}>
+                {opt.glyph}
+              </span>
+              <span>{opt.label}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -162,7 +270,7 @@ function EnableToggle({
         alignItems: "flex-start",
         gap: 10,
         padding: "10px 14px",
-        background: checked ? "rgba(0,194,139,0.10)" : "var(--app-surface)",
+        background: checked ? "var(--tint-success-soft)" : "var(--app-surface)",
         border: checked
           ? "1px solid var(--core-fleet-green)"
           : "1px solid var(--app-border)",
@@ -1210,7 +1318,7 @@ function ParsedRow({
         borderRadius: "var(--radius-md)",
         cursor: "pointer",
         background: selected
-          ? "rgba(0,194,139,0.12)"
+          ? "var(--tint-success-soft)"
           : "var(--app-surface-2)",
         border: `1px solid ${selected ? "var(--core-fleet-green)" : "transparent"}`,
         display: "flex",
@@ -1296,7 +1404,7 @@ function StatusPill({
       style={{
         fontSize: "var(--fs-xxx-small)",
         color: "var(--core-fleet-green)",
-        background: filled ? "rgba(0,194,139,0.12)" : "transparent",
+        background: filled ? "var(--tint-success-soft)" : "transparent",
         border: `1px solid ${filled ? "transparent" : "var(--core-fleet-green)"}`,
         padding: "1px 6px",
         borderRadius: 999,
@@ -2048,8 +2156,8 @@ function CountBadge({
         fontSize: "var(--fs-xxx-small)",
         color: clean ? "var(--core-fleet-green)" : "var(--ui-error)",
         background: clean
-          ? "rgba(0,194,139,0.12)"
-          : "rgba(224,120,136,0.12)",
+          ? "var(--tint-success-soft)"
+          : "var(--tint-error-strong)",
         padding: "1px 8px",
         borderRadius: 999,
         fontWeight: 600,
