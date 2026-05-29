@@ -3496,9 +3496,14 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			// Delete the label — the FK ON DELETE SET NULL sets label_id to NULL
-			// in the mdm_configuration_profile_labels row.
+			// Simulate the label being deleted: nullify label_id in the join table
+			// first (RESTRICT FK now blocks direct delete), then remove the label row.
+			// The test then re-creates a label with the same name to verify the
+			// broken-link upsert path.
 			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				if _, err := tx.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, origLabel.ID); err != nil {
+					return err
+				}
 				_, err := tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, origLabel.ID)
 				return err
 			})
