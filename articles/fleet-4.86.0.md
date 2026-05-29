@@ -1,9 +1,5 @@
 # Fleet 4.86.0 | Rotate local admin password, Windows setup experience, Platform SSO, and more...
 
-<div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/PLACEHOLDER_VIDEO_ID" title="0" allowfullscreen></iframe>
-</div>
-
 Fleet 4.86.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.86.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
