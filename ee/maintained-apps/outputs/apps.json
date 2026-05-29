@@ -1714,7 +1714,7 @@
       "slug": "prisma-browser/windows",
       "platform": "windows",
       "unique_identifier": "Prisma Access Browser",
-      "description": "Prisma Browser is an SASE-native browser that empowers secure work."
+      "description": "Prisma Browser is a SASE-native browser that empowers secure work."
     },
     {
       "name": "Pritunl",
