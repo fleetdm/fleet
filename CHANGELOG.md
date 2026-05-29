@@ -2,19 +2,19 @@
 
 ### IT Admins
 
-- Added automatic rotation of managed local admin account passwords after they have been viewed.
-- Added support for installing VPP and in-house (`.ipa`) apps on iOS and iPadOS hosts enrolled via Account-Driven User Enrollment with a Managed Apple Account.
-- Enabled self-service software installs from the My device page for user-enrolled iOS and iPadOS hosts.
-- Enabled setup experience software in Controls > Setup experience to install automatically on user-enrolled iOS and iPadOS hosts at enrollment.
+- Added ability to upload a custom org logo (light and dark variants) hosted directly by the Fleet instance; configurable via the UI, API, `fleetctl`, and GitOps.
+- Added "Cancel setup if software fails" toggle for Windows setup experience; when enabled, Autopilot and OOBE enrollments display a failure screen and prompt a restart if any setup experience software fails to install.
+- Added "Rotate password" button to the managed local admin account modal on the Host details page; password auto-rotates roughly one hour after being viewed, with activity logged for both manual and automatic rotations.
+- Added support for configuring Platform SSO during macOS Setup Assistant (ADE) so end users can log in with their IdP credentials.
+- Added ability to install VPP and in-house (`.ipa`) apps on Account-based User Enrolled iOS and iPadOS hosts, including self-service; setup experience software installs automatically on user enrollment.
+- Added support for VPP apps from non-US Apple App Stores; the VPP settings page now shows the country for each token, and apps are fetched from the storefront matching the token's country.
+- Added managed app configuration (XML) for iOS and iPadOS VPP and `.ipa` apps; configurable via the UI, API, and GitOps.
+- Added Fleet Desktop app for end users' macOS Dock, with a red badge when the host is failing policies.
+- Added clearing of labels, pending scripts, pending software installs, and pending MDM commands when an ABM host re-enrolls; added a "Preserve host activities on re-enrollment" option in Settings > Organization settings > Advanced options to retain historical activity and MDM command history.
 - Provisioned a VPP client user per Managed Apple Account on first install, and associated VPP licenses to the user rather than the device, supporting Apple's up-to-5-devices-per-user licensing semantics.
-- Added managed app configuration for iOS and iPadOS apps (VPP and in-house), configurable via UI, REST API, and GitOps, with `$FLEET_VAR_*` substitution.
-- Added support for VPP apps purchased from non-US-based Apple Business accounts.
-- Added the ability to upload a custom organization logo for light and dark modes, hosted by Fleet, replacing the previous URL-only flow on the setup screen and organization settings page.
-- Added GitOps support for uploading custom org logos. `fleetctl gitops` accepts `org_logo_path_dark_mode` and `org_logo_path_light_mode` keys to upload local files, and `fleetctl generate-gitops` exports Fleet-hosted logos as local files alongside path keys while keeping external URLs as `org_logo_url_*_mode` keys.
 - Added `include_all` label scope to policies, and `include_all` and `include_any` label scopes to reports, including support via GitOps and `fleetctl`.
 - Added a "Custom" target dropdown when creating or updating reports under the premium tier.
 - Added an "Include all" option to the "Custom" target dropdown on Policies for premium users only.
-- Added a `require_all_software_windows` setting to cancel the Windows setup experience if any software install fails during Autopilot enrollment, matching the existing macOS behavior.
 - Added permissions for the GitOps user to list software titles.
 - Added support for setting `gitops_mode_enabled` and `repository_url` via GitOps.
 - Added output to GitOps for scripts, indicating how many scripts would be applied (dry run) or were applied.
@@ -31,15 +31,15 @@
 - Updated OS version reporting for iOS and iPadOS to include the Rapid Security Response suffix (e.g. `(a)`) when the device reports a `SupplementalOSVersionExtra` field via MDM.
 - Updated fleetd and MDM enroll activities to display the serial number and preserve the osquery-provided display name.
 - Required the `--host` flag for `fleetctl get mdm-commands`, and deprecated `GET /api/v1/fleet/commands` without a `host_identifier`.
-- Surfaced hardware-bound ACME certificates on macOS host vitals by retrieving them via the MDM `CertificateList` command when an ACME-bearing configuration profile is installed or re-installed.
-- Cleared host vitals on ABM host re-enrollment, with a config option to preserve past host activities.
 
 ### Security Engineers
 
+- Added automatic re-push of configuration profiles for SCEP and ACME certificates not proxied through Fleet before expiration; supports Okta conditional access (SCEP), Okta Verify (SCEP with static challenge), and hardware-attested ACME certificates.
+- Added support for subject alternative name (SAN) attributes, including UPN, email (rfc822Name), and DNS, in Android certificate profiles, enabling Wi-Fi connectivity requiring SAN-based authentication.
+- Added ingestion of MDM-delivered certificates (including hardware-bound ACME) via the `CertificateList` MDM command on macOS; ACME certificates now appear on the Host details page alongside osquery-ingested certificates, deduplicated by SHA-1 fingerprint.
 - Added macOS 26 CIS Benchmark v1.0.0.
 - Updated CIS Windows 11 Enterprise benchmark policies from v4.0.0 to v5.0.1, adding 17 new L1 policies and updating 42 existing policy titles.
 - Added SVG support for custom organization logos, with strict server-side sanitization to reject scripts and other unsafe SVG content.
-- Added support for the `subject_alternative_name` field on Android certificate templates.
 - Optimized OSV vulnerability scanning to query distinct software per OS version rather than per host, reducing redundant database queries for many hosts sharing the same packages.
 - Improved vulnerability scanning performance by using a per-vendor product cache during CVE matching to optimize `translate_cpe_to_cve`.
 
