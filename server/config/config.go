@@ -1224,6 +1224,18 @@ func (m *MDMConfig) IsMicrosoftWNSSet() bool {
 	return m.WindowsWNSPFN != "" && m.WindowsWNSSID != "" && m.WindowsWNSClientSecret != ""
 }
 
+// ValidateWNS enforces all-or-nothing configuration of the WNS push credentials so a partial
+// configuration (e.g. a typo in one env var) fails fast at startup instead of silently disabling push.
+func (m *MDMConfig) ValidateWNS(initFatal func(err error, msg string)) {
+	anySet := m.WindowsWNSPFN != "" || m.WindowsWNSSID != "" || m.WindowsWNSClientSecret != ""
+	if anySet && !m.IsMicrosoftWNSSet() {
+		initFatal(
+			errors.New("mdm.windows_wns_pfn, mdm.windows_wns_sid, and mdm.windows_wns_client_secret must all be set together"),
+			"validate Microsoft WNS",
+		)
+	}
+}
+
 type TLS struct {
 	TLSCert       string
 	TLSKey        string

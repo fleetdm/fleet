@@ -61,7 +61,10 @@ func newTestServer(t *testing.T) *testServer {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
 		ts.tokenHits.Add(1)
-		require.NoError(t, r.ParseForm())
+		// Limit the body size (gosec G120) and use assert, not require, since this runs in the server
+		// goroutine where a FailNow-style call would be unsafe.
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		assert.NoError(t, r.ParseForm())
 		ts.mu.Lock()
 		ts.lastClientID = r.PostForm.Get("client_id")
 		ts.lastClientSecret = r.PostForm.Get("client_secret")
@@ -80,7 +83,8 @@ func newTestServer(t *testing.T) *testServer {
 		w.WriteHeader(ts.channelStatus(n))
 	})
 
-	ts.srv = httptest.NewServer(mux)
+	// Use TLS so channel/token URLs are HTTPS, which SendRaw requires for the channel URI.
+	ts.srv = httptest.NewTLSServer(mux)
 	t.Cleanup(ts.srv.Close)
 	return ts
 }
@@ -88,6 +92,8 @@ func newTestServer(t *testing.T) *testServer {
 func (ts *testServer) newClient(sid, secret string) *Client {
 	c := NewClient(sid, secret)
 	c.tokenURL = ts.srv.URL + "/token"
+	// Trust the test server's self-signed certificate.
+	c.httpClient = ts.srv.Client()
 	return c
 }
 
@@ -209,7 +215,7 @@ func TestFetchTokenErrors(t *testing.T) {
 	ctx := t.Context()
 
 	t.Run("non-200 token response is an error", func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(w, `{"error":"invalid_client","error_description":"Invalid client id"}`)
 		}))
@@ -217,6 +223,7 @@ func TestFetchTokenErrors(t *testing.T) {
 
 		c := NewClient("S-1-15-2-123", "secret")
 		c.tokenURL = srv.URL
+		c.httpClient = srv.Client()
 
 		err := c.SendRaw(ctx, srv.URL)
 		require.Error(t, err)
@@ -224,16 +231,24 @@ func TestFetchTokenErrors(t *testing.T) {
 	})
 
 	t.Run("missing access_token is an error", func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			fmt.Fprint(w, `{"token_type":"bearer","expires_in":3600}`)
 		}))
 		t.Cleanup(srv.Close)
 
 		c := NewClient("S-1-15-2-123", "secret")
 		c.tokenURL = srv.URL
+		c.httpClient = srv.Client()
 
 		err := c.SendRaw(ctx, srv.URL)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "missing access_token")
+	})
+
+	t.Run("non-HTTPS channel URI is refused before any token is fetched", func(t *testing.T) {
+		c := NewClient("S-1-15-2-123", "secret")
+		err := c.SendRaw(ctx, "http://evil.example.com/channel")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "non-HTTPS")
 	})
 }

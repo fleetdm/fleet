@@ -580,6 +580,34 @@ func TestIsMicrosoftWNSSet(t *testing.T) {
 	}
 }
 
+func TestValidateWNS(t *testing.T) {
+	cases := []struct {
+		name      string
+		pfn       string
+		sid       string
+		secret    string
+		wantFatal bool
+	}{
+		{"all set is valid", "PFN", "SID", "secret", false},
+		{"none set is valid", "", "", "", false},
+		{"only pfn fails", "PFN", "", "", true},
+		{"missing secret fails", "PFN", "SID", "", true},
+		{"missing pfn fails", "", "SID", "secret", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			m := MDMConfig{
+				WindowsWNSPFN:          c.pfn,
+				WindowsWNSSID:          c.sid,
+				WindowsWNSClientSecret: c.secret,
+			}
+			var fatal bool
+			m.ValidateWNS(func(error, string) { fatal = true })
+			assert.Equal(t, c.wantFatal, fatal)
+		})
+	}
+}
+
 func TestMicrosoftWSTEPConfig(t *testing.T) {
 	dir := t.TempDir()
 	certFile, keyFile, garbageFile, invalidKeyFile := filepath.Join(dir, "cert"),

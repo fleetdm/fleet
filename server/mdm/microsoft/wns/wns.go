@@ -77,6 +77,17 @@ func NewClient(sid, clientSecret string) *Client {
 // SendRaw sends a raw WNS push notification to channelURI to wake the device for an OMA-DM session. On
 // HTTP 401 it refreshes the access token once and retries. It returns ErrChannelExpired on HTTP 410.
 func (c *Client) SendRaw(ctx context.Context, channelURI string) error {
+	// The channel URI is supplied by the device and is the target we post a bearer token to. Refuse
+	// anything but HTTPS so a malformed or malicious URI cannot leak the token over plaintext or trigger
+	// an SSRF-style request. WNS channel URIs are always HTTPS on the notify.windows.com domain.
+	parsed, err := url.Parse(channelURI)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "parse WNS channel URI")
+	}
+	if parsed.Scheme != "https" {
+		return ctxerr.Errorf(ctx, "wns: refusing to send to non-HTTPS channel URI (scheme %q)", parsed.Scheme)
+	}
+
 	token, err := c.accessToken(ctx)
 	if err != nil {
 		return err
@@ -180,8 +191,14 @@ func (c *Client) fetchTokenLocked(ctx context.Context) (string, error) {
 		tr.ExpiresIn = 86400
 	}
 
+	lifetime := time.Duration(tr.ExpiresIn) * time.Second
+	// Refresh slightly before the real expiry, but only when the lifetime is long enough that the margin
+	// would not push the cached expiry into the past (which would cause continuous refetching).
+	if lifetime > tokenExpiryMargin {
+		lifetime -= tokenExpiryMargin
+	}
 	c.token = tr.AccessToken
-	c.tokenExpiry = c.nowFunc().Add(time.Duration(tr.ExpiresIn)*time.Second - tokenExpiryMargin)
+	c.tokenExpiry = c.nowFunc().Add(lifetime)
 	return c.token, nil
 }
 
