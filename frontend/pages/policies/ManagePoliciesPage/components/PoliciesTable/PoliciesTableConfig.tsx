@@ -3,6 +3,7 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 import { millisecondsToHours, millisecondsToMinutes } from "date-fns";
+import classnames from "classnames";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -87,6 +88,43 @@ const AUTOMATION_ICON_RENDERERS: Record<
   other: () => <Icon name="settings" />,
 };
 
+interface IEditableAutomationsCellProps {
+  ariaLabel: string;
+  onEdit: () => void;
+  className?: string;
+  children: React.ReactNode;
+}
+
+const EditableAutomationsCell = ({
+  ariaLabel,
+  onEdit,
+  className,
+  children,
+}: IEditableAutomationsCellProps): JSX.Element => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onEdit();
+    }
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className={classnames("automations__cell-content", className)}
+      onClick={onEdit}
+      onKeyDown={handleKeyDown}
+      aria-label={ariaLabel}
+    >
+      {children}
+      <span className="automations__edit-button" aria-hidden="true">
+        <Icon name="pencil" />
+      </span>
+    </div>
+  );
+};
+
 interface IAutomationsCellProps {
   policy: IPolicyStats;
   selectedTeamId?: number | null;
@@ -102,21 +140,27 @@ const AutomationsCell = ({
 }: IAutomationsCellProps): JSX.Element => {
   const automations = getAutomationsForPolicy(policy, otherAutomationType);
 
+  const handleEdit = () => onOpenManageAutomationsModal?.(policy);
+
   if (automations.length === 0) {
+    // Read-only users (no edit callback) keep the plain, non-interactive "---".
+    if (!onOpenManageAutomationsModal) {
+      return (
+        <span className="automations__cell-content automations__cell-content--none">
+          {DEFAULT_EMPTY_CELL_VALUE}
+        </span>
+      );
+    }
     return (
-      <span className="automations__cell-content automations__cell-content--none">
-        {DEFAULT_EMPTY_CELL_VALUE}
-      </span>
+      <EditableAutomationsCell
+        ariaLabel="Add automation"
+        onEdit={handleEdit}
+        className="automations__cell-content--none"
+      >
+        <span className="automations__name">{DEFAULT_EMPTY_CELL_VALUE}</span>
+      </EditableAutomationsCell>
     );
   }
-
-  const handleClick = () => onOpenManageAutomationsModal?.(policy);
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      handleClick();
-    }
-  };
 
   const renderAutomationIcon = ({
     type,
@@ -141,35 +185,21 @@ const AutomationsCell = ({
   if (automations.length === 1) {
     const automation = automations[0];
     return (
-      <div
-        role="button"
-        tabIndex={0}
-        className="automations__cell-content"
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        aria-label={`Edit automation: ${automation.name}`}
+      <EditableAutomationsCell
+        ariaLabel={`Edit automation: ${automation.name}`}
+        onEdit={handleEdit}
       >
         <TooltipTruncatedTextCell
           prefix={renderAutomationIcon(automation)}
           value={automation.name}
           className="automations__name"
         />
-        <span className="automations__edit-button" aria-hidden="true">
-          <Icon name="pencil" />
-        </span>
-      </div>
+      </EditableAutomationsCell>
     );
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="automations__cell-content"
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      aria-label="Edit automations"
-    >
+    <EditableAutomationsCell ariaLabel="Edit automations" onEdit={handleEdit}>
       <TooltipWrapper
         className="automations__count"
         position="top"
@@ -180,10 +210,7 @@ const AutomationsCell = ({
       >
         {automations.length} automations
       </TooltipWrapper>
-      <span className="automations__edit-button" aria-hidden="true">
-        <Icon name="pencil" />
-      </span>
-    </div>
+    </EditableAutomationsCell>
   );
 };
 

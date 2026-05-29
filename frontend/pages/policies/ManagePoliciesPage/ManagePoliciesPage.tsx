@@ -26,7 +26,11 @@ import {
   IPoliciesCountResponse,
   OtherAutomationType,
 } from "interfaces/policy";
-import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import {
+  API_ALL_TEAMS_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+  ITeamConfig,
+} from "interfaces/team";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -95,6 +99,23 @@ const AUTOMATION_TYPES: AutomationType[] = [
 ];
 
 const GLOBAL_AUTOMATION_TYPES: GlobalPoliciesAutomationType[] = ["other"];
+
+// NOTE: backend uses webhook_settings to store automated policy ids for both
+// webhooks and integrations.
+const getWebhookOrTicketPolicyIds = (
+  config: IConfig | ITeamConfig | undefined
+): number[] => {
+  if (!config) return [];
+  const webhook = config.webhook_settings?.failing_policies_webhook;
+  const { jira, zendesk } = config.integrations ?? {};
+  const isIntegrationEnabled =
+    !!jira?.some((j) => j.enable_failing_policies) ||
+    !!zendesk?.some((z) => z.enable_failing_policies);
+  if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
+    return webhook?.policy_ids || [];
+  }
+  return [];
+};
 
 const baseClass = "manage-policies-page";
 
@@ -610,32 +631,41 @@ const ManagePolicyPage = ({
     hasPoliciesToAutomate || (isPrimoMode && (teamPolicies?.length ?? 0) > 0); // in Primo mode, allow deleting inherited policies, which will be included in teamPolicies, from this view
 
   // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
-  let currentAutomatedPolicies: number[] = [];
-  let otherAutomationType: OtherAutomationType | undefined;
-  if (automationsConfig) {
+  const getAutomationInfoFromConfig = (
+    cfg: IConfig | ITeamConfig | undefined
+  ): { policyIds: number[]; type: OtherAutomationType | undefined } => {
+    if (!cfg) return { policyIds: [], type: undefined };
     const {
-      webhook_settings: { failing_policies_webhook: webhook },
+      webhook_settings: { failing_policies_webhook: webhook } = {},
       integrations,
-    } = automationsConfig;
-
-    let isIntegrationEnabled = false;
-    if (integrations) {
-      const { jira, zendesk } = integrations;
-      isIntegrationEnabled =
-        !!jira?.find((j) => j.enable_failing_policies) ||
-        !!zendesk?.find((z) => z.enable_failing_policies);
-    }
-
-    if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
-      currentAutomatedPolicies = webhook?.policy_ids || [];
-    }
-
-    if (isIntegrationEnabled) {
-      otherAutomationType = "ticket";
-    } else if (webhook?.enable_failing_policies_webhook) {
-      otherAutomationType = "webhook";
-    }
-  }
+    } = cfg;
+    const isIntegrationEnabled =
+      !!integrations?.jira?.find((j) => j.enable_failing_policies) ||
+      !!integrations?.zendesk?.find((z) => z.enable_failing_policies);
+    const isWebhookEnabled = !!webhook?.enable_failing_policies_webhook;
+    const policyIds =
+      isIntegrationEnabled || isWebhookEnabled ? webhook?.policy_ids ?? [] : [];
+    let type: OtherAutomationType | undefined;
+    if (isIntegrationEnabled) type = "ticket";
+    else if (isWebhookEnabled) type = "webhook";
+    return { policyIds, type };
+  };
+  const fleetAutomationInfo = getAutomationInfoFromConfig(automationsConfig);
+  // Inherited (global) policies are listed in team views, but their webhook
+  // membership lives on the *global* config — not the team's.
+  // Union both so an inherited policy with a global-config webhook/ticket
+  // still shows the correct data.
+  const inheritedAutomationInfo = !isAllTeamsSelected
+    ? getAutomationInfoFromConfig(globalConfig)
+    : { policyIds: [], type: undefined as OtherAutomationType | undefined };
+  const currentAutomatedPolicies: number[] = Array.from(
+    new Set([
+      ...fleetAutomationInfo.policyIds,
+      ...inheritedAutomationInfo.policyIds,
+    ])
+  );
+  const otherAutomationType: OtherAutomationType | undefined =
+    fleetAutomationInfo.type ?? inheritedAutomationInfo.type;
 
   const renderPoliciesCountAndLastUpdated = (
     count?: number,
@@ -959,19 +989,36 @@ const ManagePolicyPage = ({
             onExit={toggleAutomationsModal}
           />
         )}
-        {selectedPolicyForAutomations && (
-          <ManageAutomationsModal
-            policy={selectedPolicyForAutomations}
-            fleetName={currentTeamSummary?.name ?? ""}
-            isGlobalPolicy={isAllTeamsSelected}
-            teamIdForApi={teamIdForApi}
-            automationsConfig={automationsConfig}
-            globalConfig={globalConfig}
-            webhookOrTicketPolicyIds={currentAutomatedPolicies}
-            refetchPolicies={() => refetchPolicies(teamIdForApi)}
-            onExit={onCloseManageAutomationsModal}
-          />
-        )}
+        {selectedPolicyForAutomations &&
+          (() => {
+            // An inherited policy (team_id === null) is global even when viewed
+            // from within a fleet's list — its automations live on the global
+            // config, so route the modal there.
+            const isInheritedGlobal =
+              selectedPolicyForAutomations.team_id === null;
+            const modalAutomationsConfig = isInheritedGlobal
+              ? globalConfig
+              : automationsConfig;
+            return (
+              <ManageAutomationsModal
+                policy={selectedPolicyForAutomations}
+                fleetName={
+                  isInheritedGlobal
+                    ? "All fleets"
+                    : currentTeamSummary?.name ?? ""
+                }
+                isGlobalPolicy={isInheritedGlobal}
+                teamIdForApi={teamIdForApi}
+                automationsConfig={modalAutomationsConfig}
+                globalConfig={globalConfig}
+                webhookOrTicketPolicyIds={getWebhookOrTicketPolicyIds(
+                  modalAutomationsConfig
+                )}
+                refetchPolicies={() => refetchPolicies(teamIdForApi)}
+                onExit={onCloseManageAutomationsModal}
+              />
+            );
+          })()}
       </>
     </MainContent>
   );
