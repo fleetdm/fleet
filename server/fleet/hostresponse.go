@@ -32,7 +32,7 @@ func HostResponseForHost(ctx context.Context, svc Service, host *Host) *HostResp
 
 // HostResponseForHostCheap returns a new HostResponse from a Host without computing Geolocation.
 func HostResponseForHostCheap(host *Host) *HostResponse {
-        hardwareMarketingName := host.HardwareModel
+	hardwareMarketingName := host.HardwareModel
 	switch host.Platform {
 	case "darwin", "ios", "ipados":
 		if name, ok := AppleHardwareModels[host.HardwareModel]; ok {
