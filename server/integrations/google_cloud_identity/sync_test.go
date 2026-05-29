@@ -21,9 +21,11 @@ import (
 	"google.golang.org/api/option"
 )
 
-func boolPtr(b bool) *bool     { return &b }
-func strPtr(s string) *string  { return &s }
-func testLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})) }
+func boolPtr(b bool) *bool    { return &b }
+func strPtr(s string) *string { return &s }
+func testLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
+}
 
 // recordingHandler captures the requests an httptest server received.
 type recordingHandler struct {
@@ -374,11 +376,11 @@ func TestHealthScoreFor(t *testing.T) {
 
 func TestBuildScoreReason(t *testing.T) {
 	cases := []struct {
-		name           string
-		total          int
-		failingNames   []string
-		wantPrefix     string
-		wantContains   []string
+		name         string
+		total        int
+		failingNames []string
+		wantPrefix   string
+		wantContains []string
 	}{
 		{
 			name:         "no policies configured",
@@ -438,10 +440,10 @@ func TestNormalizeLabelTags(t *testing.T) {
 	t.Run("basic normalization", func(t *testing.T) {
 		got := normalizeLabelTags([]string{
 			"Engineering",
-			"All Hosts",       // multi-word -> dash
-			"  macOS  ",        // trim + lowercase
-			"",                 // dropped
-			"Engineering",      // dedup
+			"All Hosts",   // multi-word -> dash
+			"  macOS  ",   // trim + lowercase
+			"",            // dropped
+			"Engineering", // dedup
 		})
 		want := []string{"label:all-hosts", "label:engineering", "label:macos"}
 		if len(got) != len(want) {

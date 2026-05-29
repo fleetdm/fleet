@@ -12,7 +12,7 @@
 //     compliance, computes the desired ClientState and PATCHes Cloud Identity
 //     only when it differs from the last-known state recorded in Fleet's DB.
 //
-// See proposals/cloud-identity-clientstate-integration.md in fleet-terraform
+// See docs/Contributing/research/security-compliance/google-cloud-identity-conditional-access-design.md
 // for the full design rationale.
 package google_cloud_identity
 
@@ -105,8 +105,8 @@ func newWorkloadIdentityTokenSource(_ context.Context, cfg config.GoogleCloudIde
 	// google.CredentialsFromJSON.
 	//
 	// Holding off on the actual implementation until the SA-JSON path is
-	// verified end-to-end against Robbie's Workspace tenant; the interface
+	// verified end-to-end against a real Workspace tenant; the interface
 	// the rest of the integration consumes (oauth2.TokenSource) is identical,
 	// so swapping in WIF is a localized change.
-	return nil, fmt.Errorf("google_cloud_identity: workload identity federation not yet implemented (use service_account_json for now)")
+	return nil, errors.New("google_cloud_identity: workload identity federation not yet implemented (use service_account_json for now)")
 }

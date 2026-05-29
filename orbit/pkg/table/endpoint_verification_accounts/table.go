@@ -9,9 +9,9 @@
 // `resource_id` (rawResourceId) and `email` Fleet needs to PATCH per-device
 // per-user compliance signals into Google's CAA evaluator.
 //
-// See proposals/cloud-identity-clientstate-integration.md for the broader
-// design rationale; the *Endpoint Verification as the resolution mechanism*
-// section describes the file layout this table reads.
+// See docs/Contributing/research/security-compliance/google-cloud-identity-conditional-access-design.md
+// for the broader design rationale; the *Endpoint Verification as the
+// resolution mechanism* section describes the file layout this table reads.
 //
 // Implemented for macOS in v1. Windows and Linux paths are stubbed pending
 // verification of EV's actual on-disk layout on those platforms (Google's
@@ -23,7 +23,6 @@ package endpoint_verification_accounts
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -150,9 +149,8 @@ func candidatePaths(homeDir string) []string {
 	case "linux":
 		// EV layout on Linux is unverified against a live install as of
 		// 2026-05-29. The Google REST docs name .secureConnect/ but those
-		// docs are stale for macOS, so caveat emptor on Linux too. Tracked
-		// in proposals/cloud-identity-clientstate-integration.md → Open
-		// questions item #1.
+		// docs are stale for macOS, so caveat emptor on Linux too. See the
+		// "Open questions" section of the design doc for tracking.
 		return []string{filepath.Join(homeDir, ".secureConnect", "context_aware_config.json")}
 	case "windows":
 		// Same caveat as Linux.
@@ -165,10 +163,8 @@ func candidatePaths(homeDir string) []string {
 func readAccounts(path string) (accountsFile, bool) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			// File exists but can't be read (permissions etc.) — silently
-			// skip; we don't want to noisy-log on every host that lacks EV.
-		}
+		// Silently skip on any read failure (file missing, permissions,
+		// etc.) — we don't want to noisy-log on every host that lacks EV.
 		return nil, false
 	}
 	var entries accountsFile

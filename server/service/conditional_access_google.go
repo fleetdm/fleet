@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"sort"
 
-
-	google_cloud_identity "github.com/fleetdm/fleet/v4/server/integrations/google_cloud_identity"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	google_cloud_identity "github.com/fleetdm/fleet/v4/server/integrations/google_cloud_identity"
 	"google.golang.org/api/option"
 )
 

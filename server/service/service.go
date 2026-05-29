@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	google_cloud_identity "github.com/fleetdm/fleet/v4/server/integrations/google_cloud_identity"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	google_cloud_identity "github.com/fleetdm/fleet/v4/server/integrations/google_cloud_identity"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
