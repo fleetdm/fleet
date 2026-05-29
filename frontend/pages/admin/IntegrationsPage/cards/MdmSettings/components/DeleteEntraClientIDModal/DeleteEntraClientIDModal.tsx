@@ -53,9 +53,9 @@ const DeleteEntraClientIdModal = ({
       isContentDisabled={isDeleting}
     >
       <p>
-        Windows hosts won&apos;t be able to enroll using a v2 access token from
-        the Microsoft Entra application with this client ID. Enrollment using v1
-        access tokens (authorized by tenant ID) is unaffected.
+        Windows hosts won&apos;t be able to enroll using the Microsoft Entra
+        application with this client ID. Your other tenant IDs and client IDs
+        are unaffected.
       </p>
       <div className="modal-cta-wrap">
         <Button

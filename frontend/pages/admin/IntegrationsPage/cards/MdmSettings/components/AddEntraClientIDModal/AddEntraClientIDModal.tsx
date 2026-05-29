@@ -105,7 +105,6 @@ const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
                 newTab
               />{" "}
               &gt; App registrations &gt; your MDM application &gt; Overview.
-              Required for applications that issue v2 access tokens.
             </>
           }
         />
