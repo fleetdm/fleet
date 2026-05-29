@@ -27,8 +27,8 @@ func TestUp_20260528165528(t *testing.T) {
 	// migration has to: backfill defaults per team, re-point team-scoped link
 	// rows in all three linking tables, and leave Unassigned-scope link rows
 	// untouched.
-	teamA := uint(execNoErrLastID(t, db, `INSERT INTO teams (name) VALUES (?)`, "team-a"))
-	teamB := uint(execNoErrLastID(t, db, `INSERT INTO teams (name) VALUES (?)`, "team-b"))
+	teamA := uint(execNoErrLastID(t, db, `INSERT INTO teams (name) VALUES (?)`, "team-a")) //nolint:gosec // dismiss G115
+	teamB := uint(execNoErrLastID(t, db, `INSERT INTO teams (name) VALUES (?)`, "team-b")) //nolint:gosec // dismiss G115
 
 	titleID := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source) VALUES (?, ?)`, "demo", "apps")
 	execNoErr(t, db, `INSERT INTO script_contents (id, md5_checksum, contents) VALUES (1, 'demo-checksum', 'demo')`)
@@ -155,13 +155,13 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	}
 	execNoErr(t, db, `DELETE FROM software_categories WHERE id = ?`, teamARows[0].ID)
 	assertLinkGone(`SELECT software_category_id FROM software_installer_software_categories WHERE software_installer_id = ?`,
-		uint(installerA), "team A installer")
+		uint(installerA), "team A installer") //nolint:gosec // dismiss G115
 	execNoErr(t, db, `DELETE FROM software_categories WHERE id = ?`, teamBRows[2].ID)
 	assertLinkGone(`SELECT software_category_id FROM vpp_app_team_software_categories WHERE vpp_app_team_id = ?`,
-		uint(vppAppTeamB), "team B VPP app")
+		uint(vppAppTeamB), "team B VPP app") //nolint:gosec // dismiss G115
 	execNoErr(t, db, `DELETE FROM software_categories WHERE id = ?`, teamARows[3].ID)
 	assertLinkGone(`SELECT software_category_id FROM in_house_app_software_categories WHERE in_house_app_id = ?`,
-		uint(inHouseAppA), "team A in-house app")
+		uint(inHouseAppA), "team A in-house app") //nolint:gosec // dismiss G115
 
 	// Unique key on (team_id, name) rejects duplicates within a team.
 	_, err := db.Exec(`INSERT INTO software_categories (name, team_id) VALUES (?, ?)`, "🌎 Browsers", uint(0))
