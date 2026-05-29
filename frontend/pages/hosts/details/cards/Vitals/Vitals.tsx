@@ -5,6 +5,7 @@ import { IAppleDeviceUpdates } from "interfaces/config";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import {
   isAndroid,
+  isAppleDevice,
   isIPadOrIPhone,
   isChrome,
   platformSupportsDiskEncryption,
@@ -346,7 +347,15 @@ const Vitals = ({
         <DataSet
           key="hardware-model"
           title="Hardware model"
-          value={<TooltipTruncatedText value={vitalsData.hardware_model} />}
+          value={
+            <TooltipTruncatedText
+              value={
+                isAppleDevice(vitalsData.platform)
+                  ? vitalsData.hardware_marketing_name
+                  : vitalsData.hardware_model
+              }
+            />
+          }
         />
       ),
     });
