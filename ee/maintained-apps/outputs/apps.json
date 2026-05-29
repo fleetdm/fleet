@@ -2417,6 +2417,20 @@
       "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
+      "name": "VSCodium",
+      "slug": "vscodium/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vscodium",
+      "description": "VSCodium is a release of VS Code without MS branding, telemetry, and licensing."
+    },
+    {
+      "name": "VSCodium",
+      "slug": "vscodium/windows",
+      "platform": "windows",
+      "unique_identifier": "VSCodium",
+      "description": "VSCodium is a release of VS Code without MS branding, telemetry, and licensing."
+    },
+    {
       "name": "Wacom Tablet",
       "slug": "wacom-tablet/darwin",
       "platform": "darwin",
