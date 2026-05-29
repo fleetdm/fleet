@@ -31730,6 +31730,9 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	// whitespace-only name returns 422
 	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": "   "}, http.StatusUnprocessableEntity)
 
+	// post without fleet_id returns 422
+	s.Do("POST", path, map[string]any{"name": "no-fleet"}, http.StatusUnprocessableEntity)
+
 	// get without fleet_id returns 400 (required query param)
 	s.Do("GET", path, nil, http.StatusBadRequest)
 

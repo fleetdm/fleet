@@ -37,7 +37,7 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID uint) ([]
 	return categories, nil
 }
 
-func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
+func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name string) (*fleet.SoftwareCategory, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		svc.authz.SkipAuthorization(ctx)
@@ -47,22 +47,26 @@ func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID uint, name s
 		svc.authz.SkipAuthorization(ctx)
 		return nil, fleet.NewInvalidArgumentError("name", "name must be at most 255 characters")
 	}
+	if teamID == nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewInvalidArgumentError("fleet_id", "fleet_id is required")
+	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareCategory{TeamID: teamID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareCategory{TeamID: *teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
-	if teamID != 0 {
-		exists, err := svc.ds.TeamExists(ctx, teamID)
+	if *teamID != 0 {
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if fleet exists")
 		}
 		if !exists {
-			return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", teamID)).
+			return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}
 
-	category, err := svc.ds.NewSoftwareCategory(ctx, teamID, name)
+	category, err := svc.ds.NewSoftwareCategory(ctx, *teamID, name)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new software category")
 	}

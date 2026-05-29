@@ -57,17 +57,14 @@ func (r addSelfServiceCategoriesResponse) Error() error { return r.Err }
 
 func addSelfServiceCategoriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addSelfServiceCategoriesRequest)
-	if req.FleetID == nil {
-		return addSelfServiceCategoriesResponse{Err: fleet.NewInvalidArgumentError("fleet_id", "fleet_id is required")}, nil
-	}
-	category, err := svc.NewSoftwareCategory(ctx, *req.FleetID, req.Name)
+	category, err := svc.NewSoftwareCategory(ctx, req.FleetID, req.Name)
 	if err != nil {
 		return addSelfServiceCategoriesResponse{Err: err}, nil
 	}
 	return addSelfServiceCategoriesResponse{SelfServiceCategory: category}, nil
 }
 
-func (svc *Service) NewSoftwareCategory(ctx context.Context, _ uint, _ string) (*fleet.SoftwareCategory, error) {
+func (svc *Service) NewSoftwareCategory(ctx context.Context, _ *uint, _ string) (*fleet.SoftwareCategory, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
