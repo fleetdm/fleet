@@ -243,7 +243,7 @@ describe("CommandPalette", () => {
       // The root page lists commands; find "View host" and activate it
       // to reach the view-host sub-page.
       const viewHost = await screen.findByText("View host");
-      fireEvent.click(viewHost);
+      await user.click(viewHost);
 
       await waitFor(() => {
         expect(
@@ -342,8 +342,12 @@ describe("CommandPalette", () => {
       // Sub-items should not be visible initially
       expect(screen.queryByText("Disk encryption")).not.toBeInTheDocument();
 
-      // Click the chevron on OS settings — use fireEvent since cmdk
-      // intercepts user.click and navigates instead of toggling
+      // fireEvent here, not user.click — cmdk's userEvent-aware
+      // selection handlers fire onSelect on the parent Command.Item
+      // and navigate before the chevron's own click handler runs.
+      // fireEvent.click dispatches a bare click that respects the
+      // chevron's stopPropagation. (See cmdk + @testing-library/user-event
+      // v14 compatibility.)
       const chevron = screen
         .getByText("OS settings")
         .closest(`.command-palette__item`)

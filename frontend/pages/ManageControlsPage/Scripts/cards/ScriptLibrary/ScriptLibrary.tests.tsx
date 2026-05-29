@@ -176,6 +176,70 @@ describe("ScriptLibrary ?add_script=1 deep-link", () => {
     });
   });
 
+  it("reopens the modal on a second deep-link after the first was closed", async () => {
+    mockServer.use(emptyScriptsHandler);
+    const router = createMockRouter();
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          config: { server_settings: { scripts_disabled: false } },
+        },
+      },
+    });
+
+    const cleanLocation: ScriptsLocation = {
+      pathname: "/controls/scripts/library",
+      query: {},
+      search: "",
+    };
+
+    const linkedLocation: ScriptsLocation = {
+      pathname: "/controls/scripts/library",
+      query: { add_script: "1" },
+      search: "?add_script=1",
+    };
+
+    // Round 1: palette deep-links us in.
+    const { user, rerender } = render(
+      <ScriptLibrary router={router} teamId={1} location={linkedLocation} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Add script")).toHaveLength(2);
+    });
+
+    // Simulate the effect's router.replace landing us back at the clean URL.
+    rerender(
+      <ScriptLibrary router={router} teamId={1} location={cleanLocation} />
+    );
+
+    // User dismisses the modal with Escape.
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryAllByText("Add script")).toHaveLength(0);
+    });
+
+    // Round 2: palette pushes the deep-link again (new location object).
+    rerender(
+      <ScriptLibrary
+        router={router}
+        teamId={1}
+        location={{
+          pathname: "/controls/scripts/library",
+          query: { add_script: "1" },
+          search: "?add_script=1",
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Add script")).toHaveLength(2);
+    });
+  });
+
   it("does not open the modal for technicians but still strips the param", async () => {
     mockServer.use(emptyScriptsHandler);
     const router = createMockRouter();
