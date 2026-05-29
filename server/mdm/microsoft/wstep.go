@@ -405,13 +405,22 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 		return AzureData{}, ctxerr.Wrap(ctx, err, "parse error Azure JWT content")
 	}
 
-	// Parse JWT token
-	claims := token.Claims.(jwt.MapClaims)
+	return azureDataFromClaims(ctx, token.Claims.(jwt.MapClaims))
+}
 
-	// Get UPN claim
+// azureDataFromClaims extracts and validates the Fleet-relevant claims from an already signature-verified Azure AD
+// JWT. It is separated from GetAzureAuthTokenClaims (which performs the JWKS signature verification) so the claim
+// handling - in particular the upn -> preferred_username fallback for v2 tokens, see issue #46388 - can be unit-tested
+// without a JWKS endpoint.
+func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, error) {
+	// Get UPN claim. v1 access tokens carry `upn`; v2 tokens may instead carry `preferred_username` (see issue #46388),
+	// so fall back to it when `upn` is absent. Only error when neither is present.
 	upnClaim, ok := claims["upn"].(string)
 	if !ok || len(upnClaim) == 0 {
-		return AzureData{}, ctxerr.New(ctx, "invalid UPN claim")
+		upnClaim, ok = claims["preferred_username"].(string)
+		if !ok || len(upnClaim) == 0 {
+			return AzureData{}, ctxerr.New(ctx, "invalid UPN claim")
+		}
 	}
 
 	// Get TenantID claim
@@ -421,8 +430,7 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 	}
 
 	// Validate that tenant ID is a UUID and matches the issuer
-	_, err = uuid.Parse(tenantIDClaim)
-	if err != nil {
+	if _, err := uuid.Parse(tenantIDClaim); err != nil {
 		return AzureData{}, ctxerr.Wrap(ctx, err, "invalid TenantID claim format")
 	}
 	issuer, ok := claims["iss"].(string)
