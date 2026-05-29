@@ -1954,7 +1954,7 @@ func (a ActivityTypeDeletedLabel) ActivityName() string {
 
 type ActivityTypeAddedSelfServiceCategory struct {
 	SelfServiceCategoryName string  `json:"self_service_category_name"`
-	FleetID                 *uint   `json:"fleet_id"`
+	FleetID                 uint    `json:"fleet_id"`
 	FleetName               *string `json:"fleet_name"`
 }
 
@@ -1964,7 +1964,7 @@ func (a ActivityTypeAddedSelfServiceCategory) ActivityName() string {
 
 type ActivityTypeEditedSelfServiceCategory struct {
 	SelfServiceCategoryName string  `json:"self_service_category_name"`
-	FleetID                 *uint   `json:"fleet_id"`
+	FleetID                 uint    `json:"fleet_id"`
 	FleetName               *string `json:"fleet_name"`
 }
 
@@ -1974,7 +1974,7 @@ func (a ActivityTypeEditedSelfServiceCategory) ActivityName() string {
 
 type ActivityTypeDeletedSelfServiceCategory struct {
 	SelfServiceCategoryName string  `json:"self_service_category_name"`
-	FleetID                 *uint   `json:"fleet_id"`
+	FleetID                 uint    `json:"fleet_id"`
 	FleetName               *string `json:"fleet_name"`
 }
 

@@ -811,6 +811,9 @@ type Datastore interface {
 	SoftwareCategory(ctx context.Context, id uint) (*SoftwareCategory, error)
 	// NewSoftwareCategory creates a new category for software.
 	NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*SoftwareCategory, error)
+	// BatchNewSoftwareCategories inserts multiple categories for a fleet in a
+	// single statement so that partial failures cannot leave a half-seeded fleet.
+	BatchNewSoftwareCategories(ctx context.Context, teamID uint, names []string) error
 	UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*SoftwareCategory, error)
 	DeleteSoftwareCategory(ctx context.Context, id uint) error
 	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names on a team.

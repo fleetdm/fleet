@@ -1331,8 +1331,8 @@ allow {
 # Team admins, maintainers, technicians, observer_plus and observers can read self-service categories on their fleet.
 allow {
   object.type == "software_category"
-  object.fleet_id != 0
-  team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer_plus, observer][_]
+  object.team_id != 0
+  team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
   action == read
 }
 
@@ -1346,8 +1346,8 @@ allow {
 # Team admins and maintainers can write self-service categories on their fleet.
 allow {
   object.type == "software_category"
-  object.fleet_id != 0
-  team_role(subject, object.fleet_id) == [admin, maintainer][_]
+  object.team_id != 0
+  team_role(subject, object.team_id) == [admin, maintainer][_]
   action == write
 }
 

@@ -6780,6 +6780,22 @@ func (ds *Datastore) NewSoftwareCategory(ctx context.Context, teamID uint, name 
 	return getSoftwareCategoryDB(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
 }
 
+func (ds *Datastore) BatchNewSoftwareCategories(ctx context.Context, teamID uint, names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(names)), ", ")
+	stmt := `INSERT INTO software_categories (name, team_id) VALUES ` + placeholders
+	args := make([]any, 0, len(names)*2)
+	for _, name := range names {
+		args = append(args, name, teamID)
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "batch new software categories")
+	}
+	return nil
+}
+
 func (ds *Datastore) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
 	const stmt = `UPDATE software_categories SET name = ? WHERE id = ?`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, name, id); err != nil {

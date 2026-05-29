@@ -589,6 +589,8 @@ type SoftwareCategoryFunc func(ctx context.Context, id uint) (*fleet.SoftwareCat
 
 type NewSoftwareCategoryFunc func(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error)
 
+type BatchNewSoftwareCategoriesFunc func(ctx context.Context, teamID uint, names []string) error
+
 type UpdateSoftwareCategoryFunc func(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error)
 
 type DeleteSoftwareCategoryFunc func(ctx context.Context, id uint) error
@@ -2862,6 +2864,9 @@ type DataStore struct {
 
 	NewSoftwareCategoryFunc        NewSoftwareCategoryFunc
 	NewSoftwareCategoryFuncInvoked bool
+
+	BatchNewSoftwareCategoriesFunc        BatchNewSoftwareCategoriesFunc
+	BatchNewSoftwareCategoriesFuncInvoked bool
 
 	UpdateSoftwareCategoryFunc        UpdateSoftwareCategoryFunc
 	UpdateSoftwareCategoryFuncInvoked bool
@@ -6981,6 +6986,13 @@ func (s *DataStore) NewSoftwareCategory(ctx context.Context, teamID uint, name s
 	s.NewSoftwareCategoryFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewSoftwareCategoryFunc(ctx, teamID, name)
+}
+
+func (s *DataStore) BatchNewSoftwareCategories(ctx context.Context, teamID uint, names []string) error {
+	s.mu.Lock()
+	s.BatchNewSoftwareCategoriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchNewSoftwareCategoriesFunc(ctx, teamID, names)
 }
 
 func (s *DataStore) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {

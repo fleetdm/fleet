@@ -43,9 +43,9 @@ func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name 
 		svc.authz.SkipAuthorization(ctx)
 		return nil, fleet.NewInvalidArgumentError("name", "name is required")
 	}
-	if utf8.RuneCountInString(name) > 255 {
+	if utf8.RuneCountInString(name) > fleet.SoftwareCategoryNameMaxLength {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("name", "name must be at most 255 characters")
+		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("name must be at most %d characters", fleet.SoftwareCategoryNameMaxLength))
 	}
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
@@ -77,7 +77,7 @@ func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name 
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeAddedSelfServiceCategory{
 		SelfServiceCategoryName: category.Name,
-		FleetID:                 &category.TeamID,
+		FleetID:                 category.TeamID,
 		FleetName:               fleetName,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for added self-service category")
@@ -91,9 +91,9 @@ func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name st
 		svc.authz.SkipAuthorization(ctx)
 		return nil, fleet.NewInvalidArgumentError("name", "name is required")
 	}
-	if utf8.RuneCountInString(name) > 255 {
+	if utf8.RuneCountInString(name) > fleet.SoftwareCategoryNameMaxLength {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("name", "name must be at most 255 characters")
+		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("name must be at most %d characters", fleet.SoftwareCategoryNameMaxLength))
 	}
 
 	// we need to load the category first to scope authz to its team_id
@@ -128,7 +128,7 @@ func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name st
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedSelfServiceCategory{
 		SelfServiceCategoryName: updated.Name,
-		FleetID:                 &updated.TeamID,
+		FleetID:                 updated.TeamID,
 		FleetName:               fleetName,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for edited self-service category")
@@ -162,7 +162,7 @@ func (svc *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedSelfServiceCategory{
 		SelfServiceCategoryName: category.Name,
-		FleetID:                 &category.TeamID,
+		FleetID:                 category.TeamID,
 		FleetName:               fleetName,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for deleted self-service category")

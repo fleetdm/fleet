@@ -22,6 +22,7 @@ const (
 	//
 
 	SoftwareNameMaxLength             = 255
+	SoftwareCategoryNameMaxLength     = 255
 	SoftwareVersionMaxLength          = 255
 	SoftwareSourceMaxLength           = 64
 	SoftwareBundleIdentifierMaxLength = 255
@@ -855,9 +856,9 @@ type VPPBatchPayloadWithPlatform struct {
 }
 
 type SoftwareCategory struct {
-	ID      uint   `json:"id" db:"id"`
-	Name    string `json:"name" db:"name"`
-	TeamID  uint   `json:"fleet_id" db:"team_id"`
+	ID     uint   `json:"id" db:"id"`
+	Name   string `json:"name" db:"name"`
+	TeamID uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	UpdateCreateTimestamps
 }
 
