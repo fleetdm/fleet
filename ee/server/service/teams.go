@@ -1500,12 +1500,7 @@ func (svc *Service) createTeamFromSpec(
 				GoogleCalendar:           spec.Integrations.GoogleCalendar,
 				ConditionalAccessEnabled: conditionalAccessEnabled,
 			},
-			// NOTE: software is intentionally not stored in the team config. The
-			// source of truth for a team's software (and its setup experience
-			// membership) lives in the software tables; the actual software is
-			// applied via the dedicated batch endpoints. Storing it here would
-			// produce stale data when read back (e.g. `fleetctl get teams`). See
-			// https://github.com/fleetdm/fleet/issues/44970.
+			Software: spec.Software,
 		},
 		Secrets: secrets,
 	})
@@ -1769,13 +1764,19 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Scripts = spec.Scripts
 	}
 
-	// NOTE: software is intentionally not stored in the team config. The source
-	// of truth for a team's software (and its setup experience membership) lives
-	// in the software tables; the actual software is applied via the dedicated
-	// batch endpoints. Storing it here would produce stale data when read back
-	// (e.g. `fleetctl get teams`). See
-	// https://github.com/fleetdm/fleet/issues/44970.
-	team.Config.Software = nil
+	if spec.Software != nil {
+		if team.Config.Software == nil {
+			team.Config.Software = &fleet.SoftwareSpec{}
+		}
+
+		if spec.Software.Packages.Set {
+			team.Config.Software.Packages = spec.Software.Packages
+		}
+
+		if spec.Software.AppStoreApps.Set {
+			team.Config.Software.AppStoreApps = spec.Software.AppStoreApps
+		}
+	}
 
 	if secrets != nil {
 		team.Secrets = secrets
