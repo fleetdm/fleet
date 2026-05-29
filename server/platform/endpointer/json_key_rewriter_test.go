@@ -463,6 +463,72 @@ func TestJSONKeyRewriteReader_NestedObjectStringValue(t *testing.T) {
 	assert.Equal(t, []string{"team_id"}, r.UsedDeprecatedKeys())
 }
 
+func TestJSONKeyRewriteReader_ScopedRuleMatchesOnlyAtPath(t *testing.T) {
+	// A scoped rule for `setup_experience`→`macos_setup` at path "mdm" must
+	// rewrite the mdm-level key but leave an unrelated, literal
+	// `setup_experience` field deeper under software.packages untouched.
+	input := `{
+		"mdm": {"setup_experience": {"x": 1}},
+		"software": {"packages": [{"setup_experience": true}]}
+	}`
+	rules := []AliasRule{{OldKey: "macos_setup", NewKey: "setup_experience", Path: "mdm", Scoped: true}}
+
+	r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
+	out, err := io.ReadAll(r)
+	require.NoError(t, err)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal(out, &result))
+
+	mdm := result["mdm"].(map[string]any)
+	assert.Contains(t, mdm, "macos_setup", "mdm-level key should be rewritten to old name")
+	assert.NotContains(t, mdm, "setup_experience")
+
+	pkg := result["software"].(map[string]any)["packages"].([]any)[0].(map[string]any)
+	assert.Contains(t, pkg, "setup_experience", "unrelated literal field must be preserved")
+	assert.NotContains(t, pkg, "macos_setup")
+}
+
+func TestJSONKeyRewriteReader_ScopedRuleAncestorKeyCanonicalization(t *testing.T) {
+	// A rule nested under a renamed ancestor ("apple_settings"→"macos_settings")
+	// must still match when the input uses the new ancestor name, because the
+	// rewriter canonicalizes ancestor path segments to old names.
+	input := `{"mdm": {"apple_settings": {"configuration_profiles": []}}}`
+	rules := []AliasRule{
+		{OldKey: "macos_settings", NewKey: "apple_settings", Path: "mdm", Scoped: true},
+		{OldKey: "custom_settings", NewKey: "configuration_profiles", Path: "mdm" + pathSep + "macos_settings", Scoped: true},
+	}
+
+	r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
+	out, err := io.ReadAll(r)
+	require.NoError(t, err)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal(out, &result))
+	settings := result["mdm"].(map[string]any)["macos_settings"].(map[string]any)
+	assert.Contains(t, settings, "custom_settings", "nested key should be rewritten under the canonicalized path")
+	assert.NotContains(t, settings, "configuration_profiles")
+}
+
+func TestJSONKeyRewriteReader_ScopedRuleRootOnly(t *testing.T) {
+	// A root-scoped rule (empty path) must not rewrite the same key when it
+	// appears nested.
+	input := `{"fleet_id": 1, "inner": {"fleet_id": 2}}`
+	rules := []AliasRule{{OldKey: "team_id", NewKey: "fleet_id", Path: "", Scoped: true}}
+
+	r := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
+	out, err := io.ReadAll(r)
+	require.NoError(t, err)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal(out, &result))
+	assert.Contains(t, result, "team_id", "root key rewritten to old name")
+	assert.NotContains(t, result, "fleet_id")
+	inner := result["inner"].(map[string]any)
+	assert.Contains(t, inner, "fleet_id", "nested key left untouched by root-scoped rule")
+	assert.NotContains(t, inner, "team_id")
+}
+
 func TestAliasConflictError_ErrorMessage(t *testing.T) {
 	err := &AliasConflictError{Old: "team_id", New: "fleet_id"}
 	assert.Contains(t, err.Error(), "team_id")

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/go-json-experiment/json/jsontext"
 )
@@ -20,14 +21,72 @@ func (e *AliasConflictError) Error() string {
 	return fmt.Sprintf("Conflicting field names: cannot specify both `%s` (deprecated) and `%s` in the same request", e.Old, e.New)
 }
 
+// pathSep joins JSON object-key path segments in AliasRule.Path. It uses the
+// ASCII unit separator control character, which never appears in a JSON object
+// key name in practice.
+const pathSep = "\x1f"
+
 // AliasRule defines a key-rename rule: the deprecated (old) key name and its
 // replacement (new) key name. The struct's json tag uses OldKey (the current
 // name), and renameto specifies NewKey (the target name). The rewriter
 // accepts both names in requests: OldKey passes through as-is (with
 // deprecation tracking) and NewKey is rewritten to OldKey for deserialization.
+//
+// Path and Scoped together scope a rule to a specific JSON location, which is
+// necessary because a rename's NewKey can collide with an unrelated, literal
+// JSON field of the same name elsewhere in the document (e.g. the
+// `macos_setup`→`setup_experience` rename collides with the per-software
+// `setup_experience` install flag). When Scoped is true, the rule applies only
+// inside the object reached by the pathSep-joined sequence of (canonical/old)
+// object keys from the document root that equals Path — an empty Path then
+// denotes the document root. When Scoped is false the rule is unscoped and
+// applies at any depth (the legacy behavior, used by directly-constructed
+// rules and by RewriteOldToNewKeys).
 type AliasRule struct {
 	OldKey string
 	NewKey string
+	Path   string
+	Scoped bool
+}
+
+// buildIndexes constructs the lookup maps used by the rewriter: old/new key
+// name to the rules carrying that name (multiple rules can share a name with
+// different paths), plus a canonical map from new key name to old key name
+// used to normalize ancestor path segments.
+func buildIndexes(rules []AliasRule) (oldIdx, newIdx map[string][]AliasRule, canonical map[string]string) {
+	oldIdx = make(map[string][]AliasRule, len(rules))
+	newIdx = make(map[string][]AliasRule, len(rules))
+	canonical = make(map[string]string, len(rules))
+	for _, r := range rules {
+		oldIdx[r.OldKey] = append(oldIdx[r.OldKey], r)
+		newIdx[r.NewKey] = append(newIdx[r.NewKey], r)
+		if _, ok := canonical[r.NewKey]; !ok {
+			canonical[r.NewKey] = r.OldKey
+		}
+	}
+	return oldIdx, newIdx, canonical
+}
+
+// matchRule selects, from the candidate rules registered under a key name, the
+// one that applies at the given JSON path. A scoped rule applies only when its
+// Path matches exactly; an unscoped rule applies at any path and is used as a
+// fallback. Returns false if no candidate applies here.
+func matchRule(cands []AliasRule, path string) (AliasRule, bool) {
+	var fallback AliasRule
+	haveFallback := false
+	for _, c := range cands {
+		if c.Scoped {
+			if c.Path == path {
+				return c, true
+			}
+			continue
+		}
+		if !haveFallback {
+			fallback = c
+			haveFallback = true
+		}
+	}
+	return fallback, haveFallback
 }
 
 // JSONKeyRewriteReader is a streaming io.Reader that handles
@@ -45,10 +104,14 @@ type JSONKeyRewriteReader struct {
 	reader  *bytes.Reader
 	initErr error
 
-	// Map from old (deprecated) key to its AliasRule for fast lookup.
-	oldKeyIndex map[string]AliasRule
-	// Map from new key to its AliasRule for fast lookup.
-	newKeyIndex map[string]AliasRule
+	// Map from old (deprecated) key to the rules carrying that name.
+	oldKeyIndex map[string][]AliasRule
+	// Map from new key to the rules carrying that name.
+	newKeyIndex map[string][]AliasRule
+	// canonical maps a new key name to its old (canonical) name, used to
+	// normalize ancestor path segments so scoped matching is independent of
+	// whether the input used old or new names for ancestor object keys.
+	canonical map[string]string
 
 	// Tracks which deprecated keys have been used (old key -> true).
 	usedDeprecated map[string]bool
@@ -59,16 +122,12 @@ type JSONKeyRewriteReader struct {
 // from src, handles bidirectional key aliasing, detects conflicts, and
 // writes the result to an internal buffer.
 func NewJSONKeyRewriteReader(src io.Reader, rules []AliasRule) *JSONKeyRewriteReader {
-	oldIdx := make(map[string]AliasRule, len(rules))
-	newIdx := make(map[string]AliasRule, len(rules))
-	for _, r := range rules {
-		oldIdx[r.OldKey] = r
-		newIdx[r.NewKey] = r
-	}
+	oldIdx, newIdx, canonical := buildIndexes(rules)
 
 	rw := &JSONKeyRewriteReader{
 		oldKeyIndex:    oldIdx,
 		newKeyIndex:    newIdx,
+		canonical:      canonical,
 		usedDeprecated: make(map[string]bool),
 	}
 
@@ -123,15 +182,11 @@ func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, map[string]s
 	if len(rules) == 0 || len(data) == 0 {
 		return data, nil, nil
 	}
-	oldIdx := make(map[string]AliasRule, len(rules))
-	newIdx := make(map[string]AliasRule, len(rules))
-	for _, r := range rules {
-		oldIdx[r.OldKey] = r
-		newIdx[r.NewKey] = r
-	}
+	oldIdx, newIdx, canonical := buildIndexes(rules)
 	rw := &JSONKeyRewriteReader{
 		oldKeyIndex:    oldIdx,
 		newKeyIndex:    newIdx,
+		canonical:      canonical,
 		usedDeprecated: make(map[string]bool),
 	}
 	var buf bytes.Buffer
@@ -140,7 +195,9 @@ func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, map[string]s
 	}
 	deprecatedKeysMap := make(map[string]string, len(rw.usedDeprecated))
 	for k := range rw.usedDeprecated {
-		deprecatedKeysMap[k] = rw.oldKeyIndex[k].NewKey
+		if cands := rw.oldKeyIndex[k]; len(cands) > 0 {
+			deprecatedKeysMap[k] = cands[0].NewKey
+		}
 	}
 	return buf.Bytes(), deprecatedKeysMap, nil
 }
@@ -153,14 +210,41 @@ func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, map[string]s
 func RewriteOldToNewKeys(data []byte, rules []AliasRule) ([]byte, error) {
 	reversed := make([]AliasRule, len(rules))
 	for i, r := range rules {
+		// Reversed rules are intentionally unscoped (Scoped left false): the
+		// old→new direction is used to rewrite values/subtrees whose paths are
+		// relative to that subtree, not the document root, so document-rooted
+		// scoping would never match. Unscoped preserves the original global
+		// behavior, which is safe here because old→new only renames the old
+		// names (a colliding literal already uses the new name and passes
+		// through untouched).
 		reversed[i] = AliasRule{OldKey: r.NewKey, NewKey: r.OldKey}
 	}
 	result, _, err := RewriteDeprecatedKeys(data, reversed)
 	return result, err
 }
 
+// markConflict records that the canonical (old) key for rule has been seen in
+// the current object scope and returns an *AliasConflictError if it was
+// already present (i.e. both the old and new names appear in the same scope).
+func markConflict(keyScopes []map[string]bool, rule AliasRule) error {
+	if len(keyScopes) == 0 {
+		return nil
+	}
+	scope := keyScopes[len(keyScopes)-1]
+	if scope[rule.OldKey] {
+		return &AliasConflictError{Old: rule.OldKey, New: rule.NewKey}
+	}
+	scope[rule.OldKey] = true
+	return nil
+}
+
 // rewrite reads tokens from src, rewrites deprecated keys, checks for alias
 // conflicts, and writes the transformed JSON to w.
+//
+// It tracks the current JSON object-key path so that scoped rules apply only
+// at their declared location. Path segments are normalized to canonical (old)
+// names so a scoped rule matches regardless of whether ancestor object keys
+// were written with old or new names.
 func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 	dec := jsontext.NewDecoder(src, jsontext.AllowDuplicateNames(true))
 	enc := jsontext.NewEncoder(w, jsontext.AllowDuplicateNames(true))
@@ -168,6 +252,39 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 	// Stack of per-object-scope key sets for conflict detection.
 	// Pushed on '{', popped on '}'.
 	var keyScopes []map[string]bool
+
+	// Current path of canonical object keys to the position being read, and a
+	// parallel stack recording whether each open container pushed a segment.
+	var pathSegs []string
+	var segPushed []bool
+	// pendingKey is the canonical name of the most recently read object key,
+	// whose value has not yet been consumed. It becomes the path segment if
+	// that value is a container.
+	pendingKey := ""
+
+	canon := func(k string) string {
+		if old, ok := r.canonical[k]; ok {
+			return old
+		}
+		return k
+	}
+	openContainer := func() {
+		if pendingKey != "" {
+			pathSegs = append(pathSegs, pendingKey)
+			segPushed = append(segPushed, true)
+		} else {
+			segPushed = append(segPushed, false)
+		}
+		pendingKey = ""
+	}
+	closeContainer := func() {
+		if n := len(segPushed); n > 0 {
+			if segPushed[n-1] {
+				pathSegs = pathSegs[:len(pathSegs)-1]
+			}
+			segPushed = segPushed[:n-1]
+		}
+	}
 
 	for {
 		tok, err := dec.ReadToken()
@@ -178,11 +295,16 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 			return err
 		}
 
-		kind := tok.Kind()
-
-		switch kind {
+		switch tok.Kind() {
 		case '{':
 			keyScopes = append(keyScopes, make(map[string]bool))
+			openContainer()
+			if err := enc.WriteToken(tok); err != nil {
+				return err
+			}
+
+		case '[':
+			openContainer()
 			if err := enc.WriteToken(tok); err != nil {
 				return err
 			}
@@ -191,6 +313,13 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 			if len(keyScopes) > 0 {
 				keyScopes = keyScopes[:len(keyScopes)-1]
 			}
+			closeContainer()
+			if err := enc.WriteToken(tok); err != nil {
+				return err
+			}
+
+		case ']':
+			closeContainer()
 			if err := enc.WriteToken(tok); err != nil {
 				return err
 			}
@@ -210,69 +339,61 @@ func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {
 				}
 			}
 
-			if isKey {
-				keyName := tok.String()
-
-				// Use OldKey as the canonical key for scope tracking.
-				// Both OldKey (pass-through) and NewKey (rewrite) resolve
-				// to the same canonical key for conflict detection.
-
-				if rule, ok := r.oldKeyIndex[keyName]; ok {
-					// This is an OldKey (deprecated name). Pass through
-					// as-is — the struct expects this name. Track it for
-					// deprecation logging.
-					canonicalKey := rule.OldKey
-					r.usedDeprecated[keyName] = true
-
-					// Conflict detection.
-					if len(keyScopes) > 0 {
-						scope := keyScopes[len(keyScopes)-1]
-						if scope[canonicalKey] {
-							return &AliasConflictError{Old: rule.OldKey, New: rule.NewKey}
-						}
-						scope[canonicalKey] = true
-					}
-
-					// Write the key as-is (old name, which the struct expects).
-					if err := enc.WriteToken(tok); err != nil {
-						return err
-					}
-				} else if rule, ok := r.newKeyIndex[keyName]; ok {
-					// This is a NewKey. Rewrite it to OldKey so the
-					// struct can deserialize it.
-					canonicalKey := rule.OldKey
-
-					// Conflict detection.
-					if len(keyScopes) > 0 {
-						scope := keyScopes[len(keyScopes)-1]
-						if scope[canonicalKey] {
-							return &AliasConflictError{Old: rule.OldKey, New: rule.NewKey}
-						}
-						scope[canonicalKey] = true
-					}
-
-					// Write the rewritten (old) key.
-					if err := enc.WriteToken(jsontext.String(canonicalKey)); err != nil {
-						return err
-					}
-				} else {
-					// Not an aliased key — pass through unchanged.
-					if err := enc.WriteToken(tok); err != nil {
-						return err
-					}
-				}
-			} else {
+			if !isKey {
 				// String value — pass through unchanged.
 				if err := enc.WriteToken(tok); err != nil {
 					return err
 				}
+				pendingKey = ""
+				continue
 			}
 
-		default:
-			// All other tokens: [, ], numbers, bools, null — pass through.
+			keyName := tok.String()
+			curPath := strings.Join(pathSegs, pathSep)
+
+			// Old (deprecated) key: pass through as-is — the struct expects
+			// this name — and track it for deprecation logging.
+			if cands, ok := r.oldKeyIndex[keyName]; ok {
+				if rule, matched := matchRule(cands, curPath); matched {
+					r.usedDeprecated[keyName] = true
+					if err := markConflict(keyScopes, rule); err != nil {
+						return err
+					}
+					if err := enc.WriteToken(tok); err != nil {
+						return err
+					}
+					pendingKey = rule.OldKey
+					continue
+				}
+			}
+
+			// New key applicable at this path: rewrite it to OldKey so the
+			// struct can deserialize it.
+			if cands, ok := r.newKeyIndex[keyName]; ok {
+				if rule, matched := matchRule(cands, curPath); matched {
+					if err := markConflict(keyScopes, rule); err != nil {
+						return err
+					}
+					if err := enc.WriteToken(jsontext.String(rule.OldKey)); err != nil {
+						return err
+					}
+					pendingKey = rule.OldKey
+					continue
+				}
+			}
+
+			// Not an aliased key applicable here — pass through unchanged.
 			if err := enc.WriteToken(tok); err != nil {
 				return err
 			}
+			pendingKey = canon(keyName)
+
+		default:
+			// All other tokens: numbers, bools, null — scalar values.
+			if err := enc.WriteToken(tok); err != nil {
+				return err
+			}
+			pendingKey = ""
 		}
 	}
 }
