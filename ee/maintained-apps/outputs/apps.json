@@ -605,6 +605,13 @@
     },
     {
       "name": "Cryptomator",
+      "slug": "cryptomator/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.cryptomator",
+      "description": "Cryptomator is a multi-platform client-side cloud file encryption tool."
+    },
+    {
+      "name": "Cryptomator",
       "slug": "cryptomator/windows",
       "platform": "windows",
       "unique_identifier": "Cryptomator",
