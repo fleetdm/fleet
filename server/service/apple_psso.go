@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 
@@ -83,12 +82,10 @@ func pssoRegisterHandler(svc fleet.Service, _ *slog.Logger) http.Handler {
 			}
 			req := fleet.PSSORegisterRequest{
 				DeviceUUID:          r.FormValue("deviceUUID"),
-				DeviceSigningKey:    r.FormValue("deviceSigningKey"),
-				DeviceEncryptionKey: r.FormValue("deviceEncryptionKey"),
+				DeviceSigningKey:    r.FormValue("signPubKey"),
+				DeviceEncryptionKey: r.FormValue("encPubKey"),
 				SignKeyID:           r.FormValue("signKeyID"),
 				EncKeyID:            r.FormValue("encKeyID"),
-				Code:                r.FormValue("code"),
-				State:               r.FormValue("state"),
 			}
 			if err := svc.PSSORegisterComplete(ctx, req); err != nil {
 				encodeError(ctx, err, w)
@@ -111,12 +108,19 @@ func pssoTokenHandler(svc fleet.Service, _ *slog.Logger) http.Handler {
 			encodeError(ctx, &fleet.BadRequestError{Message: "method not allowed"}, w)
 			return
 		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			encodeError(ctx, ctxerr.Wrap(ctx, err, "read psso token body"), w)
+		// Apple sends the login request as an OAuth jwt-bearer grant: a
+		// urlencoded form whose `assertion` field holds the compact JWS. The
+		// JWT must be extracted from the form, not parsed from the raw body.
+		if err := r.ParseForm(); err != nil {
+			encodeError(ctx, ctxerr.Wrap(ctx, err, "parse psso token form"), w)
 			return
 		}
-		out, err := svc.PSSOToken(ctx, body)
+		assertion := r.FormValue("assertion")
+		if assertion == "" {
+			encodeError(ctx, &fleet.BadRequestError{Message: "psso token: missing assertion"}, w)
+			return
+		}
+		out, err := svc.PSSOToken(ctx, []byte(assertion))
 		if err != nil {
 			encodeError(ctx, err, w)
 			return

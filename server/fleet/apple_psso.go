@@ -44,6 +44,13 @@ type PSSOClaims struct {
 	Name              string         `json:"name,omitempty"`
 	PreferredUsername string         `json:"preferred_username,omitempty"`
 	Extra             map[string]any `json:"extra,omitempty"`
+
+	// RefreshToken and ExpiresIn carry the upstream IdP's OAuth token-response
+	// fields through to the PSSO login response Fleet returns to the device.
+	// The device treats the refresh token as opaque (used for silent SSO
+	// renewal); ExpiresIn is the access/refresh token lifetime in seconds.
+	RefreshToken string `json:"-"`
+	ExpiresIn    int    `json:"-"`
 }
 
 // PSSOIdPClient validates a username/password pair against the upstream IdP
@@ -62,17 +69,19 @@ type PSSONonceStore interface {
 	Consume(ctx context.Context, nonce string) (ok bool, err error)
 }
 
-// PSSORegisterRequest carries the fields the Mac extension POSTs to
-// /mdm/apple/psso/register after the upstream IdP redirects back with an auth
-// code. Field names match the query string the extension constructs.
+// PSSORegisterRequest carries the device-key enrollment the Mac extension
+// POSTs to /mdm/apple/psso/register. In Password mode this is a pure key
+// registration: the extension generates Secure Enclave signing + encryption
+// keypairs and submits the public halves plus their kids and the hardware
+// device UUID. There is no OAuth code/state — user identity is established
+// later at each password login. Field names match the form keys the extension
+// constructs (signPubKey/encPubKey carry the PEM-encoded public keys).
 type PSSORegisterRequest struct {
 	DeviceUUID          string `json:"deviceUUID"           form:"deviceUUID"`
-	DeviceSigningKey    string `json:"deviceSigningKey"     form:"deviceSigningKey"`
-	DeviceEncryptionKey string `json:"deviceEncryptionKey"  form:"deviceEncryptionKey"`
+	DeviceSigningKey    string `json:"deviceSigningKey"     form:"signPubKey"`
+	DeviceEncryptionKey string `json:"deviceEncryptionKey"  form:"encPubKey"`
 	SignKeyID           string `json:"signKeyID"            form:"signKeyID"`
 	EncKeyID            string `json:"encKeyID"             form:"encKeyID"`
-	Code                string `json:"code"                 form:"code"`
-	State               string `json:"state"                form:"state"`
 }
 
 // PSSOSettings holds the global Apple Platform SSO configuration: which

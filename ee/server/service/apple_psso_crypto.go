@@ -23,18 +23,24 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/ecdh"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	jose "github.com/go-jose/go-jose/v3"
+	josecipher "github.com/go-jose/go-jose/v3/cipher"
 	jwt "github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/hkdf"
 )
@@ -49,15 +55,37 @@ const (
 )
 
 // pssoTokenClaims models the union of claims an inbound token JWT can
-// carry. Optional fields are populated only on certain request types; the
-// dispatcher checks RequestType first.
+// carry. The real PSSO v2 Password login request identifies itself with
+// GrantType=="password" and carries a plaintext Password plus a JWECrypto
+// recipe describing how the response must be encrypted. The RequestType /
+// Encrypted* fields belong to an earlier handshake model and are retained
+// only so the legacy dispatch path still compiles.
 type pssoTokenClaims struct {
 	jwt.RegisteredClaims
-	RequestType    pssoRequestType `json:"request_type"`
-	RequestNonce   string          `json:"request_nonce,omitempty"`
-	Username       string          `json:"username,omitempty"`
-	EncryptedPwd   string          `json:"encrypted_password,omitempty"` // base64-A256GCM blob
-	EncryptedNonce string          `json:"encrypted_nonce,omitempty"`    // for key_exchange handshake
+
+	// PSSO v2 Password login request.
+	GrantType    string         `json:"grant_type,omitempty"`
+	Password     string         `json:"password,omitempty"`
+	Username     string         `json:"username,omitempty"`
+	Nonce        string         `json:"nonce,omitempty"`         // Apple session nonce, echoed in the response
+	JWECrypto    *pssoJWECrypto `json:"jwe_crypto,omitempty"`    // response-encryption recipe
+	RequestNonce string         `json:"request_nonce,omitempty"` // Fleet-issued nonce from /nonce
+
+	// Legacy handshake model (unused by the Password flow).
+	RequestType    pssoRequestType `json:"request_type,omitempty"`
+	EncryptedPwd   string          `json:"encrypted_password,omitempty"`
+	EncryptedNonce string          `json:"encrypted_nonce,omitempty"`
+}
+
+// pssoJWECrypto is the jwe_crypto claim the extension sends to tell Fleet how
+// to encrypt the login response: ECDH-ES key agreement to the device
+// encryption key with A256GCM content encryption, binding the agreed key to
+// the apu/apv party-info the device chose.
+type pssoJWECrypto struct {
+	Alg string `json:"alg"`
+	Enc string `json:"enc"`
+	APU string `json:"apu,omitempty"`
+	APV string `json:"apv,omitempty"`
 }
 
 // parsePSSOInboundJWT verifies the inbound compact JWS using the device's
@@ -73,6 +101,7 @@ func (svc *Service) parsePSSOInboundJWT(ctx context.Context, jwtBytes []byte) (*
 	if kid == "" {
 		return nil, nil, &fleet.BadRequestError{Message: "psso jwt missing kid header"}
 	}
+	kid = canonicalizeKID(kid)
 
 	device, keyID, err := svc.ds.GetPSSODeviceByKeyID(ctx, kid)
 	if err != nil {
@@ -100,16 +129,60 @@ func (svc *Service) parsePSSOInboundJWT(ctx context.Context, jwtBytes []byte) (*
 	return claims, device, nil
 }
 
-// parseECPublicKeyPEM decodes a PEM-encoded EC public key. Accepts either
-// "PUBLIC KEY" (SPKI) or "EC PUBLIC KEY" wrappers.
+// canonicalizeKID normalizes a key ID to a stable comparison form. Apple's
+// framework emits the JWT `kid` as base64 with padding (e.g. "…LZE="), while
+// the extension registers its key IDs as base64url without padding ("…LZE").
+// Both encode the same SHA-256 bytes, so decode tolerantly (either alphabet,
+// optional padding) and re-encode as raw base64url. Both the stored kid and
+// the looked-up kid pass through this so the two encodings can't drift apart.
+// If the value doesn't decode as base64 it's returned unchanged.
+func canonicalizeKID(kid string) string {
+	t := strings.TrimRight(kid, "=")
+	t = strings.ReplaceAll(t, "-", "+")
+	t = strings.ReplaceAll(t, "_", "/")
+	raw, err := base64.RawStdEncoding.DecodeString(t)
+	if err != nil {
+		return kid
+	}
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
+
+// parseECPublicKeyPEM decodes a PEM-wrapped P-256 public key. It accepts both
+// DER-encoded SubjectPublicKeyInfo (the standard "PUBLIC KEY" body) and a raw
+// ANSI X9.63 uncompressed point (0x04 || X || Y). The extension's keys arrive
+// in the latter form: macOS SecKeyCopyExternalRepresentation returns the raw
+// point for EC keys, which the extension PEM-wraps without converting to SPKI.
 func parseECPublicKeyPEM(pemBytes []byte) (*ecdsa.PublicKey, error) {
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
 		return nil, errors.New("psso: pem decode returned nil block")
 	}
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if pub, err := x509.ParsePKIXPublicKey(block.Bytes); err == nil {
+		ec, ok := pub.(*ecdsa.PublicKey)
+		if !ok {
+			return nil, fmt.Errorf("psso: unexpected pubkey type %T (want *ecdsa.PublicKey)", pub)
+		}
+		return ec, nil
+	}
+	return parseRawECPoint(block.Bytes)
+}
+
+// parseRawECPoint parses a raw ANSI X9.63 uncompressed P-256 point into an
+// ecdsa.PublicKey. crypto/ecdh validates the length and on-curve membership;
+// round-tripping through SPKI yields the ecdsa type the JWT verifier and JWE
+// encrypter expect without touching the deprecated raw coordinate fields.
+func parseRawECPoint(raw []byte) (*ecdsa.PublicKey, error) {
+	key, err := ecdh.P256().NewPublicKey(raw)
 	if err != nil {
-		return nil, fmt.Errorf("parse PKIX pubkey: %w", err)
+		return nil, fmt.Errorf("psso: parse raw EC point: %w", err)
+	}
+	der, err := x509.MarshalPKIXPublicKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("psso: marshal raw EC point to SPKI: %w", err)
+	}
+	pub, err := x509.ParsePKIXPublicKey(der)
+	if err != nil {
+		return nil, fmt.Errorf("psso: parse SPKI from raw point: %w", err)
 	}
 	ec, ok := pub.(*ecdsa.PublicKey)
 	if !ok {
@@ -143,6 +216,138 @@ func buildAsymmetricJWE(payload []byte, deviceEncPub *ecdsa.PublicKey, kid strin
 		return nil, fmt.Errorf("serialize asymmetric jwe: %w", err)
 	}
 	return []byte(compact), nil
+}
+
+// Apple's PSSO ECDH-ES party-info blobs are sequences of 4-byte big-endian
+// length-prefixed fields. Per Apple's "Creating a JSON Web Encryption (JWE)
+// login response" doc the two differ in both label case and contents:
+//   - apv (PartyVInfo, the device): "Apple" || deviceEncKey || nonce — echoed
+//     verbatim from the request.
+//   - apu (PartyUInfo, the server):  "APPLE" || serverEphemeralKey — note the
+//     uppercase label and the absence of a nonce.
+const (
+	apuPartyLabel = "APPLE"
+	apvPartyLabel = "Apple"
+)
+
+// encodeApplePartyInfo serializes fields as Apple's length-prefixed party-info
+// blob: each field is a 4-byte big-endian length followed by its bytes.
+func encodeApplePartyInfo(fields ...[]byte) []byte {
+	var b []byte
+	var l [4]byte
+	for _, f := range fields {
+		binary.BigEndian.PutUint32(l[:], uint32(len(f)))
+		b = append(b, l[:]...)
+		b = append(b, f...)
+	}
+	return b
+}
+
+// parseApplePartyInfo splits an Apple party-info blob back into its
+// length-prefixed fields.
+func parseApplePartyInfo(raw []byte) ([][]byte, error) {
+	var fields [][]byte
+	for i := 0; i < len(raw); {
+		if i+4 > len(raw) {
+			return nil, errors.New("psso: truncated party-info length prefix")
+		}
+		n := int(binary.BigEndian.Uint32(raw[i:]))
+		i += 4
+		if i+n > len(raw) {
+			return nil, errors.New("psso: party-info field overruns buffer")
+		}
+		fields = append(fields, raw[i:i+n])
+		i += n
+	}
+	return fields, nil
+}
+
+// buildPSSOResponseJWE encrypts payload to the device's encryption public key
+// as a compact JWE using ECDH-ES key agreement + A256GCM. typ is the JWE
+// header media type — "platformsso-login-response+jwt" for login,
+// "platformsso-key-response+jwt" for key/key-exchange responses.
+//
+// Apple's framework requires both apu and apv in the protected header and
+// validates apu by recomputing it from the epk it sees. apv (PartyVInfo) is
+// echoed verbatim from the request. apu (PartyUInfo) is built as
+// "APPLE" || serverEphemeralPubKey — uppercase label, no nonce — per Apple's
+// JWE login-response doc.
+//
+// The compact JWE is assembled by hand rather than via jose.NewEncrypter
+// because go-jose's ECDH-ES key generator hardcodes empty apu/apv (see
+// ecKeyGenerator.genKey) and exposes no way to set them. The Concat KDF itself
+// is reused from go-jose's exported cipher package — no PSSO SDK is involved.
+func buildPSSOResponseJWE(payload []byte, recipientPub *ecdsa.PublicKey, apvB64, typ string) ([]byte, error) {
+	apvRaw, err := decodeJOSEB64(apvB64)
+	if err != nil {
+		return nil, fmt.Errorf("decode apv: %w", err)
+	}
+
+	ephemeral, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("generate ephemeral key: %w", err)
+	}
+	epkECDH, err := ephemeral.PublicKey.ECDH()
+	if err != nil {
+		return nil, fmt.Errorf("psso: ephemeral key to ecdh: %w", err)
+	}
+	apuRaw := encodeApplePartyInfo([]byte(apuPartyLabel), epkECDH.Bytes())
+
+	// ECDH-ES direct: the agreed key is the A256GCM content-encryption key, so
+	// the Concat KDF algorithm ID is the content-encryption alg ("A256GCM").
+	cek := josecipher.DeriveECDHES("A256GCM", apuRaw, apvRaw, ephemeral, recipientPub, 32)
+
+	epkJSON, err := json.Marshal(&jose.JSONWebKey{Key: &ephemeral.PublicKey})
+	if err != nil {
+		return nil, fmt.Errorf("marshal epk: %w", err)
+	}
+
+	// No cty: the decrypted payload is a JSON object (OAuth token response or
+	// key response), not a nested JWT.
+	header := map[string]any{
+		"alg": "ECDH-ES",
+		"enc": "A256GCM",
+		"epk": json.RawMessage(epkJSON),
+		"typ": typ,
+		"apu": base64.RawURLEncoding.EncodeToString(apuRaw),
+		"apv": strings.TrimRight(apvB64, "="),
+	}
+	protected, err := json.Marshal(header)
+	if err != nil {
+		return nil, fmt.Errorf("marshal protected header: %w", err)
+	}
+	protectedB64 := base64.RawURLEncoding.EncodeToString(protected)
+
+	block, err := aes.NewCipher(cek)
+	if err != nil {
+		return nil, fmt.Errorf("aes new cipher: %w", err)
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("aes-gcm: %w", err)
+	}
+	iv := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(iv); err != nil {
+		return nil, fmt.Errorf("rand iv: %w", err)
+	}
+	// JWE AAD for compact serialization is the ASCII base64url protected header.
+	sealed := gcm.Seal(nil, iv, payload, []byte(protectedB64))
+	ct := sealed[:len(sealed)-gcm.Overhead()]
+	tag := sealed[len(sealed)-gcm.Overhead():]
+
+	enc := base64.RawURLEncoding.EncodeToString
+	// Compact JWE: protected.encrypted_key.iv.ciphertext.tag — encrypted_key
+	// is empty for ECDH-ES direct key agreement.
+	compact := protectedB64 + "." + "" + "." + enc(iv) + "." + enc(ct) + "." + enc(tag)
+	return []byte(compact), nil
+}
+
+// decodeJOSEB64 base64url-decodes a JOSE value, tolerating optional padding.
+func decodeJOSEB64(s string) ([]byte, error) {
+	if s == "" {
+		return nil, nil
+	}
+	return base64.RawURLEncoding.DecodeString(strings.TrimRight(s, "="))
 }
 
 // pssoSessionInfo is the HKDF info string distinguishing PSSO session keys

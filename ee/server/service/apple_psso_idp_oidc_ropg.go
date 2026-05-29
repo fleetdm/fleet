@@ -54,12 +54,13 @@ type PSSOOIDCROPGClient struct {
 // oidcTokenResponse models the subset of fields we use from a standard
 // OIDC token endpoint response.
 type oidcTokenResponse struct {
-	IDToken     string `json:"id_token"`
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	ExpiresIn   int    `json:"expires_in"`
-	Error       string `json:"error"`
-	ErrorDesc   string `json:"error_description"`
+	IDToken      string `json:"id_token"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	Error        string `json:"error"`
+	ErrorDesc    string `json:"error_description"`
 }
 
 // ValidatePasswordAndGetClaims posts the user's credentials to the IdP's
@@ -116,7 +117,13 @@ func (c PSSOOIDCROPGClient) ValidatePasswordAndGetClaims(ctx context.Context, us
 		return nil, errors.New("idp response missing id_token (is 'openid' in the configured scopes?)")
 	}
 
-	return parseOIDCIDTokenClaims(parsed.IDToken)
+	claims, err := parseOIDCIDTokenClaims(parsed.IDToken)
+	if err != nil {
+		return nil, err
+	}
+	claims.RefreshToken = parsed.RefreshToken
+	claims.ExpiresIn = parsed.ExpiresIn
+	return claims, nil
 }
 
 // parseOIDCIDTokenClaims decodes the id_token JWT body without verifying

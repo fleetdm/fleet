@@ -29,12 +29,31 @@ extension AuthenticationViewController: WKNavigationDelegate {
         let cookies = await webView.configuration.websiteDataStore.httpCookieStore.allCookies()
         var req = URLRequest(url: endpoint)
         req.httpMethod = "POST"
-        req.httpBody = comps?.percentEncodedQuery?.data(using: .utf8)
+        // Re-encode from decoded query items rather than reusing
+        // percentEncodedQuery: URLQueryItem leaves '+' literal (valid in a
+        // query string), but in an x-www-form-urlencoded body '+' decodes to a
+        // space and would corrupt the base64 PEM keys. formURLEncodedBody
+        // escapes '+' as %2B.
+        req.httpBody = formURLEncodedBody(comps?.queryItems ?? [])
         req.setValue("application/x-www-form-urlencoded",
                      forHTTPHeaderField: "Content-Type")
         req.setValue(HTTPCookie.requestHeaderFields(with: cookies)["Cookie"],
                      forHTTPHeaderField: "Cookie")
         _ = try? await URLSession.shared.data(for: req)
+    }
+
+    // formURLEncodedBody serializes query items as an x-www-form-urlencoded
+    // body, percent-encoding everything outside the RFC 3986 unreserved set so
+    // '+', '/', '=', spaces and newlines in PEM values survive intact.
+    private func formURLEncodedBody(_ items: [URLQueryItem]) -> Data {
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~")
+        let pairs = items.map { item -> String in
+            let name = item.name.addingPercentEncoding(withAllowedCharacters: allowed) ?? item.name
+            let value = (item.value ?? "").addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
+            return "\(name)=\(value)"
+        }
+        return Data(pairs.joined(separator: "&").utf8)
     }
 }
 
