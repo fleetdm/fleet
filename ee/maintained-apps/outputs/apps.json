@@ -1948,6 +1948,13 @@
       "description": "Ruby on Rails IDE by JetBrains."
     },
     {
+      "name": "RustDesk",
+      "slug": "rustdesk/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.carriez.rustdesk",
+      "description": "RustDesk is an Open source virtual/remote desktop application."
+    },
+    {
       "name": "RustRover",
       "slug": "rustrover/darwin",
       "platform": "darwin",
