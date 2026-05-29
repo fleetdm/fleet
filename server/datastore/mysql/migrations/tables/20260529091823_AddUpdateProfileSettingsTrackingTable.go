@@ -37,8 +37,8 @@ func Up_20260529091823(tx *sql.Tx) error {
 		DeclarationUUID string `db:"declaration_uuid"`
 		RawJSON         string `db:"raw_json"`
 	}
-	// We can safely ignore the name, since it's not allowed and it's ours. We only care about user uploaded declarations.
-	rows, err := tx.Query("SELECT declaration_uuid, raw_json FROM mdm_apple_declarations WHERE name != 'Fleet macOS OS Updates';") //nolint:rowserrcheck // Checked inside sqlx.StructScan
+	// We can safely ignore the names, since it's not allowed and it's ours. We only care about user uploaded declarations.
+	rows, err := tx.Query("SELECT declaration_uuid, raw_json FROM mdm_apple_declarations WHERE name != 'Fleet macOS OS Updates' AND name != 'Fleet iOS OS Updates' AND name != 'Fleet iPadOS OS Updates';") //nolint:rowserrcheck // Checked inside sqlx.StructScan
 	if err != nil {
 		return err
 	}

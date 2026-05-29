@@ -15,8 +15,10 @@ func TestUp_20260529091823(t *testing.T) {
 	decl1UUID := uuid.NewString()
 	decl2 := `{"declaration": {"identifier": "com.apple.configuration.someotherdeclaration"}}`
 	decl2UUID := uuid.NewString()
-	decl3UUID := uuid.NewString() // Fleet uploaded
-	if _, err := db.Exec(`INSERT INTO mdm_apple_declarations (declaration_uuid, identifier, name, raw_json) VALUES (?, "id-1", "id-1-name", ?), (?, "id-2", "id-2-name", ?), (?, "id-3", "Fleet macOS OS Updates", ?)`, decl1UUID, decl1, decl2UUID, decl2, decl3UUID, decl1); err != nil {
+	decl3UUID := uuid.NewString() // Fleet uploaded macOS
+	decl4UUID := uuid.NewString() // Fleet uploaded iOS
+	decl5UUID := uuid.NewString() // Fleet uploaded iPadOS
+	if _, err := db.Exec(`INSERT INTO mdm_apple_declarations (declaration_uuid, identifier, name, raw_json) VALUES (?, "id-1", "id-1-name", ?), (?, "id-2", "id-2-name", ?), (?, "id-3", "Fleet macOS OS Updates", ?), (?, "id-4", "Fleet iOS OS Updates", ?), (?, "id-5", "Fleet iPadOS OS Updates", ?)`, decl1UUID, decl1, decl2UUID, decl2, decl3UUID, decl1, decl4UUID, decl1, decl5UUID, decl1); err != nil {
 		t.Fatalf("insert apple declarations: %v", err)
 	}
 
@@ -50,6 +52,18 @@ func TestUp_20260529091823(t *testing.T) {
 		t.Fatalf("query for decl3: %v", err)
 	}
 	require.Equal(t, 0, count, "expected decl3 to not be in the update settings table, but it was")
+
+	// decl4
+	if err := db.QueryRow(`SELECT COUNT(*) FROM mdm_configuration_profile_update_settings WHERE apple_declaration_uuid = ?`, decl4UUID).Scan(&count); err != nil {
+		t.Fatalf("query for decl4: %v", err)
+	}
+	require.Equal(t, 0, count, "expected decl4 to not be in the update settings table, but it was")
+
+	// decl5
+	if err := db.QueryRow(`SELECT COUNT(*) FROM mdm_configuration_profile_update_settings WHERE apple_declaration_uuid = ?`, decl5UUID).Scan(&count); err != nil {
+		t.Fatalf("query for decl5: %v", err)
+	}
+	require.Equal(t, 0, count, "expected decl5 to not be in the update settings table, but it was")
 
 	// profile1
 	if err := db.QueryRow(`SELECT COUNT(*) FROM mdm_configuration_profile_update_settings WHERE windows_profile_uuid = ?`, profile1UUID).Scan(&count); err != nil {
