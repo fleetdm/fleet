@@ -74,9 +74,6 @@ type windowsProfileValidator struct {
 
 	// The decoder which is used for reading the XML tokens.
 	decoder *xml.Decoder
-
-	// Whether to enable validation for custom OS updates loc URIs.
-	enableCustomOSUpdates bool
 }
 
 var validTopLevelElements = map[string]struct{}{
@@ -101,7 +98,7 @@ var validTopLevelElements = map[string]struct{}{
 //
 // [1]: http://www.w3.org/TR/2006/REC-xml-20060816
 // [2]: https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-MDM/%5bMS-MDM%5d.pdf
-func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates bool) error {
+func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
@@ -110,7 +107,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates boo
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 
-	validator := newWindowsProfileValidator(m.SyncML, enableCustomOSUpdates)
+	validator := newWindowsProfileValidator(m.SyncML)
 	// Substring match for the secret prefix. A literal "FLEET_SECRET_" appearing in profile data with no "$" sigil would
 	// also flip this flag, but the only consequence is skipping the top-level element check on that upload, which is
 	// acceptable.
@@ -118,16 +115,15 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates boo
 	return validator.validate()
 }
 
-func newWindowsProfileValidator(syncML []byte, enableCustomOSUpdates bool) *windowsProfileValidator {
+func newWindowsProfileValidator(syncML []byte) *windowsProfileValidator {
 	dec := xml.NewDecoder(bytes.NewReader(syncML))
 	// use strict mode to check for a variety of common mistakes like
 	// unclosed tags, etc.
 	dec.Strict = true
 
 	return &windowsProfileValidator{
-		scepValidator:         newWindowsSCEPProfileValidator(),
-		decoder:               dec,
-		enableCustomOSUpdates: enableCustomOSUpdates,
+		scepValidator: newWindowsSCEPProfileValidator(),
+		decoder:       dec,
 	}
 }
 
@@ -244,7 +240,7 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 
 	// Surface Fleet-reserved URI errors (BitLocker, Windows updates) before the generic format check so users get the more
 	// specific message.
-	if err := validateFleetProvidedLocURI(locURI, v.enableCustomOSUpdates); err != nil {
+	if err := validateFleetProvidedLocURI(locURI); err != nil {
 		return err
 	}
 
@@ -304,13 +300,10 @@ var fleetProvidedLocURIValidationMap = map[string][]string{
 	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
-func validateFleetProvidedLocURI(locURI string, enableCustomOSUpdates bool) error {
+func validateFleetProvidedLocURI(locURI string) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
-			if fleetLocURI == syncml.FleetOSUpdateTargetLocURI && enableCustomOSUpdates {
-				continue
-			}
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
 				return errors.New(syncml.DiskEncryptionProfileRestrictionErrMsg)
 			}
