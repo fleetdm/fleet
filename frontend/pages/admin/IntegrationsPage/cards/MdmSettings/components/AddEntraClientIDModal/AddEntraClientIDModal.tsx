@@ -102,11 +102,12 @@ const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
             <>
               Find your <b>Application (client) ID</b> on{" "}
               <CustomLink
-                text="Microsoft Entra ID > App registrations"
+                text="Microsoft Entra ID"
                 url="https://fleetdm.com/learn-more-about/microsoft-entra-tenant-id"
                 newTab
-              />
-              . Required for applications that issue v2 access tokens.
+              />{" "}
+              &gt; App registrations &gt; your MDM application &gt; Overview.
+              Required for applications that issue v2 access tokens.
             </>
           }
         />
