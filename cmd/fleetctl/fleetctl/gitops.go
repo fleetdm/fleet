@@ -263,13 +263,6 @@ func gitopsCommand() *cli.Command {
 			// Used for keeping track of all label changes in this run.
 			labelChanges := make(map[string][]spec.LabelChange) // team name -> label changes
 
-			// Parsed a config and filename pair
-			type ConfigFile struct {
-				Config         *spec.GitOps
-				Filename       string
-				IsGlobalConfig bool
-			}
-
 			// Load all configs in before processing them
 			configs := make([]ConfigFile, 0, len(flFilenames.Value()))
 
@@ -361,6 +354,16 @@ func gitopsCommand() *cli.Command {
 					)
 				}
 				seenTeamNames[key] = cf.Filename
+			}
+
+			// Cross-file invariant: if any file in this run enables MDM
+			// end-user authentication, the IdP must be configured either in
+			// this run's global file or in the server's current state.
+			// Without this check, a partial gitops run can enable EUA on a
+			// team while leaving the IdP unconfigured — locking ADE
+			// enrollment for that team's hosts. See issue #43371.
+			if err := validateGitOpsGroupEUA(configs, appConfig); err != nil {
+				return err
 			}
 
 			labelMoves, err := computeLabelMoves(labelChanges)
@@ -720,6 +723,50 @@ func gitopsCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+// ConfigFile pairs a parsed gitops config with its source filename, used
+// while orchestrating a multi-file gitops run.
+type ConfigFile struct {
+	Config         *spec.GitOps
+	Filename       string
+	IsGlobalConfig bool
+}
+
+// Verify that if any config file in this run enables MDM end-user authentication,
+// then an IdP is configured either in the global config of this run or in the server's
+// current state.
+func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfig) error {
+	idpConfigured := appCfg.MDM.EndUserAuthentication.Metadata != "" ||
+		appCfg.MDM.EndUserAuthentication.MetadataURL != ""
+
+	// If a global file is in this run, its incoming org_settings overrides
+	// stored state for the purposes of effective post-apply IdP state.
+	for _, cf := range configs {
+		if !cf.IsGlobalConfig {
+			continue
+		}
+		mdm, _ := cf.Config.OrgSettings["mdm"].(map[string]any)
+		eua, _ := mdm["end_user_authentication"].(map[string]any)
+		md, _ := eua["metadata"].(string)
+		mdURL, _ := eua["metadata_url"].(string)
+		idpConfigured = md != "" || mdURL != ""
+		break
+	}
+
+	for _, cf := range configs {
+		if cf.Config.Controls.MacOSSetup == nil ||
+			!cf.Config.Controls.MacOSSetup.EnableEndUserAuthentication {
+			continue
+		}
+		if !idpConfigured {
+			return fmt.Errorf(
+				"%s: controls.macos_setup.enable_end_user_authentication is true but no IdP is configured. Set org_settings.mdm.end_user_authentication.metadata or metadata_url in your global config, or configure it on the server first.",
+				cf.Filename,
+			)
+		}
+	}
+	return nil
 }
 
 // Computes label moves and validates that there is no funny business around label changes,

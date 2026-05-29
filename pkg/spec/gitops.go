@@ -544,8 +544,6 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	}
 	// Get other top-level entities.
 	multiError = parseControls(top, result, logFn, filePath, multiError)
-	// Cross-block check: needs both org_settings (parsed above) and controls.
-	multiError = validateMDMEndUserAuthConfig(result, multiError)
 	multiError = parseAgentOptions(top, result, baseDir, logFn, filePath, multiError)
 	multiError = parseReports(top, result, baseDir, logFn, filePath, multiError)
 
@@ -701,24 +699,6 @@ func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error)
 				"When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set",
 			))
 		}
-	}
-	return multiError
-}
-
-// Verify that if end-user auth is enabled, either metadata or metadata_url is provided.
-func validateMDMEndUserAuthConfig(result *GitOps, multiError *multierror.Error) *multierror.Error {
-	if result.Controls.MacOSSetup == nil || !result.Controls.MacOSSetup.EnableEndUserAuthentication {
-		return multiError
-	}
-	// The flag is enabled — the IdP settings must be present in org_settings.
-	mdm, _ := result.OrgSettings["mdm"].(map[string]any)
-	eua, _ := mdm["end_user_authentication"].(map[string]any)
-	metadata, _ := eua["metadata"].(string)
-	metadataURL, _ := eua["metadata_url"].(string)
-	if metadata == "" && metadataURL == "" {
-		multiError = multierror.Append(multiError, errors.New(
-			"When controls.macos_setup.enable_end_user_authentication is true, mdm.end_user_authentication.metadata or mdm.end_user_authentication.metadata_url must be set on org_settings",
-		))
 	}
 	return multiError
 }

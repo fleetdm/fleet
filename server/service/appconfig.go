@@ -1800,7 +1800,11 @@ func (svc *Service) validateMDM(
 			invalid.Append("end_user_authentication", ErrMissingLicense.Error())
 			return nil
 		}
-		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, overwrite)
+		// In GitOps (overwrite=true), strict validation should only fire when
+		// EUA is actually being enabled at the global level. Otherwise it's
+		// valid to clear these fields out.
+		euaStrict := overwrite && mdm.MacOSSetup.EnableEndUserAuthentication
+		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
 	}
 
 	// MacOSSetup validation

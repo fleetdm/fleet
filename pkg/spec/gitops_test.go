@@ -1456,36 +1456,6 @@ org_settings:
 		return config
 	}
 
-	// withMDMEUA composes a YAML where:
-	//   controls.macos_setup.enable_end_user_authentication = euaEnabled
-	//   org_settings.mdm.end_user_authentication = euaBody
-	// This matches the actual GitOps surface: the *enable* flag lives in the
-	// controls block, the *IdP settings* live under org_settings.mdm.
-	withMDMEUA := func(euaEnabled bool, euaBody string) string {
-		config := getGlobalConfig([]string{"org_settings", "controls"})
-		if euaEnabled {
-			config += `
-controls:
-  macos_setup:
-    enable_end_user_authentication: true
-`
-		} else {
-			config += "\ncontrols:\n"
-		}
-		config += `
-org_settings:
-  server_settings:
-    server_url: https://fleet.example.com
-  org_info:
-    contact_url: https://example.com/contact
-    org_name: Test Org
-  secrets:
-  mdm:
-    end_user_authentication:
-` + euaBody
-		return config
-	}
-
 	t.Run("sso_settings absent is accepted", func(t *testing.T) {
 		config := getGlobalConfig(nil)
 		_, err := gitOpsFromString(t, config)
@@ -1524,64 +1494,11 @@ org_settings:
 		require.NoError(t, err)
 	})
 
-	t.Run("MDM EUA enabled with no metadata is rejected", func(t *testing.T) {
-		config := withMDMEUA(true, "      idp_name: Okta\n      entity_id: https://example.com\n      metadata: \"\"\n      metadata_url: \"\"\n")
-		_, err := gitOpsFromString(t, config)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "When controls.macos_setup.enable_end_user_authentication is true, mdm.end_user_authentication.metadata or mdm.end_user_authentication.metadata_url must be set")
-	})
-
-	t.Run("MDM EUA enabled with setup_experience alias is also rejected", func(t *testing.T) {
-		// setup_experience is the YAML rename for macos_setup; the parser
-		// normalizes it before reaching validation, so the same check fires.
-		config := getGlobalConfig([]string{"org_settings", "controls"})
-		config += `
-controls:
-  setup_experience:
-    enable_end_user_authentication: true
-
-org_settings:
-  server_settings:
-    server_url: https://fleet.example.com
-  org_info:
-    contact_url: https://example.com/contact
-    org_name: Test Org
-  secrets:
-  mdm:
-    end_user_authentication:
-      idp_name: Okta
-      entity_id: https://example.com
-`
-		_, err := gitOpsFromString(t, config)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "When controls.macos_setup.enable_end_user_authentication is true")
-	})
-
-	t.Run("MDM EUA enabled with metadata is accepted", func(t *testing.T) {
-		config := withMDMEUA(true, "      idp_name: Okta\n      entity_id: https://example.com\n      metadata: \"<xml/>\"\n")
-		_, err := gitOpsFromString(t, config)
-		require.NoError(t, err)
-	})
-
-	t.Run("MDM EUA enabled with metadata_url is accepted", func(t *testing.T) {
-		config := withMDMEUA(true, "      idp_name: Okta\n      entity_id: https://example.com\n      metadata_url: https://idp.example.com/metadata\n")
-		_, err := gitOpsFromString(t, config)
-		require.NoError(t, err)
-	})
-
-	t.Run("MDM EUA disabled with empty IdP settings is accepted", func(t *testing.T) {
-		config := withMDMEUA(false, "      idp_name: \"\"\n      entity_id: \"\"\n      metadata: \"\"\n      metadata_url: \"\"\n")
-		_, err := gitOpsFromString(t, config)
-		require.NoError(t, err)
-	})
-
-	t.Run("MDM EUA disabled with IdP settings present is accepted", func(t *testing.T) {
-		// IdP settings sitting in org_settings without the enable flag is
-		// benign — the IdP isn't being used yet. Don't reject.
-		config := withMDMEUA(false, "      idp_name: Okta\n      entity_id: https://example.com\n")
-		_, err := gitOpsFromString(t, config)
-		require.NoError(t, err)
-	})
+	// Note: MDM end-user authentication validation lives at the gitops
+	// CLI group level (cmd/fleetctl/fleetctl/gitops.go), not here in the
+	// per-file parser, because the enable flag and the IdP settings can
+	// live in different files (controls in team files, org_settings in
+	// the global file only). See TestValidateGitOpsGroupEUA.
 
 	// Regression guard: the YAML that `fleetctl generate-gitops` produces
 	// renders the metadata fields as `metadata: # TODO: ...` (a YAML key with
