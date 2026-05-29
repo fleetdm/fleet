@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "9.7.4",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'AnyDesk' AND publisher = 'AnyDesk Software GmbH';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'AnyDesk' AND publisher = 'AnyDesk Software GmbH' AND version_compare(version, '9.7.4') < 0);"
+      },
+      "installer_url": "https://download.anydesk.com/AnyDesk.exe",
+      "install_script_ref": "4bc09c57",
+      "uninstall_script_ref": "221e9c4e",
+      "sha256": "9f1effd1929bb3af3318e1500af2221b990e3ceb5bdae2d327e3fc8929fc41dc",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "221e9c4e": "$displayNameLike = \"AnyDesk*\"\n$publisher = \"AnyDesk Software GmbH\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like \"$publisher*\"\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n# Stop the AnyDesk service and processes so files aren't locked during removal.\nStop-Service -Name \"AnyDesk\" -Force -ErrorAction SilentlyContinue\nforeach ($proc in @(\"AnyDesk\", \"ad\")) {\n    Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue\n}\nStart-Sleep -Seconds 2\n\n$uninstallCommand = if ($uninstall.QuietUninstallString) {\n    $uninstall.QuietUninstallString\n} else {\n    $uninstall.UninstallString\n}\n\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\n# Ensure AnyDesk's own removal + silent flags are present.\nif ($existingArgs -notmatch '(?i)--remove') {\n    $existingArgs = (\"$existingArgs --remove\").Trim()\n}\nif ($existingArgs -notmatch '(?i)--silent') {\n    $existingArgs = (\"$existingArgs --silent\").Trim()\n}\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "4bc09c57": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"--install\", \"C:\\Program Files (x86)\\AnyDesk\", \"--silent\", \"--update-auto\", \"--create-desktop-icon\", \"--create-shortcuts\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}
