@@ -163,6 +163,13 @@
       "description": "Anka is a tool for managing and creating virtual machines."
     },
     {
+      "name": "Another Redis Desktop Manager",
+      "slug": "another-redis-desktop-manager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "me.qii404.another-redis-desktop-manager",
+      "description": "Another Redis Desktop Manager is a GUI client for Redis."
+    },
+    {
       "name": "AnyDesk",
       "slug": "anydesk/darwin",
       "platform": "darwin",

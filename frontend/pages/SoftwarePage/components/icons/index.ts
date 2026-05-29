@@ -6,6 +6,7 @@ import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
 import AmazonCorretto25 from "./AmazonCorretto25";
+import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
@@ -299,6 +300,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
   anka: Anka,
+  "another redis desktop manager": AnotherRedisDesktopManager,
   anydesk: AnyDesk,
   apparency: Apparency,
   appcleaner: AppCleaner,
