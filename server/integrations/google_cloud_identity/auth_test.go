@@ -29,7 +29,7 @@ func fakeServiceAccountKey(t *testing.T) []byte {
 	require.NoError(t, err)
 	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})
 
-	payload := map[string]string{
+	payload := map[string]string{ //nolint:gosec // G101: synthetic SA-JSON test fixture, no real credentials
 		"type":           "service_account",
 		"project_id":     "test-project",
 		"private_key_id": "kid-1",

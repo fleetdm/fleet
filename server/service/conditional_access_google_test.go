@@ -121,9 +121,9 @@ func TestProcessGoogleCloudIdentityForNewlyFailingPolicies_HappyPath_NoTeam(t *t
 	host := orbitHost(7, nil)
 	// 10 passing, 20 failing, 30 not in incoming results (skipped). 99 is not CA-flagged (skipped).
 	incoming := map[uint]*bool{
-		10: ptr.Bool(true),
-		20: ptr.Bool(false),
-		99: ptr.Bool(false),
+		10: new(true),
+		20: new(false),
+		99: new(false),
 	}
 	err := svc.processGoogleCloudIdentityForNewlyFailingPolicies(t.Context(), host, incoming)
 	require.NoError(t, err)
@@ -165,8 +165,8 @@ func TestProcessGoogleCloudIdentityForNewlyFailingPolicies_PolicyByIDFallbackToP
 
 	host := orbitHost(1, ptr.Uint(5))
 	err := svc.processGoogleCloudIdentityForNewlyFailingPolicies(t.Context(), host, map[uint]*bool{
-		1: ptr.Bool(false),
-		2: ptr.Bool(false),
+		1: new(false),
+		2: new(false),
 	})
 	require.NoError(t, err)
 }
@@ -223,7 +223,7 @@ func TestProcessGoogleCloudIdentityForNewlyFailingPolicies_PoliciesByIDErrorProp
 
 	host := orbitHost(1, nil)
 	err := svc.processGoogleCloudIdentityForNewlyFailingPolicies(t.Context(), host, map[uint]*bool{
-		1: ptr.Bool(false),
+		1: new(false),
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "google cloud identity")

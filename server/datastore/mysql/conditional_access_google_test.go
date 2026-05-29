@@ -78,7 +78,7 @@ func testUpsertIsIdempotentOnSameTriple(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := newGCIHost(t, ds, "h2")
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		require.NoError(t, ds.UpsertHostGoogleCloudIdentityResolution(ctx, host.ID, "user@example.com", "fleet"))
 	}
 	rows, err := ds.LoadHostGoogleCloudIdentityClientStates(ctx, host.ID)
@@ -124,13 +124,13 @@ func testLoadHostGoogleCloudIdentityClientStatesMultiRow(t *testing.T, ds *Datas
 	rows, err := ds.LoadHostGoogleCloudIdentityClientStates(ctx, host.ID)
 	require.NoError(t, err)
 	require.Len(t, rows, 3)
-	emails := make(map[string]bool)
+	emails := make(map[string]struct{})
 	for _, r := range rows {
-		emails[r.WorkspaceEmail+"/"+r.PartnerSuffix] = true
+		emails[r.WorkspaceEmail+"/"+r.PartnerSuffix] = struct{}{}
 	}
-	assert.True(t, emails["a@example.com/fleet"])
-	assert.True(t, emails["b@example.com/fleet"])
-	assert.True(t, emails["b@example.com/fleet-eng"])
+	assert.Contains(t, emails, "a@example.com/fleet")
+	assert.Contains(t, emails, "b@example.com/fleet")
+	assert.Contains(t, emails, "b@example.com/fleet-eng")
 }
 
 func testLoadHostGoogleCloudIdentityClientStatesEmpty(t *testing.T, ds *Datastore) {
