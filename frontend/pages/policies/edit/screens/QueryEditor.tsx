@@ -175,7 +175,6 @@ const QueryEditor = ({
           try {
             await saveAutomations(policy);
           } catch (automationsErr) {
-            console.error(automationsErr);
             renderFlash(
               "error",
               "Policy was created, but its automations couldn't be saved."
@@ -189,7 +188,6 @@ const QueryEditor = ({
         );
         renderFlash("success", "Policy created.");
       } catch (createError) {
-        console.error(createError);
         if (getErrorReason(createError).includes("already exists")) {
           setBackendValidators({
             name: "A policy with this name already exists",
