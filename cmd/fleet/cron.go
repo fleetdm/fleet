@@ -1473,6 +1473,16 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
 		}),
+		schedule.WithJob("cleanup_unenrolled_host_mdm_certificates", func(ctx context.Context) error {
+			count, err := ds.SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				logger.InfoContext(ctx, "soft-deleted mdm host certificates for unenrolled hosts", "count", count)
+			}
+			return nil
+		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
 		}),

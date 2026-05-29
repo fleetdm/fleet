@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260428125634, Down_20260428125634)
+	MigrationClient.AddMigration(Up_20260522195225, Down_20260522195225)
 }
 
-func Up_20260428125634(tx *sql.Tx) error {
+func Up_20260522195225(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		ALTER TABLE host_managed_local_account_passwords
 			ADD COLUMN account_uuid                VARCHAR(36)  COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
@@ -24,6 +24,6 @@ func Up_20260428125634(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260428125634(tx *sql.Tx) error {
+func Down_20260522195225(tx *sql.Tx) error {
 	return nil
 }

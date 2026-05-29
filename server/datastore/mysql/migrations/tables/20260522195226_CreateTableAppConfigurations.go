@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260429180725, Down_20260429180725)
+	MigrationClient.AddMigration(Up_20260522195226, Down_20260522195226)
 }
 
-func Up_20260429180725(tx *sql.Tx) error {
+func Up_20260522195226(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	CREATE TABLE vpp_app_configurations (
 		id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -53,6 +53,6 @@ func Up_20260429180725(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260429180725(tx *sql.Tx) error {
+func Down_20260522195226(tx *sql.Tx) error {
 	return nil
 }

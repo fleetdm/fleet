@@ -167,43 +167,19 @@ const Variables = () => {
     </>
   );
 
-  const renderPageDescription = () => (
-    <PageDescription
-      variant="tab-panel"
-      content={
-        <>
-          {isPremiumTier
-            ? "Manage custom variables that will be available in scripts and profiles across all fleets."
-            : "Manage custom variables that will be available in scripts and profiles."}{" "}
-          <CustomLink
-            text="Learn more"
-            url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
-            newTab
-          />
-        </>
-      }
-    />
-  );
+  const isEmpty = !isLoading && data?.count === 0;
 
-  if (isLoading) {
-    return (
-      <div className={baseClass}>
-        <div className={`${baseClass}__page-header`}>
-          {renderPageDescription()}
-        </div>
+  const renderContent = () => {
+    if (isLoading) {
+      return (
         <div className={`${baseClass}__loading`}>
           <Spinner />
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (data?.count === 0) {
-    return (
-      <div className={baseClass}>
-        <div className={`${baseClass}__page-header`}>
-          {renderPageDescription()}
-        </div>
+    if (isEmpty) {
+      return (
         <EmptyState
           variant="header-list"
           header="No custom variables"
@@ -227,36 +203,10 @@ const Variables = () => {
             ) : undefined
           }
         />
-        {showAddModal && (
-          <AddCustomVariableModal
-            onCancel={() => setShowAddModal(false)}
-            onSave={onSaveVariable}
-          />
-        )}
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__page-header`}>
-        {renderPageDescription()}
-        {canEdit && (
-          <GitOpsModeTooltipWrapper
-            renderChildren={(disableChildren) => (
-              <Button
-                variant="inverse"
-                size="small"
-                onClick={onClickAddVariable}
-                disabled={disableChildren}
-              >
-                <Icon name="plus" />
-                <span>Add custom variable</span>
-              </Button>
-            )}
-          />
-        )}
-      </div>
+    return (
       <PaginatedList<IVariable>
         ref={paginatedListRef}
         pageSize={VARIABLES_PAGE_SIZE}
@@ -281,6 +231,44 @@ const Variables = () => {
           </span>
         }
       />
+    );
+  };
+
+  return (
+    <div className={baseClass}>
+      <div className={`${baseClass}__page-header`}>
+        <PageDescription
+          variant="tab-panel"
+          content={
+            <>
+              {isPremiumTier
+                ? "Manage custom variables that will be available in scripts and profiles across all fleets."
+                : "Manage custom variables that will be available in scripts and profiles."}{" "}
+              <CustomLink
+                text="Learn more"
+                url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
+                newTab
+              />
+            </>
+          }
+        />
+        {canEdit && (
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                variant="inverse"
+                size="small"
+                onClick={onClickAddVariable}
+                disabled={disableChildren}
+              >
+                <Icon name="plus" />
+                <span>Add custom variable</span>
+              </Button>
+            )}
+          />
+        )}
+      </div>
+      {renderContent()}
       {showAddModal && (
         <AddCustomVariableModal
           onCancel={() => setShowAddModal(false)}

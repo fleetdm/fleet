@@ -1066,6 +1066,7 @@ type ActivityTypeInstalledSoftware struct {
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
+	FailureReason       string  `json:"failure_reason,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1325,6 +1326,7 @@ type ActivityInstalledAppStoreApp struct {
 	HostPlatform        string  `json:"host_platform"`
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	FromAutoUpdate      bool    `json:"from_auto_update"`
+	FailureReason       string  `json:"failure_reason,omitempty"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {

@@ -137,6 +137,22 @@ Fixed MDM SSO callback returning "missing profile" error for Android enrollment 
 * Removed debug symbols from fleet and fleetctl executables to reduce binary size.
 - Added the `orbit.debug_logging_on_enroll_duration` agent option to allow enabling orbit debug logging for a specified time period after enrollment
 * Fixed an issue where the Actions dropdown in the Run script modal within the Host details page would automatically close after 2-3s.
+- UI table controls stay visible when empty. On Hosts, Reports, Policies, and Software pages, search bars, filters, dropdowns, remain visible but disabled when empty — avoids layout shift when the first item is added. Item count remains visible.
+- UI has action-oriented empty state copy. Headers describe current state ("No hosts", "No policies for this fleet") instead of prompting action. Body text explains what to expect. CTA buttons are explicit ("Add policy", "Schedule a report") and permission gated.
+- UI shows consistent page descriptions and learn more links (added to Settings. Fleets, Ticket destinations, Certificates, and Identity provider pages).
+- Fixed GitOps dry runs failing when a VPP app references a label that was added in the same run.
+- Fixed a bug where enrolling an Android device on a Fleet instance with Apple MDM disabled produced a duplicate host record.
+* Fixed Fleet-scoped users getting a 403 when viewing past activities on a host that has user-initiated activities (e.g. lock/wipe/run script/install software).
+* Fixed permissions on host activity items for fleet-scoped users.
+
+## Fleet 4.85.1 (May 22, 2026)
+
+### Bug fixes
+
+- Fixed `fleetctl gitops` rejecting Android or Windows configuration profiles when editing an existing team, even when the corresponding MDM platform was configured.
+- Implemented roaring bitmaps in historical data collection for improved performance.
+- Fixed dynamic SCEP certificate issuance failing with an "Invalid NDES admin credentials" error when the NDES Admin URL is fronted by Okta or another gateway that uses HTTP Basic auth instead of NTLM.
+- Removed unneeded call to get tracked CVEs when reading CVE chart data.
 
 ## Fleet 4.85.0 (May 13, 2026)
 

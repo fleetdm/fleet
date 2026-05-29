@@ -64,9 +64,11 @@ describe("Custom variables", () => {
             "Add a custom variable to make it available in scripts and profiles."
           )
         ).toBeInTheDocument();
-        expect(
-          screen.getByRole("button", { name: "Add custom variable" })
-        ).toBeInTheDocument();
+        // Header button and EmptyState CTA button both render
+        const addButtons = screen.getAllByRole("button", {
+          name: /Add custom variable/,
+        });
+        expect(addButtons).toHaveLength(2);
       });
     });
 

@@ -152,9 +152,7 @@ const ChartCard = ({
 
   const queryParams: IChartRequestParams = useMemo(() => {
     return {
-      // Add an extra day to ensure we get the full # of calendar days
-      // represented in the chart, regardless of timezone.
-      days: CHART_DAYS + 1,
+      days: CHART_DAYS,
       tz_offset: new Date().getTimezoneOffset(),
       fleet_id: currentTeamId,
       label_ids: chartFilters.labelIDs.length

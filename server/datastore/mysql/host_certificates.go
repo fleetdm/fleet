@@ -663,6 +663,55 @@ func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint,
 	return nil
 }
 
+// softDeleteMDMHostCertsDB clears all MDM-origin cert rows on unenroll, where
+// nothing else will: no more CertificateList, and osquery can't see
+// hardware-bound ACME certs.
+func softDeleteMDMHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
+	const stmt = `UPDATE host_certificates SET deleted_at = NOW(6) WHERE host_id = ? AND origin = ? AND deleted_at IS NULL`
+	if _, err := tx.ExecContext(ctx, stmt, hostID, fleet.HostCertificateOriginMDM); err != nil {
+		return ctxerr.Wrap(ctx, err, "soft deleting mdm host certificates")
+	}
+	return nil
+}
+
+// See the Datastore interface for contract. Batched to bound lock scope: a
+// host can have many MDM certs, so a mass unenroll could otherwise lock a
+// large set in one statement.
+func (ds *Datastore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error) {
+	const batchSize = 1000
+	// Derived-table wrap is required: MySQL forbids referencing the updated
+	// table directly in the subquery's FROM.
+	const stmt = `
+		UPDATE host_certificates
+		SET deleted_at = NOW(6)
+		WHERE deleted_at IS NULL AND id IN (
+			SELECT id FROM (
+				SELECT hc.id
+				FROM host_certificates hc
+				JOIN host_mdm hm ON hm.host_id = hc.host_id AND hm.enrolled = 0
+				WHERE hc.origin = ? AND hc.deleted_at IS NULL
+				ORDER BY hc.id
+				LIMIT ?
+			) AS batch
+		)`
+	var total int64
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.HostCertificateOriginMDM, batchSize)
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "soft-delete mdm host certificates for unenrolled hosts")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "rows affected for mdm host certificates sweep")
+		}
+		total += n
+		if n < batchSize {
+			break
+		}
+	}
+	return total, nil
+}
+
 func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {
 	if len(certs) == 0 {
 		return nil

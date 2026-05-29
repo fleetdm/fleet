@@ -5144,8 +5144,9 @@ func (s *integrationMDMTestSuite) TestLinuxSetupExperienceEnqueueSoftwareInstall
 //
 // The setup-experience VPP install half of the BYOD flow is exercised by
 // unit-level tests (see TestInstallVPPAppPostValidation_AssociateAssetsRouting);
-// reproducing the full Apple /users/create + /assets/associate clientUserId
-// dance in this integration test would need a more complete VPP mock backend.
+// reproducing the full Apple /registerVPPUserSrv + /assets/associate
+// clientUserId dance in this integration test would need a more complete VPP
+// mock backend.
 func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)

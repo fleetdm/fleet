@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/RoaringBitmap/roaring"
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
@@ -96,10 +97,10 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("unknown chart metric: %s", metric)}
 	}
 
-	// Don't allow requesting more days than the charts are designed to handle.
-	// This mostly prevents expensive queries for large day ranges.
-	if opts.Days < 1 || opts.Days > 31 {
-		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid days value: %d (must be between 1 and 31)", opts.Days)}
+	// Validate days preset.
+	validDays := map[int]struct{}{1: {}, 7: {}, 14: {}, 30: {}}
+	if _, ok := validDays[opts.Days]; !ok {
+		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid days value: %d (must be 1, 7, 14, or 30)", opts.Days)}
 	}
 
 	// Resolution must be 0 or a positive divisor of 24.
@@ -126,27 +127,18 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		ExcludeHostIDs: opts.ExcludeHostIDs,
 	}
 
-	filterMask, err := s.hostCache.Get(ctx, hostFilter, func(ctx context.Context) ([]byte, error) {
+	filterMask, err := s.hostCache.Get(ctx, hostFilter, func(ctx context.Context) (*roaring.Bitmap, error) {
 		hostIDs, err := s.store.GetHostIDsForFilter(ctx, hostFilter)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fetch host IDs for chart filter")
 		}
-		return chart.HostIDsToBlob(hostIDs), nil
+		return chart.NewBitmap(hostIDs), nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	var entityIDs []string
-	if metric == "cve" {
-		// TODO(iteration-2): replace with user-configurable filter from
-		// RequestOpts when dynamic CVE filtering ships.
-		entityIDs, err = s.store.TrackedCriticalCVEs(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "resolve tracked critical CVEs")
-		}
-	}
-
 	// entityIDs semantics at the storage layer: nil = no filter; non-nil empty
 	// = match nothing (produces zero-valued buckets). Do NOT convert empty to
 	// nil here.
@@ -158,7 +150,7 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 	return &api.Response{
 		Metric:        metric,
 		Visualization: dataset.DefaultVisualization(),
-		TotalHosts:    chart.BlobPopcount(filterMask),
+		TotalHosts:    int(chart.BlobPopcount(filterMask)), //nolint:gosec // host counts fit comfortably in int
 		Resolution:    formatResolution(bucketSize),
 		Days:          opts.Days,
 		Filters: api.Filters{
@@ -231,7 +223,7 @@ func (s *Service) ScrubDatasetFleet(ctx context.Context, dataset string, fleetID
 		}
 		return nil
 	}
-	mask := chart.HostIDsToBlob(hostIDs)
+	mask := chart.NewBitmap(hostIDs)
 	return s.store.ApplyScrubMaskToDataset(ctx, dataset, mask, scrubBatchSize)
 }
 

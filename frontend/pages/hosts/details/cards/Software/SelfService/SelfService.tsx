@@ -44,7 +44,10 @@ import UninstallSoftwareModal from "./components/UninstallSoftwareModal";
 import SoftwareInstructionsModal from "./components/OpenSoftwareModal";
 
 import { generateSoftwareTableHeaders } from "./components/SelfServiceTable/SelfServiceTableConfig";
-import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
+import {
+  getInstallErrorMessage,
+  getLastInstall,
+} from "../../HostSoftwareLibrary/helpers";
 
 import { getUiStatus } from "../helpers";
 
@@ -446,7 +449,9 @@ const SoftwareSelfService = ({
         // We only show toast message if API returns an error
         renderFlash(
           "error",
-          `Couldn't ${isScriptPackage ? "run" : "install"}. Please try again.`
+          isScriptPackage
+            ? "Couldn't run. Please try again."
+            : getInstallErrorMessage(error)
         );
       }
     },

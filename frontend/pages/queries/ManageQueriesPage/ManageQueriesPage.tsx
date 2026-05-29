@@ -265,6 +265,14 @@ const ManageQueriesPage = ({
     return <h1>Reports</h1>;
   };
 
+  // CTA button shows for all roles but global observers and current team's observers
+  const canCustomQuery =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isObserverPlus; // isObserverPlus checks global and selected team
+
   const renderQueriesTable = () => {
     if (queriesError) {
       return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
@@ -281,6 +289,8 @@ const ManageQueriesPage = ({
         }
         isLoading={isLoadingQueries || isFetchingQueries}
         onDeleteQueryClick={onDeleteQueryClick}
+        onAddReportClick={onCreateQueryClick}
+        canAddReport={canCustomQuery}
         isOnlyObserver={isOnlyObserver}
         isObserverPlus={isObserverPlus}
         isAnyTeamObserverPlus={isAnyTeamObserverPlus || false}
@@ -371,14 +381,6 @@ const ManageQueriesPage = ({
       </>
     );
   };
-
-  // CTA button shows for all roles but global observers and current team's observers
-  const canCustomQuery =
-    isGlobalAdmin ||
-    isGlobalMaintainer ||
-    isTeamAdmin ||
-    isTeamMaintainer ||
-    isObserverPlus; // isObserverPlus checks global and selected team
 
   const canManageAutomations = isGlobalAdmin || isTeamAdmin;
   const isManageAutomationsEnabled = isAnyTeamSelected

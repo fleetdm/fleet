@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260518124441(t *testing.T) {
+func TestUp_20260522195234(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Pre-existing row using a current enum value: confirms the migration

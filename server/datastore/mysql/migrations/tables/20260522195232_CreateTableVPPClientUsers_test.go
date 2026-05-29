@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260512173249(t *testing.T) {
+func TestUp_20260522195232(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Insert a vpp token to satisfy the FK.
