@@ -853,6 +853,10 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 				if len(setting.LabelsIncludeAll) > 0 && len(setting.LabelsIncludeAny) > 0 {
 					return nil, fmt.Errorf("configuration profile '%s' cannot use both `labels_include_all` and `labels_include_any`; please choose one.", filepath.Base(setting.Path))
 				}
+				includeLabels := slices.Concat(setting.LabelsIncludeAll, setting.LabelsIncludeAny)
+				if overlap := fleet.ProfileLabelOverlap(includeLabels, setting.LabelsExcludeAny); overlap != "" {
+					return nil, fmt.Errorf("configuration profile '%s': label %q cannot appear in both include and exclude lists.", filepath.Base(setting.Path), overlap)
+				}
 				labels := slices.Concat(setting.LabelsIncludeAll, setting.LabelsIncludeAny, setting.LabelsExcludeAny)
 				updateLabelUsage(labels, filepath.Base(setting.Path), "configuration profile", result)
 			}
