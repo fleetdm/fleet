@@ -123,6 +123,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareShPackageForDarwin", testListHostSoftwareShPackageForDarwin},
 		{"HostSWPaginationWithMultipleFMAVersions", testHostSWPaginationWithMultipleFMAVersions},
 		{"SoftwareLiteByID", testSoftwareLiteByID},
+		{"GetDisplayNamesByTeamAndTitleIdsBatching", testGetDisplayNamesByTeamAndTitleIdsBatching},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -12172,4 +12173,74 @@ func testListSoftwareVulnerabilitiesBySoftwareIDs(t *testing.T, ds *Datastore) {
 	result, err = ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, []uint{}, fleet.UbuntuOSVSource)
 	require.NoError(t, err)
 	require.Nil(t, result)
+}
+
+func testGetDisplayNamesByTeamAndTitleIdsBatching(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Insert 35,000 software titles with display names to exercise multiple
+	// batches (batch size is 32,000).
+	const totalTitles = 35_000
+	titleIDs := make([]uint, 0, totalTitles)
+
+	// Batch-insert titles
+	const insertBatch = 1000
+	for start := 0; start < totalTitles; start += insertBatch {
+		end := min(start+insertBatch, totalTitles)
+		valuesSQL := strings.Builder{}
+		args := make([]any, 0, (end-start)*2)
+		for i := start; i < end; i++ {
+			if i > start {
+				valuesSQL.WriteString(",")
+			}
+			valuesSQL.WriteString("(?, 'apps')")
+			args = append(args, fmt.Sprintf("batch-test-sw-%d", i))
+		}
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO software_titles (name, source) VALUES "+valuesSQL.String(), args...)
+		require.NoError(t, err)
+
+		lastID, err := res.LastInsertId()
+		require.NoError(t, err)
+		rowsAff, err := res.RowsAffected()
+		require.NoError(t, err)
+		// MySQL returns the first auto-inc ID for a batch insert
+		for j := range rowsAff {
+			titleIDs = append(titleIDs, uint(lastID+j)) //nolint:gosec // test-only, no overflow risk
+		}
+	}
+	require.Len(t, titleIDs, totalTitles)
+
+	// Insert display names for all titles (team_id=0)
+	for start := 0; start < totalTitles; start += insertBatch {
+		end := min(start+insertBatch, totalTitles)
+		valuesSQL := strings.Builder{}
+		args := make([]any, 0, (end-start)*2)
+		for i := start; i < end; i++ {
+			if i > start {
+				valuesSQL.WriteString(",")
+			}
+			valuesSQL.WriteString("(0, ?, ?)")
+			args = append(args, titleIDs[i], fmt.Sprintf("Display Name %d", i))
+		}
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES "+valuesSQL.String(), args...)
+		require.NoError(t, err)
+	}
+
+	// Call the function under test with all 35,000 IDs (spans 2 batches: 32K + 3K)
+	result, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, 0, titleIDs)
+	require.NoError(t, err)
+	require.Len(t, result, totalTitles)
+
+	// Verify a sample of results
+	for _, i := range []int{0, 1, 1000, 31999, 32000, 34999} {
+		expected := fmt.Sprintf("Display Name %d", i)
+		assert.Equal(t, expected, result[titleIDs[i]], "mismatch at index %d", i)
+	}
+
+	// Empty input should return empty map, not error
+	result, err = ds.getDisplayNamesByTeamAndTitleIds(ctx, 0, nil)
+	require.NoError(t, err)
+	require.Empty(t, result)
 }

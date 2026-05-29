@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
@@ -31676,4 +31677,75 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithEUAToken() {
 	require.Len(t, dms, 1, "host_emails must be populated after EUA-token orbit enrollment (issue #45066)")
 	require.Equal(t, idpEmail, dms[0].Email)
 	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dms[0].Source)
+}
+
+// TestTeamAdminCanReadHostPastActivities is a regression test for issue #46009:
+// after the OPA-tag fix, team-scoped users were still getting 403 on
+// GET /api/_version_/fleet/hosts/{id}/activities for any host with a
+// user-initiated past activity (locked_host being the common reproducer).
+// The cause was Service.UsersByIDs gating user enrichment behind an authz
+// check on an empty *fleet.User, which no team role can satisfy. The activity
+// ACL adapter now bypasses that check by going directly to the datastore.
+func (s *integrationEnterpriseTestSuite) TestTeamAdminCanReadHostPastActivities() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: t.Name(),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID))
+	})
+
+	teamAdminEmail := t.Name() + "_admin@example.com"
+	teamAdmin := &fleet.User{
+		Name:  teamAdminEmail,
+		Email: teamAdminEmail,
+		Teams: []fleet.UserTeam{
+			{Team: *team, Role: fleet.RoleAdmin},
+		},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	teamAdmin, err = s.ds.NewUser(ctx, teamAdmin)
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(t.Name() + "_host"),
+		NodeKey:         new(t.Name() + "_host"),
+		UUID:            t.Name() + "_host",
+		Hostname:        t.Name() + "_host.local",
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Insert a host-linked past activity attributed to the team admin. This
+	// mirrors what happens when the team admin locks one of their hosts —
+	// the activity row has user_id set, which forces enrichWithUserData to
+	// call the user lookup. Before the fix, that lookup went through
+	// Service.UsersByIDs and 403'd the team admin viewing the activity feed.
+	activitySvc := mysqltest.NewTestActivityService(t, s.ds)
+	apiUser := &activity_api.User{ID: teamAdmin.ID, Name: teamAdmin.Name, Email: teamAdmin.Email}
+	require.NoError(t, activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeLockedHost{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}))
+
+	t.Cleanup(func() { s.token = s.getTestAdminToken() })
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 1)
+	require.Equal(t, fleet.ActivityTypeLockedHost{}.ActivityName(), listResp.Activities[0].Type)
+	require.NotNil(t, listResp.Activities[0].ActorEmail)
+	require.Equal(t, teamAdmin.Email, *listResp.Activities[0].ActorEmail)
+	require.NotNil(t, listResp.Activities[0].ActorFullName)
+	require.Equal(t, teamAdmin.Name, *listResp.Activities[0].ActorFullName)
 }

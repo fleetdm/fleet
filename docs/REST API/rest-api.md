@@ -12184,8 +12184,6 @@ Body: <blob>
 
 ### Install software
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 _Available in Fleet Premium._
 
 Install software (package or app store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.

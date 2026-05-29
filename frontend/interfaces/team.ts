@@ -7,7 +7,7 @@ import {
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
-import { ITokenTeam } from "./mdm";
+import { EndUserLocalAccountType, ITokenTeam } from "./mdm";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -67,6 +67,7 @@ export interface ITeam extends ITeamSummary {
       require_all_software_windows: boolean | null;
       lock_end_user_info: boolean | null;
       enable_create_local_admin_account?: boolean;
+      end_user_local_account_type?: EndUserLocalAccountType;
     };
     macos_setup?: {
       enable_managed_local_account?: boolean;

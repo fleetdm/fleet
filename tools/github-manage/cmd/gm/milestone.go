@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,6 +28,7 @@ var (
 	milestoneIncludeClosed bool
 	milestoneIgnoreProject string
 	milestoneFilterLabels  string
+	milestoneOutfile       string
 )
 
 var milestoneReportCmd = &cobra.Command{
@@ -120,8 +123,13 @@ var milestoneReportCmd = &cobra.Command{
 			issueNums = append(issueNums, it.Number)
 		}
 
-		// Determine all projects across these issues, dynamically
-		projects, _ := ghapi.GetProjectsForIssues(issueNums)
+		// Determine all projects across these issues, dynamically.
+		// This makes one API call per issue, so show progress on stderr.
+		discoverBar := util.NewProgressBar("Discovering projects", len(issueNums))
+		projects, _ := ghapi.GetProjectsForIssues(issueNums, func(current, total, issueNumber int) {
+			discoverBar.Update(current, fmt.Sprintf("#%d", issueNumber))
+		})
+		discoverBar.Done()
 		// Apply ignore-project filtering if provided
 		if strings.TrimSpace(milestoneIgnoreProject) != "" {
 			// build tokens (case-insensitive substring match)
@@ -179,23 +187,28 @@ var milestoneReportCmd = &cobra.Command{
 			format = "tsv"
 		}
 
+		// Build the full report into a buffer so progress bars (stderr) are the
+		// only thing on screen while we fetch, then emit the report once to
+		// stdout and/or the --outfile at the end.
+		var report bytes.Buffer
+
 		switch format {
 		case "tsv":
 			// Print header as TSV
 			// Heading line first
-			fmt.Printf("Milestone\treport\t%s\n", milestoneName)
-			fmt.Println(strings.Join(headers, "\t"))
+			fmt.Fprintf(&report, "Milestone\treport\t%s\n", milestoneName)
+			fmt.Fprintln(&report, strings.Join(headers, "\t"))
 		case "md", "markdown":
 			// Heading line first
-			fmt.Printf("|Milestone report %s|\n", milestoneName)
+			fmt.Fprintf(&report, "|Milestone report %s|\n", milestoneName)
 			// Markdown header
-			fmt.Printf("| %s |\n", strings.Join(headers, " | "))
+			fmt.Fprintf(&report, "| %s |\n", strings.Join(headers, " | "))
 			// Separator row
 			seps := make([]string, len(headers))
 			for i := range seps {
 				seps[i] = "---"
 			}
-			fmt.Printf("| %s |\n", strings.Join(seps, " | "))
+			fmt.Fprintf(&report, "| %s |\n", strings.Join(seps, " | "))
 		default:
 			return fmt.Errorf("unsupported --format %q (use: tsv or md)", milestoneFormat)
 		}
@@ -203,9 +216,12 @@ var milestoneReportCmd = &cobra.Command{
 		// Aggregator: projectID -> status -> count (only when Present)
 		agg := make(map[int]map[string]int, len(projects))
 
-		// For each issue, gather statuses per project
-		for _, mi := range msIssues {
+		// For each issue, gather statuses per project. This makes one API call
+		// per issue, so show progress on stderr.
+		statusBar := util.NewProgressBar("Fetching statuses", len(msIssues))
+		for i, mi := range msIssues {
 			num := mi.Number
+			statusBar.Update(i+1, fmt.Sprintf("#%d", num))
 			// Build the list of project IDs in header order
 			pids := make([]int, 0, len(projects))
 			for _, p := range projects {
@@ -248,11 +264,12 @@ var milestoneReportCmd = &cobra.Command{
 			}
 			row = append(row, util.TruncateTitle(title, 25))
 			if format == "tsv" {
-				fmt.Println(strings.Join(row, "\t"))
+				fmt.Fprintln(&report, strings.Join(row, "\t"))
 			} else {
-				fmt.Printf("| %s |\n", strings.Join(row, " | "))
+				fmt.Fprintf(&report, "| %s |\n", strings.Join(row, " | "))
 			}
 		}
+		statusBar.Done()
 
 		// Build and print summary rows: Project, Status, Count
 		type sumRow struct {
@@ -317,9 +334,9 @@ var milestoneReportCmd = &cobra.Command{
 			})
 
 			if format == "tsv" {
-				fmt.Println()
-				fmt.Println("Summary")
-				fmt.Println(strings.Join([]string{"Project", "Status", "Count"}, "\t"))
+				fmt.Fprintln(&report)
+				fmt.Fprintln(&report, "Summary")
+				fmt.Fprintln(&report, strings.Join([]string{"Project", "Status", "Count"}, "\t"))
 				for _, r := range rows {
 					proj := r.Project
 					stat := r.Status
@@ -327,13 +344,13 @@ var milestoneReportCmd = &cobra.Command{
 						proj = util.StripEmojis(proj)
 						stat = util.StripEmojis(stat)
 					}
-					fmt.Println(strings.Join([]string{proj, stat, fmt.Sprintf("%d", r.Count)}, "\t"))
+					fmt.Fprintln(&report, strings.Join([]string{proj, stat, fmt.Sprintf("%d", r.Count)}, "\t"))
 				}
 			} else {
-				fmt.Println()
-				fmt.Println("Summary")
-				fmt.Printf("| %s |\n", strings.Join([]string{"Project", "Status", "Count"}, " | "))
-				fmt.Printf("| %s |\n", strings.Join([]string{"---", "---", "---"}, " | "))
+				fmt.Fprintln(&report)
+				fmt.Fprintln(&report, "Summary")
+				fmt.Fprintf(&report, "| %s |\n", strings.Join([]string{"Project", "Status", "Count"}, " | "))
+				fmt.Fprintf(&report, "| %s |\n", strings.Join([]string{"---", "---", "---"}, " | "))
 				for _, r := range rows {
 					proj := r.Project
 					stat := r.Status
@@ -341,9 +358,26 @@ var milestoneReportCmd = &cobra.Command{
 						proj = util.StripEmojis(proj)
 						stat = util.StripEmojis(stat)
 					}
-					fmt.Printf("| %s | %s | %d |\n", proj, stat, r.Count)
+					fmt.Fprintf(&report, "| %s | %s | %d |\n", proj, stat, r.Count)
 				}
 			}
+		}
+
+		// Emit the report: always to stdout, and to --outfile if provided.
+		if _, err := os.Stdout.Write(report.Bytes()); err != nil {
+			return fmt.Errorf("failed to write report: %v", err)
+		}
+		if outfile := strings.TrimSpace(milestoneOutfile); outfile != "" {
+			if err := os.WriteFile(outfile, report.Bytes(), 0o644); err != nil {
+				return fmt.Errorf("failed to write report to %q: %v", outfile, err)
+			}
+			fmt.Fprintf(os.Stderr, "\nReport written to %s\n", outfile)
+			// Tab-separated reports view best aligned via `column` on macOS/Linux.
+			if format == "tsv" {
+				fmt.Fprintf(os.Stderr, "Tip: view aligned columns with:\n  cat %s | column -ts $'\\t'\n", outfile)
+			}
+		} else if format == "tsv" {
+			fmt.Fprintf(os.Stderr, "\nTip: save with -o <file>, then view aligned columns with:\n  cat <file> | column -ts $'\\t'\n")
 		}
 		return nil
 	},
@@ -398,4 +432,5 @@ func init() {
 	milestoneReportCmd.Flags().BoolVar(&milestoneIncludeClosed, "include-closed", false, "Include closed milestones when listing available milestones")
 	milestoneReportCmd.Flags().StringVar(&milestoneIgnoreProject, "ignore-project", "", "Comma-separated substrings to exclude matching project titles (case-insensitive). Example: 'qa,cust' excludes ':help-qa', ':help-customers', and 'Customer requests (open)'.")
 	milestoneReportCmd.Flags().StringVar(&milestoneFilterLabels, "filter-labels", "", "Comma-separated list of labels; only issues containing ALL of these labels are included (case-insensitive). Example: 'story,customer-numa'.")
+	milestoneReportCmd.Flags().StringVarP(&milestoneOutfile, "outfile", "o", "", "Also write the report (without progress output) to this file.")
 }

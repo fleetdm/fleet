@@ -318,13 +318,13 @@ func TestApplyTeamSpecs(t *testing.T) {
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team2
 ---
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
       config:
         views:
@@ -375,7 +375,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       windows_updates:
@@ -407,7 +407,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_settings:
@@ -449,7 +449,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
       config:
         views:
@@ -507,7 +507,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     agent_options:
     name: team1
     mdm:
@@ -528,7 +528,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -543,7 +543,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     mdm:
       macos_updates:
@@ -604,7 +604,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     webhook_settings:
       host_status_webhook:
@@ -635,7 +635,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     webhook_settings:
 `,
@@ -658,7 +658,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     integrations:
       google_calendar:
@@ -681,7 +681,7 @@ spec:
 apiVersion: v1
 kind: fleet
 spec:
-  team:
+  fleet:
     name: team1
     integrations:
       google_calendar:
