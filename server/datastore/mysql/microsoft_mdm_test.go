@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -4820,11 +4821,6 @@ func testResendWindowsMDMCommand(t *testing.T, ds *Datastore) {
 }
 
 func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
-	// One subtest below replicates the post-team-move reconciliation by
-	// calling BulkSetPendingMDMHostProfiles and then asserts on
-	// host_mdm_windows_profiles. Production defers that to the cron, so
-	// this test opts into the eager hook.
-	ds.EnableTestWindowsEagerHook(t)
 	ctx := t.Context()
 
 	h1 := test.NewHost(t, ds, "host1", "10.0.0.1", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
@@ -4996,8 +4992,8 @@ func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "moved-host-destination"})
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h2.ID})))
-		_, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{h2.ID}, nil, nil, nil)
-		require.NoError(t, err)
+		// Run cron to simulate time passing and reconciler doing the work.
+		require.NoError(t, service.ReconcileWindowsProfiles(ctx, ds, ds.logger))
 		// Restore h2 to no-team at the end so the next subtest starts clean.
 		t.Cleanup(func() {
 			_ = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{h2.ID}))

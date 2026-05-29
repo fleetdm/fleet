@@ -11,6 +11,7 @@ import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
 import Bluej from "./Bluej";
+import BurpSuiteCommunity from "./BurpSuiteCommunity";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
@@ -249,6 +250,7 @@ import Viscosity from "./Viscosity";
 import VisualStudioCode from "./VisualStudioCode";
 import Vlc from "./Vlc";
 import VncViewer from "./VncViewer";
+import VsCodium from "./VsCodium";
 import WacomCenter from "./WacomCenter";
 import Warp from "./Warp";
 import WebStorm from "./WebStorm";
@@ -322,6 +324,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   box: Box,
   brave: Brave,
   bruno: Bruno,
+  "burp suite community": BurpSuiteCommunity,
   calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
@@ -535,6 +538,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,
   vlc: Vlc,
+  vscodium: VsCodium,
   "wacom center": WacomCenter,
   "wacom tablet": WacomCenter,
   warp: Warp,

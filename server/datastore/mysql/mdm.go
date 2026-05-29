@@ -887,6 +887,7 @@ func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, p
 	})
 }
 
+// TODO(MHJ): Document the oddity this now only handles Android
 func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	ctx context.Context,
 	hostIDs, teamIDs []uint,
@@ -917,6 +918,7 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	// batchSetMDMWindowsProfilesDB, which is the transactional source of
 	// truth. Tests that opt in via Datastore.EnableTestWindowsEagerHook
 	// get Apple-parity synchronous reconciliation here.
+	// TODO(MHJ): Marked for deletion
 	if ds.testWindowsEagerHook != nil {
 		updates.WindowsConfigProfile, err = ds.testWindowsEagerHook(ctx, winHosts, profileUUIDs)
 		if err != nil {
@@ -935,6 +937,7 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 // reconciliation is NOT performed here; the resolved Windows host UUIDs are
 // returned so the caller can optionally reconcile them (only the test path
 // does so; production relies on the mdm_windows_profile_manager cron).
+// TODO(MHJ): Major cleanup required here
 func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -1108,7 +1111,7 @@ OR
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":
-			appleHosts = append(appleHosts, h.UUID)
+			appleHosts = append(appleHosts, h.UUID) //nolint:staticcheck // Will be cleaned up in follow-up PR
 		case "windows":
 			if collectWinHosts {
 				winHosts = append(winHosts, h.UUID)
@@ -1123,33 +1126,9 @@ OR
 		}
 	}
 
-	updates.AppleConfigProfile, err = ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts, profileUUIDs)
-	if err != nil {
-		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
-	}
-
 	updates.AndroidConfigProfile, err = ds.bulkSetPendingMDMAndroidHostProfilesDB(ctx, androidHosts)
 	if err != nil {
 		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
-	}
-
-	const defaultBatchSize = 1000
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-	}
-	// TODO(roberto): this method currently sets the state of all
-	// declarations for all hosts. I don't see an immediate concern
-	// (and my hunch is that we could even do the same for
-	// profiles) but this could be optimized to use only a provided
-	// set of host uuids.
-	//
-	// Note(victor): Why is the status being set to nil? Shouldn't it be set to pending?
-	// Or at least pending for install and nil for remove profiles. Please update this comment if you know.
-	// This method is called bulkSetPendingMDMHostProfilesDB, so it is confusing that the status is NOT explicitly set to pending.
-	_, updates.AppleDeclaration, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil)
-	if err != nil {
-		return updates, nil, ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
 	}
 
 	return updates, winHosts, nil

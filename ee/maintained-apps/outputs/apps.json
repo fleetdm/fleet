@@ -401,6 +401,13 @@
       "description": "Bruno is an open source IDE for exploring and testing APIs."
     },
     {
+      "name": "Burp Suite Community Edition",
+      "slug": "burp-suite-community/windows",
+      "platform": "windows",
+      "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+      "description": "Burp Suite is a web security testing toolkit."
+    },
+    {
       "name": "calibre",
       "slug": "calibre/darwin",
       "platform": "darwin",
@@ -2408,6 +2415,20 @@
       "platform": "darwin",
       "unique_identifier": "com.realvnc.vncviewer",
       "description": "VNC Viewer is a remote desktop application focusing on security."
+    },
+    {
+      "name": "VSCodium",
+      "slug": "vscodium/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vscodium",
+      "description": "VSCodium is a release of VS Code without MS branding, telemetry, and licensing."
+    },
+    {
+      "name": "VSCodium",
+      "slug": "vscodium/windows",
+      "platform": "windows",
+      "unique_identifier": "VSCodium",
+      "description": "VSCodium is a release of VS Code without MS branding, telemetry, and licensing."
     },
     {
       "name": "Wacom Tablet",
