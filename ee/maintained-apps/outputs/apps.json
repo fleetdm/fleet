@@ -1710,7 +1710,7 @@
       "description": "Parallels Desktop is virtualization software."
     },
     {
-      "name": "pgAdmin4",
+      "name": "pgAdmin 4",
       "slug": "pgadmin4/darwin",
       "platform": "darwin",
       "unique_identifier": "org.pgadmin.pgadmin4",
@@ -2039,7 +2039,7 @@
       "description": "Snagit is screen capture software."
     },
     {
-      "name": "SourceTree",
+      "name": "Sourcetree",
       "slug": "sourcetree/darwin",
       "platform": "darwin",
       "unique_identifier": "com.torusknot.SourceTreeNotMAS",
