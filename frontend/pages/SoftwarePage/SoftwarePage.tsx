@@ -234,23 +234,26 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const isSoftwareConfigLoaded =
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
 
-  // Open manage automations modal via query param (e.g. from command palette)
+  // Open manage automations modal via deep-link (e.g. from the command
+  // palette). Mirror the in-page action's gate: software automations
+  // are global-admin only, and only available on All fleets (or the
+  // single fleet in Primo). Wait for config to load before deciding,
+  // then always strip the param so a team-scoped or unauthorized load
+  // doesn't leave it stuck in the URL.
   useEffect(() => {
-    if (
-      queryParams?.manage_automations === "1" &&
-      isSoftwareConfigLoaded &&
-      (isAllTeamsSelected || isPrimoMode)
-    ) {
+    if (queryParams?.manage_automations !== "1") return;
+    if (!isSoftwareConfigLoaded) return;
+    if (isGlobalAdmin && (isAllTeamsSelected || isPrimoMode)) {
       setShowManageAutomationsModal(true);
-      // Clean up the query param from the URL
-      const { manage_automations, ...rest } = queryParams;
-      router.replace({ pathname: location.pathname, query: rest });
     }
+    const { manage_automations, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
   }, [
-    queryParams?.manage_automations,
+    queryParams,
     isSoftwareConfigLoaded,
     isAllTeamsSelected,
     isPrimoMode,
+    isGlobalAdmin,
     location.pathname,
     router,
   ]);
