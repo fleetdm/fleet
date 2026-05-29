@@ -136,16 +136,10 @@ func (d *Datastore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 //
 // Fallback rule is asymmetric and follows real host shapes in the hosts table:
 //   - NodeKey absent: anomalous. Every osquery-capable platform (darwin/windows/linux/android) has a
-//     non-null node_key, and hosts without a node_key never enter this cache (iOS/iPad authenticate via
-//     MDM cert, not LoadHostByNodeKey/LoadHostByOrbitNodeKey). A caller arriving here with no NodeKey
+//     non-null node_key, and hosts without a node_key never enter this cache. A caller arriving here with no NodeKey
 //     is loading a sparsely-populated host, so fall back to hostCacheDeleteByID and let the reverse
 //     indices resolve whatever is cached.
-//   - OrbitNodeKey absent: normal. Roughly a quarter of hosts run osquery without Orbit. Their DB row
-//     truthfully has orbit_node_key NULL, and no LoadHostByOrbitNodeKey ever populated an onk:* entry
-//     for them, so there is nothing in the orbit family to orphan. Direct-DEL stays safe.
-//
-// EnrollOrbit (the only normal path that rotates orbit_node_key) goes through invalidateAfterHostEnroll,
-// not here, so we don't need to worry about a stale onk:OLD entry surviving a rotation.
+//   - OrbitNodeKey absent: normal. Run osquery without Orbit. no LoadHostByOrbitNodeKey ever populated
 //
 // This path does NOT clear by direct keys to cover the pre-enrollment-negative-cache race that motivates
 // invalidateAfterHostEnroll's direct-keys clear: that race cannot apply to UpdateHost callers (you cannot

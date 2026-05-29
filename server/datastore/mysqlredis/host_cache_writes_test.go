@@ -330,10 +330,7 @@ func TestWritePathInvalidation(t *testing.T) {
 		})
 
 		t.Run("UpdateHost with NodeKey only clears osquery cache (osquery-only host)", func(t *testing.T) {
-			// The common shape for the ~25% of hosts that run osquery without Orbit: NodeKey is set,
-			// OrbitNodeKey is nil because the DB row truthfully has no orbit_node_key. The direct-DEL
-			// fast path runs (no by-ID GETs) and the orbit family is untouched since nothing was ever
-			// cached there.
+			// Run osquery without Orbit: NodeKey is set, OrbitNodeKey is nil because the DB row truthfully has no orbit_node_key.
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ds := new(mock.Store)
 			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
@@ -352,11 +349,7 @@ func TestWritePathInvalidation(t *testing.T) {
 		})
 
 		t.Run("UpdateHost with NodeKey missing falls back to by-ID invalidation", func(t *testing.T) {
-			// NodeKey absent on the struct is anomalous: every host that can populate this cache has a
-			// node_key in DB. When a caller passes a sparse host without NodeKey we cannot trust the
-			// struct, so invalidateAfterHostUpdate falls back to hostCacheDeleteByID which resolves
-			// both families' cached keys via the id2nk/id2onk reverse indices. The fallback must clear
-			// both families even when only the osquery side (or only the orbit side) is cached.
+			// NodeKey absent on the struct is anomalous
 			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
 			ds := new(mock.Store)
 			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
