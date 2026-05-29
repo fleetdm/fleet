@@ -77,6 +77,14 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger *sl
 			// Device exists, no-op.
 			continue
 		case !ok:
+			// BYO unenroll wipes only the work profile; clear host_mdm_actions before flipping host_mdm.enrolled so the post-ack "Wiped"
+			// badge clears.
+			if cerr := clearAndroidBYOWipeRef(ctx, ds, dev.HostID); cerr != nil {
+				logger.ErrorContext(ctx, "failed to clear android byo wipe-ref during reconcile", "host_id", dev.HostID, "err", cerr)
+				ctxerr.Handle(ctx, cerr)
+				continue
+			}
+
 			if _, derr := ds.SetAndroidHostUnenrolled(ctx, dev.HostID); derr != nil {
 				logger.ErrorContext(ctx, "failed to mark android host unenrolled during reconcile", "host_id", dev.HostID, "err", derr)
 				continue

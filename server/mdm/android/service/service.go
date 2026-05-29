@@ -878,14 +878,11 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
 
-	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work
-	// profile, leaving the personal side intact) instead of the EnterprisesDevicesDelete call.
-	// The mdm_unenrolled activity is emitted later, when the device removes its work profile and
-	// AMAPI sends the resulting STATUS_REPORT (or ENROLLMENT) notification with state=DELETED --
-	// see handlePubSubStatusReport / handlePubSubEnrollment. The COMMAND notification path only
-	// transitions the mdm_android_commands row from pending to acknowledged/error.
-	// For COBO we keep the existing delete-device behavior (terminates management without
-	// factory-resetting the device).
+	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work profile, leaving the personal side
+	// intact) instead of the EnterprisesDevicesDelete call. host_mdm_actions.wipe_ref is written so device_status reflects "wiping"
+	// while the work-profile wipe is in flight; the HostHeader badge overrides the label to "Unenroll pending" since the admin
+	// clicked Unenroll, not Wipe. The mdm_unenrolled activity is emitted later, when the device removes its work profile and AMAPI
+	// sends the resulting STATUS_REPORT (or ENROLLMENT) notification with state=DELETED
 	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")
@@ -902,7 +899,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 			return ctxerr.Wrap(ctx, err, "amapi issue byo-unenroll wipe command")
 		}
 
-		// Persist the row but don't write wipe_ref: BYO unenroll surfaces as the mdm_unenrolled activity, not as a wipe in the UI.
+		// Write wipe_ref so device_status flips to "wiping" while the work-profile wipe is in flight.
 		cmd := &android.MDMAndroidCommand{
 			CommandUUID:   uuid.NewString(),
 			HostUUID:      host.UUID,
@@ -910,7 +907,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 			CommandType:   string(android.MDMAndroidCommandTypeWipe),
 			Status:        string(android.MDMAndroidCommandStatusPending),
 		}
-		if err := svc.fleetDS.NewMDMAndroidCommand(ctx, cmd); err != nil {
+		if err := svc.fleetDS.WipeHostViaAndroidMDM(ctx, host, cmd); err != nil {
 			svc.logger.ErrorContext(ctx, "amapi byo-unenroll wipe issued but local persist failed",
 				"host_id", host.ID, "operation_name", op.Name, "err", err)
 			return ctxerr.Wrap(ctx, err, "persist android byo-unenroll wipe command")
@@ -1014,8 +1011,7 @@ func (svc *Service) LockAndroidHost(ctx context.Context, hostID uint) error {
 	return nil
 }
 
-// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row. Unlike Lock/Wipe,
-// ClearPasscode is a one-shot action with no UI lock state, so it does NOT touch host_mdm_actions.
+// ClearAndroidPasscode issues an AMAPI RESET_PASSWORD with newPassword="" and persists the row plus host_mdm_actions.clear_passcode_ref.
 func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (string, error) {
 	host, deviceName, err := svc.resolveAndroidCommandTarget(ctx, hostID, "clear-passcode")
 	if err != nil {
@@ -1038,7 +1034,7 @@ func (svc *Service) ClearAndroidPasscode(ctx context.Context, hostID uint) (stri
 		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
-	if err := svc.fleetDS.NewMDMAndroidCommand(ctx, cmd); err != nil {
+	if err := svc.fleetDS.ClearPasscodeHostViaAndroidMDM(ctx, host, cmd); err != nil {
 		svc.logger.ErrorContext(ctx, "amapi clear-passcode issued but local state write failed",
 			"host_id", host.ID, "operation_name", op.Name, "err", err)
 		return "", ctxerr.Wrap(ctx, err, "persist android clear-passcode command")

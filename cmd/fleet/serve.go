@@ -111,16 +111,6 @@ import (
 	"go.elastic.co/apm/module/apmhttp/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	otelsdklog "go.opentelemetry.io/otel/sdk/log"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
@@ -192,101 +182,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	config.Logging.Validate(initFatal)
 
 	// Init OTEL providers (traces, metrics, logs)
-	var loggerProvider *otelsdklog.LoggerProvider
-	var tracerProvider *sdktrace.TracerProvider
-	var meterProvider *sdkmetric.MeterProvider
-	if config.OTELEnabled() {
-		// Create shared resource with service identification attributes.
-		// OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES env vars can override
-		// the defaults below.
-		res, err := resource.New(context.Background(),
-			resource.WithSchemaURL(semconv.SchemaURL),
-			resource.WithAttributes(
-				semconv.ServiceName("fleet"),
-				semconv.ServiceVersion(version.Version().Version),
-			),
-			resource.WithFromEnv(),
-			resource.WithTelemetrySDK(),
-		)
-		if err != nil {
-			initFatal(err, "Failed to create OTEL resource")
-		}
-
-		// Initialize OTEL traces
-		otlpTraceExporter, err := otlptrace.New(context.Background(), otlptracegrpc.NewClient(
-			otlptracegrpc.WithCompressor("gzip"),
-		))
-		if err != nil {
-			initFatal(err, "Failed to initialize OTEL trace exporter")
-		}
-		// Configure batch span processor with smaller batch size to avoid exceeding message size limits (4MB default limit)
-		batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
-			sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
-		)
-		tracerProvider = sdktrace.NewTracerProvider(
-			sdktrace.WithResource(res),
-			sdktrace.WithSpanProcessor(batchSpanProcessor),
-		)
-		otel.SetTracerProvider(tracerProvider)
-
-		// Initialize OTEL metrics
-		metricExporter, err := otlpmetricgrpc.New(context.Background(),
-			otlpmetricgrpc.WithCompressor("gzip"),
-		)
-		if err != nil {
-			initFatal(err, "Failed to initialize OTEL metrics exporter")
-		}
-
-		// Create views to rename otelsql metrics to match what OpenTelemetry Signoz expects
-		// Reference: https://opentelemetry.io/docs/specs/semconv/db/database-metrics/
-		dbMetricViews := []sdkmetric.View{
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.open"},
-				sdkmetric.Stream{Name: "db.client.connection.count"},
-			),
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.max_open"},
-				sdkmetric.Stream{Name: "db.client.connection.max"},
-			),
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.wait"},
-				sdkmetric.Stream{Name: "db.client.connection.wait_count"},
-			),
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.wait_duration"},
-				sdkmetric.Stream{Name: "db.client.connection.wait_time"},
-			),
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.closed_max_idle"},
-				sdkmetric.Stream{Name: "db.client.connection.closed.max_idle"},
-			),
-			sdkmetric.NewView(
-				sdkmetric.Instrument{Name: "db.sql.connection.closed_max_idle_time"},
-				sdkmetric.Stream{Name: "db.client.connection.closed.max_idle_time"},
-			),
-		}
-
-		meterProvider = sdkmetric.NewMeterProvider(
-			sdkmetric.WithResource(res),
-			sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter)),
-			sdkmetric.WithView(dbMetricViews...),
-		)
-		otel.SetMeterProvider(meterProvider)
-
-		// Initialize OTEL logs
-		if config.Logging.OtelLogsEnabled {
-			logExporter, err := otlploggrpc.New(context.Background(),
-				otlploggrpc.WithCompressor("gzip"),
-			)
-			if err != nil {
-				initFatal(err, "Failed to initialize OTEL log exporter")
-			}
-			loggerProvider = otelsdklog.NewLoggerProvider(
-				otelsdklog.WithResource(res),
-				otelsdklog.WithProcessor(otelsdklog.NewBatchProcessor(logExporter)),
-			)
-		}
-	}
+	loggerProvider, tracerProvider, meterProvider := initOTELProviders(config, initFatal)
 
 	logger := initLogger(config, loggerProvider)
 
@@ -1084,7 +980,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	logger.InfoContext(ctx, "instance info", "instanceID", instanceID)
 
 	// Bootstrap activity bounded context (needed for cron schedules and HTTP routes)
-	activitySvc, activityRoutes := createActivityBoundedContext(svc, dbConns, logger)
+	activitySvc, activityRoutes := createActivityBoundedContext(svc, ds, dbConns, logger)
 	// Inject the activity bounded context into the main service
 	svc.SetActivityService(activitySvc)
 
@@ -1978,13 +1874,13 @@ func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *
 	return store
 }
 
-func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
+func createActivityBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {
 	legacyAuthorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		initFatal(err, "initializing activity authorizer")
 	}
 	activityAuthorizer := authz.NewAuthorizerAdapter(legacyAuthorizer)
-	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc)
+	activityACLAdapter := activityacl.NewFleetServiceAdapter(svc, ds)
 	activitySvc, activityRoutesFn := activity_bootstrap.New(
 		dbConns,
 		activityAuthorizer,
