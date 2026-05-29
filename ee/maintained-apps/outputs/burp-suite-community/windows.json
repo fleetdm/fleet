@@ -3,8 +3,8 @@
     {
       "version": "2026.3.3",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Burp Suite Community Edition 2026.3.3 %' AND publisher = 'PortSwigger Web Security';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Burp Suite Community Edition 2026.3.3 %' AND publisher = 'PortSwigger Web Security' AND version_compare(version, '2026.3.3') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Burp Suite Community Edition %' AND publisher = 'PortSwigger Web Security';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Burp Suite Community Edition %' AND publisher = 'PortSwigger Web Security' AND version_compare(version, '2026.3.3') < 0);"
       },
       "installer_url": "https://portswigger-cdn.net/burp/releases/download?product=community&version=2026.3.3&type=WindowsX64",
       "install_script_ref": "4a8d1fcb",

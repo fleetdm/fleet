@@ -2,7 +2,7 @@
   "name": "Burp Suite Community Edition",
   "slug": "burp-suite-community/windows",
   "package_identifier": "PortSwigger.BurpSuite.Community",
-  "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+  "unique_identifier": "Burp Suite Community Edition",
   "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
