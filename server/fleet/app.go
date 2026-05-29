@@ -245,6 +245,12 @@ type MDM struct {
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
+	// WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for
+	// Windows automatic enrollment. It authorizes v2 access tokens, whose `aud` claim is the application's client ID,
+	// in addition to v1 tokens (whose `aud` is the Fleet server URL). It is matched independently of
+	// WindowsEntraTenantIDs; both the tenant and the audience must be authorized. See issue #46388.
+	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
+
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
@@ -936,6 +942,11 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.MDM.WindowsEntraTenantIDs.Set {
 		clone.MDM.WindowsEntraTenantIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraTenantIDs.Value)))
 		copy(clone.MDM.WindowsEntraTenantIDs.Value, c.MDM.WindowsEntraTenantIDs.Value)
+	}
+
+	if c.MDM.WindowsEntraClientIDs.Set {
+		clone.MDM.WindowsEntraClientIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraClientIDs.Value)))
+		copy(clone.MDM.WindowsEntraClientIDs.Value, c.MDM.WindowsEntraClientIDs.Value)
 	}
 
 	return &clone

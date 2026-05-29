@@ -981,6 +981,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1036,6 +1037,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1073,6 +1075,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1117,6 +1120,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1161,6 +1165,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1205,6 +1210,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1274,6 +1280,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1329,6 +1336,30 @@ func TestMDMConfig(t *testing.T) {
 				},
 			},
 			expectedError: "setup_experience.macos_manual_agent_install Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.",
+		},
+		{
+			name:        "windows entra client IDs require premium",
+			licenseTier: "free",
+			newMDM: fleet.MDM{
+				WindowsEntraClientIDs: optjson.SetSlice([]string{"11111111-1111-1111-1111-111111111111"}),
+			},
+			expectedError: licenseErr,
+		},
+		{
+			name:        "windows entra client IDs require Windows MDM enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				WindowsEntraClientIDs: optjson.SetSlice([]string{"11111111-1111-1111-1111-111111111111"}),
+			},
+			expectedError: "Couldn't set Windows Entra client IDs, Windows MDM is not enabled.",
+		},
+		{
+			name:        "windows entra client ID must be a valid GUID",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				WindowsEntraClientIDs: optjson.SetSlice([]string{"not-a-guid"}),
+			},
+			expectedError: "Invalid Entra client ID: not-a-guid",
 		},
 		{
 			name:        "try to disable End User Authentication with Lock End User Info enabled",

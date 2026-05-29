@@ -509,6 +509,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsEntraTenantIDs.Value = []string{}
 	}
 
+	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
+		!appConfig.MDM.WindowsEnabledAndConfigured && len(newAppConfig.MDM.WindowsEntraClientIDs.Value) == 0 {
+		appConfig.MDM.WindowsEntraClientIDs.Value = []string{}
+	}
+
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
 	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":
@@ -1028,6 +1033,38 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	addedEntraClientIDs := make([]string, 0)
+	removedEntraClientIDs := make([]string, 0)
+	oldClientIDSet := make(map[string]struct{})
+	newClientIDSet := make(map[string]struct{})
+
+	for _, clientID := range oldAppConfig.MDM.WindowsEntraClientIDs.Value {
+		oldClientIDSet[clientID] = struct{}{}
+	}
+	for _, clientID := range appConfig.MDM.WindowsEntraClientIDs.Value {
+		newClientIDSet[clientID] = struct{}{}
+		if _, found := oldClientIDSet[clientID]; !found {
+			addedEntraClientIDs = append(addedEntraClientIDs, clientID)
+		}
+	}
+	for _, clientID := range oldAppConfig.MDM.WindowsEntraClientIDs.Value {
+		if _, found := newClientIDSet[clientID]; !found {
+			removedEntraClientIDs = append(removedEntraClientIDs, clientID)
+		}
+	}
+	for _, clientID := range addedEntraClientIDs {
+		act := fleet.ActivityTypeAddedMicrosoftEntraClientID{ClientID: clientID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for added Microsoft Entra client ID")
+		}
+	}
+	for _, clientID := range removedEntraClientIDs {
+		act := fleet.ActivityTypeDeletedMicrosoftEntraClientID{ClientID: clientID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Microsoft Entra client ID")
+		}
+	}
+
 	// only create activities when config change has been persisted
 
 	switch {
@@ -1514,6 +1551,11 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 	return ok, nil
 }
 
+// windowsEntraGUIDRegex matches an Azure/Entra GUID in the canonical lower-case 8-4-4-4-12 form. We can't use the
+// standard UUID parser here as it accepts non-standard forms; Entra tenant IDs and application client IDs are both
+// validated against this so the two checks cannot drift.
+var windowsEntraGUIDRegex = regexp.MustCompile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
+
 func (svc *Service) validateMDM(
 	ctx context.Context,
 	lic *fleet.LicenseInfo,
@@ -1547,6 +1589,9 @@ func (svc *Service) validateMDM(
 	}
 	if len(mdm.WindowsEntraTenantIDs.Value) > 0 && !lic.IsPremium() {
 		invalid.Append("windows_entra_tenant_ids", ErrMissingLicense.Error())
+	}
+	if len(mdm.WindowsEntraClientIDs.Value) > 0 && !lic.IsPremium() {
+		invalid.Append("windows_entra_client_ids", ErrMissingLicense.Error())
 	}
 	if mdm.AppleRequireHardwareAttestation && !lic.IsPremium() {
 		invalid.Append("apple_require_hardware_attestation", ErrMissingLicense.Error())
@@ -1794,18 +1839,26 @@ func (svc *Service) validateMDM(
 		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM is not enabled.")
 	}
 
+	// Validate Windows Entra tenant IDs and application client IDs are in the correct GUID format (see
+	// windowsEntraGUIDRegex). Client IDs additionally authorize v2 access tokens, whose `aud` is the client ID.
+	// Format is validated before the "Windows MDM is not enabled" gates below so a malformed GUID surfaces first.
+	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
+		if !windowsEntraGUIDRegex.MatchString(tenantID) {
+			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
+		}
+	}
+	for _, clientID := range mdm.WindowsEntraClientIDs.Value {
+		if !windowsEntraGUIDRegex.MatchString(clientID) {
+			invalid.Append("mdm.windows_entra_client_ids", fmt.Sprintf("Invalid Entra client ID: %s", clientID))
+		}
+	}
+
 	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsEntraTenantIDs.Value) > 0 {
 		invalid.Append("mdm.windows_entra_tenant_ids", "Couldn't set Windows Entra tenant IDs, Windows MDM is not enabled.")
 	}
 
-	// validate Windows Entra tenant IDs are in the correct format (GUIDs). We can't use the standard UUID parser here
-	// as Azure tenants should be in the 8-4-4-4-12 format but the usual UUID parser will allow certain non-standard
-	// forms
-	guidRegex := regexp.MustCompile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
-	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
-		if !guidRegex.MatchString(tenantID) {
-			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
-		}
+	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsEntraClientIDs.Value) > 0 {
+		invalid.Append("mdm.windows_entra_client_ids", "Couldn't set Windows Entra client IDs, Windows MDM is not enabled.")
 	}
 
 	if mdm.WindowsMigrationEnabled && mdm.EnableTurnOnWindowsMDMManually {

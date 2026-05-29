@@ -187,6 +187,8 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.GitOpsModeEnabled = appConfig.GitOpsConfig.GitopsModeEnabled
 		stats.GitOpsModeExceptions = gitOpsExceptionsList(appConfig.GitOpsConfig.Exceptions)
 
+		stats.NumWindowsEntraClientIDs = len(appConfig.MDM.WindowsEntraClientIDs.Value)
+
 		return nil
 	}
 
