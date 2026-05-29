@@ -9,7 +9,7 @@ import SSOError from "components/MDM/SSOError";
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import { IMdmSSOReponse } from "interfaces/mdm";
+import { IMdmSSOResponse } from "interfaces/mdm";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 
 const baseClass = "mdm-apple-sso-page";
@@ -25,7 +25,7 @@ const DEPSSOLoginPage = ({
         ? "account_driven_enroll"
         : "mdm_sso";
   }
-  const { error } = useQuery<IMdmSSOReponse, AxiosError>(
+  const { error } = useQuery<IMdmSSOResponse, AxiosError>(
     ["dep_sso"],
     () => mdmAPI.initiateMDMAppleSSO(query),
     {

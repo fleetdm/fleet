@@ -148,6 +148,7 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostHardwareSerial,
 	fleet.FleetVarSCEPWindowsCertificateID,
 	fleet.FleetVarSCEPRenewalID,
+	fleet.FleetVarCertificateRenewalID,
 	fleet.FleetVarHostEndUserIDPUsername,
 	fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 	fleet.FleetVarHostEndUserIDPFullname,
@@ -156,6 +157,18 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostPlatform,
 	fleet.FleetVarNDESSCEPChallenge,
 	fleet.FleetVarNDESSCEPProxyURL,
+}
+
+// subjectNameHasRenewalIDMarker reports whether a SubjectName data string
+// contains the renewal-ID variable in OU=. The legacy SCEP_RENEWAL_ID name
+// is accepted alongside CERTIFICATE_RENEWAL_ID for back-compat.
+func subjectNameHasRenewalIDMarker(data string) bool {
+	for _, v := range []fleet.FleetVarName{fleet.FleetVarCertificateRenewalID, fleet.FleetVarSCEPRenewalID} {
+		if strings.Contains(data, "OU="+v.WithPrefix()) || strings.Contains(data, "OU="+v.WithBraces()) {
+			return true
+		}
+	}
+	return false
 }
 
 func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
@@ -283,11 +296,9 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 						"Variable %q must be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix()),
 				}
 			}
-			if isSubjectName &&
-				!strings.Contains(dataContent, "OU="+fleet.FleetVarSCEPRenewalID.WithPrefix()) &&
-				!strings.Contains(dataContent, "OU="+fleet.FleetVarSCEPRenewalID.WithBraces()) {
+			if isSubjectName && !subjectNameHasRenewalIDMarker(dataContent) {
 				return &fleet.BadRequestError{
-					Message: fmt.Sprintf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarSCEPRenewalID.WithPrefix()),
+					Message: fmt.Sprintf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix()),
 				}
 			}
 		}
@@ -325,9 +336,8 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 					return errors.New("SubjectName item is missing data")
 				}
 
-				if !strings.Contains(cmd.Data.Content, "OU="+fleet.FleetVarSCEPRenewalID.WithPrefix()) && !strings.Contains(cmd.Data.Content, "OU="+fleet.FleetVarSCEPRenewalID.WithBraces()) {
-					// Does not contain the renewal ID in any of it's two fleet var forms as the OU field
-					return fmt.Errorf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarSCEPRenewalID.WithPrefix())
+				if !subjectNameHasRenewalIDMarker(cmd.Data.Content) {
+					return fmt.Errorf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix())
 				}
 			}
 		}

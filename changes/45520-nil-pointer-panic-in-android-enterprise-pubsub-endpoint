@@ -1,0 +1,1 @@
+- Fixed a nil-pointer panic in the Android Enterprise Pub/Sub endpoint that occurred when Google's Android Management API sent a device payload missing `hardwareInfo`, `softwareInfo`, or `memoryInfo`.

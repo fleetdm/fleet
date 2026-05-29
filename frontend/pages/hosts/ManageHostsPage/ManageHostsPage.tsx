@@ -236,6 +236,51 @@ const ManageHostsPage = ({
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showRunScriptBatchModal, setShowRunScriptBatchModal] = useState(false);
 
+  // Hoisted above the deep-link effects so they share the same gate
+  // as the in-page Add hosts / Manage enroll secrets affordances.
+  const canEnrollHosts =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+
+  // Open add hosts modal via query param (e.g. from command palette).
+  // Wait until role flags and the team route have resolved before
+  // evaluating, so an authorized admin/maintainer landing directly on
+  // ?add_hosts=1 isn't denied while AppContext is still hydrating.
+  useEffect(() => {
+    if (queryParams?.add_hosts !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
+    if (canEnrollHosts) {
+      setShowAddHostsModal(true);
+    }
+    const { add_hosts, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    queryParams,
+    location.pathname,
+    router,
+    canEnrollHosts,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
+
+  // Open enroll secrets modal via query param (e.g. from command palette).
+  // Same hydration gate as the add-hosts effect above.
+  useEffect(() => {
+    if (queryParams?.manage_enroll_secrets !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
+    if (canEnrollHosts) {
+      setShowEnrollSecretModal(true);
+    }
+    const { manage_enroll_secrets, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    queryParams,
+    location.pathname,
+    router,
+    canEnrollHosts,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
+
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     userSettings?.hidden_host_columns || defaultHiddenColumns
   );
@@ -400,8 +445,7 @@ const ManageHostsPage = ({
   );
 
   // ========= derived permissions
-  const canEnrollHosts =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  // canEnrollHosts is hoisted above the deep-link effects (see earlier)
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels =
     (isGlobalAdmin ||
@@ -1814,18 +1858,24 @@ const ManageHostsPage = ({
         iconSvg: "transfer",
         hideButton:
           !isPremiumTier ||
-          (!isGlobalAdmin && !isGlobalMaintainer) ||
+          (!isGlobalAdmin && !isGlobalMaintainer && !isGlobalTechnician) ||
           isPrimoMode,
       },
     ];
+
+    // Global technicians can transfer hosts between fleets on Fleet Premium,
+    // so they need the selection checkbox column for bulk transfer.
+    const canTransferHostsInBulk =
+      isGlobalTechnician && isPremiumTier && !isPrimoMode;
 
     const tableColumns = generateVisibleTableColumns({
       hiddenColumns,
       isFreeTier,
       isOnlyObserver:
-        isOnlyObserver ||
-        isGlobalTechnician ||
-        (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
+        !canTransferHostsInBulk &&
+        (isOnlyObserver ||
+          isGlobalTechnician ||
+          (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin)),
       teamId: teamIdForApi,
     });
 
@@ -1916,13 +1966,19 @@ const ManageHostsPage = ({
           variant: "inverse",
           onClick: toggleEditColumnsModal,
         }}
-        primarySelectAction={{
-          name: "delete host",
-          buttonText: "Delete",
-          iconSvg: "trash",
-          variant: "inverse",
-          onClick: onDeleteHostsClick,
-        }}
+        primarySelectAction={
+          // Global technicians cannot delete hosts, so hide the bulk Delete
+          // action while still allowing them to select hosts for transfer.
+          canTransferHostsInBulk
+            ? undefined
+            : {
+                name: "delete host",
+                buttonText: "Delete",
+                iconSvg: "trash",
+                variant: "inverse",
+                onClick: onDeleteHostsClick,
+              }
+        }
         secondarySelectActions={secondarySelectActions}
         showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}

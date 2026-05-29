@@ -3,6 +3,7 @@
 package bootstrap
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/chart/api"
@@ -12,6 +13,7 @@ import (
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-kit/kit/endpoint"
+	"github.com/jmoiron/sqlx"
 )
 
 // New creates a new chart service module and returns its service and route handler.
@@ -29,4 +31,13 @@ func New(
 	}
 
 	return svc, routesFn
+}
+
+// TrackedCriticalCVEs returns the curated set of CVE IDs that the chart
+// collector currently tracks. Exposed for development tools (e.g.
+// charts-backfill) that need to mirror the production CVE-selection logic
+// without constructing the full bounded context.
+func TrackedCriticalCVEs(ctx context.Context, db *sqlx.DB, logger *slog.Logger) ([]string, error) {
+	ds := mysql.NewDatastore(&platform_mysql.DBConnections{Primary: db, Replica: db}, logger)
+	return ds.TrackedCriticalCVEs(ctx)
 }

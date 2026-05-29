@@ -30,7 +30,7 @@ const MicrosoftEntraSection = ({
   return (
     <SettingsSection title="Microsoft Entra" className={baseClass}>
       {!isPremiumTier ? (
-        <PremiumFeatureMessage alignment="left" />
+        <PremiumFeatureMessage />
       ) : (
         <div className={`${baseClass}__content`}>
           <WindowsAutomaticEnrollmentCard

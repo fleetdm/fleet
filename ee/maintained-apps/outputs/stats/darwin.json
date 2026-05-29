@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.12.13",
+      "version": "2.12.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats';",
-        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats') AND version_compare(bundle_short_version, '2.12.13') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'eu.exelban.Stats' AND version_compare(bundle_short_version, '2.12.15') < 0);"
       },
-      "installer_url": "https://github.com/exelban/stats/releases/download/v2.12.13/Stats.dmg",
+      "installer_url": "https://github.com/exelban/stats/releases/download/v2.12.15/Stats.dmg",
       "install_script_ref": "f88ba8e0",
       "uninstall_script_ref": "732f0223",
-      "sha256": "4f64594886a09647caf1750978f6b90fac84787b7f2d2c764ccc5cb0e775e088",
+      "sha256": "80afcbaef90c68f95a9b9c3520c802e6bccfcded62b99bd84ce32a47177108ce",
       "default_categories": [
         "Productivity"
       ]

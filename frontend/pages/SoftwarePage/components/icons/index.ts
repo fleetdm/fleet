@@ -5,18 +5,26 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import AmazonCorretto25 from "./AmazonCorretto25";
+import AzulZulu25Jdk from "./AzulZulu25Jdk";
+import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
+import Bluej from "./Bluej";
+import BurpSuiteCommunity from "./BurpSuiteCommunity";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
-import CodexCli from "./CodexCli";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import DruvaInSync from "./DruvaInSync";
+import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
 import Gemini from "./Gemini";
+import GenesysCloud from "./GenesysCloud";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
+import GoToMeeting from "./GoToMeeting";
 import Iina from "./Iina";
+import Joplin from "./Joplin";
 import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
@@ -26,9 +34,14 @@ import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
+import PowerBi from "./PowerBi";
+import Plugdata from "./Plugdata";
+import Prisma from "./Prisma";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
+import RealVncServer from "./RealVncServer";
+import Secretive from "./Secretive";
 import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
 import Abstract from "./Abstract";
@@ -40,6 +53,7 @@ import Airtame from "./Airtame";
 import AmazonChime from "./AmazonChime";
 import AmazonDCV from "./AmazonDCV";
 import AndroidApp from "./AndroidApp";
+import AndroidOS from "./AndroidOS";
 import AndroidPlayStore from "./AndroidPlayStore";
 import AndroidStudio from "./AndroidStudio";
 import Anka from "./Anka";
@@ -225,6 +239,7 @@ import TheUnarchiver from "./TheUnarchiver";
 import Thunderbird from "./Thunderbird";
 import Todoist from "./Todoist";
 import TorBrowser from "./TorBrowser";
+import Tortoisegit from "./Tortoisegit";
 import Tower from "./Tower";
 import Transmit from "./Transmit";
 import Tunnelblick from "./Tunnelblick";
@@ -235,6 +250,7 @@ import Viscosity from "./Viscosity";
 import VisualStudioCode from "./VisualStudioCode";
 import Vlc from "./Vlc";
 import VncViewer from "./VncViewer";
+import VsCodium from "./VsCodium";
 import WacomCenter from "./WacomCenter";
 import Warp from "./Warp";
 import WebStorm from "./WebStorm";
@@ -245,6 +261,7 @@ import WindowsAppRemote from "./WindowsAppRemote";
 import WindowsDefender from "./WindowsDefender";
 import WindowsOS from "./WindowsOS";
 import Windsurf from "./Windsurf";
+import Winscp from "./Winscp";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
@@ -277,6 +294,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   aircall: Aircall,
   airtame: Airtame,
   "amazon chime": AmazonChime,
+  "amazon corretto 25": AmazonCorretto25,
   "amazon dcv": AmazonDCV,
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
@@ -293,6 +311,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   avast: AvastSecureBrowser,
   "aws vpn client": AwsVpnClient,
   "aws client vpn": AwsVpnClient,
+  "azul zulu 25 jdk": AzulZulu25Jdk,
+  "azul zulu 25 jre": AzulZulu25Jre,
   backblaze: Backblaze,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
@@ -300,9 +320,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beyond compare": BeyondCompare,
   bitwarden: Bitwarden,
   blender: Blender,
+  bluej: Bluej,
   box: Box,
   brave: Brave,
   bruno: Bruno,
+  "burp suite community": BurpSuiteCommunity,
   calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
@@ -321,15 +343,18 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
-  "codex cli": CodexCli,
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  "duo desktop": DuoDesktop,
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
+  "genesys cloud": GenesysCloud,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
+  gotomeeting: GoToMeeting,
   iina: Iina,
   insyncclient: DruvaInSync,
+  joplin: Joplin,
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
@@ -443,8 +468,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "pgadmin 4": PgAdmin4,
   pgadmin4: PgAdmin4,
   phpstorm: PhpStorm,
+  plugdata: Plugdata,
   "podman desktop": PodmanDesktop,
   postman: Postman,
+  "power bi": PowerBi,
+  prisma: Prisma,
   privileges: Privileges,
   pritunl: Pritunl,
   "proton mail": ProtonMail,
@@ -458,6 +486,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
   raycast: Raycast,
+  "realvnc server": RealVncServer,
   rectangle: Rectangle,
   rider: Rider,
   "royal tsx": RoyalTsx,
@@ -465,6 +494,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
+  secretive: Secretive,
   "sequel ace": SequelAce,
   shottr: Shottr,
   signal: Signal,
@@ -497,6 +527,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   thunderbird: Thunderbird,
   todoist: Todoist,
   "tor browser": TorBrowser,
+  tortoisegit: Tortoisegit,
   tower: Tower,
   transmit: Transmit,
   tunnelblick: Tunnelblick,
@@ -507,6 +538,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "vnc viewer": VncViewer,
   "visual studio code": VisualStudioCode,
   vlc: Vlc,
+  vscodium: VsCodium,
   "wacom center": WacomCenter,
   "wacom tablet": WacomCenter,
   warp: Warp,
@@ -517,6 +549,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows app remote": WindowsAppRemote,
   "windows defender": WindowsDefender,
   windsurf: Windsurf,
+  winscp: Winscp,
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
@@ -543,6 +576,7 @@ export const PLATFORM_NAME_TO_ICON_MAP = {
   chrome: ChromeOS,
   ios: iOS,
   ipados: iPadOS,
+  android: AndroidOS,
 } as const;
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined

@@ -1,0 +1,1 @@
+- Fixed SAML JIT provisioning so `FLEET_JIT_USER_ROLE_*` attributes with empty, whitespace-only, or missing values are treated as `null` and ignored instead of failing SSO login.

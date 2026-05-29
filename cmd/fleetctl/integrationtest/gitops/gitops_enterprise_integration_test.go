@@ -5590,3 +5590,87 @@ software:
 		}, "macos_manual_agent_install")
 	})
 }
+
+// test vpp apps and packages dont validate labels on a dry run (issue #45844)
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabelAndSoftwareSameApply() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	test.CreateInsertGlobalVPPToken(t, s.DS)
+	vppTokens, err := s.DS.ListVPPTokens(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, vppTokens)
+
+	teamName := uuid.NewString()
+	team, err := s.DS.NewTeam(ctx, &fleet.Team{Name: teamName})
+	require.NoError(t, err)
+	_, err = s.DS.UpdateVPPTokenTeams(ctx, vppTokens[0].ID, []uint{team.ID})
+	require.NoError(t, err)
+
+	globalTemplate := fmt.Sprintf(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  mdm:
+    volume_purchasing_program:
+      - location: Jungle
+        teams:
+          - %s
+policies:
+reports:
+`, teamName)
+
+	teamTemplate := `
+controls:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      labels_include_any:
+        - new-team-label
+  app_store_apps:
+    - app_store_id: "1"
+      platform: darwin
+      labels_include_any:
+        - new-team-label
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+labels:
+  - name: new-team-label
+    label_membership_type: manual
+    hosts: []
+`
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	require.NoError(t, globalFile.Close())
+
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamTemplate, teamName))
+	require.NoError(t, err)
+	require.NoError(t, teamFile.Close())
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+	testing_utils.StartAndServeVPPServer(t)
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	dryRunOutput := fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
+	require.Contains(t, dryRunOutput, "gitops dry run succeeded")
+
+	realRunOutput := fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
+	require.Contains(t, realRunOutput, "gitops succeeded")
+}

@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2026.1.2",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'WebStorm %' AND publisher = 'JetBrains s.r.o.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WebStorm %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.1.2') < 0);"
+      },
+      "installer_url": "https://download.jetbrains.com/webstorm/WebStorm-2026.1.2.exe",
+      "install_script_ref": "68119c0c",
+      "uninstall_script_ref": "c2646a7f",
+      "sha256": "ff2a17927caa426e0cc5743319c371ec791639c3a67c18fd8470920d62982b1f",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "68119c0c": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# WebStorm ships as a Nullsoft (NSIS) installer; /S runs it silently.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "c2646a7f": "# Locates WebStorm's NSIS uninstaller from the registry and runs it silently.\n# JetBrains NSIS installers embed the version in DisplayName (e.g.\n# \"WebStorm 2026.1.2\"), so we match by prefix and require the JetBrains\n# publisher to avoid collisions with other JetBrains IDEs.\n\n$softwareNameLike = \"WebStorm*\"\n$publisherLike = \"*JetBrains*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path $paths `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $null\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike -and $key.Publisher -like $publisherLike) {\n        $selected = $key\n        break\n    }\n}\n\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n# Best-effort: stop the IDE so the uninstaller doesn't fail on locked files.\nStop-Process -Name \"webstorm64\" -Force -ErrorAction SilentlyContinue\nStop-Process -Name \"webstorm\" -Force -ErrorAction SilentlyContinue\nStop-Process -Name \"fsnotifier\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = $selected.UninstallString\n\n# Split the uninstall string into exe + args. Handle both quoted and unquoted\n# exe paths.\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    # Quoted path: \"C:\\Path With Spaces\\uninst.exe\" [args]\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    # Unquoted path that may contain spaces: capture through the .exe.\n    # JetBrains stores e.g.\n    # C:\\Program Files\\JetBrains\\WebStorm 2026.1.2\\bin\\Uninstall.exe\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    # Fallback: no .exe found, split on first whitespace.\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\n# NSIS uninstallers require /S for silent uninstall.\nif ($existingArgs -notmatch '\\b/S\\b') {\n    $existingArgs = (\"$existingArgs /S\").Trim()\n}\n\nWrite-Host \"Selected entry DisplayName: $($selected.DisplayName)\"\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\n$processOptions = @{\n    FilePath = $exePath\n    PassThru = $true\n    Wait = $true\n}\n\nif ($existingArgs -ne '') {\n    $processOptions.ArgumentList = $existingArgs\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\nExit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}
