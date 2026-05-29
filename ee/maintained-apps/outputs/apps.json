@@ -604,6 +604,13 @@
       "description": "CrashPlan is backup and recovery software."
     },
     {
+      "name": "Cryptomator",
+      "slug": "cryptomator/windows",
+      "platform": "windows",
+      "unique_identifier": "Cryptomator",
+      "description": "Cryptomator is a multi-platform client-side cloud file encryption tool."
+    },
+    {
       "name": "Cursor",
       "slug": "cursor/darwin",
       "platform": "darwin",
