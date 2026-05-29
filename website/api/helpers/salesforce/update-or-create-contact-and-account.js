@@ -284,7 +284,7 @@ module.exports = {
             let parsedReferrerUrl = new URL(marketingAttributionCookie.referrer);
             let referrerHost = parsedReferrerUrl.hostname.toLowerCase();
             isFleetReferrer = (referrerHost === 'fleetdm.com' || referrerHost.endsWith('.fleetdm.com'));
-          } catch (err) {
+          } catch (unused) {
             isFleetReferrer = false;
           }
         }
