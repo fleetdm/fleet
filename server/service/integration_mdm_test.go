@@ -12815,7 +12815,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		if st.AppStoreApp.AppStoreID == s.appleVPPConfigSrvConfig.Assets[1].AdamID {
 			var getSWTitle getSoftwareTitleResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", st.ID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(tmGood.ID))
-			s.Assert().ElementsMatch([]string{"Browsers"}, getSWTitle.SoftwareTitle.AppStoreApp.Categories)
+			s.ElementsMatch([]string{"🌎 Browsers"}, getSWTitle.SoftwareTitle.AppStoreApp.Categories)
 			var labelNames []string
 			for _, l := range getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll {
 				labelNames = append(labelNames, l.LabelName)
@@ -20965,7 +20965,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
-	require.ElementsMatch(t, []string{"Developer tools", "Communication"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+	require.ElementsMatch(t, []string{"🧰 Developer tools", "👬 Communication"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
 
 	// test GitOps with Security and Utilities categories
 	s.DoJSON("POST",
@@ -20979,7 +20979,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
-	require.ElementsMatch(t, []string{"Security", "Utilities"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+	require.ElementsMatch(t, []string{"🔐 Security", "🛟 Support"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
 
 	// empty out categories via gitops
 	s.DoJSON("POST",

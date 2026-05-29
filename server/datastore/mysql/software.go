@@ -6765,6 +6765,7 @@ func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, names []string)
 	if len(names) == 0 {
 		return []uint{}, nil
 	}
+	names = fleet.TranslateLegacySoftwareCategoryNames(names)
 
 	stmt := `SELECT id FROM software_categories WHERE name IN (?)`
 	stmt, args, err := sqlx.In(stmt, names)
@@ -6788,6 +6789,7 @@ func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, names [
 	if len(names) == 0 {
 		return map[string]uint{}, nil
 	}
+	names = fleet.TranslateLegacySoftwareCategoryNames(names)
 
 	stmt := `SELECT id, name FROM software_categories WHERE name IN (?)`
 	stmt, args, err := sqlx.In(stmt, names)
@@ -6803,6 +6805,11 @@ func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, names [
 	result := make(map[string]uint, len(categories))
 	for _, cat := range categories {
 		result[cat.Name] = cat.ID
+	}
+	for plain, emoji := range fleet.LegacySoftwareCategoryNames {
+		if id, ok := result[emoji]; ok {
+			result[plain] = id
+		}
 	}
 
 	return result, nil

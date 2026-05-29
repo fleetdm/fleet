@@ -13384,7 +13384,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
 		expectedPayload := *payload
-		expectedPayload.Categories = []string{"Browsers", "Productivity"}
+		expectedPayload.Categories = []string{"🌎 Browsers", "💻 Productivity"}
 		expectedPayload.SelfService = true
 		checkSoftwareInstaller(t, s.ds, payload)
 
@@ -13401,7 +13401,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
-		expectedPayload.Categories = []string{"Browsers"}
+		expectedPayload.Categories = []string{"🌎 Browsers"}
 		checkSoftwareInstaller(t, s.ds, payload)
 
 		meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(context.Background(), nil, titleID, false)
@@ -20861,7 +20861,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, []string{"Productivity"}, titleResponse.SoftwareTitle.SoftwarePackage.Categories)
+	require.Equal(t, []string{"💻 Productivity"}, titleResponse.SoftwareTitle.SoftwarePackage.Categories)
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
@@ -22283,27 +22283,27 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	}{
 		{
 			desc:       "duplicate categories provided",
-			categories: []string{"Developer tools", "Browsers", "Browsers"},
+			categories: []string{"🧰 Developer tools", "🌎 Browsers", "🌎 Browsers"},
 		},
 		{
 			desc:       "valid categories 1",
-			categories: []string{"Developer tools", "Browsers"},
+			categories: []string{"🧰 Developer tools", "🌎 Browsers"},
 		},
 		{
 			desc:       "valid categories 2",
-			categories: []string{"Communication", "Productivity"},
+			categories: []string{"👬 Communication", "💻 Productivity"},
 		},
 		{
-			desc:       "valid categories 3 - Security and Utilities",
-			categories: []string{"Security", "Utilities"},
+			desc:       "valid categories 3 - Security and Support",
+			categories: []string{"🔐 Security", "🛟 Support"},
 		},
 		{
 			desc:       "valid categories 4 - mixed with new categories",
-			categories: []string{"Security", "Developer tools", "Utilities"},
+			categories: []string{"🔐 Security", "🧰 Developer tools", "🛟 Support"},
 		},
 		{
 			desc:                 "empty categories",
-			fmaDefaultCategories: []string{"Productivity"},
+			fmaDefaultCategories: []string{"💻 Productivity"},
 		},
 	}
 	for _, tc := range testCases {
@@ -26301,7 +26301,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 		expectedPayload := *payload
 		expectedPayload.LabelsExcludeAny = []string{labelResp.Label.Name}
-		expectedPayload.Categories = []string{"Productivity", "Browsers"}
+		expectedPayload.Categories = []string{"💻 Productivity", "🌎 Browsers"}
 
 		meta, err := s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
 		require.NoError(t, err)
@@ -26316,7 +26316,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 			"categories": {"Browsers"},
 		})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
-		expectedPayload.Categories = []string{"Browsers"}
+		expectedPayload.Categories = []string{"🌎 Browsers"}
 
 		meta, err = s.ds.GetInHouseAppMetadataByTeamAndTitleID(context.Background(), &createTeamResp.Team.ID, installerID)
 		require.NoError(t, err)

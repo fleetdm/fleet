@@ -858,3 +858,27 @@ type SoftwareCategory struct {
 	ID   uint   `db:"id"`
 	Name string `db:"name"`
 }
+
+// Map the old default category names that don't include emojis to the new ones
+// that are stored in the database with emojis. This is required to not break
+// existing FMA manifests and GitOps files.
+var LegacySoftwareCategoryNames = map[string]string{
+	"Browsers":        "🌎 Browsers",
+	"Communication":   "👬 Communication",
+	"Developer tools": "🧰 Developer tools",
+	"Productivity":    "💻 Productivity",
+	"Security":        "🔐 Security",
+	"Utilities":       "🛟 Support",
+}
+
+func TranslateLegacySoftwareCategoryNames(names []string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		if newName, ok := LegacySoftwareCategoryNames[n]; ok {
+			out[i] = newName
+		} else {
+			out[i] = n
+		}
+	}
+	return out
+}
