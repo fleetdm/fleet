@@ -37,7 +37,7 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 		sb.Write("# install pkg files")
 		sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
 		sb.InstallPkgFromInstallerPath()
-		sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+		sb.RelaunchAndPropagateInstallStatus(app.UniqueIdentifier)
 		return sb.String(), nil
 	}
 
@@ -91,8 +91,9 @@ fi`, appPath)
 			default:
 				return "", fmt.Errorf("application %s has unknown directive format for pkg", app.Token)
 			}
-			// Relaunch the app if it was running before installation
-			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+			// Relaunch the app if it was running before installation, then
+			// propagate a failed install so it isn't reported as successful.
+			sb.RelaunchAndPropagateInstallStatus(app.UniqueIdentifier)
 
 		case len(artifact.Binary) > 0:
 			if len(artifact.Binary) == 2 {
@@ -417,6 +418,19 @@ func (s *scriptBuilder) RemoveFile(file string) {
 // downloaded file name may not match the cask).
 func (s *scriptBuilder) InstallPkgFromInstallerPath() {
 	s.Write(`sudo installer -pkg "$INSTALLER_PATH" -target /`)
+}
+
+// RelaunchAndPropagateInstallStatus captures the exit status of the preceding
+// install command, relaunches the app if it was running before the install,
+// and then exits with the install's status when it failed. The relaunch call
+// must not become the script's final command: it almost always succeeds, so it
+// would otherwise mask a failed install and report a failed update as installed.
+func (s *scriptBuilder) RelaunchAndPropagateInstallStatus(uniqueIdentifier string) {
+	s.Write("INSTALL_EXIT_CODE=$?")
+	s.Writef("relaunch_application '%s'", uniqueIdentifier)
+	s.Write(`if [ "$INSTALL_EXIT_CODE" -ne 0 ]; then
+  exit "$INSTALL_EXIT_CODE"
+fi`)
 }
 
 // InstallPkg writes a command to install a package using the macOS `installer` utility.
