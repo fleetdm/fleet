@@ -40,15 +40,27 @@
       function gtag() {
           dataLayer.push(arguments);
       }
+      // Non-EU/UK visitors: grant analytics immediately (no consent banner shown)
       gtag("consent", "default", {
           ad_storage: "denied",
-          ad_user_data: "denied", 
+          ad_user_data: "denied",
+          ad_personalization: "denied",
+          analytics_storage: "granted",
+          functionality_storage: "granted",
+          personalization_storage: "denied",
+          security_storage: "granted",
+      });
+      // EU/EEA/UK/Switzerland: deny everything, wait for CookieYes banner
+      gtag("consent", "default", {
+          ad_storage: "denied",
+          ad_user_data: "denied",
           ad_personalization: "denied",
           analytics_storage: "denied",
           functionality_storage: "denied",
           personalization_storage: "denied",
           security_storage: "granted",
           wait_for_update: 2000,
+          region: ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE","IS","LI","NO","GB","CH"],
       });
       gtag("set", "ads_data_redaction", true);
     </script>
