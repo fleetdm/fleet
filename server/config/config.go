@@ -906,6 +906,16 @@ type MDMConfig struct {
 	// WSTEP responses.
 	WindowsWSTEPIdentityKeyBytes string `yaml:"windows_wstep_identity_key_bytes"`
 
+	// WindowsWNSPFN is the Package Family Name of the Microsoft Store app used for WNS push
+	// notifications. It is provisioned to devices via the DMClient CSP so they register a WNS channel.
+	WindowsWNSPFN string `yaml:"windows_wns_pfn"`
+	// WindowsWNSSID is the Package SID of that Microsoft Store app, used as the WNS client_id (wrapped in
+	// the ms-app:// scheme) when authenticating to WNS.
+	WindowsWNSSID string `yaml:"windows_wns_sid"`
+	// WindowsWNSClientSecret is the client secret of the Store app's linked Azure app registration, used to
+	// authenticate to WNS.
+	WindowsWNSClientSecret string `yaml:"windows_wns_client_secret"`
+
 	// the following fields hold the parsed, validated TLS certificate set the
 	// first time Microsoft WSTEP is called, as well as the PEM-encoded
 	// bytes for the certificate and private key.
@@ -1207,6 +1217,11 @@ func (m *MDMConfig) IsMicrosoftWSTEPSet() bool {
 		[]byte(m.WindowsWSTEPIdentityKeyBytes),
 	}
 	return pair.IsSet()
+}
+
+// IsMicrosoftWNSSet returns true when all WNS push notification credentials are configured.
+func (m *MDMConfig) IsMicrosoftWNSSet() bool {
+	return m.WindowsWNSPFN != "" && m.WindowsWNSSID != "" && m.WindowsWNSClientSecret != ""
 }
 
 type TLS struct {
@@ -1733,6 +1748,9 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
+	man.addConfigString("mdm.windows_wns_pfn", "", "Microsoft Store app Package Family Name (PFN) for WNS push notifications")
+	man.addConfigString("mdm.windows_wns_sid", "", "Microsoft Store app Package SID for WNS push notifications")
+	man.addConfigString("mdm.windows_wns_client_secret", "", "Microsoft Store app client secret for WNS push notifications")
 	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for OS updates and FileVault (Fleet Premium required)")
@@ -2064,6 +2082,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKey:           man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			WindowsWNSPFN:                     man.getConfigString("mdm.windows_wns_pfn"),
+			WindowsWNSSID:                     man.getConfigString("mdm.windows_wns_sid"),
+			WindowsWNSClientSecret:            man.getConfigString("mdm.windows_wns_client_secret"),
 			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),

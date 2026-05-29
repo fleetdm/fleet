@@ -554,6 +554,32 @@ func TestAppleBMConfig(t *testing.T) {
 	}
 }
 
+func TestIsMicrosoftWNSSet(t *testing.T) {
+	cases := []struct {
+		name   string
+		pfn    string
+		sid    string
+		secret string
+		want   bool
+	}{
+		{"all set", "PFN", "SID", "secret", true},
+		{"none set", "", "", "", false},
+		{"missing pfn", "", "SID", "secret", false},
+		{"missing sid", "PFN", "", "secret", false},
+		{"missing secret", "PFN", "SID", "", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			m := MDMConfig{
+				WindowsWNSPFN:          c.pfn,
+				WindowsWNSSID:          c.sid,
+				WindowsWNSClientSecret: c.secret,
+			}
+			assert.Equal(t, c.want, m.IsMicrosoftWNSSet())
+		})
+	}
+}
+
 func TestMicrosoftWSTEPConfig(t *testing.T) {
 	dir := t.TempDir()
 	certFile, keyFile, garbageFile, invalidKeyFile := filepath.Join(dir, "cert"),
