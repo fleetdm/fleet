@@ -471,6 +471,13 @@
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
     },
     {
+      "name": "Citrix Workspace",
+      "slug": "citrix-workspace/windows",
+      "platform": "windows",
+      "unique_identifier": "Citrix Workspace",
+      "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
+    },
+    {
       "name": "Claude",
       "slug": "claude/darwin",
       "platform": "darwin",
@@ -632,6 +639,13 @@
       "description": "DB Browser for SQLite is a high quality, visual, open source tool designed for people who want to create, search, and edit SQLite or SQLCipher databases."
     },
     {
+      "name": "DB Browser for SQLite",
+      "slug": "db-browser-for-sqlite/windows",
+      "platform": "windows",
+      "unique_identifier": "DB Browser for SQLite",
+      "description": "DB Browser for SQLite is a high quality, visual, open source tool designed for people who want to create, search, and edit SQLite or SQLCipher databases."
+    },
+    {
       "name": "DBeaver",
       "slug": "dbeaver-community/darwin",
       "platform": "darwin",
@@ -653,6 +667,13 @@
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
+      "name": "DBeaverEE",
+      "slug": "dbeaver-enterprise/windows",
+      "platform": "windows",
+      "unique_identifier": "DBeaverEE",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
       "name": "DBeaverLite",
       "slug": "dbeaverlite/darwin",
       "platform": "darwin",
@@ -660,10 +681,24 @@
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
+      "name": "DBeaverLite",
+      "slug": "dbeaverlite/windows",
+      "platform": "windows",
+      "unique_identifier": "DBeaverLite",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
       "name": "DBeaverUltimate",
       "slug": "dbeaverultimate/darwin",
       "platform": "darwin",
       "unique_identifier": "com.dbeaver.product.ultimate",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
+      "name": "DBeaverUltimate",
+      "slug": "dbeaverultimate/windows",
+      "platform": "windows",
+      "unique_identifier": "DBeaverUltimate",
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
@@ -888,6 +923,13 @@
       "slug": "fork/darwin",
       "platform": "darwin",
       "unique_identifier": "com.DanPristupov.Fork",
+      "description": "Fork is a git client."
+    },
+    {
+      "name": "Fork",
+      "slug": "fork/windows",
+      "platform": "windows",
+      "unique_identifier": "Fork",
       "description": "Fork is a git client."
     },
     {
@@ -1493,6 +1535,13 @@
       "description": "Notion Calendar is an app to manage your time and work, together."
     },
     {
+      "name": "Notion Calendar",
+      "slug": "notion-calendar/windows",
+      "platform": "windows",
+      "unique_identifier": "Notion Calendar",
+      "description": "Notion Calendar is an app to manage your time and work, together."
+    },
+    {
       "name": "Notion",
       "slug": "notion/darwin",
       "platform": "darwin",
@@ -1990,10 +2039,24 @@
       "description": "Splashtop Business is remote access software."
     },
     {
+      "name": "Splashtop Business",
+      "slug": "splashtop-business/windows",
+      "platform": "windows",
+      "unique_identifier": "Splashtop Business",
+      "description": "Splashtop Business is remote access software."
+    },
+    {
       "name": "Splashtop Streamer",
       "slug": "splashtop-streamer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.splashtop.Splashtop-Streamer",
+      "description": "Splashtop Streamer is used to connect to and control computers."
+    },
+    {
+      "name": "Splashtop Streamer",
+      "slug": "splashtop-streamer/windows",
+      "platform": "windows",
+      "unique_identifier": "Splashtop Streamer",
       "description": "Splashtop Streamer is used to connect to and control computers."
     },
     {
@@ -2302,6 +2365,13 @@
       "slug": "wacom-tablet/darwin",
       "platform": "darwin",
       "unique_identifier": "com.wacom.WacomCenter",
+      "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
+    },
+    {
+      "name": "Wacom Tablet",
+      "slug": "wacom-tablet/windows",
+      "platform": "windows",
+      "unique_identifier": "Wacom Tablet",
       "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
     },
     {
