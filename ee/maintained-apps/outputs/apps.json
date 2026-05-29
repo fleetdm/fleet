@@ -2390,6 +2390,13 @@
     },
     {
       "name": "VSCodium",
+      "slug": "vscodium/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vscodium",
+      "description": "VSCodium is a releases of VS Code without MS branding, telemetry, and licensing."
+    },
+    {
+      "name": "VSCodium",
       "slug": "vscodium/windows",
       "platform": "windows",
       "unique_identifier": "VSCodium",
