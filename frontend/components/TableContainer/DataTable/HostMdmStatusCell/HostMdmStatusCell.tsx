@@ -36,7 +36,7 @@ const HostMdmStatusCell = ({
         displayValue
       ) : (
         <TooltipWrapper
-          className="mdm-status-tooltip"
+          className={`${baseClass}__tooltip`}
           tipContent={MDM_STATUS_TOOLTIP[value]}
         >
           {displayValue}
