@@ -217,7 +217,6 @@ module.exports = {
         layout = 'layout-email';
         fakeData = {
           firstName: 'Sage',
-          emailAddress: 'sage@example.com',
         };
         break;
       default:

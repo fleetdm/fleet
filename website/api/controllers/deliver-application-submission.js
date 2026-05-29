@@ -112,7 +112,6 @@ module.exports = {
       from: sails.config.custom.applicationReplyEmailAddress,
       templateData: {
         firstName: firstName,
-        contactEmail: emailAddress
       },
       ensureAck: true,
     });
