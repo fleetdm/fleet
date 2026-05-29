@@ -5,6 +5,7 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
+import AbletonLive12Suite from "./AbletonLive12Suite";
 import AmazonCorretto25 from "./AmazonCorretto25";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
@@ -353,6 +354,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
+  live: AbletonLive12Suite,
   marvel: Marvel,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
