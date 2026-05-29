@@ -690,16 +690,7 @@ func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Erro
 	return multiError
 }
 
-// validateSSOConfig rejects YAML payloads that declare SSO intent without the
-// metadata needed to make SSO work. The server's REST PATCH validator allows
-// empty incoming metadata when the existing server value is set (partial
-// update semantics), but GitOps is declarative — the YAML is the full state —
-// so we reject the broken declaration before it reaches the server and
-// silently wipes the working SSO config. See issue #43371.
-//
-// MDM end-user authentication is checked separately in
-// validateMDMEndUserAuthConfig because the enable flag lives in a different
-// top-level block (`controls`) than the IdP settings (`org_settings.mdm`).
+// Verify that if SSO is enabled, either metadata or metadata_url is provided.
 func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
 	if sso, ok := orgSettings["sso_settings"].(map[string]any); ok {
 		enabled, _ := sso["enable_sso"].(bool)
@@ -714,14 +705,7 @@ func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error)
 	return multiError
 }
 
-// validateMDMEndUserAuthConfig checks the cross-block invariant: when
-// `controls.macos_setup.enable_end_user_authentication` (alias
-// `setup_experience.enable_end_user_authentication`) is true, the IdP
-// settings under `org_settings.mdm.end_user_authentication` must include
-// metadata or metadata_url. Without that, ADE enrollment can't complete.
-// By the time this runs, key renames in the `controls` block have already
-// been normalized into result.Controls.MacOSSetup, so the check is the same
-// regardless of which YAML alias the user wrote.
+// Verify that if end-user auth is enabled, either metadata or metadata_url is provided.
 func validateMDMEndUserAuthConfig(result *GitOps, multiError *multierror.Error) *multierror.Error {
 	if result.Controls.MacOSSetup == nil || !result.Controls.MacOSSetup.EnableEndUserAuthentication {
 		return multiError
