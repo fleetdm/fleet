@@ -112,10 +112,18 @@ google_cloud_identity:
 
 Then restart the Fleet server.
 
-In the Fleet UI, head to **Settings > Integrations > Google Cloud Identity** and toggle the integration on for the teams you want to enforce conditional access for. Or via GitOps:
+There is no dedicated admin-console page for this integration in v1; runtime settings are managed via GitOps YAML or the AppConfig API. To enable conditional access for a team, set:
 
 ```yaml
-# In your AppConfig / team YAML
+# In your team YAML
+integrations:
+  google_cloud_identity_enabled: true
+```
+
+Or for "No team" hosts, set the same field at the org-level AppConfig:
+
+```yaml
+# In your global config / AppConfig YAML
 integrations:
   google_cloud_identity_enabled: true
 ```
@@ -124,7 +132,9 @@ integrations:
 
 In Fleet, go to **Policies**, edit the policies you want to enforce as conditional access signals, and enable **Conditional access**. Hosts will be marked compliant only when every flagged policy passes for that host.
 
-Fleet shares the per-policy conditional access flag between the Microsoft Entra and Google Cloud Identity integrations. A single policy can drive both providers.
+Fleet shares the per-policy **Conditional access** flag between the Microsoft Entra and Google Cloud Identity integrations — both providers receive an API-pushed compliance signal driven by the same set of flagged policies, so a single policy can drive both.
+
+> **Note on Fleet's Okta integration.** Fleet's [Okta conditional access integration](./okta-conditional-access-integration) is structurally different. Okta does not have a partner-write compliance API, so Fleet enforces device trust on Okta via a per-device certificate that the host presents over mTLS during sign-in. There is no per-policy gating; the cert is either present and trusted or it isn't. The per-policy **Conditional access** flag described above does not apply to the Okta path.
 
 ## Step 8: Create a Context-Aware Access policy in Workspace
 
