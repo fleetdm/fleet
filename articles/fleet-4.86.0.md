@@ -15,7 +15,6 @@ Fleet 4.86.0 is now available. See the complete [changelog](https://github.com/f
 - [Automatic SCEP and ACME certificate renewal](#automatic-scep-and-acme-certificate-renewal)
 - [iOS/iPadOS software for user-enrolled hosts](#iosipados-software-for-user-enrolled-hosts)
 
-
 ### Rotate local admin password
 
 Building on the [local admin account](https://fleetdm.com/articles/fleet-4.85.0#create-a-local-admin-account-during-macos-setup) introduced in 4.85, Fleet now lets admins rotate the hidden account's password directly from the **Host details** page. After an admin views the password, Fleet starts a countdown and automatically rotates it roughly an hour later — limiting how long a credential is valid after it's been seen. Admins can also rotate immediately using the **Rotate password** button at any time. Every rotation is logged as an activity, whether triggered manually or automatically by Fleet.
