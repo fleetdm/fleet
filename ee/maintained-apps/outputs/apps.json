@@ -492,6 +492,13 @@
       "description": "ChatGPT Desktop is OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
     },
     {
+      "name": "Chrome Remote Desktop",
+      "slug": "chrome-remote-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Chrome Remote Desktop Host",
+      "description": "Chrome Remote Desktop is an app that allows admins to help troubleshoot through the Google Chrome browser."
+    },
+    {
       "name": "Cisco Jabber",
       "slug": "cisco-jabber/darwin",
       "platform": "darwin",
@@ -1420,6 +1427,13 @@
       "slug": "mattermost/darwin",
       "platform": "darwin",
       "unique_identifier": "Mattermost.Desktop",
+      "description": "Mattermost is an open-source, self-hosted Slack-alternative."
+    },
+    {
+      "name": "Mattermost",
+      "slug": "mattermost/windows",
+      "platform": "windows",
+      "unique_identifier": "Mattermost",
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
