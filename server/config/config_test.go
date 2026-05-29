@@ -1041,3 +1041,28 @@ func TestServerConfigURLPrefix(t *testing.T) {
 		require.True(t, called)
 	})
 }
+
+func TestMDMConfigValidateAppleAPNSAndSCEPPair(t *testing.T) {
+	t.Parallel()
+
+	t.Run("both APNs and SCEP set is valid", func(t *testing.T) {
+		cfg := MDMConfig{AppleAPNsCert: "apns.cert", AppleSCEPCert: "scep.cert"}
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) {
+			t.Fatalf("unexpected error: %v", err)
+		})
+	})
+
+	t.Run("SCEP set without APNs is rejected", func(t *testing.T) {
+		cfg := MDMConfig{AppleSCEPCert: "scep.cert"}
+		called := false
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("APNs set without SCEP is rejected", func(t *testing.T) {
+		cfg := MDMConfig{AppleAPNsCert: "apns.cert"}
+		called := false
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}

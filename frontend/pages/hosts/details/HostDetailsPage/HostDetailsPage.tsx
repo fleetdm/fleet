@@ -37,7 +37,10 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { FLEET_FILEVAULT_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
+import {
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  isAndroidBYO,
+} from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
@@ -797,7 +800,12 @@ const HostDetailsPage = ({
   };
 
   const onShowActivityDetails = useCallback(
-    ({ type, details }: IShowActivityDetailsData) => {
+    ({
+      type,
+      details,
+      actor_full_name,
+      fleet_initiated,
+    }: IShowActivityDetailsData) => {
       switch (type) {
         case "ran_script":
           setScriptExecutiontId(details?.script_execution_id || "");
@@ -813,6 +821,10 @@ const HostDetailsPage = ({
                 details.software_display_name
               ),
               commandUuid: details?.command_uuid,
+              failureReason: details?.failure_reason,
+              actorFullName: actor_full_name,
+              fleetInitiated: fleet_initiated,
+              selfService: details?.self_service,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
             setScriptPackageDetails({
@@ -861,6 +873,10 @@ const HostDetailsPage = ({
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
             platform: details?.host_platform || host?.platform,
+            failureReason: details?.failure_reason,
+            actorFullName: actor_full_name,
+            fleetInitiated: fleet_initiated,
+            selfService: details?.self_service,
           });
           break;
         case "installed_certificate":
@@ -1074,8 +1090,11 @@ const HostDetailsPage = ({
     if (!host) return;
     try {
       const { device_url } = await hostAPI.getDeviceURL(host.id);
-      // window.open returns null when the browser blocks the popup, so an
-      // explicit check is needed — the promise will not reject.
+      // TODO: this sometimes flashes the "please allow pop-ups" error even when
+      // the popup successfully opens — `window.open` is returning null in cases
+      // where the new tab actually appears. Investigate (likely the async gap
+      // between the click and window.open is treated as non-user-initiated by
+      // some browsers, or the returned WindowProxy is filtered by noopener).
       const opened = window.open(device_url, "_blank", "noopener,noreferrer");
       if (!opened) {
         renderFlash(
@@ -1416,7 +1435,7 @@ const HostDetailsPage = ({
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
-              hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
+              hostMdmEnrollmentStatus={host.mdm?.enrollment_status ?? null}
             />
           </div>
           <TabNav className={`${baseClass}__tab-nav`}>
@@ -1705,6 +1724,16 @@ const HostDetailsPage = ({
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
+              onSuccess={() => {
+                // Android BYO unenroll fires an AMAPI WIPE work-profile-only command, which the backend tracks via wipe_ref / device_status="wiping".
+                // Optimistically flip the device state so the "Unenroll pending" badge shows immediately instead of waiting for the next host refetch.
+                if (
+                  isAndroid(host.platform) &&
+                  isAndroidBYO(host.mdm.enrollment_status)
+                ) {
+                  setHostMdmDeviceState("wiping");
+                }
+              }}
             />
           )}
           {showDiskEncryptionModal && host && (
@@ -1854,6 +1883,7 @@ const HostDetailsPage = ({
             <WipeModal
               id={host.id}
               hostName={host.display_name}
+              hostPlatform={host.platform}
               isWindowsHost={isWindowsHost}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
@@ -1918,7 +1948,20 @@ const HostDetailsPage = ({
           />
         )}
         {showClearPasscodeModal && (
-          <ClearPasscodeModal id={host.id} onExit={toggleClearPasscodeModal} />
+          <ClearPasscodeModal
+            id={host.id}
+            hostName={host.display_name}
+            hostPlatform={host.platform}
+            hostMdmEnrollmentStatus={host.mdm.enrollment_status}
+            onExit={toggleClearPasscodeModal}
+            onSuccess={() => {
+              // Android: flip device_status to "clearing_passcode" so the badge appears.
+              // Apple follow up: #46286
+              if (isAndroid(host.platform)) {
+                setHostMdmDeviceState("clearing_passcode");
+              }
+            }}
+          />
         )}
       </>
     );

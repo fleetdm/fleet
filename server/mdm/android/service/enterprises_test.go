@@ -222,6 +222,12 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
 		return nil
 	}
+	ds.Store.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+		return nil, &notFoundError{}
+	}
+	ds.Store.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return nil, &notFoundError{}
+	}
 	return &ds
 }
 

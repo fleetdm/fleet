@@ -103,6 +103,10 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
 	toInsertBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(incomingBySHA1))
 	toSetSourcesBySHA1 := make(map[string][]certSourceToSet, len(incomingBySHA1))
+	// Existing mdm-origin rows that osquery is also reporting. One-way
+	// downgrade: osquery sees a strict superset of the keychain, so dual
+	// observation isn't evidence of MDM delivery.
+	var toDowngrade []uint
 	for sha1, incoming := range incomingBySHA1 {
 		incomingSources := incomingSourcesBySHA1[sha1]
 		existingSources := existingSourcesBySHA1[sha1]
@@ -121,8 +125,13 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			toSetSourcesBySHA1[sha1] = incomingSources
 		}
 
+		existing, hasExisting := existingBySHA1[sha1]
+		if hasExisting && existing.Origin == fleet.HostCertificateOriginMDM && incoming.Origin == fleet.HostCertificateOriginOsquery {
+			toDowngrade = append(toDowngrade, existing.ID)
+		}
+
 		// Check by SHA but also validity dates, as certs with dynamic SCEP challenges, the profile contents does not change other than validity dates.
-		if existing, ok := existingBySHA1[sha1]; ok && existing.NotValidBefore.Equal(incoming.NotValidBefore) && existing.NotValidAfter.Equal(incoming.NotValidAfter) {
+		if hasExisting && existing.NotValidBefore.Equal(incoming.NotValidBefore) && existing.NotValidAfter.Equal(incoming.NotValidAfter) {
 			// TODO: should we always update existing records? skipping updates reduces db load but
 			// osquery is using sha1 so we consider subtleties
 			ds.logger.DebugContext(ctx, fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
@@ -337,6 +346,10 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 
 		if err := softDeleteHostCertsDB(ctx, tx, hostID, toDelete); err != nil {
 			return ctxerr.Wrap(ctx, err, "soft delete host certs")
+		}
+
+		if err := downgradeHostCertsOriginToOsqueryDB(ctx, tx, hostID, toDowngrade); err != nil {
+			return ctxerr.Wrap(ctx, err, "downgrade host certs origin")
 		}
 
 		if err := updateHostMDMManagedCertDetailsDB(ctx, tx, hostMDMManagedCertsToUpdate); err != nil {
@@ -642,6 +655,21 @@ INSERT INTO host_certificates (
 	return nil
 }
 
+func downgradeHostCertsOriginToOsqueryDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	stmt := `UPDATE host_certificates SET origin = ? WHERE host_id = ? AND id IN (?) AND origin = ?`
+	stmt, args, err := sqlx.In(stmt, fleet.HostCertificateOriginOsquery, hostID, ids, fleet.HostCertificateOriginMDM)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building downgrade origin query")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "downgrading host certificate origin")
+	}
+	return nil
+}
+
 func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, toDelete []uint) error {
 	// TODO: consider whether we should hard delete certs after a certain period of time if we are seeing
 	// the table grow too large with soft deleted records
@@ -661,6 +689,55 @@ func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint,
 	}
 
 	return nil
+}
+
+// softDeleteMDMHostCertsDB clears all MDM-origin cert rows on unenroll, where
+// nothing else will: no more CertificateList, and osquery can't see
+// hardware-bound ACME certs.
+func softDeleteMDMHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
+	const stmt = `UPDATE host_certificates SET deleted_at = NOW(6) WHERE host_id = ? AND origin = ? AND deleted_at IS NULL`
+	if _, err := tx.ExecContext(ctx, stmt, hostID, fleet.HostCertificateOriginMDM); err != nil {
+		return ctxerr.Wrap(ctx, err, "soft deleting mdm host certificates")
+	}
+	return nil
+}
+
+// See the Datastore interface for contract. Batched to bound lock scope: a
+// host can have many MDM certs, so a mass unenroll could otherwise lock a
+// large set in one statement.
+func (ds *Datastore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error) {
+	const batchSize = 1000
+	// Derived-table wrap is required: MySQL forbids referencing the updated
+	// table directly in the subquery's FROM.
+	const stmt = `
+		UPDATE host_certificates
+		SET deleted_at = NOW(6)
+		WHERE deleted_at IS NULL AND id IN (
+			SELECT id FROM (
+				SELECT hc.id
+				FROM host_certificates hc
+				JOIN host_mdm hm ON hm.host_id = hc.host_id AND hm.enrolled = 0
+				WHERE hc.origin = ? AND hc.deleted_at IS NULL
+				ORDER BY hc.id
+				LIMIT ?
+			) AS batch
+		)`
+	var total int64
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.HostCertificateOriginMDM, batchSize)
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "soft-delete mdm host certificates for unenrolled hosts")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "rows affected for mdm host certificates sweep")
+		}
+		total += n
+		if n < batchSize {
+			break
+		}
+	}
+	return total, nil
 }
 
 func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {

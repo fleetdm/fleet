@@ -1538,6 +1538,227 @@ describe("Host Actions Dropdown", () => {
     });
   });
 
+  describe("Android hosts", () => {
+    it("renders Transfer + Clear passcode + Unenroll + Lock + Delete for a BYO Android host with MDM on", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isAndroidMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="android"
+          hostMdmEnrollmentStatus="On (personal)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Lock")).toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+      expect(screen.queryByText("Unenroll")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      // BYO Android: Wipe is rejected by both EE service validation and the dropdown helper.
+      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+      // Android has no Fleet-side Unlock concept.
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+    });
+
+    it("renders Transfer + Clear passcode + Lock + Wipe + Delete for a COBO Android host with MDM on", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isAndroidMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="android"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Lock")).toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      // COBO Android: Unenroll is not surfaced; the explicit Wipe option is shown instead.
+      expect(screen.queryByText("Unenroll")).not.toBeInTheDocument();
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+    });
+
+    it("does NOT show Wipe for an Android host with enrollment status 'On (manual)' (Wipe requires COBO; allow-list, not negative check)", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isAndroidMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="android"
+          hostMdmEnrollmentStatus="On (manual)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      // Lock and Clear passcode are still available for any MDM-on Android host.
+      expect(screen.queryByText("Lock")).toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).toBeInTheDocument();
+      // Wipe must NOT appear — COBO requires "On (automatic)" or "On (company-owned)".
+      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+    });
+
+    it("renders only Transfer + Delete when Android MDM is disabled", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            isAndroidMdmEnabledAndConfigured: false,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="android"
+          hostMdmEnrollmentStatus="Off"
+          isConnectedToFleetMdm={false}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+      expect(screen.queryByText("Unenroll")).not.toBeInTheDocument();
+    });
+
+    // hide Lock / Unenroll / Wipe / Clear passcode whenever any of those four is pending. The four canX helpers all gate on hostMdmDeviceStatus !== "unlocked",
+    // so one table covers the matrix:
+    //   - which COBO/BYO arm of the helpers we exercise (enrollment status)
+    //   - which pending state surfaces the gate (device status)
+    // For COBO, "Unenroll" is always hidden (COBO doesn't have it); the assertion list only
+    // includes options that would otherwise be visible for that enrollment.
+    it.each([
+      {
+        case: "COBO + locking",
+        enrollment: "On (automatic)" as const,
+        deviceStatus: "locking" as const,
+        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+      },
+      {
+        case: "COBO + wiping",
+        enrollment: "On (automatic)" as const,
+        deviceStatus: "wiping" as const,
+        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+      },
+      {
+        case: "COBO + clearing_passcode",
+        enrollment: "On (automatic)" as const,
+        deviceStatus: "clearing_passcode" as const,
+        expectHidden: ["Lock", "Wipe", "Clear passcode"],
+      },
+      {
+        // BYO Android Unenroll fires AMAPI WIPE under the hood, so the pending-unenroll state
+        // surfaces as hostMdmDeviceStatus="wiping" with enrollment "On (personal)".
+        case: "BYO + wiping (= pending unenroll)",
+        enrollment: "On (personal)" as const,
+        deviceStatus: "wiping" as const,
+        expectHidden: ["Lock", "Clear passcode", "Unenroll"],
+      },
+    ])(
+      "hides pending-gated actions for Android when $case (#41683)",
+      async ({ enrollment, deviceStatus, expectHidden }) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: true,
+              isGlobalAdmin: true,
+              isAndroidMdmEnabledAndConfigured: true,
+              currentUser: createMockUser(),
+            },
+          },
+        });
+
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="android"
+            hostMdmEnrollmentStatus={enrollment}
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus={deviceStatus}
+            hostScriptsEnabled={false}
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        expectHidden.forEach((label) => {
+          expect(screen.queryByText(label)).not.toBeInTheDocument();
+        });
+      }
+    );
+  });
+
   describe("personally enrolled hosts (e.g. enrollment status => On (personal)", () => {
     it("render only the Transfer and Delete options for personally enrolled ios host", async () => {
       const render = createCustomRenderer({
