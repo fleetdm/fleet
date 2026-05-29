@@ -4800,9 +4800,110 @@ func TestAppleMDMFileVaultEscrowFunctions(t *testing.T) {
 
 func TestGenerateEnrollmentProfileMobileConfig(t *testing.T) {
 	// SCEP challenge should be escaped for XML
-	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic")
+	b, err := apple_mdm.GenerateEnrollmentProfileMobileconfig("foo", "https://example.com", "foo&bar", "topic", apple_mdm.MDMAccessRightAll)
 	require.NoError(t, err)
 	require.Contains(t, string(b), "foo&amp;bar")
+}
+
+func TestComputeAppleEnrollmentAccessRights(t *testing.T) {
+	ds := new(mock.Store)
+	// Bypass validationMiddleware so we can call the private method directly.
+	s := &Service{ds: ds}
+	ctx := t.Context()
+
+	const teamID = uint(7)
+	const hostUUID = "uuid-42"
+
+	// Default: global AppConfig with both BYOD flags unset (treat as true).
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	// Default: no team MDM config returned unless a test overrides it.
+	ds.TeamMDMConfigFunc = func(ctx context.Context, tID uint) (*fleet.TeamMDM, error) {
+		require.Equal(t, teamID, tID)
+		return &fleet.TeamMDM{AllowBYODWipe: true, AllowBYODLock: true}, nil
+	}
+
+	t.Run("global config, no host: returns fleet ceiling (default true → all)", func(t *testing.T) {
+		ds.GetHostMDMAppleEnrollmentPermissionsFuncInvoked = false
+		got, err := s.computeAppleEnrollmentAccessRights(ctx, nil, "")
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.MDMAccessRightAll, got)
+		require.False(t, ds.GetHostMDMAppleEnrollmentPermissionsFuncInvoked,
+			"empty hostUUID must skip the stored-rights lookup")
+	})
+
+	t.Run("global config with wipe disabled, no host", func(t *testing.T) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.AllowBYODWipe = optjson.SetBool(false)
+			ac.MDM.AllowBYODLock = optjson.SetBool(true)
+			return ac, nil
+		}
+		got, err := s.computeAppleEnrollmentAccessRights(ctx, nil, "")
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, true), got)
+	})
+
+	t.Run("team config: uses TeamMDMConfig and ignores AppConfig", func(t *testing.T) {
+		ds.AppConfigFuncInvoked = false
+		ds.TeamMDMConfigFunc = func(ctx context.Context, tID uint) (*fleet.TeamMDM, error) {
+			require.Equal(t, teamID, tID)
+			return &fleet.TeamMDM{AllowBYODWipe: false, AllowBYODLock: false}, nil
+		}
+		tid := teamID
+		got, err := s.computeAppleEnrollmentAccessRights(ctx, &tid, "")
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, false), got)
+		require.False(t, ds.AppConfigFuncInvoked, "team path must not touch global AppConfig")
+	})
+
+	t.Run("host with no stored row: returns fleet ceiling", func(t *testing.T) {
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hUUID string) (*fleet.HostMDMApplePermissions, error) {
+			require.Equal(t, hostUUID, hUUID)
+			return nil, &notFoundError{}
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.AllowBYODWipe = optjson.SetBool(false)
+			ac.MDM.AllowBYODLock = optjson.SetBool(true)
+			return ac, nil
+		}
+		got, err := s.computeAppleEnrollmentAccessRights(ctx, nil, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, true), got)
+	})
+
+	t.Run("host with stored row: result is stored AND ceiling (monotonic narrowing)", func(t *testing.T) {
+		// Stored=6655 (host enrolled when both were disabled), fleet now permits both.
+		// Expected: result stays at 6655 because we cannot widen what's on the device.
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hUUID string) (*fleet.HostMDMApplePermissions, error) {
+			return &fleet.HostMDMApplePermissions{HostUUID: hUUID, AccessRights: apple_mdm.AppleEnrollmentAccessRights(false, false)}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil // both defaults → true
+		}
+		got, err := s.computeAppleEnrollmentAccessRights(ctx, nil, hostUUID)
+		require.NoError(t, err)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(false, false), got)
+	})
+
+	t.Run("AppConfig error propagates", func(t *testing.T) {
+		boom := errors.New("appconfig boom")
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return nil, boom }
+		_, err := s.computeAppleEnrollmentAccessRights(ctx, nil, "")
+		require.ErrorIs(t, err, boom)
+	})
+
+	t.Run("permissions DB error (not NotFound) propagates", func(t *testing.T) {
+		boom := errors.New("perms boom")
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hUUID string) (*fleet.HostMDMApplePermissions, error) {
+			return nil, boom
+		}
+		_, err := s.computeAppleEnrollmentAccessRights(ctx, nil, hostUUID)
+		require.ErrorIs(t, err, boom)
+	})
 }
 
 func TestEnsureFleetdConfig(t *testing.T) {

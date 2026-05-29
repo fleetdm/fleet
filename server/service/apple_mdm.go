@@ -2333,6 +2333,7 @@ func (svc *Service) generateMDMAppleACMEEnrollProfile(ctx context.Context, hardw
 		acmeIdent,
 		hardwareSerial,
 		topic,
+		apple_mdm.MDMAccessRightAll,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleACMEEnrollProfile: generating ACME enrollment profile")
@@ -2354,12 +2355,74 @@ func (svc *Service) generateMDMAppleSCEPEnrollProfile(ctx context.Context, orgNa
 		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		apple_mdm.MDMAccessRightAll,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generateMDMAppleSCEPEnrollProfile: generating enrollment profile")
 	}
 
 	return enrollProf, nil
+}
+
+// computeAppleEnrollmentAccessRights returns the AccessRights bitmask to bake
+// into the next Apple enrollment .mobileconfig delivered to a host.
+//
+// It encapsulates:
+//   - reading the owning fleet's BYOD permission flags (or the global AppConfig
+//     when teamID is nil) to derive the fleet ceiling,
+//   - reading the host's previously-delivered rights from
+//     host_mdm_apple_enrollment_permissions (the floor),
+//   - intersecting the two so the result never widens what Apple has already
+//     installed on the device (Apple rejects profile-replacements that grant
+//     more rights than were previously granted).
+//
+// Pass hostUUID == "" for initial enrollment with no stored floor yet (e.g.
+// no host record exists); in that case the result is the fleet ceiling alone.
+//
+// Callers are responsible for short-circuiting non-BYOD cases (ADE-enrolled
+// hosts, non-Apple platforms) before calling this — there, just pass
+// apple_mdm.MDMAccessRightAll directly to the profile generator.
+func (svc *Service) computeAppleEnrollmentAccessRights(ctx context.Context, teamID *uint, hostUUID string) (int, error) {
+	allowWipe, allowLock, err := svc.fleetBYODPermissions(ctx, teamID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "load fleet BYOD permissions")
+	}
+
+	if hostUUID == "" {
+		return apple_mdm.AppleEnrollmentAccessRights(allowWipe, allowLock), nil
+	}
+
+	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, hostUUID)
+	var storedPtr *int
+	switch {
+	case err == nil:
+		storedPtr = &perms.AccessRights
+	case fleet.IsNotFound(err):
+		storedPtr = nil
+	default:
+		return 0, ctxerr.Wrap(ctx, err, "load host MDM Apple enrollment permissions")
+	}
+	return apple_mdm.ComputeAppleEnrollmentAccessRights(allowWipe, allowLock, storedPtr), nil
+}
+
+// fleetBYODPermissions returns the (allow_byod_wipe, allow_byod_lock) flags
+// for a team (or the global AppConfig if teamID is nil). Both default to true
+// when the underlying config does not explicitly set them.
+func (svc *Service) fleetBYODPermissions(ctx context.Context, teamID *uint) (allowWipe, allowLock bool, err error) {
+	if teamID == nil {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return false, false, err
+		}
+		allowWipe = !ac.MDM.AllowBYODWipe.Valid || ac.MDM.AllowBYODWipe.Value
+		allowLock = !ac.MDM.AllowBYODLock.Valid || ac.MDM.AllowBYODLock.Value
+		return allowWipe, allowLock, nil
+	}
+	tm, err := svc.ds.TeamMDMConfig(ctx, *teamID)
+	if err != nil {
+		return false, false, err
+	}
+	return tm.AllowBYODWipe, tm.AllowBYODLock, nil
 }
 
 func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *fleet.MDMAppleMachineInfo) (*fleet.MDMAppleSoftwareUpdateRequired, error) {
@@ -6231,6 +6294,7 @@ func RenewSCEPCertificates(
 				appConfig.MDMUrl(),
 				scepChallenge,
 				mdmPushCertTopic,
+				apple_mdm.MDMAccessRightAll,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
@@ -6299,6 +6363,7 @@ func RenewSCEPCertificates(
 			enrollURL,
 			scepChallenge,
 			mdmPushCertTopic,
+			apple_mdm.MDMAccessRightAll,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
@@ -6338,6 +6403,7 @@ func RenewSCEPCertificates(
 			acmeIdent,
 			di.HardwareSerial,
 			mdmPushCertTopic,
+			apple_mdm.MDMAccessRightAll,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts requiring ACME renewal")
@@ -7344,6 +7410,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		mdmURL,
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		apple_mdm.MDMAccessRightAll,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
