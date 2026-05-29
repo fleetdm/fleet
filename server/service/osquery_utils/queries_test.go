@@ -2131,6 +2131,17 @@ func TestDirectDiskEncryption(t *testing.T) {
 	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
 }
 
+// TestUsesMacOSDiskEncryptionQueryDoesNotGateOnSecureToken guards against reintroducing
+// the user_uuid predicate that caused https://github.com/fleetdm/fleet/issues/45369.
+// In the post-ADE window the disk_encryption.user_uuid column can be empty while
+// FileVault is on; filtering on it makes the host appear unencrypted and blocks
+// recovery-key escrow until the user logs out/in.
+func TestUsesMacOSDiskEncryptionQueryDoesNotGateOnSecureToken(t *testing.T) {
+	require.NotContains(t, usesMacOSDiskEncryptionQuery, "user_uuid",
+		"usesMacOSDiskEncryptionQuery must not filter on user_uuid; see issue #45369")
+	require.Contains(t, usesMacOSDiskEncryptionQuery, "filevault_status = 'on'")
+}
+
 func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
 	ds := new(mock.Store)
 	var gotEncrypted bool

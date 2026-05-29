@@ -1,0 +1,8 @@
+{
+  "name": "VNC Server",
+  "unique_identifier": "com.realvnc.vncserver",
+  "token": "vnc-server",
+  "installer_format": "pkg",
+  "slug": "vnc-server/darwin",
+  "default_categories": ["Productivity"]
+}

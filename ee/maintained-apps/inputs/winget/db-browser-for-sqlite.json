@@ -1,0 +1,11 @@
+{
+  "name": "DB Browser for SQLite",
+  "slug": "db-browser-for-sqlite/windows",
+  "package_identifier": "DBBrowserForSQLite.DBBrowserForSQLite",
+  "unique_identifier": "DB Browser for SQLite",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

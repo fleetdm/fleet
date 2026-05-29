@@ -6,6 +6,8 @@ import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
 import AmazonCorretto25 from "./AmazonCorretto25";
+import AzulZulu25Jdk from "./AzulZulu25Jdk";
+import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
 import Bluej from "./Bluej";
@@ -32,9 +34,11 @@ import Ollama from "./Ollama";
 import OpenvpnConnect from "./OpenvpnConnect";
 import PowerBi from "./PowerBi";
 import Plugdata from "./Plugdata";
+import Prisma from "./Prisma";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
+import RealVncServer from "./RealVncServer";
 import Secretive from "./Secretive";
 import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
@@ -304,6 +308,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   avast: AvastSecureBrowser,
   "aws vpn client": AwsVpnClient,
   "aws client vpn": AwsVpnClient,
+  "azul zulu 25 jdk": AzulZulu25Jdk,
+  "azul zulu 25 jre": AzulZulu25Jre,
   backblaze: Backblaze,
   balenaetcher: BalenaEtcher,
   bbedit: BBEdit,
@@ -461,6 +467,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "podman desktop": PodmanDesktop,
   postman: Postman,
   "power bi": PowerBi,
+  prisma: Prisma,
   privileges: Privileges,
   pritunl: Pritunl,
   "proton mail": ProtonMail,
@@ -474,6 +481,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "rancher desktop": RancherDesktop,
   rapidapi: RapidApi,
   raycast: Raycast,
+  "realvnc server": RealVncServer,
   rectangle: Rectangle,
   rider: Rider,
   "royal tsx": RoyalTsx,
