@@ -514,7 +514,7 @@ Below are a few need-to-knows about what's available in Fleet's CSS:
 
 ### Spacing
 
-Prefer `gap` over `margin` for spacing between sibling elements. We have layout mixins in
+Prefer `gap` over `margin` for spacing between sibling elements when they share a flex or grid parent (otherwise `gap` has no effect). We have layout mixins in
 `frontend/styles/var/mixins.scss` for common flex column patterns:
 
 | Mixin | Gap | Use for |
