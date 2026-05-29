@@ -308,7 +308,7 @@ oHwpyQbv9Qs+3bjPOQ7DkwekT+w1cptEKudBCC3WQKui1P0NNL0R
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
 
 // TestAzureDataFromClaims covers the claim extraction (separated from JWKS signature verification), in particular the
-// upn -> preferred_username fallback that lets v2 access tokens enroll. See issue #46388.
+// upn -> preferred_username fallback that lets v2 access tokens enroll.
 func TestAzureDataFromClaims(t *testing.T) {
 	ctx := t.Context()
 	const tid = "6d8769e6-0f8b-418d-b385-1a53968781c9"

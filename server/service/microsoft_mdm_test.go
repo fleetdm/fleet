@@ -1723,8 +1723,7 @@ func TestGetESPCommands(t *testing.T) {
 
 // TestHasAuthorizedAzureAudience covers the audience-matching logic that authorizes Entra-issued tokens for Windows
 // automatic enrollment, including the v2 (client ID / GUID `aud`) path added for issue #46388 and the unchanged v1
-// (server-URL `aud`) path. The full token-parsing flow (GetAzureAuthTokenClaims) verifies signatures against Azure
-// JWKS and is covered by integration tests; this isolates the pure matching decision.
+// (server-URL `aud`) path.
 func TestHasAuthorizedAzureAudience(t *testing.T) {
 	const (
 		serverHost = "fleet.example.com"
@@ -1776,7 +1775,7 @@ func TestHasAuthorizedAzureAudience(t *testing.T) {
 }
 
 // TestHasAuthorizedAzureTenant covers the tenant-matching logic that authorizes Entra-issued tokens by the `tid`
-// claim. The comparison is case-insensitive (issue #46388): the GUID validator accepts upper-case tenant IDs, and
+// claim. The comparison is case-insensitive: the GUID validator accepts upper-case tenant IDs, and
 // Entra emits `tid` lower-cased, so a tenant ID stored with upper-case hex must still authorize enrollment.
 func TestHasAuthorizedAzureTenant(t *testing.T) {
 	const (

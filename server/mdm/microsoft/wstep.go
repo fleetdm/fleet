@@ -408,12 +408,9 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 	return azureDataFromClaims(ctx, token.Claims.(jwt.MapClaims))
 }
 
-// azureDataFromClaims extracts and validates the Fleet-relevant claims from an already signature-verified Azure AD
-// JWT. It is separated from GetAzureAuthTokenClaims (which performs the JWKS signature verification) so the claim
-// handling - in particular the upn -> preferred_username fallback for v2 tokens, see issue #46388 - can be unit-tested
-// without a JWKS endpoint.
+// azureDataFromClaims extracts and validates the Fleet-relevant claims from an already signature-verified Azure AD JWT.
 func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, error) {
-	// Get UPN claim. v1 access tokens carry `upn`; v2 tokens may instead carry `preferred_username` (see issue #46388),
+	// Get UPN claim. v1 access tokens carry `upn`; v2 tokens may instead carry `preferred_username`,
 	// so fall back to it when `upn` is absent. Only error when neither is present.
 	upnClaim, ok := claims["upn"].(string)
 	if !ok || len(upnClaim) == 0 {

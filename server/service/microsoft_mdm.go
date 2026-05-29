@@ -960,8 +960,7 @@ func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet
 // hasAuthorizedAzureAudience reports whether any audience value in an Entra-issued JWT is authorized for Windows
 // automatic enrollment. An audience is authorized if either:
 //   - it equals a configured Entra application client ID (v2 access tokens, whose `aud` is the app's client ID, a
-//     GUID), compared case-insensitively after trimming - validation accepts client IDs in either case without
-//     normalizing them, and the token is untrusted input, so both sides are lower-cased here before comparing; or
+//     GUID), compared case-insensitively after trimming
 //   - it parses as a URL whose host (host:port) matches serverHost (v1 access tokens, whose `aud` is the Fleet server URL).
 //
 // The client-ID (v2) path is additive: it does not change the v1 server-URL behavior. An audience that is neither a
@@ -980,8 +979,7 @@ func hasAuthorizedAzureAudience(audiences []string, serverHost string, clientIDs
 		// v1 token: `aud` is a URL whose host must match the Fleet server URL's. The audience may have multiple values
 		// and not everything in it will be a URL, and that's OK. Compare the full host (host:port) case-insensitively:
 		// per RFC 3986 the host is case-insensitive, but the port must match so a token for a different port on the same
-		// hostname is not authorized. The Host != "" guard rejects the degenerate empty-host case (a GUID `aud` parses
-		// to an empty host, which must never match a misconfigured empty serverHost).
+		// hostname is not authorized.
 		audURL, err := url.Parse(aud)
 		if err != nil {
 			continue
@@ -1098,8 +1096,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 		}
 
 		if !hasAuthorizedAzureAudience(tokenData.Audience, expectedURLParsed.Host, appConfig.MDM.WindowsEntraClientIDs.Value) {
-			// Log bad audiences here for debugging. token_audiences includes the unexpected client ID (for v2 tokens)
-			// so admins can copy it into windows_entra_client_ids.
+			// Log bad audiences here for debugging.
 			svc.logger.ErrorContext(ctx, "unexpected token audience in AzureAD Binary Security Token",
 				"expected_host", expectedURLParsed.Host,
 				"configured_client_ids", strings.Join(appConfig.MDM.WindowsEntraClientIDs.Value, ","),

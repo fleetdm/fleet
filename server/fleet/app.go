@@ -246,9 +246,7 @@ type MDM struct {
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
 	// WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for
-	// Windows automatic enrollment. It authorizes v2 access tokens, whose `aud` claim is the application's client ID,
-	// in addition to v1 tokens (whose `aud` is the Fleet server URL). It is matched independently of
-	// WindowsEntraTenantIDs; both the tenant and the audience must be authorized. See issue #46388.
+	// Windows automatic enrollment.
 	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
