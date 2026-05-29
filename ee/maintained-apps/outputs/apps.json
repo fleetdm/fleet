@@ -2032,24 +2032,10 @@
       "description": "Splashtop Business is remote access software."
     },
     {
-      "name": "Splashtop Business",
-      "slug": "splashtop-business/windows",
-      "platform": "windows",
-      "unique_identifier": "Splashtop Business",
-      "description": "Splashtop Business is remote access software."
-    },
-    {
       "name": "Splashtop Streamer",
       "slug": "splashtop-streamer/darwin",
       "platform": "darwin",
       "unique_identifier": "com.splashtop.Splashtop-Streamer",
-      "description": "Splashtop Streamer is used to connect to and control computers."
-    },
-    {
-      "name": "Splashtop Streamer",
-      "slug": "splashtop-streamer/windows",
-      "platform": "windows",
-      "unique_identifier": "Splashtop Streamer",
       "description": "Splashtop Streamer is used to connect to and control computers."
     },
     {
