@@ -106,7 +106,7 @@ const WindowsAutomaticEnrollmentPage = () => {
         <EmptyState
           variant="header-list"
           header="No client IDs added"
-          info="Add your Entra application client ID to enroll Windows hosts that use v2 access tokens."
+          info="Add your Entra application client ID to enroll Windows hosts."
           primaryButton={
             <GitOpsModeTooltipWrapper
               renderChildren={(disable) => (

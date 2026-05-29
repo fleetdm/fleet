@@ -46,9 +46,7 @@ const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
   };
 
   const onAddClientId = async () => {
-    // Normalize to a canonical lower-case GUID before validating, de-duplicating, and sending. The backend validates
-    // client IDs against a lower-case-only GUID regex and compares them case-insensitively, so uppercase input would
-    // otherwise pass UI (isUUID) validation but be rejected on save.
+    // Normalize to a canonical lower-case GUID before validating, de-duplicating, and sending.
     const clientId = formData.clientId?.trim().toLowerCase();
 
     const validation = validateFormData({ clientId });

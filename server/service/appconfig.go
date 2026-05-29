@@ -504,9 +504,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
-	// When Windows MDM is being turned off and the incoming payload doesn't set the Entra allowlists, clear them. Use
-	// SetSlice (Set+Valid+empty), not just .Value: optjson.Slice marshals to null when Valid is false (e.g. after a
-	// `null` PATCH), which would defeat the migrations' goal of returning [] from GET /config.
+	// When Windows MDM is being turned off and the incoming payload doesn't set the Entra allowlists, clear them.
 	clearEntraIDsIfWindowsTurnedOff := func(field *optjson.Slice[string], incomingLen int) {
 		if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
 			!appConfig.MDM.WindowsEnabledAndConfigured && incomingLen == 0 {
@@ -1520,10 +1518,9 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 }
 
 // windowsEntraGUIDRegex matches an Azure/Entra GUID in 8-4-4-4-12 form, case-insensitively. Entra emits IDs in
-// lower-case, but admins may paste them in upper-case, so we accept either case here and normalize at comparison
-// time instead (hasAuthorizedAzureTenant for the `tid` claim, hasAuthorizedAzureAudience for the v2 `aud` claim)
-// rather than rewriting the stored value. We can't use the standard UUID parser here as it accepts non-standard
-// forms; Entra tenant IDs and application client IDs are both validated against this so the two checks cannot drift.
+// lower-case, but admins may paste them in upper-case, so we accept either case here and normalize at comparison time
+// instead. We can't use the standard UUID parser here as it accepts non-standard forms; Entra tenant IDs and application
+// client IDs are both validated against this so the two checks cannot drift.
 var windowsEntraGUIDRegex = regexp.MustCompile("^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$")
 
 // diffStringSlices returns the elements added (present in current but not old) and removed (present in old but not
@@ -1841,9 +1838,7 @@ func (svc *Service) validateMDM(
 		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM is not enabled.")
 	}
 
-	// Validate Windows Entra tenant IDs and application client IDs are in the correct GUID format (see
-	// windowsEntraGUIDRegex). Client IDs additionally authorize v2 access tokens, whose `aud` is the client ID.
-	// Format is validated before the "Windows MDM is not enabled" gates below so a malformed GUID surfaces first.
+	// Validate Windows Entra tenant IDs and application client IDs are in the correct GUID format.
 	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
 		if !windowsEntraGUIDRegex.MatchString(tenantID) {
 			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
