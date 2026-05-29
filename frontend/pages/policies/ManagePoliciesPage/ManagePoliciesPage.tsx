@@ -631,32 +631,41 @@ const ManagePolicyPage = ({
     hasPoliciesToAutomate || (isPrimoMode && (teamPolicies?.length ?? 0) > 0); // in Primo mode, allow deleting inherited policies, which will be included in teamPolicies, from this view
 
   // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
-  let currentAutomatedPolicies: number[] = [];
-  let otherAutomationType: OtherAutomationType | undefined;
-  if (automationsConfig) {
+  const getAutomationInfoFromConfig = (
+    cfg: IConfig | ITeamConfig | undefined
+  ): { policyIds: number[]; type: OtherAutomationType | undefined } => {
+    if (!cfg) return { policyIds: [], type: undefined };
     const {
-      webhook_settings: { failing_policies_webhook: webhook },
+      webhook_settings: { failing_policies_webhook: webhook } = {},
       integrations,
-    } = automationsConfig;
-
-    let isIntegrationEnabled = false;
-    if (integrations) {
-      const { jira, zendesk } = integrations;
-      isIntegrationEnabled =
-        !!jira?.find((j) => j.enable_failing_policies) ||
-        !!zendesk?.find((z) => z.enable_failing_policies);
-    }
-
-    if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
-      currentAutomatedPolicies = webhook?.policy_ids || [];
-    }
-
-    if (isIntegrationEnabled) {
-      otherAutomationType = "ticket";
-    } else if (webhook?.enable_failing_policies_webhook) {
-      otherAutomationType = "webhook";
-    }
-  }
+    } = cfg;
+    const isIntegrationEnabled =
+      !!integrations?.jira?.find((j) => j.enable_failing_policies) ||
+      !!integrations?.zendesk?.find((z) => z.enable_failing_policies);
+    const isWebhookEnabled = !!webhook?.enable_failing_policies_webhook;
+    const policyIds =
+      isIntegrationEnabled || isWebhookEnabled ? webhook?.policy_ids ?? [] : [];
+    let type: OtherAutomationType | undefined;
+    if (isIntegrationEnabled) type = "ticket";
+    else if (isWebhookEnabled) type = "webhook";
+    return { policyIds, type };
+  };
+  const fleetAutomationInfo = getAutomationInfoFromConfig(automationsConfig);
+  // Inherited (global) policies are listed in team views, but their webhook
+  // membership lives on the *global* config — not the team's.
+  // Union both so an inherited policy with a global-config webhook/ticket
+  // still shows the correct data.
+  const inheritedAutomationInfo = !isAllTeamsSelected
+    ? getAutomationInfoFromConfig(globalConfig)
+    : { policyIds: [], type: undefined as OtherAutomationType | undefined };
+  const currentAutomatedPolicies: number[] = Array.from(
+    new Set([
+      ...fleetAutomationInfo.policyIds,
+      ...inheritedAutomationInfo.policyIds,
+    ])
+  );
+  const otherAutomationType: OtherAutomationType | undefined =
+    fleetAutomationInfo.type ?? inheritedAutomationInfo.type;
 
   const renderPoliciesCountAndLastUpdated = (
     count?: number,
