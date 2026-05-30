@@ -20,6 +20,7 @@
   }
   [purpose='landing-page-hero'] {
     padding-top: 64px;
+    padding-bottom: 64px;
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -84,7 +85,11 @@
     letter-spacing: 0.04em;
   }
   [purpose='hero-logos'] {
-    align-self: stretch;
+    max-width: 1200px;
+    padding-left: 60px;
+    padding-right: 60px;
+    margin-top: 64px;
+    margin-bottom: 80px;
     [parasails-component='logo-carousel'] {
       margin-bottom: 0px;
     }
@@ -152,7 +157,7 @@
   [purpose='section-heading'] {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 24px;
     max-width: 800px;
     align-self: center;
     text-align: center;
@@ -240,12 +245,25 @@
     }
   }
 
+  // Full-width architecture diagram — wider than section-image to keep the diagram legible.
+  [purpose='architecture-image'] {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    img {
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+    }
+  }
+
   [purpose='feature-with-image'] {
     .feature-with-image();
     [purpose='feature-text'] {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 32px;
       h3 {
         margin-bottom: 0px;
         color: @core-fleet-black;
@@ -279,56 +297,113 @@
     }
   }
 
-  // The tool catalog: three cards listing the MCP tool surface.
-  [purpose='tool-catalog'] {
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    gap: 24px;
-    align-self: stretch;
-    flex-wrap: wrap;
-  }
-  [purpose='tool-group'] {
+  // Hero "after" panel — replaces the before/after image with just the Plain English side.
+  [purpose='hero-after-panel'] {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
     gap: 16px;
-    flex: 1 1 300px;
-    min-width: 288px;
-    padding: 32px;
+    padding: 28px;
     border-radius: 16px;
     border: 1px solid @core-fleet-black-10;
-    h5 {
-      color: @core-fleet-black;
-      font-family: Inter;
-      font-size: 16px;
-      font-weight: 700;
-      line-height: 120%;
-      margin-bottom: 0px;
+    background: #FFF;
+    [purpose='inline-chat-demo'] {
+      padding: 0px;
+      border: none;
+      background: transparent;
+      gap: 12px;
     }
-    ul {
-      list-style: none;
-      padding-left: 0px;
-      margin-bottom: 0px;
+  }
+  [purpose='hero-after-label'] {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: 3px 10px;
+    border-radius: 6px;
+    background: @core-fleet-black-5;
+    border: 1px solid @core-fleet-black-10;
+    font-family: Inter;
+    font-size: 12px;
+    font-weight: 600;
+    color: @core-fleet-black-75;
+  }
+  [purpose='hero-after-footer'] {
+    font-size: 13px;
+    font-weight: 700;
+    color: @core-fleet-black;
+    margin-bottom: 0px;
+    span {
+      color: @core-vibrant-green;
+      margin-right: 4px;
+    }
+  }
+  [purpose='hero-after-subtitle'] {
+    font-size: 12px;
+    font-weight: 400;
+    color: @core-fleet-black-50;
+    margin-bottom: 0px;
+  }
+
+  // Inline chat demo — small 2-message format for the feature-with-image sections.
+  [purpose='inline-chat-demo'] {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 28px;
+    border-radius: 16px;
+    border: 1px solid @core-fleet-black-10;
+    background: @core-fleet-black-5;
+    width: 100%;
+    [purpose='inline-chat-row'] {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    [purpose='inline-chat-avatar'] {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: @core-fleet-black-25;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Inter;
+      font-size: 10px;
+      font-weight: 700;
+      color: @core-fleet-black;
+      text-transform: uppercase;
+      &.fleet-avatar {
+        background: @core-vibrant-green;
+        color: #FFF;
+        font-size: 13px;
+      }
+    }
+    [purpose='inline-chat-bubble'] {
       display: flex;
       flex-direction: column;
-      gap: 16px;
-    }
-    li {
-      color: @core-fleet-black-75;
-      font-size: 14px;
-      font-weight: 400;
-      line-height: 20px;
-    }
-    code {
-      display: inline-block;
-      background: @core-fleet-black-5;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: @code-font;
-      font-size: 13px;
-      color: @core-fleet-black;
-      margin-bottom: 4px;
+      gap: 8px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: #FFF;
+      border: 1px solid @core-fleet-black-10;
+      p {
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 20px;
+        color: @core-fleet-black-75;
+        margin-bottom: 0px;
+        strong {
+          color: @core-fleet-black;
+          font-weight: 700;
+        }
+        code {
+          font-family: @code-font;
+          font-size: 12px;
+          color: @core-fleet-black-50;
+          background: transparent;
+          padding: 0px;
+        }
+      }
     }
   }
 
@@ -430,6 +505,7 @@
       align-items: flex-start;
       flex: 1 0 30%;
       h5 {
+        color: @core-fleet-black;
         font-weight: 800;
         font-size: 16px;
         line-height: 1.2;
@@ -637,6 +713,10 @@
   }
 
   @media (max-width: 991px) {
+    [purpose='hero-logos'] {
+      padding-left: 32px;
+      padding-right: 32px;
+    }
     [purpose='landing-page-container'] {
       padding-left: 48px;
       padding-right: 48px;
@@ -646,7 +726,7 @@
     }
     [purpose='landing-page-hero'] {
       padding-top: 48px;
-      padding-bottom: 40px;
+      padding-bottom: 48px;
       gap: 40px;
     }
     [purpose='hero-row'] {
@@ -708,6 +788,9 @@
   }
 
   @media (max-width: 768px) {
+    [purpose='hero-logos'] {
+      margin-bottom: 64px;
+    }
     [purpose='landing-page-container'] {
       padding-left: 32px;
       padding-right: 32px;
@@ -730,9 +813,6 @@
           max-width: 100%;
         }
       }
-    }
-    [purpose='tool-catalog'] {
-      flex-direction: column;
     }
     [purpose='two-column-list'] {
       flex-direction: column;
@@ -771,6 +851,10 @@
   }
 
   @media (max-width: 575px) {
+    [purpose='hero-logos'] {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
     [purpose='landing-page-container'] {
       padding-left: 24px;
       padding-right: 24px;
