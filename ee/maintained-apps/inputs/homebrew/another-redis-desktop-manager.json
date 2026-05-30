@@ -4,5 +4,5 @@
   "token": "another-redis-desktop-manager",
   "installer_format": "dmg",
   "slug": "another-redis-desktop-manager/darwin",
-  "default_categories": ["Security"]
+  "default_categories": ["Developer tools"]
 }
