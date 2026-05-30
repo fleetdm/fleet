@@ -61,6 +61,7 @@ interface IManageQueriesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       fleet_id?: string;
+      manage_automations?: string;
     };
     search: string;
   };
@@ -129,6 +130,8 @@ const ManageQueriesPage = ({
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
 
+  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
+
   const curPageFromURL = location.query.page
     ? parseInt(location.query.page, 10)
     : 0;
@@ -171,6 +174,34 @@ const ManageQueriesPage = ({
   const enhancedQueries = useMemo(() => {
     return queriesResponse?.queries.map(enhanceQuery) || [];
   }, [queriesResponse]);
+
+  const isManageAutomationsEnabled = isAnyTeamSelected
+    ? (queriesResponse?.count ?? 0) >
+      (queriesResponse?.inherited_query_count ?? 0)
+    : (queriesResponse?.count ?? 0) > 0;
+
+  // Open the Manage automations modal via deep-link (e.g. from the
+  // command palette). Gate on the same predicate the in-page button
+  // uses — the param alone must not surface a privileged modal to
+  // non-admins or when there's nothing to automate. Wait for
+  // queriesResponse so `isManageAutomationsEnabled` is meaningful;
+  // then always strip the param so a refresh doesn't reopen.
+  useEffect(() => {
+    if (location.query.manage_automations !== "1") return;
+    if (!queriesResponse) return;
+    if (canManageAutomations && isManageAutomationsEnabled) {
+      setShowManageAutomationsModal(true);
+    }
+    const { manage_automations, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    location.query,
+    location.pathname,
+    router,
+    canManageAutomations,
+    isManageAutomationsEnabled,
+    queriesResponse,
+  ]);
 
   useEffect(() => {
     const path = location.pathname + location.search;
@@ -381,12 +412,6 @@ const ManageQueriesPage = ({
       </>
     );
   };
-
-  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
-  const isManageAutomationsEnabled = isAnyTeamSelected
-    ? (queriesResponse?.count ?? 0) >
-      (queriesResponse?.inherited_query_count ?? 0)
-    : (queriesResponse?.count ?? 0) > 0;
 
   return (
     <MainContent className={baseClass}>

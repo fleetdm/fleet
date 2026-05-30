@@ -156,11 +156,32 @@
       "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
     },
     {
+      "name": "Android Studio",
+      "slug": "android-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Android Studio",
+      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
+    },
+    {
       "name": "Anka",
       "slug": "anka-virtualization/darwin",
       "platform": "darwin",
       "unique_identifier": "com.veertu.anka",
       "description": "Anka is a tool for managing and creating virtual machines."
+    },
+    {
+      "name": "Another Redis Desktop Manager",
+      "slug": "another-redis-desktop-manager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "me.qii404.another-redis-desktop-manager",
+      "description": "Another Redis Desktop Manager is a GUI client for Redis."
+    },
+    {
+      "name": "Another Redis Desktop Manager",
+      "slug": "another-redis-desktop-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Another Redis Desktop Manager",
+      "description": "Another Redis Desktop Manager is a GUI client for Redis."
     },
     {
       "name": "AnyDesk",
@@ -226,11 +247,25 @@
       "description": "Audacity is a multi-track audio editor and recorder."
     },
     {
+      "name": "Audacity",
+      "slug": "audacity/windows",
+      "platform": "windows",
+      "unique_identifier": "Audacity",
+      "description": "Audacity is a multi-track audio editor and recorder."
+    },
+    {
       "name": "Avast Secure Browser",
       "slug": "avast-secure-browser/darwin",
       "platform": "darwin",
       "unique_identifier": "com.avast.AvastSecureBrowser",
       "description": "Avast Secure Browser is a web browser focusing on privacy."
+    },
+    {
+      "name": "AWS Command Line Interface v2",
+      "slug": "aws-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "AWS Command Line Interface v2",
+      "description": "AWS Command Line Interface provides a tool for interacting with all parts of Amazon Web Services."
     },
     {
       "name": "AWS Client VPN",
@@ -247,6 +282,20 @@
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
     },
     {
+      "name": "Azul Zulu JDK 25",
+      "slug": "azul-zulu-25-jdk/windows",
+      "platform": "windows",
+      "unique_identifier": "Azul Zulu JDK",
+      "description": "Azul Zulu JDK 25 is a free, certified build of OpenJDK 25 from Azul Systems."
+    },
+    {
+      "name": "Azul Zulu JRE 25",
+      "slug": "azul-zulu-25-jre/windows",
+      "platform": "windows",
+      "unique_identifier": "Azul Zulu JRE",
+      "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
+    },
+    {
       "name": "Backblaze",
       "slug": "backblaze/darwin",
       "platform": "darwin",
@@ -258,6 +307,13 @@
       "slug": "balenaetcher/darwin",
       "platform": "darwin",
       "unique_identifier": "io.balena.etcher",
+      "description": "balenaEtcher is a tool to flash OS images to SD cards & USB drives."
+    },
+    {
+      "name": "balenaEtcher",
+      "slug": "balenaetcher/windows",
+      "platform": "windows",
+      "unique_identifier": "balenaEtcher",
       "description": "balenaEtcher is a tool to flash OS images to SD cards & USB drives."
     },
     {
@@ -294,6 +350,13 @@
       "platform": "darwin",
       "unique_identifier": "com.bitwarden.desktop",
       "description": "Bitwarden is a desktop password and login vault."
+    },
+    {
+      "name": "Bitwarden",
+      "slug": "bitwarden/windows",
+      "platform": "windows",
+      "unique_identifier": "Bitwarden",
+      "description": "Bitwarden is an open-source password management service."
     },
     {
       "name": "Blender",
@@ -352,10 +415,31 @@
       "description": "Bruno is an open source IDE for exploring and testing APIs."
     },
     {
+      "name": "Bruno",
+      "slug": "bruno/windows",
+      "platform": "windows",
+      "unique_identifier": "Bruno",
+      "description": "Bruno is an open source IDE for exploring and testing APIs."
+    },
+    {
+      "name": "Burp Suite Community Edition",
+      "slug": "burp-suite-community/windows",
+      "platform": "windows",
+      "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+      "description": "Burp Suite is a web security testing toolkit."
+    },
+    {
       "name": "calibre",
       "slug": "calibre/darwin",
       "platform": "darwin",
       "unique_identifier": "net.kovidgoyal.calibre",
+      "description": "calibre is e-book management software."
+    },
+    {
+      "name": "calibre",
+      "slug": "calibre/windows",
+      "platform": "windows",
+      "unique_identifier": "calibre",
       "description": "calibre is e-book management software."
     },
     {
@@ -377,6 +461,13 @@
       "slug": "canva/darwin",
       "platform": "darwin",
       "unique_identifier": "com.canva.CanvaDesktop",
+      "description": "Canva is a popular online graphic design tool."
+    },
+    {
+      "name": "Canva",
+      "slug": "canva/windows",
+      "platform": "windows",
+      "unique_identifier": "Canva",
       "description": "Canva is a popular online graphic design tool."
     },
     {
@@ -406,6 +497,13 @@
       "platform": "darwin",
       "unique_identifier": "com.openai.chat",
       "description": "ChatGPT Desktop is OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
+    },
+    {
+      "name": "Chrome Remote Desktop",
+      "slug": "chrome-remote-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Chrome Remote Desktop Host",
+      "description": "Chrome Remote Desktop is an app that allows admins to help troubleshoot through the Google Chrome browser."
     },
     {
       "name": "Cisco Jabber",
@@ -478,6 +576,13 @@
       "description": "CLion is a JetBrains IDE for C and C++."
     },
     {
+      "name": "CLion",
+      "slug": "clion/windows",
+      "platform": "windows",
+      "unique_identifier": "CLion",
+      "description": "CLion is a JetBrains IDE for C and C++."
+    },
+    {
       "name": "Clockify Desktop",
       "slug": "clockify/darwin",
       "platform": "darwin",
@@ -527,6 +632,20 @@
       "description": "CrashPlan is backup and recovery software."
     },
     {
+      "name": "Cryptomator",
+      "slug": "cryptomator/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.cryptomator",
+      "description": "Cryptomator is a multi-platform client-side cloud file encryption tool."
+    },
+    {
+      "name": "Cryptomator",
+      "slug": "cryptomator/windows",
+      "platform": "windows",
+      "unique_identifier": "Cryptomator",
+      "description": "Cryptomator is a multi-platform client-side cloud file encryption tool."
+    },
+    {
       "name": "Cursor",
       "slug": "cursor/darwin",
       "platform": "darwin",
@@ -555,6 +674,13 @@
       "description": "Cyberduck is a server and cloud storage browser."
     },
     {
+      "name": "Max",
+      "slug": "cycling74-max/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cycling74.Max",
+      "description": "Max is a flexible space to create your own interactive software."
+    },
+    {
       "name": "Dash",
       "slug": "dash/darwin",
       "platform": "darwin",
@@ -569,10 +695,24 @@
       "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
     },
     {
+      "name": "DataGrip",
+      "slug": "datagrip/windows",
+      "platform": "windows",
+      "unique_identifier": "DataGrip",
+      "description": "DataGrip is a powerful cross-platform IDE for relational and NoSQL databases."
+    },
+    {
       "name": "DB Browser for SQLite",
       "slug": "db-browser-for-sqlite/darwin",
       "platform": "darwin",
       "unique_identifier": "com.sqlitebrowser.sqlitebrowser",
+      "description": "DB Browser for SQLite is a high quality, visual, open source tool designed for people who want to create, search, and edit SQLite or SQLCipher databases."
+    },
+    {
+      "name": "DB Browser for SQLite",
+      "slug": "db-browser-for-sqlite/windows",
+      "platform": "windows",
+      "unique_identifier": "DB Browser for SQLite",
       "description": "DB Browser for SQLite is a high quality, visual, open source tool designed for people who want to create, search, and edit SQLite or SQLCipher databases."
     },
     {
@@ -583,10 +723,24 @@
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
+      "name": "DBeaver",
+      "slug": "dbeaver-community/windows",
+      "platform": "windows",
+      "unique_identifier": "DBeaver",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
       "name": "DBeaverEE",
       "slug": "dbeaver-enterprise/darwin",
       "platform": "darwin",
       "unique_identifier": "com.dbeaver.product.enterprise",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
+      "name": "DBeaverEE",
+      "slug": "dbeaver-enterprise/windows",
+      "platform": "windows",
+      "unique_identifier": "DBeaverEE",
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
@@ -597,10 +751,24 @@
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
+      "name": "DBeaverLite",
+      "slug": "dbeaverlite/windows",
+      "platform": "windows",
+      "unique_identifier": "DBeaverLite",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
       "name": "DBeaverUltimate",
       "slug": "dbeaverultimate/darwin",
       "platform": "darwin",
       "unique_identifier": "com.dbeaver.product.ultimate",
+      "description": "DBeaver is a universal database tool and SQL client."
+    },
+    {
+      "name": "DBeaverUltimate",
+      "slug": "dbeaverultimate/windows",
+      "platform": "windows",
+      "unique_identifier": "DBeaverUltimate",
       "description": "DBeaver is a universal database tool and SQL client."
     },
     {
@@ -622,6 +790,13 @@
       "slug": "dialpad/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.dialpad",
+      "description": "Dialpad is a cloud communication platform."
+    },
+    {
+      "name": "Dialpad",
+      "slug": "dialpad/windows",
+      "platform": "windows",
+      "unique_identifier": "Dialpad",
       "description": "Dialpad is a cloud communication platform."
     },
     {
@@ -667,10 +842,24 @@
       "description": "draw.io is a versatile diagramming or whiteboarding application."
     },
     {
+      "name": "draw.io",
+      "slug": "drawio/windows",
+      "platform": "windows",
+      "unique_identifier": "draw.io",
+      "description": "draw.io is a versatile diagramming or whiteboarding application."
+    },
+    {
       "name": "Dropbox",
       "slug": "dropbox/darwin",
       "platform": "darwin",
       "unique_identifier": "com.getdropbox.dropbox",
+      "description": "Dropbox is a client for the Dropbox cloud storage service."
+    },
+    {
+      "name": "Dropbox",
+      "slug": "dropbox/windows",
+      "platform": "windows",
+      "unique_identifier": "Dropbox",
       "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
@@ -807,6 +996,13 @@
       "description": "Fork is a git client."
     },
     {
+      "name": "Fork",
+      "slug": "fork/windows",
+      "platform": "windows",
+      "unique_identifier": "Fork",
+      "description": "Fork is a git client."
+    },
+    {
       "name": "Front",
       "slug": "front/darwin",
       "platform": "darwin",
@@ -870,10 +1066,24 @@
       "description": "GitKraken is a git client focusing on productivity."
     },
     {
+      "name": "GitKraken",
+      "slug": "gitkraken/windows",
+      "platform": "windows",
+      "unique_identifier": "GitKraken",
+      "description": "GitKraken is a git client focusing on productivity."
+    },
+    {
       "name": "GoLand",
       "slug": "goland/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.goland",
+      "description": "GoLand is a Go (golang) IDE by JetBrains"
+    },
+    {
+      "name": "GoLand",
+      "slug": "goland/windows",
+      "platform": "windows",
+      "unique_identifier": "GoLand",
       "description": "GoLand is a Go (golang) IDE by JetBrains"
     },
     {
@@ -1010,6 +1220,13 @@
       "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
     },
     {
+      "name": "Insomnia",
+      "slug": "insomnia/windows",
+      "platform": "windows",
+      "unique_identifier": "Insomnia",
+      "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
+    },
+    {
       "name": "IntelliJ IDEA CE",
       "slug": "intellij-idea-ce/darwin",
       "platform": "darwin",
@@ -1064,6 +1281,27 @@
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.toolbox",
       "description": "JetBrains tools manager."
+    },
+    {
+      "name": "JetBrains Toolbox",
+      "slug": "jetbrains-toolbox/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains Toolbox",
+      "description": "JetBrains tools manager."
+    },
+    {
+      "name": "Joplin",
+      "slug": "joplin/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.cozic.joplin-desktop",
+      "description": "Joplin is a note taking and to-do application with synchronisation capabilities."
+    },
+    {
+      "name": "Joplin",
+      "slug": "joplin/windows",
+      "platform": "windows",
+      "unique_identifier": "Joplin",
+      "description": "Joplin is a note taking and to-do application with synchronisation capabilities."
     },
     {
       "name": "KeePassXC",
@@ -1129,6 +1367,13 @@
       "description": "Lens is a Kubernetes IDE."
     },
     {
+      "name": "Lens",
+      "slug": "lens/windows",
+      "platform": "windows",
+      "unique_identifier": "Lens",
+      "description": "Lens is a Kubernetes IDE."
+    },
+    {
       "name": "LibreOffice",
       "slug": "libreoffice/darwin",
       "platform": "darwin",
@@ -1178,6 +1423,13 @@
       "description": "Loom is screen and video recording software."
     },
     {
+      "name": "Loom",
+      "slug": "loom/windows",
+      "platform": "windows",
+      "unique_identifier": "Loom",
+      "description": "Loom is screen and video recording software."
+    },
+    {
       "name": "LuLu",
       "slug": "lulu/darwin",
       "platform": "darwin",
@@ -1203,6 +1455,13 @@
       "slug": "mattermost/darwin",
       "platform": "darwin",
       "unique_identifier": "Mattermost.Desktop",
+      "description": "Mattermost is an open-source, self-hosted Slack-alternative."
+    },
+    {
+      "name": "Mattermost",
+      "slug": "mattermost/windows",
+      "platform": "windows",
+      "unique_identifier": "Mattermost",
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
@@ -1283,6 +1542,13 @@
       "description": "Miro is an online collaborative whiteboard platform."
     },
     {
+      "name": "Miro",
+      "slug": "miro/windows",
+      "platform": "windows",
+      "unique_identifier": "Miro",
+      "description": "Miro is an online collaborative whiteboard platform."
+    },
+    {
       "name": "MongoDB Compass",
       "slug": "mongodb-compass/darwin",
       "platform": "darwin",
@@ -1290,10 +1556,24 @@
       "description": "MongoDB Compass is an interactive tool for analyzing MongoDB data."
     },
     {
+      "name": "MongoDB Compass",
+      "slug": "mongodb-compass/windows",
+      "platform": "windows",
+      "unique_identifier": "MongoDB Compass",
+      "description": "MongoDB Compass is an interactive tool for analyzing MongoDB data."
+    },
+    {
       "name": "MySQL Workbench",
       "slug": "mysqlworkbench/darwin",
       "platform": "darwin",
       "unique_identifier": "com.oracle.workbench.MySQLWorkbench",
+      "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
+    },
+    {
+      "name": "MySQL Workbench",
+      "slug": "mysqlworkbench/windows",
+      "platform": "windows",
+      "unique_identifier": "MySQL Workbench",
       "description": "MySQL Workbench is a visual tool to design, develop and administer MySQL servers."
     },
     {
@@ -1311,11 +1591,25 @@
       "description": "NordPass is a password manager."
     },
     {
+      "name": "NordPass",
+      "slug": "nordpass/windows",
+      "platform": "windows",
+      "unique_identifier": "NordPass",
+      "description": "NordPass is a password manager from the makers of NordVPN."
+    },
+    {
       "name": "NordVPN",
       "slug": "nordvpn/darwin",
       "platform": "darwin",
       "unique_identifier": "com.nordvpn.macos",
       "description": "NordVPN is a VPN client for secure internet access and private browsing."
+    },
+    {
+      "name": "NordVPN",
+      "slug": "nordvpn/windows",
+      "platform": "windows",
+      "unique_identifier": "NordVPN",
+      "description": "NordVPN is a commercial VPN service."
     },
     {
       "name": "Notepad++",
@@ -1329,6 +1623,13 @@
       "slug": "notion-calendar/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cron.electron",
+      "description": "Notion Calendar is an app to manage your time and work, together."
+    },
+    {
+      "name": "Notion Calendar",
+      "slug": "notion-calendar/windows",
+      "platform": "windows",
+      "unique_identifier": "Notion Calendar",
       "description": "Notion Calendar is an app to manage your time and work, together."
     },
     {
@@ -1378,6 +1679,13 @@
       "slug": "obsidian/darwin",
       "platform": "darwin",
       "unique_identifier": "md.obsidian",
+      "description": "Obsidian is a knowledge base that works on top of a local folder of plain text Markdown files."
+    },
+    {
+      "name": "Obsidian",
+      "slug": "obsidian/windows",
+      "platform": "windows",
+      "unique_identifier": "Obsidian",
       "description": "Obsidian is a knowledge base that works on top of a local folder of plain text Markdown files."
     },
     {
@@ -1437,6 +1745,13 @@
       "description": "OpenVPN Connect is a VPN client that provides secure remote access to networks and services."
     },
     {
+      "name": "OpenVPN Connect",
+      "slug": "openvpn-connect/windows",
+      "platform": "windows",
+      "unique_identifier": "OpenVPN Connect",
+      "description": "OpenVPN Connect is the official OpenVPN client."
+    },
+    {
       "name": "Opera",
       "slug": "opera/darwin",
       "platform": "darwin",
@@ -1479,11 +1794,18 @@
       "description": "Pd is a visual programming language for multimedia."
     },
     {
-      "name": "pgAdmin4",
+      "name": "pgAdmin 4",
       "slug": "pgadmin4/darwin",
       "platform": "darwin",
       "unique_identifier": "org.pgadmin.pgadmin4",
-      "description": "pgAdmin4 is an administration and development platform for PostgreSQL."
+      "description": "pgAdmin 4 is an administration and development platform for PostgreSQL."
+    },
+    {
+      "name": "pgAdmin 4",
+      "slug": "pgadmin4/windows",
+      "platform": "windows",
+      "unique_identifier": "pgAdmin 4",
+      "description": "pgAdmin 4 is an administration and development platform for PostgreSQL."
     },
     {
       "name": "PhpStorm",
@@ -1498,6 +1820,13 @@
       "platform": "windows",
       "unique_identifier": "PhpStorm",
       "description": "PhpStorm is a PHP IDE by JetBrains."
+    },
+    {
+      "name": "PlugData",
+      "slug": "plugdata/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.plugdata.plugdata",
+      "description": "PlugData is a visual programming environment for audio."
     },
     {
       "name": "Podman Desktop",
@@ -1521,10 +1850,31 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Power BI",
+      "slug": "power-bi/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Power BI Desktop (x64)",
+      "description": "Power BI is an interactive data visualization platform with a primary focus on business intelligence (BI)."
+    },
+    {
+      "name": "Prisma Browser",
+      "slug": "prisma-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Prisma Access Browser",
+      "description": "Prisma Browser is a SASE-native browser that empowers secure work."
+    },
+    {
       "name": "Pritunl",
       "slug": "pritunl/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.pritunl",
+      "description": "Pritunl is an OpenVPN client."
+    },
+    {
+      "name": "Pritunl",
+      "slug": "pritunl/windows",
+      "platform": "windows",
+      "unique_identifier": "Pritunl",
       "description": "Pritunl is an OpenVPN client."
     },
     {
@@ -1547,6 +1897,13 @@
       "platform": "darwin",
       "unique_identifier": "ch.protonvpn.mac",
       "description": "ProtonVPN is a VPN client focusing on security."
+    },
+    {
+      "name": "ProtonVPN",
+      "slug": "protonvpn/windows",
+      "platform": "windows",
+      "unique_identifier": "Proton VPN",
+      "description": "Proton VPN is a Swiss-based VPN service focused on privacy."
     },
     {
       "name": "Proxifier",
@@ -1577,10 +1934,24 @@
       "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
     },
     {
+      "name": "PyCharm Community Edition",
+      "slug": "pycharm-ce/windows",
+      "platform": "windows",
+      "unique_identifier": "PyCharm Community Edition",
+      "description": "PyCharm Community Edition is a Jetbrains IDE for Python programming - Community Edition"
+    },
+    {
       "name": "PyCharm Professional",
       "slug": "pycharm/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.pycharm",
+      "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+    },
+    {
+      "name": "PyCharm Professional",
+      "slug": "pycharm/windows",
+      "platform": "windows",
+      "unique_identifier": "PyCharm",
       "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
     },
     {
@@ -1595,6 +1966,13 @@
       "slug": "rancher/darwin",
       "platform": "darwin",
       "unique_identifier": "io.rancherdesktop.app",
+      "description": "Rancher Desktop is an app for kubernetes and container management on the desktop."
+    },
+    {
+      "name": "Rancher Desktop",
+      "slug": "rancher/windows",
+      "platform": "windows",
+      "unique_identifier": "Rancher Desktop",
       "description": "Rancher Desktop is an app for kubernetes and container management on the desktop."
     },
     {
@@ -1626,6 +2004,13 @@
       "description": "Rider is a .NET IDE by JetBrains."
     },
     {
+      "name": "Rider",
+      "slug": "rider/windows",
+      "platform": "windows",
+      "unique_identifier": "JetBrains Rider",
+      "description": "Rider is a .NET IDE by JetBrains."
+    },
+    {
       "name": "Royal TSX",
       "slug": "royal-tsx/darwin",
       "platform": "darwin",
@@ -1640,10 +2025,24 @@
       "description": "Ruby on Rails IDE by JetBrains."
     },
     {
+      "name": "RubyMine",
+      "slug": "rubymine/windows",
+      "platform": "windows",
+      "unique_identifier": "RubyMine",
+      "description": "Ruby on Rails IDE by JetBrains."
+    },
+    {
       "name": "RustRover",
       "slug": "rustrover/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jetbrains.rustrover",
+      "description": "Rust IDE by JetBrains."
+    },
+    {
+      "name": "RustRover",
+      "slug": "rustrover/windows",
+      "platform": "windows",
+      "unique_identifier": "RustRover",
       "description": "Rust IDE by JetBrains."
     },
     {
@@ -1682,6 +2081,13 @@
       "description": "Signal is an instant messaging application focusing on security."
     },
     {
+      "name": "Signal",
+      "slug": "signal/windows",
+      "platform": "windows",
+      "unique_identifier": "Signal",
+      "description": "Signal is an instant messaging application focusing on security."
+    },
+    {
       "name": "Sketch",
       "slug": "sketch/darwin",
       "platform": "darwin",
@@ -1710,7 +2116,14 @@
       "description": "Snagit is screen capture software."
     },
     {
-      "name": "SourceTree",
+      "name": "Snagit",
+      "slug": "snagit/windows",
+      "platform": "windows",
+      "unique_identifier": "Snagit 2026",
+      "description": "Snagit is screen capture software."
+    },
+    {
+      "name": "Sourcetree",
       "slug": "sourcetree/darwin",
       "platform": "darwin",
       "unique_identifier": "com.torusknot.SourceTreeNotMAS",
@@ -1816,6 +2229,13 @@
     },
     {
       "name": "Tableau Desktop",
+      "slug": "tableau-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Tableau Desktop",
+      "description": "Tableau Desktop is a powerful data visualization and business intelligence platform for analyzing and presenting data insights."
+    },
+    {
+      "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tableausoftware.Desktop.app",
@@ -1889,7 +2309,14 @@
       "slug": "textexpander/darwin",
       "platform": "darwin",
       "unique_identifier": "com.smileonmymac.textexpander",
-      "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
+      "description": "TextExpander is an application that lets you create and insert pre-made snippets of text anywhere."
+    },
+    {
+      "name": "TextExpander",
+      "slug": "textexpander/windows",
+      "platform": "windows",
+      "unique_identifier": "TextExpander",
+      "description": "TextExpander is an application that lets you create and insert pre-made snippets of text anywhere."
     },
     {
       "name": "The Unarchiver",
@@ -1920,6 +2347,13 @@
       "description": "Todoist is a to do list and a planning center for individuals and teams."
     },
     {
+      "name": "Todoist",
+      "slug": "todoist-app/windows",
+      "platform": "windows",
+      "unique_identifier": "Todoist",
+      "description": "Todoist is a to do list and a planning center for individuals and teams."
+    },
+    {
       "name": "Tor Browser",
       "slug": "tor-browser/darwin",
       "platform": "darwin",
@@ -1938,6 +2372,13 @@
       "slug": "tower/darwin",
       "platform": "darwin",
       "unique_identifier": "com.fournova.Tower",
+      "description": "Tower is a git client focusing on power and productivity."
+    },
+    {
+      "name": "Tower",
+      "slug": "tower/windows",
+      "platform": "windows",
+      "unique_identifier": "Tower",
       "description": "Tower is a git client focusing on power and productivity."
     },
     {
@@ -1983,6 +2424,13 @@
       "description": "VirtualBox is a virtualiser for arm64 hardware."
     },
     {
+      "name": "VirtualBox",
+      "slug": "virtualbox/windows",
+      "platform": "windows",
+      "unique_identifier": "Oracle VirtualBox",
+      "description": "VirtualBox is a virtualiser for x86-64 hardware."
+    },
+    {
       "name": "Viscosity",
       "slug": "viscosity/darwin",
       "platform": "darwin",
@@ -2018,6 +2466,13 @@
       "description": "VLC media player is a free and open-source media player software."
     },
     {
+      "name": "VNC Server",
+      "slug": "vnc-server/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.realvnc.vncserver",
+      "description": "VNC Server is a remote desktop server application for securely controlling devices remotely."
+    },
+    {
       "name": "VNC Viewer",
       "slug": "vnc-viewer/darwin",
       "platform": "darwin",
@@ -2025,10 +2480,31 @@
       "description": "VNC Viewer is a remote desktop application focusing on security."
     },
     {
+      "name": "VSCodium",
+      "slug": "vscodium/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.vscodium",
+      "description": "VSCodium is a release of VS Code without MS branding, telemetry, and licensing."
+    },
+    {
+      "name": "VSCodium",
+      "slug": "vscodium/windows",
+      "platform": "windows",
+      "unique_identifier": "VSCodium",
+      "description": "VSCodium is a release of VS Code without MS branding, telemetry, and licensing."
+    },
+    {
       "name": "Wacom Tablet",
       "slug": "wacom-tablet/darwin",
       "platform": "darwin",
       "unique_identifier": "com.wacom.WacomCenter",
+      "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
+    },
+    {
+      "name": "Wacom Tablet",
+      "slug": "wacom-tablet/windows",
+      "platform": "windows",
+      "unique_identifier": "Wacom Tablet",
       "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
     },
     {
@@ -2060,6 +2536,13 @@
       "description": "JavaScript IDE by JetBrains."
     },
     {
+      "name": "WebStorm",
+      "slug": "webstorm/windows",
+      "platform": "windows",
+      "unique_identifier": "WebStorm",
+      "description": "JavaScript IDE by JetBrains."
+    },
+    {
       "name": "WhatsApp",
       "slug": "whatsapp/darwin",
       "platform": "darwin",
@@ -2078,6 +2561,13 @@
       "slug": "windsurf/darwin",
       "platform": "darwin",
       "unique_identifier": "com.exafunction.windsurf",
+      "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
+    },
+    {
+      "name": "Windsurf",
+      "slug": "windsurf/windows",
+      "platform": "windows",
+      "unique_identifier": "Windsurf",
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
@@ -2163,6 +2653,13 @@
       "platform": "darwin",
       "unique_identifier": "us.zoom.ZoomPresence",
       "description": "Zoom Rooms is conference room software for Zoom meetings."
+    },
+    {
+      "name": "Zoom Rooms",
+      "slug": "zoom-rooms/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Rooms",
+      "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     },
     {
       "name": "Zoom",
