@@ -113,6 +113,14 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 				return true, nil
 			}
 
+			// DeepL installs via Zero Install (0install); its launcher registers in
+			// programs but writes no DisplayVersion, so osquery reports an empty
+			// version. Fall back to existence-only when found with an empty version.
+			if appName == "DeepL" && result.Version == "" {
+				logger.InfoContext(ctx, "DeepL detected with empty version - skipping version check (Zero Install launcher does not write version to registry)")
+				return true, nil
+			}
+
 			// Check exact match first
 			if result.Version == appVersion {
 				return true, nil
