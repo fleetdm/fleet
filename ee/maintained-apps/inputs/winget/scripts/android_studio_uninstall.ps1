@@ -54,7 +54,7 @@ if ($existingArgs -notmatch '\b/S\b') {
 # (uninstall.exe) sits there too.
 if ($uninstall.InstallLocation -and ($existingArgs -notmatch '_\?=')) {
     $installDir = $uninstall.InstallLocation.TrimEnd('\')
-    $existingArgs = ("$existingArgs _?=$installDir").Trim()
+    $existingArgs = ("$existingArgs _?=`"$installDir`"").Trim()
 }
 
 Write-Host "Uninstall command: $exePath"
