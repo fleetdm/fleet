@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -14,6 +15,18 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
+
+// validPrivateKey is a 32-byte string used to satisfy the server private-key
+// length requirement in reconciliation tests.
+var validPrivateKey = strings.Repeat("x", 32)
+
+// assetsPresentFunc returns a GetAllMDMConfigAssetsByNameFunc that reports the
+// requested assets as already stored.
+func assetsPresentFunc() mock.GetAllMDMConfigAssetsByNameFunc {
+	return func(ctx context.Context, n []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
+	}
+}
 
 // notFoundErr is a minimal error that satisfies fleet.IsNotFound.
 type notFoundErr struct{}
@@ -97,6 +110,21 @@ func TestReconcileAppleMDMAPNsAndSCEPAssets(t *testing.T) {
 			func(err error, msg string) { called = true })
 		require.True(t, called, "initFatal must be called when private key is missing")
 		require.False(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked, "must fail before touching datastore")
+	})
+
+	t.Run("assets already present skips insert", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetAllMDMConfigAssetsByNameFunc = assetsPresentFunc()
+		cfg := config.FleetConfig{
+			Server: config.ServerConfig{PrivateKey: validPrivateKey},
+			MDM:    config.MDMConfig{AppleAPNsCert: "apns.cert", AppleSCEPCert: "scep.cert"},
+		}
+		called := false
+		reconcileAppleMDMAPNsAndSCEPAssets(context.Background(), cfg, ds, discardLogger(),
+			func(err error, msg string) { called = true })
+		require.False(t, called)
+		require.True(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked, "datastore is checked")
+		require.False(t, ds.InsertMDMConfigAssetsFuncInvoked, "insert is skipped when assets exist")
 	})
 }
 

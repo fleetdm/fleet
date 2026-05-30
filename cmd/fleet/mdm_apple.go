@@ -62,6 +62,7 @@ func initAppleMDMPushService(mdmStorage *mysql.NanoMDMStorage, logger *slog.Logg
 	pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
 		return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 			Certificates: []tls.Certificate{*cert},
+			MinVersion:   tls.VersionTLS12, // Apple APNs requires TLS 1.2+
 		})), nil
 	}))
 	return nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
