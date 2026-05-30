@@ -11,8 +11,7 @@ const buildAutomationsItems = (
     canAccessSettings,
     canManageSoftwareAutomations,
     canManagePolicyAutomations,
-    canWrite,
-    currentTeam,
+    canManageReportAutomations,
     hasTeamSelected,
     isPremiumTier,
     isPrimoMode,
@@ -32,7 +31,13 @@ const buildAutomationsItems = (
             label: "Manage software automations",
             group: "Automations" as const,
             path: `${paths.SOFTWARE_INVENTORY}?manage_automations=1`,
-            keywords: ["vulnerability", "webhook", "jira", "zendesk"],
+            keywords: [
+              "manage automations",
+              "vulnerability",
+              "webhook",
+              "jira",
+              "zendesk",
+            ],
           },
         ]
       : []),
@@ -45,20 +50,33 @@ const buildAutomationsItems = (
             label: "Manage activity automations",
             group: "Automations" as const,
             path: `${paths.DASHBOARD}?manage_automations=1`,
-            keywords: ["activity feed", "webhook", "audit log"],
+            keywords: [
+              "manage automations",
+              "activity feed",
+              "webhook",
+              "audit log",
+            ],
           },
         ]
       : []),
 
-    // Manage automations — reports (anyone who can write)
-    ...(canWrite
+    // Manage automations — reports. Mirrors ManageQueriesPage's
+    // `canManageAutomations` (admin-only). The destination page opens
+    // the modal from `?manage_automations=1` without re-checking the
+    // role, so the palette must gate strictly here.
+    ...(canManageReportAutomations
       ? [
           {
             id: "manage-report-automations",
             label: "Manage report automations",
             group: "Automations" as const,
             path: withTeamId(`${paths.MANAGE_REPORTS}?manage_automations=1`),
-            keywords: ["report", "logging", "destination"],
+            keywords: [
+              "manage automations",
+              "report",
+              "logging",
+              "destination",
+            ],
             teamName: switchesFromUnassigned,
           },
         ]
@@ -72,7 +90,13 @@ const buildAutomationsItems = (
             label: "Manage policy automations",
             group: "Automations" as const,
             path: withTeamId(paths.MANAGE_POLICIES),
-            keywords: ["failing", "webhook", "jira", "zendesk"],
+            keywords: [
+              "manage automations",
+              "failing",
+              "webhook",
+              "jira",
+              "zendesk",
+            ],
             subItems: [
               {
                 id: "manage-policy-automations-webhooks",
@@ -80,7 +104,13 @@ const buildAutomationsItems = (
                 path: withTeamId(
                   `${paths.MANAGE_POLICIES}?manage_automations=webhooks`
                 ),
-                keywords: ["jira", "zendesk", "failing"],
+                keywords: [
+                  "manage policy automations",
+                  "manage automations",
+                  "jira",
+                  "zendesk",
+                  "failing",
+                ],
               },
               // Team-scoped policy automations (Premium-only). The
               // policies page allows install_software / run_script /
@@ -93,14 +123,28 @@ const buildAutomationsItems = (
                     {
                       id: "manage-policy-automations-install-software",
                       label: "Install software",
-                      path: `${paths.MANAGE_POLICIES}?fleet_id=${currentTeam?.id}&manage_automations=install_software`,
-                      keywords: ["resolve", "remediate"],
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=install_software`
+                      ),
+                      keywords: [
+                        "manage policy automations",
+                        "manage automations",
+                        "resolve",
+                        "remediate",
+                      ],
                     },
                     {
                       id: "manage-policy-automations-run-script",
                       label: "Run script",
-                      path: `${paths.MANAGE_POLICIES}?fleet_id=${currentTeam?.id}&manage_automations=run_script`,
-                      keywords: ["resolve", "remediate"],
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=run_script`
+                      ),
+                      keywords: [
+                        "manage policy automations",
+                        "manage automations",
+                        "resolve",
+                        "remediate",
+                      ],
                     },
                   ]
                 : []),
@@ -109,8 +153,12 @@ const buildAutomationsItems = (
                     {
                       id: "manage-policy-automations-calendar",
                       label: "Calendar events",
-                      path: `${paths.MANAGE_POLICIES}?fleet_id=${currentTeam?.id}&manage_automations=calendar`,
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=calendar`
+                      ),
                       keywords: [
+                        "manage policy automations",
+                        "manage automations",
                         "reserve time",
                         "maintenance window",
                         "google calendar",
@@ -123,8 +171,12 @@ const buildAutomationsItems = (
                     {
                       id: "manage-policy-automations-conditional-access",
                       label: "Conditional access",
-                      path: `${paths.MANAGE_POLICIES}?fleet_id=${currentTeam?.id}&manage_automations=conditional_access`,
+                      path: withTeamId(
+                        `${paths.MANAGE_POLICIES}?manage_automations=conditional_access`
+                      ),
                       keywords: [
+                        "manage policy automations",
+                        "manage automations",
                         "sso",
                         "okta",
                         "entra",

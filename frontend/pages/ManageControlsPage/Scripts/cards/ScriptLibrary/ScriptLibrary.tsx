@@ -64,20 +64,13 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
   // the modal. Technicians never see the "Add script" button on this
   // page, so don't honor the deep-link for them either.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("add_script") === "1") {
-      if (!isTechnician) {
-        setShowAddScriptModal(true);
-      }
-      params.delete("add_script");
-      const qs = params.toString();
-      window.history.replaceState(
-        {},
-        "",
-        qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-      );
+    if (location.query.add_script !== "1") return;
+    if (!isTechnician) {
+      setShowAddScriptModal(true);
     }
-  }, [isTechnician]);
+    const { add_script, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [location.query, location.pathname, router, isTechnician]);
 
   const selectedScript = useRef<IScript | null>(null);
 
