@@ -45,6 +45,7 @@ import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
 import RealVncServer from "./RealVncServer";
+import RustDesk from "./RustDesk";
 import Secretive from "./Secretive";
 import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
@@ -499,6 +500,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rider: Rider,
   "royal tsx": RoyalTsx,
   rubymine: RubyMine,
+  rustdesk: RustDesk,
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,
