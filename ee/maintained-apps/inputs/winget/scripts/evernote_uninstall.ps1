@@ -1,4 +1,6 @@
-$displayName = "Evernote"
+# "Evernote 11.18.1 (All Users)" -- so match with a wildcard, not an exact name.
+
+$displayNameLike = "Evernote*"
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -10,7 +12,7 @@ $paths = @(
 $uninstall = $null
 foreach ($p in $paths) {
   $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -eq $displayName
+    $_.DisplayName -like $displayNameLike
   }
   if ($items) { $uninstall = $items | Select-Object -First 1; break }
 }
@@ -46,8 +48,6 @@ if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
 if ($existingArgs -notmatch '\b/S\b') {
     $existingArgs = ("$existingArgs /S").Trim()
 }
-# Mirror the install: ensure all-users uninstall so the machine-scope ARP
-# entry under HKLM is removed (not just the calling user's HKCU view).
 if ($existingArgs -notmatch '(?i)/allusers') {
     $existingArgs = ("$existingArgs /allusers").Trim()
 }
