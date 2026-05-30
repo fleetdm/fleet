@@ -9,6 +9,7 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 - macOS 13.0 Ventura
 - macOS 14.0 Sonoma
 - macOS 15.0 Sequoia
+- macOS 26.0 Tahoe
 - Windows 10 Enterprise
 - Windows 11 Enterprise
 
