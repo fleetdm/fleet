@@ -1,44 +1,74 @@
-# Locates DeepL's uninstaller from the registry and runs it silently.
-# DeepL installs via Zero Install (0install). Its QuietUninstallString is a
-# 0install command, e.g.:
+$ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 
-$displayNameLike = "DeepL*"
-$publisher = "DeepL SE"
-
-$paths = @(
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKCU:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+$uninstallKeys = @(
+    "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+    "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+    "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+    "HKCU:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
 )
 
-$uninstall = $null
-foreach ($p in $paths) {
-  $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-    $_.DisplayName -like $displayNameLike -and $_.Publisher -like "$publisher*"
-  }
-  if ($items) { $uninstall = $items | Select-Object -First 1; break }
+$app = Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
+    Where-Object { $_.DisplayName -like "DeepL*" } |
+    Select-Object -First 1
+
+if (-not $app) {
+    Write-Host "DeepL not found in registry; nothing to uninstall."
+    exit 0
 }
 
-if (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.QuietUninstallString)) {
-  Write-Host "Uninstall entry not found"
-  Exit 0
+# Prefer QuietUninstallString verbatim — 0install already includes --batch --background there.
+$useQuiet = $false
+$cmd = $null
+$arguments = ""
+
+if ($app.QuietUninstallString) {
+    $uninstallString = $app.QuietUninstallString
+    $useQuiet = $true
+} else {
+    $uninstallString = $app.UninstallString
 }
 
-Stop-Process -Name "DeepL" -Force -ErrorAction SilentlyContinue
+if (-not $uninstallString) {
+    Write-Host "No uninstall string found for DeepL."
+    exit 1
+}
 
-# Prefer QuietUninstallString -- it already carries 0install's silent flags
-# (--batch --background). Fall back to UninstallString and add those flags
-# (NOT --verysilent) to keep it non-interactive.
-$useQuiet = [bool]$uninstall.QuietUninstallString
-$uninstallCommand = if ($useQuiet) { $uninstall.QuietUninstallString } else { $uninstall.UninstallString }
+# Parse the uninstall string into executable + arguments.
+if ($uninstallString -match '^"([^"]+)"\s*(.*)$') {
+    # Quoted executable path.
+    $cmd = $matches[1]
+    $arguments = $matches[2].Trim()
+} elseif ($uninstallString -match '^(\S+\.exe)\s*(.*)$') {
+    # Unquoted single-token executable.
+    $cmd = $matches[1]
+    $arguments = $matches[2].Trim()
+} else {
+    # Bare path with no arguments.
+    $cmd = $uninstallString.Trim()
+    $arguments = ""
+}
 
-$exePath = ""
-$existingArgs = ""
-if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
-    $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
-    $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} elseif ($uninstallC
+# Only append 0install silent flags when we fell back to the plain UninstallString.
+if (-not $useQuiet) {
+    if ($arguments -notmatch '--batch')      { $arguments = ("$arguments --batch").Trim() }
+    if ($arguments -notmatch '--background') { $arguments = ("$arguments --background").Trim() }
+}
+
+Write-Host "Uninstalling DeepL: $cmd $arguments"
+
+if ($arguments) {
+    $proc = Start-Process -FilePath $cmd -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+} else {
+    $proc = Start-Process -FilePath $cmd -Wait -PassThru -NoNewWindow
+}
+
+$exitCode = $proc.ExitCode
+Write-Host "Uninstaller exited with code $exitCode"
+
+# 0install / common success codes.
+if ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1605) {
+    exit 0
+}
+
+exit $exitCode
