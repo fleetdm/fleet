@@ -197,6 +197,15 @@ func sortUninstall(artifacts []*brewUninstall) {
 	})
 }
 
+// shellQuote wraps s in single quotes so it can be safely passed as a single
+// shell argument, regardless of any characters it contains. Embedded single
+// quotes are escaped using the standard '\'' technique (close the quote, emit
+// an escaped quote, reopen the quote). Without this, a path containing an
+// apostrophe (e.g. "Cycling '74") would break shell quoting and fail `bash -n`.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
@@ -307,17 +316,17 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	})
 
 	process(u.Delete, func(path string) {
-		sb.RemoveFile(fmt.Sprintf("'%s'", path))
+		sb.RemoveFile(shellQuote(path))
 	})
 
 	process(u.RmDir, func(dir string) {
-		sb.Writef("sudo rmdir '%s'", dir)
+		sb.Writef("sudo rmdir %s", shellQuote(dir))
 	})
 
 	process(u.Trash, func(path string) {
 		addUserVar()
 		sb.AddFunction("trash", trashFunc)
-		sb.Writef("trash $LOGGED_IN_USER '%s'", path)
+		sb.Writef("trash $LOGGED_IN_USER %s", shellQuote(path))
 	})
 }
 
