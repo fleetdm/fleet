@@ -47,6 +47,7 @@ module.exports.policies = {
   'download-rss-feed': true,
   'view-observability': true,
   'view-software-management': true,
+  'view-mcp': true,
   'deliver-mdm-demo-email': true,
   'view-support': true,
   'view-integrations': true,

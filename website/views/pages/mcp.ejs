@@ -1,0 +1,448 @@
+<div id="mcp-page" v-cloak>
+  <div purpose="landing-page-container">
+    <div purpose="landing-page-content">
+      <div purpose="landing-page-hero">
+        <div purpose="hero-row">
+          <div purpose="page-hero-content">
+            <div purpose="page-hero-headings">
+              <h4>Fleet MCP server</h4>
+              <h1>Endpoint security and IT, in plain English</h1>
+            </div>
+            <div purpose="page-hero-text">
+              <p>The Fleet MCP server connects Claude, Cursor, and any AI agent to your Fleet instance. Ask a question in plain English, get a real osquery scan across every device you own, and see the SQL behind every answer.</p>
+            </div>
+            <div purpose="hero-badge-row">
+              <span purpose="experimental-badge">Experimental</span>
+              <span purpose="badge-note">Already running inside Fleet. A great time to start experimenting.</span>
+            </div>
+            <div purpose="button-row">
+              <a purpose="cta-button" class="btn btn-primary" href="/contact">Get a demo</a>
+              <animated-arrow-button href="/guides/fleet-mcp">Read the setup guide</animated-arrow-button>
+            </div>
+            <div purpose="video-button" @click="clickOpenVideoModal('mcp-walkthrough')">
+              <i class="fa fa-play-circle"></i> Watch the walkthrough <span>(1 hr)</span>
+            </div>
+          </div>
+          <div purpose="hero-image">
+            <img alt="A before and after comparison. On the left, a Fleet REST API call piped through jq. On the right, the same question asked in plain English in a chat window." src="/images/articles/natural-language-endpoint-security-fleet-mcp-before-after-800x360@2x.png">
+          </div>
+        </div>
+        <div purpose="hero-logos">
+          <logo-carousel></logo-carousel>
+        </div>
+      </div><%/* landing-page-hero */%>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>What is the Model Context Protocol (MCP)?</h2>
+          <p>The <a href="https://modelcontextprotocol.io/" target="_blank">Model Context Protocol (MCP)</a> is an open standard for connecting AI agents to the tools and data they need to do real work. Instead of an AI guessing about your environment, an MCP server exposes a set of typed tools the agent can call directly. The Fleet MCP server turns Fleet's REST API and osquery into that tool surface, so an AI agent can list hosts, run live queries, check policy compliance, and investigate CVEs against your real fleet. Same Fleet. Same osquery. Same authoritative data. The interface changes from plumbing to language, and the time to answer drops by an order of magnitude.</p>
+        </div>
+        <div purpose="section-image">
+          <img alt="A diagram showing the gap between a security question and an actionable decision, bridged by the right query against the right hosts." src="/images/articles/natural-language-endpoint-security-fleet-mcp-gap-800x200@2x.png">
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="feature-with-image">
+          <div purpose="feature-image">
+            <img alt="Architecture diagram. An AI client such as Claude Desktop, Cursor, or a Slack bot talks MCP to the Fleet MCP server, which talks REST to Fleet and osquery agents on every enrolled host." src="/images/articles/natural-language-endpoint-security-fleet-mcp-architecture-800x380@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>How the Fleet MCP server works</h3>
+            <p>The Fleet MCP server is a small Go server with one job: turn Fleet's REST surface into a catalog of typed tools that obey the Model Context Protocol. Any MCP-compatible client can call them natively, with no glue code to maintain.</p>
+            <div purpose="checklist">
+              <p>Typed tools that map to questions an operator would actually ask.</p>
+              <p>Two transports: stdio for Claude Desktop, SSE for Claude Code, Cursor, and web clients.</p>
+              <p>Read-only by default. Live queries run as read-only osquery, and writes require approval.</p>
+              <p>Your data stays put. Fleet, osquery, and your RBAC are exactly where they were.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section" id="tools">
+        <div purpose="section-heading">
+          <h2>The tools your AI agent gets</h2>
+          <p>The Fleet MCP server exposes a focused catalog of tools across hosts, queries, and policies. Each one is a purpose-built primitive, not a raw HTTP client, so the agent has the same situational awareness an experienced operator would.</p>
+        </div>
+        <div purpose="tool-catalog">
+          <div purpose="tool-group">
+            <h5>Hosts</h5>
+            <ul>
+              <li><code>get_endpoints</code> List hosts with server-side filters for fleet, platform, status, and label.</li>
+              <li><code>get_host</code> Full detail for a single host, with disambiguation for shared hostnames.</li>
+              <li><code>get_host_policies</code> Every policy applied to a host, with pass, fail, and not-run counts.</li>
+              <li><code>get_aggregate_platforms</code> Device counts broken down by operating system.</li>
+              <li><code>get_total_system_count</code> Total active enrolled devices.</li>
+              <li><code>get_fleets</code> and <code>get_labels</code> List fleets and labels by name and ID.</li>
+            </ul>
+          </div>
+          <div purpose="tool-group">
+            <h5>Queries</h5>
+            <ul>
+              <li><code>prepare_live_query</code> Validate targets and fetch the osquery schema before anything runs.</li>
+              <li><code>run_live_query</code> Execute read-only osquery against live devices, pre-validated against the schema.</li>
+              <li><code>get_osquery_schema</code> Canonical, source-of-truth schema for every osquery table.</li>
+              <li><code>get_queries</code> List saved Fleet queries, global and per-fleet.</li>
+              <li><code>create_saved_query</code> Persist a new query, scoped to the right fleet.</li>
+              <li><code>get_vetted_queries</code> A library of production-safe CIS 8.1 policy queries.</li>
+            </ul>
+          </div>
+          <div purpose="tool-group">
+            <h5>Policies and vulnerabilities</h5>
+            <ul>
+              <li><code>get_policies</code> List all policies with their pass and fail host counts.</li>
+              <li><code>get_policy_compliance</code> Pass and fail counts for a policy, global or per-fleet.</li>
+              <li><code>get_policy_hosts</code> The hosts that pass or fail a given policy.</li>
+              <li><code>get_vulnerability_impact</code> How many systems are impacted by a CVE.</li>
+              <li><code>get_vulnerability_hosts</code> The specific hosts impacted by a CVE.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Ask in plain English</h2>
+          <p>These are real questions Fleet's own team asks the bot every week. The agent translates each one into the right query against the right hosts, then shows its work.</p>
+        </div>
+        <div purpose="example-prompts">
+          <div purpose="prompt-card">
+            <span purpose="prompt-tag">Supply chain</span>
+            <p>"Are we affected by the recent axios npm exploit?"</p>
+          </div>
+          <div purpose="prompt-card">
+            <span purpose="prompt-tag">Vulnerabilities</span>
+            <p>"What are the top 10 CVEs to be aware of in my environment today?"</p>
+          </div>
+          <div purpose="prompt-card">
+            <span purpose="prompt-tag">Inventory</span>
+            <p>"Give me a summary of the devices in the Workstations fleet."</p>
+          </div>
+          <div purpose="prompt-card">
+            <span purpose="prompt-tag">Compliance</span>
+            <p>"Is this workstation compliant with all of our policies?"</p>
+          </div>
+          <div purpose="prompt-card">
+            <span purpose="prompt-tag">Posture</span>
+            <p>"How many hosts have SSH enabled?"</p>
+          </div>
+          <div purpose="prompt-card">
+            <span purpose="prompt-tag">Policy authoring</span>
+            <p>"Create a policy that fails if a host's battery is in poor condition."</p>
+          </div>
+          <div purpose="prompt-card">
+            <span purpose="prompt-tag">Threat hunting</span>
+            <p>"Based on this intel, scan every Linux host and show me the artifacts."</p>
+          </div>
+          <div purpose="prompt-card">
+            <span purpose="prompt-tag">Lifecycle</span>
+            <p>"Which hosts are most in need of a refresh?"</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="feature-with-image">
+          <div purpose="feature-text">
+            <h3>Pre-CVE threat hunting in minutes</h3>
+            <p>A public exploit drops with no CVE assigned and no vendor advisory yet. A traditional scanner returns nothing because there is nothing to match. With Fleet MCP, you drop the intel into Slack and tag the bot.</p>
+            <p>The agent translates the artifacts in the writeup, such as kernel modules, sockets, and sysctls, into an osquery scan. It runs <code>prepare_live_query</code> to validate targets, then <code>run_live_query</code> across every Linux host on every fleet, and returns a per-host report with named risks and concrete next steps. No CVE required.</p>
+          </div>
+          <div purpose="feature-image">
+            <img alt="A sanitized Slack thread. An operator pastes a public Linux privilege escalation proof of concept with no CVE yet, and Fleet reports per-host kernel versions, loaded modules, uptime, and risk notes." src="/images/articles/natural-language-endpoint-security-fleet-mcp-slack-thread-800x470@2x.png">
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="feature-with-image">
+          <div purpose="feature-image">
+            <img alt="A CVE blast radius example. The operator asks how many systems have the latest Chrome vulnerabilities and how many are on the Workstations fleet, and Fleet reports the affected count with offline hosts called out." src="/images/articles/natural-language-endpoint-security-fleet-mcp-cve-blast-radius-800x280@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>CVE blast radius, scoped to a fleet</h3>
+            <p>The classic version of this question is a ticket, a curl loop, a spreadsheet, and 90 minutes. With the MCP it is three sentences: how many systems are exposed, and which fleet are they on, because the answer determines who you message.</p>
+            <div purpose="checklist">
+              <p>Scopes to a fleet, so you message the right team, not everyone.</p>
+              <p>Chains multiple CVE lookups in parallel and merges the results.</p>
+              <p>Surfaces the offline cohort honestly, so the bound on the answer is always shown.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="feature-with-image">
+          <div purpose="feature-text">
+            <h3>It knows what not to do</h3>
+            <p>The most underrated property of a tool catalog is what is not in it. The Fleet MCP server cannot read your keychain secrets, because macOS encrypts them at rest and osquery can only see metadata.</p>
+            <p>When asked for secrets it does not have, the agent says so and offers the metadata it can see instead. That honest boundary is the behavior you want. A tool that pretends to do more than its underlying API allows is worse than no tool at all.</p>
+          </div>
+          <div purpose="feature-image">
+            <img alt="A bounded inspection example. When asked what is in the keychain on a MacBook, Fleet declines to read encrypted values and offers to show metadata such as labels, types, and creation dates instead." src="/images/articles/natural-language-endpoint-security-fleet-mcp-keychain-bounded-800x200@2x.png">
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>What the Fleet MCP server will not do</h2>
+          <p>A clear set of boundaries is what makes the tool trustworthy at fleet scale. These are deliberate design decisions, not gaps.</p>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <h5>It is not a vulnerability scanner</h5>
+            <p>It is a translation layer for endpoint questions. The authoritative data still lives in osquery and Fleet. Catalog tools answer "what CVEs apply?" Artifact queries answer "what do these hosts actually look like right now?"</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>It is not an autonomous responder</h5>
+            <p>The agent can propose a policy, a script, or a query, but a human stays in the loop for anything that changes state. There is no delete-host tool and no arbitrary shell.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>It does not hide its SQL</h5>
+            <p>Every answer ships with the underlying osquery shown. If you cannot review the query, you cannot trust the answer. The transparency is the contract.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Writes require approval</h5>
+            <p>Running a live query and saving a query are flagged as sensitive, so MCP clients prompt for confirmation before either one fires against your devices.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>It respects your RBAC</h5>
+            <p>The server acts through Fleet's REST API with your token, so existing role-based access control, fleet scoping, and audit logging all still apply.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>It is not a substitute for knowing your stack</h5>
+            <p>The tools encode structure, not literacy. An operator still needs to recognize, for example, that kernel modules only exist on Linux.</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section" id="get-started">
+        <div purpose="section-heading">
+          <h2>Get started with Fleet MCP</h2>
+          <p>The Fleet MCP server is open source and lives in the Fleet repository. Point it at your Fleet instance with two environment variables and connect it to your AI client.</p>
+        </div>
+        <div purpose="two-column-list">
+          <div purpose="column-list">
+            <h3>Build and run</h3>
+            <pre purpose="code-block"><code>git clone https://github.com/fleetdm/fleet
+cd fleet/tools/fleet-mcp
+go build -o fleet-mcp .
+
+# stdio transport for Claude Desktop
+./fleet-mcp -transport stdio
+
+# or SSE for Claude Code and Cursor
+./fleet-mcp</code></pre>
+          </div>
+          <div purpose="column-list">
+            <h3>Connect Claude Desktop</h3>
+            <pre purpose="code-block"><code>{
+  "mcpServers": {
+    "fleet": {
+      "command": "/path/to/fleet-mcp",
+      "args": ["-transport", "stdio"],
+      "env": {
+        "FLEET_BASE_URL": "https://your-fleet.example.com",
+        "FLEET_API_KEY": "YOUR_FLEET_API_KEY",
+        "MCP_AUTH_TOKEN": "YOUR_MCP_AUTH_TOKEN"
+      }
+    }
+  }
+}</code></pre>
+          </div>
+        </div>
+        <div purpose="button-row">
+          <a purpose="cta-button" class="btn btn-primary" href="https://github.com/fleetdm/fleet/tree/main/tools/fleet-mcp" target="_blank">Get it on GitHub</a>
+          <animated-arrow-button href="/guides/fleet-mcp">Read the setup guide</animated-arrow-button>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Fleet MCP frequently asked questions</h2>
+        </div>
+        <div purpose="faq" class="d-flex flex-column">
+          <div purpose="accordion" class="d-flex flex-column justify-content-start">
+            <div purpose="accordion-body">
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="mcp-faq__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mcp-faq__body1" aria-controls="mcp-faq__body1">
+                  What is the Fleet MCP server?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="mcp-faq__body1" class="collapse" aria-labelledby="mcp-faq__header1">
+                  The Fleet MCP server is a Model Context Protocol server for Fleet. It exposes Fleet's REST API and osquery as a catalog of typed tools that any MCP-compatible AI agent can call, so you can manage and investigate your devices in plain English instead of hand-writing API calls and SQL. It runs anywhere with stdio or SSE, including Claude Desktop, Claude Code, Cursor, and custom Slack bots.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="mcp-faq__header2" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mcp-faq__body2" aria-controls="mcp-faq__body2">
+                  What is the Model Context Protocol (MCP)?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="mcp-faq__body2" class="collapse" aria-labelledby="mcp-faq__header2">
+                  The Model Context Protocol is an open standard for connecting AI agents to external tools and data. An MCP server publishes a set of typed tools, and an MCP-compatible client such as Claude or Cursor can call those tools directly. Fleet's MCP server makes your Fleet instance one of those tool sources, so an AI agent can query your endpoints natively.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="mcp-faq__header3" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mcp-faq__body3" aria-controls="mcp-faq__body3">
+                  Which AI tools work with Fleet MCP?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="mcp-faq__body3" class="collapse" aria-labelledby="mcp-faq__header3">
+                  Any MCP-compatible client. Fleet uses it with Claude Desktop, Claude Code, and Cursor, and the same tool surface powers a custom Slack bot. The server supports both stdio and SSE transports, so it fits whichever client you prefer.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="mcp-faq__header4" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mcp-faq__body4" aria-controls="mcp-faq__body4">
+                  What can I do with Fleet MCP?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="mcp-faq__body4" class="collapse" aria-labelledby="mcp-faq__header4">
+                  You can list and inspect hosts, run live osquery across your fleet, check per-host and per-policy compliance, investigate which devices are impacted by a CVE, and create saved queries. Teams use it for pre-CVE threat hunting, CVE blast-radius analysis scoped to a fleet, posture checks, and ad hoc inventory questions, all asked in plain English.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="mcp-faq__header5" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mcp-faq__body5" aria-controls="mcp-faq__body5">
+                  Is Fleet MCP safe to run against production devices?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="mcp-faq__body5" class="collapse" aria-labelledby="mcp-faq__header5">
+                  Yes, with the expected controls. Live queries run as read-only osquery. The two tools that change state, running a live query and creating a saved query, are flagged as sensitive so MCP clients prompt for confirmation before they fire. There is no delete-host tool and no arbitrary shell. The server acts through Fleet's REST API with your token, so your existing RBAC, fleet scoping, and audit logging all still apply.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="mcp-faq__header6" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mcp-faq__body6" aria-controls="mcp-faq__body6">
+                  How is Fleet MCP different from a vulnerability scanner?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="mcp-faq__body6" class="collapse" aria-labelledby="mcp-faq__header6">
+                  A scanner is bounded by its catalog. It can only tell you about CVEs it already knows. Fleet MCP runs the artifact query you describe against live osquery data, so it answers "what do these hosts actually look like right now?" That is what lets it respond to a public exploit before any CVE is assigned. When a CVE does exist, it can also pull the impact directly from Fleet.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="mcp-faq__header7" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mcp-faq__body7" aria-controls="mcp-faq__body7">
+                  Is Fleet MCP open source?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="mcp-faq__body7" class="collapse" aria-labelledby="mcp-faq__header7">
+                  Yes. The Fleet MCP server is open source and lives in the Fleet repository at <a href="https://github.com/fleetdm/fleet/tree/main/tools/fleet-mcp" target="_blank">github.com/fleetdm/fleet</a>, under the same project as the rest of Fleet. You can read the code, run it on your own infrastructure, and extend it with new tools.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="mcp-faq__header8" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mcp-faq__body8" aria-controls="mcp-faq__body8">
+                  Is Fleet MCP ready for production?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="mcp-faq__body8" class="collapse" aria-labelledby="mcp-faq__header8">
+                  Fleet MCP is an experimental feature. Fleet is already using it internally, and it is a great time to start experimenting, but the API and configuration surface may change as it matures. Its experimental status is set to be reevaluated in Fleet 4.89.0. See the <a href="/guides/fleet-mcp">Fleet MCP guide</a> for current setup details.
+                </p>
+              </div>
+            </div>
+            <div class="d-flex flex-row justify-content-start">
+              <p purpose="contact-note">Want to go deeper? Read the <a href="/securing/natural-language-endpoint-security-fleet-mcp">Fleet MCP manifesto</a> or <a href="/contact">talk to an engineer</a>.</p>
+            </div>
+          </div>
+        </div>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is the Fleet MCP server?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The Fleet MCP server is a Model Context Protocol server for Fleet. It exposes Fleet's REST API and osquery as a catalog of typed tools that any MCP-compatible AI agent can call, so you can manage and investigate your devices in plain English instead of hand-writing API calls and SQL. It runs anywhere with stdio or SSE, including Claude Desktop, Claude Code, Cursor, and custom Slack bots."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What is the Model Context Protocol (MCP)?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The Model Context Protocol is an open standard for connecting AI agents to external tools and data. An MCP server publishes a set of typed tools, and an MCP-compatible client such as Claude or Cursor can call those tools directly. Fleet's MCP server makes your Fleet instance one of those tool sources, so an AI agent can query your endpoints natively."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Which AI tools work with Fleet MCP?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Any MCP-compatible client. Fleet uses it with Claude Desktop, Claude Code, and Cursor, and the same tool surface powers a custom Slack bot. The server supports both stdio and SSE transports, so it fits whichever client you prefer."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What can I do with Fleet MCP?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "You can list and inspect hosts, run live osquery across your fleet, check per-host and per-policy compliance, investigate which devices are impacted by a CVE, and create saved queries. Teams use it for pre-CVE threat hunting, CVE blast-radius analysis scoped to a fleet, posture checks, and ad hoc inventory questions, all asked in plain English."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Fleet MCP safe to run against production devices?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, with the expected controls. Live queries run as read-only osquery. The two tools that change state, running a live query and creating a saved query, are flagged as sensitive so MCP clients prompt for confirmation before they fire. There is no delete-host tool and no arbitrary shell. The server acts through Fleet's REST API with your token, so your existing RBAC, fleet scoping, and audit logging all still apply."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How is Fleet MCP different from a vulnerability scanner?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "A scanner is bounded by its catalog. It can only tell you about CVEs it already knows. Fleet MCP runs the artifact query you describe against live osquery data, so it answers what these hosts actually look like right now. That is what lets it respond to a public exploit before any CVE is assigned. When a CVE does exist, it can also pull the impact directly from Fleet."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Fleet MCP open source?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. The Fleet MCP server is open source and lives in the Fleet repository at github.com/fleetdm/fleet, under the same project as the rest of Fleet. You can read the code, run it on your own infrastructure, and extend it with new tools."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Fleet MCP ready for production?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Fleet MCP is an experimental feature. Fleet is already using it internally, and it is a great time to start experimenting, but the API and configuration surface may change as it matures. Its experimental status is set to be reevaluated in Fleet 4.89.0."
+              }
+            }
+          ]
+        }
+        </script>
+      </div>
+
+    </div>
+  </div>
+  <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
+    <div purpose="section-heading" class="mx-auto text-center">
+      <h2 class="mb-3">What security and IT teams are saying</h2>
+    </div>
+  </div>
+  <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
+  <div purpose="bottom-gradient">
+    <div purpose="page-container" class="container">
+      <div purpose="bottom-cta" class="text-center">
+        <h4>Fleet MCP server</h4>
+        <h2>Talk to your fleet in plain English</h2>
+        <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" class="btn btn-primary" href="/contact">Get a demo</a>
+          <animated-arrow-button href="https://github.com/fleetdm/fleet/tree/main/tools/fleet-mcp" target="_blank">Get it on GitHub</animated-arrow-button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <%/* Cloud city banner */%>
+  <parallax-city></parallax-city>
+
+  <modal purpose="video-modal" v-if="modal === 'mcp-walkthrough'" @close="closeModal()">
+    <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/8K77litllPk?rel=0&autoplay=1" title="Fleet MCP walkthrough" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+  </modal>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

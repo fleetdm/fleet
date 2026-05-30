@@ -440,6 +440,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /mcp': {
+    action: 'view-mcp',
+    locals: {
+      pageTitleForMeta: 'Fleet MCP: endpoint security and IT in plain English',
+      pageDescriptionForMeta: 'Connect Claude, Cursor, and any AI agent to Fleet with the Model Context Protocol. Ask in plain English, run live osquery, and check CVEs across your fleet.',
+    }
+  },
+
   'GET /support': {
     action: 'view-support',
     locals: {
