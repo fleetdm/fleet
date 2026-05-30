@@ -1852,6 +1852,13 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 	// abort the management session.
 	if svc.config.MDM.IsMicrosoftWNSSet() {
 		if uri, status, found := extractWNSChannelFromResults(orderedCmds); found {
+			// The ChannelURI is device-supplied. Never store (and therefore never push a bearer token to) a
+			// channel on an unexpected domain; record the check with an empty URI so we still back off from
+			// re-querying every session. An empty URI (device with no valid PFN) is expected and persisted as-is.
+			if uri != "" && !wns.IsValidChannelURI(uri) {
+				svc.logger.WarnContext(ctx, "ignoring WNS channel URI on unexpected domain", "device_id", deviceID)
+				uri = ""
+			}
 			if err := svc.ds.MDMWindowsSetEnrolledDeviceChannelURI(ctx, deviceID, uri, status); err != nil {
 				svc.logger.WarnContext(ctx, "store WNS channel URI from device results", "device_id", deviceID, "err", err)
 			}

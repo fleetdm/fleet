@@ -1,7 +1,6 @@
 package wns
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -197,7 +196,7 @@ func TestSendRaw(t *testing.T) {
 
 		err := c.SendRaw(ctx, ts.channelURI())
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrChannelExpired), "got %v", err)
+		assert.ErrorIs(t, err, ErrChannelExpired)
 	})
 
 	t.Run("other channel error surfaces the status", func(t *testing.T) {
@@ -209,6 +208,28 @@ func TestSendRaw(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "403")
 	})
+}
+
+func TestIsValidChannelURI(t *testing.T) {
+	cases := []struct {
+		uri  string
+		want bool
+	}{
+		{"https://db5.notify.windows.com/?token=abc", true},
+		{"https://notify.windows.com/?token=abc", true},
+		{"https://sin.notify.windows.com/x", true},
+		{"http://db5.notify.windows.com/x", false},       // not https
+		{"https://evil.example.com/?token=abc", false},   // wrong domain
+		{"https://notify.windows.com.evil.com/x", false}, // suffix spoof
+		{"https://evilnotify.windows.com/x", false},      // missing dot boundary
+		{"https://x", false},
+		{"", false},
+	}
+	for _, c := range cases {
+		t.Run(c.uri, func(t *testing.T) {
+			assert.Equal(t, c.want, IsValidChannelURI(c.uri))
+		})
+	}
 }
 
 func TestFetchTokenErrors(t *testing.T) {

@@ -23,7 +23,7 @@ import (
 
 const (
 	// defaultTokenURL is the WNS OAuth2 token endpoint (legacy UWP/Microsoft Store flow).
-	defaultTokenURL = "https://login.live.com/accesstoken.srf"
+	defaultTokenURL = "https://login.live.com/accesstoken.srf" //nolint:gosec // G101: public WNS OAuth endpoint URL, not a credential
 
 	// scope is the OAuth2 scope required to send WNS notifications.
 	scope = "notify.windows.com"
@@ -45,6 +45,19 @@ const (
 // ErrChannelExpired is returned by SendRaw when WNS reports the ChannelURI is gone (HTTP 410). Callers
 // should clear the stored ChannelURI; the device renews it (~every 15 days) and reports a new one.
 var ErrChannelExpired = errors.New("wns: channel URI expired or invalid (410)")
+
+// IsValidChannelURI reports whether uri is a well-formed HTTPS WNS channel on the notify.windows.com domain.
+// The channel URI is supplied by the device, so it must be validated before being stored or used as a push
+// target: a compromised enrollment could otherwise redirect the WNS bearer token to an attacker-controlled host
+// (SSRF / token exfiltration). Microsoft guarantees channel URIs are HTTPS on the notify.windows.com domain.
+func IsValidChannelURI(uri string) bool {
+	u, err := url.Parse(uri)
+	if err != nil || u.Scheme != "https" {
+		return false
+	}
+	host := u.Hostname()
+	return host == "notify.windows.com" || strings.HasSuffix(host, ".notify.windows.com")
+}
 
 // Client sends raw WNS push notifications. It is safe for concurrent use; the cached access token is
 // guarded by a mutex.
