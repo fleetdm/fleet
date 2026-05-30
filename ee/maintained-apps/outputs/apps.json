@@ -156,6 +156,13 @@
       "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
     },
     {
+      "name": "Android Studio",
+      "slug": "android-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Android Studio",
+      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
+    },
+    {
       "name": "Anka",
       "slug": "anka-virtualization/darwin",
       "platform": "darwin",
