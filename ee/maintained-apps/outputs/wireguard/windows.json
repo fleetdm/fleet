@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "1.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'WireGuard' AND publisher = 'WireGuard LLC';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'WireGuard' AND publisher = 'WireGuard LLC' AND version_compare(version, '1.1') < 0);"
+      },
+      "installer_url": "https://download.wireguard.com/windows-client/wireguard-amd64-1.1.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "639598aa",
+      "sha256": "6daa5d37a9e2950dfb8c48b95ab8e562cb2bad1c785d020f38f97bea4c6a5566",
+      "default_categories": [
+        "Productivity"
+      ],
+      "upgrade_code": "{5E5A1DA5-BA36-404D-92EC-41050D1C799C}"
+    }
+  ],
+  "refs": {
+    "639598aa": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts('{5E5A1DA5-BA36-404D-92EC-41050D1C799C}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n    \n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n    \n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n    \n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n",
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

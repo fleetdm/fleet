@@ -275,6 +275,13 @@
       "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
     },
     {
+      "name": "Azure CLI",
+      "slug": "azure-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Azure CLI (64-bit)",
+      "description": "Azure CLI is a command-line tool for managing Microsoft Azure resources and services."
+    },
+    {
       "name": "Backblaze",
       "slug": "backblaze/darwin",
       "platform": "darwin",
@@ -884,6 +891,13 @@
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
     },
     {
+      "name": "Everything",
+      "slug": "everything/windows",
+      "platform": "windows",
+      "unique_identifier": "Everything",
+      "description": "Everything is a search tool that locates files and folders by name instantly on Windows."
+    },
+    {
       "name": "ExpressVPN",
       "slug": "expressvpn/darwin",
       "platform": "darwin",
@@ -1003,6 +1017,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "GitHub CLI",
+      "slug": "github-cli/windows",
+      "platform": "windows",
+      "unique_identifier": "GitHub CLI",
+      "description": "GitHub CLI is a command-line tool that brings GitHub's pull requests, issues, and other features to your terminal."
+    },
+    {
       "name": "GitHub Desktop",
       "slug": "github-desktop/windows",
       "platform": "windows",
@@ -1043,6 +1064,13 @@
       "platform": "windows",
       "unique_identifier": "GoLand",
       "description": "GoLand is a Go (golang) IDE by JetBrains"
+    },
+    {
+      "name": "Go",
+      "slug": "golang/windows",
+      "platform": "windows",
+      "unique_identifier": "Go Programming Language",
+      "description": "Go is an open source programming language that makes it simple to build secure, scalable systems."
     },
     {
       "name": "Google Chrome",
@@ -1127,6 +1155,13 @@
       "platform": "windows",
       "unique_identifier": "Granola",
       "description": "Granola is an AI-powered notepad for meetings."
+    },
+    {
+      "name": "Greenshot",
+      "slug": "greenshot/windows",
+      "platform": "windows",
+      "unique_identifier": "Greenshot",
+      "description": "Greenshot is a lightweight screenshot tool for Windows."
     },
     {
       "name": "Hyper",
@@ -1736,6 +1771,13 @@
       "platform": "windows",
       "unique_identifier": "P4 Apps",
       "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
+    },
+    {
+      "name": "Pandoc",
+      "slug": "pandoc/windows",
+      "platform": "windows",
+      "unique_identifier": "Pandoc",
+      "description": "Pandoc is a universal document converter for moving files between markup formats."
     },
     {
       "name": "Parallels Desktop",
@@ -2522,11 +2564,25 @@
       "description": "Windsurf is an agentic IDE powered by AI Flow paradigm."
     },
     {
+      "name": "WinMerge",
+      "slug": "winmerge/windows",
+      "platform": "windows",
+      "unique_identifier": "WinMerge",
+      "description": "WinMerge is an open source differencing and merging tool for files and folders on Windows."
+    },
+    {
       "name": "WinSCP",
       "slug": "winscp/windows",
       "platform": "windows",
       "unique_identifier": "WinSCP",
       "description": "WinSCP is a free SFTP, SCP, S3, and FTP client for Windows."
+    },
+    {
+      "name": "WireGuard",
+      "slug": "wireguard/windows",
+      "platform": "windows",
+      "unique_identifier": "WireGuard",
+      "description": "WireGuard is a fast, modern, and secure VPN tunnel."
     },
     {
       "name": "Wireshark",
@@ -2541,6 +2597,13 @@
       "platform": "windows",
       "unique_identifier": "Wireshark",
       "description": "Wireshark is a network protocol analyzer."
+    },
+    {
+      "name": "WizTree",
+      "slug": "wiztree/windows",
+      "platform": "windows",
+      "unique_identifier": "WizTree",
+      "description": "WizTree is a hard drive disk space analyzer that scans NTFS volumes very quickly."
     },
     {
       "name": "Wrike",
