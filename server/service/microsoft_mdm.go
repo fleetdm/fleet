@@ -33,6 +33,7 @@ import (
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wns"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
 	mysql_driver "github.com/go-sql-driver/mysql"
@@ -2114,6 +2115,36 @@ func extractWNSChannelFromResults(cmds []mdm_types.ProtoCmdOperation) (channelUR
 		}
 	}
 	return channelURI, status, found
+}
+
+// wnsPusher sends a raw WNS push to a device's channel URI. It is implemented by *wns.Client; the interface keeps
+// SendWNSPushesToPendingDevices unit-testable without a live WNS endpoint.
+type wnsPusher interface {
+	SendRaw(ctx context.Context, channelURI string) error
+}
+
+// SendWNSPushesToPendingDevices wakes Windows MDM devices that have queued commands and a WNS channel by sending
+// a raw WNS push to each, so they start a management session instead of waiting for the next poll. Per-device
+// failures are logged and skipped; an expired channel (HTTP 410) is cleared so it is re-queried next session.
+func SendWNSPushesToPendingDevices(ctx context.Context, ds fleet.Datastore, pusher wnsPusher, logger *slog.Logger) error {
+	targets, err := ds.MDMWindowsGetPendingPushTargets(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get Windows MDM pending WNS push targets")
+	}
+
+	for _, target := range targets {
+		switch err := pusher.SendRaw(ctx, target.ChannelURI); {
+		case err == nil:
+			// Delivered to WNS (or cached by WNS for an offline device).
+		case errors.Is(err, wns.ErrChannelExpired):
+			if cerr := ds.MDMWindowsClearEnrolledDeviceChannelURI(ctx, target.MDMDeviceID); cerr != nil {
+				logger.WarnContext(ctx, "clear expired WNS channel", "device_id", target.MDMDeviceID, "err", cerr)
+			}
+		default:
+			logger.WarnContext(ctx, "send WNS push", "device_id", target.MDMDeviceID, "err", err)
+		}
+	}
+	return nil
 }
 
 // getESPCommands dispatches ESP coordination for a Windows Autopilot device.

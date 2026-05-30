@@ -77,6 +77,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wns"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
@@ -1234,6 +1235,22 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		)
 	}); err != nil {
 		initFatal(err, "failed to register APNs pusher schedule")
+	}
+
+	// Only run the WNS pusher when WNS push credentials are configured (env vars); otherwise Windows MDM relies
+	// on polling alone.
+	if config.MDM.IsMicrosoftWNSSet() {
+		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+			return newMDMWNSPusher(
+				ctx,
+				instanceID,
+				ds,
+				wns.NewClient(config.MDM.WindowsWNSSID, config.MDM.WindowsWNSClientSecret),
+				logger,
+			)
+		}); err != nil {
+			initFatal(err, "failed to register WNS pusher schedule")
+		}
 	}
 
 	if license.IsPremium() {

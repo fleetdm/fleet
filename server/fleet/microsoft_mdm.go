@@ -871,6 +871,13 @@ type MDMWindowsEnrolledDevice struct {
 	UpdatedAt              time.Time  `db:"updated_at"`
 }
 
+// MDMWindowsWNSPushTarget identifies a Windows MDM enrollment that has pending commands and a usable WNS push
+// channel, so the server can wake it with a raw push instead of waiting for the next poll.
+type MDMWindowsWNSPushTarget struct {
+	MDMDeviceID string `db:"mdm_device_id"`
+	ChannelURI  string `db:"wns_channel_uri"`
+}
+
 func (e MDMWindowsEnrolledDevice) AuthzType() string {
 	return "mdm_windows"
 }

@@ -2112,6 +2112,14 @@ type Datastore interface {
 	// the device for the given MDM device id, on its most recent enrollment.
 	MDMWindowsSetEnrolledDeviceChannelURI(ctx context.Context, mdmDeviceID, channelURI string, status *int) error
 
+	// MDMWindowsClearEnrolledDeviceChannelURI clears the stored WNS ChannelURI/status/timestamp for the given
+	// MDM device id (e.g. after WNS reports the channel expired) so the server re-queries it next session.
+	MDMWindowsClearEnrolledDeviceChannelURI(ctx context.Context, mdmDeviceID string) error
+
+	// MDMWindowsGetPendingPushTargets returns enrollments that have queued-but-unacknowledged commands and a
+	// usable WNS ChannelURI, so the server can send a raw WNS push to wake them.
+	MDMWindowsGetPendingPushTargets(ctx context.Context) ([]MDMWindowsWNSPushTarget, error)
+
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 

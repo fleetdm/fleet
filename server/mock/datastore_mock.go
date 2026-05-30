@@ -1319,6 +1319,10 @@ type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDe
 
 type MDMWindowsSetEnrolledDeviceChannelURIFunc func(ctx context.Context, mdmDeviceID string, channelURI string, status *int) error
 
+type MDMWindowsClearEnrolledDeviceChannelURIFunc func(ctx context.Context, mdmDeviceID string) error
+
+type MDMWindowsGetPendingPushTargetsFunc func(ctx context.Context) ([]fleet.MDMWindowsWNSPushTarget, error)
+
 type MDMWindowsGetEnrolledDeviceWithHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error)
@@ -3987,6 +3991,12 @@ type DataStore struct {
 
 	MDMWindowsSetEnrolledDeviceChannelURIFunc        MDMWindowsSetEnrolledDeviceChannelURIFunc
 	MDMWindowsSetEnrolledDeviceChannelURIFuncInvoked bool
+
+	MDMWindowsClearEnrolledDeviceChannelURIFunc        MDMWindowsClearEnrolledDeviceChannelURIFunc
+	MDMWindowsClearEnrolledDeviceChannelURIFuncInvoked bool
+
+	MDMWindowsGetPendingPushTargetsFunc        MDMWindowsGetPendingPushTargetsFunc
+	MDMWindowsGetPendingPushTargetsFuncInvoked bool
 
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFunc        MDMWindowsGetEnrolledDeviceWithHostUUIDFunc
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked bool
@@ -9611,6 +9621,20 @@ func (s *DataStore) MDMWindowsSetEnrolledDeviceChannelURI(ctx context.Context, m
 	s.MDMWindowsSetEnrolledDeviceChannelURIFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsSetEnrolledDeviceChannelURIFunc(ctx, mdmDeviceID, channelURI, status)
+}
+
+func (s *DataStore) MDMWindowsClearEnrolledDeviceChannelURI(ctx context.Context, mdmDeviceID string) error {
+	s.mu.Lock()
+	s.MDMWindowsClearEnrolledDeviceChannelURIFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsClearEnrolledDeviceChannelURIFunc(ctx, mdmDeviceID)
+}
+
+func (s *DataStore) MDMWindowsGetPendingPushTargets(ctx context.Context) ([]fleet.MDMWindowsWNSPushTarget, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetPendingPushTargetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetPendingPushTargetsFunc(ctx)
 }
 
 func (s *DataStore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {

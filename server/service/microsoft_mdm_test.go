@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wns"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/stretchr/testify/assert"
@@ -459,6 +460,74 @@ func TestExtractWNSChannelFromResults(t *testing.T) {
 			{Verb: fleet.CmdGet, Cmd: fleet.SyncMLCmd{Items: []fleet.CmdItem{{Source: &loc}}}},
 		})
 		assert.False(t, found)
+	})
+}
+
+type fakeWNSPusher struct {
+	calls []string
+	errs  map[string]error
+}
+
+func (f *fakeWNSPusher) SendRaw(_ context.Context, channelURI string) error {
+	f.calls = append(f.calls, channelURI)
+	return f.errs[channelURI]
+}
+
+func TestSendWNSPushesToPendingDevices(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("pushes, clears expired, skips errors", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.MDMWindowsGetPendingPushTargetsFunc = func(context.Context) ([]fleet.MDMWindowsWNSPushTarget, error) {
+			return []fleet.MDMWindowsWNSPushTarget{
+				{MDMDeviceID: "dev-ok", ChannelURI: "https://wns/ok"},
+				{MDMDeviceID: "dev-expired", ChannelURI: "https://wns/expired"},
+				{MDMDeviceID: "dev-err", ChannelURI: "https://wns/err"},
+			}, nil
+		}
+		var cleared []string
+		ds.MDMWindowsClearEnrolledDeviceChannelURIFunc = func(_ context.Context, deviceID string) error {
+			cleared = append(cleared, deviceID)
+			return nil
+		}
+		pusher := &fakeWNSPusher{errs: map[string]error{
+			"https://wns/expired": wns.ErrChannelExpired,
+			"https://wns/err":     errors.New("boom"),
+		}}
+
+		require.NoError(t, SendWNSPushesToPendingDevices(ctx, ds, pusher, logger))
+		// every target is attempted...
+		assert.Equal(t, []string{"https://wns/ok", "https://wns/expired", "https://wns/err"}, pusher.calls)
+		// ...but only the expired channel is cleared.
+		assert.Equal(t, []string{"dev-expired"}, cleared)
+		assert.True(t, ds.MDMWindowsClearEnrolledDeviceChannelURIFuncInvoked)
+	})
+
+	t.Run("no targets is a no-op", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.MDMWindowsGetPendingPushTargetsFunc = func(context.Context) ([]fleet.MDMWindowsWNSPushTarget, error) {
+			return nil, nil
+		}
+		ds.MDMWindowsClearEnrolledDeviceChannelURIFunc = func(context.Context, string) error {
+			t.Fatal("clear should not be called")
+			return nil
+		}
+		pusher := &fakeWNSPusher{}
+		require.NoError(t, SendWNSPushesToPendingDevices(ctx, ds, pusher, logger))
+		assert.Empty(t, pusher.calls)
+		assert.True(t, ds.MDMWindowsGetPendingPushTargetsFuncInvoked)
+	})
+
+	t.Run("query error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.MDMWindowsGetPendingPushTargetsFunc = func(context.Context) ([]fleet.MDMWindowsWNSPushTarget, error) {
+			return nil, errors.New("db down")
+		}
+		pusher := &fakeWNSPusher{}
+		err := SendWNSPushesToPendingDevices(ctx, ds, pusher, logger)
+		require.Error(t, err)
+		assert.Empty(t, pusher.calls)
 	})
 }
 

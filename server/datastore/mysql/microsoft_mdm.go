@@ -116,6 +116,55 @@ func (ds *Datastore) MDMWindowsSetEnrolledDeviceChannelURI(ctx context.Context, 
 	return nil
 }
 
+// MDMWindowsClearEnrolledDeviceChannelURI clears the WNS channel (URI, status, and timestamp) for the device's
+// most recent enrollment. Nulling the timestamp is what makes wnsChannelNeedsRefresh re-query the channel on the
+// next management session.
+func (ds *Datastore) MDMWindowsClearEnrolledDeviceChannelURI(ctx context.Context, mdmDeviceID string) error {
+	const stmt = `
+		UPDATE mdm_windows_enrollments
+		SET wns_channel_uri = NULL, wns_channel_uri_status = NULL, wns_channel_uri_updated_at = NULL
+		WHERE mdm_device_id = ?
+		ORDER BY created_at DESC, id DESC
+		LIMIT 1`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, mdmDeviceID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear WNS channel URI for enrolled device")
+	}
+	return nil
+}
+
+// MDMWindowsGetPendingPushTargets returns up to 500 enrollments that have queued-but-unacknowledged commands
+// (queued within the last 7 days) and a usable WNS ChannelURI (non-empty, and a successful or unknown Push
+// status). ORDER BY RAND() rotates the set fairly across runs when more than the limit are pending, mirroring the
+// Apple APNs pusher. The INNER JOIN fans out one row per pending command per device; DISTINCT collapses them, so
+// MySQL materializes the join before sorting (acceptable at expected pending-set sizes, same trade-off as APNs).
+func (ds *Datastore) MDMWindowsGetPendingPushTargets(ctx context.Context) ([]fleet.MDMWindowsWNSPushTarget, error) {
+	const stmt = `
+SELECT DISTINCT
+	mwe.mdm_device_id,
+	mwe.wns_channel_uri
+FROM
+	mdm_windows_enrollments mwe
+	INNER JOIN windows_mdm_command_queue wmcq ON wmcq.enrollment_id = mwe.id
+WHERE
+	mwe.wns_channel_uri IS NOT NULL
+	AND mwe.wns_channel_uri != ''
+	AND (mwe.wns_channel_uri_status IS NULL OR mwe.wns_channel_uri_status = 0)
+	AND wmcq.created_at >= NOW() - INTERVAL 7 DAY
+	AND NOT EXISTS (
+		SELECT 1 FROM windows_mdm_command_results wmcr
+		WHERE wmcr.enrollment_id = wmcq.enrollment_id
+		AND wmcr.command_uuid = wmcq.command_uuid
+	)
+ORDER BY RAND()
+LIMIT 500`
+
+	var targets []fleet.MDMWindowsWNSPushTarget
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &targets, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get Windows MDM pending WNS push targets")
+	}
+	return targets, nil
+}
+
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
 // returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {

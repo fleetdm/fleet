@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wns"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -1990,6 +1991,46 @@ func newMDMAPNsPusher(
 			}
 
 			return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newMDMWNSPusher(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	client *wns.Client,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const name = string(fleet.CronMicrosoftMDMWNSPusher)
+
+	interval := 1 * time.Minute
+	if intervalEnv := dev_mode.Env("FLEET_DEV_CUSTOM_WNS_PUSHER_INTERVAL"); intervalEnv != "" {
+		var err error
+		interval, err = time.ParseDuration(intervalEnv)
+		if err != nil {
+			logger.WarnContext(ctx, "invalid duration provided for FLEET_DEV_CUSTOM_WNS_PUSHER_INTERVAL, using default interval")
+			interval = 1 * time.Minute
+		}
+	}
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("wns_push_to_pending_hosts", func(ctx context.Context) error {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving app config")
+			}
+
+			if !appCfg.MDM.WindowsEnabledAndConfigured {
+				return nil
+			}
+
+			return service.SendWNSPushesToPendingDevices(ctx, ds, client, logger)
 		}),
 	)
 

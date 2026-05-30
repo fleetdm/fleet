@@ -72,6 +72,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
 		{"TestMDMWindowsSetEnrolledDeviceChannelURI", testMDMWindowsSetEnrolledDeviceChannelURI},
+		{"TestMDMWindowsPendingPushTargets", testMDMWindowsPendingPushTargets},
 	}
 
 	for _, c := range cases {
@@ -6326,6 +6327,69 @@ func testMDMWindowsSetEnrolledDeviceChannelURI(t *testing.T, ds *Datastore) {
 
 	// Setting for an unknown device id is a no-op, not an error.
 	require.NoError(t, ds.MDMWindowsSetEnrolledDeviceChannelURI(ctx, "does-not-exist", uri, nil))
+}
+
+func testMDMWindowsPendingPushTargets(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func(name string) *fleet.MDMWindowsEnrolledDevice {
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMDeviceName:          name,
+			MDMEnrollType:          "ProgrammaticEnrollment",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.19045.2965",
+			HostUUID:               uuid.NewString(),
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+		return d
+	}
+	queueCmd := func(hostUUID string) {
+		require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, &fleet.MDMWindowsCommand{
+			CommandUUID:  uuid.NewString(),
+			RawCommand:   []byte("<Exec></Exec>"),
+			TargetLocURI: "./test/uri",
+		}))
+	}
+
+	// (a) channel + pending command -> a target.
+	withChannel := newEnrollment("DESKTOP-CHAN")
+	require.NoError(t, ds.MDMWindowsSetEnrolledDeviceChannelURI(ctx, withChannel.MDMDeviceID, "https://wns/chan", new(0)))
+	queueCmd(withChannel.HostUUID)
+
+	// (b) pending command but no channel -> not a target.
+	noChannel := newEnrollment("DESKTOP-NOCHAN")
+	queueCmd(noChannel.HostUUID)
+
+	// (c) channel but no pending command -> not a target.
+	idleChannel := newEnrollment("DESKTOP-IDLE")
+	require.NoError(t, ds.MDMWindowsSetEnrolledDeviceChannelURI(ctx, idleChannel.MDMDeviceID, "https://wns/idle", new(0)))
+
+	// (d) pending command + channel but a failed Push status -> not a target.
+	failedStatus := newEnrollment("DESKTOP-FAILED")
+	require.NoError(t, ds.MDMWindowsSetEnrolledDeviceChannelURI(ctx, failedStatus.MDMDeviceID, "https://wns/failed", new(5)))
+	queueCmd(failedStatus.HostUUID)
+
+	targets, err := ds.MDMWindowsGetPendingPushTargets(ctx)
+	require.NoError(t, err)
+	require.Len(t, targets, 1)
+	assert.Equal(t, withChannel.MDMDeviceID, targets[0].MDMDeviceID)
+	assert.Equal(t, "https://wns/chan", targets[0].ChannelURI)
+
+	// Clearing the channel removes the device from the targets and nulls the refresh timestamp.
+	require.NoError(t, ds.MDMWindowsClearEnrolledDeviceChannelURI(ctx, withChannel.MDMDeviceID))
+	targets, err = ds.MDMWindowsGetPendingPushTargets(ctx)
+	require.NoError(t, err)
+	require.Empty(t, targets)
+
+	got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, withChannel.MDMDeviceID)
+	require.NoError(t, err)
+	assert.Nil(t, got.WNSChannelURI)
+	assert.Nil(t, got.WNSChannelURIStatus)
+	assert.Nil(t, got.WNSChannelURIUpdatedAt)
 }
 
 func testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(t *testing.T, ds *Datastore) {

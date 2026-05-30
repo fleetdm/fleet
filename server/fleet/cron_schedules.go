@@ -28,6 +28,7 @@ const (
 	CronMDMAndroidDeviceReconciler   CronScheduleName = "mdm_android_device_reconciler"
 	CronAppleMDMIPhoneIPadRefetcher  CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
 	CronAppleMDMAPNsPusher           CronScheduleName = "apple_mdm_apns_pusher"
+	CronMicrosoftMDMWNSPusher        CronScheduleName = "microsoft_mdm_wns_pusher"
 	CronCalendar                     CronScheduleName = "calendar"
 	CronUninstallSoftwareMigration   CronScheduleName = "uninstall_software_migration"
 	CronUpgradeCodeSoftwareMigration CronScheduleName = "upgrade_code_software_migration"
