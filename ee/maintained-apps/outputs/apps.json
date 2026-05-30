@@ -884,6 +884,13 @@
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
     },
     {
+      "name": "Evernote",
+      "slug": "evernote/windows",
+      "platform": "windows",
+      "unique_identifier": "Evernote",
+      "description": "Evernote is an app for note taking, organising, task lists, and archiving."
+    },
+    {
       "name": "ExpressVPN",
       "slug": "expressvpn/darwin",
       "platform": "darwin",
