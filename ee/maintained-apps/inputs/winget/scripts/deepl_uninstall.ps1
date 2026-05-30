@@ -1,3 +1,7 @@
+# Locates DeepL's uninstaller from the registry and runs it silently.
+# DeepL installs via Zero Install (0install). Its QuietUninstallString is a
+# 0install command, e.g.:
+
 $displayNameLike = "DeepL*"
 $publisher = "DeepL SE"
 
@@ -23,11 +27,11 @@ if (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.Qu
 
 Stop-Process -Name "DeepL" -Force -ErrorAction SilentlyContinue
 
-$uninstallCommand = if ($uninstall.QuietUninstallString) {
-    $uninstall.QuietUninstallString
-} else {
-    $uninstall.UninstallString
-}
+# Prefer QuietUninstallString -- it already carries 0install's silent flags
+# (--batch --background). Fall back to UninstallString and add those flags
+# (NOT --verysilent) to keep it non-interactive.
+$useQuiet = [bool]$uninstall.QuietUninstallString
+$uninstallCommand = if ($useQuiet) { $uninstall.QuietUninstallString } else { $uninstall.UninstallString }
 
 $exePath = ""
 $existingArgs = ""
@@ -37,34 +41,4 @@ if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
 } elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
     $exePath = $matches[1]
     $existingArgs = $matches[2].Trim()
-} elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
-    $exePath = $matches[1]
-    $existingArgs = $matches[2].Trim()
-} else {
-    Throw "Could not parse uninstall string: $uninstallCommand"
-}
-
-if ($existingArgs -notmatch '(?i)--verysilent') {
-    $existingArgs = ("$existingArgs --verysilent").Trim()
-}
-
-Write-Host "Uninstall command: $exePath"
-Write-Host "Uninstall args: $existingArgs"
-
-try {
-    $processOptions = @{
-        FilePath = $exePath
-        ArgumentList = $existingArgs
-        NoNewWindow = $true
-        PassThru = $true
-        Wait = $true
-    }
-
-    $process = Start-Process @processOptions
-    $exitCode = $process.ExitCode
-    Write-Host "Uninstall exit code: $exitCode"
-    Exit $exitCode
-} catch {
-    Write-Host "Error running uninstaller: $_"
-    Exit 1
-}
+} elseif ($uninstallC
