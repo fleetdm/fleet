@@ -160,11 +160,14 @@ if ($u -match '^\s*"([^"]+)"\s*(.*)$') {            # quoted
 
 **7. Non-pinned installer URLs.** Some manifests point at a "latest" redirect (e.g. `link.gotomeeting.com/latest-msi`). The pinned SHA drifts when the vendor ships a new build, breaking Fleet installs until the FMA auto-update bumps it. Note this in the PR.
 
+**8. NSIS in-place uninstall (`_?=`) path with spaces.** NSIS silent uninstall (`/S`) normally copies the uninstaller to temp and detaches, so the script can't wait on it. Pass `_?=<InstallLocation>` to force in-place execution so `Start-Process -Wait` gets a real exit code. The value MUST be quoted — `_?="$installDir"` — because install dirs routinely contain spaces (`C:\Program Files\Android\Android Studio`); an unquoted path is truncated and the uninstall silently fails (Android Studio precedent). In a double-quoted PowerShell string, escape the inner quotes with backticks: `("$existingArgs _?=`"$installDir`"").Trim()`. This is separate from pitfall #3, which only quotes the *exe path*, not the `_?=` argument.
+
 ## Pre-ship checklist
 - [ ] Identity fields verified against the real installer (MSI Property table / Info.plist), not guessed.
 - [ ] `unique_identifier` = registry DisplayName / bundle id; `program_publisher` set if needed.
 - [ ] Silent install/uninstall flags from winget `InstallerSwitches` or silentinstallhq, not invented.
 - [ ] Custom uninstall (non-MSI-machine) uses the defensive UninstallString parser.
+- [ ] NSIS in-place uninstall passes `_?="$installDir"` (quoted) so `/S` waits and survives spaces in the path.
 - [ ] Version reconciles with osquery (or a documented validator exception applies — not a blanket skip).
 - [ ] Generated SHA matches the manifest; exists/patched queries reviewed; `apps.json` valid + description filled.
 - [ ] Icon exists or is generated.
