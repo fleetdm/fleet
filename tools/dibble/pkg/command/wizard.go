@@ -129,6 +129,7 @@ func runWizard(root *cobra.Command) error {
 		{"profiles (Apple + Windows MDM)", "profiles", false, false},
 		{"software (titles, no upload)", "software", false, false},
 		{"activities (direct MySQL, non-idempotent)", "activities", true, false},
+		{"idp (direct MySQL, links users + hosts)", "idp", false, false},
 		{"cas (placeholder)", "cas", false, false},
 	}
 	labels := make([]string, len(entities))
@@ -160,6 +161,14 @@ func runWizard(root *cobra.Command) error {
 
 	// Step 6: counts.
 	counts := defaultAllCounts()
+	// Pre-fill IDP defaults so the count prompt (and runWizardSelection
+	// downstream) sees sensible numbers when the user picked IDP. Default
+	// is 0 in defaultAllCounts because `dibble all` skips IDP unless
+	// explicitly requested.
+	if wanted["idp"] {
+		counts.IDPUserCount = 3
+		counts.IDPHostCount = 5
+	}
 	customise := false
 	if err := survey.AskOne(
 		&survey.Confirm{Message: "Use default counts?", Default: true},
@@ -290,6 +299,10 @@ func promptCounts(wanted map[string]bool, defaults allCounts) allCounts {
 	if wanted["cas"] {
 		ask("CAs count", &out.CAs)
 	}
+	if wanted["idp"] {
+		ask("idp user count", &out.IDPUserCount)
+		ask("idp host count (round-robin assignments)", &out.IDPHostCount)
+	}
 	return out
 }
 
@@ -342,6 +355,10 @@ func runWizardSelection(c *Client, theme themes.Theme, wanted map[string]bool, c
 		counts.ActivityBatches = 0
 	} else if counts.ActivityBatches == 0 {
 		counts.ActivityBatches = 1
+	}
+	if !wanted["idp"] {
+		counts.IDPUserCount = 0
+		counts.IDPHostCount = 0
 	}
 	counts.EnrollSecrets = wanted["enroll-secrets"]
 	return runAll(c, theme, counts)

@@ -11,6 +11,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/fleetdm/fleet/v4 v4.0.0-00010101000000-000000000000
 	github.com/go-sql-driver/mysql v1.10.0
+	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -57,7 +58,6 @@ require (
 	github.com/gomodule/redigo v1.8.9 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.12 // indirect
 	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect

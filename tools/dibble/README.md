@@ -66,6 +66,7 @@ then plants the seeds.
 | `dibble cas`            | Certificate Authorities (placeholder for now)            |
 | `dibble vulns`     | Vulnerable software, written directly to MySQL           |
 | `dibble activities` | Fake activity rows, written directly to MySQL — **non-idempotent**, marked with `*` |
+| `dibble idp`       | IDP accounts (`mdm_idp_accounts`) for seeded users + round-robin host assignments (`host_mdm_idp_accounts`), written directly to MySQL |
 | `dibble hosts`     | Radio-pick a fleet, fetch its enroll secret, and print or run the matching `cmd/osquery-perf` command (Ctrl-C forwarded) |
 | `dibble ping`      | Sanity-check `--fleet-url` and `--api-token`             |
 | `dibble version`   | Print version + signature line                           |

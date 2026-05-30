@@ -34,6 +34,12 @@ type allCounts struct {
 	ActivityBatches int
 	ActivityDSN     string
 	ActivityHostID  uint
+
+	// IDPUserCount / IDPHostCount drive the direct-MySQL IDP seeder. Zero
+	// for either skips it entirely (it needs a DSN like activities).
+	IDPUserCount int
+	IDPHostCount int
+	IDPDSN       string
 }
 
 func defaultAllCounts() allCounts {
@@ -51,6 +57,9 @@ func defaultAllCounts() allCounts {
 		ActivityBatches: 0,
 		ActivityDSN:     "fleet:insecure@tcp(localhost:3306)/fleet",
 		ActivityHostID:  1,
+		IDPUserCount:    0,
+		IDPHostCount:    0,
+		IDPDSN:          "fleet:insecure@tcp(localhost:3306)/fleet",
 	}
 }
 
@@ -107,6 +116,14 @@ func runAll(c *Client, theme themes.Theme, counts allCounts) error {
 		}))
 	}
 
+	if counts.IDPUserCount > 0 {
+		report(seed.IDP(context.Background(), c, log, seed.IDPOptions{
+			DSN:       counts.IDPDSN,
+			UserCount: counts.IDPUserCount,
+			HostCount: counts.IDPHostCount,
+		}))
+	}
+
 	elapsed := time.Since(start).Round(time.Millisecond)
 	fmt.Fprintf(stdoutish, "\n🌱  dibble done in %s (theme: %s).\n", elapsed, theme.Name)
 	return reportErrors(allErrs)
@@ -144,6 +161,15 @@ func newAllCmd() *cobra.Command {
 			if v, _ := cmd.Flags().GetUint("activity-host-id"); v > 0 {
 				counts.ActivityHostID = v
 			}
+			if v, _ := cmd.Flags().GetInt("idp-user-count"); v > 0 {
+				counts.IDPUserCount = v
+			}
+			if v, _ := cmd.Flags().GetInt("idp-host-count"); v >= 0 && cmd.Flags().Changed("idp-host-count") {
+				counts.IDPHostCount = v
+			}
+			if v, _ := cmd.Flags().GetString("idp-dsn"); v != "" {
+				counts.IDPDSN = v
+			}
 			return runAll(c, theme, counts)
 		},
 	}
@@ -152,5 +178,8 @@ func newAllCmd() *cobra.Command {
 	cmd.Flags().Int("activity-batches", 0, "Seed N batches of fake activities via direct MySQL (0 = skip)")
 	cmd.Flags().String("activity-dsn", "", "MySQL DSN for the activity seeder (default fleet:insecure@tcp(localhost:3306)/fleet)")
 	cmd.Flags().Uint("activity-host-id", 0, "host_id used by the activity seeder for host-scoped rows (default 1)")
+	cmd.Flags().Int("idp-user-count", 0, "Seed N users with IDP accounts via direct MySQL (0 = skip)")
+	cmd.Flags().Int("idp-host-count", 5, "How many hosts to assign IDP accounts to (round-robin); only used when --idp-user-count > 0")
+	cmd.Flags().String("idp-dsn", "", "MySQL DSN for the IDP seeder (default fleet:insecure@tcp(localhost:3306)/fleet)")
 	return cmd
 }
