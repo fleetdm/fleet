@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.6.4",
+      "version": "1.6.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.aone.keka';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.aone.keka' AND version_compare(bundle_short_version, '1.6.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.aone.keka' AND version_compare(bundle_short_version, '1.6.5') < 0);"
       },
-      "installer_url": "https://github.com/aonez/Keka/releases/download/v1.6.4/Keka-1.6.4.dmg",
+      "installer_url": "https://github.com/aonez/Keka/releases/download/v1.6.5/Keka-1.6.5.dmg",
       "install_script_ref": "c516b96f",
       "uninstall_script_ref": "0b8e4c37",
-      "sha256": "8b6022feb0b0babc56a778703e87eb9bb8c444af534a5010735b013f21490db1",
+      "sha256": "3271d69ad805aa9a616118360edf33d5dc3c6322232fff9289e83da0bd23c5dd",
       "default_categories": [
         "Productivity"
       ]
