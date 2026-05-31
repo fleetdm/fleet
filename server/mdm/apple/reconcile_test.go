@@ -198,6 +198,81 @@ func TestEntityAppliesToHost_DeclarationsShareSameDispatcher(t *testing.T) {
 	}
 }
 
+// TestEntityAppliesToHost_CombinedIncludeExclude covers the combined
+// include+exclude targeting cases for both include modes.
+func TestEntityAppliesToHost_CombinedIncludeExclude(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	excLabel := fleet.AppleProfileLabelRef{
+		LabelID:   new(uint(9)),
+		CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	t.Run("include_any + exclude_any", func(t *testing.T) {
+		p := &fleet.AppleProfileForReconcile{
+			TeamID:        0,
+			IncludeMode:   fleet.AppleProfileIncludeAny,
+			IncludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(1))}, {LabelID: new(uint(2))}},
+			ExcludeLabels: []fleet.AppleProfileLabelRef{excLabel},
+		}
+		// in include label, not in exclude -> applies
+		require.True(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}}))
+		// in include label, also in exclude -> does not apply
+		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}, 9: {}}))
+		// not in any include label -> does not apply
+		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{9: {}}))
+		// in exclude only, not in include -> does not apply
+		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{}))
+	})
+
+	t.Run("include_all + exclude_any", func(t *testing.T) {
+		p := &fleet.AppleProfileForReconcile{
+			TeamID:        0,
+			IncludeMode:   fleet.AppleProfileIncludeAll,
+			IncludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(1))}, {LabelID: new(uint(2))}},
+			ExcludeLabels: []fleet.AppleProfileLabelRef{excLabel},
+		}
+		// in all include labels, not in exclude -> applies
+		require.True(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}, 2: {}}))
+		// in all include labels, also in exclude -> does not apply
+		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}, 2: {}, 9: {}}))
+		// missing one include label -> does not apply
+		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}}))
+	})
+
+	t.Run("no include mode + exclude_any (pure exclude)", func(t *testing.T) {
+		p := &fleet.AppleProfileForReconcile{
+			TeamID:        0,
+			IncludeMode:   fleet.AppleProfileIncludeNone,
+			ExcludeLabels: []fleet.AppleProfileLabelRef{excLabel},
+		}
+		// not in exclude label -> applies
+		require.True(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}}))
+		// in exclude label -> does not apply
+		require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{9: {}}))
+	})
+}
+
+// TestEntityAppliesToHost_PureExcludeNoInclude confirms that a profile with
+// only exclude labels (no include mode) applies to all hosts that are NOT
+// members of any exclude label.
+func TestEntityAppliesToHost_PureExcludeNoInclude(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	p := &fleet.AppleProfileForReconcile{
+		TeamID:        0,
+		IncludeMode:   fleet.AppleProfileIncludeNone,
+		ExcludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(5)), CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}},
+	}
+	require.True(t, EntityAppliesToHost(p, host, map[uint]struct{}{}))
+	require.True(t, EntityAppliesToHost(p, host, map[uint]struct{}{1: {}}))
+	require.False(t, EntityAppliesToHost(p, host, map[uint]struct{}{5: {}}))
+}
+
 func TestComputeReconcileDeltas(t *testing.T) {
 	hostA := &fleet.AppleHostReconcileInfo{
 		HostID: 1, UUID: "uuid-A", TeamID: nil, Platform: "darwin",
@@ -276,6 +351,89 @@ func TestComputeReconcileDeltas(t *testing.T) {
 		require.Len(t, toInstall, 1)
 		require.Len(t, toRemove, 1)
 		require.Equal(t, "aDeletedProfile", toRemove[0].ProfileUUID)
+	})
+
+	t.Run("combined include_all + exclude_any: host in include but also in exclude -> not desired", func(t *testing.T) {
+		pCombined := &fleet.AppleProfileForReconcile{
+			ProfileUUID:       "aCombined",
+			ProfileIdentifier: "com.example.combined",
+			ProfileName:       "Combined",
+			TeamID:            0,
+			Checksum:          []byte("cccc"),
+			IncludeMode:       fleet.AppleProfileIncludeAll,
+			IncludeLabels:     []fleet.AppleProfileLabelRef{{LabelID: new(uint(10))}},
+			ExcludeLabels:     []fleet.AppleProfileLabelRef{{LabelID: new(uint(20)), CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}},
+		}
+		profByTeam := map[uint][]*fleet.AppleProfileForReconcile{0: {pGlobal, pCombined}}
+
+		// Host in include label but also in exclude label -> combined profile not desired
+		hostLabels := map[uint]map[uint]struct{}{
+			hostA.HostID: {10: {}, 20: {}},
+		}
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, hostLabels, nil, profByTeam, profilesWithBrokenLabel,
+		)
+		require.Empty(t, toRemove)
+		require.Len(t, toInstall, 1)
+		require.Equal(t, "aProfileGlobal", toInstall[0].ProfileUUID)
+	})
+
+	t.Run("combined include_all + exclude_any: host in include not in exclude -> desired", func(t *testing.T) {
+		pCombined := &fleet.AppleProfileForReconcile{
+			ProfileUUID:       "aCombined",
+			ProfileIdentifier: "com.example.combined",
+			ProfileName:       "Combined",
+			TeamID:            0,
+			Checksum:          []byte("cccc"),
+			IncludeMode:       fleet.AppleProfileIncludeAll,
+			IncludeLabels:     []fleet.AppleProfileLabelRef{{LabelID: new(uint(10))}},
+			ExcludeLabels:     []fleet.AppleProfileLabelRef{{LabelID: new(uint(20)), CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}},
+		}
+		profByTeam := map[uint][]*fleet.AppleProfileForReconcile{0: {pGlobal, pCombined}}
+
+		// Host in include label, not in exclude -> both profiles desired
+		hostLabels := map[uint]map[uint]struct{}{
+			hostA.HostID: {10: {}},
+		}
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, hostLabels, nil, profByTeam, profilesWithBrokenLabel,
+		)
+		require.Empty(t, toRemove)
+		require.Len(t, toInstall, 2)
+	})
+
+	t.Run("combined include_any + exclude_any: host in include but also in exclude -> not desired, removed if present", func(t *testing.T) {
+		pCombined := &fleet.AppleProfileForReconcile{
+			ProfileUUID:       "aCombined",
+			ProfileIdentifier: "com.example.combined",
+			ProfileName:       "Combined",
+			TeamID:            0,
+			Checksum:          []byte("cccc"),
+			IncludeMode:       fleet.AppleProfileIncludeAny,
+			IncludeLabels:     []fleet.AppleProfileLabelRef{{LabelID: new(uint(10))}, {LabelID: new(uint(11))}},
+			ExcludeLabels:     []fleet.AppleProfileLabelRef{{LabelID: new(uint(20)), CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)}},
+		}
+		profByTeam := map[uint][]*fleet.AppleProfileForReconcile{0: {pGlobal, pCombined}}
+
+		// Host in one include label AND in exclude label -> combined profile no longer desired, should be removed
+		hostLabels := map[uint]map[uint]struct{}{
+			hostA.HostID: {10: {}, 20: {}},
+		}
+		current := map[string][]*fleet.MDMAppleProfilePayload{
+			"uuid-A": {{
+				ProfileUUID:   "aCombined",
+				HostUUID:      "uuid-A",
+				Checksum:      []byte("cccc"),
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        new(fleet.MDMDeliveryVerified),
+			}},
+		}
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, hostLabels, current, profByTeam, profilesWithBrokenLabel,
+		)
+		require.Len(t, toInstall, 1) // pGlobal
+		require.Len(t, toRemove, 1)
+		require.Equal(t, "aCombined", toRemove[0].ProfileUUID)
 	})
 
 	t.Run("broken label profile is not removed", func(t *testing.T) {
