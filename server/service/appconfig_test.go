@@ -1669,6 +1669,69 @@ func TestModifyAppConfigWindowsEntraClientIDNormalization(t *testing.T) {
 	require.Equal(t, want, modified.MDM.WindowsEntraClientIDs.Value)
 }
 
+// TestValidateMDMEndUserAuthScope exercises the GitOps (overwrite) MDM
+// end-user-auth validation: strict IdP validation must fire when EUA is
+// enabled at ANY scope — including a team that has it enabled in stored state
+// while the run only touches the global config. See issue #43371.
+func TestValidateMDMEndUserAuthScope(t *testing.T) {
+	ds := new(mock.Store)
+	// validateMDM only touches svc.ds, so a minimal core *Service is enough
+	// (newTestService returns the EE-wrapped service, whose unexported core
+	// isn't reachable for calling the unexported validateMDM).
+	svc := &Service{ds: ds}
+	ctx := t.Context()
+	premium := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	completeIdP := fleet.SSOProviderSettings{EntityID: "fleet", IDPName: "Okta", MetadataURL: "https://idp.example.com/metadata"}
+	// errFields renders all (name: reason) pairs since Error() only summarizes.
+	errFields := func(e *fleet.InvalidArgumentError) string { return fmt.Sprintf("%+v", e.Errors) }
+	mkMDM := func(sso fleet.SSOProviderSettings, noTeamEUA bool) *fleet.MDM {
+		return &fleet.MDM{
+			EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: sso},
+			MacOSSetup:            fleet.MacOSSetup{EnableEndUserAuthentication: noTeamEUA},
+		}
+	}
+
+	t.Run("overwrite degrades IdP while a stored team has EUA: rejected on metadata", func(t *testing.T) {
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+			return []uint{1}, nil
+		}
+		// Incoming keeps entity_id/idp_name but blanks metadata + metadata_url,
+		// so SSOProviderSettings.IsEmpty() is false (the IsEmpty() guard alone
+		// would miss this). No-team EUA is off; only the stored team has it on.
+		degraded := fleet.SSOProviderSettings{EntityID: "fleet", IDPName: "Okta"}
+		invalid := &fleet.InvalidArgumentError{}
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(degraded, false), invalid, true)
+		require.NoError(t, err)
+		require.True(t, invalid.HasErrors())
+		require.Contains(t, errFields(invalid), "either metadata or metadata_url must be defined")
+	})
+
+	t.Run("overwrite clears IdP with no scope enabled: accepted", func(t *testing.T) {
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+			return []uint{}, nil
+		}
+		invalid := &fleet.InvalidArgumentError{}
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(fleet.SSOProviderSettings{}, false), invalid, true)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors())
+	})
+
+	t.Run("overwrite with EUA enabled requires entity_id and idp_name", func(t *testing.T) {
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+			return []uint{1}, nil
+		}
+		// metadata_url present but missing entity_id and idp_name.
+		incoming := fleet.SSOProviderSettings{MetadataURL: "https://idp.example.com/metadata"}
+		invalid := &fleet.InvalidArgumentError{}
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(incoming, false), invalid, true)
+		require.NoError(t, err)
+		require.True(t, invalid.HasErrors())
+		require.Contains(t, errFields(invalid), "entity_id")
+		require.Contains(t, errFields(invalid), "idp_name")
+	})
+}
+
 func TestDiskEncryptionSetting(t *testing.T) {
 	ds := new(mock.Store)
 

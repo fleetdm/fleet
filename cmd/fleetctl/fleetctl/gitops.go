@@ -362,7 +362,7 @@ func gitopsCommand() *cli.Command {
 			// Without this check, a partial gitops run can enable EUA on a
 			// team while leaving the IdP unconfigured — locking ADE
 			// enrollment for that team's hosts. See issue #43371.
-			if err := validateGitOpsGroupEUA(configs, appConfig); err != nil {
+			if err := validateGitOpsGroupEUA(configs, appConfig, fleetClient.ListTeams); err != nil {
 				return err
 			}
 
@@ -736,35 +736,92 @@ type ConfigFile struct {
 // Verify that if any config file in this run enables MDM end-user authentication,
 // then an IdP is configured either in the global config of this run or in the server's
 // current state.
-func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfig) error {
-	idpConfigured := appCfg.MDM.EndUserAuthentication.Metadata != "" ||
-		appCfg.MDM.EndUserAuthentication.MetadataURL != ""
-
-	// If a global file is in this run, its incoming org_settings overrides
-	// stored state for the purposes of effective post-apply IdP state.
+func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfig, listTeams func(query string) ([]fleet.Team, error)) error {
+	// Compute the effective post-apply IdP state. Start from stored state; if a
+	// global file is in this run, its incoming org_settings override stored
+	// state (overwrite mode), so an empty/incomplete/missing block leaves the
+	// IdP incomplete.
+	idpName := appCfg.MDM.EndUserAuthentication.IDPName
+	entityID := appCfg.MDM.EndUserAuthentication.EntityID
+	metadata := appCfg.MDM.EndUserAuthentication.Metadata
+	metadataURL := appCfg.MDM.EndUserAuthentication.MetadataURL
+	globalInRun := false
 	for _, cf := range configs {
 		if !cf.IsGlobalConfig {
 			continue
 		}
+		globalInRun = true
 		mdm, _ := cf.Config.OrgSettings["mdm"].(map[string]any)
 		eua, _ := mdm["end_user_authentication"].(map[string]any)
-		md, _ := eua["metadata"].(string)
-		mdURL, _ := eua["metadata_url"].(string)
-		idpConfigured = md != "" || mdURL != ""
+		idpName, _ = eua["idp_name"].(string)
+		entityID, _ = eua["entity_id"].(string)
+		metadata, _ = eua["metadata"].(string)
+		metadataURL, _ = eua["metadata_url"].(string)
 		break
 	}
 
+	// An IdP is complete only when idp_name, entity_id, and one of
+	// metadata/metadata_url are all set (mirrors the server-side complete-IdP
+	// predicate). If the effective IdP is complete, EUA may be enabled anywhere.
+	idpComplete := idpName != "" && entityID != "" && (metadata != "" || metadataURL != "")
+	if idpComplete {
+		return nil
+	}
+
+	const idpHint = "Set org_settings.mdm.end_user_authentication idp_name, entity_id, and metadata or metadata_url in your global config, or configure a complete IdP on the server first"
+
+	// The effective IdP is incomplete: EUA must not be enabled at any effective
+	// post-apply scope. First, any file in this run that enables it. Track the
+	// teams present in this run so their stored state is not double-counted
+	// below — the in-run file's value wins (including a file that disables EUA).
+	teamsInRun := make(map[string]struct{})
 	for _, cf := range configs {
+		if cf.Config.TeamName != nil {
+			key := norm.NFC.String(strings.ToLower(strings.TrimSpace(*cf.Config.TeamName)))
+			if key != "" {
+				teamsInRun[key] = struct{}{}
+			}
+		}
 		if cf.Config.Controls.MacOSSetup == nil ||
 			!cf.Config.Controls.MacOSSetup.EnableEndUserAuthentication {
 			continue
 		}
-		if !idpConfigured {
-			return fmt.Errorf(
-				"%s: controls.setup_experience.enable_end_user_authentication is true but no IdP is configured. Set org_settings.mdm.end_user_authentication.metadata or metadata_url in your global config, or configure it on the server first.",
-				cf.Filename,
-			)
+		return fmt.Errorf(
+			"%s: controls.setup_experience.enable_end_user_authentication is true but the IdP is not fully configured. %s.",
+			cf.Filename, idpHint,
+		)
+	}
+
+	// Then any stored team NOT present in this run that still has EUA enabled —
+	// the case where a global-only run degrades the IdP while a team keeps EUA
+	// on (issue #43371). Teams are premium-only, so skip the lookup otherwise.
+	if appCfg.License.IsPremium() {
+		teams, err := listTeams("")
+		if err != nil {
+			return fmt.Errorf("listing fleets to validate end user authentication: %w", err)
 		}
+		for _, tm := range teams {
+			key := norm.NFC.String(strings.ToLower(strings.TrimSpace(tm.Name)))
+			if _, ok := teamsInRun[key]; ok {
+				continue
+			}
+			if tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication {
+				return fmt.Errorf(
+					"fleet %q has end user authentication enabled but the IdP is not fully configured. %s, or disable end user authentication for that fleet.",
+					tm.Name, idpHint,
+				)
+			}
+		}
+	}
+
+	// Finally, the stored no-team/global EUA flag survives only when no global
+	// file is in this run (a global file in the run authoritatively redefines
+	// no-team state in overwrite mode, and is covered by the file loop above).
+	if !globalInRun && appCfg.MDM.MacOSSetup.EnableEndUserAuthentication {
+		return fmt.Errorf(
+			"end user authentication is enabled but the IdP is not fully configured. %s.",
+			idpHint,
+		)
 	}
 	return nil
 }

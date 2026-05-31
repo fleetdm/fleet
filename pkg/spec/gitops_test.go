@@ -1494,6 +1494,28 @@ org_settings:
 		require.NoError(t, err)
 	})
 
+	t.Run("enable_sso true with empty idp_name is rejected", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: \"\"\n    entity_id: https://example.com\n    metadata_url: https://idp.example.com/metadata\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When org_settings.sso_settings.enable_sso is true, idp_name must be set")
+	})
+
+	t.Run("enable_sso true with empty entity_id is rejected", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    idp_name: Okta\n    entity_id: \"\"\n    metadata_url: https://idp.example.com/metadata\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "When org_settings.sso_settings.enable_sso is true, entity_id must be set")
+	})
+
+	t.Run("enable_sso true missing idp_name and entity_id reports both", func(t *testing.T) {
+		config := withSSO("    enable_sso: true\n    metadata_url: https://idp.example.com/metadata\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "idp_name must be set")
+		require.ErrorContains(t, err, "entity_id must be set")
+	})
+
 	// Note: MDM end-user authentication validation lives at the gitops
 	// CLI group level (cmd/fleetctl/fleetctl/gitops.go), not here in the
 	// per-file parser, because the enable flag and the IdP settings can
