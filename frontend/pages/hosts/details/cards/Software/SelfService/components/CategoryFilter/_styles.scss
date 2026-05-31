@@ -1,0 +1,62 @@
+.self-service-category-filter-wrapper {
+  flex-shrink: 0;
+
+  // react-select renders its own internal layout; the wrapper is sized by
+  // the singleValue auto-width (gridArea: 1/1/2) so the dropdown grows with
+  // the selected category name.
+  .self-service-category-filter__menu {
+    min-width: 240px;
+  }
+}
+
+.self-service-category-filter {
+  &__search-field {
+    position: sticky;
+    top: 0;
+    padding-top: $pad-small;
+    background-color: $core-fleet-white;
+    z-index: 1;
+
+    .icon {
+      position: absolute;
+      left: 12px;
+      top: 19px;
+    }
+  }
+
+  &__options-spacer {
+    height: $pad-small;
+  }
+
+  &__search-input {
+    width: 100%;
+    line-height: $line-height;
+    background-color: $core-fleet-white;
+    border: solid 1px $ui-fleet-black-10;
+    border-radius: $border-radius;
+    padding: 9.5px 12px 9.5px 36px;
+    color: $core-fleet-blue;
+    font-family: "Inter", sans-serif;
+    font-size: $x-small;
+    box-sizing: border-box;
+    height: 36px;
+
+    &::placeholder {
+      color: $ui-fleet-black-50;
+    }
+
+    &:focus,
+    &:hover {
+      outline: none;
+      border-color: $ui-fleet-black-75;
+
+      + .icon {
+        svg {
+          path {
+            fill: $ui-fleet-black-75;
+          }
+        }
+      }
+    }
+  }
+}
