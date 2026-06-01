@@ -7447,7 +7447,7 @@ func TestGitOpsModeYamlFreeTierRejected(t *testing.T) {
 }
 
 // gitopsCategoriesTestState holds the recorded create/delete calls for a single
-// run so the test can assert exactly what reconcileSelfServiceCategories did.
+// run so the test can assert exactly what doSelfServiceCategories did.
 type gitopsCategoriesTestState struct {
 	mu      sync.Mutex
 	added   []string

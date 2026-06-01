@@ -2490,7 +2490,7 @@ func (c *Client) DoGitOps(
 			for _, teamID := range teamIDsByName {
 				incoming.TeamID = &teamID
 			}
-			if err := c.reconcileSelfServiceCategories(incoming, logFn, dryRun); err != nil {
+			if err := c.doSelfServiceCategories(incoming, dryRun); err != nil {
 				return err
 			}
 			if incoming.Labels == nil || len(incoming.Labels) > 0 {
@@ -2906,52 +2906,43 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	return nil
 }
 
-// reconcileSelfServiceCategories drives the fleet's self_service_categories to
-// match what's declared in YAML. Omitted key → no-op; explicit list (even empty)
-// → create missing and delete any server-side category not in the list.
-func (c *Client) reconcileSelfServiceCategories(config *spec.GitOps, logFn func(format string, args ...any), dryRun bool) error {
+func (c *Client) doSelfServiceCategories(config *spec.GitOps, dryRun bool) error {
 	if !config.Software.SelfServiceCategories.Set {
 		return nil
 	}
 	teamID := *config.TeamID
+
 	existing, err := c.ListSelfServiceCategories(teamID)
 	if err != nil {
 		return fmt.Errorf("listing existing self-service categories: %w", err)
 	}
+	payloads := config.Software.SelfServiceCategories.Value
 
-	declared := config.Software.SelfServiceCategories.Value
-	declares := func(name string) bool {
-		return slices.ContainsFunc(declared, func(d string) bool { return strings.EqualFold(d, name) })
+	var toInsert []string
+	for _, name := range payloads {
+		if !slices.ContainsFunc(existing, func(c fleet.SoftwareCategory) bool { return strings.EqualFold(c.Name, name) }) {
+			toInsert = append(toInsert, name)
+		}
 	}
-	exists := func(name string) bool {
-		return slices.ContainsFunc(existing, func(c fleet.SoftwareCategory) bool { return strings.EqualFold(c.Name, name) })
+	var toDelete []fleet.SoftwareCategory
+	for _, cat := range existing {
+		if !slices.ContainsFunc(payloads, func(p string) bool { return strings.EqualFold(p, cat.Name) }) {
+			toDelete = append(toDelete, cat)
+		}
 	}
 
-	for _, name := range declared {
-		if exists(name) {
-			continue
-		}
-		if dryRun {
-			logFn("[+] would've added self-service category %q\n", name)
-			continue
-		}
+	if dryRun {
+		return nil
+	}
+	for _, name := range toInsert {
 		if _, err := c.AddSelfServiceCategory(teamID, name); err != nil {
 			return fmt.Errorf("adding self-service category %q: %w", name, err)
 		}
-		logFn("[+] added self-service category %q\n", name)
 	}
-	for _, cat := range existing {
-		if declares(cat.Name) {
-			continue
-		}
-		if dryRun {
-			logFn("[-] would've deleted self-service category %q\n", cat.Name)
-			continue
-		}
+	for _, cat := range toDelete {
 		if err := c.DeleteSelfServiceCategory(cat.ID); err != nil {
 			return fmt.Errorf("deleting self-service category %q: %w", cat.Name, err)
 		}
-		logFn("[-] deleted self-service category %q\n", cat.Name)
 	}
 	return nil
 }
