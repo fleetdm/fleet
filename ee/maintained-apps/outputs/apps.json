@@ -1997,6 +1997,13 @@
       "description": "Raycast is an app that allows you to control your tools with a few keystrokes."
     },
     {
+      "name": "RealVNC Viewer",
+      "slug": "realvnc-viewer/windows",
+      "platform": "windows",
+      "unique_identifier": "RealVNC Viewer",
+      "description": "RealVNC Viewer gives you remote access to your endpoints."
+    },
+    {
       "name": "Rectangle",
       "slug": "rectangle/darwin",
       "platform": "darwin",
