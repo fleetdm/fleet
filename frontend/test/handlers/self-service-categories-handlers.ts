@@ -77,6 +77,13 @@ export const addSelfServiceCategoryConflictHandler = http.post(
     )
 );
 
+export const addSelfServiceCategoryErrorHandler = http.post(categoriesUrl, () =>
+  HttpResponse.json(
+    { errors: [{ name: "base", reason: "Internal Server Error" }] },
+    { status: 500 }
+  )
+);
+
 // PATCH /software/self_service_categories/:id
 export const editSelfServiceCategoryHandler = http.patch(
   categoryByIdUrl,
@@ -108,8 +115,26 @@ export const editSelfServiceCategoryConflictHandler = http.patch(
     )
 );
 
+export const editSelfServiceCategoryErrorHandler = http.patch(
+  categoryByIdUrl,
+  () =>
+    HttpResponse.json(
+      { errors: [{ name: "base", reason: "Internal Server Error" }] },
+      { status: 500 }
+    )
+);
+
 // DELETE /software/self_service_categories/:id
 export const deleteSelfServiceCategoryHandler = http.delete(
   categoryByIdUrl,
   () => new HttpResponse(null, { status: 204 })
+);
+
+export const deleteSelfServiceCategoryErrorHandler = http.delete(
+  categoryByIdUrl,
+  () =>
+    HttpResponse.json(
+      { errors: [{ name: "base", reason: "Internal Server Error" }] },
+      { status: 500 }
+    )
 );

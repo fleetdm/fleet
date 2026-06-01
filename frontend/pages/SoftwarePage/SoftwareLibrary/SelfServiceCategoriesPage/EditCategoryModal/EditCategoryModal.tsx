@@ -29,7 +29,8 @@ const EditCategoryModal = ({
   const trimmedName = name.trim();
   const isInvalid =
     trimmedName.length === 0 || trimmedName.length > NAME_MAX_LENGTH;
-  const isDisabled = isInvalid || isSubmitting;
+  const isUnchanged = trimmedName === category.name;
+  const isDisabled = isInvalid || isUnchanged || isSubmitting;
 
   const onNameChange = (value: string) => {
     setName(value);
@@ -52,14 +53,19 @@ const EditCategoryModal = ({
           "A self-service category with this name already exists in this fleet."
         );
       } else {
-        setError("Couldn’t update self-service category.");
+        setError("Couldn't update self-service category.");
       }
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Modal title="Edit category" onExit={onExit} className={baseClass}>
+    <Modal
+      title="Edit category"
+      onExit={onExit}
+      className={baseClass}
+      isContentDisabled={isSubmitting}
+    >
       <form className={`${baseClass}__form`} onSubmit={onSubmit}>
         <InputField
           label="Name"
@@ -75,7 +81,7 @@ const EditCategoryModal = ({
           <Button type="submit" disabled={isDisabled} isLoading={isSubmitting}>
             Save
           </Button>
-          <Button variant="inverse" onClick={onExit}>
+          <Button variant="inverse" onClick={onExit} disabled={isSubmitting}>
             Cancel
           </Button>
         </div>

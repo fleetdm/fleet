@@ -50,8 +50,6 @@ const SelfServiceCategoriesPage = ({
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
   } = useContext(AppContext);
   const isPrimoMode = config?.partnerships?.enable_primo || false;
   const { renderFlash } = useContext(NotificationContext);
@@ -63,6 +61,8 @@ const SelfServiceCategoriesPage = ({
     userTeams,
     handleTeamChange,
     isRouteOk,
+    isTeamAdmin,
+    isTeamMaintainer,
   } = useTeamIdParam({
     location,
     router,
@@ -95,16 +95,17 @@ const SelfServiceCategoriesPage = ({
     ISelfServiceCategoriesResponse,
     Error
   >(
-    ["selfServiceCategories", fleetId],
-    () => selfServiceCategoriesAPI.getCategories(fleetId),
+    ["selfServiceCategories", teamIdForApi],
+    () => selfServiceCategoriesAPI.getCategories(teamIdForApi as number),
     {
-      enabled: !!isPremiumTier && isRouteOk,
+      enabled:
+        !!isPremiumTier && isRouteOk && teamIdForApi !== undefined,
       refetchOnWindowFocus: false,
     }
   );
 
   const invalidateList = () => {
-    queryClient.invalidateQueries(["selfServiceCategories", fleetId]);
+    queryClient.invalidateQueries(["selfServiceCategories", teamIdForApi]);
   };
 
   const onAddSuccess = () => {
@@ -163,7 +164,7 @@ const SelfServiceCategoriesPage = ({
       );
     }
 
-    if (isLoading) {
+    if (!isRouteOk || isLoading) {
       return <Spinner />;
     }
 

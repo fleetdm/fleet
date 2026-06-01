@@ -52,14 +52,19 @@ const AddCategoryModal = ({
           "A self-service category with this name already exists in this fleet."
         );
       } else {
-        setError("Couldn’t add self-service category.");
+        setError("Couldn't add self-service category.");
       }
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Modal title="Add category" onExit={onExit} className={baseClass}>
+    <Modal
+      title="Add category"
+      onExit={onExit}
+      className={baseClass}
+      isContentDisabled={isSubmitting}
+    >
       <form className={`${baseClass}__form`} onSubmit={onSubmit}>
         <InputField
           label="Name"
@@ -75,7 +80,7 @@ const AddCategoryModal = ({
           <Button type="submit" disabled={isDisabled} isLoading={isSubmitting}>
             Add
           </Button>
-          <Button variant="inverse" onClick={onExit}>
+          <Button variant="inverse" onClick={onExit} disabled={isSubmitting}>
             Cancel
           </Button>
         </div>

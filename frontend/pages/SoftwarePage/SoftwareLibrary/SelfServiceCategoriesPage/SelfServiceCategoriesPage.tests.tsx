@@ -7,9 +7,12 @@ import createMockUser from "__mocks__/userMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import {
   addSelfServiceCategoryConflictHandler,
+  addSelfServiceCategoryErrorHandler,
   addSelfServiceCategoryHandler,
+  deleteSelfServiceCategoryErrorHandler,
   deleteSelfServiceCategoryHandler,
   editSelfServiceCategoryConflictHandler,
+  editSelfServiceCategoryErrorHandler,
   editSelfServiceCategoryHandler,
   emptySelfServiceCategoriesHandler,
   listSelfServiceCategoriesHandler,
@@ -238,6 +241,32 @@ describe("SelfServiceCategoriesPage", () => {
     expect(renderFlash).not.toHaveBeenCalled();
   });
 
+  it("shows inline generic error when add fails", async () => {
+    mockServer.use(
+      emptySelfServiceCategoriesHandler,
+      addSelfServiceCategoryErrorHandler
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminContext,
+    });
+
+    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Add category" })
+    );
+    const modal = await getOpenModal();
+
+    await user.type(within(modal).getByLabelText("Name"), "🌎 Browsers");
+    await user.click(within(modal).getByRole("button", { name: /^Add$/ }));
+
+    expect(
+      await within(modal).findByText("Couldn't add self-service category.")
+    ).toBeInTheDocument();
+    expect(renderFlash).not.toHaveBeenCalled();
+  });
+
   it("shows inline 409 error on duplicate name when editing", async () => {
     mockServer.use(
       listSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }]),
@@ -265,6 +294,61 @@ describe("SelfServiceCategoriesPage", () => {
       )
     ).toBeInTheDocument();
     expect(renderFlash).not.toHaveBeenCalled();
+  });
+
+  it("shows inline generic error when edit fails", async () => {
+    mockServer.use(
+      listSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }]),
+      editSelfServiceCategoryErrorHandler
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminContext,
+    });
+
+    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+
+    await screen.findByText("🌎 Browsers");
+    await user.click(screen.getByRole("button", { name: "Edit 🌎 Browsers" }));
+
+    const modal = await getOpenModal();
+    const input = within(modal).getByLabelText("Name");
+    await user.clear(input);
+    await user.type(input, "🌍 Browsers (EU)");
+    await user.click(within(modal).getByRole("button", { name: /Save/ }));
+
+    expect(
+      await within(modal).findByText("Couldn't update self-service category.")
+    ).toBeInTheDocument();
+    expect(renderFlash).not.toHaveBeenCalled();
+  });
+
+  it("flashes an error and re-enables the Delete button when delete fails", async () => {
+    mockServer.use(
+      listSelfServiceCategoriesHandler([{ id: 1, name: "🛟 Support" }]),
+      deleteSelfServiceCategoryErrorHandler
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminContext,
+    });
+
+    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+
+    await screen.findByText("🛟 Support");
+    await user.click(screen.getByRole("button", { name: "Delete 🛟 Support" }));
+    const modal = await getOpenModal();
+
+    const deleteBtn = within(modal).getByRole("button", { name: /^Delete$/ });
+    await user.click(deleteBtn);
+
+    await waitFor(() => {
+      expect(renderFlash).toHaveBeenCalledWith(
+        "error",
+        "Couldn't delete self-service category."
+      );
+    });
+    expect(deleteBtn).not.toBeDisabled();
   });
 
   it("closes the Add modal when Cancel is clicked", async () => {
@@ -327,6 +411,30 @@ describe("SelfServiceCategoriesPage", () => {
     await waitFor(() => {
       expect(document.querySelector(".modal__modal_container")).toBeNull();
     });
+  });
+
+  it("disables Save when the edited name is unchanged", async () => {
+    mockServer.use(
+      listSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminContext,
+    });
+
+    const { user } = render(<SelfServiceCategoriesPage {...baseProps} />);
+
+    await screen.findByText("🌎 Browsers");
+    await user.click(screen.getByRole("button", { name: "Edit 🌎 Browsers" }));
+
+    const modal = await getOpenModal();
+    const saveBtn = within(modal).getByRole("button", { name: /Save/ });
+    expect(saveBtn).toBeDisabled();
+
+    // Editing then reverting also leaves Save disabled (trim-aware).
+    const input = within(modal).getByLabelText("Name");
+    await user.type(input, " ");
+    expect(saveBtn).toBeDisabled();
   });
 
   it("edits a category on Save", async () => {

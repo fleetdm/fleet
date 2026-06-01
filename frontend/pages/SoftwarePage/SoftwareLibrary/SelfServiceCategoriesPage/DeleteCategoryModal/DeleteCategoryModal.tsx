@@ -30,13 +30,18 @@ const DeleteCategoryModal = ({
       await selfServiceCategoriesAPI.deleteCategory(category.id);
       onSuccess();
     } catch (e) {
-      renderFlash("error", "Couldn’t delete self-service category.");
+      renderFlash("error", "Couldn't delete self-service category.");
       setIsDeleting(false);
     }
   };
 
   return (
-    <Modal title="Delete category" onExit={onExit} className={baseClass}>
+    <Modal
+      title="Delete category"
+      onExit={onExit}
+      className={baseClass}
+      isContentDisabled={isDeleting}
+    >
       <>
         <p className={`${baseClass}__body`}>
           The category will be removed from all associated software.
@@ -50,7 +55,11 @@ const DeleteCategoryModal = ({
           >
             Delete
           </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
+          <Button
+            variant="inverse-alert"
+            onClick={onExit}
+            disabled={isDeleting}
+          >
             Cancel
           </Button>
         </div>

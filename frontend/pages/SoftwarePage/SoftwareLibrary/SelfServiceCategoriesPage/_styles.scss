@@ -64,7 +64,8 @@
     transition: opacity 0.1s ease-in-out;
   }
 
-  .upload-list__list-item:hover &__row-actions {
+  .upload-list__list-item:hover &__row-actions,
+  .upload-list__list-item:focus-within &__row-actions {
     opacity: 1;
   }
 }
