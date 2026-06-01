@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -77,7 +78,10 @@ func patchTraceSamplerHandler(logger *slog.Logger, ds fleet.Datastore) http.Hand
 			"updated_by_user_id", v.UserID(),
 		)
 
-		// Return the updated row so callers can confirm what was applied.
+		// Return the updated row so callers can confirm what was applied. Drop UpdatedAt: the row was read before the write,
+		// so current.UpdatedAt is the pre-write timestamp (stale and confusing). omitzero on the struct tag skips the field
+		// when zero. Operators who want the post-write timestamp can do a follow-up GET.
+		current.UpdatedAt = time.Time{}
 		b, err := json.MarshalIndent(current, "", "  ")
 		if err != nil {
 			logger.ErrorContext(r.Context(), "debug trace_sampler PATCH encode response failed", "err", err)

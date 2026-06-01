@@ -104,6 +104,11 @@ func TestTraceSamplerHandler_PATCH_PersistsChangesAndReturnsRow(t *testing.T) {
 	require.True(t, returned.ForceFull)
 	require.InDelta(t, saved.HighVolumeRatio, returned.HighVolumeRatio, 1e-9)
 	require.InDelta(t, saved.StandardRatio, returned.StandardRatio, 1e-9)
+
+	// PATCH response must NOT include updated_at. The handler reads the row before the write, so the pre-write timestamp
+	// would be stale. Operators do a follow-up GET to see the post-write value.
+	require.NotContains(t, res.Body.String(), "updated_at",
+		"PATCH response must drop updated_at to avoid returning a stale timestamp")
 }
 
 func TestTraceSamplerHandler_PATCH_PartialUpdatePreservesOtherFields(t *testing.T) {

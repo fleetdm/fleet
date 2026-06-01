@@ -21,12 +21,15 @@ import (
 func RegisterTracingTiers(registry *tracing.Registry) {
 	// Hot agent endpoints. These dominate request volume at scale (tens of thousands of spans per second on a 100k-host
 	// fleet) without being individually interesting. Sampled at the configured high volume ratio (default 0.1%).
+	registry.Register(http.MethodPost, "/api/osquery/config", tracing.TierHighVolume)
+	registry.Register(http.MethodPost, "/api/v1/osquery/config", tracing.TierHighVolume)
 	registry.Register(http.MethodPost, "/api/osquery/distributed/read", tracing.TierHighVolume)
 	registry.Register(http.MethodPost, "/api/v1/osquery/distributed/read", tracing.TierHighVolume)
 	registry.Register(http.MethodPost, "/api/osquery/distributed/write", tracing.TierHighVolume)
 	registry.Register(http.MethodPost, "/api/v1/osquery/distributed/write", tracing.TierHighVolume)
 	registry.Register(http.MethodPost, "/api/fleet/orbit/config", tracing.TierHighVolume)
 	registry.Register(http.MethodHead, "/api/fleet/orbit/ping", tracing.TierHighVolume)
+	registry.Register(http.MethodHead, "/api/fleet/device/ping", tracing.TierHighVolume)
 	registry.Register(http.MethodHead, "/api/_version_/fleet/device/{token}/ping", tracing.TierHighVolume)
 	registry.Register(http.MethodGet, "/api/_version_/fleet/device/{token}/desktop", tracing.TierHighVolume)
 
