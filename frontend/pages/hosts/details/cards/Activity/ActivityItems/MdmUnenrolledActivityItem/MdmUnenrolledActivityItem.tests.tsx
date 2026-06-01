@@ -7,6 +7,22 @@ import { ActivityType } from "interfaces/activity";
 import MdmUnenrolledActivityItem from "./MdmUnenrolledActivityItem";
 
 describe("MdmUnenrolledActivityItem", () => {
+  it("renders mobile unenrollment copy for iOS/iPadOS", () => {
+    render(
+      <MdmUnenrolledActivityItem
+        activity={createMockHostPastActivity({
+          type: ActivityType.MdmUnenrolled,
+          actor_full_name: "Admin User",
+          details: { platform: "ios" },
+        })}
+        tab="past"
+      />
+    );
+
+    expect(screen.getByText("Admin User")).toBeVisible();
+    expect(screen.getByText(/told Fleet to unenroll this host/i)).toBeVisible();
+  });
+
   it("renders admin-initiated unenrollment copy for Apple/macOS", () => {
     render(
       <MdmUnenrolledActivityItem
