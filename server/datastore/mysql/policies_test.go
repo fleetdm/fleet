@@ -8440,7 +8440,7 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 
 func testGetPoliciesForConditionalAccess(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-
+// (fixed in fleetdm/fleet#46604).
 	// Two "No team" (team_id = 0) policies enrolled in conditional access, one
 	// per supported platform.
 	darwinPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
