@@ -64,7 +64,8 @@ var privateNetworkCIDRs = parseCIDRs([]string{
 })
 
 // parseCIDRs converts CIDR strings (e.g. "10.0.0.0/8") into net.IPNet objects
-// for IP range matching. Panics on malformed input since the lists are hardcoded.
+// for IP range matching. Panics on malformed input since the lists are hardcoded
+// constants -- this runs once at package init, before the server starts.
 func parseCIDRs(cidrs []string) []*net.IPNet {
 	nets := make([]*net.IPNet, 0, len(cidrs))
 	for _, cidr := range cidrs {
