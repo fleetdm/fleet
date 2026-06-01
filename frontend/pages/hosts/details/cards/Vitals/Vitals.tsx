@@ -351,7 +351,8 @@ const Vitals = ({
             <TooltipTruncatedText
               value={
                 isAppleDevice(vitalsData.platform)
-                  ? vitalsData.hardware_marketing_name
+                  ? vitalsData.hardware_marketing_name ||
+                    vitalsData.hardware_model
                   : vitalsData.hardware_model
               }
             />

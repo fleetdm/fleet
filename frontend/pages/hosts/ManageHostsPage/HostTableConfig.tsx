@@ -193,7 +193,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       <TextCell
         value={
           isAppleDevice(cellProps.row.original.platform)
-            ? cellProps.row.original.hardware_marketing_name
+            ? cellProps.row.original.hardware_marketing_name ||
+              cellProps.cell.value
             : cellProps.cell.value
         }
       />
