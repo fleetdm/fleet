@@ -37,11 +37,12 @@ const (
 	EncryptionTypeRecovery   = "recovery"
 )
 
-// LUKS2 token type identifiers emitted by systemd-cryptenroll.
+// LUKS2 token-type identifiers emitted by systemd-cryptenroll. These match
+// the literal "type" field of entries in the luksDump "tokens" object.
 const (
-	tokenTypeSystemdTPM2     = "systemd-tpm2"
-	tokenTypeSystemdFIDO2    = "systemd-fido2"
-	tokenTypeSystemdRecovery = "systemd-recovery"
+	systemdTPM2Type     = "systemd-tpm2"
+	systemdFIDO2Type    = "systemd-fido2"
+	systemdRecoveryType = "systemd-recovery"
 )
 
 // DetectEncryptionType inspects a LUKS2 dump's tokens and returns the
@@ -57,11 +58,11 @@ func DetectEncryptionType(dump *LuksDump) string {
 	var hasFIDO2, hasRecovery bool
 	for _, tok := range dump.Tokens {
 		switch tok.Type {
-		case tokenTypeSystemdTPM2:
+		case systemdTPM2Type:
 			return EncryptionTypeTPM2
-		case tokenTypeSystemdFIDO2:
+		case systemdFIDO2Type:
 			hasFIDO2 = true
-		case tokenTypeSystemdRecovery:
+		case systemdRecoveryType:
 			hasRecovery = true
 		}
 	}

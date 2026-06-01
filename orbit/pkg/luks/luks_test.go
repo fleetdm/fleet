@@ -263,8 +263,8 @@ func TestLuksDumpTokensUnmarshal(t *testing.T) {
 		var dump LuksDump
 		require.NoError(t, json.Unmarshal([]byte(dumpWithTokens), &dump))
 		require.Len(t, dump.Tokens, 2)
-		assert.Equal(t, tokenTypeSystemdTPM2, dump.Tokens["0"].Type)
-		assert.Equal(t, tokenTypeSystemdRecovery, dump.Tokens["1"].Type)
+		assert.Equal(t, systemdTPM2Type, dump.Tokens["0"].Type)
+		assert.Equal(t, systemdRecoveryType, dump.Tokens["1"].Type)
 	})
 }
 
@@ -292,46 +292,46 @@ func TestDetectEncryptionType(t *testing.T) {
 		{
 			name: "only tpm2",
 			dump: &LuksDump{Tokens: map[string]Token{
-				"0": {Type: tokenTypeSystemdTPM2},
+				"0": {Type: systemdTPM2Type},
 			}},
 			want: EncryptionTypeTPM2,
 		},
 		{
 			name: "only fido2",
 			dump: &LuksDump{Tokens: map[string]Token{
-				"0": {Type: tokenTypeSystemdFIDO2},
+				"0": {Type: systemdFIDO2Type},
 			}},
 			want: EncryptionTypeFIDO2,
 		},
 		{
 			name: "only recovery",
 			dump: &LuksDump{Tokens: map[string]Token{
-				"0": {Type: tokenTypeSystemdRecovery},
+				"0": {Type: systemdRecoveryType},
 			}},
 			want: EncryptionTypeRecovery,
 		},
 		{
 			name: "tpm2 + recovery -> tpm2",
 			dump: &LuksDump{Tokens: map[string]Token{
-				"0": {Type: tokenTypeSystemdTPM2},
-				"1": {Type: tokenTypeSystemdRecovery},
+				"0": {Type: systemdTPM2Type},
+				"1": {Type: systemdRecoveryType},
 			}},
 			want: EncryptionTypeTPM2,
 		},
 		{
 			name: "fido2 + recovery -> fido2",
 			dump: &LuksDump{Tokens: map[string]Token{
-				"0": {Type: tokenTypeSystemdFIDO2},
-				"1": {Type: tokenTypeSystemdRecovery},
+				"0": {Type: systemdFIDO2Type},
+				"1": {Type: systemdRecoveryType},
 			}},
 			want: EncryptionTypeFIDO2,
 		},
 		{
 			name: "tpm2 + fido2 + recovery -> tpm2",
 			dump: &LuksDump{Tokens: map[string]Token{
-				"0": {Type: tokenTypeSystemdRecovery},
-				"1": {Type: tokenTypeSystemdFIDO2},
-				"2": {Type: tokenTypeSystemdTPM2},
+				"0": {Type: systemdRecoveryType},
+				"1": {Type: systemdFIDO2Type},
+				"2": {Type: systemdTPM2Type},
 			}},
 			want: EncryptionTypeTPM2,
 		},
