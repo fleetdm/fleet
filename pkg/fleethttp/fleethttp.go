@@ -114,7 +114,9 @@ func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Cont
 			}
 		}
 
-		return dialer.DialContext(ctx, network, net.JoinHostPort(host, port))
+		// Connect using the already-resolved IP to prevent DNS rebinding
+		// (a second DNS lookup could return a different, malicious IP).
+		return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].IP.String(), port))
 	}
 }
 
