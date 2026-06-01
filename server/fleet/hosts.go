@@ -948,7 +948,7 @@ func HostDisplayName(computerName string, hostname string, hardwareModel string,
 }
 
 func (h *Host) DisplayName() string {
-	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
+	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareMarketingName(), h.HardwareSerial)
 }
 
 // HardwareMarketingName returns the Apple marketing name for the host's hardware
