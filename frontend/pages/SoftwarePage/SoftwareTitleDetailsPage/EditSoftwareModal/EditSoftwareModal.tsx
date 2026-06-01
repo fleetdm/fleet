@@ -376,6 +376,7 @@ const EditSoftwareModal = ({
           defaultSelfService={softwarePackage.self_service}
           defaultCategories={softwarePackage.categories}
           gitopsCompatible={isGitOpsCompatible}
+          teamId={teamId}
         />
       );
     }
