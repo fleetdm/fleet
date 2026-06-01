@@ -2634,6 +2634,13 @@
       "description": "Zed is a multiplayer code editor."
     },
     {
+      "name": "Zed",
+      "slug": "zed/windows",
+      "platform": "windows",
+      "unique_identifier": "Zed",
+      "description": "Zed is a multiplayer code editor."
+    },
+    {
       "name": "Zen Browser",
       "slug": "zen/darwin",
       "platform": "darwin",
