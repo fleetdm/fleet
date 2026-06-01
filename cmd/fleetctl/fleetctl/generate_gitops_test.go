@@ -2580,3 +2580,45 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 		assert.Contains(t, errBuf.String(), "dark")
 	})
 }
+
+type MockClientWithCategories struct {
+	MockClient
+}
+
+func (MockClientWithCategories) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error) {
+	// Only Team A (id=1 in MockClient) gets custom categories so the unassigned
+	// fleet confirms the "no categories" → omit-key branch.
+	if teamID != 1 {
+		return nil, nil
+	}
+	return []fleet.SoftwareCategory{
+		{ID: 10, Name: "🌎 Browsers", TeamID: 1},
+		{ID: 11, Name: "💼 Engineering", TeamID: 1},
+	}, nil
+}
+
+func TestGenerateGitopsEmitsSelfServiceCategories(t *testing.T) {
+	configureFMAManifestServer(t)
+	fleetClient := &MockClientWithCategories{}
+	action := createGenerateGitopsAction(fleetClient)
+
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+	buf := new(bytes.Buffer)
+	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
+	require.NoError(t, action(cliContext), buf.String())
+
+	teamYAML, err := os.ReadFile(tempDir + "/fleets/team-a-👍.yml")
+	require.NoError(t, err)
+	assert.Contains(t, string(teamYAML), "self_service_categories:")
+	assert.Contains(t, string(teamYAML), "🌎 Browsers")
+	assert.Contains(t, string(teamYAML), "💼 Engineering")
+
+	// The fleet that returns no categories must NOT emit the key.
+	otherYAML, err := os.ReadFile(tempDir + "/fleets/unassigned.yml")
+	require.NoError(t, err)
+	assert.NotContains(t, string(otherYAML), "self_service_categories:")
+}

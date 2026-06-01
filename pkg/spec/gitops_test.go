@@ -4296,3 +4296,152 @@ name: TestTeam
 		assert.False(t, gitops.SoftwarePresent)
 	})
 }
+
+func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
+	t.Parallel()
+
+	t.Run("key omitted leaves Present false", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += "software:\n  packages: []\n"
+		path, basePath := createTempFile(t, "", config)
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.False(t, gitops.SelfServiceCategoriesPresent)
+		assert.Empty(t, gitops.Software.SelfServiceCategories)
+	})
+
+	t.Run("empty list sets Present true", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += "software:\n  self_service_categories: []\n"
+		path, basePath := createTempFile(t, "", config)
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.True(t, gitops.SelfServiceCategoriesPresent)
+		assert.Empty(t, gitops.Software.SelfServiceCategories)
+	})
+
+	t.Run("populated list sets Present true and canonicalizes names", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += `software:
+  self_service_categories:
+    - "🌎 Browsers"
+    - "Productivity"
+    - "💼 Engineering"
+`
+		path, basePath := createTempFile(t, "", config)
+		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+		assert.True(t, gitops.SelfServiceCategoriesPresent)
+		// "Productivity" should be canonicalized to "💻 Productivity".
+		assert.Equal(t, []string{"🌎 Browsers", "💻 Productivity", "💼 Engineering"}, gitops.Software.SelfServiceCategories)
+	})
+}
+
+func TestGitOpsSelfServiceCategoriesValidation(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		categories string
+		wantErr    string
+	}{
+		{
+			name:       "empty name",
+			categories: "    - \"\"\n",
+			wantErr:    "name is required",
+		},
+		{
+			name:       "whitespace-only name",
+			categories: "    - \"   \"\n",
+			wantErr:    "name is required",
+		},
+		{
+			name:       "name too long",
+			categories: "    - \"" + strings.Repeat("a", 256) + "\"\n",
+			wantErr:    "must be at most 255 characters",
+		},
+		{
+			name: "case-insensitive duplicate",
+			categories: `    - "💻 Productivity"
+    - "💻 productivity"
+`,
+			wantErr: "listed more than once",
+		},
+		{
+			name: "duplicate via legacy translation",
+			categories: `    - "Productivity"
+    - "💻 Productivity"
+`,
+			wantErr: "listed more than once",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			config := getTeamConfig(nil)
+			config += "software:\n  self_service_categories:\n" + tc.categories
+			path, basePath := createTempFile(t, "", config)
+			_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+		})
+	}
+}
+
+func TestGitOpsPackageCategoryReferencesMustExist(t *testing.T) {
+	t.Parallel()
+
+	t.Run("package referencing missing category fails with the name", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += `software:
+  self_service_categories:
+    - "🌎 Browsers"
+  packages:
+    - url: https://example.com/pkg.dmg
+      hash_sha256: ` + strings.Repeat("a", 64) + `
+      categories:
+        - "Mystery"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `"Mystery"`)
+		assert.Contains(t, err.Error(), "self_service_categories")
+	})
+
+	t.Run("legacy plain name matches declared canonical name", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += `software:
+  self_service_categories:
+    - "💻 Productivity"
+  packages:
+    - url: https://example.com/pkg.dmg
+      hash_sha256: ` + strings.Repeat("a", 64) + `
+      categories:
+        - "Productivity"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+	})
+
+	t.Run("key absent skips cross-validation", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += `software:
+  packages:
+    - url: https://example.com/pkg.dmg
+      hash_sha256: ` + strings.Repeat("a", 64) + `
+      categories:
+        - "Anything Goes"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+	})
+}
