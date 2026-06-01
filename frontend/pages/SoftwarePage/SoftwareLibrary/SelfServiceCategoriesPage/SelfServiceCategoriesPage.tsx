@@ -98,8 +98,7 @@ const SelfServiceCategoriesPage = ({
     ["selfServiceCategories", teamIdForApi],
     () => selfServiceCategoriesAPI.getCategories(teamIdForApi as number),
     {
-      enabled:
-        !!isPremiumTier && isRouteOk && teamIdForApi !== undefined,
+      enabled: !!isPremiumTier && isRouteOk && teamIdForApi !== undefined,
       refetchOnWindowFocus: false,
     }
   );
