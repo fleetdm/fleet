@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "5.32.2.5905",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Amazon WorkSpaces' AND publisher = 'Amazon Web Services, Inc';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Amazon WorkSpaces' AND publisher = 'Amazon Web Services, Inc' AND version_compare(version, '5.32.2.5905') < 0);"
+      },
+      "installer_url": "https://d2td7dqidlhjx7.cloudfront.net/prod/global/windows/Amazon+WorkSpaces.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "b645e295",
+      "sha256": "d92852c27efd33f349da727f6a7d2c5622441bf7fdb1a00a3132e4a4988f3f96",
+      "default_categories": [
+        "Productivity"
+      ],
+      "upgrade_code": "{CB7B8EA8-3D5A-4233-A9CB-31A692E24E62}"
+    }
+  ],
+  "refs": {
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "b645e295": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts('{CB7B8EA8-3D5A-4233-A9CB-31A692E24E62}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n    \n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n    \n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n    \n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n"
+  }
+}

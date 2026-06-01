@@ -1064,7 +1064,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		func() (fleet.CronSchedule, error) {
 			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 			return newCleanupsAndAggregationSchedule(
-				ctx, instanceID, ds, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc, acmeSvc, chartSvc,
+				ctx, instanceID, ds, carveStore, svc, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore, androidSvc, activitySvc, acmeSvc, chartSvc,
 			)
 		},
 	); err != nil {
