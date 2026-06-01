@@ -951,6 +951,19 @@ func (h *Host) DisplayName() string {
 	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
 }
 
+// HardwareMarketingName returns the Apple marketing name for the host's hardware
+// model (e.g. "MacBook Pro (16-inch, Nov 2023)"), falling back to the raw
+// hardware model identifier when the platform is not an Apple platform or the
+// identifier is not in the mapping.
+func (h *Host) HardwareMarketingName() string {
+	if IsApplePlatform(h.Platform) {
+		if name, ok := AppleHardwareModels[h.HardwareModel]; ok {
+			return name
+		}
+	}
+	return h.HardwareModel
+}
+
 func (h *HostLite) DisplayName() string {
 	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
 }

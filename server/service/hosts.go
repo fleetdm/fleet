@@ -72,21 +72,13 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 		geoLoc = svc.LookupGeoIP(ctx, host.PublicIP)
 	}
 
-	hardwareMarketingName := host.HardwareModel
-	switch host.Platform {
-	case "darwin", "ios", "ipados":
-		if name, ok := fleet.AppleHardwareModels[host.HardwareModel]; ok {
-			hardwareMarketingName = name
-		}
-	}
-
 	return &fleet.HostDetailResponse{
 		HostDetail:            *host,
 		Status:                host.Status(time.Now()),
 		DisplayText:           host.Hostname,
 		DisplayName:           host.DisplayName(),
 		Geolocation:           geoLoc,
-		HardwareMarketingName: hardwareMarketingName,
+		HardwareMarketingName: host.HardwareMarketingName(),
 	}, nil
 }
 
