@@ -4,5 +4,6 @@
   "token": "slack",
   "installer_format": "pkg",
   "slug": "slack/darwin",
-  "default_categories": ["Communication"]
+  "default_categories": ["Communication"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/slack_install.sh"
 }
