@@ -268,18 +268,10 @@ func printUserRoles(c *cli.Context, users []fleet.User) error {
 }
 
 func printTeams(c *cli.Context, client *service.Client, teams []fleet.Team) error {
-	premium, err := isPremiumLicense(client)
-	if err != nil {
-		return err
-	}
-
 	for _, team := range teams {
-		var software *fleet.SoftwareSpec
-		if premium {
-			software, err = getTeamSoftwareSpec(client, team.ID)
-			if err != nil {
-				return err
-			}
+		software, err := getTeamSoftwareSpec(client, team.ID)
+		if err != nil {
+			return err
 		}
 
 		var teamItem any
@@ -307,15 +299,6 @@ func printTeams(c *cli.Context, client *service.Client, teams []fleet.Team) erro
 		}
 	}
 	return nil
-}
-
-// isPremiumLicense reports whether the connected Fleet server has a premium license.
-func isPremiumLicense(client *service.Client) (bool, error) {
-	appConfig, err := client.GetAppConfig()
-	if err != nil {
-		return false, fmt.Errorf("get app config: %w", err)
-	}
-	return appConfig.License != nil && appConfig.License.IsPremium(), nil
 }
 
 // getTeamSoftwareSpec builds the software section of a team spec from the
