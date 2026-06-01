@@ -1582,10 +1582,10 @@ type HostMDMCheckinInfo struct {
 }
 
 type HostDiskEncryptionKey struct {
-	HostID              uint      `json:"-" db:"host_id"`
-	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`
-	Base64EncryptedSalt string    `json:"-" db:"base64_encrypted_salt"`
-	KeySlot             *uint     `json:"-" db:"key_slot"`
+	HostID              uint   `json:"-" db:"host_id"`
+	Base64Encrypted     string `json:"-" db:"base64_encrypted"`
+	Base64EncryptedSalt string `json:"-" db:"base64_encrypted_salt"`
+	KeySlot             *uint  `json:"-" db:"key_slot"`
 	// EncryptionType identifies how the underlying volume key is protected
 	// on the host (passphrase, tpm2, fido2, recovery). Linux-only today;
 	// macOS/Windows rows persist the default "passphrase" value.
