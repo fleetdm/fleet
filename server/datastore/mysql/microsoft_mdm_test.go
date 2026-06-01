@@ -2194,9 +2194,9 @@ func windowsEnroll(t *testing.T, ds fleet.Datastore, h *fleet.Host) string {
 func testNewMDMWindowsConfigProfileSoftwareUpdateTracking(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	osUpdateSyncML := []byte(fmt.Sprintf(
+	osUpdateSyncML := fmt.Appendf(nil,
 		`<Replace><Item><Target><LocURI>./Device%s/Install</LocURI></Target></Item></Replace>`,
-		syncml.FleetOSUpdateTargetLocURI))
+		syncml.FleetOSUpdateTargetLocURI)
 
 	// The first OS-update profile is created and tracked.
 	_, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{

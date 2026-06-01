@@ -1430,9 +1430,9 @@ func testBatchSetMDMProfilesSoftwareUpdateTracking(t *testing.T, ds *Datastore) 
 	winOSUpdate := func(name string) *fleet.MDMWindowsConfigProfile {
 		return &fleet.MDMWindowsConfigProfile{
 			Name: name,
-			SyncML: []byte(fmt.Sprintf(
+			SyncML: fmt.Appendf(nil,
 				`<Replace><Item><Target><LocURI>./Device%s/Install</LocURI></Target></Item></Replace>`,
-				syncml.FleetOSUpdateTargetLocURI)),
+				syncml.FleetOSUpdateTargetLocURI),
 		}
 	}
 	appleOSUpdate := func(name, identifier string) *fleet.MDMAppleDeclaration {
