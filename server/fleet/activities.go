@@ -515,6 +515,19 @@ func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
+type ActivityTypeRetrievedHostMyDeviceURL struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeRetrievedHostMyDeviceURL) ActivityName() string {
+	return "retrieved_host_my_device_url"
+}
+
+func (a ActivityTypeRetrievedHostMyDeviceURL) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeCreatedMacosProfile struct {
 	ProfileName       string  `json:"profile_name"`
 	ProfileIdentifier string  `json:"profile_identifier"`
@@ -1066,6 +1079,7 @@ type ActivityTypeInstalledSoftware struct {
 	PolicyName          *string `json:"policy_name"`
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
+	FailureReason       string  `json:"failure_reason,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {
@@ -1325,6 +1339,7 @@ type ActivityInstalledAppStoreApp struct {
 	HostPlatform        string  `json:"host_platform"`
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	FromAutoUpdate      bool    `json:"from_auto_update"`
+	FailureReason       string  `json:"failure_reason,omitempty"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {

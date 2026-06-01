@@ -13,7 +13,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
 | Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Jonathan Porter](https://linkedin.com/in/jp-cpe) _([@jp-cpe](https://github.com/jp-cpe))_
-| Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/) <br> [Sean Hannon](https://www.linkedin.com/in/sean-hannon-73b603105/)
+| Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/) <br> [Sean Hannon](https://www.linkedin.com/in/sean-hannon-73b603105/) <br> [Kelly Kroening](https://www.linkedin.com/in/kelly-kroening)
 | Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
 
 ## Contact us
@@ -110,6 +110,18 @@ Sometimes there is a change in the champion within the customer's organization.
     - Example: ABCTestCompany_FleetPremiumMDM_HostExpansion_Q12025
     - Example: ABCTestCompany_FleetPremium_PriceIncreaseExpansion_Q12025
 4. Fill out all the required fields making sure to pick "Expansion" in the  "Type" dropdown menu and then click "Save".
+
+
+### Monitor and respond to LinkedIn comments
+
+The Customer Support team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel and sent to Unthread.
+
+To monitor and respond to LinkedIn comments:
+1. Address LinkedIn mentions and comments once within 1 day.
+2. From the Fleet LinkedIn company page, Like mentions and respond to any questions asked in comments.
+3. Repost content related to GitOps certification or from Fleeties.
+4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
+
 
 
 ### Schedule a Fast-track engagement

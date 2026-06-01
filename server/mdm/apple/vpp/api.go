@@ -48,6 +48,33 @@ func (e *ErrorResponse) Error() string {
 	return fmt.Sprintf("Apple VPP endpoint returned error: %s (error number: %d)", e.ErrorMessage, e.ErrorNumber)
 }
 
+// IsMaxDevicesPerUserError reports whether err is an Apple VPP error indicating
+// that a Managed Apple ID has reached the per-user device cap (Apple allows
+// up to 5 devices per user license).
+//
+// Apple's numeric code for this case has not been stable across iOS releases,
+// so the helper matches by message substring as well. Confirm against Apple's
+// sandbox before locking in the canonical code.
+func IsMaxDevicesPerUserError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var resp *ErrorResponse
+	if !errors.As(err, &resp) || resp == nil {
+		return false
+	}
+	// Known candidate code — refine against sandbox results.
+	if resp.ErrorNumber == 9622 {
+		return true
+	}
+	msg := strings.ToLower(resp.ErrorMessage)
+	if strings.Contains(msg, "maximum number of devices") ||
+		strings.Contains(msg, "device limit") {
+		return true
+	}
+	return false
+}
+
 // ResponseErrorInfo represents the request-specific information regarding the
 // failure.
 //
@@ -129,19 +156,47 @@ func GetConfig(ctx context.Context, token string) (ClientConfig, error) {
 }
 
 // AssociateAssetsRequest is the request for asset management.
+//
+// Apple accepts EITHER SerialNumbers OR ClientUserIds, never both — see Validate.
 type AssociateAssetsRequest struct {
 	// Assets are the assets to assign.
 	Assets []Asset `json:"assets"`
 	// SerialNumbers is the set of identifiers for devices to assign the
-	// assets to.
-	SerialNumbers []string `json:"serialNumbers"`
+	// assets to. Used for device-scoped licensing on manually-enrolled and
+	// DEP-enrolled hosts.
+	SerialNumbers []string `json:"serialNumbers,omitempty"`
+	// ClientUserIds is the set of Fleet-generated identifiers for VPP users
+	// (registered via CreateUsers) to assign the assets to. Used for
+	// user-scoped licensing on Account-Driven User Enrolled (BYOD) hosts.
+	ClientUserIds []string `json:"clientUserIds,omitempty"`
 }
 
-// AssociateAssets associates assets to serial numbers according the the
-// request parameters provided.
+// Validate enforces Apple's contract that exactly one of SerialNumbers or
+// ClientUserIds is set on an associate-assets request.
+func (r *AssociateAssetsRequest) Validate() error {
+	if r == nil {
+		return errors.New("AssociateAssetsRequest: params cannot be nil")
+	}
+	hasSerials := len(r.SerialNumbers) > 0
+	hasUsers := len(r.ClientUserIds) > 0
+	switch {
+	case hasSerials && hasUsers:
+		return errors.New("AssociateAssetsRequest: SerialNumbers and ClientUserIds are mutually exclusive")
+	case !hasSerials && !hasUsers:
+		return errors.New("AssociateAssetsRequest: one of SerialNumbers or ClientUserIds is required")
+	}
+	return nil
+}
+
+// AssociateAssets associates assets to serial numbers or client user IDs
+// according the the request parameters provided.
 //
 // https://developer.apple.com/documentation/devicemanagement/associate_assets
 func AssociateAssets(token string, params *AssociateAssetsRequest) (string, error) {
+	if err := params.Validate(); err != nil {
+		return "", err
+	}
+
 	var reqBody bytes.Buffer
 	if err := json.NewEncoder(&reqBody).Encode(params); err != nil {
 		return "", fmt.Errorf("encoding params as JSON: %w", err)
@@ -163,6 +218,133 @@ func AssociateAssets(token string, params *AssociateAssetsRequest) (string, erro
 	}
 
 	return respBody.EventID, nil
+}
+
+// DisassociateAssetsRequest is the body for Apple's disassociate-assets
+// endpoint. The shape is identical to AssociateAssetsRequest (same assets +
+// mutually-exclusive serialNumbers/clientUserIds contract), so it shares the
+// type and Validate.
+type DisassociateAssetsRequest = AssociateAssetsRequest
+
+// DisassociateAssets releases (un-reserves) assets previously associated to
+// serial numbers or client user IDs, returning the reserved seats to the
+// VPP location. Use this to avoid leaking a license when an install that
+// reserved a seat does not proceed (e.g. the activation failed or was
+// cancelled before reaching the device).
+//
+// https://developer.apple.com/documentation/devicemanagement/disassociate_assets
+func DisassociateAssets(token string, params *DisassociateAssetsRequest) (string, error) {
+	if err := params.Validate(); err != nil {
+		return "", err
+	}
+
+	var reqBody bytes.Buffer
+	if err := json.NewEncoder(&reqBody).Encode(params); err != nil {
+		return "", fmt.Errorf("encoding params as JSON: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, getBaseURL()+"/assets/disassociate", &reqBody)
+	if err != nil {
+		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	var respBody struct {
+		EventID string `json:"eventId"`
+	}
+
+	if err := do(req, token, &respBody); err != nil {
+		return "", fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+	}
+
+	return respBody.EventID, nil
+}
+
+// RegisterUserResponse mirrors Apple's synchronous v1 register-user response.
+//
+// Apple's v1 API responds synchronously with the full user record on success.
+// Status is 0 on success and -1 on error; the optional Error* fields carry
+// the application-level failure reason. UserID is Apple's assigned identifier.
+//
+// https://developer.apple.com/documentation/devicemanagement/registervppuserresponse
+type RegisterUserResponse struct {
+	Status       int    `json:"status"`
+	ErrorNumber  int32  `json:"errorNumber,omitempty"`
+	ErrorMessage string `json:"errorMessage,omitempty"`
+	User         *struct {
+		UserID            json.Number `json:"userId"`
+		Status            string      `json:"status"`
+		ClientUserIDStr   string      `json:"clientUserIdStr"`
+		ManagedAppleIDStr string      `json:"managedAppleIDStr"`
+		Email             string      `json:"email,omitempty"`
+		InviteURL         string      `json:"inviteUrl,omitempty"`
+		InviteCode        string      `json:"inviteCode,omitempty"`
+	} `json:"user,omitempty"`
+}
+
+// RegisterUser registers a single VPP user via Apple's legacy synchronous v1
+// register-user endpoint. Use this rather than the v2 /users/create flow when
+// the caller needs definitive confirmation that registration succeeded before
+// proceeding — v1 returns the full user record (with Apple's assigned userId)
+// in the same response, whereas v2 only returns an eventId that must be
+// polled separately.
+//
+// On any Apple-level failure (status != 0 or non-2xx with error payload),
+// returns an *ErrorResponse so callers can distinguish known error codes
+// (e.g. invalid Managed Apple ID).
+//
+// https://developer.apple.com/documentation/devicemanagement/registervppuserrequest
+func RegisterUser(token, clientUserID, managedAppleID string) (string, error) {
+	if clientUserID == "" || managedAppleID == "" {
+		return "", errors.New("RegisterUser: clientUserId and managedAppleId are required")
+	}
+
+	// v1 takes the VPP server token in the body rather than the
+	// Authorization header. Apple keys the user record on email, so we send
+	// the Managed Apple ID as both managedAppleIDStr and email.
+	reqParams := struct {
+		SToken            string `json:"sToken"`
+		ClientUserIDStr   string `json:"clientUserIdStr"`
+		ManagedAppleIDStr string `json:"managedAppleIDStr"`
+		Email             string `json:"email"`
+	}{
+		SToken:            token,
+		ClientUserIDStr:   clientUserID,
+		ManagedAppleIDStr: managedAppleID,
+		Email:             managedAppleID,
+	}
+
+	var reqBody bytes.Buffer
+	if err := json.NewEncoder(&reqBody).Encode(reqParams); err != nil {
+		return "", fmt.Errorf("encoding params as JSON: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, getV1BaseURL()+"/registerVPPUserSrv", &reqBody)
+	if err != nil {
+		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+	}
+	req.Header.Add("Content-Type", "application/json")
+
+	var resp RegisterUserResponse
+	if err := do(req, "", &resp); err != nil {
+		return "", fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+	}
+
+	// v1 reports application-level failures via status == -1 with an
+	// errorMessage/errorNumber but a 200 transport. Surface those through the
+	// same *ErrorResponse callers already handle for v2.
+	if resp.Status != 0 || resp.ErrorNumber != 0 || resp.ErrorMessage != "" {
+		return "", &ErrorResponse{
+			ErrorMessage: resp.ErrorMessage,
+			ErrorNumber:  resp.ErrorNumber,
+		}
+	}
+	if resp.User == nil || resp.User.UserID == "" {
+		return "", errors.New("Apple VPP register-user returned no user record on success")
+	}
+
+	return resp.User.UserID.String(), nil
 }
 
 // AssetFilter represents the filters for querying assets.
@@ -336,7 +518,11 @@ func GetAssignments(token string, filter *AssignmentFilter) ([]Assignment, error
 }
 
 func do[T any](req *http.Request, token string, dest *T) error {
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	// v1 endpoints carry the token in the request body, so callers pass an
+	// empty string to skip the Authorization header.
+	if token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	}
 
 	// Reset the request body for retries. After client.Do reads the body,
 	// it's consumed. GetBody (set by http.NewRequest for *bytes.Buffer)
@@ -424,6 +610,17 @@ func getBaseURL() string {
 		return devURL
 	}
 	return "https://vpp.itunes.apple.com/mdm/v2"
+}
+
+// getV1BaseURL returns the base URL for Apple's legacy v1 VPP endpoints. The
+// dev override (FLEET_DEV_VPP_URL) is returned as-is so tests can mock both
+// v1 and v2 against the same httptest server using path-based routing.
+func getV1BaseURL() string {
+	devURL := dev_mode.Env("FLEET_DEV_VPP_URL")
+	if devURL != "" {
+		return devURL
+	}
+	return "https://vpp.itunes.apple.com/mdm"
 }
 
 // addFilter adds a filter to the query values if it is not the zero value.

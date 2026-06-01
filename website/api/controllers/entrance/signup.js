@@ -225,7 +225,7 @@ the account verification message.)`,
 
 
     sails.helpers.flow.build(async ()=>{
-      let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      let recordDetails = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: newEmailAddress,
         firstName: firstName,
         lastName: lastName,
@@ -236,15 +236,16 @@ the account verification message.)`,
       });
 
       // Throw an error to stop the build() helper if a contact is missing a parent account record.
-      if(!recordIds.salesforceAccountId) {
-        throw new Error(`Could not create historical event. The contact record (ID: ${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
+      if(!recordDetails.salesforceAccountId) {
+        throw new Error(`Could not create historical event. The contact record (ID: ${recordDetails.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
       }
 
       await sails.helpers.salesforce.createHistoricalEvent.with({
-        salesforceAccountId: recordIds.salesforceAccountId,
-        salesforceContactId: recordIds.salesforceContactId,
+        salesforceAccountId: recordDetails.salesforceAccountId,
+        salesforceContactId: recordDetails.salesforceContactId,
         eventType: 'Intent signal',
         intentSignal: 'Signed up for a fleetdm.com account',
+        relatedCampaign: recordDetails.mostRecentCampaign,
       }).intercept((err)=>{
         return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
       });

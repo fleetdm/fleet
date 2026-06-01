@@ -47,15 +47,6 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | DRI                               | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 
-## Go-To-Market tools
-
-Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onboarded by IT, and made available to all necessary stakeholders.
-
-Any GTM tool, automation, or functionality that someone wants to explore using in Sales, Marketing, or Customer Success, including any tool we want to integrate with Salesforce or use its data in Salesforce, must first be evaluated and approved by the Head of GTM Architecture before being used by anyone at the company. This includes demos of GTM tools — any demo of a tool used in Sales, Marketing, Customer Success, or that integrates with/uses data from Salesforce must be kicked off by the Head of GTM Architecture.
-
-To request approval for a new GTM tool/functionality, [create a GitHub issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&template=1-custom-request.md&labels=%3Ahelp-gtm-ops) and include a user story describing the goal of the added tool/automation.
-
-
 ## Customer support service level objectives (SLOs)
 
 **Fleet Free:**
@@ -80,6 +71,15 @@ To request approval for a new GTM tool/functionality, [create a GitHub issue](ht
 **Emergency (P0) request communications:**
 
 ![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
+
+
+## Go-To-Market tools
+
+Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onboarded by IT, and made available to all necessary stakeholders.
+
+Any GTM tool, automation, or functionality that someone wants to explore using in Sales, Marketing, or Customer Success, including any tool we want to integrate with Salesforce or use its data in Salesforce, must first be evaluated and approved by the Head of GTM Architecture before being used by anyone at the company. This includes demos of GTM tools — any demo of a tool used in Sales, Marketing, Customer Success, or that integrates with/uses data from Salesforce must be kicked off by the Head of GTM Architecture.
+
+To request approval for a new GTM tool/functionality, [create a GitHub issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&template=1-custom-request.md&labels=%3Ahelp-gtm-ops) and include a user story describing the goal of the added tool/automation.
 
 
 ## GTM strategy
@@ -340,9 +340,6 @@ NFR (Not For Resale) instances are Fleet environments deployed for partners and 
 **To deploy an NFR instance:** Create a [new NFR instance issue](https://github.com/fleetdm/confidential/issues/new?template=new-nfr-request.yml). Solutions Consulting will deploy the instance. The infrastructure team will then configure DNS and email, and the requester will be notified in #help-solutions-consulting when the instance is ready.
 
 
-## Quoting
-
-
 ### Create a quote
 
 Navigate to the opportunity you are creating a quote for, then follow the steps below.
@@ -405,6 +402,21 @@ Navigate to the account you would like to label as a "Top target". Edit the acco
 > Once you check the "Top target" box, the "Target tier" field will appear. You can split your target accounts into 3 different tiers. "Tier 1" being the best, "Tier 3" being the least priority but still worth calling out.
 
 
+### Fill out the "Pre-meeting context" field
+
+After a meeting is booked, the Solutions Specialist is responsible for filling out the **"Pre-meeting context"** field on the Salesforce opportunity before the meeting takes place.
+
+To fill out this field:
+
+1. Reach out to the prospect who set the meeting (e.g. via email or LinkedIn) to gather additional context about what they're hoping to get out of the call.
+2. Ask about their current environment, key pain points, and any specific goals or topics they want to cover.
+3. Navigate to the Salesforce opportunity and edit the **"Pre-meeting context"** field.
+4. Summarize the context you gathered from the prospect and save the record.
+
+This helps the full meeting team arrive prepared and aligned on the prospect's priorities.
+
+
+
 ## Signatures
 
 
@@ -430,6 +442,11 @@ First, log into DocuSign (credentials in 1Password) and route the agreement to t
 Once the signature SLA has expired you can [contact Finance](https://fleetdm.com/handbook/finance#contact-us) to follow up. 
 
 
+## Vendor questionnaires 
+
+Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/it/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/it/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/it/security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
+
+
 ### Fleet's vendor collateral
 
 Use the following steps to send Fleet's vendor collateral to a prospect or customer:
@@ -439,11 +456,6 @@ Use the following steps to send Fleet's vendor collateral to a prospect or custo
 > 🧑‍🚀 Attention Fleeties:
 >
 > Can't find what you're looking for in Google Drive? 🧐 Reach out in the [🚂 :help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) for help. Any collateral documents (e.g. SOC2, Pen test, etc.) you send to a prospect or customer should be downloaded from the [🗃️ Vendor collateral folder](https://drive.google.com/drive/folders/18_Q7Q9Qwu7a8uFyHIS9QZo7iVA0B9YED?usp=drive_link) in Google Drive. If it's not in the "🗃️ Vendor collateral folder", it's not ready to be sent out.
-
-
-### Vendor questionnaires 
-
-Occasionally, prospective customers will ask us to complete a questionnaire. In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/it/security#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/it/security#application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/it/security#vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
 
 ## Slide decks

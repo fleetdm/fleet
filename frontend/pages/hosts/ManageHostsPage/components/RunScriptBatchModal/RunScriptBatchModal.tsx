@@ -24,7 +24,7 @@ import scriptsAPI, {
   IListScriptsQueryKey,
   IScriptBatchSupportedFilters,
   IScriptsResponse,
-  IRunScriptBatchRequest,
+  IRunScriptBatchFormData,
 } from "services/entities/scripts";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import Spinner from "components/Spinner";
@@ -150,7 +150,7 @@ const RunScriptBatchModal = ({
       setIsUpdating(true);
 
       // Create the base request.
-      let body: IRunScriptBatchRequest;
+      let body: IRunScriptBatchFormData;
 
       if (runByFilters) {
         body = {

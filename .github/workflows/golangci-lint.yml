@@ -20,6 +20,8 @@ on:
       - '.golangci-incremental.yml'
       - '.custom-gcl.yml'
   workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 4 * * *' # Daily 4 AM UTC, runs the full OS lint matrix
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -43,8 +45,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # See #9943, we just need to add windows-latest here once all issues are fixed.
-        os: [ubuntu-4core, macos-latest, windows-latest]
+        # PR/push runs Linux only for fast, cheap feedback. The full OS matrix
+        # (macOS + Windows) runs nightly via the schedule trigger and on manual dispatch.
+        os: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["ubuntu-4core","macos-latest","windows-latest"]' || '["ubuntu-4core"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       # Tell git not to change line endings when checking out files on Windows. Without this gofmt
@@ -108,7 +111,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-4core, macos-latest, windows-latest]
+        os: [ubuntu-4core]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Harden Runner

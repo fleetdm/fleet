@@ -30,6 +30,22 @@ func TestAnalyzer(t *testing.T) {
 			require.Empty(t, vulns)
 			require.NoError(t, err)
 		})
+
+		// Regression test for https://github.com/fleetdm/fleet/issues/45602:
+		// when the release notes file exists but contains no valid security updates
+		// (corrupted feed), Analyze must refuse to proceed rather than wiping every
+		// existing MacOffice vulnerability.
+		t.Run("when release notes contain no valid security updates", func(t *testing.T) {
+			vulnPath := t.TempDir()
+
+			// A release note without SecurityUpdates is considered invalid.
+			err := ReleaseNotes{{Version: "1.0"}}.Serialize(time.Now(), vulnPath)
+			require.NoError(t, err)
+
+			_, err = Analyze(ctx, nil, vulnPath, false)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "no valid security updates")
+		})
 	})
 
 	t.Run("updateVulnsInDB", func(t *testing.T) {

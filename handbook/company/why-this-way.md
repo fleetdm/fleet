@@ -316,6 +316,10 @@ AI can't take responsibility. Only humans can. If your name is on the commit, th
 - **The value of a review is the guarantee, not the findings.** It is normal to review an AI-generated PR carefully and only find nits, or nothing at all. That doesn't mean the review was wasted. The value is the guarantee that a human read every line and understood it. Without that guarantee, we ship work no one understands, and that is how teams accumulate latent bugs, brittle abstractions, and broken systems that nobody can debug.
 
 
+## Why send LinkedIn comments to Unthread?
+
+Fleet routes LinkedIn comments to Unthread so that a dedicated team owns every comment rather than it being another inbox for a single individual to triage. Unthread surfaces comments as actionable tickets, ensuring nothing is overlooked and responders are held accountable. Reverting to this process gives accountability and repeatable success to the team best equipped to respond to comments.
+
 ## Why keep issue templates simple?
 
 At Fleet, we optimize for the person submitting the issue, not the person receiving it.

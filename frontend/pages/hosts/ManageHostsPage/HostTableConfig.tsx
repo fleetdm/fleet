@@ -212,6 +212,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
             showArrow
             position="top"
             tipOffset={10}
+            fixedPositionStrategy
           >
             <TextCell italic value={`${numUsers} users`} />
           </TooltipWrapper>

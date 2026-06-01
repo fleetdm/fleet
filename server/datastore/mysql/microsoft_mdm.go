@@ -133,6 +133,49 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 	return &winMDMDevice, nil
 }
 
+// MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName fetches the most recent Windows MDM enrollment whose host_uuid is
+// not yet populated and whose device_name matches the given computer name. This is the BYOD-before-osquery-ingest
+// fallback used by callers (e.g. the setup-experience cancel flow) that need to consult enrollment state during the
+// brief window between orbit/enroll and osquery's directIngestMDMDeviceIDWindows linking host_uuid. Constraining on
+// the empty host_uuid avoids matching rows already linked to a different host that happens to share the same Windows
+// computer name.
+func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	if deviceName == "" {
+		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage("empty device name"))
+	}
+	stmt := `SELECT
+		id,
+		mdm_device_id,
+		mdm_hardware_id,
+		device_state,
+		device_type,
+		device_name,
+		enroll_type,
+		enroll_user_id,
+		enroll_proto_version,
+		enroll_client_version,
+		not_in_oobe,
+		awaiting_configuration,
+		awaiting_configuration_at,
+		credentials_hash,
+		credentials_acknowledged,
+		created_at,
+		updated_at,
+		host_uuid
+		FROM mdm_windows_enrollments
+		WHERE device_name = ? AND (host_uuid IS NULL OR host_uuid = '')
+		ORDER BY created_at DESC, id DESC LIMIT 1`
+
+	var winMDMDevice fleet.MDMWindowsEnrolledDevice
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, deviceName); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(deviceName))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName")
+	}
+	return &winMDMDevice, nil
+}
+
 // HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
 // installers with install_during_setup=TRUE are configured for the given team. teamID=0 means "no team /
 // global", matching the value EnqueueSetupExperienceItems passes in for hosts on no team.
@@ -2205,6 +2248,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 	WHERE
 		h.platform = 'windows' AND
 		NOT EXISTS (
@@ -2235,6 +2280,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
 				ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 1
 			LEFT OUTER JOIN label_membership lm
@@ -2277,6 +2324,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
 				ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 1 AND mcpl.require_all = 0
 			LEFT OUTER JOIN labels lbl
@@ -2313,6 +2362,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
+			JOIN host_mdm hmdm
+				ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			JOIN mdm_configuration_profile_labels mcpl
 				ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 0
 			LEFT OUTER JOIN label_membership lm
@@ -2585,11 +2636,11 @@ const windowsProfilesToRemoveQuery = `
 	WHERE
 		-- profiles that are in B but not in A
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
-		-- only target hosts that still have a valid Windows MDM enrollment;
-		-- orphaned host_mdm_windows_profiles rows (where the enrollment was
-		-- deleted) cannot receive MDM commands and must be skipped.
+		-- skip hosts not confirmed enrolled in Fleet's Windows MDM
 		EXISTS (
 			SELECT 1 FROM mdm_windows_enrollments mwe
+				JOIN hosts h ON h.uuid = mwe.host_uuid
+				JOIN host_mdm hmdm ON hmdm.host_id = h.id AND hmdm.enrolled = 1
 			WHERE mwe.host_uuid = hmwp.host_uuid
 		) AND
 		-- exclude remove operations with non-NULL status (already processed;

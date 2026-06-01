@@ -927,7 +927,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", iosHost.ID), nil, http.StatusOK, &hostResp)
-	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after successful software install for iDevice")
+	// iOS/iPadOS enrollment sets refetch_requested=true (cleared on DeviceInformation ack);
+	// the VPP install path queues its own RefetchApps command via host_mdm_commands and
+	// must not touch the host-level flag, so it should still be true here.
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should remain true after VPP install on iDevice (cleared only by DeviceInformation ack)")
 
 	// Now we have a refetch apps command in flight to update the host software inventory
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1035,7 +1038,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", ipodHost.ID), nil, http.StatusOK, &hostResp)
-	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after successful software install for iDevice")
+	// iOS/iPadOS enrollment sets refetch_requested=true (cleared on DeviceInformation ack);
+	// the VPP install path queues its own RefetchApps command via host_mdm_commands and
+	// must not touch the host-level flag, so it should still be true here.
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should remain true after VPP install on iDevice (cleared only by DeviceInformation ack)")
 
 	// Now we have a refetch apps command in flight to update the host software inventory
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1641,7 +1647,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		if cmd.Command.RequestType == "InstallApplication" {
+		switch cmd.Command.RequestType {
+		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
@@ -1651,6 +1658,9 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
+
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
 		}
 	}
 
@@ -1822,7 +1832,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		if cmd.Command.RequestType == "InstallApplication" {
+		switch cmd.Command.RequestType {
+		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
@@ -1832,6 +1843,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
 		}
 	}
 

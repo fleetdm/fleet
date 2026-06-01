@@ -16,7 +16,7 @@ import activitiesAPI, {
 } from "services/entities/activities";
 import hostAPI, {
   IGetHostCertificatesResponse,
-  IGetHostCertsRequestParams,
+  IGetHostCertsApiParams,
 } from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import commandAPI from "services/entities/command";
@@ -38,8 +38,8 @@ import {
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
 import {
-  isBYODAccountDrivenUserEnrollment,
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  isAndroidBYO,
 } from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
@@ -152,8 +152,6 @@ const fullWidthCardClass = `${baseClass}__card--full-width`;
 const tripleHeightCardClass = `${baseClass}__card--triple-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
-const BYOD_SW_INSTALL_LEARN_MORE_LINK =
-  "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
 
@@ -358,7 +356,7 @@ const HostDetailsPage = ({
     IGetHostCertificatesResponse,
     Error,
     IGetHostCertificatesResponse,
-    Array<IGetHostCertsRequestParams & { scope: "host-certificates" }>
+    Array<IGetHostCertsApiParams & { scope: "host-certificates" }>
   >(
     [
       {
@@ -717,9 +715,9 @@ const HostDetailsPage = ({
   }, [showClearPasscodeModal, setShowClearPasscodeModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
-    setPolicyDetailsModal(!showPolicyDetailsModal);
+    setPolicyDetailsModal(false);
     setSelectedPolicy(null);
-  }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
+  }, [setPolicyDetailsModal, setSelectedPolicy]);
 
   const toggleUnenrollMdmModal = useCallback(() => {
     setShowUnenrollMdmModal(!showUnenrollMdmModal);
@@ -802,7 +800,12 @@ const HostDetailsPage = ({
   };
 
   const onShowActivityDetails = useCallback(
-    ({ type, details }: IShowActivityDetailsData) => {
+    ({
+      type,
+      details,
+      actor_full_name,
+      fleet_initiated,
+    }: IShowActivityDetailsData) => {
       switch (type) {
         case "ran_script":
           setScriptExecutiontId(details?.script_execution_id || "");
@@ -818,6 +821,10 @@ const HostDetailsPage = ({
                 details.software_display_name
               ),
               commandUuid: details?.command_uuid,
+              failureReason: details?.failure_reason,
+              actorFullName: actor_full_name,
+              fleetInitiated: fleet_initiated,
+              selfService: details?.self_service,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
             setScriptPackageDetails({
@@ -866,6 +873,10 @@ const HostDetailsPage = ({
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
             platform: details?.host_platform || host?.platform,
+            failureReason: details?.failure_reason,
+            actorFullName: actor_full_name,
+            fleetInitiated: fleet_initiated,
+            selfService: details?.self_service,
           });
           break;
         case "installed_certificate":
@@ -1075,6 +1086,27 @@ const HostDetailsPage = ({
     }
   };
 
+  const onClickMyDevice = async () => {
+    if (!host) return;
+    try {
+      const { device_url } = await hostAPI.getDeviceURL(host.id);
+      // TODO: this sometimes flashes the "please allow pop-ups" error even when
+      // the popup successfully opens — `window.open` is returning null in cases
+      // where the new tab actually appears. Investigate (likely the async gap
+      // between the click and window.open is treated as non-user-initiated by
+      // some browsers, or the returned WindowProxy is filtered by noopener).
+      const opened = window.open(device_url, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        renderFlash(
+          "error",
+          "Couldn't open My device page. Please allow pop-ups and try again."
+        );
+      }
+    } catch (e) {
+      renderFlash("error", "Couldn't open My device page. Please try again.");
+    }
+  };
+
   const onUpdateEndUser = async (username: string) => {
     setIsUpdating(true);
     try {
@@ -1241,6 +1273,13 @@ const HostDetailsPage = ({
       isHostTeamMaintainer ||
       isHostTeamTechnician);
 
+  // "My device" link points to that host's end-user My device page. The URL
+  // embeds the device auth token so it acts as a credential, hence global
+  // admin only. The endpoint guarantees a valid link on every fetch — it
+  // refreshes an expired token or generates one for a host that has never
+  // had one — so we don't gate visibility on orbit/MDM state.
+  const canViewMyDeviceLink = isGlobalAdmin;
+
   const showSoftwareLibraryTab = isPremiumTier;
   const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -1288,22 +1327,16 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
-               currently supporting software installs. This check should be removed
-               when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
-              {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
-              isAndroidHost ? (
+              {/* Android hosts don't support software installs yet. iOS/iPadOS
+               user-enrolled (BYOD account-driven) hosts now do. */}
+              {isAndroidHost ? (
                 <EmptyState
                   info={
                     <>
                       Software install is coming soon.{" "}
                       <CustomLink
                         text="Learn more"
-                        url={
-                          isAndroidHost
-                            ? ANDROID_SW_INSTALL_LEARN_MORE_LINK
-                            : BYOD_SW_INSTALL_LEARN_MORE_LINK
-                        }
+                        url={ANDROID_SW_INSTALL_LEARN_MORE_LINK}
                         newTab
                       />
                     </>
@@ -1402,7 +1435,7 @@ const HostDetailsPage = ({
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
-              hostMdmEnrollmentStatus={host.mdm?.enrollment_status || undefined}
+              hostMdmEnrollmentStatus={host.mdm?.enrollment_status ?? null}
             />
           </div>
           <TabNav className={`${baseClass}__tab-nav`}>
@@ -1509,6 +1542,7 @@ const HostDetailsPage = ({
                     isGlobalAdmin ||
                     isGlobalMaintainer
                   }
+                  canViewMyDeviceLink={canViewMyDeviceLink}
                   onClickUpdateUser={(
                     e:
                       | React.MouseEvent<HTMLButtonElement>
@@ -1516,6 +1550,14 @@ const HostDetailsPage = ({
                   ) => {
                     e.preventDefault();
                     setShowUpdateEndUserModal(true);
+                  }}
+                  onClickMyDevice={(
+                    e:
+                      | React.MouseEvent<HTMLButtonElement>
+                      | React.KeyboardEvent<HTMLButtonElement>
+                  ) => {
+                    e.preventDefault();
+                    onClickMyDevice();
                   }}
                 />
                 <LabelsCard
@@ -1599,6 +1641,7 @@ const HostDetailsPage = ({
                     policies={host?.policies || []}
                     isLoading={isLoadingHost}
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    closePolicyDetailsModal={onCancelPolicyDetailsModal}
                     hostPlatform={host.platform}
                     currentTeamId={currentTeam?.id}
                     canManagePolicies={canManagePolicies}
@@ -1681,6 +1724,16 @@ const HostDetailsPage = ({
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
+              onSuccess={() => {
+                // Android BYO unenroll fires an AMAPI WIPE work-profile-only command, which the backend tracks via wipe_ref / device_status="wiping".
+                // Optimistically flip the device state so the "Unenroll pending" badge shows immediately instead of waiting for the next host refetch.
+                if (
+                  isAndroid(host.platform) &&
+                  isAndroidBYO(host.mdm.enrollment_status)
+                ) {
+                  setHostMdmDeviceState("wiping");
+                }
+              }}
             />
           )}
           {showDiskEncryptionModal && host && (
@@ -1830,6 +1883,7 @@ const HostDetailsPage = ({
             <WipeModal
               id={host.id}
               hostName={host.display_name}
+              hostPlatform={host.platform}
               isWindowsHost={isWindowsHost}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
@@ -1894,7 +1948,20 @@ const HostDetailsPage = ({
           />
         )}
         {showClearPasscodeModal && (
-          <ClearPasscodeModal id={host.id} onExit={toggleClearPasscodeModal} />
+          <ClearPasscodeModal
+            id={host.id}
+            hostName={host.display_name}
+            hostPlatform={host.platform}
+            hostMdmEnrollmentStatus={host.mdm.enrollment_status}
+            onExit={toggleClearPasscodeModal}
+            onSuccess={() => {
+              // Android: flip device_status to "clearing_passcode" so the badge appears.
+              // Apple follow up: #46286
+              if (isAndroid(host.platform)) {
+                setHostMdmDeviceState("clearing_passcode");
+              }
+            }}
+          />
         )}
       </>
     );

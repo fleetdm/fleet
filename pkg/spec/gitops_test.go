@@ -1363,6 +1363,79 @@ org_settings:
 	})
 }
 
+// TestGitOpsModeYaml exercises the parse-time validator for the
+// `org_settings.gitops` block: rejects `exceptions`, enforces the
+// repository_url requirement and scheme rules, and accepts well-formed
+// inputs.
+func TestGitOpsModeYaml(t *testing.T) {
+	t.Parallel()
+
+	withGitops := func(body string) string {
+		config := getGlobalConfig([]string{"org_settings"})
+		config += `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+  gitops:
+` + body
+		return config
+	}
+
+	t.Run("https URL with mode enabled is accepted", func(t *testing.T) {
+		config := withGitops("    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+		gitopsBlock, _ := gitops.OrgSettings["gitops"].(map[string]any)
+		require.NotNil(t, gitopsBlock)
+		assert.Equal(t, true, gitopsBlock["gitops_mode_enabled"])
+		assert.Equal(t, "https://github.com/example/fleet-config", gitopsBlock["repository_url"])
+	})
+
+	t.Run("http URL with mode enabled is accepted", func(t *testing.T) {
+		config := withGitops("    gitops_mode_enabled: true\n    repository_url: http://internal.example.com/fleet-config\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("mode enabled without repository_url is rejected", func(t *testing.T) {
+		config := withGitops("    gitops_mode_enabled: true\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "repository_url is required when gitops_mode_enabled is true")
+	})
+
+	t.Run("mode enabled with empty repository_url is rejected", func(t *testing.T) {
+		config := withGitops("    gitops_mode_enabled: true\n    repository_url: \"\"\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "repository_url is required when gitops_mode_enabled is true")
+	})
+
+	t.Run("repository_url missing scheme is rejected", func(t *testing.T) {
+		config := withGitops("    gitops_mode_enabled: true\n    repository_url: github.com/example/fleet-config\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "must include protocol")
+	})
+
+	t.Run("exceptions block is rejected", func(t *testing.T) {
+		config := withGitops("    exceptions:\n      labels: true\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "org_settings.gitops.exceptions is not supported via GitOps")
+	})
+
+	t.Run("absent gitops block is accepted", func(t *testing.T) {
+		config := getGlobalConfig(nil)
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+}
+
 func TestGitOpsPaths(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
@@ -4022,7 +4095,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
 		require.Nil(t, errs)
-		assert.Equal(t, "zoom/darwin", policy.FleetMaintainedAppSlug)
+		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
 	})
 
 	t.Run("fleet_maintained_app_slug not in FMAs", func(t *testing.T) {
@@ -4078,6 +4151,52 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		errs := parsePolicyInstallSoftware(".", nil, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), "install_software can only be set on team policies")
+	})
+
+	t.Run("patch policy with the same fleet_maintained_app_slug", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec: fleet.PolicySpec{
+					Name:                   "fma policy",
+					Type:                   fleet.PolicyTypePatch,
+					FleetMaintainedAppSlug: "zoom/darwin",
+				},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Nil(t, errs)
+		assert.Equal(t, "zoom/darwin", policy.FleetMaintainedAppSlug)
+		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
+	})
+
+	t.Run("patch policy with different fleet_maintained_app_slug", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec: fleet.PolicySpec{
+					Name:                   "fma policy",
+					Type:                   fleet.PolicyTypePatch,
+					FleetMaintainedAppSlug: "1password/darwin",
+				},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}, "1password/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Nil(t, errs)
+		assert.Equal(t, "1password/darwin", policy.FleetMaintainedAppSlug)
+		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
 	})
 }
 

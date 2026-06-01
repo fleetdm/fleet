@@ -51,7 +51,7 @@ GitHub issue: [#38044](https://github.com/fleetdm/fleet/issues/38044)
 
 ### Dark mode
 
-Fleet now ships with a dark theme. Now, by default, Fleet automatically follows your OS light/dark mode preference. If you want to choose, you can pick between modes on your **My account** page. Whether you're working in the dark or just prefer dark mode on principle, Fleet now looks the part.
+Fleet now ships with a dark theme. Now, by default, Fleet automatically follows your browser light/dark mode preference. If you want to choose, you can pick between modes on your **My account** page. Whether you're working in the dark or just prefer dark mode on principle, Fleet now looks the part.
 
 GitHub issue: [#42977](https://github.com/fleetdm/fleet/issues/42977)
 

@@ -90,10 +90,10 @@ const NoVppAppsMessage = () => (
         You must purchase apps in{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-apps`}
-          text="ABM"
+          text="Apple Business"
           newTab
         />
-        .<br />
+        <br />
         App Store apps that are already added to this fleet are not listed.
       </>
     }
