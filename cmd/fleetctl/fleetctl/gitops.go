@@ -1073,12 +1073,7 @@ func checkABMTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 // "existing" when validating deferred ABM/VPP token assignments. A team is known
 // if it already exists in Fleet (returned by ListTeams, which by this point
 // includes any teams created earlier in this gitops run) or if it was processed
-// during this run (teamNames). teamNames is needed for dry runs, where referenced
-// teams are not actually created in the database. Validating against teamNames
-// alone is incorrect: teams that already exist but whose config files were not
-// supplied in this run would be wrongly reported as missing. Names are
-// NFC-normalized for Unicode comparison, matching checkABMTeamAssignments and
-// checkVPPTeamAssignments.
+// during this run (teamNames).
 func knownTeamNamesForTokenAssignment(teamNames []string, fleetClient *service.Client) (map[string]struct{}, error) {
 	teams, err := fleetClient.ListTeams("")
 	if err != nil {
