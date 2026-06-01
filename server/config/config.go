@@ -1323,7 +1323,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("redis.host_cache_enabled", true,
 		"Enable Redis-backed cache for host lookups on the osquery and orbit auth paths. Disable to bypass the cache "+
 			"and serve every check-in from MySQL.")
-	man.addConfigDuration("redis.host_cache_ttl", 60*time.Second,
+	man.addConfigDuration("redis.host_cache_ttl", 180*time.Second,
 		"Base TTL for Redis-backed host lookup cache entries. Actual per-entry TTL is jittered by ±10% to avoid "+
 			"synchronized expiry waves. Must be > 0 when redis.host_cache_enabled is true; set "+
 			"redis.host_cache_enabled=false to disable the cache.")
