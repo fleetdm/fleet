@@ -1670,9 +1670,11 @@ func TestModifyAppConfigWindowsEntraClientIDNormalization(t *testing.T) {
 }
 
 // TestValidateMDMEndUserAuthScope exercises the GitOps (overwrite) MDM
-// end-user-auth validation: strict IdP validation must fire when EUA is
-// enabled at ANY scope — including a team that has it enabled in stored state
-// while the run only touches the global config. See issue #43371.
+// end-user-auth IdP validation. Strict validation is keyed on the incoming
+// global/no-team EUA flag only — NOT on stored team state, because
+// ApplyAppConfig runs before ApplyTeams so stored team EUA is stale here. The
+// cross-file/stored-team invariant lives client-side in validateGitOpsGroupEUA.
+// See issue #43371.
 func TestValidateMDMEndUserAuthScope(t *testing.T) {
 	ds := new(mock.Store)
 	// validateMDM only touches svc.ds, so a minimal core *Service is enough
@@ -1692,19 +1694,33 @@ func TestValidateMDMEndUserAuthScope(t *testing.T) {
 		}
 	}
 
-	t.Run("overwrite degrades IdP while a stored team has EUA: rejected on metadata", func(t *testing.T) {
+	t.Run("overwrite enables global EUA with incomplete IdP: rejected", func(t *testing.T) {
+		// metadata_url present but missing entity_id and idp_name, with global
+		// EUA on (unchanged true->true, to avoid the setup-assistant web URL
+		// check that fires only when the flag changes) -> euaStrict fires.
+		incoming := fleet.SSOProviderSettings{MetadataURL: "https://idp.example.com/metadata"}
+		invalid := &fleet.InvalidArgumentError{}
+		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, true), mkMDM(incoming, true), invalid, true)
+		require.NoError(t, err)
+		require.True(t, invalid.HasErrors())
+		require.Contains(t, errFields(invalid), "entity_id")
+		require.Contains(t, errFields(invalid), "idp_name")
+	})
+
+	t.Run("overwrite degrades IdP, global EUA off, stored team EUA on: accepted (no false reject)", func(t *testing.T) {
+		// Regression guard for the apply-ordering false positive: ApplyAppConfig
+		// runs before ApplyTeams, so a run that degrades the IdP while disabling
+		// a team's EUA in the same plan must NOT be rejected server-side based on
+		// stale stored team state. validateMDM should not consult stored team EUA
+		// for the SSO-settings check at all.
 		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
-			return []uint{1}, nil
+			return []uint{1}, nil // a stored team has EUA (stale)
 		}
-		// Incoming keeps entity_id/idp_name but blanks metadata + metadata_url,
-		// so SSOProviderSettings.IsEmpty() is false (the IsEmpty() guard alone
-		// would miss this). No-team EUA is off; only the stored team has it on.
-		degraded := fleet.SSOProviderSettings{EntityID: "fleet", IDPName: "Okta"}
+		degraded := fleet.SSOProviderSettings{EntityID: "fleet", IDPName: "Okta"} // metadata/url blank
 		invalid := &fleet.InvalidArgumentError{}
 		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(degraded, false), invalid, true)
 		require.NoError(t, err)
-		require.True(t, invalid.HasErrors())
-		require.Contains(t, errFields(invalid), "either metadata or metadata_url must be defined")
+		require.False(t, invalid.HasErrors())
 	})
 
 	t.Run("overwrite clears IdP with no scope enabled: accepted", func(t *testing.T) {
@@ -1715,20 +1731,6 @@ func TestValidateMDMEndUserAuthScope(t *testing.T) {
 		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(fleet.SSOProviderSettings{}, false), invalid, true)
 		require.NoError(t, err)
 		require.False(t, invalid.HasErrors())
-	})
-
-	t.Run("overwrite with EUA enabled requires entity_id and idp_name", func(t *testing.T) {
-		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
-			return []uint{1}, nil
-		}
-		// metadata_url present but missing entity_id and idp_name.
-		incoming := fleet.SSOProviderSettings{MetadataURL: "https://idp.example.com/metadata"}
-		invalid := &fleet.InvalidArgumentError{}
-		err := svc.validateMDM(ctx, premium, mkMDM(completeIdP, false), mkMDM(incoming, false), invalid, true)
-		require.NoError(t, err)
-		require.True(t, invalid.HasErrors())
-		require.Contains(t, errFields(invalid), "entity_id")
-		require.Contains(t, errFields(invalid), "idp_name")
 	})
 }
 

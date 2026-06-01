@@ -1789,51 +1789,43 @@ func (svc *Service) validateMDM(
 	}
 
 	// EndUserAuthentication
-	//
-	// Determine whether any team currently has setup-experience EUA enabled.
-	// This drives both the strict-validation decision and the IdP-cleared
-	// guard below. We only look at non-zero team IDs since the global/no-team
-	// scope (id=0) is covered by the incoming request's MacOSSetup flag. The
-	// query is only needed in overwrite (gitops) mode when the EUA SSO
-	// settings change, or when the IdP is being fully cleared, so it's
-	// computed lazily to avoid an extra read on unrelated app-config saves.
-	euaSSOChanged := mdm.EndUserAuthentication.SSOProviderSettings != oldMdm.EndUserAuthentication.SSOProviderSettings
-	idpBeingCleared := mdm.EndUserAuthentication.IsEmpty() && !oldMdm.EndUserAuthentication.IsEmpty()
-	anyTeamEUAEnabled := false
-	if (overwrite && euaSSOChanged) || idpBeingCleared {
+	// only validate SSO settings if they changed
+	if mdm.EndUserAuthentication.SSOProviderSettings != oldMdm.EndUserAuthentication.SSOProviderSettings {
+		if !lic.IsPremium() {
+			invalid.Append("end_user_authentication", ErrMissingLicense.Error())
+			return nil
+		}
+		// In GitOps (overwrite=true), strict validation only fires when EUA is
+		// being enabled at the global/no-team level in this same request.
+		//
+		// We deliberately do NOT widen this to "any team has EUA enabled in
+		// stored state": ApplyAppConfig runs before ApplyTeams in a gitops run,
+		// so stored team state is stale here — a run that disables a team's EUA
+		// and degrades the IdP in one shot would false-reject. The cross-file
+		// invariant (a team that keeps EUA while the global IdP is degraded) is
+		// enforced client-side in validateGitOpsGroupEUA, which can see the
+		// whole plan. See issue #43371.
+		euaStrict := overwrite && mdm.MacOSSetup.EnableEndUserAuthentication
+		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
+	}
+
+	// MacOSSetup validation
+	if mdm.EndUserAuthentication.IsEmpty() && !oldMdm.EndUserAuthentication.IsEmpty() {
+		// IdP is being cleared: block if global EUA will still be enabled after this update
+		// (mdm.MacOSSetup.EnableEndUserAuthentication reflects the incoming request's value),
+		// or if any team has EUA enabled. We only look at non-zero team IDs since global (id=0)
+		// is covered by the incoming request value.
 		teamIDs, err := svc.ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "checking teams with EUA enabled")
 		}
+		anyTeamEUAEnabled := false
 		for _, id := range teamIDs {
 			if id != 0 {
 				anyTeamEUAEnabled = true
 				break
 			}
 		}
-	}
-
-	// only validate SSO settings if they changed
-	if euaSSOChanged {
-		if !lic.IsPremium() {
-			invalid.Append("end_user_authentication", ErrMissingLicense.Error())
-			return nil
-		}
-		// In GitOps (overwrite=true), strict validation fires when EUA is
-		// enabled at any scope: the global/no-team flag in the incoming config
-		// OR any team that already has setup-experience EUA enabled in stored
-		// state. Keying off the global flag alone let a global-only gitops run
-		// degrade the IdP (e.g. clear metadata while entity_id/idp_name remain,
-		// so IsEmpty() is false) while a team still had EUA enabled. See #43371.
-		euaStrict := overwrite && (mdm.MacOSSetup.EnableEndUserAuthentication || anyTeamEUAEnabled)
-		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
-	}
-
-	// MacOSSetup validation
-	if idpBeingCleared {
-		// IdP is being fully cleared: block if global EUA will still be enabled
-		// after this update (mdm.MacOSSetup.EnableEndUserAuthentication reflects
-		// the incoming request's value), or if any team has EUA enabled.
 		if anyTeamEUAEnabled || mdm.MacOSSetup.EnableEndUserAuthentication {
 			invalid.Append("end_user_authentication",
 				`End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again`)
