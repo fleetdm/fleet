@@ -11,8 +11,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"path/filepath"
+	"path"
 	"strconv"
+	"strings"
 
 	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -620,7 +621,7 @@ func (r orbitDownloadSoftwareInstallerResponse) Error() error { return r.Err }
 func (r orbitDownloadSoftwareInstallerResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, filepath.Base(r.payload.Filename)))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, path.Base(strings.ReplaceAll(r.payload.Filename, `\`, `/`))))
 
 	// OK to just log the error here as writing anything on
 	// `http.ResponseWriter` sets the status code to 200 (and it can't be
@@ -1075,7 +1076,7 @@ type getInHouseAppPackageResponse struct {
 func (r getInHouseAppPackageResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(int(r.payload.Size)))
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, filepath.Base(r.payload.Filename)))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s"`, path.Base(strings.ReplaceAll(r.payload.Filename, `\`, `/`))))
 
 	// OK to just log the error here as writing anything on
 	// `http.ResponseWriter` sets the status code to 200 (and it can't be

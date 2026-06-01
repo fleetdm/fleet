@@ -242,7 +242,9 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	}
 
 	f.DestFilePath = filepath.Join(f.DestPath, filename)
-	// Confirm the resolved path is still inside DestPath.
+	// Confirm the resolved path is still inside DestPath. Note: filepath.Base("..")
+	// returns ".." (not "."), so the dot-check above does NOT catch it — this
+	// containment check is what rejects bare ".." filenames.
 	cleanDest, err := filepath.Abs(f.DestPath)
 	if err != nil {
 		return fmt.Errorf("resolving destination directory: %w", err)
