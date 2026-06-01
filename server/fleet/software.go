@@ -866,6 +866,16 @@ func (c *SoftwareCategory) AuthzType() string {
 	return "software_category"
 }
 
+func (c SoftwareCategory) Validate() error {
+	if c.Name == "" {
+		return NewInvalidArgumentError("name", "name is required")
+	}
+	if utf8.RuneCountInString(c.Name) > SoftwareCategoryNameMaxLength {
+		return NewInvalidArgumentError("name", fmt.Sprintf("name must be at most %d characters", SoftwareCategoryNameMaxLength))
+	}
+	return nil
+}
+
 var DefaultSelfServiceCategoryNames = []string{
 	"🌎 Browsers",
 	"👬 Communication",

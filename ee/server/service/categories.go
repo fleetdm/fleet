@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -38,13 +37,9 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([
 
 func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name string) (*fleet.SoftwareCategory, error) {
 	name = strings.TrimSpace(name)
-	if name == "" {
+	if err := (fleet.SoftwareCategory{Name: name}).Validate(); err != nil {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("name", "name is required")
-	}
-	if utf8.RuneCountInString(name) > fleet.SoftwareCategoryNameMaxLength {
-		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("name must be at most %d characters", fleet.SoftwareCategoryNameMaxLength))
+		return nil, err
 	}
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
@@ -86,13 +81,9 @@ func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name 
 
 func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
 	name = strings.TrimSpace(name)
-	if name == "" {
+	if err := (fleet.SoftwareCategory{Name: name}).Validate(); err != nil {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("name", "name is required")
-	}
-	if utf8.RuneCountInString(name) > fleet.SoftwareCategoryNameMaxLength {
-		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("name must be at most %d characters", fleet.SoftwareCategoryNameMaxLength))
+		return nil, err
 	}
 
 	// we need to load the category first to scope authz to its team_id
