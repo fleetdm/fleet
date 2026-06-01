@@ -2714,7 +2714,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 // settings, and recording the profile in the update-settings tracking table on a
 // valid run.
 func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
-	const teamID = uint(1)
+	var teamID *uint
 
 	// appleOSUpdate is a DDM declaration of the software-update enforcement type;
 	// windowsOSUpdate is a syncML profile under the Windows Update policy path.
@@ -2737,6 +2737,7 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 		wantErr     string
 		wantApple   bool // Apple declaration recorded in the tracking table
 		wantWindows bool // Windows profile recorded in the tracking table
+		freeTier    bool // if false, OS update profile should fail
 	}{
 		{
 			name:     "rejects more than one Apple OS update declaration",
@@ -2786,12 +2787,32 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 			profiles: []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1"), windowsOSUpdate("win-os-1", "/Install")},
 			dryRun:   true,
 		},
+		{
+			name:     "rejects Apple OS updates declaration in Fleet free",
+			profiles: []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1")},
+			freeTier: true,
+			dryRun:   true,
+			wantErr:  "Requires Fleet Premium license",
+		},
+		{
+			name:     "rejects Windows OS updates profile in Fleet free",
+			profiles: []fleet.MDMProfileBatchPayload{windowsOSUpdate("win-os-1", "/Install")},
+			freeTier: true,
+			dryRun:   true,
+			wantErr:  "Requires Fleet Premium license",
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+			license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+			teamID = new(uint(1))
+			if c.freeTier {
+				license.Tier = fleet.TierFree
+				teamID = nil
+			}
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true, AndroidEnabledAndConfigured: true}}, nil
@@ -2834,7 +2855,7 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 			}
 
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			err := svc.BatchSetMDMProfiles(ctx, new(teamID), nil, c.profiles, c.dryRun, false, new(true), false)
+			err := svc.BatchSetMDMProfiles(ctx, teamID, nil, c.profiles, c.dryRun, false, new(true), false)
 
 			if c.wantErr != "" {
 				require.Error(t, err)
