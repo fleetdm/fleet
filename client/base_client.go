@@ -243,18 +243,6 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	}
 
 	f.DestFilePath = filepath.Join(f.DestPath, filename)
-	// Confirm the resolved path is still inside DestPath.
-	cleanDest, err := filepath.Abs(f.DestPath)
-	if err != nil {
-		return fmt.Errorf("resolving destination directory: %w", err)
-	}
-	cleanFile, err := filepath.Abs(f.DestFilePath)
-	if err != nil {
-		return fmt.Errorf("resolving destination file path: %w", err)
-	}
-	if cleanFile != cleanDest && !strings.HasPrefix(cleanFile, cleanDest+string(filepath.Separator)) {
-		return errors.New("invalid filename: path escapes destination directory")
-	}
 	destFile, err := os.Create(f.DestFilePath)
 	if err != nil {
 		return fmt.Errorf("creating file: %w", err)
