@@ -12,11 +12,14 @@ import { IConfig } from "interfaces/config";
 import { IPolicy } from "interfaces/policy";
 import { ITeamConfig, API_NO_TEAM_ID } from "interfaces/team";
 
+import useGitOpsMode from "hooks/useGitOpsMode";
+
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
 import DropdownWrapper, {
   CustomOptionType,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import { getTicketOrWebhookInfo, getTicketOrWebhookLabel } from "./helpers";
@@ -76,6 +79,8 @@ const PolicyAutomationsFields = forwardRef<
     },
     ref
   ) => {
+    const { gitOpsModeEnabled } = useGitOpsMode();
+
     const {
       state: ticketOrWebhookState,
       policyIds: webhookOrTicketPolicyIds,
@@ -238,6 +243,7 @@ const PolicyAutomationsFields = forwardRef<
             <DropdownWrapper
               name="software-title"
               className={`${baseClass}__row-picker`}
+              isDisabled={gitOpsModeEnabled}
               value={
                 softwareOptions.find(
                   (o) => o.value === String(softwareTitleId ?? "")
@@ -267,6 +273,7 @@ const PolicyAutomationsFields = forwardRef<
             <DropdownWrapper
               name="script"
               className={`${baseClass}__row-picker`}
+              isDisabled={gitOpsModeEnabled}
               value={
                 scriptOptions.find((o) => o.value === String(scriptId ?? "")) ??
                 null
@@ -321,20 +328,24 @@ const PolicyAutomationsFields = forwardRef<
                   }`}
                 >
                   <td className={`${baseClass}__row-label`}>
-                    <Checkbox
-                      name={row.key}
-                      value={row.checked}
-                      disabled={row.isDisabled}
-                      onChange={row.onToggle}
-                    >
-                      {row.tooltip ? (
-                        <TooltipWrapper tipContent={row.tooltip} clickable>
-                          {row.label}
-                        </TooltipWrapper>
-                      ) : (
-                        row.label
+                    <GitOpsModeTooltipWrapper
+                      renderChildren={(disableChildren) => (
+                        <Checkbox
+                          name={row.key}
+                          value={row.checked}
+                          disabled={row.isDisabled || disableChildren}
+                          onChange={row.onToggle}
+                        >
+                          {row.tooltip ? (
+                            <TooltipWrapper tipContent={row.tooltip} clickable>
+                              {row.label}
+                            </TooltipWrapper>
+                          ) : (
+                            row.label
+                          )}
+                        </Checkbox>
                       )}
-                    </Checkbox>
+                    />
                   </td>
                   <td className={`${baseClass}__row-trailing`}>
                     {row.isDisabled ? (
@@ -361,20 +372,25 @@ const PolicyAutomationsFields = forwardRef<
 
         {!isGlobalPolicy && (
           <div className={`${baseClass}__section`}>
-            <Checkbox
-              name="continuous-automations-enabled"
-              value={continuousEnabled}
-              onChange={setContinuousEnabled}
-              helpText="If the automations do not resolve the policy, this could cause a retry loop."
-            >
-              <TooltipWrapper
-                tipContent="Automations run on a host's first failure, and when a host's response changes from pass to fail. If enabled, script & software automations will also run on every subsequent failure."
-                clickable={false}
-              >
-                Continuous
-              </TooltipWrapper>{" "}
-              software &amp; script automations
-            </Checkbox>
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  name="continuous-automations-enabled"
+                  value={continuousEnabled}
+                  disabled={disableChildren}
+                  onChange={setContinuousEnabled}
+                  helpText="If the automations do not resolve the policy, this could cause a retry loop."
+                >
+                  <TooltipWrapper
+                    tipContent="Automations run on a host's first failure, and when a host's response changes from pass to fail. If enabled, script & software automations will also run on every subsequent failure."
+                    clickable={false}
+                  >
+                    Continuous
+                  </TooltipWrapper>{" "}
+                  software &amp; script automations
+                </Checkbox>
+              )}
+            />
           </div>
         )}
       </div>
