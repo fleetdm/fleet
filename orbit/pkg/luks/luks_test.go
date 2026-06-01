@@ -216,11 +216,11 @@ func TestExtractJson(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// dumpWithTokens is a LUKS2 luksDump JSON fragment that includes a
-// systemd-tpm2 token alongside a recovery token, matching what
+// tpm2AndRecoveryDumpJSON is a LUKS2 luksDump JSON fragment that includes a
+// systemd-tpm2 entry alongside a recovery entry, matching what
 // systemd-cryptenroll writes on a TPM-backed Ubuntu install. Used to assert
 // that the Tokens field of LuksDump parses correctly.
-const dumpWithTokens = `{
+const tpm2AndRecoveryDumpJSON = `{
   "keyslots":{
     "0":{
       "type":"luks2",
@@ -261,7 +261,7 @@ func TestLuksDumpTokensUnmarshal(t *testing.T) {
 
 	t.Run("tpm2 + recovery tokens parse with type field", func(t *testing.T) {
 		var dump LuksDump
-		require.NoError(t, json.Unmarshal([]byte(dumpWithTokens), &dump))
+		require.NoError(t, json.Unmarshal([]byte(tpm2AndRecoveryDumpJSON), &dump))
 		require.Len(t, dump.Tokens, 2)
 		assert.Equal(t, systemdTPM2Type, dump.Tokens["0"].Type)
 		assert.Equal(t, systemdRecoveryType, dump.Tokens["1"].Type)
