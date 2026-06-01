@@ -7623,4 +7623,26 @@ policies:
 		assert.Empty(t, state.added)
 		assert.Empty(t, state.deleted)
 	})
+
+	t.Run("package referencing undeclared category fails at parse", func(t *testing.T) {
+		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
+		setupGitOpsCategoriesMocks(t, ds, nil, fleet.GitOpsExceptions{})
+		testing_utils.StartSoftwareInstallerServer(t)
+
+		yml := writeGitOpsCategoriesYAML(t, fmt.Sprintf(`controls:
+policies:
+software:
+  self_service_categories:
+    - "Allowed"
+  packages:
+    - url: %s/ruby.deb
+      hash_sha256: df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628
+      categories:
+        - "Forbidden"
+`, os.Getenv("SOFTWARE_INSTALLER_URL")))
+		_, err := runAppNoChecks([]string{"gitops", "-f", yml})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `"Forbidden"`)
+		assert.Contains(t, err.Error(), "self_service_categories")
+	})
 }
