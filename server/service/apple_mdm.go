@@ -3967,6 +3967,7 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 
 	return svc.newActivityFn(
 		r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
+			HostID:           info.HostID,
 			HostSerial:       info.HardwareSerial,
 			HostDisplayName:  info.DisplayName,
 			InstalledFromDEP: info.InstalledFromDEP,
