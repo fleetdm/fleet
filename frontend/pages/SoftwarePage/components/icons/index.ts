@@ -6,6 +6,8 @@ import { ISoftware } from "interfaces/software";
 import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
 import AmazonCorretto25 from "./AmazonCorretto25";
+import AmazonWorkspaces from "./AmazonWorkspaces";
+import AnotherRedisDesktopManager from "./AnotherRedisDesktopManager";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
 import Backblaze from "./Backblaze";
@@ -14,8 +16,10 @@ import Bluej from "./Bluej";
 import BurpSuiteCommunity from "./BurpSuiteCommunity";
 import Cavalry from "./Cavalry";
 import Charles from "./Charles";
+import ChromeRemoteDesktop from "./ChromeRemoteDesktop";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import Cryptomator from "./Cryptomator";
 import DruvaInSync from "./DruvaInSync";
 import DuoDesktop from "./DuoDesktop";
 import FleetDesktop from "./FleetDesktop";
@@ -29,6 +33,7 @@ import Kitty from "./Kitty";
 import Krita from "./Krita";
 import LastPass from "./LastPass";
 import Marvel from "./Marvel";
+import Max from "./Max";
 import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
@@ -41,6 +46,7 @@ import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
 import RealVncServer from "./RealVncServer";
+import RustDesk from "./RustDesk";
 import Secretive from "./Secretive";
 import SequelAce from "./SequelAce";
 import SevenZip from "./7Zip";
@@ -163,7 +169,6 @@ import LuLu from "./LuLu";
 import Maccy from "./Maccy";
 import MacOS from "./MacOS";
 import Mattermost from "./Mattermost";
-import Messenger from "./Messenger";
 import MicrosoftAutoUpdate from "./MicrosoftAutoUpdate";
 import MicrosoftEdge from "./MicrosoftEdge";
 import MicrosoftOneNote from "./MicrosoftOneNote";
@@ -296,9 +301,11 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "amazon chime": AmazonChime,
   "amazon corretto 25": AmazonCorretto25,
   "amazon dcv": AmazonDCV,
+  "amazon workspaces": AmazonWorkspaces,
   androidPlayStore: AndroidPlayStore,
   "android studio": AndroidStudio,
   anka: Anka,
+  "another redis desktop manager": AnotherRedisDesktopManager,
   anydesk: AnyDesk,
   apparency: Apparency,
   appcleaner: AppCleaner,
@@ -332,6 +339,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   charles: Charles,
   "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
+  "chrome remote desktop": ChromeRemoteDesktop,
   "cisco jabber": CiscoJabber,
   "citrix workspace": CitrixWorkspace,
   claude: Claude,
@@ -346,6 +354,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  cryptomator: Cryptomator,
   "duo desktop": DuoDesktop,
   "fleet desktop": FleetDesktop,
   gemini: Gemini,
@@ -359,6 +368,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   krita: Krita,
   lastpass: LastPass,
   marvel: Marvel,
+  max: Max,
   "microsoft.companyportal": IntuneCompanyPortal,
   coteditor: CotEditor,
   cursor: Cursor,
@@ -432,7 +442,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "logi options+": Logioptionsplus,
   loom: Loom,
   lulu: LuLu,
-  messenger: Messenger,
   "microsoft edge": Edge,
   "microsoft excel": Excel,
   "microsoft onenote": MicrosoftOneNote,
@@ -491,6 +500,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rider: Rider,
   "royal tsx": RoyalTsx,
   rubymine: RubyMine,
+  rustdesk: RustDesk,
   rustrover: RustRover,
   safari: Safari,
   santa: Santa,

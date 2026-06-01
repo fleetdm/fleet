@@ -11,6 +11,15 @@ import (
 	"github.com/micromdm/plist"
 )
 
+func caskHasPkgArtifact(cask *brewCask) bool {
+	for _, artifact := range cask.Artifacts {
+		if len(artifact.Pkg) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sb := newScriptBuilder()
 
@@ -18,6 +27,19 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sb.AddVariable("APPDIR", `"/Applications/"`)
 
 	sb.Extract(app.InstallerFormat)
+
+	// Some FMAs (e.g. Slack, 1Password) use a universal PKG download URL while the
+	// Homebrew cask still describes a zip/dmg + .app copy flow. When installer_format
+	// is pkg but the cask has no pkg artifact, install the downloaded PKG directly.
+	if app.InstallerFormat == "pkg" && !caskHasPkgArtifact(cask) {
+		sb.AddFunction("quit_and_track_application", quitAndTrackApplicationFunc)
+		sb.AddFunction("relaunch_application", relaunchApplicationFunc)
+		sb.Write("# install pkg files")
+		sb.Writef("quit_and_track_application '%s'", app.UniqueIdentifier)
+		sb.InstallPkgFromInstallerPath()
+		sb.RelaunchAndPropagateInstallStatus(app.UniqueIdentifier)
+		return sb.String(), nil
+	}
 
 	// Add quit/relaunch functions if we have App or Pkg artifacts
 	var needsQuitRelaunch bool
@@ -69,8 +91,9 @@ fi`, appPath)
 			default:
 				return "", fmt.Errorf("application %s has unknown directive format for pkg", app.Token)
 			}
-			// Relaunch the app if it was running before installation
-			sb.Writef("relaunch_application '%s'", app.UniqueIdentifier)
+			// Relaunch the app if it was running before installation, then
+			// propagate a failed install so it isn't reported as successful.
+			sb.RelaunchAndPropagateInstallStatus(app.UniqueIdentifier)
 
 		case len(artifact.Binary) > 0:
 			if len(artifact.Binary) == 2 {
@@ -367,10 +390,12 @@ func (s *scriptBuilder) Extract(format string) {
 	switch format {
 	case "dmg":
 		s.Write("# extract contents")
+		// Pipe yes into hdiutil to auto-accept license agreements on licensed DMGs (Homebrew
+		// behavior). Harmless when the DMG has no license prompt.
 		s.Write(`MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
-hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"
+yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
-hdiutil detach "$MOUNT_POINT"`)
+hdiutil detach "$MOUNT_POINT" || true`)
 
 	case "zip":
 		s.Write("# extract contents")
@@ -388,6 +413,26 @@ func (s *scriptBuilder) Copy(file, dest string) {
 // privileges.
 func (s *scriptBuilder) RemoveFile(file string) {
 	s.Writef(`sudo rm -rf %s`, file)
+}
+
+// InstallPkgFromInstallerPath writes a command to install the package at INSTALLER_PATH.
+// Used when installer_format is pkg but the Homebrew cask has no pkg artifact (the
+// downloaded file name may not match the cask).
+func (s *scriptBuilder) InstallPkgFromInstallerPath() {
+	s.Write(`sudo installer -pkg "$INSTALLER_PATH" -target /`)
+}
+
+// RelaunchAndPropagateInstallStatus captures the exit status of the preceding
+// install command, relaunches the app if it was running before the install,
+// and then exits with the install's status when it failed. The relaunch call
+// must not become the script's final command: it almost always succeeds, so it
+// would otherwise mask a failed install and report a failed update as installed.
+func (s *scriptBuilder) RelaunchAndPropagateInstallStatus(uniqueIdentifier string) {
+	s.Write("INSTALL_EXIT_CODE=$?")
+	s.Writef("relaunch_application '%s'", uniqueIdentifier)
+	s.Write(`if [ "$INSTALL_EXIT_CODE" -ne 0 ]; then
+  exit "$INSTALL_EXIT_CODE"
+fi`)
 }
 
 // InstallPkg writes a command to install a package using the macOS `installer` utility.
@@ -534,17 +579,27 @@ const quitApplicationFunc = `quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
-  # check if the application is running
-  local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
-  if [[ "$app_running" != "true" ]]; then
-    return
-  fi
-
+  # Determine the console user up front. osascript must target the logged-in
+  # user's GUI session; when this script runs as root, Apple Events won't reach
+  # the user's apps unless we bootstrap into their session with
+  # 'launchctl asuser' + 'sudo -u'.
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
   if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
+    return
+  fi
+  local console_uid
+  console_uid=$(id -u "$console_user")
+
+  # check if the application is running
+  local app_running
+  if [[ $EUID -eq 0 ]]; then
+    app_running=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  else
+    app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  fi
+  if [[ "$app_running" != "true" ]]; then
     return
   fi
 
@@ -554,7 +609,13 @@ const quitApplicationFunc = `quit_application() {
   local quit_success=false
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
+    local quit_ok=false
+    if [[ $EUID -eq 0 ]]; then
+      /bin/launchctl asuser "$console_uid" sudo -u "$console_user" osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 && quit_ok=true
+    else
+      osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 && quit_ok=true
+    fi
+    if [[ "$quit_ok" = true ]]; then
       if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
         echo "Application '$bundle_id' quit successfully."
         quit_success=true
@@ -577,18 +638,28 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
   local timeout_duration=10
 
-  # check if the application is running
-  local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
-  if [[ "$app_running" != "true" ]]; then
-    eval "export $var_name=0"
-    return
-  fi
-
+  # Determine the console user up front. osascript must target the logged-in
+  # user's GUI session; when this script runs as root, Apple Events won't reach
+  # the user's apps unless we bootstrap into their session with
+  # 'launchctl asuser' + 'sudo -u' (the same wrapper relaunch_application uses).
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
   if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
+    eval "export $var_name=0"
+    return
+  fi
+  local console_uid
+  console_uid=$(id -u "$console_user")
+
+  # check if the application is running
+  local app_running
+  if [[ $EUID -eq 0 ]]; then
+    app_running=$(/bin/launchctl asuser "$console_uid" sudo -u "$console_user" osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  else
+    app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  fi
+  if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
     return
   fi
@@ -603,7 +674,13 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local quit_success=false
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
+    local quit_ok=false
+    if [[ $EUID -eq 0 ]]; then
+      /bin/launchctl asuser "$console_uid" sudo -u "$console_user" osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 && quit_ok=true
+    else
+      osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 && quit_ok=true
+    fi
+    if [[ "$quit_ok" = true ]]; then
       if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
         echo "Application '$bundle_id' quit successfully."
         quit_success=true
@@ -680,6 +757,31 @@ const trashFunc = `trash() {
   fi
 
   local trash="/Users/$logged_in_user/.Trash"
+
+  # If the target contains glob characters, expand it and move each match.
+  if [[ "$target_file" == *[*?[]* ]]; then
+    local file file_name
+    local matched=false
+    local i=0
+    # compgen -G expands the (quoted) pattern itself, so paths containing
+    # spaces glob correctly; reading line by line keeps each match intact.
+    while IFS= read -r file; do
+      [[ -n "$file" ]] || continue
+      [[ -e "$file" || -L "$file" ]] || continue
+      matched=true
+      i=$((i + 1))
+      file_name="$(basename "$file")"
+      echo "removing $file."
+      # The per-match counter keeps matches that share a basename from
+      # overwriting each other in the trash.
+      mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}"
+    done < <(compgen -G "$target_file" 2>/dev/null)
+    if [[ "$matched" == false ]]; then
+      echo "$target_file doesn't exist."
+    fi
+    return
+  fi
+
   local file_name="$(basename "${target_file}")"
 
   if [[ -e "$target_file" ]]; then

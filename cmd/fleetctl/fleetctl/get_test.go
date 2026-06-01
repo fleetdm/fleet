@@ -94,6 +94,19 @@ var userRoleList = []*fleet.User{
 	},
 }
 
+// mockEmptyTeamSoftware wires the datastore methods used by `get teams` to
+// fetch a team's software (titles + setup experience) so they return no
+// software. Tests that don't exercise software output use this to avoid nil
+// func panics now that the command fetches software from these endpoints.
+func mockEmptyTeamSoftware(ds *mock.Store) {
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, &fleet.PaginationMetadata{}, nil
+	}
+	ds.ListSetupExperienceSoftwareTitlesFunc = func(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, &fleet.PaginationMetadata{}, nil
+	}
+}
+
 var setCurrentUserSession = func(t *testing.T, ds *mock.Store, user *fleet.User) {
 	user, err := ds.NewUser(context.Background(), user)
 	require.NoError(t, err)
@@ -250,6 +263,7 @@ func TestGetTeams(t *testing.T) {
 					},
 				}, nil
 			}
+			mockEmptyTeamSoftware(ds)
 
 			b, err := os.ReadFile(filepath.Join("testdata", "expectedGetTeamsText.txt"))
 			require.NoError(t, err)
@@ -343,6 +357,87 @@ func TestGetTeamsByName(t *testing.T) {
 +------------+----------+------------+------------+
 `
 	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "fleets", "--name", "test1"}))
+}
+
+// TestGetTeamsSoftwareFromSourceOfTruth verifies that `get fleets` builds the
+// software section (including the setup_experience membership) from the
+// software endpoints, which are the source of truth, rather than from the
+// (potentially stale) team config. Regression test for
+// https://github.com/fleetdm/fleet/issues/44970.
+func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t,
+		&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
+
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{
+			{
+				ID:   1,
+				Name: "team1",
+				// The team config carries no (or stale) software; it must be ignored.
+				Config: fleet.TeamConfig{},
+			},
+		}, nil
+	}
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return true, nil
+	}
+
+	// Two titles available for install: a VPP app store app and a custom package.
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		require.True(t, opt.AvailableForInstall)
+		require.NotNil(t, opt.TeamID)
+		require.EqualValues(t, 1, *opt.TeamID)
+		return []fleet.SoftwareTitleListResult{
+			{ID: 10, Name: "VPPApp", AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "123", Platform: "darwin"}},
+			{ID: 20, Name: "Pkg", SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "pkg.pkg", PackageURL: new("https://example.com/pkg.pkg")}},
+		}, 2, &fleet.PaginationMetadata{}, nil
+	}
+
+	// The VPP app is part of the setup experience; this is the source of truth
+	// for the setup_experience flag, not the team config.
+	ds.ListSetupExperienceSoftwareTitlesFunc = func(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return []fleet.SoftwareTitleListResult{
+			{ID: 10, AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: "123", Platform: "darwin", InstallDuringSetup: new(true)}},
+		}, 1, &fleet.PaginationMetadata{}, nil
+	}
+
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		switch id {
+		case 10:
+			return &fleet.SoftwareTitle{
+				ID:   10,
+				Name: "VPPApp",
+				AppStoreApp: &fleet.VPPAppStoreApp{
+					VPPAppID:    fleet.VPPAppID{AdamID: "123", Platform: "darwin"},
+					SelfService: true,
+				},
+			}, nil
+		case 20:
+			return &fleet.SoftwareTitle{
+				ID:   20,
+				Name: "Pkg",
+				SoftwarePackage: &fleet.SoftwareInstaller{
+					URL:       "https://example.com/pkg.pkg",
+					StorageID: "abc123",
+				},
+			}, nil
+		}
+		return nil, fmt.Errorf("unexpected software title id %d", id)
+	}
+
+	out := runAppForTest(t, []string{"get", "fleets", "--yaml"})
+
+	// The app store app's setup_experience must reflect the real state (true),
+	// not the empty/null value previously read from the team config.
+	require.Contains(t, out, "app_store_id:")
+	require.Contains(t, out, "setup_experience: true")
+	// The package URL comes from the software title, not the config.
+	require.Contains(t, out, "url: https://example.com/pkg.pkg")
+	require.Contains(t, out, "hash_sha256: abc123")
+
+	require.True(t, ds.ListSoftwareTitlesFuncInvoked)
+	require.True(t, ds.ListSetupExperienceSoftwareTitlesFuncInvoked)
+	require.True(t, ds.SoftwareTitleByIDFuncInvoked)
 }
 
 func TestGetHosts(t *testing.T) {
@@ -2694,6 +2789,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		return []*fleet.Team{team1, team2}, nil
 	}
+	mockEmptyTeamSoftware(ds)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{AgentOptions: &agentOpts, MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}

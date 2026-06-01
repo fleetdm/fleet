@@ -172,15 +172,35 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     JSX.Element | string | null
   >();
 
-  // Open activity feed automations modal via query param (e.g. from command palette)
+  const canEnrollHosts =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
+  const canEditActivityFeedAutomations =
+    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
+
+  // Open activity feed automations modal via deep-link (e.g. from the
+  // command palette). Gate on the same predicate as the in-page action —
+  // the param must not bypass role/team checks. Wait for the user's role
+  // flags and the team route to resolve before evaluating, so an
+  // authorized global admin isn't denied the modal on direct page load
+  // while AppContext is still hydrating.
   useEffect(() => {
-    if (location.query.manage_automations === "1") {
+    if (location.query.manage_automations !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
+    if (canEditActivityFeedAutomations) {
       setShowActivityFeedAutomationsModal(true);
-      // Clean up the query param from the URL, preserving other params
-      const { manage_automations, ...rest } = location.query;
-      router.replace({ pathname, query: rest });
     }
-  }, [location.query.manage_automations, pathname, router]);
+    const { manage_automations, ...rest } = location.query;
+    router.replace({ pathname, query: rest });
+  }, [
+    location.query,
+    pathname,
+    router,
+    canEditActivityFeedAutomations,
+    setShowActivityFeedAutomationsModal,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
 
   useEffect(() => {
     const platformByPathname =
@@ -189,12 +209,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
     setSelectedPlatform(platformByPathname);
   }, [pathname]);
-
-  const canEnrollHosts =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
-  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canEditActivityFeedAutomations =
-    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
 
   const { data: config, refetch: refetchConfig } = useQuery<
     IConfig,
