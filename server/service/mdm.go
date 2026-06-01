@@ -2291,7 +2291,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	if seenAppleDeclOSUpdate {
-		// Load the declaration to get the UUID to upsert into the update_seetings table.
+		// Load the declaration to get the UUID to upsert into the update_settings table.
 		decl, err := svc.ds.GetMDMAppleDeclarationByIdentifier(ctx, teamID, seenAppleDeclIdentifier)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting Apple declaration by identifier after batch set")

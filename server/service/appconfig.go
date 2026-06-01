@@ -604,7 +604,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// Verify that we don't have a custom Windows updates profile
 		hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, 0)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "check for existing custom Windows updates declaration profile")
+			return nil, ctxerr.Wrap(ctx, err, "check for existing custom Windows updates profile")
 		}
 		if hasProfile {
 			return nil, &fleet.BadRequestError{

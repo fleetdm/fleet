@@ -11,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -333,7 +332,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 	// the software-update handling code.
 	setup := func(t *testing.T) (fleet.Service, context.Context, *mock.Store) {
 		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 			return nil

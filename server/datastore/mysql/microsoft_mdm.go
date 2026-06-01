@@ -3676,7 +3676,8 @@ func (ds *Datastore) HasWindowsUpdateConfigProfileConfigured(ctx context.Context
 }
 
 func (ds *Datastore) InsertWindowsUpdateConfigProfile(ctx context.Context, profile *fleet.MDMWindowsConfigProfile) error {
-	const stmt = `INSERT INTO mdm_configuration_profile_update_settings (windows_profile_uuid) VALUES (?)`
+	const stmt = `INSERT INTO mdm_configuration_profile_update_settings (windows_profile_uuid) VALUES (?)
+		ON DUPLICATE KEY UPDATE windows_profile_uuid = windows_profile_uuid`
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, profile.ProfileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert windows update config profile")

@@ -117,15 +117,15 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// After we uploaded, check for Software Update type
+	// After we upload, check for Software Update type
 	if err := svc.handleWindowsProfileSoftwareUpdate(ctx, newCP, teamID); err != nil {
 		if mdm_types.IsSoftwareUpdateProfileError(err) {
 			if delErr := svc.ds.DeleteMDMWindowsConfigProfile(ctx, newCP.ProfileUUID); delErr != nil {
-				return nil, ctxerr.Wrap(ctx, delErr, "deleting declaration after software update validation failure")
+				return nil, ctxerr.Wrap(ctx, delErr, "deleting windows config profile after software update validation failure")
 			}
 		}
 
-		return nil, ctxerr.Wrap(ctx, err, "handling declaration software update")
+		return nil, ctxerr.Wrap(ctx, err, "handling windows profile software update")
 	}
 
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {

@@ -1436,6 +1436,12 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
+	ds.InsertWindowsUpdateConfigProfileFunc = func(ctx context.Context, profile *fleet.MDMWindowsConfigProfile) error {
+		return nil
+	}
 
 	cases := []struct {
 		desc          string
@@ -1457,7 +1463,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
 			syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
-		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"unsupported Fleet variable", 0, `<Replace>$FLEET_VAR_BOZO</Replace>`, true, "Fleet variable"},
 
 		{"team empty profile", 1, "", true, "The file should include valid XML."},
@@ -1473,7 +1478,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
 			syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
-		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
 	}
 

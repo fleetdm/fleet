@@ -1034,47 +1034,6 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, d)
 	})
-
-	t.Run("OS update declaration blocked without custom OS updates flag", func(t *testing.T) {
-		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, false)
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-
-		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
-			return s, nil, nil
-		}
-
-		b := []byte(`{
-			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
-			"Identifier": "test-os-update"
-		}`)
-		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "OS updates settings")
-	})
-
-	t.Run("OS update declaration allowed with skip validation even without custom OS updates flag", func(t *testing.T) {
-		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, true)
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-
-		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
-			return s, nil, nil
-		}
-		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
-			return d, nil
-		}
-		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
-		) (updates fleet.MDMProfilesUpdates, err error) {
-			return fleet.MDMProfilesUpdates{}, nil
-		}
-
-		b := []byte(`{
-			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
-			"Identifier": "test-os-update"
-		}`)
-		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll)
-		require.NoError(t, err)
-		assert.NotNil(t, d)
-	})
 }
 
 // TestNewMDMAppleDeclarationSoftwareUpdate exercises the OS-updates handling

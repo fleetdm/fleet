@@ -8595,7 +8595,8 @@ func (ds *Datastore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, 
 }
 
 func (ds *Datastore) InsertAppleUpdateConfigProfile(ctx context.Context, decl *fleet.MDMAppleDeclaration) error {
-	const stmt = `INSERT INTO mdm_configuration_profile_update_settings (apple_declaration_uuid) VALUES (?)`
+	const stmt = `INSERT INTO mdm_configuration_profile_update_settings (apple_declaration_uuid) VALUES (?)
+		ON DUPLICATE KEY UPDATE apple_declaration_uuid = apple_declaration_uuid`
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, decl.DeclarationUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert apple update config profile")
