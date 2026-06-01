@@ -15,7 +15,7 @@ You can also setup a local proxy or use the Google API directly.
 
 ## Setup a Google project and service account
 
-> Instead of creating your own, you can use the shared Android DEV Google cloud project. The credentials for the Android DEV google cloud project can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=lsq2qqbfjlrh6eyby2tr2qc7nu&h=fleetdevicemanagement.1password.com). When enabling Android MDM in the Google signup flow, log in with the `marko@1mdm.xyz` account (credentials are in 1Password).
+> Instead of creating your own, you can use the shared Android DEV Google cloud project. The credentials for the Android DEV google cloud project can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=lsq2qqbfjlrh6eyby2tr2qc7nu&h=fleetdevicemanagement.1password.com). When enabling Android MDM in the Google signup flow, log in with the `@1mdm.xyz` account (credentials are in 1Password).
 
 > **Do not use a personal `@gmail.com` account**. Personal accounts typically do not have the quota to enroll devices. You also cannot use your "fleetdm.com" one.
 
