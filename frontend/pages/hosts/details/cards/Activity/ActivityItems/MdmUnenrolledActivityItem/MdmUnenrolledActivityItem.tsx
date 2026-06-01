@@ -12,7 +12,7 @@ const MdmUnenrolledActivityItem = ({
   activity,
 }: IHostActivityItemComponentProps) => {
   const { actor_full_name } = activity;
-  const platform = activity.details?.platform || "";
+  const platform = activity.details?.platform ?? "";
 
   let content: React.ReactNode;
   if (isAndroid(platform) || isIPadOrIPhone(platform)) {

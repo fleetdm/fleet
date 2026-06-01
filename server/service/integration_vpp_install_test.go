@@ -1388,16 +1388,18 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost2.ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Activities, 0)
 
-	// host's past activities should have the first VPP app cancellation because it was activated
+	// host's past activities should have mdm_unenrolled at the head (emitted last in the unenroll
+	// flow, descending order) followed by the first VPP app cancellation because it was activated.
 	listPastResp = listActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", mdmHost2.ID), nil, http.StatusOK, &listPastResp)
-	require.GreaterOrEqual(t, len(listPastResp.Activities), 1)
-	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[0].Type)
-	require.Contains(t, string(*listPastResp.Activities[0].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
-	require.Contains(t, string(*listPastResp.Activities[0].Details), `"status": "failed_install"`)
-	if len(listPastResp.Activities) > 1 {
-		// the second activity should not be the cancellation of the second app
-		require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[1].Type)
+	require.GreaterOrEqual(t, len(listPastResp.Activities), 2)
+	require.Equal(t, fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), listPastResp.Activities[0].Type)
+	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[1].Type)
+	require.Contains(t, string(*listPastResp.Activities[1].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
+	require.Contains(t, string(*listPastResp.Activities[1].Details), `"status": "failed_install"`)
+	if len(listPastResp.Activities) > 2 {
+		// the third activity should not be the cancellation of the second app
+		require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[2].Type)
 	}
 
 	// listing the host's software available for install shows the cancelled app as failed
