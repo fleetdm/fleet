@@ -176,6 +176,10 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	if co.noFollow {
 		cli.CheckRedirect = noFollowRedirect
 	}
+	// Always create a custom transport (even without TLS config) so that
+	// every client gets the private network blocking DialContext from
+	// NewTransport. Without this, nil would fall back to Go's default
+	// transport which has no IP blocking.
 	var baseTransport http.RoundTripper
 	if co.tlsConf != nil {
 		baseTransport = NewTransport(WithTLSConfig(co.tlsConf))
