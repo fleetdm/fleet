@@ -67,7 +67,7 @@ For macOS hosts, Fleet uses Erase All Content and Settings (EACS) with the [defa
 
 ### Linux wipe behavior
 
-Linux wipe does not use MDM. Instead, Fleet runs a script on the host via the fleetd agent. This means:
+Linux wipe does not use an MDM command because there's no standard Linux MDM protocol. Instead, Fleet runs a script on the host via the fleetd agent. This means:
 
 - The fleetd agent must be deployed with `--enable-scripts` for wipe to work.
 - The host must be online and able to receive the script from Fleet.
