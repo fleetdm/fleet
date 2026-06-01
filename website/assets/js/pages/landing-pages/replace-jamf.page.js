@@ -29,8 +29,8 @@ parasails.registerPage('replace-jamf', {
     trackMigrationGuideDownload: function() {
       if (typeof gtag !== 'undefined') {
         gtag('event', 'fleet_website__whitepaper_download', {
-          asset_name: 'mac-admins-guide-to-switching-from-jamf-to-fleet',
-          event_type: 'whitepaper_download',
+          assetName: 'mac-admins-guide-to-switching-from-jamf-to-fleet',
+          eventType: 'whitepaper_download',
           source: 'replace-jamf',
         });
       }
