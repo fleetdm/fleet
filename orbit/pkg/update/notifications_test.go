@@ -819,3 +819,61 @@ func TestBitlockerOperations(t *testing.T) {
 	})
 
 }
+
+func TestWindowsMDMSync(t *testing.T) {
+	var logBuf bytes.Buffer
+	oldLog := log.Logger
+	log.Logger = log.Output(&logBuf)
+	t.Cleanup(func() { log.Logger = oldLog })
+
+	syncCfg := func(req bool) *fleet.OrbitConfig {
+		return &fleet.OrbitConfig{Notifications: fleet.OrbitConfigNotifications{WindowsMDMSyncRequest: req}}
+	}
+
+	t.Run("no sync request does not trigger", func(t *testing.T) {
+		logBuf.Reset()
+		var calls int
+		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls++; return nil }}
+		require.NoError(t, r.Run(syncCfg(false)))
+		require.Equal(t, 0, calls)
+	})
+
+	t.Run("sync request triggers once", func(t *testing.T) {
+		logBuf.Reset()
+		var calls int
+		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls++; return nil }}
+		require.NoError(t, r.Run(syncCfg(true)))
+		require.Equal(t, 1, calls)
+		require.Contains(t, logBuf.String(), "triggered on-demand Windows MDM sync")
+	})
+
+	t.Run("second run within frequency is throttled", func(t *testing.T) {
+		logBuf.Reset()
+		var calls int
+		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls++; return nil }}
+		require.NoError(t, r.Run(syncCfg(true)))
+		require.NoError(t, r.Run(syncCfg(true)))
+		require.Equal(t, 1, calls, "second run within Frequency should be throttled")
+	})
+
+	t.Run("not throttled once frequency elapsed", func(t *testing.T) {
+		logBuf.Reset()
+		var calls int
+		r := &windowsMDMSyncConfigReceiver{Frequency: 0, execSyncFn: func() error { calls++; return nil }}
+		require.NoError(t, r.Run(syncCfg(true)))
+		time.Sleep(time.Millisecond)
+		require.NoError(t, r.Run(syncCfg(true)))
+		require.Equal(t, 2, calls)
+	})
+
+	t.Run("failure does not set lastRun and retries on next run", func(t *testing.T) {
+		logBuf.Reset()
+		var calls int
+		r := &windowsMDMSyncConfigReceiver{Frequency: time.Hour, execSyncFn: func() error { calls++; return io.ErrUnexpectedEOF }}
+		require.NoError(t, r.Run(syncCfg(true)))
+		require.NoError(t, r.Run(syncCfg(true)))
+		require.Equal(t, 2, calls, "failed sync should not be throttled on the next run")
+		require.Contains(t, logBuf.String(), "triggering on-demand Windows MDM sync failed")
+		require.True(t, r.lastRun.IsZero(), "lastRun must remain unset after failures")
+	})
+}

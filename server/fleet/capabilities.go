@@ -101,13 +101,10 @@ const (
 	// CapabilityWindowsMDMSync denotes the ability of Windows fleetd to start an
 	// on-demand OMA-DM session (via deviceenroller) when the server signals that
 	// the host has queued Windows MDM commands. This lets the server relax the
-	// aggressive Windows MDM poll while keeping command latency low.
-	//
-	// The constant is defined here so the server can gate the WindowsMDMSyncRequest
-	// notification on it. It is intentionally NOT advertised from
-	// GetOrbitClientCapabilities yet: advertising it before the agent-side handler
-	// that starts the OMA-DM session lands (a later increment) would claim a
-	// behavior the client does not have. Add it there together with that handler.
+	// aggressive Windows MDM poll while keeping command latency low. The server
+	// gates the WindowsMDMSyncRequest notification on it; Windows fleetd advertises
+	// it from GetOrbitClientCapabilities now that the agent-side handler that starts
+	// the session exists.
 	CapabilityWindowsMDMSync Capability = "windows_mdm_sync"
 )
 
@@ -141,8 +138,11 @@ func GetOrbitClientCapabilities() CapabilityMap {
 	if runtime.GOOS != "darwin" {
 		capabilities[CapabilityEndUserAuth] = struct{}{}
 	}
-	// CapabilityWindowsMDMSync is intentionally not advertised yet: it is added here together with the
-	// agent-side handler that starts the on-demand OMA-DM session, in a later increment.
+	// Windows fleetd can start an on-demand OMA-DM session (windowsMDMSyncConfigReceiver) when the server
+	// signals queued MDM commands.
+	if runtime.GOOS == "windows" {
+		capabilities[CapabilityWindowsMDMSync] = struct{}{}
+	}
 	return capabilities
 }
 

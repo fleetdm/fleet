@@ -5,8 +5,12 @@ package update
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -189,4 +193,69 @@ func IsRunningOnWindowsServer() (bool, error) {
 	}
 
 	return false, nil
+}
+
+// fleetMDMProviderID must match syncml.DocProvisioningAppProviderID, the provider ID Fleet sets in the Windows
+// MDM enrollment provisioning doc. It is the value of the ProviderID registry value on Fleet's enrollment.
+const fleetMDMProviderID = "Fleet"
+
+// TriggerWindowsMDMSync starts an on-demand, client-initiated OMA-DM session with the Fleet MDM server so that
+// queued Windows MDM commands are delivered without waiting for the device's next scheduled poll. It runs the OS
+// deviceenroller for Fleet's enrollment in client-initiated mode: `deviceenroller.exe /o <EnrollmentGUID> /c`.
+// This is deliberately the client-initiated path, not the push-initiated path (`/c /z`), which fails with Event
+// 4603 (GetPushAlertInfo / notificationIdNotRetrieved) on current Windows builds.
+//
+// Exported so it can be built/tested for Windows from tools/. Not meant to be called from outside this package.
+func TriggerWindowsMDMSync() error {
+	guid, err := fleetMDMEnrollmentGUID()
+	if err != nil {
+		return fmt.Errorf("find Fleet MDM enrollment: %w", err)
+	}
+
+	systemRoot := os.Getenv("SystemRoot")
+	if systemRoot == "" {
+		systemRoot = `C:\Windows`
+	}
+	// orbit is a 64-bit process, so System32 resolves to the real (64-bit) System32 that contains
+	// deviceenroller.exe; there is no WOW64 redirection to account for.
+	deviceEnroller := filepath.Join(systemRoot, "System32", "deviceenroller.exe")
+
+	cmd := exec.Command(deviceEnroller, "/o", guid, "/c")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("run deviceenroller /o %s /c: %w (output: %q)", guid, err, string(out))
+	}
+	return nil
+}
+
+// fleetMDMEnrollmentGUID returns the enrollment GUID of the active Fleet Windows MDM enrollment by scanning
+// HKLM\SOFTWARE\Microsoft\Enrollments for the subkey whose ProviderID is Fleet's and whose EnrollmentState is
+// active. The subkey name is the enrollment GUID that deviceenroller's /o argument expects.
+func fleetMDMEnrollmentGUID() (string, error) {
+	const enrollmentsPath = `SOFTWARE\Microsoft\Enrollments`
+	root, err := registry.OpenKey(registry.LOCAL_MACHINE, enrollmentsPath, registry.READ)
+	if err != nil {
+		return "", fmt.Errorf("open enrollments registry key: %w", err)
+	}
+	defer root.Close()
+
+	names, err := root.ReadSubKeyNames(-1)
+	if err != nil {
+		return "", fmt.Errorf("read enrollment subkeys: %w", err)
+	}
+
+	const enrollmentStateActive = 1
+	for _, name := range names {
+		k, err := registry.OpenKey(registry.LOCAL_MACHINE, enrollmentsPath+`\`+name, registry.QUERY_VALUE)
+		if err != nil {
+			continue
+		}
+		providerID, _, providerErr := k.GetStringValue("ProviderID")
+		state, _, stateErr := k.GetIntegerValue("EnrollmentState")
+		k.Close()
+		if providerErr == nil && stateErr == nil && providerID == fleetMDMProviderID && state == enrollmentStateActive {
+			return name, nil
+		}
+	}
+	return "", errors.New("no active Fleet MDM enrollment found in registry")
 }
