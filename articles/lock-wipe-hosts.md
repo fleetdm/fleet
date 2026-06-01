@@ -69,7 +69,7 @@ For macOS hosts, Fleet uses Erase All Content and Settings (EACS) with the [defa
 
 > **Best practice:** Before wiping production Linux hosts, run the wipe against a test host running the same distro and version as your production hosts, with the same disk layout, filesystem configuration (including any btrfs, LVM, or LUKS setup), and network drive usage. Different distros — and even different versions of the same distro — can behave differently. Confirm the outcome matches your expectations before wiping in production.
 
-Linux wipe does not use an MDM command because there's no standard Linux MDM protocol. Instead, Fleet runs a script that does the following:
+Linux wipe does not use an MDM command because there's no standard Linux MDM protocol. Instead, Fleet runs a [script](https://github.com/fleetdm/fleet/blob/HEAD/ee/server/service/embedded_scripts/linux_wipe.sh) that does the following:
 
 1. All non-root users are logged out and their passwords are locked.
 2. Network filesystems (NFS, CIFS/SMB, SSHFS, etc.) are detected via `/proc/mounts` and unmounted before any deletion begins, to avoid accidentally erasing data on remote storage. If `/proc/mounts` is not found, the script aborts entirely rather than risk unsafe deletion. However, **the script cannot guarantee it detects every network-backed path** — symlinks that resolve outside a detected mount point or unusual mount configurations may be missed. 
