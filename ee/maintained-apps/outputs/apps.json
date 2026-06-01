@@ -1465,13 +1465,6 @@
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
-      "name": "Messenger",
-      "slug": "messenger/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.facebook.archon.developerID",
-      "description": "Messenger is a native desktop app for Messenger (formerly Facebook Messenger)."
-    },
-    {
       "name": "Microsoft Auto Update",
       "slug": "microsoft-auto-update/darwin",
       "platform": "darwin",
@@ -2631,6 +2624,13 @@
       "slug": "zed/darwin",
       "platform": "darwin",
       "unique_identifier": "dev.zed.Zed",
+      "description": "Zed is a multiplayer code editor."
+    },
+    {
+      "name": "Zed",
+      "slug": "zed/windows",
+      "platform": "windows",
+      "unique_identifier": "Zed",
       "description": "Zed is a multiplayer code editor."
     },
     {
