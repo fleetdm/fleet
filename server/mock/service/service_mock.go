@@ -850,6 +850,14 @@ type UploadSoftwareTitleIconFunc func(ctx context.Context, payload *fleet.Upload
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
+type ListSoftwareCategoriesFunc func(ctx context.Context, teamID *uint) ([]fleet.SoftwareCategory, error)
+
+type NewSoftwareCategoryFunc func(ctx context.Context, teamID *uint, name string) (*fleet.SoftwareCategory, error)
+
+type UpdateSoftwareCategoryFunc func(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error)
+
+type DeleteSoftwareCategoryFunc func(ctx context.Context, id uint) error
+
 type UploadOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error
 
 type DeleteOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode) error
@@ -2173,6 +2181,18 @@ type Service struct {
 
 	DeleteSoftwareTitleIconFunc        DeleteSoftwareTitleIconFunc
 	DeleteSoftwareTitleIconFuncInvoked bool
+
+	ListSoftwareCategoriesFunc        ListSoftwareCategoriesFunc
+	ListSoftwareCategoriesFuncInvoked bool
+
+	NewSoftwareCategoryFunc        NewSoftwareCategoryFunc
+	NewSoftwareCategoryFuncInvoked bool
+
+	UpdateSoftwareCategoryFunc        UpdateSoftwareCategoryFunc
+	UpdateSoftwareCategoryFuncInvoked bool
+
+	DeleteSoftwareCategoryFunc        DeleteSoftwareCategoryFunc
+	DeleteSoftwareCategoryFuncInvoked bool
 
 	UploadOrgLogoFunc        UploadOrgLogoFunc
 	UploadOrgLogoFuncInvoked bool
@@ -5197,6 +5217,34 @@ func (s *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	s.DeleteSoftwareTitleIconFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareTitleIconFunc(ctx, teamID, titleID)
+}
+
+func (s *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([]fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.ListSoftwareCategoriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareCategoriesFunc(ctx, teamID)
+}
+
+func (s *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name string) (*fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.NewSoftwareCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewSoftwareCategoryFunc(ctx, teamID, name)
+}
+
+func (s *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.UpdateSoftwareCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateSoftwareCategoryFunc(ctx, id, name)
+}
+
+func (s *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteSoftwareCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteSoftwareCategoryFunc(ctx, id)
 }
 
 func (s *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error {

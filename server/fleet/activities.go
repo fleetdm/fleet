@@ -1953,3 +1953,33 @@ type ActivityTypeDeletedLabel struct {
 func (a ActivityTypeDeletedLabel) ActivityName() string {
 	return "deleted_label"
 }
+
+type ActivityTypeAddedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeAddedSelfServiceCategory) ActivityName() string {
+	return "added_self_service_category"
+}
+
+type ActivityTypeEditedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeEditedSelfServiceCategory) ActivityName() string {
+	return "edited_self_service_category"
+}
+
+type ActivityTypeDeletedSelfServiceCategory struct {
+	SelfServiceCategoryName string  `json:"self_service_category_name"`
+	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName                *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeDeletedSelfServiceCategory) ActivityName() string {
+	return "deleted_self_service_category"
+}

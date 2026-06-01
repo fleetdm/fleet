@@ -1372,7 +1372,6 @@ type Service interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software installers
-	//
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (*SoftwareInstaller, error)
 	UpdateSoftwareInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload) (*SoftwareInstaller, error)
@@ -1386,10 +1385,18 @@ type Service interface {
 
 	/////////////////////////////////////////////////////////////////////////////////
 	// Software title icons
-	//
+
 	GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 	UploadSoftwareTitleIcon(ctx context.Context, payload *UploadSoftwareTitleIconPayload) (SoftwareTitleIcon, error)
 	DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error
+
+	/////////////////////////////////////////////////////////////////////////////////
+	// Software categories (used as self-service categories in the UI)
+
+	ListSoftwareCategories(ctx context.Context, teamID *uint) ([]SoftwareCategory, error)
+	NewSoftwareCategory(ctx context.Context, teamID *uint, name string) (*SoftwareCategory, error)
+	UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*SoftwareCategory, error)
+	DeleteSoftwareCategory(ctx context.Context, id uint) error
 
 	/////////////////////////////////////////////////////////////////////////////////
 	// Organization logo

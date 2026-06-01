@@ -109,6 +109,7 @@ func TestSoftware(t *testing.T) {
 		{"TestListHostSoftwareLastOpenedAt", testListHostSoftwareLastOpenedAt},
 		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 		{"SoftwareCategories", testSoftwareCategories},
+		{"SoftwareCategoryCRUD", testSoftwareCategoryCRUD},
 		{"LabelScopingTimestampLogic", testLabelScopingTimestampLogic},
 		{"InventoryPendingSoftware", testInventoryPendingSoftware},
 		{"PreInsertSoftwareInventory", testPreInsertSoftwareInventory},
@@ -9715,15 +9716,15 @@ func testSoftwareCategories(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "user1"+t.Name(), fmt.Sprintf("user1%s@example.com", t.Name()), false)
 
 	// create some categories
-	cat1, err := ds.NewSoftwareCategory(ctx, "category1")
+	cat1, err := ds.NewSoftwareCategory(ctx, 0, "category1")
 	require.NoError(t, err)
 	require.Equal(t, "category1", cat1.Name)
-	cat2, err := ds.NewSoftwareCategory(ctx, "category2")
+	cat2, err := ds.NewSoftwareCategory(ctx, 0, "category2")
 	require.NoError(t, err)
 	require.Equal(t, "category2", cat2.Name)
 
 	// get the IDs
-	ids, err := ds.GetSoftwareCategoryIDs(ctx, []string{cat1.Name, cat2.Name})
+	ids, err := ds.GetSoftwareCategoryIDs(ctx, 0, []string{cat1.Name, cat2.Name})
 	require.NoError(t, err)
 	require.Len(t, ids, 2)
 	require.Contains(t, ids, cat1.ID)
@@ -12173,6 +12174,82 @@ func testListSoftwareVulnerabilitiesBySoftwareIDs(t *testing.T, ds *Datastore) {
 	result, err = ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, []uint{}, fleet.UbuntuOSVSource)
 	require.NoError(t, err)
 	require.Nil(t, result)
+}
+
+func testSoftwareCategoryCRUD(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1" + t.Name()})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2" + t.Name()})
+	require.NoError(t, err)
+
+	catA, err := ds.NewSoftwareCategory(ctx, team1.ID, "Apple")
+	require.NoError(t, err)
+	require.Equal(t, "Apple", catA.Name)
+	require.Equal(t, team1.ID, catA.TeamID)
+	require.False(t, catA.CreatedAt.IsZero())
+	require.False(t, catA.UpdatedAt.IsZero())
+
+	catB, err := ds.NewSoftwareCategory(ctx, team1.ID, "Banana")
+	require.NoError(t, err)
+	catC, err := ds.NewSoftwareCategory(ctx, team1.ID, "Cherry")
+	require.NoError(t, err)
+
+	// Same name on a different team is allowed (uniqueness is per-team).
+	catASame, err := ds.NewSoftwareCategory(ctx, team2.ID, "Apple")
+	require.NoError(t, err)
+	require.NotEqual(t, catA.ID, catASame.ID)
+
+	// Case-insensitive duplicate within the same team conflicts.
+	_, err = ds.NewSoftwareCategory(ctx, team1.ID, "apple")
+	require.Error(t, err)
+	var existsErr fleet.AlreadyExistsError
+	require.ErrorAs(t, err, &existsErr)
+
+	// List filters by team and orders by name.
+	sameNames := func(want string, got fleet.SoftwareCategory) bool { return want == got.Name }
+
+	cats, err := ds.ListSoftwareCategories(ctx, team1.ID)
+	require.NoError(t, err)
+	want1 := append([]string{"Apple", "Banana", "Cherry"}, fleet.DefaultSelfServiceCategoryNames...)
+	require.True(t, std_slices.EqualFunc(want1, cats, sameNames), "want %v, got %v", want1, cats)
+
+	cats2, err := ds.ListSoftwareCategories(ctx, team2.ID)
+	require.NoError(t, err)
+	want2 := append([]string{"Apple"}, fleet.DefaultSelfServiceCategoryNames...)
+	require.True(t, std_slices.EqualFunc(want2, cats2, sameNames), "want %v, got %v", want2, cats2)
+
+	// Get by id, and not-found for unknown id.
+	got, err := ds.SoftwareCategory(ctx, catB.ID)
+	require.NoError(t, err)
+	require.Equal(t, catB.ID, got.ID)
+	require.Equal(t, "Banana", got.Name)
+
+	_, err = ds.SoftwareCategory(ctx, 9999999)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Update renames.
+	updated, err := ds.UpdateSoftwareCategory(ctx, catB.ID, "Berry")
+	require.NoError(t, err)
+	require.Equal(t, catB.ID, updated.ID)
+	require.Equal(t, "Berry", updated.Name)
+
+	// Update into a case-insensitive conflict within the same team.
+	_, err = ds.UpdateSoftwareCategory(ctx, catC.ID, "BERRY")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &existsErr)
+
+	// Delete works; deleted id is then not-found.
+	require.NoError(t, ds.DeleteSoftwareCategory(ctx, catC.ID))
+	_, err = ds.SoftwareCategory(ctx, catC.ID)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Delete unknown id returns not-found.
+	err = ds.DeleteSoftwareCategory(ctx, 9999999)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func testGetDisplayNamesByTeamAndTitleIdsBatching(t *testing.T, ds *Datastore) {

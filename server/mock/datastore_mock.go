@@ -587,11 +587,21 @@ type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.Ho
 
 type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error)
 
-type NewSoftwareCategoryFunc func(ctx context.Context, name string) (*fleet.SoftwareCategory, error)
+type ListSoftwareCategoriesFunc func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error)
 
-type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uint, error)
+type SoftwareCategoryFunc func(ctx context.Context, id uint) (*fleet.SoftwareCategory, error)
 
-type GetSoftwareCategoryNameToIDMapFunc func(ctx context.Context, names []string) (map[string]uint, error)
+type NewSoftwareCategoryFunc func(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error)
+
+type BatchNewSoftwareCategoriesFunc func(ctx context.Context, teamID uint, names []string) error
+
+type UpdateSoftwareCategoryFunc func(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error)
+
+type DeleteSoftwareCategoryFunc func(ctx context.Context, id uint) error
+
+type GetSoftwareCategoryIDsFunc func(ctx context.Context, teamID uint, names []string) ([]uint, error)
+
+type GetSoftwareCategoryNameToIDMapFunc func(ctx context.Context, teamID uint, names []string) (map[string]uint, error)
 
 type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
@@ -2888,8 +2898,23 @@ type DataStore struct {
 	CreateIntermediateInstallFailureRecordFunc        CreateIntermediateInstallFailureRecordFunc
 	CreateIntermediateInstallFailureRecordFuncInvoked bool
 
+	ListSoftwareCategoriesFunc        ListSoftwareCategoriesFunc
+	ListSoftwareCategoriesFuncInvoked bool
+
+	SoftwareCategoryFunc        SoftwareCategoryFunc
+	SoftwareCategoryFuncInvoked bool
+
 	NewSoftwareCategoryFunc        NewSoftwareCategoryFunc
 	NewSoftwareCategoryFuncInvoked bool
+
+	BatchNewSoftwareCategoriesFunc        BatchNewSoftwareCategoriesFunc
+	BatchNewSoftwareCategoriesFuncInvoked bool
+
+	UpdateSoftwareCategoryFunc        UpdateSoftwareCategoryFunc
+	UpdateSoftwareCategoryFuncInvoked bool
+
+	DeleteSoftwareCategoryFunc        DeleteSoftwareCategoryFunc
+	DeleteSoftwareCategoryFuncInvoked bool
 
 	GetSoftwareCategoryIDsFunc        GetSoftwareCategoryIDsFunc
 	GetSoftwareCategoryIDsFuncInvoked bool
@@ -7046,25 +7071,60 @@ func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, 
 	return s.CreateIntermediateInstallFailureRecordFunc(ctx, result)
 }
 
-func (s *DataStore) NewSoftwareCategory(ctx context.Context, name string) (*fleet.SoftwareCategory, error) {
+func (s *DataStore) ListSoftwareCategories(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.ListSoftwareCategoriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareCategoriesFunc(ctx, teamID)
+}
+
+func (s *DataStore) SoftwareCategory(ctx context.Context, id uint) (*fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.SoftwareCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.SoftwareCategoryFunc(ctx, id)
+}
+
+func (s *DataStore) NewSoftwareCategory(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
 	s.mu.Lock()
 	s.NewSoftwareCategoryFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewSoftwareCategoryFunc(ctx, name)
+	return s.NewSoftwareCategoryFunc(ctx, teamID, name)
 }
 
-func (s *DataStore) GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error) {
+func (s *DataStore) BatchNewSoftwareCategories(ctx context.Context, teamID uint, names []string) error {
+	s.mu.Lock()
+	s.BatchNewSoftwareCategoriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchNewSoftwareCategoriesFunc(ctx, teamID, names)
+}
+
+func (s *DataStore) UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.UpdateSoftwareCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateSoftwareCategoryFunc(ctx, id, name)
+}
+
+func (s *DataStore) DeleteSoftwareCategory(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteSoftwareCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteSoftwareCategoryFunc(ctx, id)
+}
+
+func (s *DataStore) GetSoftwareCategoryIDs(ctx context.Context, teamID uint, names []string) ([]uint, error) {
 	s.mu.Lock()
 	s.GetSoftwareCategoryIDsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareCategoryIDsFunc(ctx, names)
+	return s.GetSoftwareCategoryIDsFunc(ctx, teamID, names)
 }
 
-func (s *DataStore) GetSoftwareCategoryNameToIDMap(ctx context.Context, names []string) (map[string]uint, error) {
+func (s *DataStore) GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 	s.mu.Lock()
 	s.GetSoftwareCategoryNameToIDMapFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareCategoryNameToIDMapFunc(ctx, names)
+	return s.GetSoftwareCategoryNameToIDMapFunc(ctx, teamID, names)
 }
 
 func (s *DataStore) GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error) {

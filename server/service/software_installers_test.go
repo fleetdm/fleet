@@ -619,7 +619,7 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 		return nil
 	}
 
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, teamID uint, names []string) ([]uint, error) {
 		return []uint{}, nil
 	}
 

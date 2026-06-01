@@ -20878,10 +20878,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, req.PostInstallScript, string(postinstall))
 
 	// Add some categories and validate them
-	cat1, err := s.ds.NewSoftwareCategory(ctx, "test_category_1")
+	cat1, err := s.ds.NewSoftwareCategory(ctx, 0, "test_category_1")
 	require.NoError(t, err)
 
-	cat2, err := s.ds.NewSoftwareCategory(ctx, "test_category_2")
+	cat2, err := s.ds.NewSoftwareCategory(ctx, 0, "test_category_2")
 	require.NoError(t, err)
 
 	updatePayload := &fleet.UpdateSoftwareInstallerPayload{
@@ -31677,6 +31677,141 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithEUAToken() {
 	require.Len(t, dms, 1, "host_emails must be populated after EUA-token orbit enrollment (issue #45066)")
 	require.Equal(t, idpEmail, dms[0].Email)
 	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dms[0].Source)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
+	t := s.T()
+	ctx := t.Context()
+	const path = "/api/latest/fleet/software/self_service_categories"
+
+	// create — leading/trailing whitespace in the name is trimmed before storage
+	var addResp addSelfServiceCategoriesResponse
+	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "  💼 Engineering  "}, http.StatusOK, &addResp)
+	require.NotZero(t, addResp.SelfServiceCategory.ID)
+	require.Equal(t, "💼 Engineering", addResp.SelfServiceCategory.Name)
+	require.Equal(t, uint(0), addResp.SelfServiceCategory.TeamID)
+	catID := addResp.SelfServiceCategory.ID
+	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
+		`{"self_service_category_name":"💼 Engineering","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+
+	// list includes new category
+	var listResp getSelfServiceCategoriesResponse
+	s.DoJSON("GET", path, nil, http.StatusOK, &listResp, "fleet_id", "0")
+	names := make([]string, 0, len(listResp.SelfServiceCategories))
+	for _, c := range listResp.SelfServiceCategories {
+		names = append(names, c.Name)
+	}
+	require.Contains(t, names, "💼 Engineering")
+
+	// rename
+	var patchResp patchSelfServiceCategoriesResponse
+	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "💼 Engineering tools"}, http.StatusOK, &patchResp)
+	require.Equal(t, catID, patchResp.SelfServiceCategory.ID)
+	require.Equal(t, "💼 Engineering tools", patchResp.SelfServiceCategory.Name)
+	editActID := s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(),
+		`{"self_service_category_name":"💼 Engineering tools","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+
+	// patch with the same name is a no-op — no new activity emitted
+	s.DoJSON("PATCH", fmt.Sprintf("%s/%d", path, catID), map[string]any{"name": "💼 Engineering tools"}, http.StatusOK, &patchResp)
+	require.Equal(t, editActID, s.lastActivityMatches(fleet.ActivityTypeEditedSelfServiceCategory{}.ActivityName(), "", 0),
+		"no-op PATCH should not emit a new activity")
+
+	// delete + activity
+	s.Do("DELETE", fmt.Sprintf("%s/%d", path, catID), nil, http.StatusNoContent)
+	s.lastActivityMatches(fleet.ActivityTypeDeletedSelfServiceCategory{}.ActivityName(),
+		`{"self_service_category_name":"💼 Engineering tools","team_id":0,"team_name":null,"fleet_id":0,"fleet_name":null}`, 0)
+
+	// post without name returns 422
+	s.Do("POST", path, map[string]any{"fleet_id": 0}, http.StatusUnprocessableEntity)
+
+	// whitespace-only name returns 422
+	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": "   "}, http.StatusUnprocessableEntity)
+
+	// post without fleet_id returns 422
+	s.Do("POST", path, map[string]any{"name": "no-fleet"}, http.StatusUnprocessableEntity)
+
+	// get without fleet_id returns 422 — same error as POST for consistency
+	s.Do("GET", path, nil, http.StatusUnprocessableEntity)
+
+	// get unknown fleet_id returns 404
+	s.Do("GET", path, nil, http.StatusNotFound, "fleet_id", "9999999")
+
+	// patch without name returns 422 — use a fixture for this since the no-op
+	// PATCH above leaves catID deleted
+	var fixture addSelfServiceCategoriesResponse
+	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "patch-target"}, http.StatusOK, &fixture)
+	s.Do("PATCH", fmt.Sprintf("%s/%d", path, fixture.SelfServiceCategory.ID), map[string]any{}, http.StatusUnprocessableEntity)
+
+	// 255-rune name succeeds; 256-rune name returns 422
+	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": strings.Repeat("a", 255)}, http.StatusOK)
+	s.Do("POST", path, map[string]any{"fleet_id": 0, "name": strings.Repeat("a", 256)}, http.StatusUnprocessableEntity)
+
+	// duplicate across fleets allowed
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "SelfServiceCategoryCrossFleet"}, http.StatusOK, &teamResp)
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), teamResp.Team.ID)) })
+
+	var cf0, cf1 addSelfServiceCategoriesResponse
+	s.DoJSON("POST", path, map[string]any{"fleet_id": 0, "name": "CrossFleet"}, http.StatusOK, &cf0)
+	s.DoJSON("POST", path, map[string]any{"fleet_id": teamResp.Team.ID, "name": "CrossFleet"}, http.StatusOK, &cf1)
+	require.NotEqual(t, cf0.SelfServiceCategory.ID, cf1.SelfServiceCategory.ID)
+	s.lastActivityMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
+		fmt.Sprintf(`{"self_service_category_name":"CrossFleet","team_id":%d,"team_name":%q,"fleet_id":%d,"fleet_name":%q}`, teamResp.Team.ID, teamResp.Team.Name, teamResp.Team.ID, teamResp.Team.Name), 0)
+
+	// list scoped to the new fleet returns its seeded defaults plus the added category
+	s.DoJSON("GET", path, nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(teamResp.Team.ID))
+	require.Len(t, listResp.SelfServiceCategories, len(fleet.DefaultSelfServiceCategoryNames)+1)
+	newFleetNames := make([]string, 0, len(listResp.SelfServiceCategories))
+	for _, c := range listResp.SelfServiceCategories {
+		newFleetNames = append(newFleetNames, c.Name)
+	}
+	require.ElementsMatch(t, append(fleet.DefaultSelfServiceCategoryNames, "CrossFleet"), newFleetNames)
+
+	// unknown fleet_id returns 404
+	s.Do("POST", path, map[string]any{"fleet_id": 9999999, "name": "ghost"}, http.StatusNotFound)
+
+	// categories still surface as strings on existing endpoints
+	cat1, err := s.ds.NewSoftwareCategory(ctx, 0, "smoke-test-cat-1")
+	require.NoError(t, err)
+	cat2, err := s.ds.NewSoftwareCategory(ctx, 0, "smoke-test-cat-2")
+	require.NoError(t, err)
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:        new(uint(0)),
+		Filename:      "dummy_installer.pkg",
+		InstallScript: "echo install",
+	}, http.StatusOK, "")
+
+	titleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
+	titlePath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID)
+
+	// linking categories happens via PATCH, not upload
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TeamID:     new(uint(0)),
+		TitleID:    titleID,
+		Categories: []string{cat1.Name, cat2.Name},
+	}, http.StatusOK, "")
+
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "team_id", "0")
+	require.ElementsMatch(t, []string{cat1.Name, cat2.Name}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
+
+	// deleting a category cascades the link
+	s.Do("DELETE", fmt.Sprintf("%s/%d", path, cat1.ID), nil, http.StatusNoContent)
+	titleResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", titlePath, nil, http.StatusOK, &titleResp, "team_id", "0")
+	require.ElementsMatch(t, []string{cat2.Name}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
+
+	// deleting a team cascades to its categories
+	var deletableResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "SelfServiceCategoryDeleteScope"}, http.StatusOK, &deletableResp)
+	seeded, err := s.ds.ListSoftwareCategories(ctx, deletableResp.Team.ID)
+	require.NoError(t, err)
+	require.Len(t, seeded, len(fleet.DefaultSelfServiceCategoryNames))
+	require.NoError(t, s.ds.DeleteTeam(ctx, deletableResp.Team.ID))
+	leftover, err := s.ds.ListSoftwareCategories(ctx, deletableResp.Team.ID)
+	require.NoError(t, err)
+	require.Empty(t, leftover, "categories should be cleaned up when a team is deleted")
 }
 
 // TestTeamAdminCanReadHostPastActivities is a regression test for issue #46009:

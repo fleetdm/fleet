@@ -22,6 +22,7 @@ const (
 	//
 
 	SoftwareNameMaxLength             = 255
+	SoftwareCategoryNameMaxLength     = 255
 	SoftwareVersionMaxLength          = 255
 	SoftwareSourceMaxLength           = 64
 	SoftwareBundleIdentifierMaxLength = 255
@@ -855,8 +856,23 @@ type VPPBatchPayloadWithPlatform struct {
 }
 
 type SoftwareCategory struct {
-	ID   uint   `db:"id"`
-	Name string `db:"name"`
+	ID     uint   `json:"id" db:"id"`
+	Name   string `json:"name" db:"name"`
+	TeamID uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	UpdateCreateTimestamps
+}
+
+func (c *SoftwareCategory) AuthzType() string {
+	return "software_category"
+}
+
+var DefaultSelfServiceCategoryNames = []string{
+	"🌎 Browsers",
+	"👬 Communication",
+	"🧰 Developer tools",
+	"💻 Productivity",
+	"🔐 Security",
+	"🛟 Support",
 }
 
 // Map the old default category names that don't include emojis to the new ones
