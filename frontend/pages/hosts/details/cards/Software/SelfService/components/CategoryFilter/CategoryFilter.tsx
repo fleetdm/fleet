@@ -23,6 +23,10 @@ declare module "react-select-5/dist/declarations/src/Select" {
   > {
     searchQuery?: string;
     onChangeSearchQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    // Forwards navigation keys (Arrow/Enter/Escape) from the in-menu search
+    // input to react-select's own (hidden) input so option highlighting and
+    // selection still work while the search input has focus.
+    forwardNavKey?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   }
 }
 
@@ -42,10 +46,18 @@ export interface ICategoryFilterProps {
   isDisabled?: boolean;
 }
 
+const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Escape"]);
+
 const CustomMenuList = (props: MenuListProps<ICategoryOption, false>) => {
   const { selectProps } = props;
-  const { searchQuery, onChangeSearchQuery } = selectProps;
+  const { searchQuery, onChangeSearchQuery, forwardNavKey } = selectProps;
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Auto-focus the search input when the menu opens so keyboard users can
+  // start typing immediately.
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   const handleInputClick = (
     event: React.MouseEvent<HTMLInputElement, MouseEvent>
@@ -54,8 +66,33 @@ const CustomMenuList = (props: MenuListProps<ICategoryOption, false>) => {
     event.stopPropagation();
   };
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (NAV_KEYS.has(event.key)) {
+      // Let react-select's own keyDown handler do option highlighting /
+      // selection / menu close, but keep visible focus on the search input.
+      event.preventDefault();
+      forwardNavKey?.(event);
+      return;
+    }
+    // Block other keys from bubbling to react-select (which would otherwise
+    // try to type-ahead-match options).
+    event.stopPropagation();
+  };
+
+  // Block clicks on the MenuList's own padding from bubbling to the Menu
+  // element's onMenuMouseDown handler in react-select (lib line 1428), which
+  // would otherwise call focusInput() and steal focus to the hidden Control
+  // input — making a subsequent click on the search input look like a close.
+  // Option clicks still fire because Option's own handler runs at the option
+  // level before bubbling reaches MenuList.
   return (
-    <components.MenuList {...props}>
+    <components.MenuList
+      {...props}
+      innerProps={{
+        ...props.innerProps,
+        onMouseDown: (event: React.MouseEvent) => event.stopPropagation(),
+      }}
+    >
       <div className={`${baseClass}__search-field`}>
         <input
           className={`${baseClass}__search-input`}
@@ -64,12 +101,14 @@ const CustomMenuList = (props: MenuListProps<ICategoryOption, false>) => {
           name="category-search-input"
           type="text"
           placeholder="Search categories"
-          onKeyDown={(event) => {
-            // Stops the parent dropdown from picking up on input keypresses
-            event.stopPropagation();
-          }}
+          onKeyDown={handleKeyDown}
           onChange={onChangeSearchQuery}
           onClick={handleInputClick}
+          // react-select attaches onMouseDown to the Menu element that calls
+          // preventDefault + focusInput on its own hidden input — stealing
+          // focus from anything you click inside the menu. Stopping the
+          // synthetic event here keeps focus on our search input.
+          onMouseDown={(event) => event.stopPropagation()}
         />
         <Icon name="search" />
       </div>
@@ -144,6 +183,31 @@ const CategoryFilter = ({
 
   const toggleMenu = () => {
     setMenuIsOpen((open) => !open);
+    // Focus moves to the in-menu search input via CustomMenuList's mount
+    // effect; arrow/enter/escape get forwarded from there to react-select.
+  };
+
+  // Forwards a navigation key from the in-menu search input to react-select's
+  // hidden input so its built-in keyDown handler runs (option highlighting,
+  // selection, menu close). React 17+ root delegation picks up the native
+  // KeyboardEvent and fires react-select's onKeyDown synthetic handler.
+  const forwardNavKey = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // SelectInstance exposes inputRef; cast is needed because v5's public
+    // typings don't surface it.
+    const input = ((selectRef.current as unknown) as {
+      inputRef?: HTMLInputElement | null;
+    })?.inputRef;
+    if (!input) return;
+    input.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: event.key,
+        code: event.code,
+        keyCode: event.keyCode,
+        which: event.keyCode,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
   };
 
   const selectedLabel =
@@ -154,6 +218,19 @@ const CategoryFilter = ({
   // and SingleValue is rendered as plain text in that button — so we only
   // need to style the menu/option subtree here.
   const customStyles: StylesConfig<ICategoryOption, false> = {
+    // Hide react-select's own control (which contains the input) behind the
+    // visible Button, but keep it in the DOM so its input can receive focus
+    // and react-select's keyDown handler fires for ArrowUp/Down/Enter.
+    control: () => ({
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: 1,
+      height: 1,
+      overflow: "hidden",
+      opacity: 0,
+      pointerEvents: "none",
+    }),
     menu: (baseStyles) => ({
       ...baseStyles,
       backgroundColor: COLORS["core-fleet-white"],
@@ -167,6 +244,7 @@ const CategoryFilter = ({
       // the outline rather than overlapping it.
       marginTop: PADDING["pad-xsmall"],
       minWidth: "240px",
+      maxWidth: "350px",
       maxHeight: "none",
       position: "absolute",
       left: "0",
@@ -203,6 +281,9 @@ const CategoryFilter = ({
       fontWeight: state.isSelected ? 600 : "normal",
       color: COLORS["core-fleet-black"],
       cursor: "pointer",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
       "&:hover": {
         backgroundColor: COLORS["ui-fleet-black-5"],
       },
@@ -259,10 +340,13 @@ const CategoryFilter = ({
         styles={customStyles}
         components={{
           MenuList: CustomMenuList,
-          Control: () => null,
           DropdownIndicator: () => null,
           IndicatorSeparator: () => null,
         }}
+        // Hidden input is never directly user-focused; it just receives
+        // dispatched keydown events from the in-menu search input.
+        tabIndex={-1}
+        forwardNavKey={forwardNavKey}
         className={baseClass}
         classNamePrefix={baseClass}
         searchQuery={searchQuery}
