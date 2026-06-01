@@ -96,7 +96,7 @@ func TestPolicies(t *testing.T) {
 		{"ApplyPolicySpecsNeedsFullMembershipCleanupFlag", testApplyPolicySpecsNeedsFullMembershipCleanupFlag},
 		{"CleanupPolicyMembershipCrashRecovery", testCleanupPolicyMembershipCrashRecovery},
 		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
-		{"GetPoliciesForConditionalAccessSQLInjection", testGetPoliciesForConditionalAccessSQLInjection},
+		{"GetPoliciesForConditionalAccessSQLInjection", testGetPoliciesForConditionalAccess},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -8438,7 +8438,7 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), policies[0].FailingHostCount, "policy stats should not have been reset")
 }
 
-func testGetPoliciesForConditionalAccessSQLInjection(t *testing.T, ds *Datastore) {
+func testGetPoliciesForConditionalAccess(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// Two "No team" (team_id = 0) policies enrolled in conditional access, one
