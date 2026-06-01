@@ -43,4 +43,23 @@ func TestTraceSamplerSettings(t *testing.T) {
 		})
 		require.Error(t, err)
 	})
+
+	t.Run("set fails when singleton row is missing", func(t *testing.T) {
+		// Locks in the RowsAffected != 1 guard in SetTraceSamplerSettings. If the seeded singleton row is missing (DB invariant
+		// broken), Set must surface a loud error rather than silently no-op.
+		_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM trace_sampler_settings`)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			_, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO trace_sampler_settings (id) VALUES (1)`)
+			require.NoError(t, err)
+		})
+
+		err = ds.SetTraceSamplerSettings(ctx, &fleet.TraceSamplerSettings{
+			HighVolumeRatio: 0.01,
+			StandardRatio:   0.05,
+			ForceFull:       false,
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "expected 1 row updated")
+	})
 }

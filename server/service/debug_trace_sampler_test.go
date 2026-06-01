@@ -21,8 +21,8 @@ func discardLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-// adminAuthedRequest builds a request and primes the mockService so the
-// debug auth middleware lets it through as a global admin.
+// adminAuthedRequest builds a request and primes the mockService so the debug auth middleware lets it through as a global
+// admin.
 func adminAuthedRequest(t *testing.T, method, target string, body string) (*mockService, *http.Request) {
 	t.Helper()
 	svc := &mockService{}

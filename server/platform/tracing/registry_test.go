@@ -2,37 +2,20 @@ package tracing
 
 import (
 	"net/http"
+	"strconv"
 	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-// testRegistry returns a Registry pre-populated with the routes used by the
-// sampler tests. Sampler tests exercise the sampling math; the actual route
-// tier policy lives outside the platform package (e.g.,
-// server/service/tracing_tiers.go).
-func testRegistry() *Registry {
+func TestRegistry_LookupNormalizes(t *testing.T) {
+	// One fixture covers all input shapes that should resolve to the same registered route: fleetversion templates (multi
+	// version and single version), mux regex constrained params, and already normalized inputs.
 	r := NewRegistry()
-	r.Register(http.MethodGet, "/healthz", TierNever)
-	r.Register(http.MethodGet, "/version", TierNever)
-	r.Register(http.MethodGet, "/metrics", TierNever)
-	r.Register(http.MethodPost, "/api/osquery/distributed/read", TierHighVolume)
-	r.Register(http.MethodPost, "/api/v1/osquery/distributed/read", TierHighVolume)
-	r.Register(http.MethodPost, "/api/osquery/distributed/write", TierHighVolume)
-	r.Register(http.MethodPost, "/api/fleet/orbit/config", TierHighVolume)
-	r.Register(http.MethodHead, "/api/fleet/orbit/ping", TierHighVolume)
-	r.Register(http.MethodHead, "/api/_version_/fleet/device/{token}/ping", TierHighVolume)
-	r.Register(http.MethodGet, "/api/_version_/fleet/device/{token}/desktop", TierHighVolume)
 	r.Register(http.MethodGet, "/api/_version_/fleet/hosts", TierStandard)
 	r.Register(http.MethodGet, "/api/_version_/fleet/hosts/{id}", TierStandard)
-	r.Register(http.MethodGet, "/api/_version_/fleet/queries", TierStandard)
-	return r
-}
-
-func TestRegistry_LookupNormalizesVersion(t *testing.T) {
-	r := NewRegistry()
-	r.Register(http.MethodGet, "/api/_version_/fleet/hosts", TierStandard)
+	r.Register(http.MethodPatch, "/api/_version_/fleet/fleets/{fleet_id}/secrets", TierAlways)
 
 	cases := []struct {
 		name   string
@@ -47,7 +30,7 @@ func TestRegistry_LookupNormalizesVersion(t *testing.T) {
 			wantOK: true,
 		},
 		{
-			name:   "single-version regex template",
+			name:   "single version regex template",
 			input:  "GET /api/{fleetversion:(?:latest)}/fleet/hosts",
 			want:   TierStandard,
 			wantOK: true,
@@ -59,9 +42,21 @@ func TestRegistry_LookupNormalizesVersion(t *testing.T) {
 			wantOK: true,
 		},
 		{
-			name:   "unregistered route returns TierAlways false",
-			input:  "POST /not/in/registry",
+			name:   "mux regex param {id:[0-9]+}",
+			input:  "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}",
+			want:   TierStandard,
+			wantOK: true,
+		},
+		{
+			name:   "mux regex param {fleet_id:[0-9]+}",
+			input:  "PATCH /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/fleets/{fleet_id:[0-9]+}/secrets",
 			want:   TierAlways,
+			wantOK: true,
+		},
+		{
+			name:   "unregistered route",
+			input:  "POST /not/in/registry",
+			want:   TierAlways, // zero value. Sampler interprets the !ok as the catch all.
 			wantOK: false,
 		},
 		{
@@ -80,21 +75,43 @@ func TestRegistry_LookupNormalizesVersion(t *testing.T) {
 	}
 }
 
-func TestRegistry_RegisterOverwrites(t *testing.T) {
+func TestRegistry_RegisterNormalizesSymmetrically(t *testing.T) {
+	// Inverse of TestRegistry_LookupNormalizes: registering with the regex form must also resolve via lookup of the bare form.
+	// This is the invariant the Register side normalization delivers.
 	r := NewRegistry()
-	r.Register(http.MethodPost, "/foo", TierStandard)
-	r.Register(http.MethodPost, "/foo", TierHighVolume) // overwrite
+	r.Register(http.MethodGet, "/api/_version_/fleet/hosts/{id:[0-9]+}", TierStandard)
 
-	got, ok := r.Lookup("POST /foo")
-	require.True(t, ok)
-	require.Equal(t, TierHighVolume, got)
+	got, ok := r.Lookup("GET /api/{fleetversion:(?:latest)}/fleet/hosts/{id}")
+	require.True(t, ok, "regex form registration must be findable via simple form lookup")
+	require.Equal(t, TierStandard, got)
+}
+
+func TestRegistry_RegisterOverwrites(t *testing.T) {
+	t.Run("same form", func(t *testing.T) {
+		r := NewRegistry()
+		r.Register(http.MethodPost, "/foo", TierStandard)
+		r.Register(http.MethodPost, "/foo", TierHighVolume)
+
+		got, ok := r.Lookup("POST /foo")
+		require.True(t, ok)
+		require.Equal(t, TierHighVolume, got)
+	})
+
+	t.Run("different forms collide on the same normalized key", func(t *testing.T) {
+		// {id} and {id:[0-9]+} are the same logical route after normalization. The second Register must overwrite the first
+		// regardless of which surface form was used.
+		r := NewRegistry()
+		r.Register(http.MethodGet, "/api/_version_/fleet/hosts/{id}", TierStandard)
+		r.Register(http.MethodGet, "/api/_version_/fleet/hosts/{id:[0-9]+}", TierHighVolume)
+
+		got, _ := r.Lookup("GET /api/_version_/fleet/hosts/{id}")
+		require.Equal(t, TierHighVolume, got)
+	})
 }
 
 func TestRegistry_ConcurrentReadersAndWriters(t *testing.T) {
-	// Exercise the RWMutex under -race. Late-arriving registrations must
-	// not corrupt concurrent lookups; this is what makes it safe for
-	// bounded contexts to register at startup while the tracer provider
-	// is already serving spans.
+	// Exercise the RWMutex under -race. Late arriving registrations must not corrupt concurrent lookups. This is what makes it
+	// safe for bounded contexts to register at startup while the tracer provider is already serving spans.
 	r := NewRegistry()
 	const writerCount = 4
 	const readerCount = 8
@@ -104,7 +121,7 @@ func TestRegistry_ConcurrentReadersAndWriters(t *testing.T) {
 	for w := range writerCount {
 		wg.Go(func() {
 			for i := range iterations {
-				path := "/path/writer/" + itoa(w) + "/" + itoa(i)
+				path := "/path/writer/" + strconv.Itoa(w) + "/" + strconv.Itoa(i)
 				r.Register(http.MethodGet, path, TierStandard)
 			}
 		})
@@ -119,23 +136,9 @@ func TestRegistry_ConcurrentReadersAndWriters(t *testing.T) {
 	wg.Wait()
 }
 
-// itoa is a tiny stdlib-free int-to-string for the concurrency test.
-// Imported strconv would do the same; this avoids one import.
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var buf [20]byte
-	i := len(buf)
-	for n > 0 {
-		i--
-		buf[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(buf[i:])
-}
-
 func TestNormalizeSpanName(t *testing.T) {
+	// Unit test for the helper. Lookup integration is covered separately. These cases pin the helper's behavior independent of
+	// the map lookup.
 	cases := []struct {
 		in, want string
 	}{
@@ -145,16 +148,11 @@ func TestNormalizeSpanName(t *testing.T) {
 			"GET /api/_version_/fleet/hosts",
 		},
 		{
-			"POST /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/spec/teams",
-			"POST /api/_version_/fleet/spec/teams",
-		},
-		{
 			"GET /api/_version_/fleet/queries",
 			"GET /api/_version_/fleet/queries",
 		},
 		{"vuln.update_host_counts", "vuln.update_host_counts"},
-		// Mux regex constraints on path params are stripped to the bare
-		// {name} form so the registry can stay decoupled from the
+		// Mux regex constraints on path params are stripped to the bare {name} form so the registry can stay decoupled from the
 		// constraint syntax.
 		{
 			"GET /api/_version_/fleet/hosts/{id:[0-9]+}",
@@ -175,21 +173,4 @@ func TestNormalizeSpanName(t *testing.T) {
 			require.Equal(t, c.want, normalizeSpanName(c.in))
 		})
 	}
-}
-
-func TestRegistry_LookupMatchesMuxRegexParams(t *testing.T) {
-	// Concrete bug Qodo flagged: registration uses the bare {id} form, but
-	// gorilla's GetPathTemplate returns the full {id:[0-9]+} form. The
-	// sampler must normalize before lookup so the tier policy still applies.
-	r := NewRegistry()
-	r.Register(http.MethodGet, "/api/_version_/fleet/hosts/{id}", TierStandard)
-	r.Register(http.MethodPatch, "/api/_version_/fleet/fleets/{fleet_id}/secrets", TierAlways)
-
-	got, ok := r.Lookup("GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}")
-	require.True(t, ok, "regex-constrained {id:[0-9]+} must normalize to {id}")
-	require.Equal(t, TierStandard, got)
-
-	got, ok = r.Lookup("PATCH /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/fleets/{fleet_id:[0-9]+}/secrets")
-	require.True(t, ok, "regex-constrained {fleet_id:[0-9]+} must normalize to {fleet_id}")
-	require.Equal(t, TierAlways, got)
 }

@@ -11,26 +11,21 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// Audit note: the schema deliberately has no updated_by_user_id column. The
-// /debug auth middleware logs the authenticated user, the PATCH access log
-// records the request, and the slog InfoContext below records the user ID
-// from viewer context — those three together cover the audit trail without
-// a stale-on-user-deletion column on the table.
+// Audit note: the schema deliberately has no updated_by_user_id column. The /debug auth middleware logs the authenticated
+// user, the PATCH access log records the request, and the slog InfoContext below records the user ID from viewer context.
+// Those three together cover the audit trail without a stale on user deletion column on the table.
 
-// traceSamplerPatchRequest is the PATCH payload. Fields are pointers so we
-// can distinguish "unset" from a zero value — PATCH semantics mean only the
-// provided fields are applied.
+// traceSamplerPatchRequest is the PATCH payload. Fields are pointers so we can distinguish "unset" from a zero value. PATCH
+// semantics mean only the provided fields are applied.
 type traceSamplerPatchRequest struct {
 	HighVolumeRatio *float64 `json:"high_volume_ratio,omitempty"`
 	StandardRatio   *float64 `json:"standard_ratio,omitempty"`
 	ForceFull       *bool    `json:"force_full,omitempty"`
 }
 
-// traceSamplerHandler serves GET and PATCH for /debug/trace_sampler. Wired in
-// MakeDebugHandler behind debugAuthenticationMiddleware (admin-only). GET
-// returns the current settings; PATCH validates ratios in [0,1] and persists
-// the change. The replica's in-memory sampler picks up the change on the
-// next poller tick (default 60s).
+// traceSamplerHandler serves GET and PATCH for /debug/trace_sampler. Wired in MakeDebugHandler behind
+// debugAuthenticationMiddleware (admin only). GET returns the current settings. PATCH validates ratios in [0, 1] and persists
+// the change. The replica's in memory sampler picks up the change on the next poller tick (default 60s).
 func traceSamplerHandler(logger *slog.Logger, ds fleet.Datastore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -55,10 +50,9 @@ func handleTraceSamplerGet(w http.ResponseWriter, r *http.Request, logger *slog.
 }
 
 func handleTraceSamplerPatch(w http.ResponseWriter, r *http.Request, logger *slog.Logger, ds fleet.Datastore) {
-	// The /debug auth middleware always installs the viewer in context; if it
-	// is missing here, the middleware was bypassed and we should refuse to
-	// record a change rather than silently log user_id=0 (indistinguishable
-	// from a real user id of 0 and weakens the audit trail).
+	// The /debug auth middleware always installs the viewer in context. If it is missing here, the middleware was bypassed and
+	// we should refuse to record a change rather than silently log user_id=0. That value is indistinguishable from a real user
+	// id of 0 and weakens the audit trail.
 	v, ok := viewer.FromContext(r.Context())
 	if !ok {
 		logger.ErrorContext(r.Context(), "debug trace_sampler PATCH refused: viewer missing from context")

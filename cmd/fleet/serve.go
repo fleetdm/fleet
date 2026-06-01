@@ -182,16 +182,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Validate OTEL server options
 	config.Logging.Validate(initFatal)
 
-	// Trace sampler tier registry. Bounded contexts register their own
-	// route → tier classifications below; the platform/tracing package
-	// stays free of cross-context coupling. Infra paths (/healthz,
-	// /version, /metrics) are registered alongside their WrapHandler
-	// calls further down in this function.
+	// Trace sampler tier registry. Bounded contexts register their own route to tier classifications below. The
+	// platform/tracing package stays free of cross context coupling. Infra paths (/healthz, /version, /metrics) are registered
+	// alongside their WrapHandler calls further down in this function.
 	traceRegistry := tracing.NewRegistry()
 	service.RegisterTracingTiers(traceRegistry)
 	// Future bounded contexts: each exposes its own RegisterTracingTiers.
 
-	// Init OTEL providers (traces, metrics, logs) and the route-aware sampler.
+	// Init OTEL providers (traces, metrics, logs) and the route aware sampler.
 	loggerProvider, tracerProvider, meterProvider, traceSampler := initOTELProviders(config, traceRegistry, initFatal)
 
 	logger := initLogger(config, loggerProvider)
@@ -1042,10 +1040,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}()
 
-	// Trace sampler runtime control. The poller re-reads trace_sampler_settings
-	// every 60s and atomically swaps the sampler's ratios / force_full so
-	// support can flip a 100% debug window via PATCH /debug/trace_sampler
-	// without restarting any replicas. No-op when OTEL is disabled.
+	// Trace sampler runtime control. The poller re-reads trace_sampler_settings every 60s and atomically swaps the sampler's
+	// ratios and force_full so support can flip a 100% debug window via PATCH /debug/trace_sampler without restarting any
+	// replicas. No-op when OTEL is disabled.
 	if traceSampler != nil {
 		go tracing.StartSettingsPoller(ctx, traceSampler, ds, logger)
 	}
@@ -1487,13 +1484,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	), healthCheckers)
 
 	rootMux := http.NewServeMux()
-	// Infra paths (liveness/version/metrics) are platform-owned and have zero
-	// diagnostic value as traces once their metric counterparts exist. Drop
-	// them unconditionally — even under ForceFull, since a 100% debug window
-	// should not flood SigNoz with probe spans. Register /metrics here even
-	// though its handler is mounted conditionally below: registering a route
-	// whose handler isn't installed is a harmless lookup-table entry and
-	// keeps the policy in one place.
+	// Infra paths (liveness, version, metrics) are platform owned and have zero diagnostic value as traces once their metric
+	// counterparts exist. Drop them unconditionally, even under ForceFull, since a 100% debug window should not flood SigNoz
+	// with probe spans. Register /metrics here even though its handler is mounted conditionally below. Registering a route
+	// whose handler isn't installed is a harmless lookup table entry and keeps the policy in one place.
 	traceRegistry.Register(http.MethodGet, "/healthz", tracing.TierNever)
 	traceRegistry.Register(http.MethodGet, "/version", tracing.TierNever)
 	traceRegistry.Register(http.MethodGet, "/metrics", tracing.TierNever)

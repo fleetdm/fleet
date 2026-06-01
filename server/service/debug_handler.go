@@ -44,9 +44,8 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 			return
 		}
 
-		// Attach the authenticated viewer to the request context so downstream
-		// debug handlers can record who triggered an action (e.g., updating
-		// trace sampler settings).
+		// Attach the authenticated viewer to the request context so downstream debug handlers can record who triggered an
+		// action (e.g. updating trace sampler settings).
 		next.ServeHTTP(w, r.WithContext(viewer.NewContext(r.Context(), *v)))
 	})
 }

@@ -19,20 +19,16 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 )
 
-// initOTELProviders constructs the OpenTelemetry trace, metric, and (when
-// log export is enabled) log providers. Returns nil providers when OTEL is
-// disabled in the configuration. Fatal errors during exporter setup are
-// reported through initFatal so the server can fail fast at startup.
+// initOTELProviders constructs the OpenTelemetry trace, metric, and (when log export is enabled) log providers. Returns nil
+// providers when OTEL is disabled in the configuration. Fatal errors during exporter setup are reported through initFatal so
+// the server can fail fast at startup.
 //
-// As a side effect, the constructed tracer and meter providers are registered
-// as the OTEL globals via otel.SetTracerProvider and otel.SetMeterProvider —
-// matching the original inline behavior in runServeCmd.
+// As a side effect, the constructed tracer and meter providers are registered as the OTEL globals via otel.SetTracerProvider
+// and otel.SetMeterProvider. This matches the original inline behavior in runServeCmd.
 //
-// The traceRegistry is consulted on every sampling decision; populating it
-// (with route → tier mappings) is the caller's responsibility — the
-// canonical pattern is for each bounded context to register its own
-// routes at startup. See server/service/tracing_tiers.go for the legacy
-// non-modularized routes.
+// The traceRegistry is consulted on every sampling decision. Populating it (with route to tier mappings) is the caller's
+// responsibility. The canonical pattern is for each bounded context to register its own routes at startup. See
+// server/service/tracing_tiers.go for the legacy non modularized routes.
 func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, initFatal func(err error, msg string)) (
 	*otelsdklog.LoggerProvider,
 	*sdktrace.TracerProvider,
@@ -43,9 +39,8 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 		return nil, nil, nil, nil
 	}
 
-	// Create shared resource with service identification attributes.
-	// OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES env vars can override
-	// the defaults below.
+	// Create shared resource with service identification attributes. OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES env vars
+	// can override the defaults below.
 	res, err := resource.New(context.Background(),
 		resource.WithSchemaURL(semconv.SchemaURL),
 		resource.WithAttributes(
@@ -57,8 +52,7 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 	)
 	if err != nil {
 		initFatal(err, "Failed to create OTEL resource")
-		// Returning here makes the function safe even if a caller's
-		// initFatal does not terminate (e.g., tests using a recorder).
+		// Returning here makes the function safe even if a caller's initFatal does not terminate (e.g. tests using a recorder).
 		return nil, nil, nil, nil
 	}
 
@@ -70,24 +64,23 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 		initFatal(err, "Failed to initialize OTEL trace exporter")
 		return nil, nil, nil, nil
 	}
-	// Configure batch span processor with smaller batch size to avoid exceeding
-	// message size limits (4MB default limit).
+	// Configure batch span processor with smaller batch size to avoid exceeding message size limits (4MB default limit).
 	batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
 		sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
 	)
-	// Route-aware head sampler. The sampler starts with compile-time defaults;
-	// the settings poller (started from runServeCmd) re-reads
-	// trace_sampler_settings every 60s and calls Apply on change. We wrap with
-	// ParentBased so a remote sampled parent (e.g., an upstream span) keeps
-	// the whole trace coherent even on the hot-agent path.
+	// Route aware head sampler. The sampler starts with compile time defaults. The settings poller (started from runServeCmd)
+	// re-reads trace_sampler_settings every 60s and calls Apply on change. We wrap with ParentBased so a remote sampled parent
+	// (e.g. an upstream span) keeps the whole trace coherent even on the hot agent path.
 	sampler := tracing.NewRouteTierSampler(traceRegistry)
 	// ParentBased semantics:
-	//   - Remote parent SAMPLED: honor the upstream decision via AlwaysSample.
-	//   - Remote parent NOT SAMPLED: honor it via NeverSample, keeping trace
-	//     coherence across services. (Defaulting to our local sampler here
-	//     would let us locally sample a span whose upstream parent was
-	//     explicitly dropped, breaking distributed traces.)
-	//   - No remote parent: use our route-aware sampler.
+	//
+	//   Remote parent SAMPLED: honor the upstream decision via AlwaysSample.
+	//
+	//   Remote parent NOT SAMPLED: honor it via NeverSample, keeping trace coherence across services. Defaulting to our local
+	//   sampler here would let us locally sample a span whose upstream parent was explicitly dropped, breaking distributed
+	//   traces.
+	//
+	//   No remote parent: use our route aware sampler.
 	parentBased := sdktrace.ParentBased(
 		sampler,
 		sdktrace.WithRemoteParentSampled(sdktrace.AlwaysSample()),
@@ -106,9 +99,8 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 	)
 	if err != nil {
 		initFatal(err, "Failed to initialize OTEL metrics exporter")
-		// initFatal is normally os.Exit in production but stubbed in tests;
-		// shut the already-constructed tracer provider down so its batch
-		// span processor goroutine doesn't leak between test runs.
+		// initFatal is normally os.Exit in production but stubbed in tests. Shut the already constructed tracer provider down
+		// so its batch span processor goroutine doesn't leak between test runs.
 		shutdownContext, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		_ = tracerProvider.Shutdown(shutdownContext)
 		cancel()
@@ -159,8 +151,8 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 		)
 		if err != nil {
 			initFatal(err, "Failed to initialize OTEL log exporter")
-			// Same as the metrics-exporter failure path: shut down what was
-			// already constructed so tests do not leak goroutines.
+			// Same as the metrics exporter failure path. Shut down what was already constructed so tests do not leak
+			// goroutines.
 			shutdownContext, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			_ = tracerProvider.Shutdown(shutdownContext)
 			_ = meterProvider.Shutdown(shutdownContext)

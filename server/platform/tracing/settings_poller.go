@@ -5,39 +5,31 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// settingsPollInterval is how often each Fleet replica re-reads
-// trace_sampler_settings. 60s matches industry defaults for feature-flag-style
-// runtime config (LaunchDarkly polling SDK, GrowthBook, DataDog agent refresh,
-// Consul template are all in the 30-60s range). The row changes maybe once a
-// quarter — during incident debugging — so sub-minute polling would be
-// dominated by waste.
+// settingsPollInterval is how often each Fleet replica re-reads trace_sampler_settings. 60s matches industry defaults for
+// feature flag style runtime config.
 const settingsPollInterval = 60 * time.Second
 
-// settingsReader is the minimal datastore surface the poller needs. The full
-// fleet.Datastore is large; depending only on this interface keeps the
-// poller's tests cheap.
+// settingsReader is the minimal datastore surface the poller needs. The full fleet.Datastore is large. Depending only on this
+// interface keeps the poller's tests cheap.
 type settingsReader interface {
 	GetTraceSamplerSettings(ctx context.Context) (*fleet.TraceSamplerSettings, error)
 }
 
-// StartSettingsPoller runs the polling loop until ctx is cancelled. On each
-// tick it reads the trace_sampler_settings row, compares the values to the
-// last-applied state, and calls sampler.Apply only when something changed.
-// This matches the read-compare-apply pattern at
-// server/service/schedule/schedule.go:401-446.
+// StartSettingsPoller runs the polling loop until ctx is cancelled. On each tick it reads the trace_sampler_settings row,
+// compares the values to the last applied state, and calls sampler. Apply only when something changed.
 //
-// On startup it does one immediate read so the sampler picks up the row's
-// current values without waiting a full interval. If the first read fails,
-// the sampler keeps its compile-time defaults and a warning is logged; the
-// next tick will try again.
+// On startup it does one immediate read so the sampler picks up the row's current values without waiting a full interval. If
+// the first read fails, the sampler keeps its compile time defaults and a warning is logged. The next tick will try again.
 func StartSettingsPoller(ctx context.Context, sampler *RouteTierSampler, ds settingsReader, logger *slog.Logger) {
 	pollAndApply := func(last *fleet.TraceSamplerSettings) *fleet.TraceSamplerSettings {
 		got, err := ds.GetTraceSamplerSettings(ctx)
 		if err != nil {
-			logger.WarnContext(ctx, "trace sampler settings poll failed", "err", err)
+			logger.ErrorContext(ctx, "trace sampler settings poll failed", "err", err)
+			ctxerr.Handle(ctx, err)
 			return last
 		}
 		if last != nil &&

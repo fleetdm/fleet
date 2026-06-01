@@ -9,8 +9,8 @@ func init() {
 }
 
 func Up_20260601200727(tx *sql.Tx) error {
-	// Singleton settings row holding the runtime-tunable trace sampling configuration. Operators flip these via PATCH
-	// /debug/trace_sampler; the /debug auth log and the PATCH access log already record who made the change.
+	// Singleton settings row holding the runtime tunable trace sampling configuration. Operators flip these via PATCH
+	// /debug/trace_sampler. The /debug auth log and the PATCH access log already record who made the change.
 	_, err := tx.Exec(`
 		CREATE TABLE trace_sampler_settings (
 			id                TINYINT UNSIGNED NOT NULL PRIMARY KEY,
