@@ -76,6 +76,50 @@ func TestTransport(t *testing.T) {
 	}
 }
 
+func TestParseCIDRs(t *testing.T) {
+	t.Run("valid CIDRs", func(t *testing.T) {
+		result := parseCIDRs([]string{"10.0.0.0/8", "192.168.0.0/16"})
+		require.Len(t, result, 2)
+		assert.True(t, result[0].Contains(net.ParseIP("10.0.0.1")))
+		assert.False(t, result[0].Contains(net.ParseIP("11.0.0.1")))
+		assert.True(t, result[1].Contains(net.ParseIP("192.168.1.1")))
+		assert.False(t, result[1].Contains(net.ParseIP("192.169.1.1")))
+	})
+
+	t.Run("empty list", func(t *testing.T) {
+		result := parseCIDRs([]string{})
+		assert.Empty(t, result)
+	})
+
+	t.Run("invalid CIDR panics", func(t *testing.T) {
+		assert.Panics(t, func() {
+			parseCIDRs([]string{"not-a-cidr"})
+		})
+	})
+}
+
+func TestIpInCIDRs(t *testing.T) {
+	cidrs := parseCIDRs([]string{"10.0.0.0/8", "172.16.0.0/12"})
+
+	cases := []struct {
+		ip    string
+		match bool
+	}{
+		{"10.0.0.1", true},
+		{"10.255.255.255", true},
+		{"172.16.0.1", true},
+		{"172.31.255.255", true},
+		{"172.32.0.1", false},
+		{"192.168.1.1", false},
+		{"8.8.8.8", false},
+	}
+	for _, c := range cases {
+		t.Run(c.ip, func(t *testing.T) {
+			assert.Equal(t, c.match, ipInCIDRs(net.ParseIP(c.ip), cidrs))
+		})
+	}
+}
+
 func TestAlwaysBlockedIPs(t *testing.T) {
 	// These IPs are always blocked, even with --allow_private_network_integrations.
 	cases := []struct {
