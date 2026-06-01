@@ -1014,7 +1014,7 @@ func (svc *Service) handleDeclarationSoftwareUpdate(
 	teamID uint,
 ) error {
 	// First we check the raw declaration type, if not software update, no-op.
-	if rawDecl.Type != "com.apple.configuration.softwareupdate.enforcement.specific" {
+	if rawDecl.Type != apple_mdm.DeclarationTypeSoftwareUpdate {
 		return nil
 	}
 
@@ -1023,41 +1023,11 @@ func (svc *Service) handleDeclarationSoftwareUpdate(
 		return fleet.ErrMissingLicense
 	}
 
-	type AppleOSUpdates struct {
-		// MacOSUpdates defines the OS update settings for macOS devices.
-		MacOSUpdates fleet.AppleOSUpdateSettings
-		// IOSUpdates defines the OS update settings for iOS devices.
-		IOSUpdates fleet.AppleOSUpdateSettings
-		// IPadOSUpdates defines the OS update settings for iPadOS devices.
-		IPadOSUpdates fleet.AppleOSUpdateSettings
+	alreadyConfigured, err := isAppleOSUpdatesConfigured(ctx, teamID, svc)
+	if err != nil {
+		return err
 	}
-
-	// Get the relevant team-config, to check for OS updates being configured
-	var appleOSUpdates AppleOSUpdates
-	if teamID > 0 {
-		teamConfig, err := svc.ds.TeamMDMConfig(ctx, teamID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting team config")
-		}
-		appleOSUpdates = AppleOSUpdates{
-			MacOSUpdates:  teamConfig.MacOSUpdates,
-			IOSUpdates:    teamConfig.IOSUpdates,
-			IPadOSUpdates: teamConfig.IPadOSUpdates,
-		}
-	} else {
-		appConfig, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting app config")
-		}
-		appleOSUpdates = AppleOSUpdates{
-			MacOSUpdates:  appConfig.MDM.MacOSUpdates,
-			IOSUpdates:    appConfig.MDM.IOSUpdates,
-			IPadOSUpdates: appConfig.MDM.IPadOSUpdates,
-		}
-	}
-
-	// Fail if OS updates is configured for any platform.
-	if appleOSUpdates.MacOSUpdates.Configured() || appleOSUpdates.IOSUpdates.Configured() || appleOSUpdates.IPadOSUpdates.Configured() {
+	if alreadyConfigured {
 		return mdm_types.NewAppleSoftwareUpdateProfileError(true)
 	}
 
@@ -1072,6 +1042,47 @@ func (svc *Service) handleDeclarationSoftwareUpdate(
 	}
 
 	return nil
+}
+
+func isAppleOSUpdatesConfigured(ctx context.Context, teamID uint, svc *Service) (bool, error) {
+	type AppleOSUpdates struct {
+		// MacOSUpdates defines the OS update settings for macOS devices.
+		MacOSUpdates fleet.AppleOSUpdateSettings
+		// IOSUpdates defines the OS update settings for iOS devices.
+		IOSUpdates fleet.AppleOSUpdateSettings
+		// IPadOSUpdates defines the OS update settings for iPadOS devices.
+		IPadOSUpdates fleet.AppleOSUpdateSettings
+	}
+
+	// Get the relevant team-config, to check for OS updates being configured
+	var appleOSUpdates AppleOSUpdates
+	if teamID > 0 {
+		teamConfig, err := svc.ds.TeamMDMConfig(ctx, teamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting team config")
+		}
+		appleOSUpdates = AppleOSUpdates{
+			MacOSUpdates:  teamConfig.MacOSUpdates,
+			IOSUpdates:    teamConfig.IOSUpdates,
+			IPadOSUpdates: teamConfig.IPadOSUpdates,
+		}
+	} else {
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		appleOSUpdates = AppleOSUpdates{
+			MacOSUpdates:  appConfig.MDM.MacOSUpdates,
+			IOSUpdates:    appConfig.MDM.IOSUpdates,
+			IPadOSUpdates: appConfig.MDM.IPadOSUpdates,
+		}
+	}
+
+	// Fail if OS updates is configured for any platform.
+	if appleOSUpdates.MacOSUpdates.Configured() || appleOSUpdates.IOSUpdates.Configured() || appleOSUpdates.IPadOSUpdates.Configured() {
+		return true, nil
+	}
+	return false, nil
 }
 
 // jsonEscapeString returns the JSON-escaped interior of a string value

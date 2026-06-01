@@ -8602,3 +8602,25 @@ func (ds *Datastore) InsertAppleUpdateConfigProfile(ctx context.Context, decl *f
 	}
 	return nil
 }
+
+func (ds *Datastore) GetMDMAppleDeclarationByIdentifier(ctx context.Context, teamID uint, identifier string) (*fleet.MDMAppleDeclaration, error) {
+	const stmt = `SELECT 
+		declaration_uuid,
+		team_id,
+		name,
+		identifier,
+		raw_json,
+		token,
+		created_at,
+		uploaded_at,
+		secrets_updated_at 
+	FROM mdm_apple_declarations WHERE team_id = ? AND identifier = ?`
+	var decl fleet.MDMAppleDeclaration
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &decl, stmt, teamID, identifier); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting Apple declaration by identifier")
+	}
+	return &decl, nil
+}

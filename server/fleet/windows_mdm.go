@@ -297,7 +297,6 @@ func (v *windowsProfileValidator) isInExec() bool {
 
 var fleetProvidedLocURIValidationMap = map[string][]string{
 	syncml.FleetBitLockerTargetLocURI: nil,
-	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
 func validateFleetProvidedLocURI(locURI string) error {

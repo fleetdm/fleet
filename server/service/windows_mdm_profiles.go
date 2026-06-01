@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -116,6 +117,17 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	// After we uploaded, check for Software Update type
+	if err := svc.handleWindowsProfileSoftwareUpdate(ctx, newCP, teamID); err != nil {
+		if mdm_types.IsSoftwareUpdateProfileError(err) {
+			if delErr := svc.ds.DeleteMDMWindowsConfigProfile(ctx, newCP.ProfileUUID); delErr != nil {
+				return nil, ctxerr.Wrap(ctx, delErr, "deleting declaration after software update validation failure")
+			}
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "handling declaration software update")
+	}
+
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
@@ -138,6 +150,67 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	}
 
 	return newCP, nil
+}
+
+// handleWindowsProfileSoftwareUpdate checks validation requirements, verifies OS updates is not configured
+// and lastly inserts the profile into the tracking table.
+func (svc *Service) handleWindowsProfileSoftwareUpdate(
+	ctx context.Context,
+	profile *fleet.MDMWindowsConfigProfile,
+	teamID uint,
+) error {
+	// First we check the raw profile contents for the Software Update Loc URI's, if no match, no-op.
+	if !bytes.Contains(profile.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+		return nil
+	}
+
+	lic, _ := license.FromContext(ctx)
+	if lic == nil || !lic.IsPremium() {
+		return fleet.ErrMissingLicense
+	}
+
+	// Get the relevant team-config, to check for OS updates being configured
+	isOSUpdatesConfigured, err := isWindowsOSUpdatesConfigured(ctx, teamID, svc)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if Windows OS updates are configured")
+	}
+	if isOSUpdatesConfigured {
+		return mdm_types.NewWindowsSoftwareUpdateProfileError(true)
+	}
+
+	if alreadyConfigured, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, teamID); err != nil {
+		return ctxerr.Wrap(ctx, mdm_types.NewSoftwareUpdateProfileError(err), "checking for existing software update profile")
+	} else if alreadyConfigured {
+		return mdm_types.NewWindowsSoftwareUpdateProfileError(false)
+	}
+
+	if err := svc.ds.InsertWindowsUpdateConfigProfile(ctx, profile); err != nil {
+		return ctxerr.Wrap(ctx, mdm_types.NewSoftwareUpdateProfileError(err), "inserting software update profile")
+	}
+
+	return nil
+}
+
+func isWindowsOSUpdatesConfigured(ctx context.Context, teamID uint, svc *Service) (bool, error) {
+	var windowsOSUpdates fleet.WindowsUpdates
+	if teamID > 0 {
+		teamConfig, err := svc.ds.TeamMDMConfig(ctx, teamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting team config")
+		}
+		windowsOSUpdates = teamConfig.WindowsUpdates
+	} else {
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		windowsOSUpdates = appConfig.MDM.WindowsUpdates
+	}
+
+	if windowsOSUpdates.Configured() {
+		return true, nil
+	}
+	return false, nil
 }
 
 // fleetVarsSupportedInWindowsProfiles lists the Fleet variables that are

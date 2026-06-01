@@ -354,6 +354,13 @@ func NewAppleSoftwareUpdateProfileError(osUpdatesAlreadyConfigured bool) *softwa
 	}
 }
 
+func NewWindowsSoftwareUpdateProfileError(osUpdatesAlreadyConfigured bool) *softwareUpdateProfileError {
+	return &softwareUpdateProfileError{
+		OSUpdatesAlreadyConfigured: osUpdatesAlreadyConfigured,
+		profileType:                "", // Empty to leave out the declaration text
+	}
+}
+
 func IsSoftwareUpdateProfileError(err error) bool {
 	var target *softwareUpdateProfileError
 	return errors.As(err, &target)

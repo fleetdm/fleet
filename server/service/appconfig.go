@@ -600,6 +600,19 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if appConfig.MDM.WindowsUpdates.Configured() {
+		// Verify that we don't have a custom Windows updates profile
+		hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, 0)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check for existing custom Windows updates declaration profile")
+		}
+		if hasProfile {
+			return nil, &fleet.BadRequestError{
+				Message: "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first.",
+			}
+		}
+	}
+
 	var legacyUsedWarning error
 	if legacyKeys := appConfig.DidUnmarshalLegacySettings(); len(legacyKeys) > 0 {
 		// this "warning" is returned only in dry-run mode, and if no other errors

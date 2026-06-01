@@ -284,6 +284,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
+		if windowsUpdatesUpdated {
+			// Verify that we don't have a custom OS updates profile
+			hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check for existing custom OS updates profile")
+			}
+			if hasProfile {
+				return nil, &fleet.BadRequestError{
+					Message: "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first.",
+				}
+			}
+		}
+
 		if payload.MDM.EnableDiskEncryption.Valid {
 			diskEncryptionUpdated := team.Config.MDM.EnableDiskEncryption != payload.MDM.EnableDiskEncryption.Value
 			if diskEncryptionUpdated && !appCfg.MDM.EnabledAndConfigured && !appCfg.MDM.WindowsEnabledAndConfigured {
@@ -1640,6 +1653,19 @@ func (svc *Service) editTeamFromSpec(
 		mdmWindowsUpdatesEdited = team.Config.MDM.WindowsUpdates.DeadlineDays.Value != spec.MDM.WindowsUpdates.DeadlineDays.Value ||
 			team.Config.MDM.WindowsUpdates.GracePeriodDays.Value != spec.MDM.WindowsUpdates.GracePeriodDays.Value
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
+	}
+
+	if mdmWindowsUpdatesEdited {
+		// Verify that we don't have a custom OS updates profile
+		hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, team.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check for existing custom OS updates profile")
+		}
+		if hasProfile {
+			return &fleet.BadRequestError{
+				Message: "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first.",
+			}
+		}
 	}
 
 	oldEnableDiskEncryption := team.Config.MDM.EnableDiskEncryption

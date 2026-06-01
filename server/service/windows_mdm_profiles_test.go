@@ -1,10 +1,18 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -305,4 +313,222 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
+	// osUpdateSyncML contains the Windows Update install policy LocURI, marking it
+	// as a software update profile. otherSyncML is an unrelated policy.
+	osUpdateSyncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Update/Install")
+	otherSyncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera")
+
+	// configuredSettings returns a WindowsUpdates that reports Configured() == true.
+	configuredSettings := func() fleet.WindowsUpdates {
+		return fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(7),
+			GracePeriodDays: optjson.SetInt(2),
+		}
+	}
+
+	// setup wires the common mocks required for NewMDMWindowsConfigProfile to reach
+	// the software-update handling code.
+	setup := func(t *testing.T) (fleet.Service, context.Context, *mock.Store) {
+		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+			return nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			cp.ProfileUUID = "w-profile-uuid"
+			return &cp, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+		ds.DeleteMDMWindowsConfigProfileFunc = func(ctx context.Context, profileUUID string) error {
+			return nil
+		}
+		ds.InsertWindowsUpdateConfigProfileFunc = func(ctx context.Context, profile *fleet.MDMWindowsConfigProfile) error {
+			return nil
+		}
+		// Team lookup used by the enterprise overrides for teamID > 0 cases.
+		ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: tid, Name: "team1"}, nil
+		}
+		return svc, ctx, ds
+	}
+
+	// appConfigWith builds an AppConfig with Windows MDM enabled (so
+	// VerifyMDMWindowsConfigured passes) plus the provided mutation applied for OS
+	// update settings.
+	appConfigWith := func(apply func(*fleet.AppConfig)) func(context.Context) (*fleet.AppConfig, error) {
+		return func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.WindowsEnabledAndConfigured = true
+			if apply != nil {
+				apply(ac)
+			}
+			return ac, nil
+		}
+	}
+
+	t.Run("non software-update profile skips OS update checks", func(t *testing.T) {
+		svc, ctx, ds := setup(t)
+
+		ds.AppConfigFunc = appConfigWith(nil)
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", otherSyncML, nil, fleet.LabelsIncludeAll)
+		require.NoError(t, err)
+		assert.NotNil(t, p)
+
+		// No OS-update specific lookups should happen for unrelated profiles.
+		assert.False(t, ds.TeamMDMConfigFuncInvoked)
+		assert.False(t, ds.HasWindowsUpdateConfigProfileConfiguredFuncInvoked)
+		assert.False(t, ds.InsertWindowsUpdateConfigProfileFuncInvoked)
+	})
+
+	t.Run("no team - app config has no OS updates configured", func(t *testing.T) {
+		svc, ctx, ds := setup(t)
+
+		ds.AppConfigFunc = appConfigWith(nil)
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			assert.Zero(t, teamID)
+			return false, nil
+		}
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		require.NoError(t, err)
+		assert.NotNil(t, p)
+		assert.False(t, ds.TeamMDMConfigFuncInvoked)
+		assert.True(t, ds.HasWindowsUpdateConfigProfileConfiguredFuncInvoked)
+		assert.True(t, ds.InsertWindowsUpdateConfigProfileFuncInvoked)
+		assert.False(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("team - team config has no OS updates configured", func(t *testing.T) {
+		svc, ctx, ds := setup(t)
+
+		ds.AppConfigFunc = appConfigWith(nil)
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			assert.EqualValues(t, 5, teamID)
+			return &fleet.TeamMDM{}, nil
+		}
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			assert.EqualValues(t, 5, teamID)
+			return false, nil
+		}
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		require.NoError(t, err)
+		assert.NotNil(t, p)
+		assert.True(t, ds.TeamMDMConfigFuncInvoked)
+		assert.True(t, ds.HasWindowsUpdateConfigProfileConfiguredFuncInvoked)
+		assert.True(t, ds.InsertWindowsUpdateConfigProfileFuncInvoked)
+	})
+
+	t.Run("no team - app config has OS updates configured rolls back", func(t *testing.T) {
+		svc, ctx, ds := setup(t)
+
+		ds.AppConfigFunc = appConfigWith(func(ac *fleet.AppConfig) {
+			ac.MDM.WindowsUpdates = configuredSettings()
+		})
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
+		assert.ErrorContains(t, err, "OS updates are already configured")
+		// Should fail before checking for an existing profile.
+		assert.False(t, ds.HasWindowsUpdateConfigProfileConfiguredFuncInvoked)
+		// The already-saved profile should be rolled back.
+		assert.True(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("team - team config has OS updates configured rolls back", func(t *testing.T) {
+		svc, ctx, ds := setup(t)
+
+		ds.AppConfigFunc = appConfigWith(nil)
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			return &fleet.TeamMDM{WindowsUpdates: configuredSettings()}, nil
+		}
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
+		assert.ErrorContains(t, err, "OS updates are already configured")
+		assert.False(t, ds.HasWindowsUpdateConfigProfileConfiguredFuncInvoked)
+		assert.True(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("custom OS updates profile already exists rolls back", func(t *testing.T) {
+		svc, ctx, ds := setup(t)
+
+		ds.AppConfigFunc = appConfigWith(nil)
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return true, nil
+		}
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
+		assert.ErrorContains(t, err, "already exists")
+		assert.False(t, ds.InsertWindowsUpdateConfigProfileFuncInvoked)
+		// This is also a software update profile error, so a rollback occurs.
+		assert.True(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("app config lookup error is wrapped", func(t *testing.T) {
+		svc, ctx, ds := setup(t)
+
+		// VerifyMDMWindowsConfigured must succeed first, then the handler's lookup fails.
+		var calls int
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			calls++
+			if calls == 1 {
+				ac := &fleet.AppConfig{}
+				ac.MDM.WindowsEnabledAndConfigured = true
+				return ac, nil
+			}
+			return nil, errors.New("boom")
+		}
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "getting app config")
+		assert.False(t, ds.HasWindowsUpdateConfigProfileConfiguredFuncInvoked)
+	})
+
+	t.Run("existing profile check error is wrapped", func(t *testing.T) {
+		svc, ctx, ds := setup(t)
+
+		ds.AppConfigFunc = appConfigWith(nil)
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, errors.New("boom")
+		}
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "checking for existing software update profile")
+	})
+
+	t.Run("insert software update profile error is wrapped", func(t *testing.T) {
+		svc, ctx, ds := setup(t)
+
+		ds.AppConfigFunc = appConfigWith(nil)
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
+		}
+		ds.InsertWindowsUpdateConfigProfileFunc = func(ctx context.Context, profile *fleet.MDMWindowsConfigProfile) error {
+			return errors.New("boom")
+		}
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "inserting software update profile")
+		// A failed insert still rolls back the uploaded profile.
+		assert.True(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
+	})
 }

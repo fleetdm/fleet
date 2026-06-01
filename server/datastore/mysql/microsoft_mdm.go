@@ -3660,3 +3660,49 @@ INNER JOIN (
 	}
 	return nil
 }
+
+func (ds *Datastore) HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
+	const stmt = `
+	SELECT COUNT(*) > 0 FROM mdm_configuration_profile_update_settings mcpus
+    	INNER JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = mcpus.windows_profile_uuid
+	WHERE mwcp.team_id = ?`
+
+	var configured bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &configured, stmt, teamID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check if windows update config profile is configured")
+	}
+
+	return configured, nil
+}
+
+func (ds *Datastore) InsertWindowsUpdateConfigProfile(ctx context.Context, profile *fleet.MDMWindowsConfigProfile) error {
+	const stmt = `INSERT INTO mdm_configuration_profile_update_settings (windows_profile_uuid) VALUES (?)`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, profile.ProfileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert windows update config profile")
+	}
+	return nil
+}
+
+func (ds *Datastore) GetMDMWindowsConfigProfileByName(ctx context.Context, teamID uint, profileName string) (*fleet.MDMWindowsConfigProfile, error) {
+	const stmt = `
+SELECT
+	profile_uuid,
+	name,
+	syncml,
+	team_id
+FROM
+	mdm_windows_configuration_profiles
+WHERE
+	team_id = ? AND name = ?`
+
+	var profile fleet.MDMWindowsConfigProfile
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, teamID, profileName)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get windows mdm config profile by name")
+	}
+	return &profile, nil
+}

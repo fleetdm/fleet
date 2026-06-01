@@ -1394,6 +1394,9 @@ type Datastore interface {
 	// GetMDMAppleDeclaration returns the declaration corresponding to the specified uuid.
 	GetMDMAppleDeclaration(ctx context.Context, declUUID string) (*MDMAppleDeclaration, error)
 
+	// GetMDMAppleDeclarationByIdentifier returns the declaration corresponding to the specified team id and identifier.
+	GetMDMAppleDeclarationByIdentifier(ctx context.Context, teamID uint, identifier string) (*MDMAppleDeclaration, error)
+
 	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
 	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
@@ -2173,6 +2176,9 @@ type Datastore interface {
 	// GetMDMWindowsConfigProfile returns the Windows MDM profile corresponding
 	// to the specified profile uuid.
 	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
+
+	// GetMDMWindowsConfigProfileByName returns the Windows MDM profile corresponding to the specified team ID and profile name.
+	GetMDMWindowsConfigProfileByName(ctx context.Context, teamID uint, profileName string) (*MDMWindowsConfigProfile, error)
 
 	// DeleteMDMWindowsConfigProfile deletes the Windows MDM profile corresponding to
 	// the specified profile uuid.
@@ -3332,8 +3338,15 @@ type Datastore interface {
 	// to allow for scope changes when a host switches teams or when a profile is updated.
 	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
 
+	// HasAppleUpdateConfigProfileConfigured checks if a declaration profile for the team already exists in the update_settings table.
 	HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
+	// InsertAppleUpdateConfigProfile inserts a new declaration profile for the team in the update_settings table.
 	InsertAppleUpdateConfigProfile(ctx context.Context, decl *MDMAppleDeclaration) error
+
+	// HasWindowsUpdateConfigProfileConfigured checks if a profile for the team already exists in the update_settings table.
+	HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
+	// InsertWindowsUpdateConfigProfile inserts a new profile for the team in the update_settings table.
+	InsertWindowsUpdateConfigProfile(ctx context.Context, profile *MDMWindowsConfigProfile) error
 }
 
 type AndroidDatastore interface {

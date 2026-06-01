@@ -2211,6 +2211,63 @@ func (svc *Service) BatchSetMDMProfiles(
 		return err
 	}
 
+	var teamID uint
+	if tmID != nil {
+		teamID = *tmID
+	}
+
+	var seenAppleDeclOSUpdate, seenWindowsProfileOSUpdate bool
+	var seenAppleDeclIdentifier, seenWindowsProfileName string
+	for _, p := range appleDeclsSlice {
+		if !bytes.Contains(p.RawJSON, []byte(apple_mdm.DeclarationTypeSoftwareUpdate)) {
+			continue
+		}
+
+		if seenAppleDeclOSUpdate {
+			// Two profiles with OS updates.
+			return &fleet.BadRequestError{Message: "Only one Apple declaration profile with OS updates is allowed per team."}
+		}
+		seenAppleDeclOSUpdate = true
+		seenAppleDeclIdentifier = p.Identifier
+	}
+
+	for _, p := range windowsProfilesSlice {
+		if !bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+			continue
+		}
+
+		if seenWindowsProfileOSUpdate {
+			// Two profiles with OS updates.
+			return &fleet.BadRequestError{Message: "Only one Windows profile with OS updates is allowed per team."}
+		}
+		seenWindowsProfileOSUpdate = true
+		seenWindowsProfileName = p.Name
+	}
+
+	if seenAppleDeclOSUpdate {
+		isOSUpdatesConfigured, err := isAppleOSUpdatesConfigured(ctx, teamID, svc)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if Apple OS updates are configured")
+		}
+		if isOSUpdatesConfigured {
+			return mdm.NewAppleSoftwareUpdateProfileError(true)
+		}
+
+		// We don't check already configured here, as batch setting will delete the old one and set a new one.
+	}
+
+	if seenWindowsProfileOSUpdate {
+		isOSUpdatesConfigured, err := isWindowsOSUpdatesConfigured(ctx, teamID, svc)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if Windows OS updates are configured")
+		}
+		if isOSUpdatesConfigured {
+			return mdm.NewWindowsSoftwareUpdateProfileError(true)
+		}
+
+		// We don't check already configured here, as batch setting will delete the old one and set a new one.
+	}
+
 	if dryRun {
 		return nil
 	}
@@ -2231,6 +2288,35 @@ func (svc *Service) BatchSetMDMProfiles(
 	if profUpdates, err = svc.ds.BatchSetMDMProfiles(ctx, tmID,
 		appleProfilesSlice, windowsProfilesSlice, appleDeclsSlice, androidProfilesSlice, profilesVariablesByIdentifier); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
+	}
+
+	if seenAppleDeclOSUpdate {
+		// Load the declaration to get the UUID to upsert into the update_seetings table.
+		decl, err := svc.ds.GetMDMAppleDeclarationByIdentifier(ctx, teamID, seenAppleDeclIdentifier)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting Apple declaration by identifier after batch set")
+		}
+		if decl == nil {
+			return ctxerr.Errorf(ctx, "Apple declaration not found after batch set but seen. Identifier: %s", seenAppleDeclIdentifier)
+		}
+
+		if err := svc.ds.InsertAppleUpdateConfigProfile(ctx, decl); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting Apple update config profile")
+		}
+	}
+
+	if seenWindowsProfileOSUpdate {
+		prof, err := svc.ds.GetMDMWindowsConfigProfileByName(ctx, teamID, seenWindowsProfileName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting Windows profile by name after batch set")
+		}
+		if prof == nil {
+			return ctxerr.Errorf(ctx, "Windows profile not found after batch set but seen. Name: %s", seenWindowsProfileName)
+		}
+
+		if err := svc.ds.InsertWindowsUpdateConfigProfile(ctx, prof); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting Windows update config profile")
+		}
 	}
 
 	// set pending status for windows profiles

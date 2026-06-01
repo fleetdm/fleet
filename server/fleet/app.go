@@ -426,6 +426,10 @@ func (w WindowsUpdates) Equal(other WindowsUpdates) bool {
 	return true
 }
 
+func (w WindowsUpdates) Configured() bool {
+	return w.DeadlineDays.Valid && w.GracePeriodDays.Valid
+}
+
 func (w WindowsUpdates) Validate() error {
 	const (
 		minDeadline    = 0
