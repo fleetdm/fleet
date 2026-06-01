@@ -439,7 +439,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
 		require.Error(t, err)
 		assert.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
-		assert.ErrorContains(t, err, "OS updates are already configured")
+		require.ErrorContains(t, err, "OS updates are already configured")
 		// Should fail before checking for an existing profile.
 		assert.False(t, ds.HasWindowsUpdateConfigProfileConfiguredFuncInvoked)
 		// The already-saved profile should be rolled back.
@@ -457,7 +457,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		_, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
 		require.Error(t, err)
 		assert.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
-		assert.ErrorContains(t, err, "OS updates are already configured")
+		require.ErrorContains(t, err, "OS updates are already configured")
 		assert.False(t, ds.HasWindowsUpdateConfigProfileConfiguredFuncInvoked)
 		assert.True(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
 	})
@@ -473,7 +473,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
 		require.Error(t, err)
 		assert.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
-		assert.ErrorContains(t, err, "already exists")
+		require.ErrorContains(t, err, "already exists")
 		assert.False(t, ds.InsertWindowsUpdateConfigProfileFuncInvoked)
 		// This is also a software update profile error, so a rollback occurs.
 		assert.True(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
@@ -496,7 +496,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 
 		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "getting app config")
+		require.ErrorContains(t, err, "getting app config")
 		assert.False(t, ds.HasWindowsUpdateConfigProfileConfiguredFuncInvoked)
 	})
 
@@ -510,7 +510,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 
 		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "checking for existing software update profile")
+		require.ErrorContains(t, err, "checking for existing software update profile")
 	})
 
 	t.Run("insert software update profile error is wrapped", func(t *testing.T) {
@@ -526,7 +526,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 
 		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "inserting software update profile")
+		require.ErrorContains(t, err, "inserting software update profile")
 		// A failed insert still rolls back the uploaded profile.
 		assert.True(t, ds.DeleteMDMWindowsConfigProfileFuncInvoked)
 	})

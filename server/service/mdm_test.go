@@ -2827,12 +2827,12 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 			}
 			// Looked up after the batch set to record the OS updates profile in the tracking table.
 			ds.GetMDMAppleDeclarationByIdentifierFunc = func(ctx context.Context, tid uint, identifier string) (*fleet.MDMAppleDeclaration, error) {
-				assert.EqualValues(t, teamID, tid)
+				assert.Equal(t, teamID, tid)
 				return &fleet.MDMAppleDeclaration{DeclarationUUID: "decl-uuid", Identifier: identifier, TeamID: &tid}, nil
 			}
 			ds.InsertAppleUpdateConfigProfileFunc = func(ctx context.Context, decl *fleet.MDMAppleDeclaration) error { return nil }
 			ds.GetMDMWindowsConfigProfileByNameFunc = func(ctx context.Context, tid uint, name string) (*fleet.MDMWindowsConfigProfile, error) {
-				assert.EqualValues(t, teamID, tid)
+				assert.Equal(t, teamID, tid)
 				return &fleet.MDMWindowsConfigProfile{ProfileUUID: "w-profile-uuid", Name: name, TeamID: &tid}, nil
 			}
 			ds.InsertWindowsUpdateConfigProfileFunc = func(ctx context.Context, profile *fleet.MDMWindowsConfigProfile) error { return nil }
