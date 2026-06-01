@@ -4307,8 +4307,8 @@ func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
 		path, basePath := createTempFile(t, "", config)
 		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 		require.NoError(t, err)
-		assert.False(t, gitops.SelfServiceCategoriesPresent)
-		assert.Empty(t, gitops.Software.SelfServiceCategories)
+		assert.False(t, gitops.Software.SelfServiceCategories.Set)
+		assert.Empty(t, gitops.Software.SelfServiceCategories.Value)
 	})
 
 	t.Run("empty list sets Present true", func(t *testing.T) {
@@ -4318,8 +4318,8 @@ func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
 		path, basePath := createTempFile(t, "", config)
 		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 		require.NoError(t, err)
-		assert.True(t, gitops.SelfServiceCategoriesPresent)
-		assert.Empty(t, gitops.Software.SelfServiceCategories)
+		assert.True(t, gitops.Software.SelfServiceCategories.Set)
+		assert.Empty(t, gitops.Software.SelfServiceCategories.Value)
 	})
 
 	t.Run("populated list sets Present true and canonicalizes names", func(t *testing.T) {
@@ -4334,9 +4334,9 @@ func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
 		path, basePath := createTempFile(t, "", config)
 		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 		require.NoError(t, err)
-		assert.True(t, gitops.SelfServiceCategoriesPresent)
+		assert.True(t, gitops.Software.SelfServiceCategories.Set)
 		// "Productivity" should be canonicalized to "💻 Productivity".
-		assert.Equal(t, []string{"🌎 Browsers", "💻 Productivity", "💼 Engineering"}, gitops.Software.SelfServiceCategories)
+		assert.Equal(t, []string{"🌎 Browsers", "💻 Productivity", "💼 Engineering"}, gitops.Software.SelfServiceCategories.Value)
 	})
 }
 
