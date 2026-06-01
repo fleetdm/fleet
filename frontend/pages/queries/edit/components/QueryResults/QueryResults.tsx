@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
-import { CellProps, Row, Column } from "react-table";
+import { CellProps, HeaderProps, Row, Column } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import FileSaver from "file-saver";
@@ -35,6 +35,8 @@ import PerformanceImpactCell from "components/TableContainer/DataTable/Performan
 import TooltipWrapper from "components/TooltipWrapper";
 
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PATHS from "router/paths";
 
 import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
@@ -73,8 +75,10 @@ const getPerformanceIndicator = (stats: ICampaignPerformanceStats) => {
 
 const perfColumnConfigs: Column<ICampaignPerformanceStats>[] = [
   {
-    id: "host_display_name",
-    Header: "Host",
+    id: "Host",
+    Header: (headerProps: HeaderProps<ICampaignPerformanceStats>) => (
+      <HeaderCell value="Host" isSortedDesc={headerProps.column.isSortedDesc} />
+    ),
     accessor: "host_display_name",
     Cell: (cellProps: CellProps<ICampaignPerformanceStats>) => {
       const hostID = cellProps.row.original.host_id;
@@ -85,11 +89,14 @@ const perfColumnConfigs: Column<ICampaignPerformanceStats>[] = [
         />
       );
     },
+    Filter: DefaultColumnFilter,
+    disableSortBy: false,
+    sortType: "caseInsensitive",
   },
   {
     id: "performance_impact",
     Header: () => (
-      <TooltipWrapper tipContent="The average performance impact across all hosts.">
+      <TooltipWrapper tipContent="The performance impact of this query on the host.">
         Performance impact
       </TooltipWrapper>
     ),
@@ -185,7 +192,6 @@ const QueryResults = ({
     }
   }, [errors]); // Cannot use errorTableHeaders as it will cause infinite loop with setErrorTableHeaders
 
-
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     FileSaver.saveAs(
@@ -240,14 +246,15 @@ const QueryResults = ({
 
   const renderCount = useCallback(
     (tableType: "errors" | "results" | "performance") => {
-      const count =
-        tableType === "results"
-          ? filteredResults.length
-          : filteredErrors.length;
+      const countByType = {
+        results: filteredResults.length,
+        errors: filteredErrors.length,
+        performance: performanceStats?.length ?? 0,
+      };
 
-      return <TableCount name={tableType} count={count} />;
+      return <TableCount name={tableType} count={countByType[tableType]} />;
     },
-    [filteredResults.length, filteredErrors.length]
+    [filteredResults.length, filteredErrors.length, performanceStats?.length]
   );
 
   const renderTableButtons = (
