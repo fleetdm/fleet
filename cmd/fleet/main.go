@@ -134,6 +134,9 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		cfg.S3.SoftwareInstallersDisableSSL = true
 		cfg.S3.SoftwareInstallersForceS3PathStyle = true
 	}
+
+	// In dev mode, allow private network connections for local integrations.
+	cfg.Server.AllowPrivateNetworkIntegrations = true
 }
 
 // initLogger creates a *slog.Logger with the appropriate handler based on the
