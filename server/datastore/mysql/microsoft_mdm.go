@@ -3694,16 +3694,18 @@ func trackWindowsUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, 
 	WHERE mwcp.team_id = ? AND mcpus.windows_profile_uuid != ?`
 	var alreadyConfigured bool
 	if err := sqlx.GetContext(ctx, tx, &alreadyConfigured, checkStmt, teamID, profileUUID); err != nil {
-		return ctxerr.Wrap(ctx, mdm.NewSoftwareUpdateProfileError(err), "checking for existing software update profile")
+		return ctxerr.Wrap(ctx, err, "checking for existing software update profile")
 	}
 	if alreadyConfigured {
-		return mdm.NewWindowsSoftwareUpdateProfileError(false)
+		return &fleet.BadRequestError{
+			Message: fleet.WindowsProfileOSUpdateAlreadyExistsErrorMessage,
+		}
 	}
 
 	const insertStmt = `INSERT INTO mdm_configuration_profile_update_settings (windows_profile_uuid) VALUES (?)
 		ON DUPLICATE KEY UPDATE windows_profile_uuid = windows_profile_uuid`
 	if _, err := tx.ExecContext(ctx, insertStmt, profileUUID); err != nil {
-		return ctxerr.Wrap(ctx, mdm.NewSoftwareUpdateProfileError(err), "inserting software update profile")
+		return ctxerr.Wrap(ctx, err, "inserting software update profile")
 	}
 	return nil
 }

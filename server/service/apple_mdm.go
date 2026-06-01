@@ -1013,7 +1013,7 @@ func (svc *Service) handleDeclarationSoftwareUpdate(
 
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
-		return mdm_types.NewSoftwareUpdateProfileError(fleet.ErrMissingLicense)
+		return fleet.ErrMissingLicense
 	}
 
 	osUpdatesConfigured, err := isAppleOSUpdatesConfigured(ctx, teamID, svc)
@@ -1021,7 +1021,9 @@ func (svc *Service) handleDeclarationSoftwareUpdate(
 		return err
 	}
 	if osUpdatesConfigured {
-		return mdm_types.NewAppleSoftwareUpdateProfileError(true)
+		return &fleet.BadRequestError{
+			Message: fleet.OSUpdatesAlreadyConfiguredErrorMessage,
+		}
 	}
 
 	return nil

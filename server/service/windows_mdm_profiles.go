@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -160,7 +159,7 @@ func (svc *Service) handleWindowsProfileSoftwareUpdate(
 
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
-		return mdm_types.NewSoftwareUpdateProfileError(fleet.ErrMissingLicense)
+		return fleet.ErrMissingLicense
 	}
 
 	osUpdatesConfigured, err := isWindowsOSUpdatesConfigured(ctx, teamID, svc)
@@ -168,7 +167,9 @@ func (svc *Service) handleWindowsProfileSoftwareUpdate(
 		return ctxerr.Wrap(ctx, err, "checking if Windows OS updates are configured")
 	}
 	if osUpdatesConfigured {
-		return mdm_types.NewWindowsSoftwareUpdateProfileError(true)
+		return &fleet.BadRequestError{
+			Message: fleet.OSUpdatesAlreadyConfiguredErrorMessage,
+		}
 	}
 
 	return nil

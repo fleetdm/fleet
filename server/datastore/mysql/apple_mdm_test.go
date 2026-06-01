@@ -6630,7 +6630,7 @@ func testNewMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *Datastor
 	// A second OS-update declaration for the same team is rejected.
 	_, err = ds.NewMDMAppleDeclaration(ctx, suDecl("su2", "com.fleet.su2"), nil)
 	require.Error(t, err)
-	require.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
+	require.ErrorContains(t, err, fleet.AppleDeclarationOSUpdateAlreadyExistsErrorMessage)
 
 	// The rejected declaration must not have been persisted (atomic rollback).
 	var rejectedCount int

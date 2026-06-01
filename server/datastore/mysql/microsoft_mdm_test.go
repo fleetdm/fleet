@@ -2215,7 +2215,7 @@ func testNewMDMWindowsConfigProfileSoftwareUpdateTracking(t *testing.T, ds *Data
 		SyncML: osUpdateSyncML,
 	}, nil)
 	require.Error(t, err)
-	require.True(t, mdm.IsSoftwareUpdateProfileError(err))
+	require.ErrorContains(t, err, fleet.WindowsProfileOSUpdateAlreadyExistsErrorMessage)
 
 	// The rejected profile must not have been persisted (atomic rollback).
 	var rejectedCount int

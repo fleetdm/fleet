@@ -8,7 +8,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -430,8 +429,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 
 		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
 		require.Error(t, err)
-		assert.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
-		require.ErrorContains(t, err, "OS updates are already configured")
+		require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		// The gate fails before the profile is inserted.
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
 	})
@@ -445,8 +443,7 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 
 		_, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
 		require.Error(t, err)
-		assert.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
-		require.ErrorContains(t, err, "OS updates are already configured")
+		require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
 	})
 
@@ -454,12 +451,13 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
 		ds.AppConfigFunc = appConfigWith(nil)
 		ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
-			return nil, fleetmdm.NewWindowsSoftwareUpdateProfileError(false)
+			return nil, &fleet.BadRequestError{
+				Message: fleet.WindowsProfileOSUpdateAlreadyExistsErrorMessage,
+			}
 		}
 
 		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
 		require.Error(t, err)
-		assert.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
-		require.ErrorContains(t, err, "already exists")
+		require.ErrorContains(t, err, fleet.WindowsProfileOSUpdateAlreadyExistsErrorMessage)
 	})
 }

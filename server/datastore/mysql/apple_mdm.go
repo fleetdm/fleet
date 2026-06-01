@@ -8617,16 +8617,18 @@ func trackAppleUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, te
 	WHERE mad.team_id = ? AND mcpus.apple_declaration_uuid != ?`
 	var alreadyConfigured bool
 	if err := sqlx.GetContext(ctx, tx, &alreadyConfigured, checkStmt, teamID, declUUID); err != nil {
-		return ctxerr.Wrap(ctx, fleetmdm.NewSoftwareUpdateProfileError(err), "checking for existing software update profile")
+		return ctxerr.Wrap(ctx, err, "checking for existing software update profile")
 	}
 	if alreadyConfigured {
-		return fleetmdm.NewAppleSoftwareUpdateProfileError(false)
+		return &fleet.BadRequestError{
+			Message: fleet.AppleDeclarationOSUpdateAlreadyExistsErrorMessage,
+		}
 	}
 
 	const insertStmt = `INSERT INTO mdm_configuration_profile_update_settings (apple_declaration_uuid) VALUES (?)
 		ON DUPLICATE KEY UPDATE apple_declaration_uuid = apple_declaration_uuid`
 	if _, err := tx.ExecContext(ctx, insertStmt, declUUID); err != nil {
-		return ctxerr.Wrap(ctx, fleetmdm.NewSoftwareUpdateProfileError(err), "inserting software update profile")
+		return ctxerr.Wrap(ctx, err, "inserting software update profile")
 	}
 	return nil
 }

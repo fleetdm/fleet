@@ -1162,7 +1162,6 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 
 				_, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
 				require.Error(t, err)
-				require.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
 				require.ErrorContains(t, err, "OS updates are already configured")
 				// The gate fails before the declaration is inserted.
 				assert.False(t, ds.NewMDMAppleDeclarationFuncInvoked)
@@ -1187,8 +1186,7 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 
 				_, err := svc.NewMDMAppleDeclaration(ctx, 5, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
 				require.Error(t, err)
-				require.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
-				require.ErrorContains(t, err, "OS updates are already configured")
+				require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 				assert.False(t, ds.NewMDMAppleDeclarationFuncInvoked)
 			})
 		}
@@ -1198,13 +1196,14 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
 		ds.AppConfigFunc = appConfigWith(nil)
 		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
-			return nil, fleetmdm.NewAppleSoftwareUpdateProfileError(false)
+			return nil, &fleet.BadRequestError{
+				Message: fleet.AppleDeclarationOSUpdateAlreadyExistsErrorMessage,
+			}
 		}
 
 		_, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
 		require.Error(t, err)
-		require.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
-		require.ErrorContains(t, err, "A custom OS updates declaration profile already exists")
+		require.ErrorContains(t, err, fleet.AppleDeclarationOSUpdateAlreadyExistsErrorMessage)
 	})
 }
 
