@@ -171,29 +171,85 @@ func TestPrivateNetworkCIDRs(t *testing.T) {
 	}
 }
 
-func TestPrivateNetworkBlocking(t *testing.T) {
+func TestPrivateNetworkBlockingDialContext(t *testing.T) {
+	// Start a test server on localhost (always-blocked: loopback).
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
 
-	t.Run("blocked when enabled", func(t *testing.T) {
+	t.Run("loopback blocked when blocking enabled", func(t *testing.T) {
 		SetBlockPrivateNetworks(true)
 		defer SetBlockPrivateNetworks(false)
 		client := NewClient(WithTimeout(5 * time.Second))
-		// localhost is always blocked (loopback), so this tests the always-blocked tier.
 		_, err := client.Get(ts.URL)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+		assert.Contains(t, err.Error(), "127.0.0.1")
 	})
 
 	t.Run("loopback blocked even with allow flag", func(t *testing.T) {
-		// Private network blocking is off, but loopback is always blocked.
+		// Tier 1 (always-blocked) cannot be overridden.
 		SetBlockPrivateNetworks(false)
 		client := NewClient(WithTimeout(5 * time.Second))
 		_, err := client.Get(ts.URL)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+	})
+
+	t.Run("public IP allowed when blocking enabled", func(t *testing.T) {
+		SetBlockPrivateNetworks(true)
+		defer SetBlockPrivateNetworks(false)
+		client := NewClient(WithTimeout(5 * time.Second))
+		// google.com is public -- should not be blocked (may fail for other
+		// reasons in CI, so we only check it's not ErrPrivateNetworkBlocked).
+		_, err := client.Get("https://google.com")
+		if err != nil {
+			assert.NotErrorIs(t, err, ErrPrivateNetworkBlocked)
+		}
+	})
+
+	t.Run("error message includes hostname and IP", func(t *testing.T) {
+		SetBlockPrivateNetworks(true)
+		defer SetBlockPrivateNetworks(false)
+		client := NewClient(WithTimeout(5 * time.Second))
+		_, err := client.Get(ts.URL)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "127.0.0.1 resolves to 127.0.0.1")
+	})
+
+	t.Run("invalid address returns error", func(t *testing.T) {
+		SetBlockPrivateNetworks(true)
+		defer SetBlockPrivateNetworks(false)
+		dialFn := privateNetworkBlockingDialContext(&net.Dialer{Timeout: time.Second})
+		_, err := dialFn(t.Context(), "tcp", "no-port")
+		require.Error(t, err)
+		// Should fail on SplitHostPort, not on blocking.
+		assert.NotErrorIs(t, err, ErrPrivateNetworkBlocked)
+	})
+
+	t.Run("unresolvable host returns error", func(t *testing.T) {
+		SetBlockPrivateNetworks(true)
+		defer SetBlockPrivateNetworks(false)
+		dialFn := privateNetworkBlockingDialContext(&net.Dialer{Timeout: time.Second})
+		_, err := dialFn(t.Context(), "tcp", "this-host-does-not-exist.invalid:443")
+		require.Error(t, err)
+		assert.NotErrorIs(t, err, ErrPrivateNetworkBlocked)
+	})
+
+	t.Run("connects to resolved IP not hostname", func(t *testing.T) {
+		// Verify the TOCTOU fix: the function should connect to the
+		// resolved IP directly. We test this by calling the dial function
+		// with "localhost" and checking that the error references the
+		// resolved IP (127.0.0.1 or ::1), proving DNS was resolved
+		// before the blocking decision.
+		SetBlockPrivateNetworks(true)
+		defer SetBlockPrivateNetworks(false)
+		dialFn := privateNetworkBlockingDialContext(&net.Dialer{Timeout: time.Second})
+		_, err := dialFn(t.Context(), "tcp", "localhost:9999")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+		assert.Contains(t, err.Error(), "localhost resolves to")
 	})
 }
 
