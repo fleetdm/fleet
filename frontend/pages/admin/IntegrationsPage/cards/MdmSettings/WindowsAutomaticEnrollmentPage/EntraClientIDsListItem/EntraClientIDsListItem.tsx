@@ -5,21 +5,21 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
-const baseClass = "entra-tenants-list-item";
+const baseClass = "entra-client-ids-list-item";
 
-interface IEntraTenantsListItemProps {
-  tenantId: string;
+interface IEntraClientIDsListItemProps {
+  clientId: string;
   onClickDelete: () => void;
 }
 
-const EntraTenantsListItem = ({
-  tenantId,
+const EntraClientIDsListItem = ({
+  clientId,
   onClickDelete,
-}: IEntraTenantsListItemProps) => {
+}: IEntraClientIDsListItemProps) => {
   return (
     <ListItem
       className={baseClass}
-      title={tenantId}
+      title={clientId}
       actions={
         <GitOpsModeTooltipWrapper
           position="left"
@@ -29,7 +29,7 @@ const EntraTenantsListItem = ({
               onClick={onClickDelete}
               className={`${baseClass}__action-button`}
               variant="icon"
-              ariaLabel={`Delete Microsoft Entra tenant ${tenantId}`}
+              ariaLabel={`Delete Microsoft Entra client ID ${clientId}`}
             >
               <Icon name="trash" />
             </Button>
@@ -40,4 +40,4 @@ const EntraTenantsListItem = ({
   );
 };
 
-export default EntraTenantsListItem;
+export default EntraClientIDsListItem;

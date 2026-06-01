@@ -504,9 +504,32 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
-	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
-		!appConfig.MDM.WindowsEnabledAndConfigured && len(newAppConfig.MDM.WindowsEntraTenantIDs.Value) == 0 {
-		appConfig.MDM.WindowsEntraTenantIDs.Value = []string{}
+	// When Windows MDM is being turned off and the incoming payload doesn't set the Entra allowlists, clear them.
+	clearEntraIDsIfWindowsTurnedOff := func(field *optjson.Slice[string], incomingLen int) {
+		if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
+			!appConfig.MDM.WindowsEnabledAndConfigured && incomingLen == 0 {
+			*field = optjson.SetSlice([]string{})
+		}
+	}
+	clearEntraIDsIfWindowsTurnedOff(&appConfig.MDM.WindowsEntraTenantIDs, len(newAppConfig.MDM.WindowsEntraTenantIDs.Value))
+	clearEntraIDsIfWindowsTurnedOff(&appConfig.MDM.WindowsEntraClientIDs, len(newAppConfig.MDM.WindowsEntraClientIDs.Value))
+
+	// Normalize Entra client IDs to canonical lower-case and de-duplicate them. They are authorized
+	// case-insensitively (see hasAuthorizedAzureAudience), so storing them canonically prevents
+	// functionally-identical duplicates that differ only in case (for example, an upper-case ID added via
+	// GitOps or the API alongside a lower-case one added through the UI).
+	if appConfig.MDM.WindowsEntraClientIDs.Set && appConfig.MDM.WindowsEntraClientIDs.Valid {
+		seen := make(map[string]struct{}, len(appConfig.MDM.WindowsEntraClientIDs.Value))
+		normalized := make([]string, 0, len(appConfig.MDM.WindowsEntraClientIDs.Value))
+		for _, clientID := range appConfig.MDM.WindowsEntraClientIDs.Value {
+			id := strings.ToLower(strings.TrimSpace(clientID))
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			normalized = append(normalized, id)
+		}
+		appConfig.MDM.WindowsEntraClientIDs.Value = normalized
 	}
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
@@ -996,25 +1019,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err)
 	}
 
-	addedEntraTenantIDs := make([]string, 0)
-	removedEntraTenantIDs := make([]string, 0)
-	oldTenantIDSet := make(map[string]struct{})
-	newTenantIDSet := make(map[string]struct{})
-
-	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
-		oldTenantIDSet[tenantID] = struct{}{}
-	}
-	for _, tenantID := range appConfig.MDM.WindowsEntraTenantIDs.Value {
-		newTenantIDSet[tenantID] = struct{}{}
-		if _, found := oldTenantIDSet[tenantID]; !found {
-			addedEntraTenantIDs = append(addedEntraTenantIDs, tenantID)
-		}
-	}
-	for _, tenantID := range oldAppConfig.MDM.WindowsEntraTenantIDs.Value {
-		if _, found := newTenantIDSet[tenantID]; !found {
-			removedEntraTenantIDs = append(removedEntraTenantIDs, tenantID)
-		}
-	}
+	// Emit one activity per Entra tenant ID / client ID added or removed. diffStringSlices deduplicates, so a payload
+	// that repeats an ID does not produce duplicate activities.
+	addedEntraTenantIDs, removedEntraTenantIDs := diffStringSlices(oldAppConfig.MDM.WindowsEntraTenantIDs.Value, appConfig.MDM.WindowsEntraTenantIDs.Value)
 	for _, tenantID := range addedEntraTenantIDs {
 		act := fleet.ActivityTypeAddedMicrosoftEntraTenant{TenantID: tenantID}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
@@ -1025,6 +1032,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		act := fleet.ActivityTypeDeletedMicrosoftEntraTenant{TenantID: tenantID}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Microsoft Entra tenant")
+		}
+	}
+
+	addedEntraClientIDs, removedEntraClientIDs := diffStringSlices(oldAppConfig.MDM.WindowsEntraClientIDs.Value, appConfig.MDM.WindowsEntraClientIDs.Value)
+	for _, clientID := range addedEntraClientIDs {
+		act := fleet.ActivityTypeAddedMicrosoftEntraClientID{ClientID: clientID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for added Microsoft Entra client ID")
+		}
+	}
+	for _, clientID := range removedEntraClientIDs {
+		act := fleet.ActivityTypeDeletedMicrosoftEntraClientID{ClientID: clientID}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Microsoft Entra client ID")
 		}
 	}
 
@@ -1514,6 +1535,44 @@ func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Conte
 	return ok, nil
 }
 
+// windowsEntraGUIDRegex matches an Azure/Entra GUID in 8-4-4-4-12 form, case-insensitively. Entra emits IDs in
+// lower-case, but admins may paste them in upper-case, so we accept either case here and normalize at comparison time
+// instead. We can't use the standard UUID parser here as it accepts non-standard forms; Entra tenant IDs and application
+// client IDs are both validated against this so the two checks cannot drift.
+var windowsEntraGUIDRegex = regexp.MustCompile("^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$")
+
+// diffStringSlices returns the elements added (present in current but not old) and removed (present in old but not
+// current), each deduplicated and in first-seen order. Used to emit exactly one activity per changed value even when
+// the incoming payload repeats an entry.
+func diffStringSlices(old, current []string) (added, removed []string) {
+	oldSet := make(map[string]struct{}, len(old))
+	for _, v := range old {
+		oldSet[v] = struct{}{}
+	}
+	currentSet := make(map[string]struct{}, len(current))
+	for _, v := range current {
+		if _, seen := currentSet[v]; seen {
+			continue
+		}
+		currentSet[v] = struct{}{}
+		if _, found := oldSet[v]; !found {
+			added = append(added, v)
+		}
+	}
+	removedSeen := make(map[string]struct{})
+	for _, v := range old {
+		if _, found := currentSet[v]; found {
+			continue
+		}
+		if _, seen := removedSeen[v]; seen {
+			continue
+		}
+		removedSeen[v] = struct{}{}
+		removed = append(removed, v)
+	}
+	return added, removed
+}
+
 func (svc *Service) validateMDM(
 	ctx context.Context,
 	lic *fleet.LicenseInfo,
@@ -1547,6 +1606,9 @@ func (svc *Service) validateMDM(
 	}
 	if len(mdm.WindowsEntraTenantIDs.Value) > 0 && !lic.IsPremium() {
 		invalid.Append("windows_entra_tenant_ids", ErrMissingLicense.Error())
+	}
+	if len(mdm.WindowsEntraClientIDs.Value) > 0 && !lic.IsPremium() {
+		invalid.Append("windows_entra_client_ids", ErrMissingLicense.Error())
 	}
 	if mdm.AppleRequireHardwareAttestation && !lic.IsPremium() {
 		invalid.Append("apple_require_hardware_attestation", ErrMissingLicense.Error())
@@ -1794,18 +1856,24 @@ func (svc *Service) validateMDM(
 		invalid.Append("mdm.enable_turn_on_windows_mdm_manually", "Couldn't enable Turn on Windows MDM Manually, Windows MDM is not enabled.")
 	}
 
+	// Validate Windows Entra tenant IDs and application client IDs are in the correct GUID format.
+	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
+		if !windowsEntraGUIDRegex.MatchString(tenantID) {
+			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
+		}
+	}
+	for _, clientID := range mdm.WindowsEntraClientIDs.Value {
+		if !windowsEntraGUIDRegex.MatchString(clientID) {
+			invalid.Append("mdm.windows_entra_client_ids", fmt.Sprintf("Invalid Entra client ID: %s", clientID))
+		}
+	}
+
 	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsEntraTenantIDs.Value) > 0 {
 		invalid.Append("mdm.windows_entra_tenant_ids", "Couldn't set Windows Entra tenant IDs, Windows MDM is not enabled.")
 	}
 
-	// validate Windows Entra tenant IDs are in the correct format (GUIDs). We can't use the standard UUID parser here
-	// as Azure tenants should be in the 8-4-4-4-12 format but the usual UUID parser will allow certain non-standard
-	// forms
-	guidRegex := regexp.MustCompile("^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$")
-	for _, tenantID := range mdm.WindowsEntraTenantIDs.Value {
-		if !guidRegex.MatchString(tenantID) {
-			invalid.Append("mdm.windows_entra_tenant_ids", fmt.Sprintf("Invalid Entra tenant ID: %s", tenantID))
-		}
+	if !mdm.WindowsEnabledAndConfigured && len(mdm.WindowsEntraClientIDs.Value) > 0 {
+		invalid.Append("mdm.windows_entra_client_ids", "Couldn't set Windows Entra client IDs, Windows MDM is not enabled.")
 	}
 
 	if mdm.WindowsMigrationEnabled && mdm.EnableTurnOnWindowsMDMManually {
