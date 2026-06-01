@@ -1,0 +1,1 @@
+- Fixed Fleet Desktop tray icon appearing oversized in KDE Plasma on Linux installs where fleetd runs as root.

@@ -40,7 +40,11 @@ func isKDE() bool {
 		return false
 	}
 	uid := strconv.FormatInt(guiUser.ID, 10)
-	return exec.Command("pgrep", "-u", uid, "-x", "plasmashell").Run() == nil
+	if err := exec.Command("pgrep", "-u", uid, "-x", "plasmashell").Run(); err != nil {
+		log.Debug().Err(err).Str("uid", uid).Msg("isKDE: plasmashell not found for user")
+		return false
+	}
+	return true
 }
 
 func blockWaitForStopEvent(_ string) error {

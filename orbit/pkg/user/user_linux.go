@@ -109,13 +109,12 @@ func parseLoginctlUsersOutput(s string) ([]User, error) {
 
 // UserDisplaySession holds the display session type and active status for a user.
 type UserDisplaySession struct {
-	Type    GuiSessionType
-	Active  bool
-	Desktop string
+	Type   GuiSessionType
+	Active bool
 }
 
-// GetUserDisplaySessionType returns the display session type (X11 or Wayland),
-// active status, and desktop session env var of the given user. Returns an error if the user doesn't have
+// GetUserDisplaySessionType returns the display session type (X11 or Wayland)
+// and active status of the given user. Returns an error if the user doesn't have
 // a Display session.
 func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
 	// Get the "Display" session ID of the user.
@@ -160,20 +159,9 @@ func GetUserDisplaySessionType(uid string) (*UserDisplaySession, error) {
 	}
 	active := strings.TrimSpace(stdout.String()) == "yes"
 
-	// Get the "Desktop" property of the session.
-	cmd = exec.Command("loginctl", "show-session", guiSessionID, "-p", "Desktop", "--value")
-	stdout.Reset()
-	cmd.Stdout = &stdout
-	desktop := ""
-	if err := cmd.Run(); err != nil {
-		log.Debug().Err(err).Msgf("failed to get desktop session for user %s", uid)
-	} else {
-		desktop = strings.TrimSpace(stdout.String())
-	}
 	return &UserDisplaySession{
-		Type:    sessionType,
-		Active:  active,
-		Desktop: desktop,
+		Type:   sessionType,
+		Active: active,
 	}, nil
 }
 
