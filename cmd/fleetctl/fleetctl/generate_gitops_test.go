@@ -345,6 +345,10 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 	}, nil
 }
 
+func (MockClient) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error) {
+	return nil, nil
+}
+
 func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	if teamID == nil {
 		return []*fleet.Policy{

@@ -288,3 +288,39 @@ func (c *Client) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, er
 	}
 	return responseBody.FleetMaintainedApps, nil
 }
+
+func (c *Client) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error) {
+	verb, path := "GET", "/api/latest/fleet/software/self_service_categories"
+	query := fmt.Sprintf("fleet_id=%d", teamID)
+	var responseBody getSelfServiceCategoriesResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query); err != nil {
+		return nil, err
+	}
+	return responseBody.SelfServiceCategories, nil
+}
+
+func (c *Client) AddSelfServiceCategory(teamID uint, name string) (*fleet.SoftwareCategory, error) {
+	verb, path := "POST", "/api/latest/fleet/software/self_service_categories"
+	body := addSelfServiceCategoriesRequest{TeamID: &teamID, Name: name}
+	var responseBody addSelfServiceCategoriesResponse
+	if err := c.authenticatedRequest(body, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	return responseBody.SelfServiceCategory, nil
+}
+
+func (c *Client) UpdateSelfServiceCategory(id uint, name string) (*fleet.SoftwareCategory, error) {
+	verb, path := "PATCH", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", id)
+	body := patchSelfServiceCategoriesRequest{ID: id, Name: name}
+	var responseBody patchSelfServiceCategoriesResponse
+	if err := c.authenticatedRequest(body, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	return responseBody.SelfServiceCategory, nil
+}
+
+func (c *Client) DeleteSelfServiceCategory(id uint) error {
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/software/self_service_categories/%d", id)
+	var responseBody deleteSelfServiceCategoriesResponse
+	return c.authenticatedRequest(nil, verb, path, &responseBody)
+}

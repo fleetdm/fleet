@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -309,9 +310,10 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 }
 
 type Software struct {
-	Packages            []SoftwarePackage           `json:"packages"`
-	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
-	FleetMaintainedApps []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
+	Packages              []SoftwarePackage           `json:"packages"`
+	AppStoreApps          []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	FleetMaintainedApps   []fleet.MaintainedAppSpec   `json:"fleet_maintained_apps"`
+	SelfServiceCategories []string                    `json:"self_service_categories"`
 }
 
 // GitOpsMDM extends fleet.MDM with gitops-only fields that are not part of the server type.
@@ -373,12 +375,18 @@ type GitOps struct {
 	SoftwarePresent bool
 	// SecretsPresent indicates that the `secrets:` key was explicitly present in the YAML file.
 	SecretsPresent bool
+	// SelfServiceCategoriesPresent indicates whether the
+	// `software.self_service_categories:` key was explicitly present. Omitted →
+	// leave existing categories untouched; explicit (even if empty) → reconcile
+	// to the listed names exactly (empty list deletes everything).
+	SelfServiceCategoriesPresent bool
 }
 
 type GitOpsSoftware struct {
-	Packages            []*fleet.SoftwarePackageSpec
-	AppStoreApps        []*fleet.TeamSpecAppStoreApp
-	FleetMaintainedApps []*fleet.MaintainedAppSpec
+	Packages              []*fleet.SoftwarePackageSpec
+	AppStoreApps          []*fleet.TeamSpecAppStoreApp
+	FleetMaintainedApps   []*fleet.MaintainedAppSpec
+	SelfServiceCategories []string
 }
 
 type Logf func(format string, a ...interface{})
@@ -1871,6 +1879,43 @@ func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string
 
 var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
 
+// canonicalizeSelfServiceCategories trims, translates legacy names to their
+// canonical emoji form, and rejects empty / too-long / duplicate (case-insensitive)
+// entries. It returns the canonical names in input order plus any validation errors.
+func canonicalizeSelfServiceCategories(names []string) ([]string, []error) {
+	if len(names) == 0 {
+		return []string{}, nil
+	}
+	var errs []error
+	seen := make(map[string]struct{}, len(names))
+	out := make([]string, 0, len(names))
+	for _, raw := range names {
+		name := strings.TrimSpace(raw)
+		if name == "" {
+			errs = append(errs, errors.New("self_service_categories: name is required"))
+			continue
+		}
+		if utf8.RuneCountInString(name) > fleet.SoftwareCategoryNameMaxLength {
+			errs = append(errs, fmt.Errorf("self_service_categories: %q must be at most %d characters", name, fleet.SoftwareCategoryNameMaxLength))
+			continue
+		}
+		// Translate any legacy plain default ("Productivity" → "💻 Productivity") so
+		// admins can mix legacy and emoji names; the team always ends up with the
+		// canonical form.
+		if mapped, ok := fleet.LegacySoftwareCategoryNames[name]; ok {
+			name = mapped
+		}
+		key := strings.ToLower(name)
+		if _, dup := seen[key]; dup {
+			errs = append(errs, fmt.Errorf("self_service_categories: %q is listed more than once (names are case-insensitive)", name))
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, name)
+	}
+	return out, errs
+}
+
 func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, filePath string, options GitOpsOptions, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
 	if ok {
@@ -1902,6 +1947,23 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		// Validate unknown keys in software section.
 		multiError = multierror.Append(multiError, validateRawKeys(softwareRaw, reflect.TypeFor[Software](), filePath, []string{"software"})...)
+		// Detect explicit presence of self_service_categories so we can tell
+		// "key omitted → leave existing" apart from "key present, empty → delete all".
+		var softwareKeys map[string]json.RawMessage
+		if err := json.Unmarshal(softwareRaw, &softwareKeys); err == nil {
+			_, result.SelfServiceCategoriesPresent = softwareKeys["self_service_categories"]
+		}
+	}
+
+	canonicalCategories, catErrs := canonicalizeSelfServiceCategories(software.SelfServiceCategories)
+	for _, e := range catErrs {
+		multiError = multierror.Append(multiError, e)
+	}
+	software.SelfServiceCategories = canonicalCategories
+	result.Software.SelfServiceCategories = canonicalCategories
+	declaredCategorySet := make(map[string]struct{}, len(canonicalCategories))
+	for _, n := range canonicalCategories {
+		declaredCategorySet[strings.ToLower(n)] = struct{}{}
 	}
 	for _, item := range software.AppStoreApps {
 		if item.AppStoreID == "" {
@@ -2141,6 +2203,46 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 
 			result.Software.Packages = append(result.Software.Packages, softwarePackageSpec)
+		}
+	}
+
+	// Cross-validate: every category referenced by a package/app/FMA must be
+	// listed under self_service_categories. Only enforced when the admin
+	// declared the list — otherwise fall through to server-side validation.
+	if result.SelfServiceCategoriesPresent {
+		check := func(kind, label string, cats []string) {
+			for _, raw := range cats {
+				name := strings.TrimSpace(raw)
+				if name == "" {
+					continue
+				}
+				if mapped, ok := fleet.LegacySoftwareCategoryNames[name]; ok {
+					name = mapped
+				}
+				if _, ok := declaredCategorySet[strings.ToLower(name)]; !ok {
+					multiError = multierror.Append(multiError,
+						fmt.Errorf("%s %q references category %q which is not listed in software.self_service_categories", kind, label, raw))
+				}
+			}
+		}
+		for _, pkg := range result.Software.Packages {
+			if pkg != nil {
+				check("software package", pkg.URL, pkg.Categories)
+			}
+		}
+		for _, app := range result.Software.AppStoreApps {
+			if app != nil {
+				check("app_store_app", app.AppStoreID, app.Categories)
+			}
+		}
+		for _, fma := range result.Software.FleetMaintainedApps {
+			if fma != nil {
+				label := ""
+				if fma.Slug != "" {
+					label = fma.Slug
+				}
+				check("fleet_maintained_app", label, fma.Categories)
+			}
 		}
 	}
 

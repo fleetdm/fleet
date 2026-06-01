@@ -2489,6 +2489,9 @@ func (c *Client) DoGitOps(
 			for _, teamID := range teamIDsByName {
 				incoming.TeamID = &teamID
 			}
+			if err := c.reconcileSelfServiceCategories(incoming, exceptions.Software, logFn, dryRun); err != nil {
+				return err
+			}
 			if incoming.Labels == nil || len(incoming.Labels) > 0 {
 				return c.doGitOpsLabels(incoming, logFn, dryRun)
 			}
@@ -2899,6 +2902,81 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 		logFn("[+] would've applied webhook settings for unassigned hosts\n")
 	}
 
+	return nil
+}
+
+// reconcileSelfServiceCategories drives the fleet's self_service_categories to
+// match what's declared in YAML. Omitted key → no-op; explicit list (even empty)
+// → create missing and delete any server-side category not in the list.
+//
+// Skipped entirely when the software exception is active and `software:` is
+// absent from the YAML (mirrors the standard softwareExcepted guard).
+func (c *Client) reconcileSelfServiceCategories(
+	config *spec.GitOps,
+	softwareExcepted bool,
+	logFn func(format string, args ...any),
+	dryRun bool,
+) error {
+	if !config.SelfServiceCategoriesPresent {
+		return nil
+	}
+	if softwareExcepted && !config.SoftwarePresent {
+		return nil
+	}
+	if config.TeamID == nil {
+		return errors.New("reconcileSelfServiceCategories: missing fleet id")
+	}
+	teamID := *config.TeamID
+
+	existing, err := c.ListSelfServiceCategories(teamID)
+	if err != nil {
+		return fmt.Errorf("listing existing self-service categories: %w", err)
+	}
+
+	declared := make(map[string]struct{}, len(config.Software.SelfServiceCategories))
+	for _, name := range config.Software.SelfServiceCategories {
+		declared[strings.ToLower(name)] = struct{}{}
+	}
+	existingByLower := make(map[string]fleet.SoftwareCategory, len(existing))
+	for _, c := range existing {
+		existingByLower[strings.ToLower(c.Name)] = c
+	}
+
+	var toAdd []string
+	for _, name := range config.Software.SelfServiceCategories {
+		if _, ok := existingByLower[strings.ToLower(name)]; !ok {
+			toAdd = append(toAdd, name)
+		}
+	}
+	var toDelete []fleet.SoftwareCategory
+	for lower, cat := range existingByLower {
+		if _, ok := declared[lower]; !ok {
+			toDelete = append(toDelete, cat)
+		}
+	}
+
+	if dryRun {
+		for _, name := range toAdd {
+			logFn("[+] would've added self-service category %q\n", name)
+		}
+		for _, cat := range toDelete {
+			logFn("[-] would've deleted self-service category %q\n", cat.Name)
+		}
+		return nil
+	}
+
+	for _, name := range toAdd {
+		if _, err := c.AddSelfServiceCategory(teamID, name); err != nil {
+			return fmt.Errorf("adding self-service category %q: %w", name, err)
+		}
+		logFn("[+] added self-service category %q\n", name)
+	}
+	for _, cat := range toDelete {
+		if err := c.DeleteSelfServiceCategory(cat.ID); err != nil {
+			return fmt.Errorf("deleting self-service category %q: %w", cat.Name, err)
+		}
+		logFn("[-] deleted self-service category %q\n", cat.Name)
+	}
 	return nil
 }
 

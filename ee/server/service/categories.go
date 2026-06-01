@@ -12,10 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// TODO(JK): the GitOps role is currently denied on every software_category
-// action. Revisit when GitOps support for self-service categories lands —
-// gitops will likely need read+write to manage fleet category lists from YAML.
-
 func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([]fleet.SoftwareCategory, error) {
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
