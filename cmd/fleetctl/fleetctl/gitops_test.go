@@ -568,10 +568,11 @@ software:
 }
 
 // TestGitOpsWindowsEntraIDs verifies that Windows Entra tenant and application client IDs round-trip through a
-// `fleetctl gitops` apply (issue #46388). The client IDs include an upper-case GUID, which exercises the
-// case-insensitive GUID validation: it must be accepted and stored verbatim (Fleet reconciles case at comparison
-// time, not by rewriting the stored value). SetupFullGitOpsPremiumServer configures the WSTEP cert/key so Windows
-// MDM can be enabled, which the Entra ID settings require.
+// `fleetctl gitops` apply (issue #46388). The client IDs include an upper-case GUID and a case-only duplicate of it,
+// which exercises server-side normalization: client IDs are authorized case-insensitively, so they are stored
+// canonically (lower-cased and de-duplicated) to avoid functionally-identical entries that differ only in case.
+// SetupFullGitOpsPremiumServer configures the WSTEP cert/key so Windows MDM can be enabled, which the Entra ID
+// settings require.
 func TestGitOpsWindowsEntraIDs(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables.
 	ds, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
@@ -592,6 +593,7 @@ controls:
     - 1a86b496-e2a4-43ef-ba00-20004e29b13b
   windows_entra_client_ids:
     - ABCDEF12-3456-7890-ABCD-EF1234567890
+    - abcdef12-3456-7890-abcd-ef1234567890
     - 11111111-2222-3333-4444-555555555555
 queries:
 policies:
@@ -614,9 +616,9 @@ software:
 
 	require.True(t, ds.SaveAppConfigFuncInvoked)
 	require.Equal(t, []string{"1a86b496-e2a4-43ef-ba00-20004e29b13b"}, (*savedAppConfigPtr).MDM.WindowsEntraTenantIDs.Value)
-	// The upper-case client ID is accepted by the relaxed GUID validator and stored without normalization.
+	// The upper-case client ID and its case-only duplicate are normalized to a single canonical lower-case entry.
 	require.Equal(t,
-		[]string{"ABCDEF12-3456-7890-ABCD-EF1234567890", "11111111-2222-3333-4444-555555555555"},
+		[]string{"abcdef12-3456-7890-abcd-ef1234567890", "11111111-2222-3333-4444-555555555555"},
 		(*savedAppConfigPtr).MDM.WindowsEntraClientIDs.Value)
 }
 
