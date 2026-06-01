@@ -3338,9 +3338,8 @@ type Datastore interface {
 	// GetTraceSamplerSettings returns the singleton trace_sampler_settings row.
 	GetTraceSamplerSettings(ctx context.Context) (*TraceSamplerSettings, error)
 
-	// SetTraceSamplerSettings updates the singleton trace_sampler_settings row.
-	// The caller is responsible for validating ratios are in [0, 1]; the DB
-	// CHECK constraints will reject out-of-range writes as a backstop.
+	// SetTraceSamplerSettings updates the singleton trace_sampler_settings row. The caller is responsible for validating ratios are
+	// in [0, 1]; the DB CHECK constraints will reject out-of-range writes as a backstop.
 	SetTraceSamplerSettings(ctx context.Context, settings *TraceSamplerSettings) error
 }
 

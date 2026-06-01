@@ -2,10 +2,8 @@ package fleet
 
 import "time"
 
-// TraceSamplerSettings is the runtime-tunable head-sampling configuration for
-// OTEL traces. The settings live in the trace_sampler_settings singleton row
-// and are polled by each Fleet replica so support can adjust sampling without
-// a restart. See server/platform/tracing for the sampler implementation.
+// TraceSamplerSettings is the runtime-tunable head-sampling configuration for OTEL traces. The settings live in the
+// trace_sampler_settings singleton row and are polled by each Fleet replica so support can adjust sampling without a restart.
 type TraceSamplerSettings struct {
 	HighVolumeRatio float64   `json:"high_volume_ratio" db:"high_volume_ratio"`
 	StandardRatio   float64   `json:"standard_ratio" db:"standard_ratio"`

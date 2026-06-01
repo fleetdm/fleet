@@ -5,14 +5,12 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260601134639, Down_20260601134639)
+	MigrationClient.AddMigration(Up_20260601200727, Down_20260601200727)
 }
 
-func Up_20260601134639(tx *sql.Tx) error {
-	// Singleton settings row holding the runtime-tunable trace sampling
-	// configuration. Operators flip these via PATCH /debug/trace_sampler; the
-	// /debug auth log and the PATCH access log already record who made the
-	// change, so this table intentionally has no audit columns.
+func Up_20260601200727(tx *sql.Tx) error {
+	// Singleton settings row holding the runtime-tunable trace sampling configuration. Operators flip these via PATCH
+	// /debug/trace_sampler; the /debug auth log and the PATCH access log already record who made the change.
 	_, err := tx.Exec(`
 		CREATE TABLE trace_sampler_settings (
 			id                TINYINT UNSIGNED NOT NULL PRIMARY KEY,
@@ -33,6 +31,6 @@ func Up_20260601134639(tx *sql.Tx) error {
 	return err
 }
 
-func Down_20260601134639(tx *sql.Tx) error {
+func Down_20260601200727(tx *sql.Tx) error {
 	return nil
 }
