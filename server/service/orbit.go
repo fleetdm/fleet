@@ -578,13 +578,25 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
 		host.Platform == "windows" &&
 		isConnectedToFleetMDM {
-		awaiting, err := svc.ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
+		// One query returns both the ESP awaiting-configuration value and whether the host has queued commands.
+		state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
-			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows awaiting configuration")
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows host config state")
 		}
-		if awaiting == fleet.WindowsMDMAwaitingConfigurationPending ||
-			awaiting == fleet.WindowsMDMAwaitingConfigurationActive {
+		switch {
+		case state == nil:
+			// No Windows MDM enrollment row for this host; nothing to do.
+		case state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationPending ||
+			state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationActive:
+			// During the Autopilot ESP, the setup experience flow delivers queued commands.
 			notifs.RunSetupExperience = true
+		case state.HasPendingCommands:
+			// Outside the ESP: if this host's fleetd can start an on-demand OMA-DM session, ask it to sync now so
+			// queued commands apply without waiting for the (relaxed) poll. Older fleetd that does not advertise
+			// the capability never sets it here, and ignores the unknown notification field if it ever sees it.
+			if mp, ok := capabilities.FromContext(ctx); ok && mp.Has(fleet.CapabilityWindowsMDMSync) {
+				notifs.WindowsMDMSyncRequest = true
+			}
 		}
 	}
 

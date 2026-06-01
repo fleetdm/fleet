@@ -199,19 +199,51 @@ SELECT EXISTS (
 // enrollment of the host with the given UUID. Reader-backed; callers that need primary-routed semantics must wrap
 // the context with ctxdb.RequirePrimary.
 func (ds *Datastore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-	const stmt = `SELECT awaiting_configuration
-		FROM mdm_windows_enrollments
-		WHERE host_uuid = ?
-		ORDER BY created_at DESC, id DESC
-		LIMIT 1`
-	var awaiting fleet.WindowsMDMAwaitingConfiguration
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaiting, stmt, hostUUID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hostUUID))
-		}
-		return 0, ctxerr.Wrap(ctx, err, "get MDMWindowsAwaitingConfigurationByHostUUID")
+	state, err := ds.GetMDMWindowsHostConfigState(ctx, hostUUID)
+	if err != nil {
+		return 0, err
 	}
-	return awaiting, nil
+	return state.AwaitingConfiguration, nil
+}
+
+// GetMDMWindowsHostConfigState returns, in a single query, the Windows MDM per-host state read on each orbit
+// config check-in for a connected Windows host: the Autopilot ESP awaiting-configuration value and whether the
+// host's most recent Windows MDM enrollment has queued, unacknowledged commands. The pending-commands check is a
+// correlated EXISTS against the command queue (indexed on enrollment_id, short-circuits to false for the common
+// case of no pending commands), so it adds no extra round trip to the awaiting-configuration read that already
+// runs on the polling path. Reader-backed; wrap the context with ctxdb.RequirePrimary for primary-routed reads.
+func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+	const stmt = `
+		SELECT
+			e.awaiting_configuration AS awaiting_configuration,
+			EXISTS (
+				SELECT 1
+				FROM windows_mdm_command_queue wmcq
+				WHERE wmcq.enrollment_id = e.id
+					AND NOT EXISTS (
+						SELECT 1
+						FROM windows_mdm_command_results wmcr
+						WHERE wmcr.enrollment_id = wmcq.enrollment_id AND wmcr.command_uuid = wmcq.command_uuid
+					)
+			) AS has_pending_commands
+		FROM mdm_windows_enrollments e
+		WHERE e.host_uuid = ?
+		ORDER BY e.created_at DESC, e.id DESC
+		LIMIT 1`
+	var row struct {
+		AwaitingConfiguration fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
+		HasPendingCommands    int                                   `db:"has_pending_commands"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hostUUID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsHostConfigState")
+	}
+	return &fleet.MDMWindowsHostConfigState{
+		AwaitingConfiguration: row.AwaitingConfiguration,
+		HasPendingCommands:    row.HasPendingCommands == 1,
+	}, nil
 }
 
 // MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the

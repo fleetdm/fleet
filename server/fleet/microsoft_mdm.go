@@ -844,6 +844,15 @@ const (
 	WindowsMDMAwaitingConfigurationActive WindowsMDMAwaitingConfiguration = 2
 )
 
+// MDMWindowsHostConfigState is the per-host Windows MDM state read in a single query on each orbit config
+// check-in for a connected Windows host: the Autopilot ESP awaiting-configuration value and whether the host's
+// most recent Windows MDM enrollment has queued, unacknowledged MDM commands. Reading both in one query keeps
+// the hot orbit config path to a single round trip.
+type MDMWindowsHostConfigState struct {
+	AwaitingConfiguration WindowsMDMAwaitingConfiguration
+	HasPendingCommands    bool
+}
+
 type MDMWindowsEnrolledDevice struct {
 	ID                      uint                            `db:"id"`
 	HostUUID                string                          `db:"host_uuid"`

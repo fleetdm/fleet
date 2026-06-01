@@ -2163,6 +2163,11 @@ type Datastore interface {
 	// This is a lightweight read for the orbit config polling path.
 	GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (WindowsMDMAwaitingConfiguration, error)
 
+	// GetMDMWindowsHostConfigState returns the Windows MDM per-host state read on the orbit config polling path
+	// in a single query: the awaiting-configuration value and whether the host has queued, unacknowledged
+	// Windows MDM commands.
+	GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*MDMWindowsHostConfigState, error)
+
 	// HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
 	// installers (with install_during_setup) are configured for the given team. teamID=0 means "no team /
 	// global". Used by the ESP release gate to disambiguate between "no setup configured" (safe to release)

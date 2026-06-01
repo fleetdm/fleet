@@ -1345,6 +1345,8 @@ type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceI
 
 type GetMDMWindowsAwaitingConfigurationByHostUUIDFunc func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error)
 
+type GetMDMWindowsHostConfigStateFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error)
+
 type HasWindowsSetupExperienceItemsForTeamFunc func(ctx context.Context, teamID uint) (bool, error)
 
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
@@ -4024,6 +4026,9 @@ type DataStore struct {
 
 	GetMDMWindowsAwaitingConfigurationByHostUUIDFunc        GetMDMWindowsAwaitingConfigurationByHostUUIDFunc
 	GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked bool
+
+	GetMDMWindowsHostConfigStateFunc        GetMDMWindowsHostConfigStateFunc
+	GetMDMWindowsHostConfigStateFuncInvoked bool
 
 	HasWindowsSetupExperienceItemsForTeamFunc        HasWindowsSetupExperienceItemsForTeamFunc
 	HasWindowsSetupExperienceItemsForTeamFuncInvoked bool
@@ -9697,6 +9702,13 @@ func (s *DataStore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Con
 	s.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsHostConfigStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsHostConfigStateFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) HasWindowsSetupExperienceItemsForTeam(ctx context.Context, teamID uint) (bool, error) {
