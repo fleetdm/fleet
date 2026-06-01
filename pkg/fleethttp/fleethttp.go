@@ -63,6 +63,8 @@ var privateNetworkCIDRs = parseCIDRs([]string{
 	"ff00::/8",        // IPv6 multicast
 })
 
+// parseCIDRs converts CIDR strings (e.g. "10.0.0.0/8") into net.IPNet objects
+// for IP range matching. Panics on malformed input since the lists are hardcoded.
 func parseCIDRs(cidrs []string) []*net.IPNet {
 	nets := make([]*net.IPNet, 0, len(cidrs))
 	for _, cidr := range cidrs {
@@ -75,6 +77,7 @@ func parseCIDRs(cidrs []string) []*net.IPNet {
 	return nets
 }
 
+// ipInCIDRs returns true if the given IP falls within any of the provided CIDR ranges.
 func ipInCIDRs(ip net.IP, cidrs []*net.IPNet) bool {
 	for _, cidr := range cidrs {
 		if cidr.Contains(ip) {
