@@ -163,7 +163,7 @@ func (c *CarveStore) CleanupCarves(ctx context.Context, now time.Time) (int, err
 		if _, ok := carveKeys[c.generateS3Key(carve)]; !ok {
 			carve.Expired = true
 			if uerr := c.UpdateCarve(ctx, carve); uerr != nil {
-				retErr = errors.Join(retErr, ctxerr.Wrap(ctx, uerr, "marking carve expired"))
+				retErr = errors.Join(retErr, ctxerr.Wrap(ctx, uerr, fmt.Sprintf("marking carve %d expired", carve.ID)))
 				continue
 			}
 			cleanCount++
