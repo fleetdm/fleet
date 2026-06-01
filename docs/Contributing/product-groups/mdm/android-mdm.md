@@ -15,7 +15,9 @@ You can also setup a local proxy or use the Google API directly.
 
 ## Setup a Google project and service account
 
-> Instead of creating your own, you can use the shared Android DEV Google cloud project. The credentials for the Android DEV google cloud project can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=lsq2qqbfjlrh6eyby2tr2qc7nu&h=fleetdevicemanagement.1password.com).
+> Instead of creating your own, you can use the shared Android DEV Google cloud project. The credentials for the Android DEV google cloud project can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=lsq2qqbfjlrh6eyby2tr2qc7nu&h=fleetdevicemanagement.1password.com). When enabling Android MDM in the Google signup flow, log in with the `marko@1mdm.xyz` account (credentials are in 1Password).
+
+> **Do not use a personal `@gmail.com` account**. Personal accounts typically do not have the quota to enroll devices. You also cannot use your "fleetdm.com" one.
 
 Create a Google service account with the following Roles
 - Android Management User
@@ -54,7 +56,7 @@ export FLEET_DEV_ANDROID_GOOGLE_CLIENT=1
 export FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS=$(cat credentials.json)
 ```
 
-To turn on Android MDM, use a Chrome private window (so that you are not logged in with your "fleetdm.com" address). This is only required to enable Android MDM, you can use a normal window for the rest. In "Settings -> Integrations -> MDM -> Turn On Android -> Connect", use a personal email address (not a "fleetdm.com" one). Select "Sign-up for Android only". Domain name is not important ("test.com" for example). No need to fill anything in the "Data protection officer" and "EU representative" sections, just check the checkbox.
+To turn on Android MDM, use a Chrome private window (so that you are not logged in with your "fleetdm.com" address). This is only required to enable Android MDM, you can use a normal window for the rest. In "Settings -> Integrations -> MDM -> Turn On Android -> Connect", use a Google Workspace or Cloud Identity account (not a "fleetdm.com" one). Select "Sign-up for Android only". Domain name is not important ("test.com" for example). No need to fill anything in the "Data protection officer" and "EU representative" sections, just check the checkbox.
 
 If it fails enabling Android MDM due to an already existing enterprise (error "This enterprise is already enrolled with another EMM." when attempting to enable it again) and a personal (gmail) account was used, you must go to https://play.google.com/work, click "Admin settings", and delete the organization that was created the last time (e.g. "test.com"). You will then be able to enable Android MDM again.
 
@@ -64,6 +66,16 @@ There's also a command-line tool in `tools/android` that can list/delete/etc. en
 - The Fleet server URL must be public for pub/sub to work properly.
 - The Fleet server URL cannot change -- pub/sub is set up with one URL. See issue [Allow Fleet server URL update when using Android](https://github.com/fleetdm/fleet/issues/29878)
 - Network reliability issues may leave the Android enterprise flow in a broken state. For example, if fleetdm.com proxy creates an Android enterprise but Fleet server goes offline and does not receive the secret key.
+
+## Physical device or emulator?
+
+Both a physical android device or an emulator will work to enroll into your local fleet server. When connecting a BYOD you must ensure that the device has the ability to create profiles. If you wish to use an emulator the easiest way to do so is to download the [Android studio](https://developer.android.com/studio). When creating an emulator, use a **Google Play** system image (not "Google APIs" or AOSP). Only Google Play images include the full Google Mobile Services stack needed for Android Enterprise enrollment.
+
+If enrollment fails with `DPM_PRECONDITION_CHECK_FAILED_FOR_PROFILE_OWNER`, one thing to check for is an existing work profile from a previous enrollment attempt:
+```bash
+adb shell pm list users                     # Look for a "Work profile" user
+adb shell pm remove-user <id of profile>    # Remove the leftover work profile
+```
 
 ## Architecture diagrams
 
