@@ -66,6 +66,7 @@
     },
     "mdm": {
       "android_enabled_and_configured": false,
+      "apple_business": null,
       "apple_business_manager": null,
       "apple_server_url": "",
       "volume_purchasing_program": null,

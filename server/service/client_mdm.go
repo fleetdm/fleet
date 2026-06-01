@@ -49,7 +49,7 @@ func (c *Client) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
 }
 
 func (c *Client) CountABMTokens() (int, error) {
-	verb, path := "GET", "/api/latest/fleet/abm_tokens/count"
+	verb, path := "GET", "/api/latest/fleet/ab_tokens/count"
 	var responseBody countABMTokensResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
 	return responseBody.Count, err

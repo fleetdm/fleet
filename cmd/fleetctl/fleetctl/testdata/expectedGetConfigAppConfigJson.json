@@ -120,6 +120,7 @@
       "apple_server_url": "",
       "apple_bm_enabled_and_configured": false,
       "enabled_and_configured": false,
+      "apple_business": null,
       "apple_business_manager": null,
       "volume_purchasing_program": null,
       "windows_enabled_and_configured": false,

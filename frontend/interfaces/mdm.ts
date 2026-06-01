@@ -21,7 +21,7 @@ export type ITokenTeam = {
   name: string;
 };
 
-export interface IMdmAbmToken {
+export interface IMdmAbToken {
   id: number;
   apple_id: string;
   org_name: string;
