@@ -43,7 +43,7 @@ GitHub issue: [#40639](https://github.com/fleetdm/fleet/issues/40639)
 
 ### iOS/iPadOS software for user-enrolled hosts
 
-Fleet now supports installing Apple App Store (VPP) and in-house (`.ipa`) apps on iOS and iPadOS hosts enrolled via Account-based User Enrollment with a Managed Apple Account. IT admins can install apps from the **Host details** page, and end users can install from self-service. Setup experience software also installs automatically on enrollment.
+Fleet now supports installing Apple App Store (VPP) and in-house (`.ipa`) apps on iOS and iPadOS hosts enrolled via [Account-driven User Enrollment](https://support.apple.com/guide/deployment/account-driven-enrollment-methods-dep4d9e9cd26/web) with a Managed Apple Account. IT admins can install apps from the **Host details** page, and end users can install from self-service. Setup experience software also installs automatically on enrollment.
 
 GitHub issue: [#31138](https://github.com/fleetdm/fleet/issues/31138)
 
