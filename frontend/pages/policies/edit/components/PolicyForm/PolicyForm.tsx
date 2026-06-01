@@ -62,11 +62,11 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
   IPolicyAutomationsPayload,
-  useUpdatePolicyAutomations,
 } from "pages/policies/components/PolicyAutomationsFields";
+import { PatchAutomationCta } from "pages/policies/components";
+import { useUpdatePolicyAutomations } from "pages/policies/hooks";
 
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
-import { PatchAutomationCta } from "../PolicyAutomations";
 
 const baseClass = "policy-form";
 

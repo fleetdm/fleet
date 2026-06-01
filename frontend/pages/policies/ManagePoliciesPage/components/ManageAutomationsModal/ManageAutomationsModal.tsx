@@ -11,8 +11,8 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import PolicyAutomationsFields, {
   IPolicyAutomationsFieldsHandle,
-  useUpdatePolicyAutomations,
 } from "pages/policies/components/PolicyAutomationsFields";
+import { useUpdatePolicyAutomations } from "pages/policies/hooks";
 
 const baseClass = "manage-automations-modal";
 

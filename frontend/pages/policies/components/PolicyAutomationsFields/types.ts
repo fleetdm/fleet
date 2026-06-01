@@ -1,5 +1,3 @@
-export type TicketOrWebhookState = "webhook" | "ticket" | "disabled";
-
 type IAutomationRowKey =
   | "ticket_webhook"
   | "install_software"
@@ -7,7 +5,7 @@ type IAutomationRowKey =
   | "calendar_event"
   | "conditional_access";
 
-export interface IAutomationRow {
+export interface IAutomationCheckboxRow {
   key: IAutomationRowKey;
   label: string;
   tooltip?: React.ReactNode;

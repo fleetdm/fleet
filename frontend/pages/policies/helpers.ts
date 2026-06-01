@@ -1,6 +1,6 @@
 import { IConfig } from "interfaces/config";
+import { TicketOrWebhookState } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
-import { TicketOrWebhookState } from "./types";
 
 export interface ITicketOrWebhookInfo {
   /** "webhook" or "ticket" when an "other workflow" automation is configured

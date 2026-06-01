@@ -22,6 +22,8 @@ export default PropTypes.shape({
 
 export type OtherAutomationType = "webhook" | "ticket";
 
+export type TicketOrWebhookState = OtherAutomationType | "disabled";
+
 export interface IStoredPolicyResponse {
   policy: IPolicy;
 }

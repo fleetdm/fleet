@@ -61,7 +61,7 @@ import PageDescription from "components/PageDescription";
 import LastUpdatedText from "components/LastUpdatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import { getTicketOrWebhookInfo } from "pages/policies/components/PolicyAutomationsFields";
+import { getTicketOrWebhookInfo } from "pages/policies/helpers";
 
 import PoliciesTable from "./components/PoliciesTable";
 import DeletePoliciesModal from "./components/DeletePoliciesModal";

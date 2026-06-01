@@ -22,10 +22,15 @@ import DropdownWrapper, {
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import { getTicketOrWebhookInfo, getTicketOrWebhookLabel } from "./helpers";
-import { IAutomationRow } from "./types";
+import {
+  getTicketOrWebhookInfo,
+  getTicketOrWebhookLabel,
+} from "pages/policies/helpers";
+
+import { IPolicyAutomationUpdate } from "pages/policies/hooks";
+
+import { IAutomationCheckboxRow } from "./types";
 import { useScripts, useSoftwareTitles } from "./hooks";
-import { IPolicyAutomationUpdate } from "./hooks/useUpdatePolicyAutomations";
 
 const baseClass = "policy-automations-fields";
 
@@ -216,7 +221,7 @@ const PolicyAutomationsFields = forwardRef<
       },
     }));
 
-    const rows: IAutomationRow[] = [
+    const rows: IAutomationCheckboxRow[] = [
       {
         key: "ticket_webhook",
         label: getTicketOrWebhookLabel(ticketOrWebhookState),

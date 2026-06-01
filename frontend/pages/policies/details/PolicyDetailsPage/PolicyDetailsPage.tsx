@@ -40,8 +40,8 @@ import ShowQueryModal from "components/modals/ShowQueryModal";
 import {
   PatchAutomationCta,
   PolicyAutomationsList,
-} from "pages/policies/edit/components/PolicyAutomations";
-import { getTicketOrWebhookInfo } from "pages/policies/components/PolicyAutomationsFields";
+} from "pages/policies/components";
+import { getTicketOrWebhookInfo } from "pages/policies/helpers";
 
 interface IPolicyDetailsPageProps {
   router: InjectedRouter;

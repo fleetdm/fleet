@@ -16,7 +16,7 @@ const OTHER_AUTOMATION_NAMES: Record<OtherAutomationType, string> = {
   ticket: "Ticket",
 };
 
-interface IAutomationRow {
+interface IAutomationDisplayRow {
   name: string;
   type: string;
   graphicName?: GraphicNames;
@@ -40,7 +40,7 @@ const PolicyAutomationsList = ({
   currentAutomatedPolicies,
   otherAutomationType,
 }: IPolicyAutomationsListProps): JSX.Element => {
-  const automationRows: IAutomationRow[] = [];
+  const automationRows: IAutomationDisplayRow[] = [];
 
   if (storedPolicy.install_software) {
     automationRows.push({
