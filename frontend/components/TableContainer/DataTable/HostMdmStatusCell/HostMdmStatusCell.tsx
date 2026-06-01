@@ -13,6 +13,7 @@ import {
   MDM_ENROLLMENT_STATUS_UI_MAP,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
+import { isChrome, isLinuxLike } from "interfaces/platform";
 
 const baseClass = "host-mdm-status-cell";
 
@@ -25,7 +26,7 @@ const HostMdmStatusCell = ({
   row: { original: IHost };
   cell: { value: MdmEnrollmentStatus };
 }): JSX.Element => {
-  if (platform === "chrome") {
+  if (isChrome(platform) || isLinuxLike(platform)) {
     return NotSupported;
   }
 
