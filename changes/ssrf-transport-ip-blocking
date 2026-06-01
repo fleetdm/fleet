@@ -1,0 +1,1 @@
+- Added private network IP blocking to Fleet's HTTP client. Loopback and cloud metadata addresses (127.0.0.0/8, 169.254.0.0/16) are always blocked. RFC 1918 and other private ranges are blocked by default; use `--allow_private_network_integrations` to allow them for environments with on-prem integrations (e.g. EJBCA, Jira, SCEP servers on private networks).

@@ -157,6 +157,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		applyDevFlags(&config)
 	}
 
+	fleethttp.SetBlockPrivateNetworks(!config.Server.AllowPrivateNetworkIntegrations)
+
 	license, err := initLicense(&config, devLicense, devExpiredLicense)
 	if err != nil {
 		initFatal(

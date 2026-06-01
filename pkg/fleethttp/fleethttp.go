@@ -7,14 +7,112 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/oauth2"
 )
+
+// privateNetworkBlocked controls whether outbound HTTP requests block
+// connections to private/reserved IP addresses. Enabled by fleet serve at
+// startup; off by default so tests and CLI tools are unaffected.
+var privateNetworkBlocked atomic.Bool
+
+// SetBlockPrivateNetworks enables or disables blocking of private network
+// connections. Called by fleet serve at startup to enable blocking in
+// production (unless --allow_private_network_integrations is set).
+func SetBlockPrivateNetworks(block bool) {
+	privateNetworkBlocked.Store(block)
+}
+
+// ErrPrivateNetworkBlocked is returned when a connection to a private network
+// address is blocked.
+var ErrPrivateNetworkBlocked = errors.New("connections to private network addresses are blocked")
+
+// alwaysBlockedCIDRs are blocked unconditionally, even when
+// --allow_private_network_integrations is set. No legitimate integration
+// should ever target these addresses.
+var alwaysBlockedCIDRs = parseCIDRs([]string{
+	"127.0.0.0/8",    // loopback
+	"169.254.0.0/16", // link-local (includes cloud IMDS at 169.254.169.254)
+	"::1/128",        // IPv6 loopback
+	"fe80::/10",      // IPv6 link-local
+})
+
+// privateNetworkCIDRs are blocked when private network blocking is enabled.
+// Customers with on-prem integrations (e.g. EJBCA, Jira, SCEP servers on
+// private networks) can disable this with --allow_private_network_integrations.
+var privateNetworkCIDRs = parseCIDRs([]string{
+	"0.0.0.0/8",       // "this" network (RFC 1122)
+	"10.0.0.0/8",      // RFC 1918 private
+	"100.64.0.0/10",   // shared address space (RFC 6598)
+	"172.16.0.0/12",   // RFC 1918 private
+	"192.0.0.0/24",    // IETF protocol assignments
+	"192.168.0.0/16",  // RFC 1918 private
+	"198.18.0.0/15",   // benchmarking (RFC 2544)
+	"198.51.100.0/24", // TEST-NET-2 (documentation)
+	"203.0.113.0/24",  // TEST-NET-3 (documentation)
+	"224.0.0.0/4",     // multicast
+	"240.0.0.0/4",     // reserved
+	"fc00::/7",        // IPv6 unique local
+	"ff00::/8",        // IPv6 multicast
+})
+
+func parseCIDRs(cidrs []string) []*net.IPNet {
+	nets := make([]*net.IPNet, 0, len(cidrs))
+	for _, cidr := range cidrs {
+		_, ipNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			panic("fleethttp: bad CIDR " + cidr)
+		}
+		nets = append(nets, ipNet)
+	}
+	return nets
+}
+
+func ipInCIDRs(ip net.IP, cidrs []*net.IPNet) bool {
+	for _, cidr := range cidrs {
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// privateNetworkBlockingDialContext returns a DialContext function that blocks
+// connections to private/reserved IP addresses. It resolves DNS first, then
+// checks the resolved IP before connecting -- this catches DNS rebinding.
+func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, err
+		}
+
+		ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, ip := range ips {
+			// Always blocked: loopback and link-local (cloud IMDS).
+			if ipInCIDRs(ip.IP, alwaysBlockedCIDRs) {
+				return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
+			}
+			// Blocked when private network blocking is enabled.
+			if privateNetworkBlocked.Load() && ipInCIDRs(ip.IP, privateNetworkCIDRs) {
+				return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
+			}
+		}
+
+		return dialer.DialContext(ctx, network, net.JoinHostPort(host, port))
+	}
+}
 
 type clientOpts struct {
 	timeout   time.Duration
@@ -75,6 +173,8 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	var baseTransport http.RoundTripper
 	if co.tlsConf != nil {
 		baseTransport = NewTransport(WithTLSConfig(co.tlsConf))
+	} else {
+		baseTransport = NewTransport()
 	}
 	cli.Transport = otelhttp.NewTransport(baseTransport)
 	if co.cookieJar != nil {
@@ -113,6 +213,10 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 	if to.tlsConf != nil {
 		tr.TLSClientConfig = to.tlsConf
 	}
+	tr.DialContext = privateNetworkBlockingDialContext(&net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	})
 	return tr
 }
 
