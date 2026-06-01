@@ -251,26 +251,28 @@ const SelfServiceCard = ({
       paddingSize="xlarge"
     >
       <SelfServiceHeader contactUrl={contactUrl} />
-      <SelfServiceFilters
-        query={queryParams.query}
-        categoryId={queryParams.category_id}
-        categories={categories}
-        onSearchQueryChange={onSearchQueryChange}
-        onCategoryChange={onCategoryChange}
-        installAllSlot={installAllButton}
-      />
-      <SelfServiceTable
-        baseClass={baseClass}
-        contactUrl={contactUrl}
-        queryParams={queryParams}
-        enhancedSoftware={filteredSoftware}
-        selfServiceData={selfServiceData}
-        tableConfig={tableConfig}
-        isFetching={isFetching}
-        isEmptySearch={isEmptySearch}
-        onSortChange={onSortChange}
-        onClientSidePaginationChange={onClientSidePaginationChange}
-      />
+      <div className={`${baseClass}__content`}>
+        <SelfServiceFilters
+          query={queryParams.query}
+          categoryId={queryParams.category_id}
+          categories={categories}
+          onSearchQueryChange={onSearchQueryChange}
+          onCategoryChange={onCategoryChange}
+          installAllSlot={installAllButton}
+        />
+        <SelfServiceTable
+          baseClass={baseClass}
+          contactUrl={contactUrl}
+          queryParams={queryParams}
+          enhancedSoftware={filteredSoftware}
+          selfServiceData={selfServiceData}
+          tableConfig={tableConfig}
+          isFetching={isFetching}
+          isEmptySearch={isEmptySearch}
+          onSortChange={onSortChange}
+          onClientSidePaginationChange={onClientSidePaginationChange}
+        />
+      </div>
     </Card>
   );
 };

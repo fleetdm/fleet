@@ -171,7 +171,9 @@ describe("SelfServiceCard", () => {
 
     render(<SelfServiceCard {...props} />);
 
-    const dropdown = screen.getByRole("combobox");
+    // CategoryFilter renders its trigger as a real <Button aria-haspopup="listbox">
+    // so the Button inherits the standard Fleet :focus-visible outline.
+    const dropdown = screen.getByRole("button", { expanded: false });
     await user.click(dropdown);
 
     expect(mockRouter.push).toHaveBeenCalled();

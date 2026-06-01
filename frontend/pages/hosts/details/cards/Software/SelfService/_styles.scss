@@ -15,6 +15,12 @@
     min-height: 300px; // Prevents category dropdown from being cut off from short software list's UI
   }
 
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: $gap-table-elements;
+  }
+
   &__header-filters {
     display: flex;
     flex-direction: row;

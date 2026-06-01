@@ -1,7 +1,6 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Select, {
   components,
-  DropdownIndicatorProps,
   GroupBase,
   MenuListProps,
   SelectInstance,
@@ -13,6 +12,7 @@ import { PADDING } from "styles/var/padding";
 import { FONT_SIZES } from "styles/var/fonts";
 import { ISelfServiceCategory } from "interfaces/self_service_category";
 
+import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
 declare module "react-select-5/dist/declarations/src/Select" {
@@ -23,8 +23,6 @@ declare module "react-select-5/dist/declarations/src/Select" {
   > {
     searchQuery?: string;
     onChangeSearchQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    onClickSearchInput?: React.MouseEventHandler<HTMLInputElement>;
-    onBlurSearchInput?: React.FocusEventHandler<HTMLInputElement>;
   }
 }
 
@@ -46,18 +44,12 @@ export interface ICategoryFilterProps {
 
 const CustomMenuList = (props: MenuListProps<ICategoryOption, false>) => {
   const { selectProps } = props;
-  const {
-    searchQuery,
-    onChangeSearchQuery,
-    onClickSearchInput,
-    onBlurSearchInput,
-  } = selectProps;
+  const { searchQuery, onChangeSearchQuery } = selectProps;
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const handleInputClick = (
     event: React.MouseEvent<HTMLInputElement, MouseEvent>
   ) => {
-    onClickSearchInput && onClickSearchInput(event);
     inputRef.current?.focus();
     event.stopPropagation();
   };
@@ -78,7 +70,6 @@ const CustomMenuList = (props: MenuListProps<ICategoryOption, false>) => {
           }}
           onChange={onChangeSearchQuery}
           onClick={handleInputClick}
-          onBlur={onBlurSearchInput}
         />
         <Icon name="search" />
       </div>
@@ -98,7 +89,26 @@ const CategoryFilter = ({
   const [menuIsOpen, setMenuIsOpen] = useState(false);
 
   const selectRef = useRef<SelectInstance<ICategoryOption, false>>(null);
-  const isSearchInputFocusedRef = useRef(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside the wrapper (mirrors the
+  // ActionsDropdown brand-button pattern in components/ActionsDropdown).
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuIsOpen &&
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
+        setMenuIsOpen(false);
+        setSearchQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuIsOpen]);
 
   const allOptions: ICategoryOption[] = useMemo(
     () => [
@@ -132,123 +142,18 @@ const CategoryFilter = ({
     setSearchQuery(event.target.value);
   };
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      setMenuIsOpen(false);
-      selectRef.current?.blur();
-    } else if (e.key === "Tab" && !e.shiftKey) {
-      setMenuIsOpen(false);
-      selectRef.current?.blur();
-    } else {
-      setMenuIsOpen(true);
-    }
-  };
-
-  const onBlur = () => {
-    if (!isSearchInputFocusedRef.current) {
-      isSearchInputFocusedRef.current = false;
-      setMenuIsOpen(false);
-      setSearchQuery("");
-    }
-  };
-
-  const onClickSearchInput = () => {
-    isSearchInputFocusedRef.current = true;
-  };
-
-  const onBlurSearchInput = () => {
-    isSearchInputFocusedRef.current = false;
-  };
-
   const toggleMenu = () => {
-    if (menuIsOpen) {
-      selectRef.current?.blur();
-    }
-    setMenuIsOpen(!menuIsOpen);
+    setMenuIsOpen((open) => !open);
   };
 
-  const CustomDropdownIndicator = (
-    props: DropdownIndicatorProps<
-      ICategoryOption,
-      false,
-      GroupBase<ICategoryOption>
-    >
-  ) => {
-    const { isFocused, selectProps } = props;
-    const color =
-      isFocused || selectProps.menuIsOpen
-        ? "core-fleet-black"
-        : "ui-fleet-black-75";
-
-    return (
-      <components.DropdownIndicator {...props} className={baseClass}>
-        <Icon
-          name="chevron-down"
-          color={color}
-          className={`${baseClass}__icon`}
-        />
-      </components.DropdownIndicator>
-    );
-  };
+  const selectedLabel =
+    allOptions.find((o) => o.value === selectedValue)?.label ?? "All";
 
   // see https://react-select.com/styles#the-styles-prop
+  // Control + DropdownIndicator are replaced by a real Fleet <Button> above,
+  // and SingleValue is rendered as plain text in that button — so we only
+  // need to style the menu/option subtree here.
   const customStyles: StylesConfig<ICategoryOption, false> = {
-    control: (baseStyles, state) => ({
-      ...baseStyles,
-      padding: "4px 0",
-      backgroundColor: "initial",
-      border: 0,
-      display: "flex",
-      flexDirection: "row",
-      borderRadius: "4px",
-      boxShadow: "none",
-      cursor: "pointer",
-      minHeight: 0,
-      "&:hover": {
-        boxShadow: "none",
-        [`.${baseClass}__single-value`]: {
-          color: COLORS["core-fleet-black"],
-        },
-        [`.${baseClass}__indicator path`]: {
-          stroke: COLORS["ui-fleet-black-75-over"],
-        },
-      },
-      ...(state.isDisabled && {
-        [`.${baseClass}__single-value`]: {
-          color: COLORS["ui-fleet-black-50"],
-        },
-        [`.${baseClass}__indicator path`]: {
-          stroke: COLORS["ui-fleet-black-50"],
-        },
-      }),
-      ...(state.menuIsOpen && {
-        [`.${baseClass}__indicator svg`]: {
-          transform: "rotate(180deg)",
-          transition: "transform 0.25s ease",
-        },
-      }),
-    }),
-    singleValue: (baseStyles) => ({
-      ...baseStyles,
-      color: COLORS["core-fleet-black"],
-      lineHeight: "24px",
-      paddingLeft: 0,
-      paddingRight: "8px",
-      margin: 0,
-      fontWeight: 600,
-      fontSize: "16px",
-      // omit grid-column-end for automatic width — lets dropdown grow with content
-      gridArea: "1/1/2",
-    }),
-    dropdownIndicator: (baseStyles) => ({
-      ...baseStyles,
-      display: "flex",
-      padding: "2px",
-      margin: "0 0 0 4px",
-      svg: {
-        transition: "transform 0.25s ease",
-      },
-    }),
     menu: (baseStyles) => ({
       ...baseStyles,
       backgroundColor: COLORS["core-fleet-white"],
@@ -257,7 +162,10 @@ const CategoryFilter = ({
       zIndex: 6,
       overflow: "hidden",
       border: 0,
-      marginTop: 0,
+      // Clears the trigger Button's :focus-visible outline (1px ring with
+      // 1px offset = 2px beyond the button) so the menu sits flush against
+      // the outline rather than overlapping it.
+      marginTop: PADDING["pad-xsmall"],
       minWidth: "240px",
       maxHeight: "none",
       position: "absolute",
@@ -284,15 +192,6 @@ const CategoryFilter = ({
       width: "100%",
       color: COLORS["ui-fleet-black-75"],
     }),
-    valueContainer: (baseStyles) => ({
-      ...baseStyles,
-      padding: 0,
-    }),
-    input: (baseStyles) => ({
-      ...baseStyles,
-      margin: 0,
-      color: COLORS["core-fleet-black"],
-    }),
     option: (baseStyles, state) => ({
       ...baseStyles,
       padding: "10px 8px",
@@ -311,42 +210,65 @@ const CategoryFilter = ({
   };
 
   return (
-    <div className={`${baseClass}-wrapper`}>
-      <div onClick={toggleMenu}>
-        <Select<ICategoryOption, false>
-          ref={selectRef}
-          options={options}
-          value={allOptions.find((o) => o.value === selectedValue)}
-          onChange={(newValue) => {
-            if (!newValue) return;
-            setSearchQuery("");
-            onChange(
-              newValue.value === ALL_CATEGORIES_VALUE
-                ? undefined
-                : newValue.value
-            );
-            selectRef.current?.blur();
-          }}
-          isDisabled={isDisabled}
-          isSearchable={false}
-          menuIsOpen={menuIsOpen}
-          styles={customStyles}
-          components={{
-            MenuList: CustomMenuList,
-            DropdownIndicator: CustomDropdownIndicator,
-            IndicatorSeparator: () => null,
-          }}
-          className={baseClass}
-          classNamePrefix={baseClass}
-          searchQuery={searchQuery}
-          onChangeSearchQuery={onChangeSearchQuery}
-          onClickSearchInput={onClickSearchInput}
-          onBlurSearchInput={onBlurSearchInput}
-          onKeyDown={onKeyDown}
-          onBlur={onBlur}
-          noOptionsMessage={() => "No categories match this search."}
+    <div className={`${baseClass}-wrapper`} ref={wrapperRef}>
+      {/*
+        A real Fleet <Button> renders the visible trigger so it inherits
+        the Button's :focus-visible outline (Button/_styles.scss
+        button-variant mixin). react-select's own Control is hidden via
+        components.Control: () => null. This mirrors the brand-button
+        path in components/ActionsDropdown/ActionsDropdown.tsx.
+      */}
+      <Button
+        variant="unstyled"
+        type="button"
+        onClick={toggleMenu}
+        disabled={isDisabled}
+        className={`${baseClass}__button`}
+        ariaHasPopup="listbox"
+        ariaExpanded={menuIsOpen}
+      >
+        <span className={`${baseClass}__button-label`}>{selectedLabel}</span>
+        <Icon
+          name="chevron-down"
+          color={menuIsOpen ? "core-fleet-black" : "ui-fleet-black-75"}
+          className={`${baseClass}__icon${
+            menuIsOpen ? ` ${baseClass}__icon--open` : ""
+          }`}
         />
-      </div>
+      </Button>
+      <Select<ICategoryOption, false>
+        ref={selectRef}
+        options={options}
+        value={allOptions.find((o) => o.value === selectedValue)}
+        onChange={(newValue) => {
+          if (!newValue) return;
+          setSearchQuery("");
+          onChange(
+            newValue.value === ALL_CATEGORIES_VALUE ? undefined : newValue.value
+          );
+          setMenuIsOpen(false);
+        }}
+        isDisabled={isDisabled}
+        isSearchable={false}
+        menuIsOpen={menuIsOpen}
+        onMenuOpen={() => setMenuIsOpen(true)}
+        onMenuClose={() => {
+          setMenuIsOpen(false);
+          setSearchQuery("");
+        }}
+        styles={customStyles}
+        components={{
+          MenuList: CustomMenuList,
+          Control: () => null,
+          DropdownIndicator: () => null,
+          IndicatorSeparator: () => null,
+        }}
+        className={baseClass}
+        classNamePrefix={baseClass}
+        searchQuery={searchQuery}
+        onChangeSearchQuery={onChangeSearchQuery}
+        noOptionsMessage={() => "No categories match this search."}
+      />
     </div>
   );
 };

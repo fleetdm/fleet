@@ -1,15 +1,44 @@
 .self-service-category-filter-wrapper {
   flex-shrink: 0;
-
-  // react-select renders its own internal layout; the wrapper is sized by
-  // the singleValue auto-width (gridArea: 1/1/2) so the dropdown grows with
-  // the selected category name.
-  .self-service-category-filter__menu {
-    min-width: 240px;
-  }
+  position: relative;
 }
 
 .self-service-category-filter {
+  &__menu {
+    min-width: 240px;
+  }
+
+  // The visible trigger is a real Fleet <Button variant="unstyled">. Its
+  // :focus-visible outline comes from button-variant() in
+  // components/buttons/Button/_styles.scss, so we just style layout here.
+  &__button {
+    display: inline-flex;
+    align-items: center;
+    gap: $gap-icon-text;
+    padding: 4px 0;
+  }
+
+  &__button-label {
+    color: $core-fleet-black;
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  &__icon {
+    svg {
+      transition: transform 0.25s ease;
+      transform: rotate(0deg);
+    }
+
+    &--open {
+      svg {
+        transition: transform 0.25s ease;
+        transform: rotate(180deg);
+      }
+    }
+  }
+
   &__search-field {
     position: sticky;
     top: 0;
