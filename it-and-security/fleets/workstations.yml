@@ -208,12 +208,12 @@ reports:
 software:
   packages:
     # macOS apps
-    - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
-      self_service: true
-      labels_include_any:
-        - "Keynote 14 installed"
-      categories:
-        - Productivity
+    # - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
+    #   self_service: true
+    #   labels_include_any:
+    #     - "Keynote 14 installed"
+    #   categories:
+    #     - Productivity
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
       categories:
