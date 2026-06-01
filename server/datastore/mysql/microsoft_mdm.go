@@ -199,11 +199,22 @@ SELECT EXISTS (
 // enrollment of the host with the given UUID. Reader-backed; callers that need primary-routed semantics must wrap
 // the context with ctxdb.RequirePrimary.
 func (ds *Datastore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-	state, err := ds.GetMDMWindowsHostConfigState(ctx, hostUUID)
-	if err != nil {
-		return 0, err
+	// Intentionally a standalone lightweight read (not delegating to GetMDMWindowsHostConfigState): callers like
+	// the setup-experience cancel gate only need awaiting_configuration and must not pay for the pending-commands
+	// EXISTS that the combined query runs.
+	const stmt = `SELECT awaiting_configuration
+		FROM mdm_windows_enrollments
+		WHERE host_uuid = ?
+		ORDER BY created_at DESC, id DESC
+		LIMIT 1`
+	var awaiting fleet.WindowsMDMAwaitingConfiguration
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaiting, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hostUUID))
+		}
+		return 0, ctxerr.Wrap(ctx, err, "get MDMWindowsAwaitingConfigurationByHostUUID")
 	}
-	return state.AwaitingConfiguration, nil
+	return awaiting, nil
 }
 
 // GetMDMWindowsHostConfigState returns, in a single query, the Windows MDM per-host state read on each orbit
