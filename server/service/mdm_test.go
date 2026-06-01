@@ -1436,12 +1436,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
-	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
-		return false, nil
-	}
-	ds.InsertWindowsUpdateConfigProfileFunc = func(ctx context.Context, profile *fleet.MDMWindowsConfigProfile) error {
-		return nil
-	}
 
 	cases := []struct {
 		desc          string
@@ -2819,23 +2813,25 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 				return &fleet.GroupedCertificateAuthorities{}, nil
 			}
 			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error { return nil }
+			// Tracking of OS update profiles now happens atomically inside
+			// BatchSetMDMProfiles; the service only forwards the profiles.
+			var gotAppleOSUpdate, gotWindowsOSUpdate bool
 			ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
+				for _, d := range macDeclarations {
+					if bytes.Contains(d.RawJSON, []byte(apple_mdm.DeclarationTypeSoftwareUpdate)) {
+						gotAppleOSUpdate = true
+					}
+				}
+				for _, p := range winProfiles {
+					if bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+						gotWindowsOSUpdate = true
+					}
+				}
 				return fleet.MDMProfilesUpdates{}, nil
 			}
 			ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
 				return fleet.MDMProfilesUpdates{}, nil
 			}
-			// Looked up after the batch set to record the OS updates profile in the tracking table.
-			ds.GetMDMAppleDeclarationByIdentifierFunc = func(ctx context.Context, tid uint, identifier string) (*fleet.MDMAppleDeclaration, error) {
-				assert.Equal(t, teamID, tid)
-				return &fleet.MDMAppleDeclaration{DeclarationUUID: "decl-uuid", Identifier: identifier, TeamID: &tid}, nil
-			}
-			ds.InsertAppleUpdateConfigProfileFunc = func(ctx context.Context, decl *fleet.MDMAppleDeclaration) error { return nil }
-			ds.GetMDMWindowsConfigProfileByNameFunc = func(ctx context.Context, tid uint, name string) (*fleet.MDMWindowsConfigProfile, error) {
-				assert.Equal(t, teamID, tid)
-				return &fleet.MDMWindowsConfigProfile{ProfileUUID: "w-profile-uuid", Name: name, TeamID: &tid}, nil
-			}
-			ds.InsertWindowsUpdateConfigProfileFunc = func(ctx context.Context, profile *fleet.MDMWindowsConfigProfile) error { return nil }
 
 			ctx = test.UserContext(ctx, test.UserAdmin)
 			err := svc.BatchSetMDMProfiles(ctx, new(teamID), nil, c.profiles, c.dryRun, false, new(true), false)
@@ -2845,16 +2841,16 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 				require.ErrorContains(t, err, c.wantErr)
 				// Rejected before persisting anything.
 				assert.False(t, ds.BatchSetMDMProfilesFuncInvoked)
-				assert.False(t, ds.InsertAppleUpdateConfigProfileFuncInvoked)
-				assert.False(t, ds.InsertWindowsUpdateConfigProfileFuncInvoked)
 				return
 			}
 
 			require.NoError(t, err)
 			// The batch set itself only runs outside of dry run.
 			assert.Equal(t, !c.dryRun, ds.BatchSetMDMProfilesFuncInvoked)
-			assert.Equal(t, c.wantApple, ds.InsertAppleUpdateConfigProfileFuncInvoked)
-			assert.Equal(t, c.wantWindows, ds.InsertWindowsUpdateConfigProfileFuncInvoked)
+			if !c.dryRun {
+				assert.Equal(t, c.wantApple, gotAppleOSUpdate)
+				assert.Equal(t, c.wantWindows, gotWindowsOSUpdate)
+			}
 		})
 	}
 }

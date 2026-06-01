@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -3023,6 +3024,14 @@ INSERT INTO
 			}
 		}
 
+		// An OS-update profile is tracked as the team's OS-update profile within
+		// this transaction so it rolls back together on failure.
+		if bytes.Contains(cp.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+			if err := trackWindowsUpdateConfigProfileDB(ctx, tx, teamID, profileUUID); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -3675,35 +3684,26 @@ func (ds *Datastore) HasWindowsUpdateConfigProfileConfigured(ctx context.Context
 	return configured, nil
 }
 
-func (ds *Datastore) InsertWindowsUpdateConfigProfile(ctx context.Context, profile *fleet.MDMWindowsConfigProfile) error {
-	const stmt = `INSERT INTO mdm_configuration_profile_update_settings (windows_profile_uuid) VALUES (?)
+// trackWindowsUpdateConfigProfileDB records profileUUID as the team's OS-update
+// profile within the caller's transaction, failing if the team already has one
+// so the surrounding profile insert rolls back.
+func trackWindowsUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, teamID uint, profileUUID string) error {
+	const checkStmt = `
+	SELECT COUNT(*) > 0 FROM mdm_configuration_profile_update_settings mcpus
+		INNER JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = mcpus.windows_profile_uuid
+	WHERE mwcp.team_id = ? AND mcpus.windows_profile_uuid != ?`
+	var alreadyConfigured bool
+	if err := sqlx.GetContext(ctx, tx, &alreadyConfigured, checkStmt, teamID, profileUUID); err != nil {
+		return ctxerr.Wrap(ctx, mdm.NewSoftwareUpdateProfileError(err), "checking for existing software update profile")
+	}
+	if alreadyConfigured {
+		return mdm.NewWindowsSoftwareUpdateProfileError(false)
+	}
+
+	const insertStmt = `INSERT INTO mdm_configuration_profile_update_settings (windows_profile_uuid) VALUES (?)
 		ON DUPLICATE KEY UPDATE windows_profile_uuid = windows_profile_uuid`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, profile.ProfileUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert windows update config profile")
+	if _, err := tx.ExecContext(ctx, insertStmt, profileUUID); err != nil {
+		return ctxerr.Wrap(ctx, mdm.NewSoftwareUpdateProfileError(err), "inserting software update profile")
 	}
 	return nil
-}
-
-func (ds *Datastore) GetMDMWindowsConfigProfileByName(ctx context.Context, teamID uint, profileName string) (*fleet.MDMWindowsConfigProfile, error) {
-	const stmt = `
-SELECT
-	profile_uuid,
-	name,
-	syncml,
-	team_id
-FROM
-	mdm_windows_configuration_profiles
-WHERE
-	team_id = ? AND name = ?`
-
-	var profile fleet.MDMWindowsConfigProfile
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, teamID, profileName)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get windows mdm config profile by name")
-	}
-	return &profile, nil
 }

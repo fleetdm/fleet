@@ -1394,9 +1394,6 @@ type Datastore interface {
 	// GetMDMAppleDeclaration returns the declaration corresponding to the specified uuid.
 	GetMDMAppleDeclaration(ctx context.Context, declUUID string) (*MDMAppleDeclaration, error)
 
-	// GetMDMAppleDeclarationByIdentifier returns the declaration corresponding to the specified team id and identifier.
-	GetMDMAppleDeclarationByIdentifier(ctx context.Context, teamID uint, identifier string) (*MDMAppleDeclaration, error)
-
 	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
 	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
@@ -2177,9 +2174,6 @@ type Datastore interface {
 	// to the specified profile uuid.
 	GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*MDMWindowsConfigProfile, error)
 
-	// GetMDMWindowsConfigProfileByName returns the Windows MDM profile corresponding to the specified team ID and profile name.
-	GetMDMWindowsConfigProfileByName(ctx context.Context, teamID uint, profileName string) (*MDMWindowsConfigProfile, error)
-
 	// DeleteMDMWindowsConfigProfile deletes the Windows MDM profile corresponding to
 	// the specified profile uuid.
 	DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error
@@ -2406,6 +2400,8 @@ type Datastore interface {
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
 	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
+	// An OS-update (software update) profile is tracked as the team's OS-update
+	// profile within the same transaction, failing if one already exists.
 	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
 
 	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
@@ -2419,6 +2415,8 @@ type Datastore interface {
 		macDeclarations []*MDMAppleDeclaration, androidProfiles []*MDMAndroidConfigProfile, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
 
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
+	// An OS-update (software update) declaration is tracked as the team's OS-update
+	// profile within the same transaction, failing if one already exists.
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
@@ -3340,13 +3338,9 @@ type Datastore interface {
 
 	// HasAppleUpdateConfigProfileConfigured checks if a declaration profile for the team already exists in the update_settings table.
 	HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
-	// InsertAppleUpdateConfigProfile inserts a new declaration profile for the team in the update_settings table.
-	InsertAppleUpdateConfigProfile(ctx context.Context, decl *MDMAppleDeclaration) error
 
 	// HasWindowsUpdateConfigProfileConfigured checks if a profile for the team already exists in the update_settings table.
 	HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
-	// InsertWindowsUpdateConfigProfile inserts a new profile for the team in the update_settings table.
-	InsertWindowsUpdateConfigProfile(ctx context.Context, profile *MDMWindowsConfigProfile) error
 }
 
 type AndroidDatastore interface {

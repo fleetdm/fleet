@@ -5565,7 +5565,14 @@ INSERT INTO mdm_apple_declarations (
 	)
 )`
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars)
+	// An OS-update declaration is tracked as the team's OS-update profile within
+	// the insert transaction so it rolls back together on failure.
+	isSoftwareUpdate := false
+	if rawDecl, err := fleet.GetRawDeclarationValues(declaration.RawJSON); err == nil {
+		isSoftwareUpdate = rawDecl.Type == apple_mdm.DeclarationTypeSoftwareUpdate
+	}
+
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate)
 }
 
 func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
@@ -5592,10 +5599,10 @@ ON DUPLICATE KEY UPDATE
 	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
 	raw_json = VALUES(raw_json)`
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars)
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, false)
 }
 
-func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, isSoftwareUpdate bool) (*fleet.MDMAppleDeclaration, error) {
 	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 
 	var tmID uint
@@ -5664,6 +5671,12 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			{ProfileUUID: declUUID, FleetVariables: usesFleetVars},
 		}, "darwin", true); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting declaration variable associations")
+		}
+
+		if isSoftwareUpdate {
+			if err := trackAppleUpdateConfigProfileDB(ctx, tx, tmID, declUUID); err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -8594,34 +8607,26 @@ func (ds *Datastore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, 
 	return configured, nil
 }
 
-func (ds *Datastore) InsertAppleUpdateConfigProfile(ctx context.Context, decl *fleet.MDMAppleDeclaration) error {
-	const stmt = `INSERT INTO mdm_configuration_profile_update_settings (apple_declaration_uuid) VALUES (?)
+// trackAppleUpdateConfigProfileDB records declUUID as the team's OS-update
+// declaration within the caller's transaction, failing if the team already has
+// one so the surrounding declaration insert rolls back.
+func trackAppleUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, teamID uint, declUUID string) error {
+	const checkStmt = `
+	SELECT COUNT(*) > 0 FROM mdm_configuration_profile_update_settings mcpus
+		INNER JOIN mdm_apple_declarations mad ON mad.declaration_uuid = mcpus.apple_declaration_uuid
+	WHERE mad.team_id = ? AND mcpus.apple_declaration_uuid != ?`
+	var alreadyConfigured bool
+	if err := sqlx.GetContext(ctx, tx, &alreadyConfigured, checkStmt, teamID, declUUID); err != nil {
+		return ctxerr.Wrap(ctx, fleetmdm.NewSoftwareUpdateProfileError(err), "checking for existing software update profile")
+	}
+	if alreadyConfigured {
+		return fleetmdm.NewAppleSoftwareUpdateProfileError(false)
+	}
+
+	const insertStmt = `INSERT INTO mdm_configuration_profile_update_settings (apple_declaration_uuid) VALUES (?)
 		ON DUPLICATE KEY UPDATE apple_declaration_uuid = apple_declaration_uuid`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, decl.DeclarationUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert apple update config profile")
+	if _, err := tx.ExecContext(ctx, insertStmt, declUUID); err != nil {
+		return ctxerr.Wrap(ctx, fleetmdm.NewSoftwareUpdateProfileError(err), "inserting software update profile")
 	}
 	return nil
-}
-
-func (ds *Datastore) GetMDMAppleDeclarationByIdentifier(ctx context.Context, teamID uint, identifier string) (*fleet.MDMAppleDeclaration, error) {
-	const stmt = `SELECT 
-		declaration_uuid,
-		team_id,
-		name,
-		identifier,
-		raw_json,
-		token,
-		created_at,
-		uploaded_at,
-		secrets_updated_at 
-	FROM mdm_apple_declarations WHERE team_id = ? AND identifier = ?`
-	var decl fleet.MDMAppleDeclaration
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &decl, stmt, teamID, identifier); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, ctxerr.Wrap(ctx, err, "getting Apple declaration by identifier")
-	}
-	return &decl, nil
 }

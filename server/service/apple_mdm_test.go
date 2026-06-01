@@ -1074,6 +1074,9 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
 			return s, nil, nil
 		}
+		// The existing-profile check and tracking insert now happen inside this
+		// datastore call's transaction; the unit test only verifies that the
+		// service passes the correct isSoftwareUpdate flag and surfaces errors.
 		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 			d.DeclarationUUID = "decl-uuid"
 			return d, nil
@@ -1082,15 +1085,9 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 		) (updates fleet.MDMProfilesUpdates, err error) {
 			return fleet.MDMProfilesUpdates{}, nil
 		}
-		ds.DeleteMDMAppleDeclarationFunc = func(ctx context.Context, declUUID string) error {
-			return nil
-		}
 		// Team lookup used by the enterprise overrides for teamID > 0 cases.
 		ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 			return &fleet.Team{ID: tid, Name: "team1"}, nil
-		}
-		ds.InsertAppleUpdateConfigProfileFunc = func(ctx context.Context, decl *fleet.MDMAppleDeclaration) error {
-			return nil
 		}
 		return svc, ctx, ds
 	}
@@ -1114,11 +1111,7 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 		d, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(otherDecl), nil, "test-passcode", fleet.LabelsIncludeAll)
 		require.NoError(t, err)
 		assert.NotNil(t, d)
-
-		// No OS-update specific lookups should happen for unrelated types.
 		assert.False(t, ds.TeamMDMConfigFuncInvoked)
-		assert.False(t, ds.HasAppleUpdateConfigProfileConfiguredFuncInvoked)
-		assert.False(t, ds.InsertAppleUpdateConfigProfileFuncInvoked)
 	})
 
 	t.Run("software-update declaration requires premium license", func(t *testing.T) {
@@ -1126,50 +1119,37 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 
 		_, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		// The gate fails before the declaration is inserted.
+		assert.False(t, ds.NewMDMAppleDeclarationFuncInvoked)
 		assert.False(t, ds.TeamMDMConfigFuncInvoked)
-		assert.False(t, ds.HasAppleUpdateConfigProfileConfiguredFuncInvoked)
-		assert.False(t, ds.InsertAppleUpdateConfigProfileFuncInvoked)
 	})
 
 	t.Run("no team - app config has no OS updates configured", func(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
-
 		ds.AppConfigFunc = appConfigWith(nil)
-		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
-			assert.Zero(t, teamID)
-			return false, nil
-		}
 
 		d, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
 		require.NoError(t, err)
 		assert.NotNil(t, d)
 		assert.False(t, ds.TeamMDMConfigFuncInvoked)
-		assert.True(t, ds.HasAppleUpdateConfigProfileConfiguredFuncInvoked)
-		assert.False(t, ds.DeleteMDMAppleDeclarationFuncInvoked)
-		assert.True(t, ds.InsertAppleUpdateConfigProfileFuncInvoked)
+		assert.True(t, ds.NewMDMAppleDeclarationFuncInvoked)
 	})
 
 	t.Run("team - team config has no OS updates configured", func(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
-
 		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
 			assert.EqualValues(t, 5, teamID)
 			return &fleet.TeamMDM{}, nil
-		}
-		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
-			assert.EqualValues(t, 5, teamID)
-			return false, nil
 		}
 
 		d, err := svc.NewMDMAppleDeclaration(ctx, 5, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
 		require.NoError(t, err)
 		assert.NotNil(t, d)
 		assert.True(t, ds.TeamMDMConfigFuncInvoked)
-		assert.True(t, ds.HasAppleUpdateConfigProfileConfiguredFuncInvoked)
-		assert.True(t, ds.InsertAppleUpdateConfigProfileFuncInvoked)
+		assert.True(t, ds.NewMDMAppleDeclarationFuncInvoked)
 	})
 
-	t.Run("no team - app config has OS updates configured rolls back", func(t *testing.T) {
+	t.Run("no team - app config has OS updates configured is rejected", func(t *testing.T) {
 		platforms := map[string]func(*fleet.AppConfig){
 			"macOS":  func(ac *fleet.AppConfig) { ac.MDM.MacOSUpdates = configuredSettings() },
 			"iOS":    func(ac *fleet.AppConfig) { ac.MDM.IOSUpdates = configuredSettings() },
@@ -1178,23 +1158,19 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 		for name, apply := range platforms {
 			t.Run(name, func(t *testing.T) {
 				svc, ctx, ds := setup(t, true)
-
 				ds.AppConfigFunc = appConfigWith(apply)
 
 				_, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
 				require.Error(t, err)
 				require.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
 				require.ErrorContains(t, err, "OS updates are already configured")
-				// Should fail before checking for an existing declaration.
-				assert.False(t, ds.HasAppleUpdateConfigProfileConfiguredFuncInvoked)
-				// The already-saved declaration should be rolled back.
-				assert.True(t, ds.DeleteMDMAppleDeclarationFuncInvoked)
-				assert.False(t, ds.InsertAppleUpdateConfigProfileFuncInvoked)
+				// The gate fails before the declaration is inserted.
+				assert.False(t, ds.NewMDMAppleDeclarationFuncInvoked)
 			})
 		}
 	})
 
-	t.Run("team - team config has OS updates configured rolls back", func(t *testing.T) {
+	t.Run("team - team config has OS updates configured is rejected", func(t *testing.T) {
 		platforms := map[string]func(*fleet.TeamMDM){
 			"macOS":  func(tc *fleet.TeamMDM) { tc.MacOSUpdates = configuredSettings() },
 			"iOS":    func(tc *fleet.TeamMDM) { tc.IOSUpdates = configuredSettings() },
@@ -1203,7 +1179,6 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 		for name, apply := range platforms {
 			t.Run(name, func(t *testing.T) {
 				svc, ctx, ds := setup(t, true)
-
 				ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
 					tc := &fleet.TeamMDM{}
 					apply(tc)
@@ -1214,27 +1189,22 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 				require.Error(t, err)
 				require.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
 				require.ErrorContains(t, err, "OS updates are already configured")
-				assert.False(t, ds.HasAppleUpdateConfigProfileConfiguredFuncInvoked)
-				assert.True(t, ds.DeleteMDMAppleDeclarationFuncInvoked)
-				assert.False(t, ds.InsertAppleUpdateConfigProfileFuncInvoked)
+				assert.False(t, ds.NewMDMAppleDeclarationFuncInvoked)
 			})
 		}
 	})
 
-	t.Run("custom OS updates declaration already exists", func(t *testing.T) {
+	t.Run("datastore reports an existing OS updates declaration", func(t *testing.T) {
 		svc, ctx, ds := setup(t, true)
-
 		ds.AppConfigFunc = appConfigWith(nil)
-		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
-			return true, nil
+		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			return nil, fleetmdm.NewAppleSoftwareUpdateProfileError(false)
 		}
 
 		_, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
 		require.Error(t, err)
 		require.True(t, fleetmdm.IsSoftwareUpdateProfileError(err))
 		require.ErrorContains(t, err, "A custom OS updates declaration profile already exists")
-		assert.True(t, ds.DeleteMDMAppleDeclarationFuncInvoked)
-		assert.False(t, ds.InsertAppleUpdateConfigProfileFuncInvoked)
 	})
 }
 

@@ -959,8 +959,6 @@ type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) 
 
 type GetMDMAppleDeclarationFunc func(ctx context.Context, declUUID string) (*fleet.MDMAppleDeclaration, error)
 
-type GetMDMAppleDeclarationByIdentifierFunc func(ctx context.Context, teamID uint, identifier string) (*fleet.MDMAppleDeclaration, error)
-
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
 
 type DeleteMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) error
@@ -1350,8 +1348,6 @@ type GetMDMWindowsAwaitingConfigurationByHostUUIDFunc func(ctx context.Context, 
 type HasWindowsSetupExperienceItemsForTeamFunc func(ctx context.Context, teamID uint) (bool, error)
 
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
-
-type GetMDMWindowsConfigProfileByNameFunc func(ctx context.Context, teamID uint, profileName string) (*fleet.MDMWindowsConfigProfile, error)
 
 type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
@@ -2047,11 +2043,7 @@ type VerifyAppleConfigProfileScopesDoNotConflictFunc func(ctx context.Context, c
 
 type HasAppleUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
 
-type InsertAppleUpdateConfigProfileFunc func(ctx context.Context, decl *fleet.MDMAppleDeclaration) error
-
 type HasWindowsUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
-
-type InsertWindowsUpdateConfigProfileFunc func(ctx context.Context, profile *fleet.MDMWindowsConfigProfile) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3458,9 +3450,6 @@ type DataStore struct {
 	GetMDMAppleDeclarationFunc        GetMDMAppleDeclarationFunc
 	GetMDMAppleDeclarationFuncInvoked bool
 
-	GetMDMAppleDeclarationByIdentifierFunc        GetMDMAppleDeclarationByIdentifierFunc
-	GetMDMAppleDeclarationByIdentifierFuncInvoked bool
-
 	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
 	ListMDMAppleConfigProfilesFuncInvoked bool
 
@@ -4045,9 +4034,6 @@ type DataStore struct {
 
 	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
 	GetMDMWindowsConfigProfileFuncInvoked bool
-
-	GetMDMWindowsConfigProfileByNameFunc        GetMDMWindowsConfigProfileByNameFunc
-	GetMDMWindowsConfigProfileByNameFuncInvoked bool
 
 	DeleteMDMWindowsConfigProfileFunc        DeleteMDMWindowsConfigProfileFunc
 	DeleteMDMWindowsConfigProfileFuncInvoked bool
@@ -5090,14 +5076,8 @@ type DataStore struct {
 	HasAppleUpdateConfigProfileConfiguredFunc        HasAppleUpdateConfigProfileConfiguredFunc
 	HasAppleUpdateConfigProfileConfiguredFuncInvoked bool
 
-	InsertAppleUpdateConfigProfileFunc        InsertAppleUpdateConfigProfileFunc
-	InsertAppleUpdateConfigProfileFuncInvoked bool
-
 	HasWindowsUpdateConfigProfileConfiguredFunc        HasWindowsUpdateConfigProfileConfiguredFunc
 	HasWindowsUpdateConfigProfileConfiguredFuncInvoked bool
-
-	InsertWindowsUpdateConfigProfileFunc        InsertWindowsUpdateConfigProfileFunc
-	InsertWindowsUpdateConfigProfileFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -8378,13 +8358,6 @@ func (s *DataStore) GetMDMAppleDeclaration(ctx context.Context, declUUID string)
 	return s.GetMDMAppleDeclarationFunc(ctx, declUUID)
 }
 
-func (s *DataStore) GetMDMAppleDeclarationByIdentifier(ctx context.Context, teamID uint, identifier string) (*fleet.MDMAppleDeclaration, error) {
-	s.mu.Lock()
-	s.GetMDMAppleDeclarationByIdentifierFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleDeclarationByIdentifierFunc(ctx, teamID, identifier)
-}
-
 func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.ListMDMAppleConfigProfilesFuncInvoked = true
@@ -9748,13 +9721,6 @@ func (s *DataStore) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID 
 	s.GetMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMWindowsConfigProfileFunc(ctx, profileUUID)
-}
-
-func (s *DataStore) GetMDMWindowsConfigProfileByName(ctx context.Context, teamID uint, profileName string) (*fleet.MDMWindowsConfigProfile, error) {
-	s.mu.Lock()
-	s.GetMDMWindowsConfigProfileByNameFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMWindowsConfigProfileByNameFunc(ctx, teamID, profileName)
 }
 
 func (s *DataStore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
@@ -12186,23 +12152,9 @@ func (s *DataStore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, t
 	return s.HasAppleUpdateConfigProfileConfiguredFunc(ctx, teamID)
 }
 
-func (s *DataStore) InsertAppleUpdateConfigProfile(ctx context.Context, decl *fleet.MDMAppleDeclaration) error {
-	s.mu.Lock()
-	s.InsertAppleUpdateConfigProfileFuncInvoked = true
-	s.mu.Unlock()
-	return s.InsertAppleUpdateConfigProfileFunc(ctx, decl)
-}
-
 func (s *DataStore) HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
 	s.mu.Lock()
 	s.HasWindowsUpdateConfigProfileConfiguredFuncInvoked = true
 	s.mu.Unlock()
 	return s.HasWindowsUpdateConfigProfileConfiguredFunc(ctx, teamID)
-}
-
-func (s *DataStore) InsertWindowsUpdateConfigProfile(ctx context.Context, profile *fleet.MDMWindowsConfigProfile) error {
-	s.mu.Lock()
-	s.InsertWindowsUpdateConfigProfileFuncInvoked = true
-	s.mu.Unlock()
-	return s.InsertWindowsUpdateConfigProfileFunc(ctx, profile)
 }

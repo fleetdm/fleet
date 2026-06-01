@@ -382,6 +382,13 @@ func (e *softwareUpdateProfileError) Error() string {
 	return "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
 }
 
+func (e *softwareUpdateProfileError) Unwrap() error {
+	if e.internalErr != nil {
+		return e.internalErr
+	}
+	return nil
+}
+
 func (e *softwareUpdateProfileError) IsClientError() bool {
 	return e.internalErr == nil
 }

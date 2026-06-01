@@ -941,20 +941,13 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		d.LabelsIncludeAll = validatedLabels
 	}
 
+	if err := svc.handleDeclarationSoftwareUpdate(ctx, rawDecl, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "handling declaration software update")
+	}
+
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
 	if err != nil {
 		return nil, err
-	}
-
-	// After we uploaded, check for Software Update type
-	if err := svc.handleDeclarationSoftwareUpdate(ctx, rawDecl, decl, teamID); err != nil {
-		if mdm_types.IsSoftwareUpdateProfileError(err) {
-			if delErr := svc.ds.DeleteMDMAppleDeclaration(ctx, decl.DeclarationUUID); delErr != nil {
-				return nil, ctxerr.Wrap(ctx, delErr, "deleting declaration after software update validation failure")
-			}
-		}
-
-		return nil, ctxerr.Wrap(ctx, err, "handling declaration software update")
 	}
 
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
@@ -1005,40 +998,30 @@ func validateDeclarationFleetVariables(contents string, lic license.LicenseCheck
 	return fleetVars, nil
 }
 
-// handleDeclarationSoftwareUpdate checks validation requirements, verifies OS updates is not configured
-// and lastly inserts the declaration into the tracking table.
+// handleDeclarationSoftwareUpdate validates the preconditions for an OS-update
+// (software update) declaration: premium license and OS updates not already
+// configured via settings. The "already exists" check and tracking-table insert
+// happen atomically in ds.NewMDMAppleDeclaration.
 func (svc *Service) handleDeclarationSoftwareUpdate(
 	ctx context.Context,
 	rawDecl *fleet.MDMAppleRawDeclaration,
-	decl *fleet.MDMAppleDeclaration,
 	teamID uint,
 ) error {
-	// First we check the raw declaration type, if not software update, no-op.
 	if rawDecl.Type != apple_mdm.DeclarationTypeSoftwareUpdate {
 		return nil
 	}
 
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
-		return fleet.ErrMissingLicense
+		return mdm_types.NewSoftwareUpdateProfileError(fleet.ErrMissingLicense)
 	}
 
-	alreadyConfigured, err := isAppleOSUpdatesConfigured(ctx, teamID, svc)
+	osUpdatesConfigured, err := isAppleOSUpdatesConfigured(ctx, teamID, svc)
 	if err != nil {
 		return err
 	}
-	if alreadyConfigured {
+	if osUpdatesConfigured {
 		return mdm_types.NewAppleSoftwareUpdateProfileError(true)
-	}
-
-	if alreadyConfigured, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, teamID); err != nil {
-		return ctxerr.Wrap(ctx, mdm_types.NewSoftwareUpdateProfileError(err), "checking for existing software update profile")
-	} else if alreadyConfigured {
-		return mdm_types.NewAppleSoftwareUpdateProfileError(false)
-	}
-
-	if err := svc.ds.InsertAppleUpdateConfigProfile(ctx, decl); err != nil {
-		return ctxerr.Wrap(ctx, mdm_types.NewSoftwareUpdateProfileError(err), "inserting software update profile")
 	}
 
 	return nil

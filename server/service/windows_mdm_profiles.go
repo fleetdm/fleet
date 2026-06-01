@@ -107,6 +107,10 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
 	}
 
+	if err := svc.handleWindowsProfileSoftwareUpdate(ctx, cp.SyncML, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "handling windows profile software update")
+	}
+
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp, usesFleetVars)
 	if err != nil {
 		var existsErr endpointer.ExistsErrorInterface
@@ -115,17 +119,6 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 				WithStatus(http.StatusConflict)
 		}
 		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	// After we upload, check for Software Update type
-	if err := svc.handleWindowsProfileSoftwareUpdate(ctx, newCP, teamID); err != nil {
-		if mdm_types.IsSoftwareUpdateProfileError(err) {
-			if delErr := svc.ds.DeleteMDMWindowsConfigProfile(ctx, newCP.ProfileUUID); delErr != nil {
-				return nil, ctxerr.Wrap(ctx, delErr, "deleting windows config profile after software update validation failure")
-			}
-		}
-
-		return nil, ctxerr.Wrap(ctx, err, "handling windows profile software update")
 	}
 
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newCP.ProfileUUID}, nil); err != nil {
@@ -152,40 +145,30 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	return newCP, nil
 }
 
-// handleWindowsProfileSoftwareUpdate checks validation requirements, verifies OS updates is not configured
-// and lastly inserts the profile into the tracking table.
+// handleWindowsProfileSoftwareUpdate validates the preconditions for an OS-update
+// (software update) profile: premium license and OS updates not already configured
+// via settings. The "already exists" check and tracking-table insert happen
+// atomically in ds.NewMDMWindowsConfigProfile.
 func (svc *Service) handleWindowsProfileSoftwareUpdate(
 	ctx context.Context,
-	profile *fleet.MDMWindowsConfigProfile,
+	syncML []byte,
 	teamID uint,
 ) error {
-	// First we check the raw profile contents for the Software Update Loc URI's, if no match, no-op.
-	if !bytes.Contains(profile.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+	if !bytes.Contains(syncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
 		return nil
 	}
 
 	lic, _ := license.FromContext(ctx)
 	if lic == nil || !lic.IsPremium() {
-		return fleet.ErrMissingLicense
+		return mdm_types.NewSoftwareUpdateProfileError(fleet.ErrMissingLicense)
 	}
 
-	// Get the relevant team-config, to check for OS updates being configured
-	isOSUpdatesConfigured, err := isWindowsOSUpdatesConfigured(ctx, teamID, svc)
+	osUpdatesConfigured, err := isWindowsOSUpdatesConfigured(ctx, teamID, svc)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "checking if Windows OS updates are configured")
 	}
-	if isOSUpdatesConfigured {
+	if osUpdatesConfigured {
 		return mdm_types.NewWindowsSoftwareUpdateProfileError(true)
-	}
-
-	if alreadyConfigured, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, teamID); err != nil {
-		return ctxerr.Wrap(ctx, mdm_types.NewSoftwareUpdateProfileError(err), "checking for existing software update profile")
-	} else if alreadyConfigured {
-		return mdm_types.NewWindowsSoftwareUpdateProfileError(false)
-	}
-
-	if err := svc.ds.InsertWindowsUpdateConfigProfile(ctx, profile); err != nil {
-		return ctxerr.Wrap(ctx, mdm_types.NewSoftwareUpdateProfileError(err), "inserting software update profile")
 	}
 
 	return nil
