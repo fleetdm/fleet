@@ -153,7 +153,14 @@
       "slug": "amazon-workspaces/darwin",
       "platform": "darwin",
       "unique_identifier": "com.amazon.workspaces",
-      "description": "Amazon WorkSpaces provides secure, managed virtual desktop infrastructure (VDI) in the cloud."
+      "description": "Amazon WorkSpaces is an app that provides secure, managed virtual desktop infrastructure (VDI) in the cloud."
+    },
+    {
+      "name": "Amazon WorkSpaces",
+      "slug": "amazon-workspaces/windows",
+      "platform": "windows",
+      "unique_identifier": "Amazon WorkSpaces",
+      "description": "Amazon WorkSpaces is an app that provides secure, managed virtual desktop infrastructure (VDI) in the cloud."
     },
     {
       "name": "Android Studio",
@@ -1472,13 +1479,6 @@
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
-      "name": "Messenger",
-      "slug": "messenger/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.facebook.archon.developerID",
-      "description": "Messenger is a native desktop app for Messenger (formerly Facebook Messenger)."
-    },
-    {
       "name": "Microsoft Auto Update",
       "slug": "microsoft-auto-update/darwin",
       "platform": "darwin",
@@ -2638,6 +2638,13 @@
       "slug": "zed/darwin",
       "platform": "darwin",
       "unique_identifier": "dev.zed.Zed",
+      "description": "Zed is a multiplayer code editor."
+    },
+    {
+      "name": "Zed",
+      "slug": "zed/windows",
+      "platform": "windows",
+      "unique_identifier": "Zed",
       "description": "Zed is a multiplayer code editor."
     },
     {
