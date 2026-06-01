@@ -8,10 +8,7 @@ import HostMdmStatusCell from "./HostMdmStatusCell";
 const renderCell = (platform: string, value?: MdmEnrollmentStatus) => {
   const host = createMockHost({ platform } as any);
   return render(
-    <HostMdmStatusCell
-      row={{ original: host }}
-      cell={{ value } as any}
-    />
+    <HostMdmStatusCell row={{ original: host }} cell={{ value } as any} />
   );
 };
 
@@ -60,7 +57,4 @@ describe("HostMdmStatusCell", () => {
     renderCell("windows", "Off");
     expect(screen.getByText("Off")).toBeInTheDocument();
   });
-
-
-
 });
