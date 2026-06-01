@@ -80,6 +80,11 @@ const AutomationsModal = ({
   const availableIntegrations =
     globalConfig?.integrations ?? automationsConfig?.integrations;
 
+  // Calendar events are a team/fleet-only feature: they're never available for
+  // global ("All fleets") or "No team"/"Unassigned" policies.
+  const showCalendarEvents =
+    !isAllTeamsSelected && teamIdForApi !== API_NO_TEAM_ID;
+
   const isCalEventsConfigured =
     (globalConfig?.integrations.google_calendar &&
       globalConfig?.integrations.google_calendar.length > 0) ??
@@ -136,18 +141,14 @@ const AutomationsModal = ({
           updateGlobalConfigCache(updatedConfig);
         }
       } else if (teamIdForApi === API_NO_TEAM_ID) {
-        // "No team": webhook_settings + google_calendar live on the team record,
-        // conditional_access_enabled lives on the global config.
+        // "No team": webhook_settings live on the team record and
+        // conditional_access_enabled on the global config. Calendar events
+        // aren't available for "No team" (the section isn't rendered), so
+        // there's nothing to write there.
         const integrations: ITeamIntegrations = {
           jira: otherData?.integrations.jira ?? [],
           zendesk: otherData?.integrations.zendesk ?? [],
         };
-        if (calendarData) {
-          integrations.google_calendar = {
-            enable_calendar_events: calendarData.enabled,
-            webhook_url: calendarData.url,
-          };
-        }
 
         const teamPayload: Partial<IUpdateTeamFormData> = { integrations };
         if (otherData) {
@@ -155,7 +156,7 @@ const AutomationsModal = ({
         }
 
         const promises: Promise<unknown>[] = [];
-        if (otherData || calendarData) {
+        if (otherData) {
           promises.push(
             teamsAPI
               .update(teamPayload, teamIdForApi)
@@ -240,7 +241,7 @@ const AutomationsModal = ({
             />
           </section>
 
-          {!isAllTeamsSelected && (
+          {showCalendarEvents && (
             <>
               <hr className={`${baseClass}__divider`} />
               <section className={`${baseClass}__section`}>
@@ -274,7 +275,11 @@ const AutomationsModal = ({
                   gitOpsModeEnabled={gitOpsModeEnabled}
                 />
               </section>
+            </>
+          )}
 
+          {!isAllTeamsSelected && (
+            <>
               <hr className={`${baseClass}__divider`} />
               <section className={`${baseClass}__section`}>
                 <h2 className={`${baseClass}__section-title`}>

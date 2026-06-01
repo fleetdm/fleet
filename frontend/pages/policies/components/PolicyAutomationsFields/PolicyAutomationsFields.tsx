@@ -102,10 +102,13 @@ const PolicyAutomationsFields = forwardRef<
     } = getTicketOrWebhookInfo(automationsConfig);
     const isTicketWebhookEnabled = ticketOrWebhookState !== "disabled";
 
-    const isCalendarEnabledForTeam = !isGlobalPolicy
-      ? (automationsConfig as ITeamConfig | undefined)?.integrations
-          ?.google_calendar?.enable_calendar_events ?? false
-      : false;
+    // Calendar events are a team/fleet-only feature: they're never available for
+    // global ("All fleets") or "No team"/"Unassigned" policies.
+    const isCalendarEnabledForTeam =
+      !isGlobalPolicy && teamIdForApi !== API_NO_TEAM_ID
+        ? (automationsConfig as ITeamConfig | undefined)?.integrations
+            ?.google_calendar?.enable_calendar_events ?? false
+        : false;
 
     const getIsConditionalAccessEnabledForTeam = () => {
       if (isGlobalPolicy) return false;
