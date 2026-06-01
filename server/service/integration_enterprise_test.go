@@ -31730,8 +31730,8 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceCategoriesCRUD() {
 	// post without fleet_id returns 422
 	s.Do("POST", path, map[string]any{"name": "no-fleet"}, http.StatusUnprocessableEntity)
 
-	// get without fleet_id returns 400 (required query param)
-	s.Do("GET", path, nil, http.StatusBadRequest)
+	// get without fleet_id returns 422 — same error as POST for consistency
+	s.Do("GET", path, nil, http.StatusUnprocessableEntity)
 
 	// get unknown fleet_id returns 404
 	s.Do("GET", path, nil, http.StatusNotFound, "fleet_id", "9999999")
@@ -31883,4 +31883,61 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCanReadHostPastActivities(
 	require.Equal(t, teamAdmin.Email, *listResp.Activities[0].ActorEmail)
 	require.NotNil(t, listResp.Activities[0].ActorFullName)
 	require.Equal(t, teamAdmin.Name, *listResp.Activities[0].ActorFullName)
+}
+
+func (s *integrationEnterpriseTestSuite) TestAddFleetMaintainedAppCreatesMissingCategories() {
+	t := s.T()
+	ctx := t.Context()
+	const productivity = "💻 Productivity"
+
+	// startFMAServers' default state serves /zoom/windows.json with "Productivity" as the default category.
+	startFMAServers(t, s.ds, nil)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "FMACategoryReseed"})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID)) })
+
+	// Find the zoom/windows FMA id after SyncAppsList.
+	var listResp listFleetMaintainedAppsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/fleet_maintained_apps", nil, http.StatusOK,
+		&listResp, "team_id", fmt.Sprint(team.ID), "per_page", "500")
+	i := slices.IndexFunc(listResp.FleetMaintainedApps, func(a fleet.MaintainedApp) bool {
+		return a.Slug == "zoom/windows"
+	})
+	require.NotEqual(t, -1, i)
+	appID := listResp.FleetMaintainedApps[i].ID
+
+	// Delete the seeded "💻 Productivity" so the FMA install has to re-create it.
+	cats, err := s.ds.ListSoftwareCategories(ctx, team.ID)
+	require.NoError(t, err)
+	j := slices.IndexFunc(cats, func(c fleet.SoftwareCategory) bool { return c.Name == productivity })
+	require.NotEqual(t, -1, j)
+	deletedID := cats[j].ID
+	require.NoError(t, s.ds.DeleteSoftwareCategory(ctx, deletedID))
+
+	// Install the FMA.
+	var addResp addFleetMaintainedAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps",
+		&addFleetMaintainedAppRequest{AppID: appID, TeamID: &team.ID, SelfService: true},
+		http.StatusOK, &addResp)
+
+	// Category is back with a new id.
+	cats, err = s.ds.ListSoftwareCategories(ctx, team.ID)
+	require.NoError(t, err)
+	j = slices.IndexFunc(cats, func(c fleet.SoftwareCategory) bool { return c.Name == productivity })
+	require.NotEqual(t, -1, j)
+	require.NotEqual(t, deletedID, cats[j].ID)
+
+	// Activity emitted, attributed to the admin who triggered the FMA install.
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSelfServiceCategory{}.ActivityName(),
+		fmt.Sprintf(`{"self_service_category_name":%q,"team_id":%d,"team_name":%q,"fleet_id":%d,"fleet_name":%q}`,
+			productivity, team.ID, team.Name, team.ID, team.Name),
+		0)
+
+	// FMA's title is linked to the re-created category.
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.SoftwareTitleID),
+		nil, http.StatusOK, &titleResp, "team_id", fmt.Sprint(team.ID))
+	require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+	require.ElementsMatch(t, []string{productivity}, titleResp.SoftwareTitle.SoftwarePackage.Categories)
 }
