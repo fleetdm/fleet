@@ -36,9 +36,11 @@ const (
 
 	AppleMDMCommandTypeClearPasscode = "ClearPasscode"
 
-	AppleDeclarationOSUpdateAlreadyExistsErrorMessage = "Couldn't add profile. A custom OS updates declaration profile already exists."
-	WindowsProfileOSUpdateAlreadyExistsErrorMessage   = "Couldn't add profile. A custom OS updates profile already exists."
-	OSUpdatesAlreadyConfiguredErrorMessage            = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
+	AppleDeclarationOSUpdateAlreadyExistsErrorMessage            = "Couldn't add profile. A custom OS updates declaration profile already exists."
+	WindowsProfileOSUpdateAlreadyExistsErrorMessage              = "Couldn't add profile. A custom OS updates profile already exists."
+	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
+	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
+	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).

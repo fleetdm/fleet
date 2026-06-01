@@ -261,7 +261,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, fleet.NewInvalidArgumentError("ipados_updates.minimum_version", v)
 		}
 
-		if macOSMinVersionUpdated || iOSMinVersionUpdated || iPadOSMinVersionUpdated {
+		if payload.MDM != nil && (payload.MDM.MacOSUpdates != nil && payload.MDM.MacOSUpdates.Configured()) || (payload.MDM.IOSUpdates != nil && payload.MDM.IOSUpdates.Configured()) || (payload.MDM.IPadOSUpdates != nil && payload.MDM.IPadOSUpdates.Configured()) {
 			// Verify that we don't have a custom OS updates declaration
 			hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, teamID)
 			if err != nil {
@@ -269,7 +269,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 			if hasProfile {
 				return nil, &fleet.BadRequestError{
-					Message: "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first.",
+					Message: fleet.CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage,
 				}
 			}
 		}
@@ -284,7 +284,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 
-		if windowsUpdatesUpdated {
+		if payload.MDM != nil && payload.MDM.WindowsUpdates != nil && payload.MDM.WindowsUpdates.Configured() {
 			// Verify that we don't have a custom OS updates profile
 			hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, teamID)
 			if err != nil {
@@ -292,7 +292,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 			if hasProfile {
 				return nil, &fleet.BadRequestError{
-					Message: "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first.",
+					Message: fleet.CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage,
 				}
 			}
 		}
@@ -1636,7 +1636,7 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
 	}
 
-	if mdmMacOSUpdatesEdited || mdmIOSUpdatesEdited || mdmIPadOSUpdatesEdited {
+	if spec.MDM.MacOSUpdates.Configured() || spec.MDM.IOSUpdates.Configured() || spec.MDM.IPadOSUpdates.Configured() {
 		// Verify that we don't have a custom OS updates declaration
 		hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, team.ID)
 		if err != nil {
@@ -1644,7 +1644,7 @@ func (svc *Service) editTeamFromSpec(
 		}
 		if hasProfile {
 			return &fleet.BadRequestError{
-				Message: "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first.",
+				Message: fleet.CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage,
 			}
 		}
 	}
@@ -1655,7 +1655,7 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
 	}
 
-	if mdmWindowsUpdatesEdited {
+	if spec.MDM.WindowsUpdates.Configured() {
 		// Verify that we don't have a custom OS updates profile
 		hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, team.ID)
 		if err != nil {
@@ -1663,7 +1663,7 @@ func (svc *Service) editTeamFromSpec(
 		}
 		if hasProfile {
 			return &fleet.BadRequestError{
-				Message: "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first.",
+				Message: fleet.CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage,
 			}
 		}
 	}
