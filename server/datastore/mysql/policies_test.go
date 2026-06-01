@@ -8438,32 +8438,11 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), policies[0].FailingHostCount, "policy stats should not have been reset")
 }
 
-// testGetPoliciesForConditionalAccessSQLInjection is a regression test for the
-// responsible-disclosure SQL injection in GetPoliciesForConditionalAccess
-// (fleetdm/confidential#16197, fixed in fleetdm/fleet#46604).
-//
-// The vulnerable implementation built the query with string concatenation:
-//
-//	platforms LIKE '%` + platform + `%'
-//
-// `platform` is the host's reported platform, which originates from
-// osquery-supplied host details and is surfaced to this query (with no
-// allow-list guard) by the Okta conditional-access SAML path in
-// ee/server/service/condaccess/idp.go. A host that reports a crafted platform
-// string can therefore inject arbitrary SQL.
-//
-// This test calls the datastore method directly with malicious platform values.
-// On the fixed (parameter-bound) code every payload is treated as a harmless
-// literal: the query never errors and never matches a policy. On the vulnerable
-// code the filter-bypass payload returns policies it should not, and the
-// unbalanced-quote payload produces a SQL syntax error.
 func testGetPoliciesForConditionalAccessSQLInjection(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// Two "No team" (team_id = 0) policies enrolled in conditional access, one
-	// per supported platform. Neither platform string contains the injection
-	// payloads below, so a correct (literal) lookup for those payloads must
-	// return nothing.
+	// per supported platform.
 	darwinPolicy, err := ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
 		Name:                     "ca-darwin",
 		Query:                    "SELECT 1;",
@@ -8479,27 +8458,18 @@ func testGetPoliciesForConditionalAccessSQLInjection(t *testing.T, ds *Datastore
 	})
 	require.NoError(t, err)
 
-	// Sanity check: a legitimate platform lookup returns only the matching
-	// policy, confirming the fixed query still filters correctly.
 	ids, err := ds.GetPoliciesForConditionalAccess(ctx, 0, "darwin")
 	require.NoError(t, err)
 	require.Equal(t, []uint{darwinPolicy.ID}, ids)
 
-	// Filter-bypass injection. On the vulnerable code this expands to
-	//   platforms LIKE '%nomatch%' OR platforms LIKE '%%' OR platforms = ''
-	// which matches every conditional-access policy regardless of platform. On
-	// the fixed code it is a literal LIKE pattern that matches nothing.
 	filterEscape := `nomatch%' OR platforms LIKE '%`
 	ids, err = ds.GetPoliciesForConditionalAccess(ctx, 0, filterEscape)
 	require.NoError(t, err)
-	require.Empty(t, ids, "injection bypassed the platform filter and leaked policies %v", ids)
+	require.Empty(t, ids)
 	require.NotContains(t, ids, darwinPolicy.ID)
 	require.NotContains(t, ids, windowsPolicy.ID)
 
-	// Unbalanced-quote injection. On the vulnerable code the stray quote breaks
-	// out of the string literal and produces a SQL syntax error; on the fixed
-	// code it is just another literal that matches nothing.
 	ids, err = ds.GetPoliciesForConditionalAccess(ctx, 0, `' OR 1=1 -- `)
-	require.NoError(t, err, "injected payload reached the SQL parser instead of being bound as a value")
+	require.NoError(t, err)
 	require.Empty(t, ids)
 }
