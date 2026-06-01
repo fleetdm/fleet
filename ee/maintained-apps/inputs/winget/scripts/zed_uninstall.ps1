@@ -6,8 +6,10 @@
 # registry entry early in the uninstall, so detection clears even though the
 # uninstaller detaches to %TEMP% to delete its own files.
 
-$softwareNameLike = "Zed*"
-$publisherLike    = "*Zed Industries*"
+# Match the exact product name (with a version-suffix fallback) and the exact
+# publisher so we never uninstall an unrelated SKU that merely starts with "Zed".
+$softwareName = "Zed"
+$publisher    = "Zed Industries"
 
 $paths = @(
   'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -28,14 +30,14 @@ try {
 
 $selected = $null
 foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike -and $key.Publisher -like $publisherLike) {
+    if ($key.DisplayName -and ($key.DisplayName -eq $softwareName -or $key.DisplayName -like "$softwareName*") -and $key.Publisher -eq $publisher) {
         $selected = $key
         break
     }
 }
 
 if (-not $selected -or -not $selected.UninstallString) {
-    Write-Host "Uninstall entry not found for $softwareNameLike"
+    Write-Host "Uninstall entry not found for $softwareName"
     Exit 0
 }
 
