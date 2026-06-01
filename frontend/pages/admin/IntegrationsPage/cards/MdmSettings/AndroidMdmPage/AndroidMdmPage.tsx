@@ -127,7 +127,10 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
           </>
         );
       } else {
-        renderFlash("error", "Couldn't connect. Please try again");
+        renderFlash(
+          "error",
+          `Couldn't connect. ${reason || "Please try again."}`
+        );
       }
     }
     setFetchingSignupUrl(false);

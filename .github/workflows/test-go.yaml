@@ -8,6 +8,7 @@ on:
       - prepare-*
     paths:
       - '**.go'
+      - '**/testdata/**'
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
@@ -22,6 +23,7 @@ on:
   pull_request:
     paths:
       - '**.go'
+      - '**/testdata/**'
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
