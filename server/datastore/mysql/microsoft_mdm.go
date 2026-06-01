@@ -2881,13 +2881,13 @@ func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, aft
 	`, toInstall, toRemove, batchSize)
 
 	// Placeholder order in stmt:
-	//   install branches: 4 cursor (h.uuid > ?), 2 op-type (install, remove)
-	//   remove branches:  4 cursor (h.uuid > ?) for desired-state arms, 1 cursor (hmwp.host_uuid > ?) for outer WHERE
+	//   install branches: 6 cursor (h.uuid > ?), 2 op-type (install, remove)
+	//   remove branches:  6 cursor (h.uuid > ?) for desired-state arms, 1 cursor (hmwp.host_uuid > ?) for outer WHERE
 	var hostUUIDs []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt,
-		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
+		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
 		fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
-		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
+		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
 		afterHostUUID,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing next pending MDM windows host UUIDs")
