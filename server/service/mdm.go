@@ -2217,6 +2217,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	var seenAppleDeclOSUpdate, seenWindowsProfileOSUpdate bool
+	var rawAppleDecl, rawWindowsProfile []byte
 	for _, p := range appleDeclsSlice {
 		if !bytes.Contains(p.RawJSON, []byte(apple_mdm.DeclarationTypeSoftwareUpdate)) {
 			continue
@@ -2227,6 +2228,7 @@ func (svc *Service) BatchSetMDMProfiles(
 			return &fleet.BadRequestError{Message: "Only one Apple declaration profile with OS updates is allowed per team."}
 		}
 		seenAppleDeclOSUpdate = true
+		rawAppleDecl = p.RawJSON
 	}
 
 	for _, p := range windowsProfilesSlice {
@@ -2239,27 +2241,24 @@ func (svc *Service) BatchSetMDMProfiles(
 			return &fleet.BadRequestError{Message: "Only one Windows profile with OS updates is allowed per team."}
 		}
 		seenWindowsProfileOSUpdate = true
+		rawWindowsProfile = p.SyncML
 	}
 
 	if seenAppleDeclOSUpdate {
-		isOSUpdatesConfigured, err := isAppleOSUpdatesConfigured(ctx, teamID, svc)
+		rawDecl, err := fleet.GetRawDeclarationValues(rawAppleDecl)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking if Apple OS updates are configured")
+			return ctxerr.Wrap(ctx, err, "getting raw declaration values")
 		}
-		if isOSUpdatesConfigured {
-			return mdm.NewAppleSoftwareUpdateProfileError(true)
+		if err := svc.handleDeclarationSoftwareUpdate(ctx, rawDecl, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "handling declaration software update")
 		}
 
 		// We don't check already configured here, as batch setting will delete the old one and set a new one.
 	}
 
 	if seenWindowsProfileOSUpdate {
-		isOSUpdatesConfigured, err := isWindowsOSUpdatesConfigured(ctx, teamID, svc)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking if Windows OS updates are configured")
-		}
-		if isOSUpdatesConfigured {
-			return mdm.NewWindowsSoftwareUpdateProfileError(true)
+		if err := svc.handleWindowsProfileSoftwareUpdate(ctx, rawWindowsProfile, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "handling Windows profile software update")
 		}
 
 		// We don't check already configured here, as batch setting will delete the old one and set a new one.
