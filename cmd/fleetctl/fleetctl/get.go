@@ -15,6 +15,7 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/fatih/color"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -266,15 +267,24 @@ func printUserRoles(c *cli.Context, users []fleet.User) error {
 	return printSpec(c, spec)
 }
 
-func printTeams(c *cli.Context, teams []fleet.Team) error {
+func printTeams(c *cli.Context, client *service.Client, teams []fleet.Team) error {
 	for _, team := range teams {
-		var teamItem interface{} = team
+		software, err := getTeamSoftwareSpec(client, team.ID)
+		if err != nil {
+			return err
+		}
+
+		var teamItem any
 		if c.Bool(yamlFlagName) {
 			teamSpec, err := fleet.TeamSpecFromTeam(&team)
 			if err != nil {
 				return err
 			}
+			teamSpec.Software = software
 			teamItem = teamSpec
+		} else {
+			team.Config.Software = software
+			teamItem = team
 		}
 		spec := specGeneric{
 			Kind:    fleet.FleetKind,
@@ -289,6 +299,156 @@ func printTeams(c *cli.Context, teams []fleet.Team) error {
 		}
 	}
 	return nil
+}
+
+// getTeamSoftwareSpec builds the software section of a team spec from the
+// authoritative software endpoints (software titles + setup experience).
+func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSpec, error) {
+	titles, err := client.ListSoftwareTitles(fmt.Sprintf("available_for_install=1&fleet_id=%d", teamID))
+	if err != nil {
+		return nil, fmt.Errorf("could not list software titles for fleet %d: %w", teamID, err)
+	}
+	if len(titles) == 0 {
+		return nil, nil
+	}
+
+	// The setup experience membership is the source of truth in the setup
+	// experience tables, exposed via the setup experience endpoint.
+	setupSoftwareByTitleID := make(map[uint]struct{})
+	setupAppsByName := make(map[string]struct{})
+	setupSoftware, err := client.GetSetupExperienceSoftware("macos,windows,linux,ios,ipados,android", teamID)
+	if err != nil {
+		return nil, fmt.Errorf("could not get setup experience software for fleet %d: %w", teamID, err)
+	}
+	for _, sw := range setupSoftware {
+		if pkg := sw.SoftwarePackage; pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+			setupSoftwareByTitleID[sw.ID] = struct{}{}
+		}
+		if app := sw.AppStoreApp; app != nil && app.InstallDuringSetup != nil && *app.InstallDuringSetup {
+			setupAppsByName[app.FullyQualifiedName()] = struct{}{}
+		}
+	}
+
+	var (
+		packages     []fleet.SoftwarePackageSpec
+		fmas         []fleet.MaintainedAppSpec
+		appStoreApps []fleet.TeamSpecAppStoreApp
+		seenInHouse  = make(map[string]struct{})
+		fmaSlugs     = make(map[uint]string)
+	)
+
+	resolveFMASlug := func(id uint) (string, error) {
+		if slug, ok := fmaSlugs[id]; ok {
+			return slug, nil
+		}
+		app, err := client.GetFleetMaintainedApp(id)
+		if err != nil {
+			return "", fmt.Errorf("could not resolve fleet-maintained app %d: %w", id, err)
+		}
+		fmaSlugs[id] = app.Slug
+		return app.Slug, nil
+	}
+
+	for _, title := range titles {
+		// In-house (.ipa) apps can appear once per platform; only emit them once.
+		if isDuplicateInHouseApp(title, seenInHouse) {
+			continue
+		}
+
+		// Fetch the full title so we get fields not present in the list result,
+		// such as the configured labels.
+		detail, err := client.GetSoftwareTitleByID(title.ID, &teamID)
+		if err != nil {
+			return nil, fmt.Errorf("could not get software title %d for fleet %d: %w", title.ID, teamID, err)
+		}
+
+		switch {
+		case detail.SoftwarePackage != nil:
+			pkg := detail.SoftwarePackage
+			if pkg.FleetMaintainedAppID != nil {
+				slug, err := resolveFMASlug(*pkg.FleetMaintainedAppID)
+				if err != nil {
+					return nil, err
+				}
+				fmas = append(fmas, fleet.MaintainedAppSpec{
+					Slug:               slug,
+					SelfService:        pkg.SelfService,
+					LabelsIncludeAny:   scopeLabelNames(pkg.LabelsIncludeAny),
+					LabelsExcludeAny:   scopeLabelNames(pkg.LabelsExcludeAny),
+					LabelsIncludeAll:   scopeLabelNames(pkg.LabelsIncludeAll),
+					Categories:         pkg.Categories,
+					InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
+				})
+				continue
+			}
+			packages = append(packages, fleet.SoftwarePackageSpec{
+				URL:                pkg.URL,
+				SHA256:             pkg.StorageID,
+				SelfService:        pkg.SelfService,
+				LabelsIncludeAny:   scopeLabelNames(pkg.LabelsIncludeAny),
+				LabelsExcludeAny:   scopeLabelNames(pkg.LabelsExcludeAny),
+				LabelsIncludeAll:   scopeLabelNames(pkg.LabelsIncludeAll),
+				Categories:         pkg.Categories,
+				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
+			})
+		case detail.AppStoreApp != nil:
+			app := detail.AppStoreApp
+			var installDuringSetup optjson.Bool
+			if _, ok := setupAppsByName[app.VPPAppID.String()]; ok {
+				installDuringSetup = optjson.SetBool(true)
+			}
+			appStoreAppSpec := fleet.TeamSpecAppStoreApp{
+				AppStoreID:         app.AdamID,
+				Platform:           string(app.Platform),
+				SelfService:        app.SelfService,
+				LabelsIncludeAny:   scopeLabelNames(app.LabelsIncludeAny),
+				LabelsExcludeAny:   scopeLabelNames(app.LabelsExcludeAny),
+				LabelsIncludeAll:   scopeLabelNames(app.LabelsIncludeAll),
+				Categories:         app.Categories,
+				InstallDuringSetup: installDuringSetup,
+			}
+			appStoreApps = append(appStoreApps, appStoreAppSpec)
+		}
+	}
+
+	if len(packages) == 0 && len(fmas) == 0 && len(appStoreApps) == 0 {
+		return nil, nil
+	}
+
+	spec := &fleet.SoftwareSpec{}
+	if len(packages) > 0 {
+		spec.Packages = optjson.SetSlice(packages)
+	}
+	if len(fmas) > 0 {
+		spec.FleetMaintainedApps = optjson.SetSlice(fmas)
+	}
+	if len(appStoreApps) > 0 {
+		spec.AppStoreApps = optjson.SetSlice(appStoreApps)
+	}
+	return spec, nil
+}
+
+// setupExperienceValue returns an optjson.Bool set to true when the given title
+// is part of the setup experience, and an unset value otherwise (so it is not
+// changed on re-apply).
+func setupExperienceValue(setupByTitleID map[uint]struct{}, titleID uint) optjson.Bool {
+	if _, ok := setupByTitleID[titleID]; ok {
+		return optjson.SetBool(true)
+	}
+	return optjson.Bool{}
+}
+
+// scopeLabelNames extracts the label names from a list of software scope labels.
+// It returns nil when there are no labels, so the field is omitted from output.
+func scopeLabelNames(labels []fleet.SoftwareScopeLabel) []string {
+	if len(labels) == 0 {
+		return nil
+	}
+	names := make([]string, len(labels))
+	for i, l := range labels {
+		names[i] = l.LabelName
+	}
+	return names
 }
 
 func printSpec(c *cli.Context, spec specGeneric) error {
@@ -1257,7 +1417,7 @@ func getFleetsCommand() *cli.Command {
 			}
 
 			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
-				err = printTeams(c, teams)
+				err = printTeams(c, client, teams)
 				if err != nil {
 					return err
 				}
