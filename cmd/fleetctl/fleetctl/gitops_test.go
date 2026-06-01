@@ -5954,6 +5954,9 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 
 	t.Run("with values", func(t *testing.T) {
@@ -6053,6 +6056,34 @@ software:
 		// Verify neither function was called
 		assert.Empty(t, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should not be called")
 		assert.Empty(t, deleteCalls, "DeleteMDMWindowsConfigProfileByTeamAndName should not be called")
+	})
+
+	t.Run("os updates with existing OS updates config profile", func(t *testing.T) {
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return true, nil
+		}
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(`
+controls:
+  windows_updates:
+    deadline_days: 7
+    grace_period_days: 2
+queries:
+policies:
+agent_options:
+name: Team1
+team_settings:
+  secrets:
+    - secret: test
+software:
+`)
+		require.NoError(t, err)
+
+		_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates profile already exists")
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
+		}
 	})
 }
 
@@ -6565,6 +6596,9 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 			fleet.BuiltinLabelIPadOS:      3,
 		}, nil
 	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 
 	// teamYAML generates a team YAML with the given controls section.
 	teamYAML := func(controlsSection string) string {
@@ -6681,6 +6715,24 @@ software:
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
 		})
+
+		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return true, nil
+			}
+			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "17.6.1")
+
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "17.6"))
+			require.NoError(t, err)
+
+			_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates declaration profile already exists")
+
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
+		})
 	})
 
 	t.Run("ios_updates", func(t *testing.T) {
@@ -6725,6 +6777,24 @@ software:
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
 		})
+
+		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return true, nil
+			}
+			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
+
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6"))
+			require.NoError(t, err)
+
+			_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates declaration profile already exists")
+
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
+		})
 	})
 
 	t.Run("ipados_updates", func(t *testing.T) {
@@ -6768,6 +6838,24 @@ software:
 			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
+		})
+
+		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return true, nil
+			}
+			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
+
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6"))
+			require.NoError(t, err)
+
+			_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates declaration profile already exists")
+
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
 		})
 	})
 }
