@@ -4,7 +4,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can lock and wipe macOS, Windows, Linux, iOS and iPadOS hosts remotely when a host might have been lost or stolen, or to remotely prepare a device to be re-deployed to another end user. For macOS, Windows, iOS, and iPadOS, wipe is performed via MDM commands. For Linux, wipe is script-based and best-effort — see [Linux wipe behavior](#linux-wipe-behavior) for important details before proceeding.
+In Fleet, you can lock and wipe macOS, Windows, Linux, iOS and iPadOS hosts remotely when a host might have been lost or stolen, or to remotely prepare a device to be re-deployed to another end user. For macOS, Windows, iOS, and iPadOS, wipe is performed via MDM commands. For Linux, wipe is [script-based](#linux-wipe-behavior).
 
 Restricting wipe for iPhones and iPads to only company-owned iPhones and iPads is coming soon.
 
