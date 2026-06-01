@@ -85,6 +85,7 @@ import (
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -181,8 +182,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Validate OTEL server options
 	config.Logging.Validate(initFatal)
 
-	// Init OTEL providers (traces, metrics, logs)
-	loggerProvider, tracerProvider, meterProvider := initOTELProviders(config, initFatal)
+	// Trace sampler tier registry. Bounded contexts register their own
+	// route → tier classifications below; the platform/tracing package
+	// stays free of cross-context coupling. Infra paths (/healthz,
+	// /version, /metrics) are registered alongside their WrapHandler
+	// calls further down in this function.
+	traceRegistry := tracing.NewRegistry()
+	service.RegisterTracingTiers(traceRegistry)
+	// Future bounded contexts: each exposes its own RegisterTracingTiers.
+
+	// Init OTEL providers (traces, metrics, logs) and the route-aware sampler.
+	loggerProvider, tracerProvider, meterProvider, traceSampler := initOTELProviders(config, traceRegistry, initFatal)
 
 	logger := initLogger(config, loggerProvider)
 
@@ -1032,6 +1042,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	}()
 
+	// Trace sampler runtime control. The poller re-reads trace_sampler_settings
+	// every 60s and atomically swaps the sampler's ratios / force_full so
+	// support can flip a 100% debug window via PATCH /debug/trace_sampler
+	// without restarting any replicas. No-op when OTEL is disabled.
+	if traceSampler != nil {
+		go tracing.StartSettingsPoller(ctx, traceSampler, ds, logger)
+	}
+
 	if softwareInstallStore != nil {
 		if err := cronSchedules.StartCronSchedule(
 			func() (fleet.CronSchedule, error) {
@@ -1469,6 +1487,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	), healthCheckers)
 
 	rootMux := http.NewServeMux()
+	// Infra paths (liveness/version/metrics) are platform-owned and have zero
+	// diagnostic value as traces once their metric counterparts exist. Drop
+	// them unconditionally — even under ForceFull, since a 100% debug window
+	// should not flood SigNoz with probe spans.
+	traceRegistry.Register(http.MethodGet, "/healthz", tracing.TierNever)
+	traceRegistry.Register(http.MethodGet, "/version", tracing.TierNever)
 	rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
 	rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
 	rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
@@ -1571,6 +1595,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
+		traceRegistry.Register(http.MethodGet, "/metrics", tracing.TierNever)
 		rootMux.Handle("/metrics", basicAuthHandler(
 			config.Prometheus.BasicAuth.Username,
 			config.Prometheus.BasicAuth.Password,
@@ -1579,6 +1604,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	} else {
 		if config.Prometheus.BasicAuth.Disable {
 			logger.InfoContext(ctx, "metrics endpoint enabled with http basic auth disabled")
+			traceRegistry.Register(http.MethodGet, "/metrics", tracing.TierNever)
 			rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", otelmw.WrapHandler(promhttp.Handler(), "/metrics", config)))
 		} else {
 			logger.InfoContext(ctx, "metrics endpoint disabled (http basic auth credentials not set)")

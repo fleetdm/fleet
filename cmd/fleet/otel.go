@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
@@ -25,13 +26,20 @@ import (
 // As a side effect, the constructed tracer and meter providers are registered
 // as the OTEL globals via otel.SetTracerProvider and otel.SetMeterProvider —
 // matching the original inline behavior in runServeCmd.
-func initOTELProviders(cfg config.FleetConfig, initFatal func(err error, msg string)) (
+//
+// The traceRegistry is consulted on every sampling decision; populating it
+// (with route → tier mappings) is the caller's responsibility — the
+// canonical pattern is for each bounded context to register its own
+// routes at startup. See server/service/tracing_tiers.go for the legacy
+// non-modularized routes.
+func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, initFatal func(err error, msg string)) (
 	*otelsdklog.LoggerProvider,
 	*sdktrace.TracerProvider,
 	*sdkmetric.MeterProvider,
+	*tracing.RouteTierSampler,
 ) {
 	if !cfg.OTELEnabled() {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	// Create shared resource with service identification attributes.
@@ -50,7 +58,7 @@ func initOTELProviders(cfg config.FleetConfig, initFatal func(err error, msg str
 		initFatal(err, "Failed to create OTEL resource")
 		// Returning here makes the function safe even if a caller's
 		// initFatal does not terminate (e.g., tests using a recorder).
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	// Initialize OTEL traces.
@@ -59,16 +67,28 @@ func initOTELProviders(cfg config.FleetConfig, initFatal func(err error, msg str
 	))
 	if err != nil {
 		initFatal(err, "Failed to initialize OTEL trace exporter")
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	// Configure batch span processor with smaller batch size to avoid exceeding
 	// message size limits (4MB default limit).
 	batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
 		sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
 	)
+	// Route-aware head sampler. The sampler starts with compile-time defaults;
+	// the settings poller (started from runServeCmd) re-reads
+	// trace_sampler_settings every 60s and calls Apply on change. We wrap with
+	// ParentBased so a remote sampled parent (e.g., an upstream span) keeps
+	// the whole trace coherent even on the hot-agent path.
+	sampler := tracing.NewRouteTierSampler(traceRegistry)
+	parentBased := sdktrace.ParentBased(
+		sampler,
+		sdktrace.WithRemoteParentSampled(sdktrace.AlwaysSample()),
+		sdktrace.WithRemoteParentNotSampled(sampler),
+	)
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(batchSpanProcessor),
+		sdktrace.WithSampler(parentBased),
 	)
 	otel.SetTracerProvider(tracerProvider)
 
@@ -78,7 +98,7 @@ func initOTELProviders(cfg config.FleetConfig, initFatal func(err error, msg str
 	)
 	if err != nil {
 		initFatal(err, "Failed to initialize OTEL metrics exporter")
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 
 	// Create views to rename otelsql metrics to match what OpenTelemetry Signoz expects.
@@ -125,7 +145,7 @@ func initOTELProviders(cfg config.FleetConfig, initFatal func(err error, msg str
 		)
 		if err != nil {
 			initFatal(err, "Failed to initialize OTEL log exporter")
-			return nil, nil, nil
+			return nil, nil, nil, nil
 		}
 		loggerProvider = otelsdklog.NewLoggerProvider(
 			otelsdklog.WithResource(res),
@@ -133,5 +153,5 @@ func initOTELProviders(cfg config.FleetConfig, initFatal func(err error, msg str
 		)
 	}
 
-	return loggerProvider, tracerProvider, meterProvider
+	return loggerProvider, tracerProvider, meterProvider, sampler
 }
