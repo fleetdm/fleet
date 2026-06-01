@@ -150,10 +150,17 @@
     },
     {
       "name": "Amazon WorkSpaces",
+      "slug": "amazon-workspaces/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.amazon.workspaces",
+      "description": "Amazon WorkSpaces is an app that provides secure, managed virtual desktop infrastructure (VDI) in the cloud."
+    },
+    {
+      "name": "Amazon WorkSpaces",
       "slug": "amazon-workspaces/windows",
       "platform": "windows",
       "unique_identifier": "Amazon WorkSpaces",
-      "description": "Amazon WorkSpaces provides secure, managed virtual desktop infrastructure (VDI) in the cloud."
+      "description": "Amazon WorkSpaces is an app that provides secure, managed virtual desktop infrastructure (VDI) in the cloud."
     },
     {
       "name": "Android Studio",
