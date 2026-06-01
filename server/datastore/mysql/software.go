@@ -6781,6 +6781,10 @@ func (ds *Datastore) NewSoftwareCategory(ctx context.Context, teamID uint, name 
 }
 
 func (ds *Datastore) BatchNewSoftwareCategories(ctx context.Context, teamID uint, names []string) error {
+	return batchNewSoftwareCategoriesDB(ctx, ds.writer(ctx), teamID, names)
+}
+
+func batchNewSoftwareCategoriesDB(ctx context.Context, q sqlx.ExtContext, teamID uint, names []string) error {
 	if len(names) == 0 {
 		return nil
 	}
@@ -6790,7 +6794,7 @@ func (ds *Datastore) BatchNewSoftwareCategories(ctx context.Context, teamID uint
 	for _, name := range names {
 		args = append(args, name, teamID)
 	}
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+	if _, err := q.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "batch new software categories")
 	}
 	return nil

@@ -58,13 +58,13 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 		team.ID = uint(id) //nolint:gosec // dismiss G115
 		team.CreatedAt = time.Now().UTC().Truncate(time.Second)
 
-		return saveTeamSecretsDB(ctx, tx, team)
+		if err := saveTeamSecretsDB(ctx, tx, team); err != nil {
+			return err
+		}
+		return batchNewSoftwareCategoriesDB(ctx, tx, team.ID, fleet.DefaultSelfServiceCategoryNames)
 	})
 	if err != nil {
 		return nil, err
-	}
-	if err := ds.BatchNewSoftwareCategories(ctx, team.ID, fleet.DefaultSelfServiceCategoryNames); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "seeding default self-service categories")
 	}
 	return team, nil
 }

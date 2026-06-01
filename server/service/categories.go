@@ -12,7 +12,7 @@ import (
 //////////////////////////////////////////////////////////////////////////////
 
 type getSelfServiceCategoriesRequest struct {
-	FleetID uint `query:"fleet_id"`
+	FleetID *uint `query:"fleet_id"`
 }
 
 type getSelfServiceCategoriesResponse struct {
@@ -24,7 +24,10 @@ func (r getSelfServiceCategoriesResponse) Error() error { return r.Err }
 
 func getSelfServiceCategoriesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSelfServiceCategoriesRequest)
-	categories, err := svc.ListSoftwareCategories(ctx, req.FleetID)
+	if req.FleetID == nil {
+		return getSelfServiceCategoriesResponse{Err: &fleet.BadRequestError{Message: "fleet_id is required"}}, nil
+	}
+	categories, err := svc.ListSoftwareCategories(ctx, *req.FleetID)
 	if err != nil {
 		return getSelfServiceCategoriesResponse{Err: err}, nil
 	}
