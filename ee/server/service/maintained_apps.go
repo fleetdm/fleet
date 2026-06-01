@@ -182,6 +182,9 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
+	// Get the mapping of category names to IDs, filtering out categories that don't exist
+	// This allows apps to be added even if some categories (like "Security" or "Utilities")
+	// don't exist in older versions of Fleet.
 	categoryMap, err := svc.ds.GetSoftwareCategoryNameToIDMap(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting software category name to id map")

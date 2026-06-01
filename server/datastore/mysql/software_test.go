@@ -12208,15 +12208,17 @@ func testSoftwareCategoryCRUD(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &existsErr)
 
 	// List filters by team and orders by name.
+	sameNames := func(want string, got fleet.SoftwareCategory) bool { return want == got.Name }
+
 	cats, err := ds.ListSoftwareCategories(ctx, team1.ID)
 	require.NoError(t, err)
-	require.Len(t, cats, 3)
-	require.Equal(t, []string{"Apple", "Banana", "Cherry"}, []string{cats[0].Name, cats[1].Name, cats[2].Name})
+	want1 := append([]string{"Apple", "Banana", "Cherry"}, fleet.DefaultSelfServiceCategoryNames...)
+	require.True(t, std_slices.EqualFunc(want1, cats, sameNames), "want %v, got %v", want1, cats)
 
 	cats2, err := ds.ListSoftwareCategories(ctx, team2.ID)
 	require.NoError(t, err)
-	require.Len(t, cats2, 1)
-	require.Equal(t, "Apple", cats2[0].Name)
+	want2 := append([]string{"Apple"}, fleet.DefaultSelfServiceCategoryNames...)
+	require.True(t, std_slices.EqualFunc(want2, cats2, sameNames), "want %v, got %v", want2, cats2)
 
 	// Get by id, and not-found for unknown id.
 	got, err := ds.SoftwareCategory(ctx, catB.ID)

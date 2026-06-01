@@ -30,8 +30,7 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([
 			return nil, ctxerr.Wrap(ctx, err, "checking if fleet exists")
 		}
 		if !exists {
-			return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
-				WithStatus(http.StatusNotFound)
+			return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).WithStatus(http.StatusNotFound)
 		}
 	}
 	categories, err := svc.ds.ListSoftwareCategories(ctx, *teamID)
@@ -116,8 +115,6 @@ func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name st
 	}
 
 	if category.Name == name {
-		// No-op rename — return the existing row without touching the DB or
-		// emitting an activity.
 		return category, nil
 	}
 
