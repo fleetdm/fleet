@@ -211,30 +211,22 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		}
 
 		// test reporting client errors
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, "", expectedErrorMessage)
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, expectedErrorMessage)
 		require.NoError(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
 		// blank passphrase
 		ds.ReportEscrowErrorFuncInvoked = false
 		expectedErrorMessage = "passphrase, salt, and key_slot must be provided to escrow LUKS data"
-		err = svc.EscrowLUKSData(ctx, "", "bar", ptr.Uint(0), "", "")
+		err = svc.EscrowLUKSData(ctx, "", "bar", ptr.Uint(0), "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
-
-		// invalid encryption_type
-		ds.ReportEscrowErrorFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "bogus", "")
-		require.Error(t, err)
-		require.False(t, ds.ReportEscrowErrorFuncInvoked,
-			"validation error should be returned to caller, not recorded as a client escrow error")
 
 		ds.ReportEscrowErrorFuncInvoked = false
 		passphrase, salt := "foo", ""
 		var keySlot *uint
-		expectedEncryptionType := fleet.DiskEncryptionTypePassphrase
 		ds.SaveLUKSDataFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Passphrase string,
-			encryptedBase64Salt string, keySlotToPersist uint, encryptionType string,
+			encryptedBase64Salt string, keySlotToPersist uint,
 		) (bool, error) {
 			require.Equal(t, host.ID, incomingHost.ID)
 			key := config.TestConfig().Server.PrivateKey
@@ -248,13 +240,12 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			require.Equal(t, salt, decryptedSalt)
 
 			require.Equal(t, *keySlot, keySlotToPersist)
-			require.Equal(t, expectedEncryptionType, encryptionType)
 
 			return true, nil
 		}
 
 		// with no salt
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
@@ -262,26 +253,19 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		// with no key slot
 		ds.ReportEscrowErrorFuncInvoked = false
 		salt = "baz"
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
 
-		// with salt and key slot; empty encryption_type defaults to passphrase
+		// with salt and key slot
 		keySlot = ptr.Uint(0)
 		ds.ReportEscrowErrorFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
 		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
-
-		// explicit tpm2 encryption_type round-trips into SaveLUKSData
-		expectedEncryptionType = fleet.DiskEncryptionTypeTPM2
-		ds.SaveLUKSDataFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, fleet.DiskEncryptionTypeTPM2, "")
-		require.NoError(t, err)
-		require.True(t, ds.SaveLUKSDataFuncInvoked)
 	})
 
 	t.Run("fail when no/invalid private key is set", func(t *testing.T) {
@@ -310,7 +294,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = ""
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "", "")
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
@@ -319,7 +303,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = "invalid"
 		svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err = svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "", "")
+		err = svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 	})

@@ -15,12 +15,11 @@ import (
 )
 
 type encryptionKey struct {
-	Base           string `db:"base64_encrypted"`
-	Salt           string `db:"base64_encrypted_salt"`
-	KeySlot        *uint
-	EncryptionType string `db:"encryption_type"`
-	CreatedAt      time.Time
-	NotFound       bool
+	Base      string `db:"base64_encrypted"`
+	Salt      string `db:"base64_encrypted_salt"`
+	KeySlot   *uint
+	CreatedAt time.Time
+	NotFound  bool
 }
 
 func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(
@@ -80,7 +79,7 @@ WHERE host_id = ?
 }
 
 func (ds *Datastore) getExistingHostDiskEncryptionKey(ctx context.Context, host *fleet.Host) (encryptionKey, error) {
-	getExistingKeyStmt := `SELECT base64_encrypted, base64_encrypted_salt, encryption_type FROM host_disk_encryption_keys WHERE host_id = ?`
+	getExistingKeyStmt := `SELECT base64_encrypted, base64_encrypted_salt FROM host_disk_encryption_keys WHERE host_id = ?`
 	var existingKey encryptionKey
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &existingKey, getExistingKeyStmt, host.ID)
 	switch {
@@ -107,16 +106,12 @@ func (ds *Datastore) archiveHostDiskEncryptionKey(
 	// We archive only valid and different keys to reduce noise.
 	if (incomingKey.Base != "" && existingKey.Base != incomingKey.Base) ||
 		(incomingKey.Salt != "" && existingKey.Salt != incomingKey.Salt) {
-		encryptionType := incomingKey.EncryptionType
-		if encryptionType == "" {
-			encryptionType = fleet.DiskEncryptionTypePassphrase
-		}
 		const insertKeyIntoArchiveStmt = `
-INSERT INTO host_disk_encryption_keys_archive (host_id, hardware_serial, base64_encrypted, base64_encrypted_salt, key_slot, encryption_type, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)`
+INSERT INTO host_disk_encryption_keys_archive (host_id, hardware_serial, base64_encrypted, base64_encrypted_salt, key_slot, created_at)
+VALUES (?, ?, ?, ?, ?, ?)`
 		_, err := ds.writer(ctx).ExecContext(ctx, insertKeyIntoArchiveStmt, host.ID, host.HardwareSerial, incomingKey.Base,
 			incomingKey.Salt,
-			incomingKey.KeySlot, encryptionType, incomingKey.CreatedAt)
+			incomingKey.KeySlot, incomingKey.CreatedAt)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "inserting key into archive")
 		}
@@ -139,15 +134,9 @@ func (ds *Datastore) SaveLUKSData(
 	encryptedBase64Passphrase string,
 	encryptedBase64Salt string,
 	keySlot uint,
-	encryptionType string,
 ) (bool, error) {
 	if encryptedBase64Passphrase == "" || encryptedBase64Salt == "" { // should have been caught at service level
 		return false, errors.New("passphrase and salt must be set")
-	}
-	// The service layer is responsible for validating + defaulting
-	// encryptionType, but guard here too so a buggy caller can't insert ''.
-	if encryptionType == "" {
-		encryptionType = fleet.DiskEncryptionTypePassphrase
 	}
 
 	existingKey, err := ds.getExistingHostDiskEncryptionKey(ctx, host)
@@ -158,8 +147,7 @@ func (ds *Datastore) SaveLUKSData(
 	// We use the same timestamp for base and archive tables so that it can be used as an additional debug tool if needed.
 	incomingKey := encryptionKey{
 		Base: encryptedBase64Passphrase, Salt: encryptedBase64Salt, KeySlot: &keySlot,
-		EncryptionType: encryptionType,
-		CreatedAt:      time.Now().UTC(),
+		CreatedAt: time.Now().UTC(),
 	}
 	archived, err := ds.archiveHostDiskEncryptionKey(ctx, host, incomingKey, existingKey)
 	if err != nil {
@@ -169,9 +157,9 @@ func (ds *Datastore) SaveLUKSData(
 	if existingKey.NotFound {
 		_, err = ds.writer(ctx).ExecContext(ctx, `
 INSERT INTO host_disk_encryption_keys
-  (host_id, base64_encrypted, base64_encrypted_salt, key_slot, encryption_type, decryptable, created_at)
+  (host_id, base64_encrypted, base64_encrypted_salt, key_slot, decryptable, created_at)
 VALUES
-  (?, ?, ?, ?, ?, TRUE, ?)`, host.ID, incomingKey.Base, incomingKey.Salt, incomingKey.KeySlot, incomingKey.EncryptionType, incomingKey.CreatedAt)
+  (?, ?, ?, ?, TRUE, ?)`, host.ID, incomingKey.Base, incomingKey.Salt, incomingKey.KeySlot, incomingKey.CreatedAt)
 		if err == nil {
 			return archived, nil
 		}
@@ -194,10 +182,9 @@ UPDATE host_disk_encryption_keys SET
   base64_encrypted = ?,
   base64_encrypted_salt = ?,
   key_slot = ?,
-  encryption_type = ?,
   client_error = ''
 WHERE host_id = ?
-`, incomingKey.Base, incomingKey.Salt, incomingKey.KeySlot, incomingKey.EncryptionType, host.ID)
+`, incomingKey.Base, incomingKey.Salt, incomingKey.KeySlot, host.ID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "updating LUKS key")
 	}
@@ -292,13 +279,12 @@ func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) 
 	var key fleet.HostDiskEncryptionKey
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, `
 SELECT
-	host_id,
-	base64_encrypted,
+	host_id, 
+	base64_encrypted, 
 	base64_encrypted_salt,
 	key_slot,
-	encryption_type,
-	decryptable,
-	updated_at,
+	decryptable, 
+	updated_at, 
 	client_error
 FROM host_disk_encryption_keys
 WHERE host_id = ?`, hostID)
@@ -319,11 +305,10 @@ func (ds *Datastore) GetHostArchivedDiskEncryptionKey(ctx context.Context, host 
 	// key (or part of a composite index) for finding archived keys.
 	sqlFmt := `
 SELECT
-	host_id,
-	base64_encrypted,
+	host_id, 
+	base64_encrypted, 
 	base64_encrypted_salt,
 	key_slot,
-	encryption_type,
 	created_at
 FROM host_disk_encryption_keys_archive
 %s

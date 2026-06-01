@@ -84,7 +84,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	var response LuksResponse
-	key, keyslot, encType, err := lr.getEscrowKey(ctx, devicePath)
+	key, keyslot, err := lr.getEscrowKey(ctx, devicePath)
 	if err != nil {
 		response.Err = err.Error()
 	}
@@ -96,7 +96,6 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 
 	response.Passphrase = string(key)
 	response.KeySlot = keyslot
-	response.EncryptionType = encType
 
 	if keyslot != nil {
 		salt, err := getSaltforKeySlot(ctx, devicePath, *keyslot)
@@ -140,16 +139,16 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	return nil
 }
 
-func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]byte, *uint, string, error) {
+func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]byte, *uint, error) {
 	// AESXTSPlain64Cipher is the default cipher used by ubuntu/kubuntu/fedora
 	device := luksdevice.New(luksdevice.AESXTSPlain64Cipher)
 
-	// Inspect LUKS2 metadata once up front so we know whether the volume is
-	// passphrase-protected or sealed with a TPM2/FIDO2/recovery token. This
-	// drives the dialog copy below and the encryption_type reported to Fleet.
+	// Inspect LUKS2 metadata once up front so we can branch the dialog copy
+	// for TPM-backed volumes — on those, the user has a recovery key from
+	// install time, not a typed passphrase.
 	dump, err := GetLuksDump(ctx, devicePath)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("inspecting LUKS metadata: %w", err)
+		return nil, nil, fmt.Errorf("inspecting LUKS metadata: %w", err)
 	}
 	encType := DetectEncryptionType(dump)
 	log.Debug().Str("encryption_type", encType).Msg("detected LUKS encryption type")
@@ -159,12 +158,12 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	// Prompt user for existing LUKS passphrase / recovery key
 	passphrase, err := lr.entryPrompt(title, prompt)
 	if err != nil {
-		return nil, nil, encType, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
+		return nil, nil, fmt.Errorf("Failed to show passphrase entry prompt: %w", err)
 	}
 
 	if len(passphrase) == 0 {
 		log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
-		return nil, nil, encType, nil
+		return nil, nil, nil
 	}
 
 	// Validate the passphrase
@@ -172,7 +171,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		log.Debug().Msg("Validating disk passphrase")
 		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase, userKeySlot)
 		if err != nil {
-			return nil, nil, encType, fmt.Errorf("Failed validating passphrase: %w", err)
+			return nil, nil, fmt.Errorf("Failed validating passphrase: %w", err)
 		}
 
 		if valid {
@@ -181,12 +180,12 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 
 		passphrase, err = lr.entryPrompt(title, retry)
 		if err != nil {
-			return nil, nil, encType, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
+			return nil, nil, fmt.Errorf("Failed re-prompting for passphrase: %w", err)
 		}
 
 		if len(passphrase) == 0 {
 			log.Debug().Msg("Passphrase is empty, no password supplied, dialog was canceled, or timed out")
-			return nil, nil, encType, nil
+			return nil, nil, nil
 		}
 
 	}
@@ -194,13 +193,13 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	log.Debug().Msg("Generating random disk encryption passphrase")
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
-		return nil, nil, encType, fmt.Errorf("Failed to generate random passphrase: %w", err)
+		return nil, nil, fmt.Errorf("Failed to generate random passphrase: %w", err)
 	}
 
 	log.Debug().Msg("Getting the next available keyslot")
 	keySlot, err := getNextAvailableKeySlot(ctx, devicePath)
 	if err != nil {
-		return nil, nil, encType, fmt.Errorf("finding available keyslot: %w", err)
+		return nil, nil, fmt.Errorf("finding available keyslot: %w", err)
 	}
 	log.Debug().Msgf("Found available keyslot: %d", keySlot)
 
@@ -208,20 +207,20 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 	escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115
 
 	if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
-		return nil, nil, encType, fmt.Errorf("Failed to add key: %w", err)
+		return nil, nil, fmt.Errorf("Failed to add key: %w", err)
 	}
 
 	log.Debug().Msg("Validating newly inserted key")
 	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, keySlot)
 	if err != nil {
-		return nil, nil, encType, fmt.Errorf("Error while validating escrow passphrase: %w", err)
+		return nil, nil, fmt.Errorf("Error while validating escrow passphrase: %w", err)
 	}
 
 	if !valid {
-		return nil, nil, encType, errors.New("Failed to validate escrow passphrase")
+		return nil, nil, errors.New("Failed to validate escrow passphrase")
 	}
 
-	return escrowPassphrase, &keySlot, encType, nil
+	return escrowPassphrase, &keySlot, nil
 }
 
 // dialogCopyForEncryptionType returns the (title, prompt, retry) strings shown
@@ -230,7 +229,7 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 // default passphrase wording since they all ultimately accept a typed secret
 // against keyslot 0 from the user's perspective.
 func dialogCopyForEncryptionType(encType string) (title, prompt, retry string) {
-	if encType == fleet.DiskEncryptionTypeTPM2 {
+	if encType == EncryptionTypeTPM2 {
 		return entryDialogTitleTPM2, entryDialogTextTPM2, retryEntryDialogTextTPM2
 	}
 	return entryDialogTitle, entryDialogText, retryEntryDialogText

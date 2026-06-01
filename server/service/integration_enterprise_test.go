@@ -4161,8 +4161,7 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 		ClientError:  "Houston, we had a problem",
 	}, http.StatusNoContent)
 
-	// upload LUKS data — emulates a legacy orbit that does not send
-	// encryption_type at all. Server should default it to "passphrase".
+	// upload LUKS data
 	keySlot := new(uint(1))
 	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
 		OrbitNodeKey: *noTeamHost.OrbitNodeKey,
@@ -4175,24 +4174,11 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{}, http.StatusOK, &summary)
 	require.Equal(t, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{Linux: 1}}, *summary.MDMDiskEncryptionSummary)
 
-	// get passphrase back, and confirm the missing encryption_type defaulted
-	// to "passphrase" on the way through the server.
+	// get passphrase back
 	var keyResponse getHostEncryptionKeyResponse
 	s.DoJSON("GET", fmt.Sprintf(`/api/latest/fleet/mdm/hosts/%d/encryption_key`, noTeamHost.ID), getHostEncryptionKeyRequest{}, http.StatusOK, &keyResponse)
 	s.DoJSON("GET", fmt.Sprintf(`/api/latest/fleet/hosts/%d/encryption_key`, noTeamHost.ID), getHostEncryptionKeyRequest{}, http.StatusOK, &keyResponse)
-	require.NotNil(t, keyResponse.EncryptionKey)
-	assert.Equal(t, "whale makes pail rise", keyResponse.EncryptionKey.DecryptedValue)
-	assert.Equal(t, fleet.DiskEncryptionTypePassphrase, keyResponse.EncryptionKey.EncryptionType)
-
-	// reject unknown encryption_type values (validation guard against
-	// arbitrary client-supplied strings being persisted).
-	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{
-		OrbitNodeKey:   *noTeamHost.OrbitNodeKey,
-		Passphrase:     "whale makes pail rise",
-		Salt:           "the team i like lost",
-		KeySlot:        keySlot,
-		EncryptionType: "bogus",
-	}, http.StatusUnprocessableEntity)
+	require.Equal(t, "whale makes pail rise", keyResponse.EncryptionKey.DecryptedValue)
 
 	// TEAM //
 	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", getMDMProfilesSummaryRequest{TeamID: teamID}, http.StatusOK, &profileSummary)
@@ -4216,27 +4202,22 @@ func (s *integrationEnterpriseTestSuite) TestLinuxDiskEncryption() {
 	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{TeamID: teamID}, http.StatusOK, &summary)
 	require.Equal(t, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{Linux: 1}}, *summary.MDMDiskEncryptionSummary)
 
-	// upload LUKS data (no error, and no trigger, first this time). This
-	// host advertises a TPM2-backed volume — encryption_type should
-	// round-trip through to the persisted row.
+	// upload LUKS data (no error, and no trigger, first this time)
 	keySlot = new(uint(3))
 	s.Do("POST", "/api/fleet/orbit/luks_data", fleet.OrbitPostLUKSRequest{ // #nosec G101 - test data
-		OrbitNodeKey:   *teamHost.OrbitNodeKey,
-		Passphrase:     "the mome raths outgrabe",
-		Salt:           "jabberwocky, but salty",
-		KeySlot:        keySlot,
-		EncryptionType: fleet.DiskEncryptionTypeTPM2,
+		OrbitNodeKey: *teamHost.OrbitNodeKey,
+		Passphrase:   "the mome raths outgrabe",
+		Salt:         "jabberwocky, but salty",
+		KeySlot:      keySlot,
 	}, http.StatusNoContent)
 
 	// confirm verified
 	s.DoJSON("GET", "/api/latest/fleet/disk_encryption", getMDMDiskEncryptionSummaryRequest{TeamID: teamID}, http.StatusOK, &summary)
 	require.Equal(t, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{Linux: 1}}, *summary.MDMDiskEncryptionSummary)
 
-	// get passphrase back, and confirm encryption_type was persisted.
+	// get passphrase back
 	s.DoJSON("GET", fmt.Sprintf(`/api/latest/fleet/hosts/%d/encryption_key`, teamHost.ID), getHostEncryptionKeyRequest{}, http.StatusOK, &keyResponse)
-	require.NotNil(t, keyResponse.EncryptionKey)
-	assert.Equal(t, "the mome raths outgrabe", keyResponse.EncryptionKey.DecryptedValue)
-	assert.Equal(t, fleet.DiskEncryptionTypeTPM2, keyResponse.EncryptionKey.EncryptionType)
+	require.Equal(t, "the mome raths outgrabe", keyResponse.EncryptionKey.DecryptedValue)
 }
 
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {

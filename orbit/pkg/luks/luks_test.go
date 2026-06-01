@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -278,38 +277,38 @@ func TestDetectEncryptionType(t *testing.T) {
 		{
 			name: "nil dump",
 			dump: nil,
-			want: fleet.DiskEncryptionTypePassphrase,
+			want: EncryptionTypePassphrase,
 		},
 		{
 			name: "no tokens map (nil)",
 			dump: &LuksDump{},
-			want: fleet.DiskEncryptionTypePassphrase,
+			want: EncryptionTypePassphrase,
 		},
 		{
 			name: "empty tokens map",
 			dump: &LuksDump{Tokens: map[string]Token{}},
-			want: fleet.DiskEncryptionTypePassphrase,
+			want: EncryptionTypePassphrase,
 		},
 		{
 			name: "only tpm2",
 			dump: &LuksDump{Tokens: map[string]Token{
 				"0": {Type: tokenTypeSystemdTPM2},
 			}},
-			want: fleet.DiskEncryptionTypeTPM2,
+			want: EncryptionTypeTPM2,
 		},
 		{
 			name: "only fido2",
 			dump: &LuksDump{Tokens: map[string]Token{
 				"0": {Type: tokenTypeSystemdFIDO2},
 			}},
-			want: fleet.DiskEncryptionTypeFIDO2,
+			want: EncryptionTypeFIDO2,
 		},
 		{
 			name: "only recovery",
 			dump: &LuksDump{Tokens: map[string]Token{
 				"0": {Type: tokenTypeSystemdRecovery},
 			}},
-			want: fleet.DiskEncryptionTypeRecovery,
+			want: EncryptionTypeRecovery,
 		},
 		{
 			name: "tpm2 + recovery -> tpm2",
@@ -317,7 +316,7 @@ func TestDetectEncryptionType(t *testing.T) {
 				"0": {Type: tokenTypeSystemdTPM2},
 				"1": {Type: tokenTypeSystemdRecovery},
 			}},
-			want: fleet.DiskEncryptionTypeTPM2,
+			want: EncryptionTypeTPM2,
 		},
 		{
 			name: "fido2 + recovery -> fido2",
@@ -325,7 +324,7 @@ func TestDetectEncryptionType(t *testing.T) {
 				"0": {Type: tokenTypeSystemdFIDO2},
 				"1": {Type: tokenTypeSystemdRecovery},
 			}},
-			want: fleet.DiskEncryptionTypeFIDO2,
+			want: EncryptionTypeFIDO2,
 		},
 		{
 			name: "tpm2 + fido2 + recovery -> tpm2",
@@ -334,14 +333,14 @@ func TestDetectEncryptionType(t *testing.T) {
 				"1": {Type: tokenTypeSystemdFIDO2},
 				"2": {Type: tokenTypeSystemdTPM2},
 			}},
-			want: fleet.DiskEncryptionTypeTPM2,
+			want: EncryptionTypeTPM2,
 		},
 		{
 			name: "unknown token type -> passphrase",
 			dump: &LuksDump{Tokens: map[string]Token{
 				"0": {Type: "some-future-thing"},
 			}},
-			want: fleet.DiskEncryptionTypePassphrase,
+			want: EncryptionTypePassphrase,
 		},
 	}
 

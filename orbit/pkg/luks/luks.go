@@ -5,7 +5,6 @@ import (
 	"regexp"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type LuksDump struct {
@@ -27,6 +26,17 @@ type Token struct {
 	Type string `json:"type"`
 }
 
+// EncryptionType values returned by DetectEncryptionType. These are local to
+// orbit — the server does not currently persist or care about which one the
+// host is on; the value is only used to branch dialog copy when prompting the
+// end user during escrow.
+const (
+	EncryptionTypePassphrase = "passphrase"
+	EncryptionTypeTPM2       = "tpm2"
+	EncryptionTypeFIDO2      = "fido2"
+	EncryptionTypeRecovery   = "recovery"
+)
+
 // LUKS2 token type identifiers emitted by systemd-cryptenroll.
 const (
 	tokenTypeSystemdTPM2     = "systemd-tpm2"
@@ -38,17 +48,17 @@ const (
 // best-matching encryption type for the volume. Priority order when multiple
 // tokens are present is tpm2 > fido2 > recovery > passphrase. A nil dump, an
 // empty tokens map, or unrecognized token types all map to
-// DiskEncryptionTypePassphrase.
+// EncryptionTypePassphrase.
 func DetectEncryptionType(dump *LuksDump) string {
 	if dump == nil {
-		return fleet.DiskEncryptionTypePassphrase
+		return EncryptionTypePassphrase
 	}
 
 	var hasFIDO2, hasRecovery bool
 	for _, tok := range dump.Tokens {
 		switch tok.Type {
 		case tokenTypeSystemdTPM2:
-			return fleet.DiskEncryptionTypeTPM2
+			return EncryptionTypeTPM2
 		case tokenTypeSystemdFIDO2:
 			hasFIDO2 = true
 		case tokenTypeSystemdRecovery:
@@ -58,11 +68,11 @@ func DetectEncryptionType(dump *LuksDump) string {
 
 	switch {
 	case hasFIDO2:
-		return fleet.DiskEncryptionTypeFIDO2
+		return EncryptionTypeFIDO2
 	case hasRecovery:
-		return fleet.DiskEncryptionTypeRecovery
+		return EncryptionTypeRecovery
 	}
-	return fleet.DiskEncryptionTypePassphrase
+	return EncryptionTypePassphrase
 }
 
 type KeyEscrower interface {
@@ -85,11 +95,6 @@ type LuksResponse struct {
 
 	// Salt is the salt used to generate the LUKS key.
 	Salt string
-
-	// EncryptionType describes how the underlying LUKS2 volume key is protected
-	// (passphrase, tpm2, fido2, recovery). Derived from the LUKS2 tokens
-	// metadata before escrow.
-	EncryptionType string
 
 	// Err is the error message that occurred during the escrow process.
 	Err string

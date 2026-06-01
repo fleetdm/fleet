@@ -764,11 +764,10 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 	verb, path := "POST", "/api/fleet/orbit/luks_data"
 	var resp fleet.OrbitPostLUKSResponse
 	if err := oc.authenticatedRequest(verb, path, &fleet.OrbitPostLUKSRequest{
-		Passphrase:     lr.Passphrase,
-		KeySlot:        lr.KeySlot,
-		Salt:           lr.Salt,
-		EncryptionType: lr.EncryptionType,
-		ClientError:    lr.Err,
+		Passphrase:  lr.Passphrase,
+		KeySlot:     lr.KeySlot,
+		Salt:        lr.Salt,
+		ClientError: lr.Err,
 	}, &resp); err != nil {
 		return err
 	}

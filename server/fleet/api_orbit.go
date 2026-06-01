@@ -229,11 +229,7 @@ type OrbitPostLUKSRequest struct {
 	Passphrase   string `json:"passphrase"`
 	Salt         string `json:"salt"`
 	KeySlot      *uint  `json:"key_slot"`
-	// EncryptionType identifies how the LUKS2 volume key is protected as
-	// detected by orbit (passphrase, tpm2, fido2, recovery). Empty from
-	// older orbit versions and treated as "passphrase" server-side.
-	EncryptionType string `json:"encryption_type"`
-	ClientError    string `json:"client_error"`
+	ClientError  string `json:"client_error"`
 }
 
 func (r *OrbitPostLUKSRequest) SetOrbitNodeKey(nodeKey string) {
