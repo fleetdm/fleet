@@ -79,8 +79,8 @@ The following steps describe what the script attempts to do. Successful completi
 1. All non-root users are logged out and their passwords are locked.
 2. Network filesystems (NFS, CIFS/SMB, SSHFS, etc.) are detected via `/proc/mounts` and unmounted before any deletion begins, to avoid accidentally erasing data on remote storage. If `/proc/mounts` is not found, the script aborts entirely rather than risk unsafe deletion. However, **the script cannot guarantee it detects every network-backed path** — symlinks that resolve outside a detected mount point or unusual mount configurations may be missed. Before wiping, ensure all network drives are disconnected from the host and verify that no critical remote data is accessible from it.
 3. btrfs snapshots are attempted to be deleted — using `snapper` if available, with a fallback to `btrfs subvolume delete`. This step runs before file deletion because read-only snapshots resist `rm -rf`. Snapshot deletion may not be complete if `snapper` is not installed and the fallback cannot access all subvolumes.
-4. Non-essential user data is attempted to be deleted: `/home/*`, `/tmp`, `/var/tmp`, `/var/log`, user caches, trash directories, and `/.snapshots`.
-5. System directories are attempted to be deleted: `/bin`, `/sbin`, `/usr`, `/lib`, `/opt`, `/etc`, `/var`, and `/srv`.
+4. Deletion of non-essential user data is attempted: `/home/*`, `/tmp`, `/var/tmp`, `/var/log`, user caches, trash directories, and `/.snapshots`.
+5. Deletion of system directories is attempted: `/bin`, `/sbin`, `/usr`, `/lib`, `/opt`, `/etc`, `/var`, and `/srv`.
 6. The host is halted via the kernel's sysrq interface.
 
 The script will not cross filesystem boundaries — it uses `--one-file-system` (or `find -xdev` as a fallback) to avoid recursing into mounted filesystems. This is a safety measure, but it also means data on separately mounted filesystems at non-standard paths will not be erased.
