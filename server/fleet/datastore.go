@@ -473,6 +473,12 @@ type Datastore interface {
 	// ingestion don't clobber each other's view.
 	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin) error
 
+	// SoftDeleteMDMHostCertificatesForUnenrolledHosts soft-deletes MDM-origin
+	// cert rows for hosts reporting host_mdm.enrolled=0 — the cron complement to
+	// the MDMTurnOff hook for hosts unenrolled without a CheckOut. Returns the
+	// count soft-deleted.
+	SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error)
+
 	// ProfileHasACMEPayloadForCommand returns the host/profile gating data
 	// needed to decide whether an InstallProfile ack should trigger a
 	// CertificateList refetch: host platform, profile UUID, whether the
@@ -2289,6 +2295,98 @@ type Datastore interface {
 	// the Windows MDM reconciliation cron. See GetMDMWindowsReconcileCursor.
 	SetMDMWindowsReconcileCursor(ctx context.Context, cursor string) error
 
+	// GetAppleMDMHostForReconcile returns reconcile info for a single Apple
+	// MDM-enrolled host UUID, or (nil, nil) if the host is not enrolled or
+	// not an Apple platform. Used by ReconcileAppleProfilesForEnrollingHost (the
+	// per-host enrollment path that reuses the same in-memory logic as the
+	// batched cron).
+	GetAppleMDMHostForReconcile(ctx context.Context, hostUUID string) (*AppleHostReconcileInfo, error)
+
+	// ListAppleProfilesForReconcileByTeam is the per-host variant: it
+	// returns only profiles whose team_id equals the given teamID.
+	// team_id=0 is its own team (the "no team" scope), so this
+	// intentionally does NOT also include global profiles for a teamed
+	// host — equality is the correct match. Used by
+	// ReconcileProfilesForEnrollingHost so the worker doesn't scan every
+	// profile on every enrollment.
+	ListAppleProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*AppleProfileForReconcile, error)
+
+	// BulkGetHostLabelMemberships returns the subset of (hostID, labelID)
+	// pairs from label_membership that are present, restricted to the
+	// provided host IDs and label IDs. The outer map is keyed by host ID and
+	// the inner set holds the label IDs the host is a member of.
+	BulkGetHostLabelMemberships(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[uint]map[uint]struct{}, error)
+
+	// BulkGetHostMDMAppleProfilesByUUIDs returns the current host_mdm_apple_profiles
+	// rows for the given host UUIDs, grouped by host UUID. Used by the
+	// batched reconciler to compute install/remove deltas against the
+	// in-memory desired state.
+	BulkGetHostMDMAppleProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMAppleProfilePayload, error)
+
+	// GetAppleProfileReconcileSnapshot returns a consistent snapshot of the
+	// state needed by the batched Apple profile reconciler: the bounded host
+	// window (afterHostUUID, batchSize), every Apple profile with its label
+	// assignments, host↔label memberships for labels referenced by those
+	// profiles, and current host_mdm_apple_profiles rows for the host window.
+	// All reads run inside a single read-only MySQL transaction so they
+	// observe one snapshot. If the host window is empty the remaining slices
+	// and maps are nil.
+	GetAppleProfileReconcileSnapshot(
+		ctx context.Context,
+		afterHostUUID string,
+		batchSize int,
+	) (
+		hosts []*AppleHostReconcileInfo,
+		allProfiles []*AppleProfileForReconcile,
+		hostLabels map[uint]map[uint]struct{},
+		currentByHost map[string][]*MDMAppleProfilePayload,
+		err error,
+	)
+
+	// GetMDMAppleReconcileCursor returns the persisted host_uuid cursor
+	// used by the batched Apple MDM reconciliation cron to bound per-tick
+	// work. Returns "" if no cursor is set or if the implementation does
+	// not support cursor persistence (the bare mysql.Datastore returns ""
+	// here; the mysqlredis wrapper backs it with Redis).
+	GetMDMAppleReconcileCursor(ctx context.Context) (string, error)
+
+	// SetMDMAppleReconcileCursor persists the host_uuid cursor used by the
+	// batched Apple MDM reconciliation cron.
+	SetMDMAppleReconcileCursor(ctx context.Context, cursor string) error
+
+	// GetAppleDeclarationReconcileSnapshot is the DDM counterpart of
+	// GetAppleProfileReconcileSnapshot. It returns a consistent snapshot
+	// of the bounded host window, every Apple declaration with its label
+	// assignments, host↔label memberships for labels referenced by those
+	// declarations, and current host_mdm_apple_declarations rows for the
+	// host window. All reads run inside a single read-only MySQL
+	// transaction. If the host window is empty the remaining slices and
+	// maps are nil.
+	GetAppleDeclarationReconcileSnapshot(
+		ctx context.Context,
+		afterHostUUID string,
+		batchSize int,
+	) (
+		hosts []*AppleHostReconcileInfo,
+		allDecls []*AppleDeclarationForReconcile,
+		hostLabels map[uint]map[uint]struct{},
+		currentByHost map[string][]*MDMAppleHostDeclaration,
+		err error,
+	)
+
+	// BulkUpsertMDMAppleHostDeclarations writes the given host declaration
+	// rows directly (per-row Status / OperationType / Token honored),
+	// used by ReconcileAppleDeclarationsBatched.
+	BulkUpsertMDMAppleHostDeclarations(ctx context.Context, rows []*MDMAppleHostDeclaration) error
+
+	// GetMDMAppleDeclarationReconcileCursor / SetMDMAppleDeclarationReconcileCursor
+	// persist the host_uuid cursor used by the batched DDM reconciliation
+	// cron. The bare mysql.Datastore returns "" / no-op; the mysqlredis
+	// wrapper backs them with Redis under a distinct key so the profile
+	// and declaration passes advance independently.
+	GetMDMAppleDeclarationReconcileCursor(ctx context.Context) (string, error)
+	SetMDMAppleDeclarationReconcileCursor(ctx context.Context, cursor string) error
+
 	// BulkUpsertMDMWindowsHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*MDMWindowsBulkUpsertHostProfilePayload) error
@@ -2673,6 +2771,20 @@ type Datastore interface {
 	// InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool, policyID *uint) error
 	InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, associatedEventID string, opts HostSoftwareInstallOptions) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
+	// RecordFailedVPPAppInstall records a VPP app install that Fleet failed
+	// before sending it to the device (e.g. the managed app configuration
+	// referenced a Fleet variable that can't be resolved for this host). It
+	// writes a failed host_vpp_software_installs row without enqueuing an MDM
+	// command or reserving a license, and returns the user + failed-install
+	// activity to emit.
+	RecordFailedVPPAppInstall(ctx context.Context, hostID uint, appID VPPAppID, commandUUID, failureReason string, opts HostSoftwareInstallOptions) (*User, *ActivityInstalledAppStoreApp, error)
+	// RecordFailedInHouseAppInstall is the in-house (.ipa) counterpart of
+	// RecordFailedVPPAppInstall.
+	RecordFailedInHouseAppInstall(ctx context.Context, hostID, inHouseAppID uint, commandUUID, failureReason string, opts HostSoftwareInstallOptions) (*User, *ActivityTypeInstalledSoftware, error)
+	// GetVPPInstallReleaseInfoForCancel looks up the canceled VPP install row
+	// to decide whether (and how) to release a reserved VPP license seat.
+	// Returns NotFound if no matching row exists.
+	GetVPPInstallReleaseInfoForCancel(ctx context.Context, hostID uint, executionID string) (*VPPInstallReleaseInfo, error)
 	// GetVPPAppInstallStatusByCommandUUID returns whether the VPP app from the given install command
 	// is currently installed. Returns false if the command doesn't exist or app is not installed.
 	GetVPPAppInstallStatusByCommandUUID(ctx context.Context, commandUUID string) (bool, error)
@@ -3286,12 +3398,21 @@ type AndroidDatastore interface {
 	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
 
 	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the wipe_ref on host_mdm_actions in a
-	// single transaction. This method is for COBO Wipe specifically (the host page surfaces it as PendingAction=wipe ->
-	// DeviceStatus=wiped); the service layer must reject BYO hosts before calling. BYO unenroll also issues an AMAPI WIPE
-	// (work-profile-only) but persists via NewMDMAndroidCommand without touching host_mdm_actions, because BYO unenroll
-	// surfaces as the mdm_unenrolled activity, not as a wipe. The caller must populate cmd.CommandUUID and cmd.OperationName
-	// before invoking.
+	// single transaction. Used by COBO Wipe (which surfaces as PendingAction=wipe -> DeviceStatus=wiped) and by BYO Unenroll
+	// (which sends an AMAPI WIPE work-profile-only; the wipe_ref is what HostLockWipeStatus.IsPendingWipe reads to flip
+	// device_status to "wiping"). The frontend overrides the badge label to "Unenroll pending" for BYO Android based on
+	// enrollment status. The caller must populate cmd.CommandUUID and cmd.OperationName before invoking.
 	WipeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
+	// ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and writes the
+	// clear_passcode_ref on host_mdm_actions in a single transaction. The ref is what
+	// HostLockWipeStatus.IsPendingClearPasscode reads to flip device_status to "clearing passcode" while the AMAPI
+	// command is in flight. The caller must populate cmd.CommandUUID and cmd.OperationName before invoking.
+	ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+
+	// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Called on re-enrollment so stale
+	// lock/wipe/clear-passcode state from a previous enrollment cycle does not bleed into the new one.
+	ClearHostMDMActions(ctx context.Context, hostID uint) error
 
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
@@ -3525,6 +3646,12 @@ type AccessesMDMConfigAssets interface {
 	// The queryerContext is optional and can be used to pass a transaction.
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
+	// GetAllMDMConfigAssetsByNameIncludingDeleted behaves like
+	// GetAllMDMConfigAssetsByName but also returns soft-deleted rows, newest
+	// first. It returns a slice rather than a map because a single name can have
+	// multiple historical rows (e.g. the previous CA certificates kept after a
+	// rollover). Used to decrypt CMS payloads escrowed against a prior CA cert.
+	GetAllMDMConfigAssetsByNameIncludingDeleted(ctx context.Context, assetNames []MDMAssetName) ([]MDMConfigAsset, error)
 	// GetAllMDMConfigAssetsHashes behaves like
 	// GetAllMDMConfigAssetsByName, but only returns a sha256 checksum of
 	// each asset

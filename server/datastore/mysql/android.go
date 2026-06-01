@@ -483,9 +483,10 @@ UPDATE host_mdm
 func (ds *Datastore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
 	var rows int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// installed_from_dep is also cleared because Android has no DEP/ABM equivalent (no "Pending" state).
 		result, err := tx.ExecContext(ctx, `
 UPDATE host_mdm
-	SET server_url = '', mdm_id = NULL, enrolled = 0
+	SET server_url = '', mdm_id = NULL, enrolled = 0, installed_from_dep = 0
 	WHERE host_id = ? AND enrolled = 1`, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android host")
@@ -545,7 +546,7 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, is_personal_enrollment, host_id) VALUES %s
-		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), mdm_id = VALUES(mdm_id), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ",")), args...)
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), installed_from_dep = VALUES(installed_from_dep), mdm_id = VALUES(mdm_id), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ",")), args...)
 
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
@@ -949,9 +950,23 @@ func (ds *Datastore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host
 	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "wipe_ref")
 }
 
-// issueAndroidHostMDMRef performs the two-write transaction shared by LockHostViaAndroidMDM and
-// WipeHostViaAndroidMDM. refColumn is hard-coded by callers (never user input) so the
-// fmt.Sprintf into the SQL stays safe. The caller is responsible for populating cmd.CommandUUID.
+// ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and
+// upserts host_mdm_actions.clear_passcode_ref in a single transaction.
+func (ds *Datastore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "clear_passcode_ref")
+}
+
+// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Used by the Android
+// pub/sub re-enrollment path to drop stale lock/wipe/clear-passcode refs from a previous enrollment
+// cycle.
+func (ds *Datastore) ClearHostMDMActions(ctx context.Context, hostID uint) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_actions WHERE host_id = ?`, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear host_mdm_actions")
+	}
+	return nil
+}
+
+// issueAndroidHostMDMRef performs the two-write transaction. refColumn is hard-coded by callers. The caller is responsible for populating cmd.CommandUUID.
 func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, refColumn string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertCmdStmt = `
@@ -1013,6 +1028,7 @@ const androidApplicableProfilesQuery = `
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		0 as count_profile_labels,
@@ -1042,6 +1058,7 @@ const androidApplicableProfilesQuery = `
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		COUNT(*) as count_profile_labels,
@@ -1076,6 +1093,7 @@ const androidApplicableProfilesQuery = `
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		COUNT(*) as count_profile_labels,
@@ -1120,6 +1138,7 @@ const androidApplicableProfilesQuery = `
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		COUNT(*) as count_profile_labels,
@@ -1189,13 +1208,10 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		(
 		-- at least one profile is missing from host_mdm_android_profiles
 			hmap.host_uuid IS NULL OR
-			-- profile was never sent or was updated after sent
-			-- TODO(ap): need to make sure we set it to NULL when profile is updated
-			( hmap.included_in_policy_version IS NULL AND COALESCE(hmap.status, '') <> ? ) OR
-			hmap.status IS NULL OR
-			-- profile was sent in older policy version than currently applied
-			(hmap.included_in_policy_version IS NOT NULL AND ad.applied_policy_id = ds.host_uuid AND
-				hmap.included_in_policy_version < COALESCE(ad.applied_policy_version, 0))
+			-- profile content changed (checksum mismatch)
+			hmap.checksum != ds.checksum OR
+			-- profile needs retry (status reset to NULL after transient failure)
+			hmap.status IS NULL
 		)
 
 	UNION
@@ -1233,7 +1249,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 
 		var hostUUIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt,
-			fleet.MDMDeliveryFailed, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending); err != nil {
+			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending); err != nil {
 			return ctxerr.Wrap(ctx, err, "list android hosts with profile changes")
 		}
 
@@ -1246,6 +1262,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	SELECT
 		ds.profile_uuid,
 		ds.name as profile_name,
+		ds.checksum,
 		ds.host_uuid,
 		COALESCE(hmap.request_fail_count, 0) as request_fail_count,
 		COALESCE(apr.error_details, '') as last_error_details
@@ -1268,6 +1285,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	SELECT
 		hmap.profile_uuid,
 		hmap.profile_name,
+		hmap.checksum,
 		hmap.host_uuid,
 		hmap.request_fail_count,
 		COALESCE(apr.error_details, '') as last_error_details
@@ -1365,6 +1383,7 @@ func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				device_request_uuid,
 				request_fail_count,
 				included_in_policy_version,
+				checksum,
 				can_reverify
 			)
 			VALUES %s
@@ -1377,6 +1396,7 @@ func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				device_request_uuid = VALUES(device_request_uuid),
 				request_fail_count = VALUES(request_fail_count),
 				included_in_policy_version = VALUES(included_in_policy_version),
+				checksum = VALUES(checksum),
 				can_reverify = VALUES(can_reverify)
 `, strings.TrimSuffix(valuePart, ","), detailUpdate,
 		)
@@ -1396,12 +1416,16 @@ func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMAndroidProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		checksum := p.Checksum
+		if checksum == nil {
+			checksum = make([]byte, 16)
+		}
 		args := []any{
 			p.HostUUID, p.Status, p.OperationType,
 			p.Detail, p.ProfileUUID, p.ProfileName,
 			p.PolicyRequestUUID, p.DeviceRequestUUID, p.RequestFailCount,
-			p.IncludedInPolicyVersion, p.CanReverify,
+			p.IncludedInPolicyVersion, checksum, p.CanReverify,
 		}
 		return valuePart, args
 	}
@@ -1454,9 +1478,9 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 
 func (ds *Datastore) ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 	stmt := `
-		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
+		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version, checksum
 		FROM host_mdm_android_profiles
-		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? 
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ?
 		AND (status = 'pending' OR (status = 'failed' AND can_reverify = true))
 	`
 

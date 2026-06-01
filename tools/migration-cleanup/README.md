@@ -38,9 +38,6 @@ go run ./tools/migration-cleanup --help
 go build -o build/migration-cleanup ./tools/migration-cleanup
 ```
 
-The Python script in this directory is kept as a reference implementation. Use
-the Go tool for normal operation.
-
 ## Generate SQL
 
 SQL generation is the default mode and does not connect to MySQL.

@@ -75,49 +75,6 @@ func IsMaxDevicesPerUserError(err error) bool {
 	return false
 }
 
-// IsUnknownClientUserError reports whether err indicates that Apple does not
-// recognize the clientUserId(s) Fleet sent on an associate-assets or
-// assignment query — typically because the user record was retired or never
-// completed registration on Apple's side, while Fleet still has it cached as
-// 'registered'.
-//
-// Used by the install flow to self-heal: on this error the caller should
-// re-register the VPP user via the v1 endpoint, replace the stale row, and
-// retry the original associate-assets call once.
-//
-// Confirmed code from production traffic:
-//   - 9609 / "Unable to find the registered user."
-//
-// Other codes (9605, 9612, 9627) are listed defensively against Apple's
-// docs; same substring backstop as IsMaxDevicesPerUserError catches future
-// drift.
-func IsUnknownClientUserError(err error) bool {
-	if err == nil {
-		return false
-	}
-	var resp *ErrorResponse
-	if !errors.As(err, &resp) || resp == nil {
-		return false
-	}
-	switch resp.ErrorNumber {
-	case 9605, 9609, 9612, 9627:
-		return true
-	}
-	msg := strings.ToLower(resp.ErrorMessage)
-	if strings.Contains(msg, "unable to find") &&
-		(strings.Contains(msg, "registered user") || strings.Contains(msg, "client user") || strings.Contains(msg, "user")) {
-		return true
-	}
-	if strings.Contains(msg, "client user") &&
-		(strings.Contains(msg, "not found") || strings.Contains(msg, "unknown")) {
-		return true
-	}
-	if strings.Contains(msg, "user not found") {
-		return true
-	}
-	return false
-}
-
 // ResponseErrorInfo represents the request-specific information regarding the
 // failure.
 //
@@ -263,6 +220,47 @@ func AssociateAssets(token string, params *AssociateAssetsRequest) (string, erro
 	return respBody.EventID, nil
 }
 
+// DisassociateAssetsRequest is the body for Apple's disassociate-assets
+// endpoint. The shape is identical to AssociateAssetsRequest (same assets +
+// mutually-exclusive serialNumbers/clientUserIds contract), so it shares the
+// type and Validate.
+type DisassociateAssetsRequest = AssociateAssetsRequest
+
+// DisassociateAssets releases (un-reserves) assets previously associated to
+// serial numbers or client user IDs, returning the reserved seats to the
+// VPP location. Use this to avoid leaking a license when an install that
+// reserved a seat does not proceed (e.g. the activation failed or was
+// cancelled before reaching the device).
+//
+// https://developer.apple.com/documentation/devicemanagement/disassociate_assets
+func DisassociateAssets(token string, params *DisassociateAssetsRequest) (string, error) {
+	if err := params.Validate(); err != nil {
+		return "", err
+	}
+
+	var reqBody bytes.Buffer
+	if err := json.NewEncoder(&reqBody).Encode(params); err != nil {
+		return "", fmt.Errorf("encoding params as JSON: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, getBaseURL()+"/assets/disassociate", &reqBody)
+	if err != nil {
+		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	var respBody struct {
+		EventID string `json:"eventId"`
+	}
+
+	if err := do(req, token, &respBody); err != nil {
+		return "", fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+	}
+
+	return respBody.EventID, nil
+}
+
 // RegisterUserResponse mirrors Apple's synchronous v1 register-user response.
 //
 // Apple's v1 API responds synchronously with the full user record on success.
@@ -303,15 +301,18 @@ func RegisterUser(token, clientUserID, managedAppleID string) (string, error) {
 	}
 
 	// v1 takes the VPP server token in the body rather than the
-	// Authorization header.
+	// Authorization header. Apple keys the user record on email, so we send
+	// the Managed Apple ID as both managedAppleIDStr and email.
 	reqParams := struct {
 		SToken            string `json:"sToken"`
 		ClientUserIDStr   string `json:"clientUserIdStr"`
 		ManagedAppleIDStr string `json:"managedAppleIDStr"`
+		Email             string `json:"email"`
 	}{
 		SToken:            token,
 		ClientUserIDStr:   clientUserID,
 		ManagedAppleIDStr: managedAppleID,
+		Email:             managedAppleID,
 	}
 
 	var reqBody bytes.Buffer
@@ -344,73 +345,6 @@ func RegisterUser(token, clientUserID, managedAppleID string) (string, error) {
 	}
 
 	return resp.User.UserID.String(), nil
-}
-
-// VPPUserStatus mirrors the lifecycle states Apple reports in v2 /users
-// responses for a VPP user.
-type VPPUserStatus string
-
-const (
-	// VPPUserStatusRegistered: Apple has accepted the registration and
-	// issued an invite, but the end user has not yet linked their Apple
-	// Account.
-	VPPUserStatusRegistered VPPUserStatus = "Registered"
-	// VPPUserStatusAssociated: end user has accepted the invite and the
-	// Apple Account is bound to the VPP user record.
-	VPPUserStatusAssociated VPPUserStatus = "Associated"
-	// VPPUserStatusRetired: the user has been retired; a new registration
-	// for the same Managed Apple ID is permitted at this location.
-	VPPUserStatusRetired VPPUserStatus = "Retired"
-)
-
-// User is a single entry from Apple's v2 /users list response.
-type User struct {
-	ClientUserID string        `json:"clientUserId"`
-	IDHash       string        `json:"idHash"`
-	Status       VPPUserStatus `json:"status"`
-}
-
-// GetUserByManagedAppleID looks up the active VPP user for the given Managed
-// Apple ID at the location identified by the bearer token. Apple enforces
-// uniqueness on (location, managedAppleId), so a successful response carries
-// at most one non-retired user.
-//
-// Returns (nil, nil) when Apple has no user (or only retired users) for the
-// Apple ID — callers should fall through to RegisterUser in that case.
-// Returns a non-nil error only for transport / Apple-application errors.
-//
-// Used by the install self-heal path to recover a stale clientUserId after
-// Fleet's local cache drifts from Apple's record (e.g. a stale DB restore).
-//
-// https://developer.apple.com/documentation/devicemanagement/get-users
-func GetUserByManagedAppleID(ctx context.Context, token, managedAppleID string) (*User, error) {
-	if managedAppleID == "" {
-		return nil, errors.New("GetUserByManagedAppleID: managedAppleID is required")
-	}
-
-	q := url.Values{}
-	q.Set("managedAppleId", managedAppleID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, getBaseURL()+"/users?"+q.Encode(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
-	}
-
-	var resp struct {
-		Users []User `json:"users"`
-	}
-	if err := do(req, token, &resp); err != nil {
-		return nil, fmt.Errorf("making request to Apple VPP endpoint: %w", err)
-	}
-
-	// Apple's contract is at-most-one non-retired user per (location, Apple ID),
-	// but we scan the full slice defensively in case a Retired ghost is
-	// returned alongside an active record on some iOS revision.
-	for i := range resp.Users {
-		if resp.Users[i].Status != VPPUserStatusRetired {
-			return &resp.Users[i], nil
-		}
-	}
-	return nil, nil
 }
 
 // AssetFilter represents the filters for querying assets.
