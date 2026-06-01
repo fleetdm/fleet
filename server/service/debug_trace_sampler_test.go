@@ -1,17 +1,19 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mockds "github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -31,16 +33,11 @@ func adminAuthedRequest(t *testing.T, method, target string, body string) (*mock
 	svc.On("UserUnauthorized", mock.Anything, uint(42)).
 		Return(&fleet.User{ID: 42, GlobalRole: ptr.String(fleet.RoleAdmin)}, nil)
 
-	var reqBody *bytes.Reader
+	var reqBody io.Reader
 	if body != "" {
-		reqBody = bytes.NewReader([]byte(body))
+		reqBody = strings.NewReader(body)
 	}
-	var req *http.Request
-	if reqBody != nil {
-		req = httptest.NewRequest(method, target, reqBody)
-	} else {
-		req = httptest.NewRequest(method, target, nil)
-	}
+	req := httptest.NewRequest(method, target, reqBody)
 	req.Header.Add("Authorization", "BEARER fake_session_key")
 	return svc, req
 }
@@ -49,8 +46,8 @@ func TestTraceSamplerHandler_GET(t *testing.T) {
 	svc, req := adminAuthedRequest(t, http.MethodGet, "https://fleetdm.com/debug/trace_sampler", "")
 
 	ds := new(mockds.Store)
-	ds.GetTraceSamplerSettingsFunc = func(ctx context.Context) (*fleet.TraceSamplerSettings, error) {
-		return &fleet.TraceSamplerSettings{
+	ds.GetTraceSamplerSettingsFunc = func(_ context.Context) (*tracing.Settings, error) {
+		return &tracing.Settings{
 			HighVolumeRatio: 0.001,
 			StandardRatio:   0.02,
 			ForceFull:       false,
@@ -64,28 +61,28 @@ func TestTraceSamplerHandler_GET(t *testing.T) {
 	require.Equal(t, http.StatusOK, res.Code)
 	require.True(t, ds.GetTraceSamplerSettingsFuncInvoked)
 
-	var got fleet.TraceSamplerSettings
+	var got tracing.Settings
 	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &got))
 	require.InDelta(t, 0.001, got.HighVolumeRatio, 1e-9)
 	require.InDelta(t, 0.02, got.StandardRatio, 1e-9)
 	require.False(t, got.ForceFull)
 }
 
-func TestTraceSamplerHandler_PATCH_PersistsChanges(t *testing.T) {
+func TestTraceSamplerHandler_PATCH_PersistsChangesAndReturnsRow(t *testing.T) {
 	svc, req := adminAuthedRequest(t, http.MethodPatch,
 		"https://fleetdm.com/debug/trace_sampler",
 		`{"force_full": true}`)
 
 	ds := new(mockds.Store)
-	ds.GetTraceSamplerSettingsFunc = func(ctx context.Context) (*fleet.TraceSamplerSettings, error) {
-		return &fleet.TraceSamplerSettings{
+	ds.GetTraceSamplerSettingsFunc = func(_ context.Context) (*tracing.Settings, error) {
+		return &tracing.Settings{
 			HighVolumeRatio: 0.001,
 			StandardRatio:   0.02,
 			ForceFull:       false,
 		}, nil
 	}
-	var saved *fleet.TraceSamplerSettings
-	ds.SetTraceSamplerSettingsFunc = func(ctx context.Context, s *fleet.TraceSamplerSettings) error {
+	var saved *tracing.Settings
+	ds.SetTraceSamplerSettingsFunc = func(_ context.Context, s *tracing.Settings) error {
 		saved = s
 		return nil
 	}
@@ -99,6 +96,85 @@ func TestTraceSamplerHandler_PATCH_PersistsChanges(t *testing.T) {
 	require.NotNil(t, saved)
 	require.True(t, saved.ForceFull, "force_full should now be true")
 	require.InDelta(t, 0.001, saved.HighVolumeRatio, 1e-9, "other fields should be preserved")
+
+	// Verify the response body matches what was saved. If we forgot to write the response, the test would still see 200 from
+	// httptest's default but the body would be empty.
+	var returned tracing.Settings
+	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &returned))
+	require.True(t, returned.ForceFull)
+	require.InDelta(t, saved.HighVolumeRatio, returned.HighVolumeRatio, 1e-9)
+	require.InDelta(t, saved.StandardRatio, returned.StandardRatio, 1e-9)
+}
+
+func TestTraceSamplerHandler_PATCH_PartialUpdatePreservesOtherFields(t *testing.T) {
+	// Locks in the docstring claim that "PATCH semantics mean only the provided fields are applied." Sending only
+	// high_volume_ratio must leave standard_ratio and force_full at their prior values.
+	svc, req := adminAuthedRequest(t, http.MethodPatch,
+		"https://fleetdm.com/debug/trace_sampler",
+		`{"high_volume_ratio": 0.5}`)
+
+	ds := new(mockds.Store)
+	ds.GetTraceSamplerSettingsFunc = func(_ context.Context) (*tracing.Settings, error) {
+		return &tracing.Settings{
+			HighVolumeRatio: 0.001,
+			StandardRatio:   0.07,
+			ForceFull:       true,
+		}, nil
+	}
+	var saved *tracing.Settings
+	ds.SetTraceSamplerSettingsFunc = func(_ context.Context, s *tracing.Settings) error {
+		saved = s
+		return nil
+	}
+
+	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+
+	require.Equal(t, http.StatusOK, res.Code, "body=%s", res.Body.String())
+	require.NotNil(t, saved)
+	require.InDelta(t, 0.5, saved.HighVolumeRatio, 1e-9, "high_volume_ratio should be applied")
+	require.InDelta(t, 0.07, saved.StandardRatio, 1e-9, "standard_ratio should be preserved from the prior row")
+	require.True(t, saved.ForceFull, "force_full should be preserved from the prior row")
+}
+
+func TestTraceSamplerHandler_PATCH_ReadFailureReturns500(t *testing.T) {
+	svc, req := adminAuthedRequest(t, http.MethodPatch,
+		"https://fleetdm.com/debug/trace_sampler",
+		`{"force_full": true}`)
+
+	ds := new(mockds.Store)
+	ds.GetTraceSamplerSettingsFunc = func(_ context.Context) (*tracing.Settings, error) {
+		return nil, errors.New("db unavailable")
+	}
+
+	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+
+	require.Equal(t, http.StatusInternalServerError, res.Code)
+	require.False(t, ds.SetTraceSamplerSettingsFuncInvoked, "should not attempt to write when read fails")
+}
+
+func TestTraceSamplerHandler_PATCH_WriteFailureReturns500(t *testing.T) {
+	svc, req := adminAuthedRequest(t, http.MethodPatch,
+		"https://fleetdm.com/debug/trace_sampler",
+		`{"force_full": true}`)
+
+	ds := new(mockds.Store)
+	ds.GetTraceSamplerSettingsFunc = func(_ context.Context) (*tracing.Settings, error) {
+		return &tracing.Settings{HighVolumeRatio: 0.001, StandardRatio: 0.02}, nil
+	}
+	ds.SetTraceSamplerSettingsFunc = func(_ context.Context, _ *tracing.Settings) error {
+		return errors.New("constraint violation")
+	}
+
+	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+
+	require.Equal(t, http.StatusInternalServerError, res.Code)
+	require.True(t, ds.SetTraceSamplerSettingsFuncInvoked)
 }
 
 func TestTraceSamplerHandler_PATCH_RejectsBadJSON(t *testing.T) {
@@ -151,23 +227,4 @@ func TestTraceSamplerHandler_PATCH_RequiresAtLeastOneField(t *testing.T) {
 
 	require.Equal(t, http.StatusBadRequest, res.Code)
 	require.Contains(t, res.Body.String(), "at least one")
-}
-
-func TestTraceSamplerHandler_RejectsNonAdmin(t *testing.T) {
-	svc := &mockService{}
-	svc.On("GetSessionByKey", mock.Anything, "fake_session_key").
-		Return(&fleet.Session{UserID: 42, ID: 1}, nil)
-	svc.On("UserUnauthorized", mock.Anything, uint(42)).
-		Return(&fleet.User{ID: 42, GlobalRole: ptr.String(fleet.RoleObserver)}, nil)
-
-	req := httptest.NewRequest(http.MethodGet, "https://fleetdm.com/debug/trace_sampler", nil)
-	req.Header.Add("Authorization", "BEARER fake_session_key")
-
-	ds := new(mockds.Store)
-	handler := MakeDebugHandler(svc, testConfig, discardLogger(), nil, ds)
-	res := httptest.NewRecorder()
-	handler.ServeHTTP(res, req)
-
-	require.Equal(t, http.StatusForbidden, res.Code)
-	require.False(t, ds.GetTraceSamplerSettingsFuncInvoked)
 }

@@ -3,7 +3,7 @@ package mysql
 import (
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +21,7 @@ func TestTraceSamplerSettings(t *testing.T) {
 	})
 
 	t.Run("round trip persists changes", func(t *testing.T) {
-		err := ds.SetTraceSamplerSettings(ctx, &fleet.TraceSamplerSettings{
+		err := ds.SetTraceSamplerSettings(ctx, &tracing.Settings{
 			HighVolumeRatio: 0.005,
 			StandardRatio:   0.1,
 			ForceFull:       true,
@@ -36,7 +36,7 @@ func TestTraceSamplerSettings(t *testing.T) {
 	})
 
 	t.Run("out of range ratio rejected by CHECK constraint", func(t *testing.T) {
-		err := ds.SetTraceSamplerSettings(ctx, &fleet.TraceSamplerSettings{
+		err := ds.SetTraceSamplerSettings(ctx, &tracing.Settings{
 			HighVolumeRatio: 1.5,
 			StandardRatio:   0.02,
 			ForceFull:       false,
@@ -54,7 +54,7 @@ func TestTraceSamplerSettings(t *testing.T) {
 			require.NoError(t, err)
 		})
 
-		err = ds.SetTraceSamplerSettings(ctx, &fleet.TraceSamplerSettings{
+		err = ds.SetTraceSamplerSettings(ctx, &tracing.Settings{
 			HighVolumeRatio: 0.01,
 			StandardRatio:   0.05,
 			ForceFull:       false,

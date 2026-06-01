@@ -10,17 +10,16 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
 type stubReader struct {
-	mu       atomic.Pointer[fleet.TraceSamplerSettings]
+	mu       atomic.Pointer[Settings]
 	err      atomic.Pointer[error]
 	getCalls atomic.Int32
 }
 
-func (s *stubReader) set(settings fleet.TraceSamplerSettings) {
+func (s *stubReader) set(settings Settings) {
 	s.mu.Store(&settings)
 }
 
@@ -28,7 +27,7 @@ func (s *stubReader) setErr(err error) {
 	s.err.Store(&err)
 }
 
-func (s *stubReader) GetTraceSamplerSettings(_ context.Context) (*fleet.TraceSamplerSettings, error) {
+func (s *stubReader) GetTraceSamplerSettings(_ context.Context) (*Settings, error) {
 	s.getCalls.Add(1)
 	if e := s.err.Load(); e != nil && *e != nil {
 		return nil, *e
@@ -37,7 +36,7 @@ func (s *stubReader) GetTraceSamplerSettings(_ context.Context) (*fleet.TraceSam
 		out := *cur
 		return &out, nil
 	}
-	return &fleet.TraceSamplerSettings{
+	return &Settings{
 		HighVolumeRatio: DefaultHighVolumeRatio,
 		StandardRatio:   DefaultStandardRatio,
 	}, nil
@@ -50,7 +49,7 @@ func discardLogger() *slog.Logger {
 func TestStartSettingsPoller_AppliesInitialReadImmediately(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		r := &stubReader{}
-		r.set(fleet.TraceSamplerSettings{
+		r.set(Settings{
 			HighVolumeRatio: 0.4,
 			StandardRatio:   0.8,
 			ForceFull:       true,
@@ -99,7 +98,7 @@ func TestStartSettingsPoller_AppliesChangeOnTick(t *testing.T) {
 	// real minute per test was untenable. With synctest, advancing time is free.
 	synctest.Test(t, func(t *testing.T) {
 		r := &stubReader{}
-		r.set(fleet.TraceSamplerSettings{
+		r.set(Settings{
 			HighVolumeRatio: 0.4,
 			StandardRatio:   0.8,
 			ForceFull:       true,
@@ -119,7 +118,7 @@ func TestStartSettingsPoller_AppliesChangeOnTick(t *testing.T) {
 		// Flip the stub to a new value. Advance past the next ticker fire; the synthetic clock advances while everything is
 		// blocked, the ticker fires, the poller re-polls and applies the new state. Wait then ensures the poller has
 		// re-blocked before we assert.
-		r.set(fleet.TraceSamplerSettings{
+		r.set(Settings{
 			HighVolumeRatio: 0.001,
 			StandardRatio:   0.02,
 			ForceFull:       false,

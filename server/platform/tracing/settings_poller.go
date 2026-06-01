@@ -4,9 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"time"
-
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // settingsPollInterval is how often each Fleet replica re-reads trace_sampler_settings. 60s matches industry defaults for
@@ -14,9 +11,9 @@ import (
 const settingsPollInterval = 60 * time.Second
 
 // settingsReader is the minimal datastore surface the poller needs. The full fleet.Datastore is large. Depending only on this
-// interface keeps the poller's tests cheap.
+// interface keeps the poller's tests cheap and the package free of cross context coupling.
 type settingsReader interface {
-	GetTraceSamplerSettings(ctx context.Context) (*fleet.TraceSamplerSettings, error)
+	GetTraceSamplerSettings(ctx context.Context) (*Settings, error)
 }
 
 // StartSettingsPoller runs the polling loop until ctx is cancelled. On each tick it reads the trace_sampler_settings row,
@@ -25,11 +22,10 @@ type settingsReader interface {
 // On startup it does one immediate read so the sampler picks up the row's current values without waiting a full interval. If
 // the first read fails, the sampler keeps its compile time defaults and a warning is logged. The next tick will try again.
 func StartSettingsPoller(ctx context.Context, sampler *RouteTierSampler, ds settingsReader, logger *slog.Logger) {
-	pollAndApply := func(last *fleet.TraceSamplerSettings) *fleet.TraceSamplerSettings {
+	pollAndApply := func(last *Settings) *Settings {
 		got, err := ds.GetTraceSamplerSettings(ctx)
 		if err != nil {
 			logger.ErrorContext(ctx, "trace sampler settings poll failed", "err", err)
-			ctxerr.Handle(ctx, err)
 			return last
 		}
 		if last != nil &&
@@ -47,7 +43,7 @@ func StartSettingsPoller(ctx context.Context, sampler *RouteTierSampler, ds sett
 		return got
 	}
 
-	var last *fleet.TraceSamplerSettings
+	var last *Settings
 	last = pollAndApply(last)
 
 	ticker := time.NewTicker(settingsPollInterval)

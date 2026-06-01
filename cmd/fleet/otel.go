@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/platform/tracing"
@@ -22,9 +21,6 @@ import (
 // initOTELProviders constructs the OpenTelemetry trace, metric, and (when log export is enabled) log providers. Returns nil
 // providers when OTEL is disabled in the configuration. Fatal errors during exporter setup are reported through initFatal so
 // the server can fail fast at startup.
-//
-// As a side effect, the constructed tracer and meter providers are registered as the OTEL globals via otel.SetTracerProvider
-// and otel.SetMeterProvider. This matches the original inline behavior in runServeCmd.
 //
 // The traceRegistry is consulted on every sampling decision. Populating it (with route to tier mappings) is the caller's
 // responsibility. The canonical pattern is for each bounded context to register its own routes at startup. See
@@ -68,9 +64,9 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 	batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
 		sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
 	)
-	// Route aware head sampler. The sampler starts with compile time defaults. The settings poller (started from runServeCmd)
-	// re-reads trace_sampler_settings every 60s and calls Apply on change. We wrap with ParentBased so a remote sampled parent
-	// (e.g. an upstream span) keeps the whole trace coherent even on the hot agent path.
+	// Route aware head sampler. The sampler starts with compile time defaults. The settings poller re-reads trace_sampler_settings
+	// every 60s and calls Apply on change. We wrap with ParentBased so a remote sampled parent (e.g. an upstream span) keeps the
+	// whole trace coherent even on the hot agent path.
 	sampler := tracing.NewRouteTierSampler(traceRegistry)
 	// ParentBased semantics:
 	//
@@ -99,11 +95,6 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 	)
 	if err != nil {
 		initFatal(err, "Failed to initialize OTEL metrics exporter")
-		// initFatal is normally os.Exit in production but stubbed in tests. Shut the already constructed tracer provider down
-		// so its batch span processor goroutine doesn't leak between test runs.
-		shutdownContext, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		_ = tracerProvider.Shutdown(shutdownContext)
-		cancel()
 		return nil, nil, nil, nil
 	}
 
@@ -151,12 +142,6 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 		)
 		if err != nil {
 			initFatal(err, "Failed to initialize OTEL log exporter")
-			// Same as the metrics exporter failure path. Shut down what was already constructed so tests do not leak
-			// goroutines.
-			shutdownContext, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-			_ = tracerProvider.Shutdown(shutdownContext)
-			_ = meterProvider.Shutdown(shutdownContext)
-			cancel()
 			return nil, nil, nil, nil
 		}
 		loggerProvider = otelsdklog.NewLoggerProvider(

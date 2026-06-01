@@ -95,7 +95,10 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog
 	r.HandleFunc("/debug/db/locks", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.DBLocks(ctx) }))
 	r.HandleFunc("/debug/db/innodb-status", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.InnoDBStatus(ctx) }))
 	r.HandleFunc("/debug/db/process-list", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.ProcessList(ctx) }))
-	r.HandleFunc("/debug/trace_sampler", traceSamplerHandler(logger, ds)).Methods(http.MethodGet, http.MethodPatch)
+	r.HandleFunc("/debug/trace_sampler", jsonHandler(logger, func(ctx context.Context) (any, error) {
+		return ds.GetTraceSamplerSettings(ctx)
+	})).Methods(http.MethodGet)
+	r.HandleFunc("/debug/trace_sampler", patchTraceSamplerHandler(logger, ds)).Methods(http.MethodPatch)
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,

@@ -9,7 +9,7 @@ import (
 // RegisterTracingTiers populates the trace sampling registry with the tier classifications for routes owned by this package
 // (the legacy flat server/service handler).
 //
-// Bounded contexts that have moved out of this package (e.g. server/activity/, server/mdm/) own their own registrations. They
+// Bounded contexts that have moved out of this package (e.g. server/activity/) own their own registrations. They
 // should expose a RegisterTracingTiers function the serve command calls during startup. The platform/tracing package itself
 // stays free of route knowledge.
 //

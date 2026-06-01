@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -3336,11 +3337,11 @@ type Datastore interface {
 	// TraceSamplerStore
 
 	// GetTraceSamplerSettings returns the singleton trace_sampler_settings row.
-	GetTraceSamplerSettings(ctx context.Context) (*TraceSamplerSettings, error)
+	GetTraceSamplerSettings(ctx context.Context) (*tracing.Settings, error)
 
 	// SetTraceSamplerSettings updates the singleton trace_sampler_settings row. The caller is responsible for validating that
 	// ratios are in [0, 1]. The DB CHECK constraints reject out of range writes as a backstop.
-	SetTraceSamplerSettings(ctx context.Context, settings *TraceSamplerSettings) error
+	SetTraceSamplerSettings(ctx context.Context, settings *tracing.Settings) error
 }
 
 type AndroidDatastore interface {

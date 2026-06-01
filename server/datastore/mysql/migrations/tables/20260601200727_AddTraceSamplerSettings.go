@@ -27,7 +27,10 @@ func Up_20260601200727(tx *sql.Tx) error {
 		return err
 	}
 
-	_, err = tx.Exec(`INSERT INTO trace_sampler_settings (id) VALUES (1)`)
+	// Insert the seed row with an explicit fixed updated_at instead of letting the column default to CURRENT_TIMESTAMP.
+	// schema.sql captures the row's data; if updated_at varied per migration run, every developer would get a different schema
+	// dump and `make test-schema` would never pass.
+	_, err = tx.Exec(`INSERT INTO trace_sampler_settings (id, updated_at) VALUES (1, '2026-06-01 00:00:00')`)
 	return err
 }
 

@@ -7,19 +7,19 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/jmoiron/sqlx"
 )
 
 const traceSamplerSettingsID = 1
 
-func (ds *Datastore) GetTraceSamplerSettings(ctx context.Context) (*fleet.TraceSamplerSettings, error) {
+func (ds *Datastore) GetTraceSamplerSettings(ctx context.Context) (*tracing.Settings, error) {
 	const stmt = `
 		SELECT high_volume_ratio, standard_ratio, force_full, updated_at
 		FROM trace_sampler_settings
 		WHERE id = ?
 	`
-	var settings fleet.TraceSamplerSettings
+	var settings tracing.Settings
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &settings, stmt, traceSamplerSettingsID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("TraceSamplerSettings"))
@@ -29,7 +29,7 @@ func (ds *Datastore) GetTraceSamplerSettings(ctx context.Context) (*fleet.TraceS
 	return &settings, nil
 }
 
-func (ds *Datastore) SetTraceSamplerSettings(ctx context.Context, settings *fleet.TraceSamplerSettings) error {
+func (ds *Datastore) SetTraceSamplerSettings(ctx context.Context, settings *tracing.Settings) error {
 	const stmt = `
 		UPDATE trace_sampler_settings
 		SET high_volume_ratio = ?, standard_ratio = ?, force_full = ?
