@@ -1,0 +1,38 @@
+diff --git a/node_modules/@sailshq/request/lib/auth.js b/node_modules/@sailshq/request/lib/auth.js
+index 02f2038..f551adc 100644
+--- a/node_modules/@sailshq/request/lib/auth.js
++++ b/node_modules/@sailshq/request/lib/auth.js
+@@ -1,7 +1,7 @@
+ 'use strict'
+ 
+ var caseless = require('caseless')
+-var uuid = require('uuid/v4')
++var uuid = require('uuid').v4
+ var helpers = require('./helpers')
+ 
+ var md5 = helpers.md5
+diff --git a/node_modules/@sailshq/request/lib/multipart.js b/node_modules/@sailshq/request/lib/multipart.js
+index 6a009bc..9012c06 100644
+--- a/node_modules/@sailshq/request/lib/multipart.js
++++ b/node_modules/@sailshq/request/lib/multipart.js
+@@ -1,6 +1,6 @@
+ 'use strict'
+ 
+-var uuid = require('uuid/v4')
++var uuid = require('uuid').v4
+ var CombinedStream = require('combined-stream')
+ var isstream = require('isstream')
+ var Buffer = require('safe-buffer').Buffer
+diff --git a/node_modules/@sailshq/request/lib/oauth.js b/node_modules/@sailshq/request/lib/oauth.js
+index 96de72b..0ca3790 100644
+--- a/node_modules/@sailshq/request/lib/oauth.js
++++ b/node_modules/@sailshq/request/lib/oauth.js
+@@ -3,7 +3,7 @@
+ var url = require('url')
+ var qs = require('qs')
+ var caseless = require('caseless')
+-var uuid = require('uuid/v4')
++var uuid = require('uuid').v4
+ var oauth = require('oauth-sign')
+ var crypto = require('crypto')
+ var Buffer = require('safe-buffer').Buffer
