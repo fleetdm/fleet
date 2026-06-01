@@ -170,6 +170,63 @@ func TestPSSO_LoginResponseJWEWrongKeyFails(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestPSSO_KeyContextRoundTrip confirms a provisioned private key sealed into
+// a key_context (key request) is recovered intact when opened (key exchange).
+func TestPSSO_KeyContextRoundTrip(t *testing.T) {
+	signing, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	kcKey, err := deriveKeyContextKey(signing)
+	require.NoError(t, err)
+	require.Len(t, kcKey, 32)
+
+	provisioned, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	sealed, err := sealKeyContext(provisioned, kcKey)
+	require.NoError(t, err)
+
+	got, err := openKeyContext(sealed, kcKey)
+	require.NoError(t, err)
+	want, err := x509.MarshalECPrivateKey(provisioned)
+	require.NoError(t, err)
+	gotDER, err := x509.MarshalECPrivateKey(got)
+	require.NoError(t, err)
+	assert.Equal(t, want, gotDER)
+
+	// A different server key can't open it.
+	other, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	otherKC, err := deriveKeyContextKey(other)
+	require.NoError(t, err)
+	_, err = openKeyContext(sealed, otherKC)
+	require.Error(t, err)
+}
+
+// TestPSSO_KeyExchangeSharedSecretMatches confirms the unlock-key DH is
+// symmetric: the server's ECDH(provisioned_priv, device_pub) equals the
+// device's ECDH(device_priv, provisioned_pub).
+func TestPSSO_KeyExchangeSharedSecretMatches(t *testing.T) {
+	provisioned, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	deviceDH, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	// Server side: what computeECDHShared does, against the device's public.
+	deviceECDH, err := deviceDH.PublicKey.ECDH()
+	require.NoError(t, err)
+	serverShared, err := computeECDHShared(provisioned, deviceECDH.Bytes())
+	require.NoError(t, err)
+	require.Len(t, serverShared, 32)
+
+	// Device side: ECDH(device_priv, provisioned_pub) — must match.
+	provECDH, err := provisioned.PublicKey.ECDH()
+	require.NoError(t, err)
+	devPriv, err := deviceDH.ECDH()
+	require.NoError(t, err)
+	deviceShared, err := devPriv.ECDH(provECDH)
+	require.NoError(t, err)
+	assert.Equal(t, deviceShared, serverShared)
+}
+
 // TestPSSO_CanonicalizeKID confirms the padded base64 kid Apple's framework
 // sends in the JWT header and the unpadded base64url kid the extension
 // registers collapse to the same value, so device lookup by kid succeeds.

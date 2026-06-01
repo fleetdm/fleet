@@ -71,10 +71,16 @@ type pssoTokenClaims struct {
 	JWECrypto    *pssoJWECrypto `json:"jwe_crypto,omitempty"`    // response-encryption recipe
 	RequestNonce string         `json:"request_nonce,omitempty"` // Fleet-issued nonce from /nonce
 
-	// Legacy handshake model (unused by the Password flow).
+	// PSSO 2.0 key request / key exchange (request_type "key_request" /
+	// "key_exchange", used during registration to provision the unlock key).
 	RequestType    pssoRequestType `json:"request_type,omitempty"`
-	EncryptedPwd   string          `json:"encrypted_password,omitempty"`
-	EncryptedNonce string          `json:"encrypted_nonce,omitempty"`
+	OtherPublicKey string          `json:"other_publickey,omitempty"` // device DH public key (key_exchange)
+	KeyContext     string          `json:"key_context,omitempty"`     // server-sealed provisioned key, echoed back
+
+	// Legacy symmetric password_request handshake (unused by the Password
+	// grant flow).
+	EncryptedPwd   string `json:"encrypted_password,omitempty"`
+	EncryptedNonce string `json:"encrypted_nonce,omitempty"`
 }
 
 // pssoJWECrypto is the jwe_crypto claim the extension sends to tell Fleet how
@@ -348,6 +354,72 @@ func decodeJOSEB64(s string) ([]byte, error) {
 		return nil, nil
 	}
 	return base64.RawURLEncoding.DecodeString(strings.TrimRight(s, "="))
+}
+
+// deriveKeyContextKey derives the AES-256 key that seals key_context blobs,
+// from Fleet's PSSO signing key. This lets the provisioned private key live
+// statelessly inside the key_context the device round-trips between the key
+// request and key exchange — no per-device server storage.
+func deriveKeyContextKey(signingKey *ecdsa.PrivateKey) ([]byte, error) {
+	ikm, err := x509.MarshalECPrivateKey(signingKey)
+	if err != nil {
+		return nil, err
+	}
+	return deriveSessionKey(ikm, []byte("fleetdm-psso-key-context-v1"))
+}
+
+// sealKeyContext encrypts a provisioned EC private key into the opaque,
+// base64 key_context returned in a key-request response.
+func sealKeyContext(provisioned *ecdsa.PrivateKey, kcKey []byte) (string, error) {
+	der, err := x509.MarshalECPrivateKey(provisioned)
+	if err != nil {
+		return "", err
+	}
+	blob, err := buildSymmetricJWE(der, kcKey)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(blob), nil
+}
+
+// openKeyContext reverses sealKeyContext, recovering the provisioned private
+// key the device echoed back in a key-exchange request.
+func openKeyContext(keyContext string, kcKey []byte) (*ecdsa.PrivateKey, error) {
+	blob, err := base64.StdEncoding.DecodeString(keyContext)
+	if err != nil {
+		return nil, fmt.Errorf("decode key_context: %w", err)
+	}
+	der, err := decryptSymmetricBlob(blob, kcKey)
+	if err != nil {
+		return nil, fmt.Errorf("decrypt key_context: %w", err)
+	}
+	return x509.ParseECPrivateKey(der)
+}
+
+// computeECDHShared returns the raw ECDH shared secret (P-256 X coordinate, 32
+// bytes) between priv and the uncompressed peer public point — the key field
+// of a key-exchange response.
+func computeECDHShared(priv *ecdsa.PrivateKey, peerRaw []byte) ([]byte, error) {
+	ecdhPriv, err := priv.ECDH()
+	if err != nil {
+		return nil, fmt.Errorf("provisioned key to ecdh: %w", err)
+	}
+	peer, err := ecdh.P256().NewPublicKey(peerRaw)
+	if err != nil {
+		return nil, fmt.Errorf("parse other_publickey: %w", err)
+	}
+	return ecdhPriv.ECDH(peer)
+}
+
+// decodeBase64Flexible decodes standard or url base64, with or without padding
+// — the device sends other_publickey as padded standard base64.
+func decodeBase64Flexible(s string) ([]byte, error) {
+	for _, enc := range []*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding, base64.URLEncoding, base64.RawURLEncoding} {
+		if b, err := enc.DecodeString(s); err == nil {
+			return b, nil
+		}
+	}
+	return nil, errors.New("psso: value is not valid base64")
 }
 
 // pssoSessionInfo is the HKDF info string distinguishing PSSO session keys

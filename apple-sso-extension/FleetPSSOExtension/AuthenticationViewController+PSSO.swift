@@ -32,10 +32,14 @@ extension AuthenticationViewController:
                 return
             }
             let payload = registrationPayload(signing: signKey, encryption: encKey)
-            if let url = registrationStartURL(loginManager, payload: payload) {
-                webView.load(URLRequest(url: url))
+            // POST registration directly and only report success once Fleet has
+            // stored the keys, so the framework can't proceed to authentication
+            // with an unregistered key (which 404s at the token endpoint). This
+            // is what makes the Setup Assistant flow work.
+            Task {
+                let ok = await self.postDeviceRegistration(payload: payload)
+                completion(ok ? .success : .failed)
             }
-            completion(.success)
         } catch {
             completion(.failed)
         }

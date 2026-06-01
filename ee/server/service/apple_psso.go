@@ -498,11 +498,11 @@ func (svc *Service) handlePSSOPasswordLogin(ctx context.Context, device *fleet.P
 
 // handlePSSOKeyRequest services a PSSO 2.0 key request (request_type
 // "key_request", key_purpose "user_unlock"). Per Apple's "Supporting key
-// requests and key exchange requests" doc, the response is a JWE
-// (typ=platformsso-key-response+jwt) whose decrypted body is
-// {certificate, iat, exp}: an X.509 certificate over the device's provisioned
-// public key, issued by Fleet. The device verifies/stores this to enable the
-// SSO unlock key.
+// requests and key exchange requests" doc, Fleet provisions a fresh EC256 key
+// pair, certifies its public half, and returns {certificate, iat, exp,
+// key_context} in a JWE (typ=platformsso-key-response+jwt) encrypted to the
+// device. key_context carries the provisioned PRIVATE key, sealed under a
+// server key, so the later key exchange can recover it statelessly.
 func (svc *Service) handlePSSOKeyRequest(ctx context.Context, device *fleet.PSSODevice, claims *pssoTokenClaims) ([]byte, error) {
 	if claims.JWECrypto == nil || claims.JWECrypto.APV == "" {
 		return nil, &fleet.BadRequestError{Message: "psso key request: missing jwe_crypto recipe"}
@@ -512,9 +512,26 @@ func (svc *Service) handlePSSOKeyRequest(ctx context.Context, device *fleet.PSSO
 		return nil, ctxerr.Wrap(ctx, err, "parse device encryption pubkey")
 	}
 
-	certDER, err := svc.issuePSSODeviceCertificate(ctx, encPub)
+	provisioned, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "issue psso device certificate")
+		return nil, ctxerr.Wrap(ctx, err, "generate provisioned key")
+	}
+	certDER, err := svc.issuePSSOProvisionedCertificate(ctx, &provisioned.PublicKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "issue psso provisioned certificate")
+	}
+
+	signingKey, _, err := svc.getOrMintPSSOSigningKey(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load psso signing key")
+	}
+	kcKey, err := deriveKeyContextKey(signingKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "derive key_context key")
+	}
+	keyContext, err := sealKeyContext(provisioned, kcKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "seal key_context")
 	}
 
 	now := time.Now()
@@ -522,6 +539,7 @@ func (svc *Service) handlePSSOKeyRequest(ctx context.Context, device *fleet.PSSO
 		"certificate": base64.RawURLEncoding.EncodeToString(certDER),
 		"iat":         now.Unix(),
 		"exp":         now.Add(5 * time.Minute).Unix(),
+		"key_context": keyContext,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "marshal key_request payload")
@@ -534,10 +552,11 @@ func (svc *Service) handlePSSOKeyRequest(ctx context.Context, device *fleet.PSSO
 	return jwe, nil
 }
 
-// issuePSSODeviceCertificate issues an X.509 certificate over the device's
-// provisioned public key, signed by Fleet's PSSO signing key acting as a CA.
-// This is the certificate returned in a key-request response.
-func (svc *Service) issuePSSODeviceCertificate(ctx context.Context, deviceKey *ecdsa.PublicKey) ([]byte, error) {
+// issuePSSOProvisionedCertificate issues an X.509 certificate over a
+// server-provisioned public key, signed by Fleet's PSSO signing key acting as
+// a CA. This is the certificate returned in a key-request response; the device
+// uses its public key for its half of the unlock-key Diffie-Hellman.
+func (svc *Service) issuePSSOProvisionedCertificate(ctx context.Context, provisionedKey *ecdsa.PublicKey) ([]byte, error) {
 	caKey, _, err := svc.getOrMintPSSOSigningKey(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load psso signing key for cert issuance")
@@ -573,28 +592,70 @@ func (svc *Service) issuePSSODeviceCertificate(ctx context.Context, deviceKey *e
 		NotAfter:     now.AddDate(1, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyAgreement,
 	}
-	devDER, err := x509.CreateCertificate(rand.Reader, devTmpl, caCert, deviceKey, caKey)
+	devDER, err := x509.CreateCertificate(rand.Reader, devTmpl, caCert, provisionedKey, caKey)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create psso device certificate")
+		return nil, ctxerr.Wrap(ctx, err, "create psso provisioned certificate")
 	}
 	return devDER, nil
 }
 
-// handlePSSOKeyExchange validates a symmetric handshake and returns a
-// session JWE. For the POC, this is a minimal "you've proven you can
-// derive the same session key" round trip.
-func (svc *Service) handlePSSOKeyExchange(_ context.Context, device *fleet.PSSODevice, claims *pssoTokenClaims) ([]byte, error) {
-	sessionKey, err := deriveSessionKey(device.KeyExchangeKey, []byte(claims.RequestNonce))
-	if err != nil {
-		return nil, fmt.Errorf("derive session key: %w", err)
+// handlePSSOKeyExchange services a PSSO 2.0 key exchange (request_type
+// "key_exchange"). The device sends its DH public key (other_publickey) plus
+// the key_context Fleet issued during the key request. Fleet recovers the
+// provisioned private key from key_context, computes the raw ECDH shared
+// secret against other_publickey (this is the unlock key), and returns
+// {iat, exp, key, key_context} in the same JWE envelope.
+func (svc *Service) handlePSSOKeyExchange(ctx context.Context, device *fleet.PSSODevice, claims *pssoTokenClaims) ([]byte, error) {
+	if claims.JWECrypto == nil || claims.JWECrypto.APV == "" {
+		return nil, &fleet.BadRequestError{Message: "psso key exchange: missing jwe_crypto recipe"}
 	}
-	payload, err := json.Marshal(struct {
-		Status string `json:"status"`
-	}{Status: "ok"})
-	if err != nil {
-		return nil, fmt.Errorf("marshal key_exchange payload: %w", err)
+	if claims.OtherPublicKey == "" || claims.KeyContext == "" {
+		return nil, &fleet.BadRequestError{Message: "psso key exchange: missing other_publickey or key_context"}
 	}
-	return buildSymmetricJWE(payload, sessionKey)
+
+	signingKey, _, err := svc.getOrMintPSSOSigningKey(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load psso signing key")
+	}
+	kcKey, err := deriveKeyContextKey(signingKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "derive key_context key")
+	}
+	provisioned, err := openKeyContext(claims.KeyContext, kcKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "open key_context")
+	}
+
+	otherRaw, err := decodeBase64Flexible(claims.OtherPublicKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decode other_publickey")
+	}
+	shared, err := computeECDHShared(provisioned, otherRaw)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "compute key exchange shared secret")
+	}
+
+	encPub, err := parseECPublicKeyPEM([]byte(device.EncryptionKeyPEM))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parse device encryption pubkey")
+	}
+
+	now := time.Now()
+	payload, err := json.Marshal(map[string]any{
+		"iat":         now.Unix(),
+		"exp":         now.Add(5 * time.Minute).Unix(),
+		"key":         base64.StdEncoding.EncodeToString(shared),
+		"key_context": claims.KeyContext,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshal key_exchange payload")
+	}
+
+	jwe, err := buildPSSOResponseJWE(payload, encPub, claims.JWECrypto.APV, pssoTypKeyResponse)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build key_exchange JWE")
+	}
+	return jwe, nil
 }
 
 // handlePSSOPasswordRequest decrypts the password the device sent under

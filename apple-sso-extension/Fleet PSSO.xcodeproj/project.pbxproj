@@ -13,6 +13,8 @@
 		A1000001000000000000A004 /* AuthenticationViewController+Shared.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B004 /* AuthenticationViewController+Shared.swift */; };
 		A1000001000000000000A005 /* FleetPSSOExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C1000001000000000000C002 /* FleetPSSOExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A1000001000000000000A006 /* AuthenticationViewController+WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */; };
+		A1000001000000000000A007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B010 /* Assets.xcassets */; };
+		A1000001000000000000A008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000001000000000000B010 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,6 +53,7 @@
 		B1000001000000000000B009 /* AuthenticationViewController+WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthenticationViewController+WebView.swift"; sourceTree = "<group>"; };
 		C1000001000000000000C001 /* FleetPSSO.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FleetPSSO.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C1000001000000000000C002 /* FleetPSSOExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FleetPSSOExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B1000001000000000000B010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,12 +73,32 @@
 		};
 /* End PBXFrameworksBuildPhase section */
 
+/* Begin PBXResourcesBuildPhase section */
+		91000001000000000000A001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000001000000000000A007 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		91000001000000000000A002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000001000000000000A008 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXGroup section */
 		F1000001000000000000F001 = {
 			isa = PBXGroup;
 			children = (
 				F1000001000000000000F002 /* FleetPSSO */,
 				F1000001000000000000F003 /* FleetPSSOExtension */,
+				B1000001000000000000B010 /* Assets.xcassets */,
 				F1000001000000000000F004 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -121,6 +144,7 @@
 			buildPhases = (
 				31000001000000000000A001 /* Sources */,
 				E1000001000000000000E001 /* Frameworks */,
+				91000001000000000000A001 /* Resources */,
 				D1000001000000000000D001 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -139,6 +163,7 @@
 			buildPhases = (
 				31000001000000000000A002 /* Sources */,
 				E1000001000000000000E002 /* Frameworks */,
+				91000001000000000000A002 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -319,6 +344,7 @@
 		71000001000000000000A005 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FleetPSSOExtension/FleetPSSOExtension.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;
@@ -341,6 +367,7 @@
 		71000001000000000000A006 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = FleetPSSOExtension/FleetPSSOExtension.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
 				CODE_SIGN_STYLE = Manual;

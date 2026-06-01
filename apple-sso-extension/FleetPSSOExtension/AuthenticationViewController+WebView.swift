@@ -42,6 +42,27 @@ extension AuthenticationViewController: WKNavigationDelegate {
         _ = try? await URLSession.shared.data(for: req)
     }
 
+    // postDeviceRegistration POSTs the registration payload directly to Fleet,
+    // without a WKWebView round-trip. Password-mode registration has no browser
+    // auth step, and the web view isn't functional during Setup Assistant
+    // (EnableRegistrationDuringSetup) — relying on it there silently skips
+    // registration, so the later token request presents an unregistered key.
+    // Returns true on a 2xx response.
+    func postDeviceRegistration(payload: [String: String]) async -> Bool {
+        guard let endpoint = registrationEndpointURL else { return false }
+        var req = URLRequest(url: endpoint)
+        req.httpMethod = "POST"
+        req.setValue("application/x-www-form-urlencoded",
+                     forHTTPHeaderField: "Content-Type")
+        let items = payload.map { URLQueryItem(name: $0.key, value: $0.value) }
+        req.httpBody = formURLEncodedBody(items)
+        guard let (_, resp) = try? await URLSession.shared.data(for: req),
+              let http = resp as? HTTPURLResponse else {
+            return false
+        }
+        return (200...299).contains(http.statusCode)
+    }
+
     // formURLEncodedBody serializes query items as an x-www-form-urlencoded
     // body, percent-encoding everything outside the RFC 3986 unreserved set so
     // '+', '/', '=', spaces and newlines in PEM values survive intact.
