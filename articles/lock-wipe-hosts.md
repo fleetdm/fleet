@@ -90,10 +90,6 @@ The script will not cross filesystem boundaries — it uses `--one-file-system` 
 **Important limitations to consider before wiping:**
 
 - This is a **best-effort, script-based** erase, not a hardware-level secure erase. There is no guarantee all data is removed. Data may be recoverable with forensic tools, particularly on SSDs without full-disk encryption.
-- **Separate partitions or mount points** not covered by the paths listed above (e.g. a dedicated `/data` partition) will not be erased. If your hosts use non-standard disk layouts, the script may leave data intact on those volumes.
-- **Network-mounted paths** are detected and skipped to protect remote storage, but detection relies on `/proc/mounts` being accurate and complete. **Disconnect all network drives before wiping** and confirm there is no network-backed storage accessible on the host at wipe time. If you are unsure, check what is mounted by running `mount` on the host before initiating the wipe.
-- After the script completes, the host will halt and will not reboot into a usable state. Physical access and OS reinstallation will be required to bring the host back into service.
-- The wipe dialog links to this guide — review it carefully before confirming. The consequences depend on your specific host's disk layout, filesystem type, and network configuration.
 
 > **Recommendation:** Before wiping production Linux hosts, run the wipe against a non-production machine running the **same distro and version** as your production hosts, with the same disk layout, filesystem configuration (including any btrfs, LVM, or LUKS setup), and network drive usage. Different distros — and even different versions of the same distro — can behave differently. Confirm the outcome matches your expectations before rolling out to production.
 
