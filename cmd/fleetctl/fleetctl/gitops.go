@@ -733,9 +733,8 @@ type ConfigFile struct {
 	IsGlobalConfig bool
 }
 
-// Verify that if any config file in this run enables MDM end-user authentication,
-// then an IdP is configured either in the global config of this run or in the server's
-// current state.
+// Verify that if any fleet has EUA enabled after this GitOps run, then the IdP for EUA will be fully configured
+// after this run. This checks all fleets whether they're being modified in this run or not.
 func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfig, listTeams func(query string) ([]fleet.Team, error)) error {
 	// Compute the effective post-apply IdP state. Start from stored state; if a
 	// global file is in this run, its incoming org_settings override stored
