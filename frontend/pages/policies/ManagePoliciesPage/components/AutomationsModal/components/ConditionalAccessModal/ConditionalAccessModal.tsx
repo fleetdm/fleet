@@ -11,14 +11,10 @@ import Slider from "components/forms/fields/Slider";
 import { AppContext } from "context/app";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 
+import { IAutomationFormHandle } from "../../types";
+
 export interface IConditionalAccessModalData {
   enabled: boolean;
-}
-
-export interface IConditionalAccessModalHandle {
-  getFormData: () => IConditionalAccessModalData | null;
-  validate: () => boolean;
-  isDirty: () => boolean;
 }
 
 interface IConditionalAccessModalProps {
@@ -29,7 +25,7 @@ interface IConditionalAccessModalProps {
 }
 
 const ConditionalAccessModal = forwardRef<
-  IConditionalAccessModalHandle,
+  IAutomationFormHandle<IConditionalAccessModalData>,
   IConditionalAccessModalProps
 >(
   (

@@ -7,7 +7,7 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
-import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
+import { IFormPolicy } from "../../../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const baseClass = "calendar-event-preview-modal";
 

@@ -15,17 +15,13 @@ import InputField from "components/forms/fields/InputField";
 import paths from "router/paths";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 
+import { IAutomationFormHandle } from "../../types";
+
 const baseClass = "calendar-events-modal";
 
 export interface ICalendarEventsModalData {
   enabled: boolean;
   url: string;
-}
-
-export interface ICalendarEventsModalHandle {
-  getFormData: () => ICalendarEventsModalData | null;
-  validate: () => boolean;
-  isDirty: () => boolean;
 }
 
 interface ICalendarEventsModalProps {
@@ -36,7 +32,7 @@ interface ICalendarEventsModalProps {
 }
 
 const CalendarEventsModal = forwardRef<
-  ICalendarEventsModalHandle,
+  IAutomationFormHandle<ICalendarEventsModalData>,
   ICalendarEventsModalProps
 >(
   (

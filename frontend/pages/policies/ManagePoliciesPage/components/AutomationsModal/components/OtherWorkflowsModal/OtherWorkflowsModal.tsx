@@ -21,20 +21,16 @@ import Radio from "components/forms/fields/Radio";
 import validUrl from "components/forms/validators/valid_url";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
-import ExampleTicket from "../ExampleTicket";
-import ExamplePayload from "../ExamplePayload";
+import ExampleTicket from "./ExampleTicket";
+import ExamplePayload from "./ExamplePayload";
+
+import { IAutomationFormHandle } from "../../types";
 
 const baseClass = "other-workflows-modal";
 
 export interface IOtherWorkflowsModalSubmit {
   webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
   integrations: IGlobalIntegrations | ITeamIntegrations;
-}
-
-export interface IOtherWorkflowsModalHandle {
-  getFormData: () => IOtherWorkflowsModalSubmit | null;
-  validate: () => boolean;
-  isDirty: () => boolean;
 }
 
 interface IOtherWorkflowsModalProps {
@@ -57,7 +53,7 @@ const getIntegrationType = (integration?: IIntegration) =>
   undefined;
 
 const OtherWorkflowsModal = forwardRef<
-  IOtherWorkflowsModalHandle,
+  IAutomationFormHandle<IOtherWorkflowsModalSubmit>,
   IOtherWorkflowsModalProps
 >(
   (

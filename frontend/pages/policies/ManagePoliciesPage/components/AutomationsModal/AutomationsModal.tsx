@@ -13,16 +13,18 @@ import teamsAPI, {
 } from "services/entities/teams";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import OtherWorkflowsModal, {
-  IOtherWorkflowsModalHandle,
-} from "../OtherWorkflowsModal/OtherWorkflowsModal";
-import CalendarEventsModal, {
-  ICalendarEventsModalHandle,
-} from "../CalendarEventsModal/CalendarEventsModal";
-import ConditionalAccessModal, {
-  IConditionalAccessModalHandle,
-} from "../ConditionalAccessModal/ConditionalAccessModal";
-import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
+import {
+  CalendarEventPreviewModal,
+  CalendarEventsModal,
+  ConditionalAccessModal,
+  OtherWorkflowsModal,
+} from "./components";
+import type {
+  ICalendarEventsModalData,
+  IConditionalAccessModalData,
+  IOtherWorkflowsModalSubmit,
+} from "./components";
+import { IAutomationFormHandle } from "./types";
 
 const baseClass = "automations-modal";
 
@@ -58,9 +60,15 @@ const AutomationsModal = ({
   const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const otherFormRef = useRef<IOtherWorkflowsModalHandle>(null);
-  const calendarFormRef = useRef<ICalendarEventsModalHandle>(null);
-  const conditionalAccessFormRef = useRef<IConditionalAccessModalHandle>(null);
+  const otherFormRef = useRef<
+    IAutomationFormHandle<IOtherWorkflowsModalSubmit>
+  >(null);
+  const calendarFormRef = useRef<
+    IAutomationFormHandle<ICalendarEventsModalData>
+  >(null);
+  const conditionalAccessFormRef = useRef<
+    IAutomationFormHandle<IConditionalAccessModalData>
+  >(null);
 
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -105,7 +113,8 @@ const AutomationsModal = ({
     queryClient.setQueryData(["teams", teamIdForApi], updatedTeamResponse);
   };
 
-  const onSave = async () => {
+  const handleSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
     // Validate every visible form. We always show OtherWorkflowsModal.
     const otherValid = otherFormRef.current?.validate() ?? true;
     const calendarValid = calendarFormRef.current?.validate() ?? true;
@@ -214,81 +223,83 @@ const AutomationsModal = ({
       width="large"
       isContentDisabled={isUpdating}
     >
-      <div className={`${baseClass}__body`}>
-        <section className={`${baseClass}__section`}>
-          {!isAllTeamsSelected && (
-            <h2 className={`${baseClass}__section-title`}>
-              Webhooks or tickets
-            </h2>
-          )}
-          <OtherWorkflowsModal
-            ref={otherFormRef}
-            router={router}
-            automationsConfig={automationsConfig}
-            availableIntegrations={availableIntegrations}
-            gitOpsModeEnabled={gitOpsModeEnabled}
-          />
-        </section>
-
-        {!isAllTeamsSelected && (
-          <>
-            <hr className={`${baseClass}__divider`} />
-            <section className={`${baseClass}__section`}>
-              <div className={`${baseClass}__calendar-events-title-wrapper`}>
-                <h2 className={`${baseClass}__section-title`}>
-                  Calendar events
-                </h2>
-                {isCalEventsConfigured && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="brand-inverse-icon"
-                      onClick={togglePreviewCalendarEvent}
-                    >
-                      Preview calendar event
-                    </Button>
-
-                    {showPreviewCalendarEvent && (
-                      <CalendarEventPreviewModal
-                        onCancel={togglePreviewCalendarEvent}
-                      />
-                    )}
-                  </>
-                )}
-              </div>
-              <CalendarEventsModal
-                ref={calendarFormRef}
-                configured={isCalEventsConfigured}
-                enabled={isCalEventsEnabled}
-                url={calendarUrl}
-                gitOpsModeEnabled={gitOpsModeEnabled}
-              />
-            </section>
-
-            <hr className={`${baseClass}__divider`} />
-            <section className={`${baseClass}__section`}>
+      <form onSubmit={handleSubmit}>
+        <div className={`${baseClass}__body`}>
+          <section className={`${baseClass}__section`}>
+            {!isAllTeamsSelected && (
               <h2 className={`${baseClass}__section-title`}>
-                Conditional access
+                Webhooks or tickets
               </h2>
-              <ConditionalAccessModal
-                ref={conditionalAccessFormRef}
-                configured={isCAConfigured}
-                enabled={isCAEnabled}
-                gitOpsModeEnabled={gitOpsModeEnabled}
-                providerText={conditionalAccessProviderText}
-              />
-            </section>
-          </>
-        )}
-      </div>
-      <div className="modal-cta-wrap">
-        <Button onClick={onSave} isLoading={isUpdating} disabled={isUpdating}>
-          Save
-        </Button>
-        <Button onClick={onExit} variant="inverse">
-          Cancel
-        </Button>
-      </div>
+            )}
+            <OtherWorkflowsModal
+              ref={otherFormRef}
+              router={router}
+              automationsConfig={automationsConfig}
+              availableIntegrations={availableIntegrations}
+              gitOpsModeEnabled={gitOpsModeEnabled}
+            />
+          </section>
+
+          {!isAllTeamsSelected && (
+            <>
+              <hr className={`${baseClass}__divider`} />
+              <section className={`${baseClass}__section`}>
+                <div className={`${baseClass}__calendar-events-title-wrapper`}>
+                  <h2 className={`${baseClass}__section-title`}>
+                    Calendar events
+                  </h2>
+                  {isCalEventsConfigured && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="brand-inverse-icon"
+                        onClick={togglePreviewCalendarEvent}
+                      >
+                        Preview calendar event
+                      </Button>
+
+                      {showPreviewCalendarEvent && (
+                        <CalendarEventPreviewModal
+                          onCancel={togglePreviewCalendarEvent}
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+                <CalendarEventsModal
+                  ref={calendarFormRef}
+                  configured={isCalEventsConfigured}
+                  enabled={isCalEventsEnabled}
+                  url={calendarUrl}
+                  gitOpsModeEnabled={gitOpsModeEnabled}
+                />
+              </section>
+
+              <hr className={`${baseClass}__divider`} />
+              <section className={`${baseClass}__section`}>
+                <h2 className={`${baseClass}__section-title`}>
+                  Conditional access
+                </h2>
+                <ConditionalAccessModal
+                  ref={conditionalAccessFormRef}
+                  configured={isCAConfigured}
+                  enabled={isCAEnabled}
+                  gitOpsModeEnabled={gitOpsModeEnabled}
+                  providerText={conditionalAccessProviderText}
+                />
+              </section>
+            </>
+          )}
+        </div>
+        <div className="modal-cta-wrap">
+          <Button type="submit" isLoading={isUpdating} disabled={isUpdating}>
+            Save
+          </Button>
+          <Button type="button" onClick={onExit} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };
