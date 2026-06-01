@@ -4720,9 +4720,9 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 			vppAppSelfService := vppAppSelfServiceList[index]
 			if vppAppSelfService != "" {
 				if vppAppSelfService == "1" {
-					softwareTitleRecord.VPPAppSelfService = ptr.Bool(true)
+					softwareTitleRecord.VPPAppSelfService = new(true)
 				} else {
-					softwareTitleRecord.VPPAppSelfService = ptr.Bool(false)
+					softwareTitleRecord.VPPAppSelfService = new(false)
 				}
 			}
 
@@ -4780,9 +4780,9 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 			inHouseAppSelfService := inHouseAppSelfServiceList[index]
 			if inHouseAppSelfService != "" {
 				if inHouseAppSelfService == "1" {
-					softwareTitleRecord.InHouseAppSelfService = ptr.Bool(true)
+					softwareTitleRecord.InHouseAppSelfService = new(true)
 				} else {
-					softwareTitleRecord.InHouseAppSelfService = ptr.Bool(false)
+					softwareTitleRecord.InHouseAppSelfService = new(false)
 				}
 			}
 		}

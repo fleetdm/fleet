@@ -362,26 +362,35 @@ func applyAndValidateConditionalAccessOktaFields(
 		newAppConfig.ConditionalAccess = &fleet.ConditionalAccessSettings{}
 	}
 
+	// Normalize incoming Okta fields (trim whitespace) BEFORE the premium-license gate so a
+	// whitespace-only input that would persist as empty does not trip the license check.
+	normalizeOptString := func(src optjson.String) optjson.String {
+		if src.Set && src.Valid {
+			src.Value = strings.TrimSpace(src.Value)
+		}
+		return src
+	}
 	applyOptString := func(dest *optjson.String, src optjson.String) {
 		if src.Set {
-			if src.Valid {
-				src.Value = strings.TrimSpace(src.Value)
-			}
 			*dest = src
 		}
 	}
-	applyOptString(&appConfig.ConditionalAccess.OktaIDPID, newAppConfig.ConditionalAccess.OktaIDPID)
-	applyOptString(&appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL, newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL)
-	applyOptString(&appConfig.ConditionalAccess.OktaAudienceURI, newAppConfig.ConditionalAccess.OktaAudienceURI)
-	applyOptString(&appConfig.ConditionalAccess.OktaCertificate, newAppConfig.ConditionalAccess.OktaCertificate)
+	oktaIDPID := normalizeOptString(newAppConfig.ConditionalAccess.OktaIDPID)
+	oktaACSURL := normalizeOptString(newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL)
+	oktaAudienceURI := normalizeOptString(newAppConfig.ConditionalAccess.OktaAudienceURI)
+	oktaCert := normalizeOptString(newAppConfig.ConditionalAccess.OktaCertificate)
+	applyOptString(&appConfig.ConditionalAccess.OktaIDPID, oktaIDPID)
+	applyOptString(&appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL, oktaACSURL)
+	applyOptString(&appConfig.ConditionalAccess.OktaAudienceURI, oktaAudienceURI)
+	applyOptString(&appConfig.ConditionalAccess.OktaCertificate, oktaCert)
 
 	isNonEmpty := func(s optjson.String) bool {
 		return s.Set && s.Valid && s.Value != ""
 	}
-	oktaFieldsBeingSet := isNonEmpty(newAppConfig.ConditionalAccess.OktaIDPID) ||
-		isNonEmpty(newAppConfig.ConditionalAccess.OktaAssertionConsumerServiceURL) ||
-		isNonEmpty(newAppConfig.ConditionalAccess.OktaAudienceURI) ||
-		isNonEmpty(newAppConfig.ConditionalAccess.OktaCertificate)
+	oktaFieldsBeingSet := isNonEmpty(oktaIDPID) ||
+		isNonEmpty(oktaACSURL) ||
+		isNonEmpty(oktaAudienceURI) ||
+		isNonEmpty(oktaCert)
 
 	if oktaFieldsBeingSet && !lic.IsPremium() {
 		invalid.Append("conditional_access", ErrMissingLicense.Error())
