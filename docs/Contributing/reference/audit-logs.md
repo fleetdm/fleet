@@ -163,15 +163,15 @@ This activity contains a field "policies" where each item is a policy spec with 
 }
 ```
 
-## created_saved_query
+## created_saved_report
 
-Generated when creating a new query.
+Generated when creating a new report.
 
 This activity contains the following fields:
-- "query_id": the ID of the created query.
-- "query_name": the name of the created query.
-- "team_id": the ID of the team the query belongs to.
-- "team_name": the name of the team the query belongs to.
+- "report_id": the ID of the created report.
+- "report_name": the name of the created report.
+- "fleet_id": the ID of the fleet the report belongs to.
+- "fleet_name": the name of the fleet the report belongs to.
 
 #### Example
 
@@ -180,7 +180,11 @@ This activity contains the following fields:
 	"query_id": 123,
 	"query_name": "foo",
 	"team_id": 1,
-	"team_name": "Workstations"
+	"team_name": "Workstations",
+  "report_id": 123,
+	"report_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "Workstations"
 }
 ```
 
