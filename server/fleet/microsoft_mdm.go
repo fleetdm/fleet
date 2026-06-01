@@ -870,8 +870,12 @@ type MDMWindowsEnrolledDevice struct {
 	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
 	CredentialsHash         *[]byte                         `db:"credentials_hash"`
 	CredentialsAcknowledged bool                            `db:"credentials_acknowledged"`
-	CreatedAt               time.Time                       `db:"created_at"`
-	UpdatedAt               time.Time                       `db:"updated_at"`
+	// PollScheduleRelaxed records whether this enrollment's DMClient poll schedule has been relaxed (via an
+	// in-session Replace) because the host's fleetd can be woken on demand. It lets the management session
+	// reconcile the schedule without re-sending the Replace on every poll.
+	PollScheduleRelaxed bool      `db:"poll_schedule_relaxed"`
+	CreatedAt           time.Time `db:"created_at"`
+	UpdatedAt           time.Time `db:"updated_at"`
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {

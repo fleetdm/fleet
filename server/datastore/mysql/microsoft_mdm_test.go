@@ -67,6 +67,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsAwaitingConfigurationCAS", testMDMWindowsAwaitingConfigurationCAS},
 		{"TestMDMWindowsAwaitingConfigurationByHostUUID", testMDMWindowsAwaitingConfigurationByHostUUID},
 		{"TestMDMWindowsGetHostConfigState", testMDMWindowsGetHostConfigState},
+		{"TestMDMWindowsPollScheduleRelaxed", testMDMWindowsPollScheduleRelaxed},
 		{"TestMDMWindowsHasSetupExperienceItems", testMDMWindowsHasSetupExperienceItems},
 		{"TestMDMWindowsProfilesToRemoveSkipsOrphanedHosts", testMDMWindowsProfilesToRemoveSkipsOrphanedHosts},
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
@@ -1970,6 +1971,40 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 	cmds, err = ds.MDMWindowsGetPendingCommands(ctx, 0)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
+}
+
+func testMDMWindowsPollScheduleRelaxed(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	d := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-POLL",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               uuid.NewString(),
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+	enrollmentID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d.MDMHardwareID)
+
+	// New enrollment defaults to not-relaxed.
+	got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.False(t, got.PollScheduleRelaxed)
+
+	// Relax, then read it back.
+	require.NoError(t, ds.SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx, enrollmentID, true))
+	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.True(t, got.PollScheduleRelaxed)
+
+	// Restore.
+	require.NoError(t, ds.SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx, enrollmentID, false))
+	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.False(t, got.PollScheduleRelaxed)
 }
 
 func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {

@@ -1720,3 +1720,120 @@ func TestGetESPCommands(t *testing.T) {
 			"must not transition state while waiting for orbit init")
 	})
 }
+
+func TestGetPollScheduleCommands(t *testing.T) {
+	t.Parallel()
+	const deviceID = "test-device-id"
+	const hostUUID = "test-host-uuid"
+	const enrollmentID = uint(7)
+
+	pollNode := fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/Poll/IntervalForFirstSetOfRetries",
+		syncml.DocProvisioningAppProviderID)
+
+	// newSvc returns a mock-backed Service whose host-resolution chain (HostLiteByIdentifier -> GetHostOrbitInfo)
+	// reports the given orbit version, and whose SetMDMWindowsEnrollmentPollScheduleRelaxed succeeds. Tests pass the
+	// orbit version that drives windowsMDMHostSupportsSync and read back the captured relaxed value the setter saw.
+	newSvc := func(t *testing.T, orbitVersion string, capturedRelaxed *bool) *Service {
+		ds := new(mock.Store)
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, UUID: identifier}, nil
+		}
+		ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
+			return &fleet.HostOrbitInfo{Version: orbitVersion}, nil
+		}
+		ds.SetMDMWindowsEnrollmentPollScheduleRelaxedFunc = func(ctx context.Context, id uint, relaxed bool) error {
+			assert.Equal(t, enrollmentID, id)
+			if capturedRelaxed != nil {
+				*capturedRelaxed = relaxed
+			}
+			return nil
+		}
+		return &Service{ds: ds, logger: testutils.TestLogger(t)}
+	}
+
+	newDevice := func(relaxed bool) *fleet.MDMWindowsEnrolledDevice {
+		return &fleet.MDMWindowsEnrolledDevice{
+			ID:                  enrollmentID,
+			MDMDeviceID:         deviceID,
+			HostUUID:            hostUUID,
+			PollScheduleRelaxed: relaxed,
+		}
+	}
+
+	t.Run("capable host on fast poll gets relaxed", func(t *testing.T) {
+		var captured bool
+		svc := newSvc(t, minWindowsMDMSyncOrbitVersion, &captured)
+
+		cmds, err := svc.getPollScheduleCommands(t.Context(), newDevice(false))
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		assert.Equal(t, fleet.CmdReplace, cmds[0].XMLName.Local)
+		assert.Equal(t, pollNode, cmds[0].GetTargetURI())
+		assert.Equal(t, windowsMDMRelaxedPollIntervalMinutes, cmds[0].GetTargetData())
+		assert.True(t, captured, "should mark the enrollment relaxed")
+	})
+
+	t.Run("capable host already relaxed is a no-op", func(t *testing.T) {
+		svc := newSvc(t, minWindowsMDMSyncOrbitVersion, nil)
+		ds := svc.ds.(*mock.Store)
+
+		cmds, err := svc.getPollScheduleCommands(t.Context(), newDevice(true))
+		require.NoError(t, err)
+		assert.Nil(t, cmds, "no Replace when desired state already applied")
+		assert.False(t, ds.SetMDMWindowsEnrollmentPollScheduleRelaxedFuncInvoked, "must not re-write state")
+	})
+
+	t.Run("non-capable host on relaxed poll is restored to fast", func(t *testing.T) {
+		var captured bool
+		// An older orbit (below the on-demand-sync minimum) that was previously relaxed must be put back on the
+		// fast poll so its commands still get delivered without a wake.
+		svc := newSvc(t, "1.0.0", &captured)
+
+		cmds, err := svc.getPollScheduleCommands(t.Context(), newDevice(true))
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		assert.Equal(t, fleet.CmdReplace, cmds[0].XMLName.Local)
+		assert.Equal(t, pollNode, cmds[0].GetTargetURI())
+		assert.Equal(t, windowsMDMFastPollIntervalMinutes, cmds[0].GetTargetData())
+		assert.False(t, captured, "should mark the enrollment not-relaxed")
+	})
+
+	t.Run("non-capable host on fast poll is a no-op", func(t *testing.T) {
+		svc := newSvc(t, "1.0.0", nil)
+		ds := svc.ds.(*mock.Store)
+
+		cmds, err := svc.getPollScheduleCommands(t.Context(), newDevice(false))
+		require.NoError(t, err)
+		assert.Nil(t, cmds)
+		assert.False(t, ds.SetMDMWindowsEnrollmentPollScheduleRelaxedFuncInvoked, "must not re-write state")
+	})
+
+	t.Run("unlinked host is treated as not-capable", func(t *testing.T) {
+		// No host UUID means there is no fleetd to wake, so the host stays on the fast poll. The host-resolution
+		// chain must not even be consulted.
+		svc := newSvc(t, minWindowsMDMSyncOrbitVersion, nil)
+		ds := svc.ds.(*mock.Store)
+		device := newDevice(false)
+		device.HostUUID = ""
+
+		cmds, err := svc.getPollScheduleCommands(t.Context(), device)
+		require.NoError(t, err)
+		assert.Nil(t, cmds)
+		assert.False(t, ds.HostLiteByIdentifierFuncInvoked, "must not resolve a host without a UUID")
+	})
+
+	t.Run("missing orbit info is treated as not-capable", func(t *testing.T) {
+		// A host whose orbit version is unknown (no host_orbit_info row yet) cannot be assumed to support the
+		// on-demand wake, so it stays on the fast poll.
+		svc := newSvc(t, minWindowsMDMSyncOrbitVersion, nil)
+		ds := svc.ds.(*mock.Store)
+		ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
+			return nil, &notFoundError{}
+		}
+
+		cmds, err := svc.getPollScheduleCommands(t.Context(), newDevice(false))
+		require.NoError(t, err)
+		assert.Nil(t, cmds)
+		assert.False(t, ds.SetMDMWindowsEnrollmentPollScheduleRelaxedFuncInvoked)
+	})
+}

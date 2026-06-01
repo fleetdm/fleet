@@ -2108,6 +2108,10 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 
+	// SetMDMWindowsEnrollmentPollScheduleRelaxed records whether the given Windows MDM enrollment's DMClient
+	// poll schedule has been relaxed, used to reconcile the schedule in the management session.
+	SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx context.Context, enrollmentID uint, relaxed bool) error
+
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 

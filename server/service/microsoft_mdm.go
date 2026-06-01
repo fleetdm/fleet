@@ -1975,7 +1975,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
-	var resPendingCmds, espCmds []*mdm_types.SyncMLCmd
+	var resPendingCmds, espCmds, pollCmds []*mdm_types.SyncMLCmd
 
 	if requestAuthState == RequestAuthStateTrusted {
 		// Process the pending operations and get the MDM response protocol commands
@@ -1992,13 +1992,21 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 			if err != nil {
 				return nil, fmt.Errorf("ESP commands error: %w", err)
 			}
+		} else {
+			// Outside the Autopilot ESP, reconcile the DMClient poll schedule: relax it for hosts whose fleetd
+			// can be woken on demand, so we can stop the aggressive 1-minute poll.
+			pollCmds, err = svc.getPollScheduleCommands(ctx, enrolledDevice)
+			if err != nil {
+				return nil, fmt.Errorf("poll schedule commands error: %w", err)
+			}
 		}
 	}
 
-	allCmds := make([]*mdm_types.SyncMLCmd, 0, len(resIncomingCmds)+len(resPendingCmds)+len(espCmds))
+	allCmds := make([]*mdm_types.SyncMLCmd, 0, len(resIncomingCmds)+len(resPendingCmds)+len(espCmds)+len(pollCmds))
 	allCmds = append(allCmds, resIncomingCmds...)
 	allCmds = append(allCmds, resPendingCmds...)
 	allCmds = append(allCmds, espCmds...)
+	allCmds = append(allCmds, pollCmds...)
 
 	// Create the response SyncML message
 	msg, err := svc.createResponseSyncML(ctx, reqMsg, allCmds)
@@ -2007,6 +2015,80 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	}
 
 	return msg, nil
+}
+
+// minWindowsMDMSyncOrbitVersion is the minimum fleetd (orbit) version that ships the Windows MDM on-demand sync
+// receiver (windowsMDMSyncConfigReceiver). Only hosts at or above it can be woken via deviceenroller, so only
+// they get the relaxed poll schedule. This MUST equal the fleetd release that ships the feature: a lower value
+// would relax hosts that cannot be woken, regressing their command latency to the slow poll interval; a higher
+// value only delays the benefit (hosts stay on the fast poll), which is safe.
+const minWindowsMDMSyncOrbitVersion = "1.56.0"
+
+const (
+	// windowsMDMFastPollIntervalMinutes mirrors NewDMClientProvisioningData's provisioned
+	// IntervalForFirstSetOfRetries: the aggressive poll used until a host is known to support on-demand sync.
+	windowsMDMFastPollIntervalMinutes = "1"
+	// windowsMDMRelaxedPollIntervalMinutes is the steady poll for hosts woken on demand by fleetd. Steady-state
+	// command latency comes from the on-demand wake; this only bounds the fallback if a wake ever fails.
+	windowsMDMRelaxedPollIntervalMinutes = "60"
+)
+
+// windowsMDMHostSupportsSync reports whether the enrolled host's fleetd is new enough to start an on-demand
+// OMA-DM session when asked. The orbit version is read from host_orbit_info (Fleet's established out-of-request
+// signal); a missing/unlinked host or unknown version is treated as not-capable, which keeps the host on the
+// fast poll (the safe default).
+func (svc *Service) windowsMDMHostSupportsSync(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) (bool, error) {
+	if device.HostUUID == "" {
+		return false, nil
+	}
+	host, err := svc.ds.HostLiteByIdentifier(ctx, device.HostUUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "get host lite for windows mdm sync support")
+	}
+	orbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "get host orbit info for windows mdm sync support")
+	}
+	return fleet.IsAtLeastVersion(orbitInfo.Version, minWindowsMDMSyncOrbitVersion), nil
+}
+
+// getPollScheduleCommands relaxes (or restores) the device's DMClient poll schedule based on whether its fleetd
+// can be woken on demand. Capable hosts get a relaxed poll, so steady-state command delivery is driven by the
+// on-demand wake instead of frequent polling (the server-load reduction this feature targets); non-capable
+// hosts stay on the fast poll. It reconciles in-session: it emits a Replace only when the device's applied state
+// differs from the desired state, then records the new state. The mark is optimistic; the in-session Replace on
+// the Poll node is reliable in practice, and a relax that somehow failed would leave the host on the fast poll
+// (the safe direction).
+func (svc *Service) getPollScheduleCommands(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
+	desiredRelaxed, err := svc.windowsMDMHostSupportsSync(ctx, device)
+	if err != nil {
+		return nil, err
+	}
+	if desiredRelaxed == device.PollScheduleRelaxed {
+		return nil, nil
+	}
+
+	interval := windowsMDMFastPollIntervalMinutes
+	if desiredRelaxed {
+		interval = windowsMDMRelaxedPollIntervalMinutes
+	}
+	cmd := newSyncMLCmdInt(
+		fleet.CmdReplace,
+		fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/Poll/IntervalForFirstSetOfRetries", syncml.DocProvisioningAppProviderID),
+		interval,
+	)
+
+	if err := svc.ds.SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx, device.ID, desiredRelaxed); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "record windows MDM poll schedule state")
+	}
+	svc.logger.DebugContext(ctx, "reconciled Windows MDM poll schedule", "device_id", device.MDMDeviceID, "relaxed", desiredRelaxed)
+	return []*mdm_types.SyncMLCmd{cmd}, nil
 }
 
 // getESPCommands dispatches ESP coordination for a Windows Autopilot device.

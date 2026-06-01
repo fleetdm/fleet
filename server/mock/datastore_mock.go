@@ -1317,6 +1317,8 @@ type MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc func(ctx context.Context, 
 
 type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
+type SetMDMWindowsEnrollmentPollScheduleRelaxedFunc func(ctx context.Context, enrollmentID uint, relaxed bool) error
+
 type MDMWindowsGetEnrolledDeviceWithHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error)
@@ -3984,6 +3986,9 @@ type DataStore struct {
 
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFunc        MDMWindowsGetEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked bool
+
+	SetMDMWindowsEnrollmentPollScheduleRelaxedFunc        SetMDMWindowsEnrollmentPollScheduleRelaxedFunc
+	SetMDMWindowsEnrollmentPollScheduleRelaxedFuncInvoked bool
 
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFunc        MDMWindowsGetEnrolledDeviceWithHostUUIDFunc
 	MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked bool
@@ -9604,6 +9609,13 @@ func (s *DataStore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context,
 	s.MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc(ctx, mdmDeviceID)
+}
+
+func (s *DataStore) SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx context.Context, enrollmentID uint, relaxed bool) error {
+	s.mu.Lock()
+	s.SetMDMWindowsEnrollmentPollScheduleRelaxedFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetMDMWindowsEnrollmentPollScheduleRelaxedFunc(ctx, enrollmentID, relaxed)
 }
 
 func (s *DataStore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {

@@ -82,6 +82,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		awaiting_configuration_at,
 		credentials_hash,
 		credentials_acknowledged,
+		poll_schedule_relaxed,
 		created_at,
 		updated_at,
 		host_uuid
@@ -95,6 +96,16 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetEnrolledDeviceWithDeviceID")
 	}
 	return &winMDMDevice, nil
+}
+
+// SetMDMWindowsEnrollmentPollScheduleRelaxed records whether the given Windows MDM enrollment's DMClient poll
+// schedule has been relaxed, so the management session does not re-send the poll Replace on every session.
+func (ds *Datastore) SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx context.Context, enrollmentID uint, relaxed bool) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET poll_schedule_relaxed = ? WHERE id = ?`, relaxed, enrollmentID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set mdm windows enrollment poll schedule relaxed")
+	}
+	return nil
 }
 
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
