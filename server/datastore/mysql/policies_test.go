@@ -96,6 +96,7 @@ func TestPolicies(t *testing.T) {
 		{"ApplyPolicySpecsNeedsFullMembershipCleanupFlag", testApplyPolicySpecsNeedsFullMembershipCleanupFlag},
 		{"CleanupPolicyMembershipCrashRecovery", testCleanupPolicyMembershipCrashRecovery},
 		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
+		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -8435,4 +8436,50 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	assert.Equal(t, uint(1), policies[0].FailingHostCount, "policy stats should not have been reset")
+}
+
+func testRecordPolicyQueryExecutionsDeletedPolicy(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "host1", "10.0.0.1", "host1Key", "host1UUID", time.Now())
+	user := test.NewUser(t, ds, "User", "test@example.com", true)
+
+	validPolicy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "valid-policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	deletedPolicy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "deleted-policy",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+
+	// Simulate policy deleted after query was distributed but before results arrived.
+	_, err = ds.DeleteGlobalPolicies(ctx, []uint{deletedPolicy.ID})
+	require.NoError(t, err)
+
+	// A mixed batch (valid + deleted policy) must not return an error.
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+		validPolicy.ID:   new(true),
+		deletedPolicy.ID: new(true),
+	}, time.Now(), false, nil))
+
+	// The valid policy's membership row must have been written.
+	var count int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ? AND host_id = ?`,
+		validPolicy.ID, host.ID,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 1, count, "valid policy membership row must exist")
+
+	// The deleted policy's row must not exist (INSERT IGNORE skipped it).
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ? AND host_id = ?`,
+		deletedPolicy.ID, host.ID,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 0, count, "deleted policy membership row must not exist")
 }

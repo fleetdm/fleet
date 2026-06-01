@@ -707,7 +707,9 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if len(results) > 0 {
 			query := fmt.Sprintf(
-				`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
+				// INSERT IGNORE skips rows whose policy_id no longer exists (policy deleted
+				// after query was distributed but before results arrived).
+				`INSERT IGNORE INTO policy_membership (updated_at, policy_id, host_id, passes)
 			VALUES %s ON DUPLICATE KEY UPDATE updated_at=VALUES(updated_at), passes=VALUES(passes)`,
 				strings.Join(bindvars, ","),
 			)
