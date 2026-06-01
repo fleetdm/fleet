@@ -114,7 +114,7 @@ wipe_btrfs_snapshots() {
             | awk 'NR > 2 {print $1}' \
             | while read -r cfg; do
                 _nums=$(snapper -c "$cfg" list 2>/dev/null \
-                     | awk '{gsub(/\*/, "", $1)} $1 ~ /^[0-9]+$/ {print $1}')
+                     | awk '$1 ~ /^[1-9][0-9]*$/ {print $1}')
                 [ -n "$_nums" ] || continue
                 echo "$_nums" | xargs snapper -c "$cfg" delete --sync 2>/dev/null \
                     || echo "Warning: snapper delete failed for config $cfg"
