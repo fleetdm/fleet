@@ -1,6 +1,6 @@
 try {
     # Extract the zip into a fresh temp dir.
-    $extractDir = Join-Path $env:TEMP "vncviewer-extract-$(New-Guid)"
+    $extractDir = Join-Path $env:TEMP "vncviewer-extract-$([System.Guid]::NewGuid())"
     New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
     Write-Host "Extracting zip to: $extractDir"
     Expand-Archive -LiteralPath $zipPath -DestinationPath $extractDir -Force
