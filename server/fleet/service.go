@@ -1393,7 +1393,7 @@ type Service interface {
 	/////////////////////////////////////////////////////////////////////////////////
 	// Software categories (used as self-service categories in the UI)
 
-	ListSoftwareCategories(ctx context.Context, teamID uint) ([]SoftwareCategory, error)
+	ListSoftwareCategories(ctx context.Context, teamID *uint) ([]SoftwareCategory, error)
 	NewSoftwareCategory(ctx context.Context, teamID *uint, name string) (*SoftwareCategory, error)
 	UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*SoftwareCategory, error)
 	DeleteSoftwareCategory(ctx context.Context, id uint) error

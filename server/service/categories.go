@@ -12,7 +12,7 @@ import (
 //////////////////////////////////////////////////////////////////////////////
 
 type getSelfServiceCategoriesRequest struct {
-	FleetID *uint `query:"fleet_id"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getSelfServiceCategoriesResponse struct {
@@ -24,17 +24,14 @@ func (r getSelfServiceCategoriesResponse) Error() error { return r.Err }
 
 func getSelfServiceCategoriesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSelfServiceCategoriesRequest)
-	if req.FleetID == nil {
-		return getSelfServiceCategoriesResponse{Err: &fleet.BadRequestError{Message: "fleet_id is required"}}, nil
-	}
-	categories, err := svc.ListSoftwareCategories(ctx, *req.FleetID)
+	categories, err := svc.ListSoftwareCategories(ctx, req.TeamID)
 	if err != nil {
 		return getSelfServiceCategoriesResponse{Err: err}, nil
 	}
 	return getSelfServiceCategoriesResponse{SelfServiceCategories: categories}, nil
 }
 
-func (svc *Service) ListSoftwareCategories(ctx context.Context, _ uint) ([]fleet.SoftwareCategory, error) {
+func (svc *Service) ListSoftwareCategories(ctx context.Context, _ *uint) ([]fleet.SoftwareCategory, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -47,8 +44,8 @@ func (svc *Service) ListSoftwareCategories(ctx context.Context, _ uint) ([]fleet
 //////////////////////////////////////////////////////////////////////////////
 
 type addSelfServiceCategoriesRequest struct {
-	FleetID *uint  `json:"fleet_id"`
-	Name    string `json:"name"`
+	TeamID *uint  `json:"team_id" renameto:"fleet_id"`
+	Name   string `json:"name"`
 }
 
 type addSelfServiceCategoriesResponse struct {
@@ -60,7 +57,7 @@ func (r addSelfServiceCategoriesResponse) Error() error { return r.Err }
 
 func addSelfServiceCategoriesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addSelfServiceCategoriesRequest)
-	category, err := svc.NewSoftwareCategory(ctx, req.FleetID, req.Name)
+	category, err := svc.NewSoftwareCategory(ctx, req.TeamID, req.Name)
 	if err != nil {
 		return addSelfServiceCategoriesResponse{Err: err}, nil
 	}

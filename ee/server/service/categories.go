@@ -16,21 +16,25 @@ import (
 // action. Revisit when GitOps support for self-service categories lands —
 // gitops will likely need read+write to manage fleet category lists from YAML.
 
-func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareCategory{TeamID: teamID}, fleet.ActionRead); err != nil {
+func (svc *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([]fleet.SoftwareCategory, error) {
+	if teamID == nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewInvalidArgumentError("fleet_id", "fleet_id is required")
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareCategory{TeamID: *teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	if teamID != 0 {
-		exists, err := svc.ds.TeamExists(ctx, teamID)
+	if *teamID != 0 {
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if fleet exists")
 		}
 		if !exists {
-			return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", teamID)).
+			return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}
-	categories, err := svc.ds.ListSoftwareCategories(ctx, teamID)
+	categories, err := svc.ds.ListSoftwareCategories(ctx, *teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list software categories")
 	}
@@ -71,14 +75,14 @@ func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name 
 		return nil, ctxerr.Wrap(ctx, err, "new software category")
 	}
 
-	fleetName, err := svc.fleetNameForActivity(ctx, category.TeamID)
+	teamName, err := svc.teamNameForActivity(ctx, category.TeamID)
 	if err != nil {
 		return nil, err
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeAddedSelfServiceCategory{
 		SelfServiceCategoryName: category.Name,
-		FleetID:                 category.TeamID,
-		FleetName:               fleetName,
+		TeamID:                  new(category.TeamID),
+		TeamName:                teamName,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for added self-service category")
 	}
@@ -122,14 +126,14 @@ func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name st
 		return nil, ctxerr.Wrap(ctx, err, "update software category")
 	}
 
-	fleetName, err := svc.fleetNameForActivity(ctx, updated.TeamID)
+	teamName, err := svc.teamNameForActivity(ctx, updated.TeamID)
 	if err != nil {
 		return nil, err
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedSelfServiceCategory{
 		SelfServiceCategoryName: updated.Name,
-		FleetID:                 updated.TeamID,
-		FleetName:               fleetName,
+		TeamID:                  new(updated.TeamID),
+		TeamName:                teamName,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for edited self-service category")
 	}
@@ -156,27 +160,27 @@ func (svc *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete software category")
 	}
 
-	fleetName, err := svc.fleetNameForActivity(ctx, category.TeamID)
+	teamName, err := svc.teamNameForActivity(ctx, category.TeamID)
 	if err != nil {
 		return err
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedSelfServiceCategory{
 		SelfServiceCategoryName: category.Name,
-		FleetID:                 category.TeamID,
-		FleetName:               fleetName,
+		TeamID:                  new(category.TeamID),
+		TeamName:                teamName,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for deleted self-service category")
 	}
 	return nil
 }
 
-func (svc *Service) fleetNameForActivity(ctx context.Context, teamID uint) (*string, error) {
+func (svc *Service) teamNameForActivity(ctx context.Context, teamID uint) (*string, error) {
 	if teamID == 0 {
 		return nil, nil
 	}
 	tm, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "fetching fleet name for category activity")
+		return nil, ctxerr.Wrap(ctx, err, "fetching team name for category activity")
 	}
 	return &tm.Name, nil
 }

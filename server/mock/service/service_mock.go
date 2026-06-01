@@ -850,7 +850,7 @@ type UploadSoftwareTitleIconFunc func(ctx context.Context, payload *fleet.Upload
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
-type ListSoftwareCategoriesFunc func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error)
+type ListSoftwareCategoriesFunc func(ctx context.Context, teamID *uint) ([]fleet.SoftwareCategory, error)
 
 type NewSoftwareCategoryFunc func(ctx context.Context, teamID *uint, name string) (*fleet.SoftwareCategory, error)
 
@@ -5219,7 +5219,7 @@ func (s *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	return s.DeleteSoftwareTitleIconFunc(ctx, teamID, titleID)
 }
 
-func (s *Service) ListSoftwareCategories(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+func (s *Service) ListSoftwareCategories(ctx context.Context, teamID *uint) ([]fleet.SoftwareCategory, error) {
 	s.mu.Lock()
 	s.ListSoftwareCategoriesFuncInvoked = true
 	s.mu.Unlock()
