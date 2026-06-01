@@ -2745,7 +2745,6 @@ spec:
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, `The profile can't include "await_device_configured" option.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-
 	})
 
 	t.Run("require_all_software_windows", func(t *testing.T) {
@@ -3161,6 +3160,12 @@ func TestApplySpecs(t *testing.T) {
 		}
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{}, nil
+		}
+		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
+		}
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
 		}
 	}
 

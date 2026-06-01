@@ -6843,6 +6843,9 @@ func TestGitOpsWindowsOSUpdates(t *testing.T) {
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{DeclarationUUID: "test-uuid"}, nil
 	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 
 	teamYAML := func(deadlineDays, gracePeriodDays int) string {
 		return fmt.Sprintf(`
