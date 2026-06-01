@@ -89,6 +89,7 @@ import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDe
 
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
 import InfoButton from "./components/InfoButton";
+import ThemeToggle from "./components/ThemeToggle";
 import BypassModal from "./BypassModal";
 
 const baseClass = "device-user";
@@ -562,6 +563,7 @@ const DeviceUserPage = ({
   const renderActionButtons = () => {
     return (
       <div className={`${baseClass}__action-button-container`}>
+        <ThemeToggle />
         <InfoButton onClick={toggleInfoModal} />
       </div>
     );

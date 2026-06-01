@@ -25,6 +25,12 @@
   padding-bottom: 50px;
   min-width: 0;
 
+  &__action-button-container {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
   .info-banner {
     &__cta {
       white-space: nowrap;

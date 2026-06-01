@@ -73,6 +73,9 @@ import User from "./User";
 import InfoOutline from "./InfoOutline";
 import GitOpsMode from "./GitOpsMode";
 import Android from "./Android";
+import Sun from "./Sun";
+import Moon from "./Moon";
+import ThemeAuto from "./ThemeAuto";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -152,6 +155,9 @@ export const ICON_MAP = {
   "automatic-self-service": AutomaticSelfService,
   user: User,
   "gitops-mode": GitOpsMode,
+  sun: Sun,
+  moon: Moon,
+  "theme-auto": ThemeAuto,
 };
 
 export type IconNames = keyof typeof ICON_MAP;
