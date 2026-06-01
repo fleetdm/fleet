@@ -149,6 +149,13 @@
       "description": "Amazon Corretto 25 is a no-cost, multiplatform, production-ready distribution of OpenJDK 25."
     },
     {
+      "name": "Amazon WorkSpaces",
+      "slug": "amazon-workspaces/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.amazon.workspaces",
+      "description": "Amazon WorkSpaces provides secure, managed virtual desktop infrastructure (VDI) in the cloud."
+    },
+    {
       "name": "Android Studio",
       "slug": "android-studio/darwin",
       "platform": "darwin",
