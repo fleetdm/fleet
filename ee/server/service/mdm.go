@@ -1542,6 +1542,7 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 		appConfig.MDMUrl(),
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		apple_mdm.MDMAccessRightAll,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
