@@ -1,3 +1,9 @@
+## Fleet 4.86.1 (Jun 01, 2026)
+
+### Bug fixes
+
+* Updated conditional access policy query to use parameter binding for platform filter.
+
 ## Fleet 4.86.0 (May 29, 2026)
 
 ### IT Admins
