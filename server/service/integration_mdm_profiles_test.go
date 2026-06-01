@@ -2076,7 +2076,7 @@ func (s *integrationMDMTestSuite) TestGetHostConfigurationProfilesSingleMDM() {
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/configuration_profiles", hostID), nil, expectedStatus, &resp)
 		if expectedStatus == http.StatusOK {
 			require.NotNil(t, resp.Profiles)
-			require.EqualValues(t, hostID, resp.HostID)
+			require.Equal(t, hostID, resp.HostID)
 		}
 	}
 
