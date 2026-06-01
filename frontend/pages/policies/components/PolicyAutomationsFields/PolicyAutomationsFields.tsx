@@ -35,11 +35,14 @@ import { useScripts, useSoftwareTitles } from "./hooks";
 const baseClass = "policy-automations-fields";
 
 /** Result returned to the parent on save, describing what (if anything)
- *  changed. The parent renders `error` and persists the update parts. */
+ *  changed. Field-level validation errors are displayed within the component
+ *  itself; the parent only needs `isValid` to decide whether to stop the
+ *  submit, then persists the update parts. */
 export interface IPolicyAutomationsPayload {
-  /** A validation message (e.g. a checked automation is missing its required
-   *  selection), or null when the selection is valid. */
-  error: string | null;
+  /** false when a checked automation is missing its required selection. The
+   *  component surfaces the specific error(s) above the table; the parent just
+   *  stops the submit. */
+  isValid: boolean;
   /** false when nothing changed from the policy's stored automations. */
   isDirty: boolean;
   policyUpdate?: IPolicyAutomationUpdate;
@@ -47,9 +50,16 @@ export interface IPolicyAutomationsPayload {
 }
 
 export interface IPolicyAutomationsFieldsHandle {
-  /** Validates the current selection and returns the validation `error` (if
-   *  any) plus the changed automation parts for the parent to persist. */
+  /** Validates the current selection (surfacing any field errors in-place) and
+   *  returns whether it's valid plus the changed automation parts for the
+   *  parent to persist. */
   getAutomationsPayload: () => IPolicyAutomationsPayload;
+}
+
+/** Validation errors keyed by the automation that requires a selection. */
+interface IAutomationsErrors {
+  install_software?: string;
+  run_script?: string;
 }
 
 interface IPolicyAutomationsFieldsProps {
@@ -138,6 +148,44 @@ const PolicyAutomationsFields = forwardRef<
       policy.run_script?.id ?? null
     );
 
+    const [errors, setErrors] = useState<IAutomationsErrors>({});
+
+    const clearError = (key: keyof IAutomationsErrors) =>
+      setErrors((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+
+    const validate = (): IAutomationsErrors => {
+      const newErrors: IAutomationsErrors = {};
+      if (installSoftware && softwareTitleId === null) {
+        newErrors.install_software = "Please select software to install.";
+      }
+      if (runScript && scriptId === null) {
+        newErrors.run_script = "Please select a script to run.";
+      }
+      return newErrors;
+    };
+
+    const handleToggleInstallSoftware = (next: boolean) => {
+      setInstallSoftware(next);
+      if (!next) clearError("install_software");
+    };
+    const handleToggleRunScript = (next: boolean) => {
+      setRunScript(next);
+      if (!next) clearError("run_script");
+    };
+    const handleSelectSoftware = (id: number | null) => {
+      setSoftwareTitleId(id);
+      if (id !== null) clearError("install_software");
+    };
+    const handleSelectScript = (id: number | null) => {
+      setScriptId(id);
+      if (id !== null) clearError("run_script");
+    };
+
     const canFetchTeamScopedLists =
       !isGlobalPolicy && teamIdForApi !== undefined;
     const { data: softwareTitlesData } = useSoftwareTitles({
@@ -169,16 +217,10 @@ const PolicyAutomationsFields = forwardRef<
 
     useImperativeHandle(ref, () => ({
       getAutomationsPayload: () => {
-        // Block enabling install/run without a selection — saving would
-        // silently unset the automation. The caller renders the error.
-        if (installSoftware && softwareTitleId === null) {
-          return {
-            error: "Please select software to install.",
-            isDirty: false,
-          };
-        }
-        if (runScript && scriptId === null) {
-          return { error: "Please select a script to run.", isDirty: false };
+        const newErrors = validate();
+        setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) {
+          return { isValid: false, isDirty: false };
         }
 
         const perPolicyDirty =
@@ -194,7 +236,7 @@ const PolicyAutomationsFields = forwardRef<
         const webhookDirty = webhookOrTicketEnabled !== initialWebhookOrTicket;
 
         return {
-          error: null,
+          isValid: true,
           isDirty: perPolicyDirty || webhookDirty,
           policyUpdate: perPolicyDirty
             ? {
@@ -242,7 +284,7 @@ const PolicyAutomationsFields = forwardRef<
             />
           ),
           checked: installSoftware,
-          onToggle: setInstallSoftware,
+          onToggle: handleToggleInstallSoftware,
           isDisabled: false,
           picker: installSoftware ? (
             <DropdownWrapper
@@ -257,7 +299,7 @@ const PolicyAutomationsFields = forwardRef<
               options={softwareOptions}
               placeholder="Select software"
               onChange={(opt: SingleValue<CustomOptionType>) =>
-                setSoftwareTitleId(opt ? Number(opt.value) : null)
+                handleSelectSoftware(opt ? Number(opt.value) : null)
               }
             />
           ) : undefined,
@@ -272,7 +314,7 @@ const PolicyAutomationsFields = forwardRef<
             />
           ),
           checked: runScript,
-          onToggle: setRunScript,
+          onToggle: handleToggleRunScript,
           isDisabled: false,
           picker: runScript ? (
             <DropdownWrapper
@@ -286,7 +328,7 @@ const PolicyAutomationsFields = forwardRef<
               options={scriptOptions}
               placeholder="Select script"
               onChange={(opt: SingleValue<CustomOptionType>) =>
-                setScriptId(opt ? Number(opt.value) : null)
+                handleSelectScript(opt ? Number(opt.value) : null)
               }
             />
           ) : undefined,
@@ -320,9 +362,22 @@ const PolicyAutomationsFields = forwardRef<
       );
     }
 
+    const errorMessages = [errors.install_software, errors.run_script].filter(
+      (msg): msg is string => !!msg
+    );
+
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__section`}>
+          {errorMessages.length > 0 && (
+            <div className={`${baseClass}__errors`} role="alert">
+              {errorMessages.map((msg) => (
+                <span key={msg} className={`${baseClass}__error`}>
+                  {msg}
+                </span>
+              ))}
+            </div>
+          )}
           <table className={`${baseClass}__table`}>
             <tbody>
               {rows.map((row) => (

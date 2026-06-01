@@ -16,7 +16,6 @@ import {
 } from "components/TargetLabelSelector/labelScopes";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
 import { IConfig } from "interfaces/config";
@@ -106,7 +105,6 @@ const SaveNewPolicyModal = ({
   fleetName,
 }: ISaveNewPolicyModalProps): JSX.Element => {
   const { isPremiumTier, setConfig } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
   const {
     lastEditedQueryName,
@@ -206,8 +204,7 @@ const SaveNewPolicyModal = ({
     const automations = showAutomations
       ? automationsRef.current?.getAutomationsPayload()
       : undefined;
-    if (automations?.error) {
-      renderFlash("error", automations.error);
+    if (automations && !automations.isValid) {
       return;
     }
 

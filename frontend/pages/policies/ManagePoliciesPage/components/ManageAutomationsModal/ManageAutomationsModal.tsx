@@ -71,8 +71,7 @@ const ManageAutomationsModal = ({
     if (!payload) {
       return;
     }
-    if (payload.error) {
-      renderFlash("error", payload.error);
+    if (!payload.isValid) {
       return;
     }
     if (!payload.isDirty) {

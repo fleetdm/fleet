@@ -9,6 +9,18 @@
     gap: $pad-small;
   }
 
+  &__errors {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xxsmall;
+  }
+
+  &__error {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-vibrant-red;
+  }
+
   &__table {
     border-collapse: separate;
     border-spacing: 0;

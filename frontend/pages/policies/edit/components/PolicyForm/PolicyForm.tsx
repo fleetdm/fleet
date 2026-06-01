@@ -483,8 +483,7 @@ const PolicyForm = ({
     let automations: IPolicyAutomationsPayload | undefined;
     if (isEditMode) {
       automations = automationsRef.current?.getAutomationsPayload();
-      if (automations?.error) {
-        renderFlash("error", automations.error);
+      if (automations && !automations.isValid) {
         return;
       }
     }
