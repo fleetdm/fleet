@@ -261,7 +261,7 @@ func TestFileResponseHandlePathTraversal(t *testing.T) {
 		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
 	})
 
-	t.Run("dotdot filename is rejected", func(t *testing.T) {
+	t.Run("dotdot filename falls back to UUID", func(t *testing.T) {
 		destDir := t.TempDir()
 		fr := &FileResponse{DestPath: destDir}
 		resp := &http.Response{
@@ -273,7 +273,8 @@ func TestFileResponseHandlePathTraversal(t *testing.T) {
 		}
 
 		err := fr.Handle(resp)
-		require.ErrorContains(t, err, "path escapes destination directory")
+		require.NoError(t, err)
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
 	})
 }
 

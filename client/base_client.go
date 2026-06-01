@@ -233,8 +233,9 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 		filename = filepath.Base(params["filename"])
 	}
 
-	// filepath.Base("") returns ".", so we also need to also check for that
-	if filename == "" || filename == "." {
+	// filepath.Base("") returns "." and filepath.Base("..") returns "..",
+	// neither of which is a valid installer filename.
+	if filename == "" || filename == "." || filename == ".." {
 		filename = f.DestFile
 	}
 	if filename == "" {
@@ -242,9 +243,7 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	}
 
 	f.DestFilePath = filepath.Join(f.DestPath, filename)
-	// Confirm the resolved path is still inside DestPath. Note: filepath.Base("..")
-	// returns ".." (not "."), so the dot-check above does NOT catch it — this
-	// containment check is what rejects bare ".." filenames.
+	// Confirm the resolved path is still inside DestPath.
 	cleanDest, err := filepath.Abs(f.DestPath)
 	if err != nil {
 		return fmt.Errorf("resolving destination directory: %w", err)
