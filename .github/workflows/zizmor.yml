@@ -16,10 +16,12 @@ on:
     paths:
       - ".github/workflows/**"
       - ".github/actions/**"
+      - ".github/zizmor-gate.yml"
   pull_request:
     paths:
       - ".github/workflows/**"
       - ".github/actions/**"
+      - ".github/zizmor-gate.yml"
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs.

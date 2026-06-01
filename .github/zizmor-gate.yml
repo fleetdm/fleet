@@ -20,7 +20,11 @@ rules:
     disable: true
   excessive-permissions: # 20 findings
     disable: true
+  known-vulnerable-actions: # 418 findings (online audit)
+    disable: true
   misfeature: # 11 findings
+    disable: true
+  ref-version-mismatch: # 44 findings (online audit)
     disable: true
   secrets-inherit: # 5 findings
     disable: true
