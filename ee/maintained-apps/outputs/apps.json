@@ -156,11 +156,32 @@
       "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
     },
     {
+      "name": "Android Studio",
+      "slug": "android-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Android Studio",
+      "description": "Android Studio is the official integrated development environment for Android app development, based on IntelliJ IDEA."
+    },
+    {
       "name": "Anka",
       "slug": "anka-virtualization/darwin",
       "platform": "darwin",
       "unique_identifier": "com.veertu.anka",
       "description": "Anka is a tool for managing and creating virtual machines."
+    },
+    {
+      "name": "Another Redis Desktop Manager",
+      "slug": "another-redis-desktop-manager/darwin",
+      "platform": "darwin",
+      "unique_identifier": "me.qii404.another-redis-desktop-manager",
+      "description": "Another Redis Desktop Manager is a GUI client for Redis."
+    },
+    {
+      "name": "Another Redis Desktop Manager",
+      "slug": "another-redis-desktop-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Another Redis Desktop Manager",
+      "description": "Another Redis Desktop Manager is a GUI client for Redis."
     },
     {
       "name": "AnyDesk",
@@ -401,6 +422,13 @@
       "description": "Bruno is an open source IDE for exploring and testing APIs."
     },
     {
+      "name": "Burp Suite Community Edition",
+      "slug": "burp-suite-community/windows",
+      "platform": "windows",
+      "unique_identifier": "Burp Suite Community Edition 2026.3.3",
+      "description": "Burp Suite is a web security testing toolkit."
+    },
+    {
       "name": "calibre",
       "slug": "calibre/darwin",
       "platform": "darwin",
@@ -469,6 +497,13 @@
       "platform": "darwin",
       "unique_identifier": "com.openai.chat",
       "description": "ChatGPT Desktop is OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
+    },
+    {
+      "name": "Chrome Remote Desktop",
+      "slug": "chrome-remote-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Chrome Remote Desktop Host",
+      "description": "Chrome Remote Desktop is an app that allows admins to help troubleshoot through the Google Chrome browser."
     },
     {
       "name": "Cisco Jabber",
@@ -597,6 +632,20 @@
       "description": "CrashPlan is backup and recovery software."
     },
     {
+      "name": "Cryptomator",
+      "slug": "cryptomator/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.cryptomator",
+      "description": "Cryptomator is a multi-platform client-side cloud file encryption tool."
+    },
+    {
+      "name": "Cryptomator",
+      "slug": "cryptomator/windows",
+      "platform": "windows",
+      "unique_identifier": "Cryptomator",
+      "description": "Cryptomator is a multi-platform client-side cloud file encryption tool."
+    },
+    {
       "name": "Cursor",
       "slug": "cursor/darwin",
       "platform": "darwin",
@@ -623,6 +672,13 @@
       "platform": "windows",
       "unique_identifier": "Cyberduck",
       "description": "Cyberduck is a server and cloud storage browser."
+    },
+    {
+      "name": "Max",
+      "slug": "cycling74-max/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cycling74.Max",
+      "description": "Max is a flexible space to create your own interactive software."
     },
     {
       "name": "Dash",
@@ -1402,6 +1458,13 @@
       "description": "Mattermost is an open-source, self-hosted Slack-alternative."
     },
     {
+      "name": "Mattermost",
+      "slug": "mattermost/windows",
+      "platform": "windows",
+      "unique_identifier": "Mattermost",
+      "description": "Mattermost is an open-source, self-hosted Slack-alternative."
+    },
+    {
       "name": "Messenger",
       "slug": "messenger/darwin",
       "platform": "darwin",
@@ -1960,6 +2023,13 @@
       "platform": "windows",
       "unique_identifier": "RubyMine",
       "description": "Ruby on Rails IDE by JetBrains."
+    },
+    {
+      "name": "RustDesk",
+      "slug": "rustdesk/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.carriez.rustdesk",
+      "description": "RustDesk is an Open source virtual/remote desktop application."
     },
     {
       "name": "RustRover",
