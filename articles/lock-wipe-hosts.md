@@ -67,19 +67,15 @@ For macOS hosts, Fleet uses Erase All Content and Settings (EACS) with the [defa
 
 ### Linux wipe behavior
 
-Linux wipe does not use an MDM command because there's no standard Linux MDM protocol. Instead, Fleet runs a script on the host via the fleetd agent. This means:
+> **Best practice:** Before wiping production Linux hosts, run the wipe against a test host running the same distro and version as your production hosts, with the same disk layout, filesystem configuration (including any btrfs, LVM, or LUKS setup), and network drive usage. Different distros — and even different versions of the same distro — can behave differently. Confirm the outcome matches your expectations before wiping in production.
 
-- The fleetd agent must be deployed with `--enable-scripts` for wipe to work.
-- The host must be online and able to receive the script from Fleet.
-
-**What the script attempts to erase:**
-
-The following steps describe what the script attempts to do. Successful completion of each step is not guaranteed on every host — Linux encompasses a wide variety of distributions, each with different default filesystem layouts, init systems, package managers, and mount configurations. Outcomes will vary depending on the specific distro, disk layout, filesystem configuration, and what is mounted at wipe time. Always validate on a representative non-production machine running the same distro and configuration as your production hosts before wiping them.
+Linux wipe does not use an MDM command because there's no standard Linux MDM protocol. Instead, Fleet runs a script that does the following:
 
 1. All non-root users are logged out and their passwords are locked.
 2. Network filesystems (NFS, CIFS/SMB, SSHFS, etc.) are detected via `/proc/mounts` and unmounted before any deletion begins, to avoid accidentally erasing data on remote storage. If `/proc/mounts` is not found, the script aborts entirely rather than risk unsafe deletion. However, **the script cannot guarantee it detects every network-backed path** — symlinks that resolve outside a detected mount point or unusual mount configurations may be missed. 
 
 > **Note:** Before wiping, ensure all network drives are disconnected from the host and verify that no critical remote data is accessible from it.
+
 3. btrfs snapshots are attempted to be deleted — using `snapper` if available, with a fallback to `btrfs subvolume delete`. This step runs before file deletion because read-only snapshots resist `rm -rf`. Snapshot deletion may not be complete if `snapper` is not installed and the fallback cannot access all subvolumes.
 4. Deletion of non-essential user data is attempted: `/home/*`, `/tmp`, `/var/tmp`, `/var/log`, user caches, trash directories, and `/.snapshots`.
 5. Deletion of system directories is attempted: `/bin`, `/sbin`, `/usr`, `/lib`, `/opt`, `/etc`, `/var`, and `/srv`.
@@ -87,11 +83,12 @@ The following steps describe what the script attempts to do. Successful completi
 
 The script will not cross filesystem boundaries — it uses `--one-file-system` (or `find -xdev` as a fallback) to avoid recursing into mounted filesystems. This is a safety measure, but it also means data on separately mounted filesystems at non-standard paths will not be erased.
 
-**Important limitations to consider before wiping:**
+#### Limitations
 
 - This is a **best-effort, script-based** erase, not a hardware-level secure erase. There is no guarantee all data is removed. Data may be recoverable with forensic tools, particularly on SSDs without full-disk encryption.
-
-> **Recommendation:** Before wiping production Linux hosts, run the wipe against a non-production machine running the **same distro and version** as your production hosts, with the same disk layout, filesystem configuration (including any btrfs, LVM, or LUKS setup), and network drive usage. Different distros — and even different versions of the same distro — can behave differently. Confirm the outcome matches your expectations before rolling out to production.
+- **Separate partitions or mount points** not covered by the paths listed above (e.g. a dedicated `/data` partition) will not be erased. If your hosts use non-standard disk layouts, the script may leave data intact on those volumes.
+- **Network-mounted paths** are detected and skipped to protect remote storage, but detection relies on `/proc/mounts` being accurate and complete. **Disconnect all network drives before wiping** and confirm there is no network-backed storage accessible on the host at wipe time. If you are unsure, check what is mounted by running `mount` on the host before initiating the wipe.
+- After the script completes, the host will halt and will not reboot into a usable state. Physical access and OS reinstallation will be required to bring the host back into service.
 
 ## Unlock a host
 
