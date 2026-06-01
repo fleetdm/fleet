@@ -311,6 +311,15 @@ export interface IActivityDetails {
   teams?: ITeamSummary[];
   triggered_by?: string;
   from_setup_experience?: boolean;
+  from_auto_update?: boolean;
+  /**
+   * Set on a failed install activity (`installed_app_store_app` /
+   * `installed_software`) when Fleet failed the install before reaching the
+   * device — currently, the managed app configuration references a Fleet
+   * variable that can't be resolved for this host. Empty for device-reported
+   * failures, which surface their reason through the MDM command error chain.
+   */
+  failure_reason?: string;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
@@ -328,6 +337,17 @@ export interface IActivityDetails {
   fleet_name?: string | null;
   dataset?: string;
 }
+
+/**
+ * IActivityDetails plus the activity-envelope actor fields the
+ * install-details modal needs to render the actor-driven failure copy
+ * ("Fleet failed to install…" vs "<Admin> failed to install…"). Used by
+ * activity-feed entry points that stash a clicked activity into modal state.
+ */
+export type IActivityDetailsWithActor = IActivityDetails & {
+  actor_full_name?: string;
+  fleet_initiated?: boolean;
+};
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
 export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {

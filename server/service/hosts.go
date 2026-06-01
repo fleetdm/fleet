@@ -3458,12 +3458,14 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			return nil, err
 		}
-		cert, err := assets.CAKeyPair(ctx, svc.ds)
+		// Include previously-rolled-over CA certs so keys escrowed against an
+		// earlier CA still decrypt with the (unchanged) private key.
+		certs, key, err := assets.CACertsAndKeyForDecryption(ctx, svc.ds)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
 		}
 		decryptFn = func(b64 string) (string, error) {
-			b, err := mdm.DecryptBase64CMS(b64, cert.Leaf, cert.PrivateKey)
+			b, err := mdm.DecryptBase64CMSWithCerts(b64, key, certs)
 			return string(b), err
 		}
 	}

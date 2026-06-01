@@ -23,6 +23,7 @@ import (
 // Windows rows synchronously for the rest of the test. The prior hook is
 // restored via t.Cleanup so sibling tests on a shared datastore (e.g.
 // TestMDMShared) aren't affected.
+// TODO(MHJ): Marked for deletion
 func (ds *Datastore) EnableTestWindowsEagerHook(tb testing.TB) {
 	tb.Helper()
 	prev := ds.testWindowsEagerHook
@@ -35,6 +36,7 @@ func (ds *Datastore) EnableTestWindowsEagerHook(tb testing.TB) {
 // upserting desired profiles. Each batch is committed in its own
 // transaction so InnoDB row locks on host_mdm_windows_profiles are held
 // only for the duration of one batch.
+// TODO(MHJ): Marked for deletion
 func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesForTests(
 	ctx context.Context,
 	hostUUIDs []string,

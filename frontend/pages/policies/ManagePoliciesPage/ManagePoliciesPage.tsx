@@ -83,6 +83,7 @@ interface IManagePoliciesPageProps {
       order_direction?: "asc" | "desc";
       page?: string;
       automation_type?: AutomationType;
+      manage_automations?: string;
     };
     search: string;
   };
