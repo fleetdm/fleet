@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -182,19 +181,25 @@ func (svc *Service) AddFleetMaintainedApp(
 		PatchQuery:            app.PatchQuery,
 	}
 
-	// Translate old category names without emoji, and add missing categories
-	tmID := ptr.ValOrZero(payload.TeamID)
-	payload.Categories = server.RemoveDuplicatesFromSlice(
-		fleet.TranslateLegacySoftwareCategoryNames(payload.Categories),
-	)
-	if err := svc.createMissingCategories(ctx, tmID, payload.Categories); err != nil {
-		return 0, err
+	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
+	categoryMap, err := svc.ds.GetSoftwareCategoryNameToIDMap(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "getting software category name to id map")
 	}
 
-	payload.CategoryIDs, err = svc.ds.GetSoftwareCategoryIDs(ctx, tmID, payload.Categories)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "getting FMA category ids")
+	// Filter payload.Categories to only include categories that exist in the database
+	var existingCategories []string
+	var existingCategoryIDs []uint
+	for _, catName := range payload.Categories {
+		if catID, exists := categoryMap[catName]; exists {
+			existingCategories = append(existingCategories, catName)
+			existingCategoryIDs = append(existingCategoryIDs, catID)
+		}
 	}
+
+	// Update payload with only the existing categories
+	payload.Categories = existingCategories
+	payload.CategoryIDs = existingCategoryIDs
 
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
@@ -287,21 +292,4 @@ func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamI
 	}
 
 	return maintained_apps.Hydrate(ctx, app, "", teamID, nil)
-}
-
-func (svc *Service) createMissingCategories(ctx context.Context, teamID uint, names []string) error {
-	existing, err := svc.ds.ListSoftwareCategories(ctx, teamID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing fleet software categories")
-	}
-	for _, name := range names {
-		if !slices.ContainsFunc(existing, func(c fleet.SoftwareCategory) bool {
-			return strings.EqualFold(c.Name, name)
-		}) {
-			if _, err := svc.NewSoftwareCategory(ctx, &teamID, name); err != nil {
-				return ctxerr.Wrap(ctx, err, "creating missing FMA category")
-			}
-		}
-	}
-	return nil
 }
