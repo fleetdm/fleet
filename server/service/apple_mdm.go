@@ -1031,11 +1031,8 @@ func (svc *Service) handleDeclarationSoftwareUpdate(
 
 func isAppleOSUpdatesConfigured(ctx context.Context, teamID uint, svc *Service) (bool, error) {
 	type AppleOSUpdates struct {
-		// MacOSUpdates defines the OS update settings for macOS devices.
-		MacOSUpdates fleet.AppleOSUpdateSettings
-		// IOSUpdates defines the OS update settings for iOS devices.
-		IOSUpdates fleet.AppleOSUpdateSettings
-		// IPadOSUpdates defines the OS update settings for iPadOS devices.
+		MacOSUpdates  fleet.AppleOSUpdateSettings
+		IOSUpdates    fleet.AppleOSUpdateSettings
 		IPadOSUpdates fleet.AppleOSUpdateSettings
 	}
 
@@ -1063,7 +1060,6 @@ func isAppleOSUpdatesConfigured(ctx context.Context, teamID uint, svc *Service) 
 		}
 	}
 
-	// Fail if OS updates is configured for any platform.
 	if appleOSUpdates.MacOSUpdates.Configured() || appleOSUpdates.IOSUpdates.Configured() || appleOSUpdates.IPadOSUpdates.Configured() {
 		return true, nil
 	}

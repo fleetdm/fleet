@@ -595,7 +595,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		if hasProfile {
 			return nil, &fleet.BadRequestError{
-				Message: "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first.",
+				Message: fleet.AppleDeclarationOSUpdateAlreadyExistsErrorMessage,
 			}
 		}
 	}
@@ -608,7 +608,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		if hasProfile {
 			return nil, &fleet.BadRequestError{
-				Message: "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first.",
+				Message: fleet.WindowsProfileOSUpdateAlreadyExistsErrorMessage,
 			}
 		}
 	}
