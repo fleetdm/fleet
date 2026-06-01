@@ -190,7 +190,14 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "hardware_model",
     id: "hardware_model",
     Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
+      <TextCell
+        value={
+          isAppleDevice(cellProps.row.original.platform)
+            ? cellProps.row.original.hardware_marketing_name ||
+              cellProps.cell.value
+            : cellProps.cell.value
+        }
+      />
     ),
   },
   // User email
