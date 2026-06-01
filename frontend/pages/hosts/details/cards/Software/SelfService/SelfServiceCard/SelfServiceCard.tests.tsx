@@ -1,7 +1,7 @@
 // State is passed in through tableConfig which is tested in the parent component's tests (SelfService.tests.tsx)
 
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
@@ -43,6 +43,7 @@ const createTestProps = (
   overrides: Partial<ISelfServiceCardProps> = {}
 ): ISelfServiceCardProps => ({
   contactUrl: "http://example.com/contact",
+  deviceToken: "test-device-token",
   queryParams: DEFAULT_QUERY_PARAMS,
   enhancedSoftware: [
     { ...createMockDeviceSoftware({ name: "test1" }), ui_status: "installed" },
@@ -75,7 +76,7 @@ const createTestProps = (
 describe("SelfServiceCard", () => {
   it("renders loading spinner when isLoading is true", async () => {
     const props = createTestProps({ isLoading: true });
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
 
     render(<SelfServiceCard {...props} />);
 
@@ -85,7 +86,7 @@ describe("SelfServiceCard", () => {
 
   it("renders error state when isError is true", () => {
     const props = createTestProps({ isError: true });
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
 
     render(<SelfServiceCard {...props} />);
 
@@ -99,7 +100,7 @@ describe("SelfServiceCard", () => {
       selfServiceData: undefined,
       isFetching: false,
     });
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
 
     render(<SelfServiceCard {...props} />);
 
@@ -115,7 +116,7 @@ describe("SelfServiceCard", () => {
 
   it("renders self-service card with header and subheader", () => {
     const props = createTestProps();
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
 
     render(<SelfServiceCard {...props} />);
 
@@ -129,7 +130,7 @@ describe("SelfServiceCard", () => {
 
   it("renders contact link when contactUrl is provided", () => {
     const props = createTestProps({ contactUrl: "http://example.com/help" });
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
 
     render(<SelfServiceCard {...props} />);
 
@@ -140,7 +141,7 @@ describe("SelfServiceCard", () => {
 
   it("does not render contact link when contactUrl is empty", () => {
     const props = createTestProps({ contactUrl: "" });
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
 
     render(<SelfServiceCard {...props} />);
 
@@ -153,7 +154,7 @@ describe("SelfServiceCard", () => {
     const props = createTestProps({
       queryParams: { ...DEFAULT_QUERY_PARAMS, query: "test search" },
     });
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
 
     render(<SelfServiceCard {...props} />);
 
@@ -165,7 +166,7 @@ describe("SelfServiceCard", () => {
   it("calls router.push when category dropdown changes", async () => {
     const mockRouter = createMockRouter();
     const props = createTestProps({ router: mockRouter });
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
     const user = userEvent.setup();
 
     render(<SelfServiceCard {...props} />);
@@ -173,8 +174,94 @@ describe("SelfServiceCard", () => {
     const dropdown = screen.getByRole("combobox");
     await user.click(dropdown);
 
-    // Note: This test might need adjustment based on your dropdown implementation
     expect(mockRouter.push).toHaveBeenCalled();
+  });
+
+  it("renders the install-all button enabled when 'All' is selected and items are eligible", () => {
+    const props = createTestProps({
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "uninstalled-app" }),
+          ui_status: "uninstalled",
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(<SelfServiceCard {...props} />);
+
+    const button = screen.getByRole("button", { name: /Install all/i });
+    expect(button).toBeInTheDocument();
+    expect(button).toBeEnabled();
+  });
+
+  it("renders the install-all button with the uninstalled count when a category is selected", async () => {
+    const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 42 },
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "installed-app" }),
+          ui_status: "installed",
+        },
+        {
+          ...createMockDeviceSoftware({ name: "uninstalled-app" }),
+          ui_status: "uninstalled",
+        },
+        {
+          ...createMockDeviceSoftware({ name: "another-uninstalled-app" }),
+          ui_status: "uninstalled",
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(<SelfServiceCard {...props} />);
+
+    // Without a matching custom category, filter returns all items unchanged,
+    // so 2 of 3 are eligible.
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Install all \(2\)/i })
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("disables the install-all button when an item in the category is in-progress", async () => {
+    const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 42 },
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "uninstalled-app" }),
+          ui_status: "uninstalled",
+        },
+        {
+          ...createMockDeviceSoftware({ name: "in-progress-app" }),
+          ui_status: "installing",
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(<SelfServiceCard {...props} />);
+
+    const button = await screen.findByRole("button", {
+      name: /Install all/i,
+    });
+    expect(button).toBeDisabled();
+  });
+
+  it("does not render the install-all button on the mobile view", () => {
+    const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 42 },
+      isMobileView: true,
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(<SelfServiceCard {...props} />);
+
+    expect(
+      screen.queryByRole("button", { name: /Install all/i })
+    ).not.toBeInTheDocument();
   });
 
   it("renders empty search state when isEmptySearch is true", () => {
@@ -183,7 +270,7 @@ describe("SelfServiceCard", () => {
       enhancedSoftware: [],
       queryParams: { ...DEFAULT_QUERY_PARAMS, query: "nonexistent" },
     });
-    const render = createCustomRenderer();
+    const render = createCustomRenderer({ withBackendMock: true });
 
     render(<SelfServiceCard {...props} />);
 
@@ -196,19 +283,5 @@ describe("SelfServiceCard", () => {
       name: /Reach out to IT/i,
     });
     expect(contactLink[0]).toHaveAttribute("href", props.contactUrl);
-  });
-
-  it("renders categories menu component", () => {
-    const props = createTestProps();
-    const render = createCustomRenderer();
-
-    render(<SelfServiceCard {...props} />);
-
-    expect(screen.getAllByText(/Browsers/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Communication/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Productivity/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Developer tools/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Security/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Utilities/i).length).toBeGreaterThan(0);
   });
 });

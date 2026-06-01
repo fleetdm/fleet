@@ -9,7 +9,7 @@ import {
 
 const DEFAULT_TIMESTAMP = "2026-05-28T00:00:00Z";
 
-const createMockSelfServiceCategory = (
+export const createMockSelfServiceCategory = (
   overrides?: Partial<ISelfServiceCategory>
 ): ISelfServiceCategory => ({
   id: 1,

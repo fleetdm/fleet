@@ -6,8 +6,6 @@ import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwa
 import CustomLink from "components/CustomLink";
 import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
-import { CATEGORIES_NAV_ITEMS } from "../../helpers";
-import CategoriesMenu from "../CategoriesMenu/CategoriesMenu";
 
 interface SelfServiceTableProps {
   baseClass: string;
@@ -47,10 +45,6 @@ const SelfServiceTable = ({
 
   return (
     <div className={`${baseClass}__table`}>
-      <CategoriesMenu
-        queryParams={queryParams}
-        categories={CATEGORIES_NAV_ITEMS}
-      />
       <TableContainer
         columnConfigs={tableConfig}
         data={enhancedSoftware}

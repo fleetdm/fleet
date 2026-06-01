@@ -3,6 +3,7 @@ import {
   defaultDeviceHandler,
   defaultMacAdminsHandler,
 } from "./handlers/device-handler";
+import { emptySelfServiceCategoriesHandler } from "./handlers/self-service-categories-handlers";
 
 export const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -22,6 +23,7 @@ const handlers = [
   defaultDeviceHandler,
   defaultMacAdminsHandler,
   defaultActivityHandler,
+  emptySelfServiceCategoriesHandler,
 ];
 
 export default handlers;

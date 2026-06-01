@@ -1,40 +1,44 @@
 import React from "react";
-import { SingleValue } from "react-select-5";
+
+import { ISelfServiceCategory } from "interfaces/self_service_category";
+
 import SearchField from "components/forms/fields/SearchField";
-import DropdownWrapper, {
-  CustomOptionType,
-} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import { CATEGORIES_NAV_ITEMS } from "../../helpers";
+
+import CategoryFilter from "../CategoryFilter";
+
+const baseClass = "software-self-service__header-filters";
 
 interface SelfServiceFiltersProps {
   query: string;
-  category_id?: number;
+  categoryId?: number;
+  categories: ISelfServiceCategory[];
   onSearchQueryChange: (value: string) => void;
-  onCategoriesDropdownChange: (newValue: SingleValue<CustomOptionType>) => void;
+  onCategoryChange: (categoryId: number | undefined) => void;
+  installAllSlot?: React.ReactNode;
 }
 
 const SelfServiceFilters = ({
   query,
-  category_id,
+  categoryId,
+  categories,
   onSearchQueryChange,
-  onCategoriesDropdownChange,
+  onCategoryChange,
+  installAllSlot,
 }: SelfServiceFiltersProps) => (
-  <div className="software-self-service__header-filters">
-    <SearchField
-      placeholder="Search by name"
-      onChange={onSearchQueryChange}
-      defaultValue={query}
+  <div className={baseClass}>
+    <CategoryFilter
+      categories={categories}
+      selectedCategoryId={categoryId}
+      onChange={onCategoryChange}
     />
-    <DropdownWrapper
-      options={CATEGORIES_NAV_ITEMS.map((category) => ({
-        ...category,
-        value: String(category.id),
-      }))}
-      value={String(category_id || 0)}
-      onChange={onCategoriesDropdownChange}
-      name="categories-dropdown"
-      className="software-self-service__categories-dropdown"
-    />
+    <div className={`${baseClass}__actions`}>
+      {installAllSlot}
+      <SearchField
+        placeholder="Search by name"
+        onChange={onSearchQueryChange}
+        defaultValue={query}
+      />
+    </div>
   </div>
 );
 

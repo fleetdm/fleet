@@ -17,10 +17,17 @@
 
   &__header-filters {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     justify-content: space-between;
     gap: $pad-medium;
     align-items: center;
+    flex-wrap: wrap;
+
+    &__actions {
+      display: flex;
+      gap: $pad-medium;
+      align-items: center;
+    }
 
     .search-field__tooltip-container {
       width: 100%;
@@ -29,11 +36,7 @@
 
   &__table {
     display: flex;
-    flex-direction: row;
-
-    > *:nth-child(2) {
-      flex-grow: 1;
-    }
+    flex-direction: column;
 
     .data-table-block .data-table__wrapper {
       margin-top: 0;
@@ -99,19 +102,5 @@
     }
   }
 
-  .categories-menu {
-    display: none;
-  }
-
-  // Custom breakpoint to fit table with categories
-  @media (min-width: 1070px) {
-    .categories-menu {
-      display: flex;
-    }
-
-    &__categories-dropdown {
-      display: none;
-    }
-  }
 }
 

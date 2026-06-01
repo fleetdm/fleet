@@ -676,6 +676,7 @@ const SoftwareSelfService = ({
     return (
       <SelfServiceCard
         contactUrl={contactUrl}
+        deviceToken={deviceToken}
         queryParams={queryParams}
         enhancedSoftware={enhancedSoftware}
         selfServiceData={selfServiceData}
@@ -689,6 +690,7 @@ const SoftwareSelfService = ({
         pathname={pathname}
         isMobileView={isMobileView}
         onClickInstallAction={onClickInstallAction}
+        onInstallAllSuccess={onInstallOrUninstall}
       />
     );
 
@@ -704,6 +706,7 @@ const SoftwareSelfService = ({
       />
       <SelfServiceCard
         contactUrl={contactUrl}
+        deviceToken={deviceToken}
         queryParams={queryParams}
         enhancedSoftware={enhancedSoftware}
         selfServiceData={selfServiceData}
@@ -715,6 +718,7 @@ const SoftwareSelfService = ({
         isEmptySearch={isEmptySearch}
         router={router}
         pathname={pathname}
+        onInstallAllSuccess={onInstallOrUninstall}
       />
       {showUninstallSoftwareModal && selectedSoftwareForUninstall.current && (
         <UninstallSoftwareModal
