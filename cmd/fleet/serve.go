@@ -164,6 +164,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	if dev_mode.IsEnabled {
 		applyDevFlags(&config)
+		// In dev mode, bypass all network blocking (including loopback)
+		// so integrations can be tested against localhost.
+		fleethttp.SetBypassAllNetworkBlocking(true)
 	}
 
 	fleethttp.SetBlockPrivateNetworks(!config.Server.AllowPrivateNetworkIntegrations)

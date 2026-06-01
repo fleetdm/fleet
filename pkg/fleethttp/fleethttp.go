@@ -23,11 +23,22 @@ import (
 // startup; off by default so tests and CLI tools are unaffected.
 var privateNetworkBlocked atomic.Bool
 
+// allBlockingBypassed disables ALL network blocking, including the
+// always-blocked tier (loopback, IMDS). Used in dev mode where
+// integrations are tested against localhost.
+var allBlockingBypassed atomic.Bool
+
 // SetBlockPrivateNetworks enables or disables blocking of private network
 // connections. Called by fleet serve at startup to enable blocking in
 // production (unless --allow_private_network_integrations is set).
 func SetBlockPrivateNetworks(block bool) {
 	privateNetworkBlocked.Store(block)
+}
+
+// SetBypassAllNetworkBlocking disables all network blocking including
+// the always-blocked tier. Only used in dev mode.
+func SetBypassAllNetworkBlocking(bypass bool) {
+	allBlockingBypassed.Store(bypass)
 }
 
 // ErrPrivateNetworkBlocked is returned when a connection to a private network
@@ -93,6 +104,11 @@ func ipInCIDRs(ip net.IP, cidrs []*net.IPNet) bool {
 // checks the resolved IP before connecting -- this catches DNS rebinding.
 func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Context, network, addr string) (net.Conn, error) {
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// Dev mode: bypass all blocking so integrations can be tested against localhost.
+		if allBlockingBypassed.Load() {
+			return dialer.DialContext(ctx, network, addr)
+		}
+
 		host, port, err := net.SplitHostPort(addr)
 		if err != nil {
 			return nil, err
