@@ -168,7 +168,7 @@ const SelfServiceCategoriesPage = ({
     }
 
     if (isError) {
-      return <DataError verticalPaddingSize="pad-xxxlarge" />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" selfCenter />;
     }
 
     const categories = categoriesData?.self_service_categories ?? [];
