@@ -282,11 +282,11 @@ const AutomationsModal = ({
         )}
       </div>
       <div className="modal-cta-wrap">
-        <Button onClick={onExit} variant="inverse">
-          Cancel
-        </Button>
         <Button onClick={onSave} isLoading={isUpdating} disabled={isUpdating}>
           Save
+        </Button>
+        <Button onClick={onExit} variant="inverse">
+          Cancel
         </Button>
       </div>
     </Modal>
