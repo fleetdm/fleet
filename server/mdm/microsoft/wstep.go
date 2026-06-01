@@ -411,13 +411,14 @@ func GetAzureAuthTokenClaims(ctx context.Context, tokenStr string) (AzureData, e
 // azureDataFromClaims extracts and validates the Fleet-relevant claims from an already signature-verified Azure AD JWT.
 func azureDataFromClaims(ctx context.Context, claims jwt.MapClaims) (AzureData, error) {
 	// Get UPN claim. v1 access tokens carry `upn`; v2 tokens may instead carry `preferred_username`,
-	// so fall back to it when `upn` is absent. Only error when neither is present.
+	// so fall back to it when `upn` is absent. The UPN is not part of the enrollment authorization decision
+	// (that is the `aud`, `tid`, `iss`, and `scp` claims); it is only used afterwards for identity correlation
+	// (device-user mapping, SCIM lookup, EUA token), all of which already guard against an empty value. A v2
+	// token may carry neither claim when the `profile` scope is absent, so treat UPN as optional rather than
+	// rejecting an otherwise-authorized token.
 	upnClaim, ok := claims["upn"].(string)
 	if !ok || len(upnClaim) == 0 {
-		upnClaim, ok = claims["preferred_username"].(string)
-		if !ok || len(upnClaim) == 0 {
-			return AzureData{}, ctxerr.New(ctx, "invalid UPN claim")
-		}
+		upnClaim, _ = claims["preferred_username"].(string)
 	}
 
 	// Get TenantID claim

@@ -53,7 +53,9 @@ const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
 
     // do an additional validation to check if the client id already exists in the config
     const clientIdExists =
-      config?.mdm.windows_entra_client_ids?.includes(clientId ?? "") ?? false;
+      config?.mdm.windows_entra_client_ids?.some(
+        (id) => id.toLowerCase() === clientId
+      ) ?? false;
     if (clientIdExists) {
       renderFlash("error", "Couldn't add client ID. Client ID already exists.");
       return;

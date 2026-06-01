@@ -1515,6 +1515,56 @@ func TestMDMConfig(t *testing.T) {
 	}
 }
 
+func TestModifyAppConfigWindowsEntraClientIDNormalization(t *testing.T) {
+	ds := new(mock.Store)
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	// Windows MDM must be enabled to set client IDs, which requires a configured WSTEP cert/key pair.
+	cfg := config.TestConfig()
+	cfg.MDM.WindowsWSTEPIdentityCert = "testdata/server.pem"
+	cfg.MDM.WindowsWSTEPIdentityKey = "testdata/server.key"
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		MDM:            fleet.MDM{WindowsEnabledAndConfigured: true},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig, nil
+	}
+	var saved *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		saved = conf
+		return nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	// Mixed case plus a case-only duplicate. They should be normalized to lower-case and de-duplicated.
+	raw := []byte(`{"mdm":{"windows_entra_client_ids":[` +
+		`"AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",` +
+		`"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",` +
+		`"BBBBBBBB-bbbb-BBBB-bbbb-BBBBBBBBBBBB"]}}`)
+	modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+
+	want := []string{
+		"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+		"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+	}
+	require.True(t, ds.SaveAppConfigFuncInvoked)
+	require.Equal(t, want, saved.MDM.WindowsEntraClientIDs.Value)
+	require.Equal(t, want, modified.MDM.WindowsEntraClientIDs.Value)
+}
+
 func TestDiskEncryptionSetting(t *testing.T) {
 	ds := new(mock.Store)
 

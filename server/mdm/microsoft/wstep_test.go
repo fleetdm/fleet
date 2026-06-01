@@ -351,10 +351,13 @@ func TestAzureDataFromClaims(t *testing.T) {
 		require.Equal(t, "pref-user@example.com", data.UPN)
 	})
 
-	t.Run("errors when neither upn nor preferred_username is present", func(t *testing.T) {
-		_, err := azureDataFromClaims(ctx, validClaims())
-		require.Error(t, err)
-		require.ErrorContains(t, err, "invalid UPN claim")
+	t.Run("succeeds with empty UPN when neither upn nor preferred_username is present", func(t *testing.T) {
+		// The UPN is not part of the enrollment authorization decision (aud/tid/iss/scp are), and a v2 token
+		// may carry neither claim when the `profile` scope is absent. Downstream identity correlation guards
+		// against an empty UPN, so an otherwise-authorized token must not be rejected for lacking one.
+		data, err := azureDataFromClaims(ctx, validClaims())
+		require.NoError(t, err)
+		require.Empty(t, data.UPN)
 	})
 
 	t.Run("succeeds without unique_name (v2 token)", func(t *testing.T) {

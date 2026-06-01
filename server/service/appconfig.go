@@ -514,6 +514,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	clearEntraIDsIfWindowsTurnedOff(&appConfig.MDM.WindowsEntraTenantIDs, len(newAppConfig.MDM.WindowsEntraTenantIDs.Value))
 	clearEntraIDsIfWindowsTurnedOff(&appConfig.MDM.WindowsEntraClientIDs, len(newAppConfig.MDM.WindowsEntraClientIDs.Value))
 
+	// Normalize Entra client IDs to canonical lower-case and de-duplicate them. They are authorized
+	// case-insensitively (see hasAuthorizedAzureAudience), so storing them canonically prevents
+	// functionally-identical duplicates that differ only in case (for example, an upper-case ID added via
+	// GitOps or the API alongside a lower-case one added through the UI).
+	if appConfig.MDM.WindowsEntraClientIDs.Set && appConfig.MDM.WindowsEntraClientIDs.Valid {
+		seen := make(map[string]struct{}, len(appConfig.MDM.WindowsEntraClientIDs.Value))
+		normalized := make([]string, 0, len(appConfig.MDM.WindowsEntraClientIDs.Value))
+		for _, clientID := range appConfig.MDM.WindowsEntraClientIDs.Value {
+			id := strings.ToLower(strings.TrimSpace(clientID))
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			normalized = append(normalized, id)
+		}
+		appConfig.MDM.WindowsEntraClientIDs.Value = normalized
+	}
+
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
 	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":
