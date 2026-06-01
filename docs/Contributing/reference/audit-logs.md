@@ -163,7 +163,7 @@ This activity contains a field "policies" where each item is a policy spec with 
 }
 ```
 
-## created_saved_report
+## created_saved_query
 
 Generated when creating a new report.
 
