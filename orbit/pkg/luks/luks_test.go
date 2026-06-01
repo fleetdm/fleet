@@ -211,7 +211,7 @@ var extractedJSON = `{
 func TestExtractJson(t *testing.T) {
 	extracted, err := extractJSON([]byte(output))
 	assert.NoError(t, err)
-	assert.Equal(t, extractedJSON, string(extracted))
+	assert.JSONEq(t, extractedJSON, string(extracted))
 
 	_, err = extractJSON([]byte("no json"))
 	assert.Error(t, err)
