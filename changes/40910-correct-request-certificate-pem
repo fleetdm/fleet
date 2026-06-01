@@ -1,1 +1,0 @@
-* Updated the Request Certificate API to return the proper PEM header for PKCS #7 certificates returned by EST CAs

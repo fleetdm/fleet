@@ -15,14 +15,14 @@ import (
 //go:embed icon_dark.png
 var iconDarkDefault []byte
 
-//go:embed icon_dark_kde.png
-var iconDarkKDE []byte
+//go:embed icon_kde.png
+var iconKDE []byte
 
 var iconDark = getIcon()
 
 func getIcon() []byte {
 	if isKDE() {
-		return iconDarkKDE
+		return iconKDE
 	}
 	return iconDarkDefault
 }

@@ -1,1 +1,0 @@
-* Fixed bug that cleared the MDM lock state if an "idle" message was received right after the lock ACK.

@@ -13,6 +13,10 @@ const (
 	ActionCreate = "create"
 	// ActionCancelHostActivity refers to canceling an upcoming activity on a host.
 	ActionCancelHostActivity = "cancel_host_activity"
+	// ActionTransferHost refers to transferring a host between fleets (teams).
+	// This action is permitted for technicians in addition to admin/maintainer/gitops,
+	// so transferring does not require the broader ActionWrite permission.
+	ActionTransferHost = "transfer_host"
 	// ActionResend refers to resending an entity on a single host (currently used for configuration profiles).
 	ActionResend = "resend"
 	// ActionReadSecrets refers to reading secrets/credentials of an entity (e.g. CA private keys, API tokens).

@@ -2,7 +2,7 @@
 
 Thinking about refreshing corporate laptops with the new low-cost MacBook Neo? You're not alone. Apple's $599 notebook has sparked a wave of enterprise interest, and IT teams are already planning large-scale rollouts. The question isn't whether to buy them. It's how to enroll hundreds or thousands of them without drowning in manual setup.
 
-This article covers why MacBook Neo matters for enterprise Mac adoption, how Fleet's zero-touch enrollment works with Apple Business Manager, and what IT teams need to do to prepare for a large rollout.
+This article covers why MacBook Neo matters for enterprise Mac adoption, how Fleet's zero-touch enrollment works with Apple Business, and what IT teams need to do to prepare for a large rollout.
 
 
 ## MacBook Neo and the enterprise Mac moment
@@ -29,11 +29,11 @@ Zero-touch enrollment eliminates this bottleneck. Devices ship directly from App
 
 ## How Fleet zero-touch enrollment works
 
-Fleet integrates with [Apple Business Manager (ABM)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm) to support zero-touch enrollment through Apple's Automated Device Enrollment (ADE). Here's how the pieces fit together:
+Fleet integrates with [Apple Business (AB)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm) to support zero-touch enrollment through Apple's Automated Device Enrollment (ADE). Here's how the pieces fit together:
 
-1. **Purchase devices through Apple or an authorized reseller.** When you buy MacBook Neos through an authorized channel and provide your ABM Organization ID, each device's serial number is automatically registered to your Apple Business Manager account.
+1. **Purchase devices through Apple or an authorized reseller.** When you buy MacBook Neos through an authorized channel and provide your AB Organization ID, each device's serial number is automatically registered to your Apple Business account.
 
-2. **Assign devices to Fleet in Apple Business Manager.** In the ABM portal, assign the registered serial numbers to your Fleet MDM server. This tells Apple's activation servers to direct those devices to Fleet when they first boot up.
+2. **Assign devices to Fleet in Apple Business.** In the AB portal, assign the registered serial numbers to your Fleet MDM server. This tells Apple's activation servers to direct those devices to Fleet when they first boot up.
 
 3. **Configure enrollment settings in Fleet.** Set up your [enrollment profile](https://fleetdm.com/guides/setup-experience), including which Setup Assistant screens to show or skip, whether to require end user authentication, and which team to assign the device to. Fleet also supports a [bootstrap package](https://fleetdm.com/guides/manage-boostrap-package-with-gitops) for installing essential software during first setup.
 
@@ -48,10 +48,10 @@ This workflow scales the same way whether you're enrolling 10 devices or 10,000.
 
 Before placing a large MacBook Neo order, make sure your Fleet infrastructure is ready. Here's a practical checklist for IT teams planning a rollout:
 
-### Verify Apple Business Manager setup
+### Verify Apple Business setup
 
-- Confirm your [ABM account](https://fleetdm.com/articles/what-is-apple-business-manager-a-complete-guide) is verified and active with a valid D-U-N-S number.
-- Ensure your Fleet MDM server is added as a virtual MDM server in ABM.
+- Confirm your [AB account](https://fleetdm.com/articles/what-is-apple-business-a-complete-guide) is verified and active with a valid D-U-N-S number.
+- Ensure your Fleet MDM server is added as a virtual MDM server in AB.
 - Verify that your Apple Push Notification (APNs) certificate is current and won't expire during the rollout window.
 
 ### Configure enrollment profiles and policies
@@ -62,7 +62,7 @@ Before placing a large MacBook Neo order, make sure your Fleet infrastructure is
 
 ### Use teams for department-level configuration
 
-Fleet's [teams](https://fleetdm.com/guides/teams) let you segment devices by department, office, or role. Different teams can receive different configuration profiles, software packages, and policies. Assign your ABM devices to the appropriate Fleet team so each MacBook Neo gets the right setup for its intended user.
+Fleet's [teams](https://fleetdm.com/guides/teams) let you segment devices by department, office, or role. Different teams can receive different configuration profiles, software packages, and policies. Assign your AB devices to the appropriate Fleet team so each MacBook Neo gets the right setup for its intended user.
 
 ### Stage software and bootstrap packages
 
@@ -90,13 +90,13 @@ These capabilities apply across macOS, Windows, and Linux, so if you're adding M
 
 The MacBook Neo has changed the economics of enterprise Mac adoption. As Evans wrote, this device has sparked "the kind of curiosity you saw with the iMac and the iPad" among people who have never owned an Apple notebook. For IT teams, that interest translates into a real planning exercise: how do you take advantage of a $599 Mac without creating an operational headache?
 
-Fleet's zero-touch enrollment, combined with Apple Business Manager, gives you a repeatable, scalable process for getting MacBook Neos into employees' hands fully configured and secured from first boot. No staging facility, no manual imaging, no configuration drift.
+Fleet's zero-touch enrollment, combined with Apple Business, gives you a repeatable, scalable process for getting MacBook Neos into employees' hands fully configured and secured from first boot. No staging facility, no manual imaging, no configuration drift.
 
-If you're evaluating a MacBook Neo rollout, [connect Fleet to Apple Business Manager](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm) and test the enrollment workflow before placing your order. You can also [try Fleet](https://fleetdm.com/register) to see the full MDM experience firsthand.
+If you're evaluating a MacBook Neo rollout, [connect Fleet to Apple Business](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm) and test the enrollment workflow before placing your order. You can also [try Fleet](https://fleetdm.com/register) to see the full MDM experience firsthand.
 
 <meta name="articleTitle" value="Enroll MacBook Neo at scale with Fleet zero-touch enrollment">
 <meta name="authorFullName" value="Fleet">
 <meta name="authorGitHubUsername" value="fleetdm">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-03-21">
-<meta name="description" value="Use Fleet and Apple Business Manager to enroll MacBook Neos at scale with zero-touch enrollment. A guide for IT teams planning a Mac refresh.">
+<meta name="description" value="Use Fleet and Apple Business to enroll MacBook Neos at scale with zero-touch enrollment. A guide for IT teams planning a Mac refresh.">

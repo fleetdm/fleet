@@ -170,7 +170,7 @@ const EndUserAuthSection = ({
             value={formData.entity_id}
             parseTarget
             error={formErrors?.entity_id}
-            tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
+            tooltip="The Entity ID is a required URI that you use to identify Fleet when configuring the identity provider. Okta calls this Audience Restriction."
           />
           <InputField
             label="Metadata URL"

@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
 import { Ace } from "ace-builds";
@@ -14,10 +14,17 @@ import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 import PATHS from "router/paths";
-import CUSTOM_TARGET_OPTIONS from "pages/policies/helpers";
+import {
+  getCustomTargetOptions,
+  LabelScope,
+} from "components/TargetLabelSelector/labelScopes";
 import { getPathWithQueryParams } from "utilities/url";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
+import {
+  APP_CONTEXT_ALL_TEAMS_SUMMARY,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
+} from "interfaces/team";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
@@ -27,8 +34,10 @@ import {
 } from "utilities/constants";
 
 import SQLEditor from "components/SQLEditor";
-// @ts-ignore
-import { validateQuery } from "components/forms/validators/validate_query";
+import {
+  validateQuery,
+  EMPTY_QUERY_ERR,
+} from "components/forms/validators/validate_query";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -120,7 +129,7 @@ const PolicyForm = ({
   const [showQueryEditor, setShowQueryEditor] = useState(false);
 
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
     "labelsIncludeAny"
   );
   const [selectedLabels, setSelectedLabels] = useState({});
@@ -139,6 +148,7 @@ const PolicyForm = ({
     lastEditedQueryCritical,
     lastEditedQueryPlatform,
     lastEditedQueryLabelsIncludeAny,
+    lastEditedQueryLabelsIncludeAll,
     lastEditedQueryLabelsExcludeAny,
     defaultPolicy,
     setLastEditedQueryName,
@@ -166,13 +176,8 @@ const PolicyForm = ({
   const queryClient = useQueryClient();
 
   const {
-    currentUser,
     currentTeam,
     isGlobalObserver,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamMaintainerOrTeamAdmin,
-    isObserverPlus,
     isTeamTechnician,
     isGlobalTechnician,
     isOnGlobalTeam,
@@ -180,6 +185,11 @@ const PolicyForm = ({
     config,
     isFreeTier,
   } = useContext(AppContext);
+
+  const customTargetOptions = useMemo(
+    () => getCustomTargetOptions({ entity: "policy", isPremiumTier }),
+    [isPremiumTier]
+  );
 
   const { data: { labels } = { labels: [] } } = useQuery<
     ILabelsSummaryResponse,
@@ -288,26 +298,41 @@ const PolicyForm = ({
   useEffect(() => {
     setSelectedTargetType(
       !lastEditedQueryLabelsIncludeAny.length &&
+        !lastEditedQueryLabelsIncludeAll.length &&
         !lastEditedQueryLabelsExcludeAny.length
         ? "All hosts"
         : "Custom"
     );
-    setSelectedCustomTarget(
-      lastEditedQueryLabelsExcludeAny.length
-        ? "labelsExcludeAny"
-        : "labelsIncludeAny"
-    );
+
+    let customTarget: LabelScope | undefined;
+    let activeLabels: typeof lastEditedQueryLabelsIncludeAny = [];
+    if (lastEditedQueryLabelsExcludeAny.length) {
+      customTarget = "labelsExcludeAny";
+      activeLabels = lastEditedQueryLabelsExcludeAny;
+    } else if (lastEditedQueryLabelsIncludeAll.length) {
+      customTarget = "labelsIncludeAll";
+      activeLabels = lastEditedQueryLabelsIncludeAll;
+    } else if (lastEditedQueryLabelsIncludeAny.length) {
+      customTarget = "labelsIncludeAny";
+      activeLabels = lastEditedQueryLabelsIncludeAny;
+    }
+    if (customTarget) {
+      setSelectedCustomTarget(customTarget);
+    }
+
     setSelectedLabels(
-      lastEditedQueryLabelsIncludeAny
-        .concat(lastEditedQueryLabelsExcludeAny)
-        .reduce((acc, label) => {
-          return {
-            ...acc,
-            [label.name]: true,
-          };
-        }, {}) || {}
+      activeLabels.reduce((acc, label) => {
+        return {
+          ...acc,
+          [label.name]: true,
+        };
+      }, {})
     );
-  }, [lastEditedQueryLabelsIncludeAny, lastEditedQueryLabelsExcludeAny]);
+  }, [
+    lastEditedQueryLabelsIncludeAny,
+    lastEditedQueryLabelsIncludeAll,
+    lastEditedQueryLabelsExcludeAny,
+  ]);
 
   useEffect(() => {
     if (isNewTemplatePolicy) {
@@ -353,7 +378,7 @@ const PolicyForm = ({
   const onAddPatchAutomation = async () => {
     if (
       !storedPolicy?.patch_software?.software_title_id ||
-      !storedPolicy?.team_id
+      storedPolicy?.team_id == null
     ) {
       return;
     }
@@ -403,6 +428,17 @@ const PolicyForm = ({
       return;
     }
 
+    // Synchronously block empty queries. The button-level `disableSaveFormErrors`
+    // relies on the debounced `errors.query`, so a fast click before the debounce
+    // fires could otherwise submit an empty query. Mirrors the guard in
+    // EditQueryForm's handleSaveQuery (see #38348).
+    if (!lastEditedQueryBody?.trim()) {
+      return setErrors({
+        ...errors,
+        query: EMPTY_QUERY_ERR,
+      });
+    }
+
     let selectedPlatforms = getSelectedPlatforms();
     if (selectedPlatforms.length === 0 && !isEditMode && !defaultPolicy) {
       // If no platforms are selected, default to all compatible platforms
@@ -427,22 +463,20 @@ const PolicyForm = ({
         query: lastEditedQueryBody,
         resolution: lastEditedQueryResolution,
         platform: newPlatformString,
-        labels_include_any:
-          selectedTargetType === "Custom" &&
-          selectedCustomTarget === "labelsIncludeAny"
-            ? Object.entries(selectedLabels)
-                .filter(([, selected]) => selected)
-                .map(([labelName]) => labelName)
-            : [],
-        labels_exclude_any:
-          selectedTargetType === "Custom" &&
-          selectedCustomTarget === "labelsExcludeAny"
-            ? Object.entries(selectedLabels)
-                .filter(([, selected]) => selected)
-                .map(([labelName]) => labelName)
-            : [],
       };
       if (isPremiumTier) {
+        const customLabelNames =
+          selectedTargetType === "Custom"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [];
+        payload.labels_include_any =
+          selectedCustomTarget === "labelsIncludeAny" ? customLabelNames : [];
+        payload.labels_include_all =
+          selectedCustomTarget === "labelsIncludeAll" ? customLabelNames : [];
+        payload.labels_exclude_any =
+          selectedCustomTarget === "labelsExcludeAny" ? customLabelNames : [];
         payload.critical = lastEditedQueryCritical;
       }
       onUpdate(payload);
@@ -573,21 +607,41 @@ const PolicyForm = ({
   };
 
   const renderPolicyFleetName = () => {
-    if (isFreeTier || !currentTeam?.name) return null;
+    if (isFreeTier) return null;
+
+    // In edit mode, the displayed Fleet must reflect the policy's actual
+    // owner, not the URL/navigation context: a user can land here by clicking
+    // an inherited (global) policy from a team's policy list, in which case
+    // currentTeam reflects the team URL, not the policy's true Fleet.
+    let fleetName: string | undefined;
+    if (isEditMode) {
+      if (storedPolicy?.team_id === null) {
+        fleetName = APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
+      } else if (storedPolicy?.team_id === 0) {
+        fleetName = APP_CONTEXT_NO_TEAM_SUMMARY.name;
+      } else {
+        fleetName = currentTeam?.name;
+      }
+    } else {
+      fleetName = currentTeam?.name;
+    }
+
+    if (!fleetName) return null;
 
     return isEditMode ? (
       <p>
-        Editing policy for <strong>{currentTeam?.name}</strong>.
+        Editing policy for <strong>{fleetName}</strong>.
       </p>
     ) : (
       <p>
-        Creating a new policy for <strong>{currentTeam?.name}</strong>.
+        Creating a new policy for <strong>{fleetName}</strong>.
       </p>
     );
   };
 
   const renderPolicyForm = () => {
-    // Save disabled for no platforms selected, query name blank on existing query, or sql errors
+    // Save disabled for no platforms selected, policy name blank on existing policy,
+    // invalid target selection, or empty query. Syntax errors do not disable Save.
     const disableSaveFormErrors =
       isAddingAutomation ||
       (isEditMode && !isPatchPolicy && !isAnyPlatformSelected) ||
@@ -596,7 +650,7 @@ const PolicyForm = ({
         !Object.entries(selectedLabels).some(([, value]) => {
           return value;
         })) ||
-      !!size(errors);
+      errors.query === EMPTY_QUERY_ERR;
 
     return (
       <>
@@ -622,19 +676,15 @@ const PolicyForm = ({
             <TargetLabelSelector
               selectedTargetType={selectedTargetType}
               selectedCustomTarget={selectedCustomTarget}
-              customTargetOptions={CUSTOM_TARGET_OPTIONS}
-              onSelectCustomTarget={setSelectedCustomTarget}
+              customTargetOptions={customTargetOptions}
+              onSelectCustomTarget={(val) =>
+                setSelectedCustomTarget(val as LabelScope)
+              }
               selectedLabels={selectedLabels}
               className={`${baseClass}__target`}
               onSelectTargetType={setSelectedTargetType}
               onSelectLabel={onSelectLabel}
               labels={labels || []}
-              customHelpText={
-                <span className="form-field__help-text">
-                  Policy will target hosts on selected platforms that{" "}
-                  <b>have any</b> of these labels:
-                </span>
-              }
               disableOptions={gitOpsModeEnabled}
               suppressTitle
             />
@@ -643,9 +693,9 @@ const PolicyForm = ({
             <PolicyAutomations
               storedPolicy={storedPolicy}
               currentAutomatedPolicies={currentAutomatedPolicies}
+              canEditPolicy={isEditMode}
               onAddAutomation={onAddPatchAutomation}
               isAddingAutomation={isAddingAutomation}
-              gitOpsModeEnabled={!!gitOpsModeEnabled}
             />
           )}
           {isEditMode &&

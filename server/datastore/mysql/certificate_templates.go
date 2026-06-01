@@ -20,12 +20,23 @@ var certificateTemplateAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"id": "certificate_templates.id",
 }
 
+// subjectAlternativeNameForStorage returns the value to bind for the subject_alternative_name column.
+// Whitespace-only and empty values are stored as SQL NULL; non-empty values are stored verbatim
+// (no per-token trimming) to preserve admin intent and keep GitOps round-trips idempotent.
+func subjectAlternativeNameForStorage(san string) any {
+	if strings.TrimSpace(san) == "" {
+		return nil
+	}
+	return san
+}
+
 const certificateTemplateResponseSql = `
 	SELECT
 		certificate_templates.id,
 		certificate_templates.name,
 		certificate_templates.team_id,
 		certificate_templates.subject_name,
+		COALESCE(certificate_templates.subject_alternative_name, '') AS subject_alternative_name,
 		certificate_templates.created_at,
 		certificate_authorities.id AS certificate_authority_id,
 		certificate_authorities.name AS certificate_authority_name,
@@ -90,6 +101,7 @@ func (ds *Datastore) GetCertificateTemplateByIdForHost(ctx context.Context, id u
 			certificate_templates.name,
 			certificate_templates.team_id,
 			certificate_templates.subject_name,
+			COALESCE(certificate_templates.subject_alternative_name, '') AS subject_alternative_name,
 			certificate_templates.created_at,
 			certificate_authorities.id AS certificate_authority_id,
 			certificate_authorities.name AS certificate_authority_name,
@@ -147,6 +159,7 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 			certificate_templates.id,
 			certificate_templates.name,
 			certificate_templates.subject_name,
+			COALESCE(certificate_templates.subject_alternative_name, '') AS subject_alternative_name,
 			certificate_templates.certificate_authority_id,
 			certificate_authorities.name AS certificate_authority_name,
 			certificate_templates.created_at
@@ -158,7 +171,7 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
 	}
 
-	var templates []*fleet.CertificateTemplateResponseSummary
+	templates := []*fleet.CertificateTemplateResponseSummary{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &templates, stmtPaged, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "getting certificate_templates by team_id")
 	}
@@ -180,14 +193,17 @@ func (ds *Datastore) GetCertificateTemplatesByTeamID(ctx context.Context, teamID
 }
 
 func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error) {
+	sanArg := subjectAlternativeNameForStorage(certificateTemplate.SubjectAlternativeName)
 	result, err := ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO certificate_templates (
 			name,
 			team_id,
 			certificate_authority_id,
-			subject_name
-		) VALUES (?, ?, ?, ?)
-	`, certificateTemplate.Name, certificateTemplate.TeamID, certificateTemplate.CertificateAuthorityID, certificateTemplate.SubjectName)
+			subject_name,
+			subject_alternative_name
+		) VALUES (?, ?, ?, ?, ?)
+	`, certificateTemplate.Name, certificateTemplate.TeamID, certificateTemplate.CertificateAuthorityID,
+		certificateTemplate.SubjectName, sanArg)
 	if err != nil {
 		if IsDuplicate(err) {
 			return nil, ctxerr.Wrap(ctx, alreadyExists("CertificateTemplate", certificateTemplate.Name), "inserting certificate_template")
@@ -200,11 +216,17 @@ func (ds *Datastore) CreateCertificateTemplate(ctx context.Context, certificateT
 		return nil, ctxerr.Wrap(ctx, err, "getting last insert id for certificate_template")
 	}
 
+	storedSAN := ""
+	if sanArg != nil {
+		storedSAN = certificateTemplate.SubjectAlternativeName
+	}
+
 	return &fleet.CertificateTemplateResponse{
 		CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
 			ID:                     uint(id), //nolint:gosec
 			Name:                   certificateTemplate.Name,
 			SubjectName:            certificateTemplate.SubjectName,
+			SubjectAlternativeName: storedSAN,
 			CertificateAuthorityId: certificateTemplate.CertificateAuthorityID,
 		},
 		TeamID: certificateTemplate.TeamID,
@@ -236,13 +258,17 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 		return nil, nil
 	}
 
+	// On duplicate (team_id, name), this is a no-op for content-bearing fields. SubjectName,
+	// CertificateAuthorityID, and SubjectAlternativeName changes are handled upstream, so the
+	// upsert intentionally does not propagate updates.
 	const sqlInsertCertificate = `
 		INSERT INTO certificate_templates (
 			name,
 			team_id,
 			certificate_authority_id,
-			subject_name
-		) VALUES (?, ?, ?, ?)
+			subject_name,
+			subject_alternative_name
+		) VALUES (?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			team_id = VALUES(team_id)
@@ -250,7 +276,9 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 
 	teamsModifiedSet := make(map[uint]struct{})
 	for _, cert := range certificateTemplates {
-		result, err := ds.writer(ctx).ExecContext(ctx, sqlInsertCertificate, cert.Name, cert.TeamID, cert.CertificateAuthorityID, cert.SubjectName)
+		sanArg := subjectAlternativeNameForStorage(cert.SubjectAlternativeName)
+		result, err := ds.writer(ctx).ExecContext(ctx, sqlInsertCertificate,
+			cert.Name, cert.TeamID, cert.CertificateAuthorityID, cert.SubjectName, sanArg)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "upserting certificate_template")
 		}
@@ -387,14 +415,21 @@ func (ds *Datastore) CreatePendingCertificateTemplatesForNewHost(
 		FROM certificate_templates
 		WHERE team_id = ?
 		ON DUPLICATE KEY UPDATE
-		    -- allow 'remove' to transition to 'pending install', generating new uuid
-			uuid = IF(operation_type = '%s', UUID_TO_BIN(UUID(), true), uuid),
-			status = IF(operation_type = '%s', '%s', status),
-			operation_type = IF(operation_type = '%s', '%s', operation_type)
+		    -- Unconditionally reset to pending install with a new UUID so the certificate is
+		    -- re-delivered. This handles re-enrollment after work profile removal, where the device
+		    -- lost all certs but the old records may still exist. Clear stale certificate metadata
+		    -- from the previous lifecycle to match ResendHostCertificateTemplate behavior.
+			uuid = UUID_TO_BIN(UUID(), true),
+			status = '%s',
+			operation_type = '%s',
+			retry_count = 0,
+			fleet_challenge = NULL,
+			not_valid_before = NULL,
+			not_valid_after = NULL,
+			serial = NULL,
+			detail = NULL
 	`, fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall,
-		fleet.MDMOperationTypeRemove,
-		fleet.MDMOperationTypeRemove, fleet.CertificateTemplatePending,
-		fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
+		fleet.CertificateTemplatePending, fleet.MDMOperationTypeInstall)
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create pending certificate templates for new host")

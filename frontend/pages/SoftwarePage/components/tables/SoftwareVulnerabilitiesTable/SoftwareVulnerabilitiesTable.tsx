@@ -11,12 +11,12 @@ import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { ISoftwareVulnerability } from "interfaces/software";
-import { CONTACT_FLEET_LINK, GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { CONTACT_FLEET_LINK } from "utilities/constants";
 import { DisplayPlatform } from "interfaces/platform";
 import { getPathWithQueryParams } from "utilities/url";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 
 import generateTableConfig from "./SoftwareVulnerabilitiesTableConfig";
@@ -33,7 +33,7 @@ interface IVulnsNotSupportedProps {
 
 const NoVulnsDetected = ({ itemName }: INoVulnsDetectedProps): JSX.Element => {
   return (
-    <EmptyTable
+    <EmptyState
       header={`No vulnerabilities detected for this ${itemName}`}
       info={
         <>
@@ -52,7 +52,7 @@ const NoVulnsDetected = ({ itemName }: INoVulnsDetectedProps): JSX.Element => {
 export const VulnsNotSupported = ({
   platformText,
 }: IVulnsNotSupportedProps) => (
-  <EmptyTable
+  <EmptyState
     header="Vulnerabilities are not supported for this type of host"
     info={
       <>

@@ -14,6 +14,7 @@ Each product group has its own architecture documentation:
 
 - [MDM Architecture](mdm/README.md) - Architecture documentation for MDM
 - [Orchestration Architecture](orchestration/README.md) - Architecture documentation for Orchestration
+- [Security & Compliance Architecture](security-compliance/README.md) - Architecture documentation for Security & Compliance
 - [Software Architecture](software/README.md) - Architecture documentation for Software
 
 ## Architectural Decision Records

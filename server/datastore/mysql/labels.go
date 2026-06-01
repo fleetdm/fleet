@@ -14,8 +14,28 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+var labelsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":                    "l.id",
+	"created_at":            "l.created_at",
+	"updated_at":            "l.updated_at",
+	"name":                  "l.name",
+	"description":           "l.description",
+	"query":                 "l.query",
+	"platform":              "l.platform",
+	"label_type":            "l.label_type",
+	"label_membership_type": "l.label_membership_type",
+	"author_id":             "l.author_id",
+	"criteria":              "l.criteria",
+	"team_id":               "l.team_id",
+
+	// dependent on include_host_counts being set on request
+	// (checked on transport layer).
+	"host_count": "host_count",
+}
 
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
 	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
@@ -558,7 +578,7 @@ func (ds *Datastore) GetLabelSpecs(ctx context.Context, filter fleet.TeamFilter)
 func (ds *Datastore) GetLabelSpec(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	query, params, err := applyLabelTeamFilter(`
-SELECT l.id, l.name, l.description, l.query, l.platform, l.label_type, l.label_membership_type, l.team_id
+SELECT l.id, l.name, l.description, l.query, l.platform, l.label_type, l.label_membership_type, l.criteria, l.team_id
 FROM labels l
 WHERE l.name = ?`, filter, name)
 	if err != nil {
@@ -740,6 +760,18 @@ func (ds *Datastore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamF
 	return ds.labelDB(ctx, lid, teamFilter, ds.reader(ctx))
 }
 
+// LabelMembershipHostIDs returns every host_id row in label_membership for the
+// given label ID. Unlike Label, it applies no team filter on the host side, so
+// it returns the true membership including hosts on teams the caller can't see.
+func (ds *Datastore) LabelMembershipHostIDs(ctx context.Context, labelID uint) ([]uint, error) {
+	var hostIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs,
+		`SELECT host_id FROM label_membership WHERE label_id = ?`, labelID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting label membership host IDs")
+	}
+	return hostIDs, nil
+}
+
 func (ds *Datastore) labelDB(ctx context.Context, lid uint, teamFilter fleet.TeamFilter, q sqlx.QueryerContext) (*fleet.LabelWithTeamName, []uint, error) {
 	stmt := fmt.Sprintf(`
 		SELECT
@@ -801,7 +833,10 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		return nil, err
 	}
 
-	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
+	query, params, err = appendListOptionsWithCursorToSQLSecure(query, params, &opt, labelsAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list labels")
+	}
 	var labels []*fleet.Label
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, params...); err != nil {
@@ -1007,6 +1042,80 @@ func (ds *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.
 	}
 
 	return labels, nil
+}
+
+// hostsInLabelAllowedOrderKeys defines the allowed order keys for the hosts in label endpoint.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+// Sensitive columns like 'node_key' and 'orbit_node_key'.
+// are intentionally excluded to prevent binary search extraction attacks.
+var hostsInLabelAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":                             "h.id",
+	"osquery_host_id":                "h.osquery_host_id",
+	"created_at":                     "h.created_at",
+	"updated_at":                     "h.updated_at",
+	"detail_updated_at":              "h.detail_updated_at",
+	"hostname":                       "h.hostname",
+	"uuid":                           "h.uuid",
+	"platform":                       "h.platform",
+	"osquery_version":                "h.osquery_version",
+	"os_version":                     "h.os_version",
+	"build":                          "h.build",
+	"platform_like":                  "h.platform_like",
+	"code_name":                      "h.code_name",
+	"uptime":                         "h.uptime",
+	"memory":                         "h.memory",
+	"cpu_type":                       "h.cpu_type",
+	"cpu_subtype":                    "h.cpu_subtype",
+	"cpu_brand":                      "h.cpu_brand",
+	"cpu_physical_cores":             "h.cpu_physical_cores",
+	"cpu_logical_cores":              "h.cpu_logical_cores",
+	"hardware_vendor":                "h.hardware_vendor",
+	"hardware_model":                 "h.hardware_model",
+	"hardware_version":               "h.hardware_version",
+	"hardware_serial":                "h.hardware_serial",
+	"computer_name":                  "h.computer_name",
+	"primary_ip_id":                  "h.primary_ip_id",
+	"distributed_interval":           "h.distributed_interval",
+	"logger_tls_period":              "h.logger_tls_period",
+	"config_tls_refresh":             "h.config_tls_refresh",
+	"primary_ip":                     "h.primary_ip",
+	"primary_mac":                    "h.primary_mac",
+	"label_updated_at":               "h.label_updated_at",
+	"last_enrolled_at":               "h.last_enrolled_at",
+	"refetch_requested":              "h.refetch_requested",
+	"refetch_critical_queries_until": "h.refetch_critical_queries_until",
+	"team_id":                        "h.team_id",
+	"policy_updated_at":              "h.policy_updated_at",
+	"public_ip":                      "h.public_ip",
+
+	"display_name": "hdn.display_name",
+
+	// COALESCE required on the following:
+	// must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent
+	"gigs_disk_space_available":    "COALESCE(hd.gigs_disk_space_available, 0)",
+	"percent_disk_space_available": "COALESCE(hd.percent_disk_space_available, 0)",
+	"gigs_total_disk_space":        "COALESCE(hd.gigs_total_disk_space, 0)",
+	"seen_time":                    "COALESCE(hst.seen_time, h.created_at)",
+	"software_updated_at":          "COALESCE(hu.software_updated_at, h.created_at)",
+
+	"last_restarted_at": "h.last_restarted_at",
+	"timezone":          "h.timezone",
+	// must match SELECT clause subquery so cursor pagination (WHERE) and
+	// ORDER BY are consistent — MySQL disallows SELECT aliases in WHERE.
+	"team_name": "(SELECT name FROM teams t WHERE t.id = h.team_id)",
+
+	// COALESCE required on the following:
+	// must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent
+	"failing_policies_count":         "COALESCE(host_issues.failing_policies_count, 0)",
+	"critical_vulnerabilities_count": "COALESCE(host_issues.critical_vulnerabilities_count, 0)",
+	"total_issues_count":             "COALESCE(host_issues.total_issues_count, 0)",
+	"device_mapping":                 "COALESCE(dm.device_mapping, 'null')",
+
+	"issues": "COALESCE(host_issues.total_issues_count, 0)",
+
+	//
+	// SECURITY:
+	// Note: 'h.node_key', 'h.orbit_node_key' intentionally EXCLUDED
 }
 
 // ListHostsInLabel returns a list of fleet.Host that are associated
@@ -1244,10 +1353,10 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// TODO: should search columns include display_name (requires join to host_display_names)?
 	query, whereParams = hostSearchLike(query, whereParams, opt.MatchQuery, hostSearchColumns...)
 
-	if opt.ListOptions.OrderKey == "issues" {
-		opt.ListOptions.OrderKey = "host_issues.total_issues_count"
+	query, whereParams, err = appendListOptionsWithCursorToSQLSecure(query, whereParams, &opt.ListOptions, hostsInLabelAllowedOrderKeys)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "apply host list options")
 	}
-	query, whereParams = appendListOptionsWithCursorToSQL(query, whereParams, &opt.ListOptions)
 	return query, append(joinParams, whereParams...), nil
 }
 

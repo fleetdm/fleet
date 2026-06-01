@@ -1,10 +1,10 @@
-# Financial services platform manages 6,000+ hosts with continuous compliance visibility
+# Financial services platform manages 5,000+ hosts with continuous compliance visibility
 
-A financial services platform manages a complex environment of 2,000 to 6,000 hosts and hundreds of mobile devices. They required a platform that offered flexibility without proprietary limitations.
+A financial services platform manages a complex environment of 5,000+ hosts and hundreds of mobile devices. They required a platform that offered flexibility without proprietary limitations.
 
 ## At a glance
 
-- **Endpoints:** 6,000+ hosts & 400+ mobile devices.  
+- **Endpoints:** 5,000+ hosts & 400+ mobile devices.  
 - **Primary requirement:** Cross-platform support (Mac, Windows, iOS, Android) and RBAC.  
 - **Key integrations:** Jira, Zendesk, and SIEM/SOAR systems.  
 - **Previous solution:** Workspace ONE.  

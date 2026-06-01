@@ -44,6 +44,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesInHouseApps", testListSoftwareTitlesInHouseApps},
 		{"ListSoftwareTitlesByPlatform", testListSoftwareTitlesByPlatform},
 		{"UpdateAutoUpdateConfig", testUpdateAutoUpdateConfig},
+		{"ListSoftwareTitlesSortByDisplayName", testListSoftwareTitlesSortByDisplayName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -557,6 +558,14 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Len(t, titles, 1)
 	require.Equal(t, "installer1", titles[0].Name)
 	require.Equal(t, "apps", titles[0].Source)
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+			TeamID:      ptr.Uint(0),
+		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		require.Error(t, err)
+	})
 }
 
 func listSoftwareTitlesCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareTitleListOptions) []fleet.SoftwareTitleListResult {
@@ -1755,6 +1764,102 @@ func testUpdateSoftwareTitleName(t *testing.T, ds *Datastore) {
 	title2, err := ds.SoftwareTitleByID(ctx, installer2, &tm.ID, fleet.TeamFilter{User: user1})
 	require.NoError(t, err)
 	require.Equal(t, "installer2", title2.Name)
+}
+
+func testListSoftwareTitlesSortByDisplayName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+
+	// Create a team for team-scoped display names.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Sort Test Team"})
+	require.NoError(t, err)
+
+	user, err := ds.NewUser(ctx, &fleet.User{Name: "sort-test", Email: "sort@test.com", Password: []byte("p"), GlobalRole: ptr.String(fleet.RoleAdmin)})
+	require.NoError(t, err)
+
+	// Create a host on the team.
+	host := test.NewHost(t, ds, "sorthost1", "", "sorthost1key", "sorthost1uuid", time.Now())
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+
+	// Install software on the host so software titles are created.
+	sw := []fleet.Software{
+		{Name: "alpha", Version: "1.0", Source: "apps"},
+		{Name: "bravo", Version: "1.0", Source: "apps"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+
+	// Create a script-only package (no matching software on any host).
+	// Its st.name will be the installer filename "zzz-script-only.pkg".
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "zzz-script-only.pkg",
+		Source:          "apps",
+		InstallScript:   "echo install",
+		Filename:        "zzz-script-only.pkg",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// Look up the title IDs.
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+		TeamID:      &team.ID,
+	}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 3)
+
+	titleByName := func(name string) uint {
+		for _, tt := range titles {
+			if tt.Name == name {
+				return tt.ID
+			}
+		}
+		t.Fatalf("title %q not found", name)
+		return 0
+	}
+
+	alphaID := titleByName("alpha")
+	scriptID := titleByName("zzz-script-only.pkg")
+
+	// Set display names that reorder the titles:
+	//   alpha              -> display "Zulu"          (should sort last)
+	//   bravo              -> no display name         (falls back to "bravo")
+	//   zzz-script-only.pkg -> display "AAA Script"   (should sort first despite filename)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, alphaID, "Zulu"); err != nil {
+			return err
+		}
+		return updateSoftwareTitleDisplayName(ctx, q, &team.ID, scriptID, "AAA Script")
+	})
+
+	// Sort by name ASC — expected: AAA Script (zzz-script-only.pkg), bravo, Zulu (alpha).
+	sorted, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+		TeamID:      &team.ID,
+	}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, sorted, 3)
+	assert.Equal(t, "zzz-script-only.pkg", sorted[0].Name, "AAA Script (zzz-script-only.pkg) should sort first")
+	assert.Equal(t, "bravo", sorted[1].Name, "bravo (no display name) should sort second")
+	assert.Equal(t, "alpha", sorted[2].Name, "Zulu (alpha) should sort last")
+
+	// Sort by name DESC — reversed.
+	sortedDesc, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending},
+		TeamID:      &team.ID,
+	}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, sortedDesc, 3)
+	assert.Equal(t, "alpha", sortedDesc[0].Name, "Zulu (alpha) should sort first in DESC")
+	assert.Equal(t, "bravo", sortedDesc[1].Name, "bravo should sort second in DESC")
+	assert.Equal(t, "zzz-script-only.pkg", sortedDesc[2].Name, "AAA Script (zzz-script-only.pkg) should sort last in DESC")
 }
 
 func TestSelectSoftwareTitlesSQLGeneration(t *testing.T) {

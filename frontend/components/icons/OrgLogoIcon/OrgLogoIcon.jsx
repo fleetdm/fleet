@@ -10,79 +10,45 @@ class OrgLogoIcon extends Component {
   static propTypes = {
     className: PropTypes.string,
     src: PropTypes.string.isRequired,
-    invertDark: PropTypes.bool,
   };
 
   static defaultProps = {
     src: fleetAvatar,
-    invertDark: false,
   };
 
   constructor(props) {
     super(props);
 
-    this.state = { imageSrc: fleetAvatar };
+    this.state = { imageSrc: props.src || fleetAvatar, prevSrc: props.src };
   }
 
-  componentWillMount() {
-    const { src } = this.props;
-
-    this.setState({ imageSrc: src });
-
-    return false;
-  }
-
-  componentWillReceiveProps(nextProps) {
-    const { src } = nextProps;
-    const { unchangedSourceProp } = this;
-
-    if (unchangedSourceProp(nextProps)) {
-      return false;
+  static getDerivedStateFromProps(nextProps, prevState) {
+    if (nextProps.src !== prevState.prevSrc) {
+      return {
+        imageSrc: nextProps.src || fleetAvatar,
+        prevSrc: nextProps.src,
+      };
     }
-
-    this.setState({ imageSrc: src });
-
-    return false;
-  }
-
-  shouldComponentUpdate(nextProps) {
-    const { imageSrc } = this.state;
-    const { unchangedSourceProp } = this;
-
-    if (unchangedSourceProp(nextProps) && imageSrc === fleetAvatar) {
-      return false;
-    }
-
-    return true;
+    return null;
   }
 
   onError = () => {
     this.setState({ imageSrc: fleetAvatar });
-
-    return false;
-  };
-
-  unchangedSourceProp = (nextProps) => {
-    const { src: nextSrcProp } = nextProps;
-    const { src } = this.props;
-
-    return src === nextSrcProp;
   };
 
   render() {
-    const { className, invertDark } = this.props;
+    const { className } = this.props;
     const { imageSrc } = this.state;
     const { onError } = this;
 
     const classNames =
       imageSrc === fleetAvatar
         ? classnames(baseClass, className, "default-fleet-logo")
-        : classnames(baseClass, className, {
-            [`${baseClass}--invert-dark`]: invertDark,
-          });
+        : classnames(baseClass, className);
 
     return (
       <img
+        key={imageSrc}
         alt="Organization Logo"
         className={classNames}
         onError={onError}

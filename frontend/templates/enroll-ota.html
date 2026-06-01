@@ -148,11 +148,24 @@
         font-weight: bold;
       }
 
+      .qr-subtext {
+        font-size: 11px;
+        font-weight: 400;
+        color: #8b8fa8;
+        text-align: left;
+        max-width: 208px;
+        margin-top: 8px;
+      }
+
+      .qr-container .qr-code {
+        margin-top: 24px;
+      }
+
       .qr-container {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 24px;
+        gap: 0;
         background-color: #f9fafc;
         padding: 24px;
         border: 1px solid #e2e4ea;
@@ -184,7 +197,7 @@
         text-align: center;
       }
 
-      @media screen and (max-width: 430px) {
+      @media screen and (max-width: 1344px) and (pointer: coarse) {
         .device-instructions-content {
           gap: 24px;
         }
@@ -209,6 +222,7 @@
           <div class="qr-container">
             <p>Trying to enroll your mobile device?</p>
             <canvas class="qr-code"></canvas>
+            <p class="qr-subtext">Opens this page on your mobile device</p>
           </div>
         </section>
       </div>
@@ -404,6 +418,7 @@
           <div class="qr-container">
             <p>Trying to enroll your mobile device?</p>
             <canvas class="qr-code"></canvas>
+            <p class="qr-subtext">Opens this page on your mobile device</p>
           </div>
         </section>
       </div>

@@ -37,14 +37,49 @@ describe("HostSoftwareTable", () => {
       },
     })(<HostSoftwareTable {...baseProps} {...props} />);
 
-  it("renders the empty state when no software is detected", () => {
+  it("renders truly empty state with disabled controls", () => {
     renderWithContext({
       data: createMockGetHostSoftwareResponse({
         count: 0,
         software: [],
       }),
     });
-    expect(screen.getByText(/no software detected/i)).toBeInTheDocument();
+
+    // Empty state copy
+    expect(screen.getByText("No software found")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Expecting to see software\? Check back later/i)
+    ).toBeInTheDocument();
+
+    // Shows 0 items count
+    expect(screen.getByText("0 items")).toBeInTheDocument();
+
+    // Search is disabled
+    const searchInput = screen.getByPlaceholderText(/search by name/i);
+    expect(searchInput).toBeDisabled();
+
+    // Filter button is disabled
+    const filterBtn = screen.getByRole("button", { name: /filter/i });
+    expect(filterBtn).toBeDisabled();
+  });
+
+  it("renders filtered empty state with enabled controls", () => {
+    renderWithContext({
+      data: createMockGetHostSoftwareResponse({
+        count: 0,
+        software: [],
+      }),
+      searchQuery: "nonexistent",
+    });
+
+    // Falls through to the standard empty software table
+    expect(
+      screen.getByText(/no items match the current search criteria/i)
+    ).toBeInTheDocument();
+
+    // Search is NOT disabled
+    const searchInput = screen.getByPlaceholderText(/search by name/i);
+    expect(searchInput).not.toBeDisabled();
   });
 
   it("renders custom filter button when filters are applied", () => {
@@ -68,8 +103,7 @@ describe("HostSoftwareTable", () => {
     ).toBeInTheDocument();
   });
 
-  // This includes empty state for BYOD iphone/ipads
-  it("renders generic empty state when no filters are applied and platform is iPad/iPhone", () => {
+  it("renders truly empty state for iPad/iPhone", () => {
     renderWithContext({
       platform: "ipados",
       data: createMockGetHostSoftwareResponse({
@@ -78,6 +112,6 @@ describe("HostSoftwareTable", () => {
       }),
     });
 
-    expect(screen.getByText(/no software detected/i)).toBeInTheDocument();
+    expect(screen.getByText("No software found")).toBeInTheDocument();
   });
 });

@@ -44,7 +44,7 @@ func (e *NotFoundError) WithID(id uint) error {
 	return e
 }
 
-func (e *NotFoundError) WithName(name string) error {
+func (e *NotFoundError) WithName(name string) *NotFoundError {
 	e.Name = name
 	return e
 }

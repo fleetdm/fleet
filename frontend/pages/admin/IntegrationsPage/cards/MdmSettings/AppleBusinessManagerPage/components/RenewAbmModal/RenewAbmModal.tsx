@@ -14,14 +14,12 @@ const baseClass = "renew-abm-modal";
 
 interface IRenewAbmModalProps {
   tokenId: number;
-  orgName: string;
   onCancel: () => void;
   onRenewedToken: () => void;
 }
 
 const RenewAbmModal = ({
   tokenId,
-  orgName,
   onCancel,
   onRenewedToken,
 }: IRenewAbmModalProps) => {
@@ -65,31 +63,24 @@ const RenewAbmModal = ({
       width="large"
     >
       <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
-        <p className={`${baseClass}__description`}>
-          Renew Apple Business for <b>{orgName}</b> by uploading your AB token.{" "}
+        <p>
+          Follow the step-by-step guide to renew.{" "}
           <CustomLink
+            url="https://fleetdm.com/learn-more-about/renew-abm"
+            text="Learn how"
             newTab
-            text="Learn more"
-            url="https://fleetdm.com/guides/apple-mdm-setup#to-renew-an-abm-token"
           />
         </p>
-        <ul className={`${baseClass}__setup-instructions-list`}>
-          <li>
-            <p>
-              Upload the downloaded token (.p7m file) below.
-              <FileUploader
-                className={`${baseClass}__file-uploader`}
-                accept=".p7m"
-                buttonMessage="Choose file"
-                buttonType="brand-inverse-icon"
-                graphicName="file-p7m"
-                message="AB token (.p7m)"
-                onFileUpload={onSelectFile}
-                fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
-              />
-            </p>
-          </li>
-        </ul>
+        <FileUploader
+          className={`${baseClass}__file-uploader`}
+          accept=".p7m"
+          buttonMessage="Choose file"
+          buttonType="brand-inverse-icon"
+          graphicName="file-p7m"
+          message="AB token (.p7m)"
+          onFileUpload={onSelectFile}
+          fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
+        />
         <div className="modal-cta-wrap">
           <Button
             className={`${baseClass}__submit-button ${

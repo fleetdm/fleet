@@ -1,0 +1,5 @@
+- name: Macs with Fleet Desktop.app installed
+  description: macOS hosts with Fleet Desktop.app installed
+  query: SELECT 1 FROM apps WHERE name = 'Fleet Desktop.app' AND bundle_identifier = 'com.fleetdm.fleet-desktop';
+  label_membership_type: dynamic
+  platform: darwin

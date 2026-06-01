@@ -65,7 +65,7 @@ jobs:
     strategy:
       matrix:
         mysql: ["mysql:8.0.44"]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8core
     needs: gen
     steps:
       - name: Harden Runner
@@ -262,7 +262,7 @@ jobs:
   # installed, and installing it is time consuming and unreliable.
   run-tuf-and-gen-pkgs:
     timeout-minutes: 60
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8core
     needs: [gen, build-macos-targets]
     steps:
       - name: Harden Runner

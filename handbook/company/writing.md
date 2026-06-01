@@ -59,10 +59,12 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
             - `comparison` - Articles that present a comparison between Fleet and a competing product. Articles in this category are only visible in the list of all articles at [fleetdm.com/blog](/blog)
             - `articles` - A catch-all category for articles and blog posts that do not fit into other categories. Articles in this category are only visible in the list of all articles at [fleetdm.com/blog](/blog)
             - `whitepaper` - Articles that offer a downloadable PDF that is gated behind the user filling out a form. Articles in this category are available at [fleetdm.com/whitepapers](/whitepapers)
+            - `webinar` - Articles that offer a recording of a webinar hosted by Fleet that is gated behind the user filling out a form.
     - `publishedOn`:  An ISO 8601 formatted date (YYYY-MM-DD) of the articles publish date. If the article is a guide, this value should be updated whenever a change to the guide is made.
 - Optional meta tags:
     - `articleImageUrl`: A relative link to a cover image for the article used for social share previews. If provided, the image needs to live in the /website/assets/images/articles folder. 
     - `description`: A description of the article that will be visible in search results and social share previews. If provided, this value will override the generated meta description for this article. Otherwise, the description will default to `[articleTitle] by [authorFullName]`.
+    > **Note:** The description value must be less than 150 characters. Exceeding this limit will cause a build error.
 
 **Example meta tag section:**
 
@@ -162,6 +164,8 @@ Whitepaper articles use a separate article template that requires additional `<m
   - `articleImageUrl`: A relative link to a cover image for the whitepaper. The specified image is placed next to the article title on the whitepaper article template page.
 - Optional `<meta>` tags:
   - `introductionTextBlockTwo` - A optional second introduction paragraph for the whitepaper. The contents of this meta tag are added as a separate paragraph to the introduction above the Markdown content.
+  - `formHeadline` - Put in a short phrase that will show immediately above the form fields. If not used, a default generic phrase will be use ("Get the white paper to learn more")
+
 
 **Example whitepaper article meta tag section**
 
@@ -176,7 +180,14 @@ Whitepaper articles use a separate article template that requires additional `<m
 <meta name="whitepaperFilename" value="fleet-modern-endpoint-device-management-managing-devices-as-code.pdf"> 
 <meta name="introductionTextBlockOne" value="Traditional device management does not scale. Teams still rely on manual updates, GUI tools, and scattered inventories."> 
 <meta name="introductionTextBlockTwo" value="Modern IT teams treat device management like software engineering. They define device state in code, review changes in Git, and deploy updates automatically.">
+<meta name="formHeadline" value="Learn more about modern IT device management">
 ```
+
+
+### Webinar article meta tags
+
+Webinar articles use a separate article template and require one additional meta tag:
+- `webinarEmbeddedVideoUrl` : The URL of the webinar video. This will be embedded on a page that users are taken to after filling out the form to watch a webinar.
 
 
 ## Linking to a location on GitHub
@@ -313,6 +324,24 @@ To purge an image from the Cloudflare cache:
 We leave large gaps between values to make future changes easier. For example, the first page in the "Using Fleet" section of the docs has a `pageOrderInSection` value of 100, and the next page has a value of 200. The significant difference between values allows us to add, remove and reorder pages without changing the value of multiple pages at a time.
 
 When adding or reordering a page, try to leave as much room between values as possible. If you were adding a new page that would go between the two pages from the example above, you would add `<meta name="pageOrderInSection" value="150">` to the page.
+
+## Temporary landing pages
+
+> To create a new page for the main website, use the standard [website request](https://fleetdm.com/handbook/company/communications#fleetdm-com) process.
+
+Temporary landing pages are intended for driving traffic from ads, events, and campaigns. They live in the [landing-pages](https://github.com/fleetdm/fleet/tree/main/website/views/pages/landing-pages) folder of the Fleet repo, and use the `/lp` URL path.
+ 
+These pages are:
+- **Not linked from the nav.** They do not appear in the site navigation or any other part of the main site.
+- **Not subject to content or design review.** They can go up fast without going through the [standard drafting process](https://fleetdm.com/handbook/company/product-groups#making-changes).
+- **Created using Claude, Kilo, or manually.** If you're comfortable working in the repo, add a page to the [landing-pages](https://github.com/fleetdm/fleet/tree/main/website/views/pages/landing-pages) folder directly. Otherwise, use Claude or Kilo to generate one.
+
+Examples of pages that live behind `/lp`:
+- A landing page for a conference booth or meetup
+- A landing page for an ad campaign
+- A giveaway page for an event
+
+If an `/lp` page gets traction and the messaging resonates, it can be promoted to the main site. At which point, it goes through the [website request](https://fleetdm.com/handbook/company/communications#fleetdm-com) process.
 
 
 ## Writing style

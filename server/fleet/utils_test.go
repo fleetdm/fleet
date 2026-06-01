@@ -1,10 +1,20 @@
 package fleet
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestWriteExpiredLicenseBanner(t *testing.T) {
+	var buf strings.Builder
+	WriteExpiredLicenseBanner(&buf)
+	out := buf.String()
+
+	require.Contains(t, out, "Your license for Fleet Premium is about to expire")
+	require.Contains(t, out, "https://fleetdm.com/learn-more-about/downgrading")
+}
 
 func TestVersionToSemvarVersion(t *testing.T) {
 	tests := []struct {

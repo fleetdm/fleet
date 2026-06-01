@@ -9,7 +9,7 @@
   }
 
   h2 {
-    font-size: $medium;
+    font-size: $small;
   }
 
   p {
@@ -43,7 +43,6 @@
     gap: $pad-small;
   }
 
-  &__empty-tenant-message,
   .empty-table__container {
     margin: $pad-small auto;
   }

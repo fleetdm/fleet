@@ -1,0 +1,9 @@
+{
+  "name": "XCreds",
+  "unique_identifier": "com.twocanoes.xcreds",
+  "token": "xcreds",
+  "installer_format": "pkg",
+  "slug": "xcreds/darwin",
+  "default_categories": ["Productivity"],
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/xcreds.json"
+}

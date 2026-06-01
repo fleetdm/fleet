@@ -161,19 +161,6 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
 	}
 
-	var stickyEnrollment *string
-	if svc.keyValueStore != nil {
-		// Check for sticky MDM enrollment flag. When set (e.g., after a host transfer),
-		// this prevents enrollment-based team changes for a time window to avoid race conditions
-		// with MDM profile delivery.
-		stickyEnrollment, err = svc.keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+hardwareUUID)
-		if err != nil {
-			// Log error but continue enrollment (fail-open approach). If Redis is unavailable,
-			// enrollment proceeds without sticky behavior rather than blocking.
-			svc.logger.ErrorContext(ctx, "failed to get sticky enrollment", "err", err, "host_uuid", hardwareUUID)
-		}
-	}
-
 	host, err := svc.ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOsqueryHostID(hostIdentifier),
@@ -183,7 +170,6 @@ func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentif
 		fleet.WithEnrollOsqueryTeamID(secret.TeamID),
 		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
 		fleet.WithEnrollOsqueryIdentityCert(identityCert),
-		fleet.WithEnrollOsqueryIgnoreTeamUpdate(stickyEnrollment != nil),
 	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
@@ -2035,10 +2021,12 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter to policies with installers that are newly failing, using the pre-computed set.
+	// Filter to policies with installers that are newly failing, or that have
+	// continuous_automations_enabled set (in which case every failing result
+	// triggers an install, not just pass→fail transitions).
 	var failingPoliciesWithInstaller []fleet.PolicySoftwareInstallerData
 	for _, policyWithInstaller := range policiesWithInstaller {
-		if _, ok := newFailingSet[policyWithInstaller.ID]; ok {
+		if _, ok := newFailingSet[policyWithInstaller.ID]; ok || policyWithInstaller.ContinuousAutomationsEnabled {
 			failingPoliciesWithInstaller = append(failingPoliciesWithInstaller, policyWithInstaller)
 		}
 	}
@@ -2089,6 +2077,18 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			)
 			continue
 		}
+
+		// On a continuous re-fire (policy still failing), reset prior
+		// attempt_number values for this host/policy to 0 so the new attempt
+		// restarts the retry sequence at 1 instead of inheriting the cap from
+		// the previous sequence. A no-op on pass→fail transitions (those rows
+		// are already at 0 from the prior fail→pass reset).
+		if failingPolicyWithInstaller.ContinuousAutomationsEnabled {
+			if err := svc.ds.ResetPolicyAutomationRetryAttemptsForHost(ctx, hostID, []uint{policyID}); err != nil {
+				return ctxerr.Wrap(ctx, err, "reset policy automation retry attempts for host")
+			}
+		}
+
 		// NOTE(lucas): The user_id set in this software install will be NULL
 		// so this means that when generating the activity for this action
 		// (in SaveHostSoftwareInstallResult) the author will be set to Fleet.
@@ -2149,10 +2149,12 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter to policies with VPP apps that are newly failing, using the pre-computed set.
+	// Filter to policies with VPP apps that are newly failing, or that have
+	// continuous_automations_enabled set (in which case every failing result
+	// triggers an install, not just pass→fail transitions).
 	var failingPoliciesWithVPP []fleet.PolicyVPPData
 	for _, policyWithVPP := range policiesWithVPP {
-		if _, ok := newFailingSet[policyWithVPP.ID]; ok {
+		if _, ok := newFailingSet[policyWithVPP.ID]; ok || policyWithVPP.ContinuousAutomationsEnabled {
 			failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
 		}
 	}
@@ -2284,10 +2286,12 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		return nil
 	}
 
-	// Filter to policies with scripts that are newly failing, using the pre-computed set.
+	// Filter to policies with scripts that are newly failing, or that have
+	// continuous_automations_enabled set (in which case every failing result
+	// triggers a script run, not just pass→fail transitions).
 	var failingPoliciesWithScript []fleet.PolicyScriptData
 	for _, policyWithScript := range policiesWithScript {
-		if _, ok := newFailingSet[policyWithScript.ID]; ok {
+		if _, ok := newFailingSet[policyWithScript.ID]; ok || policyWithScript.ContinuousAutomationsEnabled {
 			failingPoliciesWithScript = append(failingPoliciesWithScript, policyWithScript)
 		}
 	}
@@ -2344,6 +2348,17 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 		if scriptIsAlreadyPending {
 			logger.DebugContext(ctx, "script is already pending on host")
 			continue
+		}
+
+		// On a continuous re-fire (policy still failing), reset prior
+		// attempt_number values for this host/policy to 0 so the new attempt
+		// restarts the retry sequence at 1 instead of inheriting the cap from
+		// the previous sequence. A no-op on pass→fail transitions (those rows
+		// are already at 0 from the prior fail→pass reset).
+		if failingPolicyWithScript.ContinuousAutomationsEnabled {
+			if err := svc.ds.ResetPolicyAutomationRetryAttemptsForHost(ctx, hostID, []uint{policyID}); err != nil {
+				return ctxerr.Wrap(ctx, err, "reset policy automation retry attempts for host")
+			}
 		}
 
 		contents, err := svc.ds.GetScriptContents(ctx, scriptMetadata.ID)

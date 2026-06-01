@@ -92,6 +92,7 @@ interface ILabelFilterSelectProps {
   onChange: (labelId: ILabel) => void;
   onAddLabel: () => void;
   isLoading?: boolean;
+  isDisabled?: boolean;
 }
 
 const LabelFilterSelect = ({
@@ -102,6 +103,7 @@ const LabelFilterSelect = ({
   onChange,
   onAddLabel,
   isLoading = false,
+  isDisabled = false,
 }: ILabelFilterSelectProps) => {
   const [labelQuery, setLabelQuery] = useState("");
 
@@ -196,7 +198,7 @@ const LabelFilterSelect = ({
   };
 
   return (
-    <div className={classes} onClick={toggleMenu}>
+    <div className={classes} onClick={isDisabled ? undefined : toggleMenu}>
       <Select<ILabel | IEmptyOption, false, IGroupOption>
         ref={selectRef}
         name="input-filter-select"
@@ -205,6 +207,7 @@ const LabelFilterSelect = ({
         placeholder="Filter by platform or label"
         value={selectedLabel}
         isSearchable={false}
+        isDisabled={isDisabled}
         components={{
           GroupHeading: CustomLabelGroupHeading,
           DropdownIndicator: CustomDropdownIndicator,

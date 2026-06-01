@@ -14,6 +14,7 @@ import {
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import statusAPI from "services/entities/status";
 import PATHS from "router/paths";
@@ -68,6 +69,7 @@ const PolicyPage = ({
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
     setLastEditedQueryLabelsIncludeAny,
+    setLastEditedQueryLabelsIncludeAll,
     setLastEditedQueryLabelsExcludeAny,
     setPolicyTeamId,
   } = useContext(PolicyContext);
@@ -140,18 +142,13 @@ const PolicyPage = ({
     false
   );
 
-  // TODO: Remove team endpoint workaround once global policy endpoint populates patch_software.
-  // The global endpoint does not return patch_software for patch policies, but the team endpoint does.
   const {
     isLoading: isStoredPolicyLoading,
     data: storedPolicy,
     error: storedPolicyError,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["policy", policyId, teamIdForApi],
-    () =>
-      teamIdForApi && teamIdForApi > 0
-        ? teamPoliciesAPI.load(teamIdForApi, policyId as number)
-        : globalPoliciesAPI.load(policyId as number),
+    () => policiesAPI.load(policyId as number),
     {
       enabled: isRouteOk && !!policyId,
       refetchOnWindowFocus: false,
@@ -169,6 +166,9 @@ const PolicyPage = ({
         setLastEditedQueryPlatform(returnedQuery.platform);
         setLastEditedQueryLabelsIncludeAny(
           returnedQuery.labels_include_any || []
+        );
+        setLastEditedQueryLabelsIncludeAll(
+          returnedQuery.labels_include_all || []
         );
         setLastEditedQueryLabelsExcludeAny(
           returnedQuery.labels_exclude_any || []

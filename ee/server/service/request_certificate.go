@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/asn1"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -16,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/smallstep/pkcs7"
 )
 
 // This code largely adapted from fleet/website/api/controllers/get-est-device-certificate.js
@@ -134,10 +137,55 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("EST certificate request failed: %s", err.Error())}
 	}
 	svc.logger.InfoContext(ctx, "Successfully retrieved a certificate from EST", "ca_id", ca.ID, "idp_username", idpUsername)
+
+	if p.ReturnPEMCertificate {
+		pemCert, err := pkcs7EnvelopeToPEM(certificate.Certificate)
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "Failed to convert PKCS7 envelope to PEM certificate", "ca_id", ca.ID, "err", err)
+			return nil, ctxerr.Wrap(ctx, err, "converting PKCS7 envelope to PEM certificate")
+		}
+		return new(pemCert), nil
+	}
+
 	// Wrap the certificate in a PEM block for easier consumption by the client. TODO: If we ever
 	// support CAs other than Hydrant/EST in this API, this may need to be modified to be aware of
 	// their formats.
 	return new("-----BEGIN PKCS7-----\n" + string(certificate.Certificate) + "\n-----END PKCS7-----\n"), nil
+}
+
+// pkcs7EnvelopeToPEM converts a base64-encoded PKCS7 envelope (as returned by an EST
+// /simpleenroll response, per RFC 7030) into a single PEM-encoded CERTIFICATE block.
+// It returns an error unless the envelope contains exactly one certificate.
+func pkcs7EnvelopeToPEM(envelope []byte) (string, error) {
+	// EST returns base64-encoded PKCS7 with potential whitespace; strip it before decoding.
+	stripped := strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\r' || r == ' ' || r == '\t' {
+			return -1
+		}
+		return r
+	}, string(envelope))
+
+	derBytes, err := base64.StdEncoding.DecodeString(stripped)
+	if err != nil {
+		return "", fmt.Errorf("decoding base64 PKCS7 envelope: %w", err)
+	}
+
+	p7, err := pkcs7.Parse(derBytes)
+	if err != nil {
+		return "", fmt.Errorf("parsing PKCS7 envelope: %w", err)
+	}
+	// Per RFC 7030 §4.2.3, the EST /simpleenroll SimplePKIResponse carries the single
+	// issued certificate. Reject anything else so callers don't have to guess which cert
+	// is the leaf.
+	if len(p7.Certificates) != 1 {
+		return "", fmt.Errorf("expected exactly 1 certificate in EST PKCS7 envelope, got %d", len(p7.Certificates))
+	}
+
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: p7.Certificates[0].Raw})
+	if pemBytes == nil {
+		return "", errors.New("encoding certificate to PEM")
+	}
+	return string(pemBytes), nil
 }
 
 func (svc *Service) introspectIDPToken(ctx context.Context, idpClientID, idpToken, idpOauthURL string) (*oauthIntrospectionResponse, error) {

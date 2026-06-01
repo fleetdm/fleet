@@ -1,1 +1,0 @@
-* Fixed a bug where the organization logo URL entered during setup was only saved for dark backgrounds and not for light backgrounds.

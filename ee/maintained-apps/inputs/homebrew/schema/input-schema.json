@@ -79,6 +79,12 @@
     "frozen": {
       "type": "boolean",
       "description": "If true, the app will not be processed during ingestion and no new output will be created."
+    },
+    "cask_path": {
+      "type": "string",
+      "description": "Path (relative to the repo root) to a local file containing the cask JSON in the same schema as https://formulae.brew.sh/api/cask/<token>.json. Used to commit cask metadata for third-party taps directly into this repo under inputs/homebrew/custom-tap/.",
+      "minLength": 1,
+      "pattern": "\\.json$"
     }
   },
   "not": {

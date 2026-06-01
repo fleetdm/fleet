@@ -1,12 +1,10 @@
 #app-library {
 
   [purpose='page-container'] {
-    padding: 48px;
+    padding: @page-padding-sm;
   }
   [purpose='page-content'] {
-    max-width: 1104px;
-    margin-left: auto;
-    margin-right: auto;
+    .page-content-docs();
   }
   [purpose='search-and-headline'] {
     margin-bottom: 64px;
@@ -192,7 +190,7 @@
 
   @media (max-width: 991px) {
     [purpose='page-container'] {
-      padding: 32px;
+      padding: @page-padding-tablet;
     }
     [purpose='app-card'] {
       min-width: 40%;
@@ -237,7 +235,7 @@
 
   @media (max-width: 575px) {
     [purpose='page-container'] {
-      padding: 32px 24px;
+      padding: @page-padding-tablet-mobile;
     }
     [purpose='request-button'] {
       margin-top: 16px;

@@ -11,7 +11,8 @@ import {
   IUser,
   ICreateUserWithInvitationFormData,
 } from "interfaces/user";
-import { ITeamSummary } from "interfaces/team";
+import { ITeamSummary, INewTeamUser } from "interfaces/team";
+import { IApiEndpointRef } from "interfaces/api_endpoint";
 import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import { IUserSettings } from "interfaces/config";
 
@@ -67,10 +68,45 @@ export default {
       helpers.addGravatarUrlToResource(response.user)
     );
   },
-  createUserWithoutInvitation: (formData: ICreateUserFormData) => {
+  createUserWithoutInvitation: (
+    formData: ICreateUserFormData
+  ): Promise<{ user: IUser; token?: string }> => {
     const { USERS_ADMIN } = endpoints;
 
-    return sendRequest("POST", USERS_ADMIN, formData).then((response) =>
+    return sendRequest("POST", USERS_ADMIN, formData).then((response) => ({
+      user: helpers.addGravatarUrlToResource(response.user),
+      token: response.token,
+    }));
+  },
+  createApiOnlyUser: (formData: {
+    name: string;
+    global_role?: string | null;
+    fleets?: INewTeamUser[];
+    api_endpoints?: IApiEndpointRef[] | null;
+  }): Promise<{ user: IUser; token?: string }> => {
+    const { USERS_API_ONLY } = endpoints;
+
+    return sendRequest("POST", USERS_API_ONLY, formData).then((response) => ({
+      user: response.user,
+      token: response.token,
+    }));
+  },
+  updateApiOnlyUser: (
+    userId: number,
+    formData: Record<string, unknown>
+  ): Promise<IUser> => {
+    const { USERS_API_ONLY } = endpoints;
+    const path = `${USERS_API_ONLY}/${userId}`;
+
+    return sendRequest("PATCH", path, formData).then(
+      (response) => response.user
+    );
+  },
+  getUserById: (userId: number): Promise<IUser> => {
+    const { USERS } = endpoints;
+    const path = `${USERS}/${userId}`;
+
+    return sendRequest("GET", path).then((response) =>
       helpers.addGravatarUrlToResource(response.user)
     );
   },

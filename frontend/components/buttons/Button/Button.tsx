@@ -166,7 +166,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         <div className={isLoading ? "transparent-text" : "children-wrapper"}>
           {children}
         </div>
-        {isLoading && <Spinner small button white={!onWhite} />}
+        {isLoading && <Spinner small button white={!onWhite} delay={0} />}
       </button>
     );
   }

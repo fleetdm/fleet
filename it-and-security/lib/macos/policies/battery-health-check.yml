@@ -4,6 +4,8 @@
       SELECT 1 FROM battery
       WHERE condition IN ('Service Needed', 'Permanent Failure')
       OR health IN ('Fair', 'Poor')
+      OR (max_capacity > 0 AND designed_capacity > 0
+          AND CAST(max_capacity AS REAL) / designed_capacity < 0.80)
     );
   critical: false
   description: >-

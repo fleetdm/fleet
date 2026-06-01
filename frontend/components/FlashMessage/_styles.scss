@@ -17,33 +17,45 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $core-fleet-white;
+  color: $core-fleet-black;
   padding: $pad-small $pad-medium;
   z-index: 999;
-  background-color: $core-vibrant-blue;
-  border: 1px solid $ui-fleet-black-10;
+  border: 1px solid;
   box-sizing: border-box;
-  box-shadow: 0px 7px 3px -5px rgba(25, 33, 71, 0.1);
   border-radius: 8px;
   max-width: calc(100% - 64px); // Same horizontal margin as .main-content
   pointer-events: auto;
 
   &--success {
-    background-color: $ui-success;
+    background-color: $ui-success-flash-bg;
+    border-color: $ui-success;
   }
 
   &--error {
-    background-color: $ui-error;
+    background-color: $ui-error-flash-bg;
+    border-color: $ui-error;
   }
 
   &--warning-filled {
     background-color: $ui-warning;
+    // Yellow is light enough that foreground should be dark in BOTH modes.
+    // Use static (un-themed) tokens so dark mode doesn't flip to light text.
+    color: $static-black;
 
     span {
       margin-left: 15px;
       margin-right: 15px;
       font-size: $x-small;
-      color: $core-fleet-black;
+      color: $static-black;
+    }
+
+    .flash-message__remove .fleeticon,
+    .flash-message__remove .fleeticon:hover {
+      color: $static-black;
+    }
+
+    .flash-message__undo {
+      color: $static-black;
     }
   }
 
@@ -72,7 +84,7 @@
   }
 
   &__undo {
-    color: $core-fleet-white;
+    color: $core-fleet-black;
     cursor: pointer;
     font-size: $small;
     text-decoration: underline;
@@ -86,11 +98,11 @@
 
     .fleeticon {
       transition: color 150ms ease-in-out;
-      color: $core-fleet-white;
+      color: $core-fleet-black;
       font-size: $small;
 
       &:hover {
-        color: $core-fleet-white;
+        color: $core-fleet-black;
       }
     }
   }

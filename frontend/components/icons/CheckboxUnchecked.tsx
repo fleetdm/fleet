@@ -13,7 +13,7 @@ const CheckboxUnchecked = ({
       <rect
         className="checkbox-unchecked-state"
         x="1"
-        y="1.5"
+        y="1"
         width="14"
         height="14"
         rx="3"

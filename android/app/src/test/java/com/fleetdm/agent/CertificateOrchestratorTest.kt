@@ -8,7 +8,6 @@ import com.fleetdm.agent.testutil.FakeCertificateApiClient
 import com.fleetdm.agent.testutil.FakeDeviceKeystoreManager
 import com.fleetdm.agent.testutil.MockCertificateInstaller
 import com.fleetdm.agent.testutil.TestCertificateTemplateFactory
-import com.fleetdm.agent.testutil.UpdateStatusCall
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,6 +20,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.math.BigInteger
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -97,13 +97,21 @@ class CertificateOrchestratorTest {
         retries: Int = 0,
         statusReportRetries: Int = 0,
         uuid: String = "uuid-1",
+        serialNumber: String? = null,
     ) {
         context.prefDataStore.edit { preferences ->
             val existing = preferences[stringPreferencesKey("installed_certificates")]?.let {
                 json.decodeFromString<CertificateStateMap>(it)
             } ?: emptyMap()
 
-            val certInfo = CertificateState(alias, status, retries, statusReportRetries, uuid)
+            val certInfo = CertificateState(
+                alias = alias,
+                status = status,
+                retries = retries,
+                statusReportRetries = statusReportRetries,
+                uuid = uuid,
+                serialNumber = serialNumber,
+            )
             val updated = existing.toMutableMap().apply {
                 put(certificateId, certInfo)
             }
@@ -1274,6 +1282,26 @@ class CertificateOrchestratorTest {
     }
 
     @Test
+    fun `retryUnreportedStatuses parses stored serial as hex when reporting to server`() = runTest {
+        storeTestCertificateInDataStore(
+            certificateId = 1,
+            alias = "test-cert",
+            status = CertificateStatus.INSTALLED_UNREPORTED,
+            serialNumber = "a1b2c3",
+        )
+
+        val results = orchestrator.retryUnreportedStatuses(context)
+
+        assertEquals(mapOf(1 to true), results)
+        assertEquals(1, fakeApiClient.updateStatusCalls.size)
+        assertEquals(
+            "Stored hex serial 'a1b2c3' should parse to BigInteger 0xa1b2c3",
+            BigInteger.valueOf(0xa1b2c3L),
+            fakeApiClient.updateStatusCalls[0].serialNumber,
+        )
+    }
+
+    @Test
     fun `retryUnreportedStatuses handles mixed success and failure`() = runTest {
         storeTestCertificateInDataStore(1, "cert-1", CertificateStatus.INSTALLED_UNREPORTED)
         storeTestCertificateInDataStore(2, "cert-2", CertificateStatus.REMOVED_UNREPORTED)
@@ -1403,4 +1431,98 @@ class CertificateOrchestratorTest {
         assertEquals(1, fakeApiClient.updateStatusCalls.size)
         assertEquals(UpdateCertificateStatusStatus.FAILED, fakeApiClient.updateStatusCalls[0].status)
     }
+
+    @Test
+    fun `enrollCertificates aborts batch on DNS failure`() = runTest {
+        // Scenario: DNS failure during enrollment of cert 1. Since DNS is a network-level issue
+        // (not cert-specific), we should abort the batch and defer remaining certs rather than
+        // burning the DNS retry window on each subsequent cert.
+        //
+        // Covers two cases:
+        //  - Direct UnknownHostException from the Fleet API template fetch.
+        //  - UnknownHostException wrapped in ScepNetworkException during SCEP enrollment (the
+        //    orchestrator must walk the cause chain to detect it).
+
+        data class Case(val name: String, val configure: () -> Unit, val assertException: (Throwable?) -> Unit)
+
+        val cases = listOf(
+            Case(
+                name = "direct UnknownHostException from API",
+                configure = {
+                    fakeApiClient.getCertificateTemplateHandler = { certId ->
+                        if (certId == 1) {
+                            Result.failure(java.net.UnknownHostException("Unable to resolve host"))
+                        } else {
+                            Result.success(successfulTemplateResult(certId))
+                        }
+                    }
+                },
+                assertException = { exception ->
+                    assertTrue(
+                        "Expected UnknownHostException but got ${exception?.javaClass?.name}",
+                        exception is java.net.UnknownHostException,
+                    )
+                },
+            ),
+            Case(
+                name = "UnknownHostException wrapped in ScepNetworkException",
+                configure = {
+                    fakeApiClient.getCertificateTemplateHandler = { certId ->
+                        Result.success(successfulTemplateResult(certId))
+                    }
+                    mockScepClient.shouldThrowNetworkException = true
+                    mockScepClient.networkExceptionCause = java.net.UnknownHostException("Unable to resolve host")
+                },
+                assertException = { exception ->
+                    assertTrue(
+                        "Expected ScepNetworkException but got ${exception?.javaClass?.name}",
+                        exception is com.fleetdm.agent.scep.ScepNetworkException,
+                    )
+                    assertTrue(
+                        "Expected UnknownHostException in cause chain",
+                        exception?.cause is java.net.UnknownHostException,
+                    )
+                },
+            ),
+        )
+
+        for (case in cases) {
+            // Reset state between cases
+            clearDataStore()
+            fakeApiClient.reset()
+            mockScepClient.reset()
+
+            case.configure()
+
+            val hostCertificates = listOf(
+                HostCertificate(id = 1, status = "delivered", operation = "install", uuid = "uuid-1"),
+                HostCertificate(id = 2, status = "delivered", operation = "install", uuid = "uuid-2"),
+                HostCertificate(id = 3, status = "delivered", operation = "install", uuid = "uuid-3"),
+            )
+
+            val results = orchestrator.enrollCertificates(context, hostCertificates, mockInstaller)
+
+            // Only cert 1 is in results; certs 2 and 3 were skipped
+            assertEquals("${case.name}: only cert 1 processed", 1, results.size)
+            val failure = results[1] as CertificateEnrollmentHandler.EnrollmentResult.Failure
+            assertTrue("${case.name}: failure is retryable", failure.isRetryable)
+            case.assertException(failure.exception)
+            // API was only called for cert 1 - certs 2 and 3 never attempted
+            assertEquals("${case.name}: only cert 1 fetched", listOf(1), fakeApiClient.getCertificateTemplateCalls)
+        }
+    }
+
+    private fun successfulTemplateResult(certId: Int) = CertificateTemplateResult(
+        template = GetCertificateTemplateResponse(
+            id = certId,
+            name = "cert-$certId",
+            certificateAuthorityId = 1,
+            certificateAuthorityName = "TestCA",
+            createdAt = "2025-01-01T00:00:00Z",
+            subjectName = "CN=test",
+            certificateAuthorityType = "custom_scep_proxy",
+            status = "delivered",
+        ),
+        scepUrl = TestCertificateTemplateFactory.DEFAULT_SCEP_URL,
+    )
 }

@@ -6,6 +6,9 @@ spec:
     features:
       enable_host_users: true
       enable_software_inventory: true
+      historical_data:
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
@@ -25,7 +28,9 @@ spec:
         certificates: null
       setup_experience:
         macos_bootstrap_package: null
+        enable_create_local_admin_account: false
         enable_end_user_authentication: false
+        end_user_local_account_type: "admin"
         lock_end_user_info: false
         apple_setup_assistant: null
         macos_manual_agent_install: null
@@ -59,6 +64,9 @@ spec:
     features:
       enable_host_users: true
       enable_software_inventory: true
+      historical_data:
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
@@ -79,6 +87,8 @@ spec:
       macos_setup:
         bootstrap_package: null
         enable_end_user_authentication: false
+        enable_managed_local_account: false
+        end_user_local_account_type: "admin"
         lock_end_user_info: false
         macos_setup_assistant: null
         manual_agent_install: null
@@ -116,6 +126,9 @@ spec:
     features:
       enable_host_users: true
       enable_software_inventory: true
+      historical_data:
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
@@ -137,6 +150,8 @@ spec:
         macos_bootstrap_package: null
         apple_setup_assistant: null
         macos_manual_agent_install: null
+        enable_create_local_admin_account: false
+        end_user_local_account_type: "admin"
         apple_enable_release_device_manually: false
         lock_end_user_info: false
         macos_script: null
@@ -162,6 +177,9 @@ spec:
     features:
       enable_host_users: true
       enable_software_inventory: true
+      historical_data:
+        uptime: true
+        vulnerabilities: true
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
@@ -183,6 +201,8 @@ spec:
         bootstrap_package: null
         macos_setup_assistant: null
         manual_agent_install: null
+        enable_managed_local_account: false
+        end_user_local_account_type: "admin"
         enable_release_device_manually: false
         lock_end_user_info: false
         script: null

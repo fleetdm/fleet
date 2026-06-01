@@ -51,6 +51,7 @@ export interface IPolicy {
   run_script?: Pick<IScript, "id" | "name">;
   patch_software?: IPolicySoftwareToInstall;
   labels_include_any?: ILabelPolicy[];
+  labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
 }
 export interface IPolicySoftwareToInstall {
@@ -120,6 +121,7 @@ export interface IPolicyFormData {
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
   labels_include_any?: string[];
+  labels_include_all?: string[];
   labels_exclude_any?: string[];
   /** Required for creating patch policy */
   type?: "dynamic" | "patch";

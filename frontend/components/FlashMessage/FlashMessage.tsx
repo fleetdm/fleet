@@ -90,12 +90,23 @@ const SingleFlashMessage = ({
     return null;
   }
 
+  // Three cases needed here (warning-filled, success, error) so we can't use a
+  // simple ternary like the close button below — no-nested-ternary lint rule.
+  let iconColor: "static-black" | "ui-success" | "ui-error";
+  if (alertType === "warning-filled") {
+    iconColor = "static-black";
+  } else if (alertType === "success") {
+    iconColor = "ui-success";
+  } else {
+    iconColor = "ui-error";
+  }
+
   return (
     <div className={baseClasses} id={baseClasses}>
       <div className={`${baseClass}__content`}>
         <Icon
           name={alertType === "success" ? "success" : "error"}
-          color="core-fleet-white"
+          color={iconColor}
         />
         <span>{message}</span>
       </div>
@@ -109,8 +120,8 @@ const SingleFlashMessage = ({
               name="close"
               color={
                 alertType === "warning-filled"
-                  ? "core-fleet-black"
-                  : "core-fleet-white"
+                  ? "static-black"
+                  : "core-fleet-black"
               }
             />
           </button>

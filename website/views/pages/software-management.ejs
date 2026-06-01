@@ -3,7 +3,7 @@
     <div purpose="page-content">
       <div purpose="page-hero">
         <h4>Software management</h4>
-        <h1>Manage software consistently</h1>
+        <h1>Patch faster. Stay compliant.</h1>
         <p purpose="hero-text">Pick from a curated software catalog or upload your own custom packages. Configure custom installation scripts if you need or let Fleet do it for you.</p>
         <div purpose="button-row" class="d-flex justify-content-start">
           <a class="btn btn-primary mr-0" purpose="contact-button" href="/contact">Get a demo</a>
@@ -19,12 +19,12 @@
               <p><a href="/device-management" @click="goto('/device-management')">More about device management</a></p>
             </div>
             <div purpose="slide-text" data-target="#heroCarousel" data-slide-to="1">
-              <h5>Self-service on any OS</h5>
-              <p>Enable end users on every operating system and reduce IT burden with pre-approved software.</p>
-            </div>
-            <div purpose="slide-text" data-target="#heroCarousel" data-slide-to="2">
               <h5>Automate patch management</h5>
               <p>Enforce updates and trigger automations to run scripts or install software.</p>
+            </div>
+            <div purpose="slide-text" data-target="#heroCarousel" data-slide-to="2">
+              <h5>Self-service on any OS</h5>
+              <p>Enable end users on every operating system and reduce IT burden with pre-approved software.</p>
             </div>
           </div>
           <ol purpose="carousel-indicators" class="carousel-indicators order-2">
@@ -37,10 +37,10 @@
               <img class="d-block w-100" src="/images/software-management-feature-slide-1-1072x480-@2x.png" alt="First slide">
             </div>
             <div class="carousel-item">
-              <img class="d-block w-100" src="/images/software-management-feature-slide-2-2144x960@2x.png" alt="Second slide">
+              <img class="d-block w-100" src="/images/software-management-feature-slide-3-2144x960@2x.png" alt="Second slide">
             </div>
             <div class="carousel-item">
-              <img class="d-block w-100" src="/images/software-management-feature-slide-3-2144x960@2x.png" alt="Third slide">
+              <img class="d-block w-100" src="/images/software-management-feature-slide-2-2144x960@2x.png" alt="Third slide">
             </div>
           </div>
         </div>
@@ -61,14 +61,14 @@
         </div>
       </div>
       
-      <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-center mx-auto align-items-center">
+      <div purpose="feature-with-image">
         <div purpose="feature-image">
           <img alt="Deploy software your own way" src="/images/feature-image-fleet-maintained-software-1056x754@2x.png">
         </div>
-        <div purpose="feature-text" class="d-flex flex-column">
+        <div purpose="feature-text">
           <h3>Deploy software your own way</h3>
           <p>Deploy software from any source using the method that works best for you—whether it's through the UI, API, or GitOps.</p>
-          <div purpose="checklist" class="flex-column d-flex">
+          <div purpose="checklist">
             <p>Install from a built-in catalog of Fleet-maintained apps without the need for additional configuration.</p>
             <p>Upload any third-party software as a custom package to deploy all of the tools your end users need.</p>
             <p>Manage app deployments and updates for your computers and mobile devices from app stores.</p>
@@ -76,29 +76,29 @@
         </div>
       </div>
 
-      <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-center">
-        <div purpose="feature-text" class="d-flex flex-column">
-          <h3>Automate patch management</h3>
-          <p>Take the guesswork out of keeping devices up-to-date and secure by asking yes or no questions tied to automations.</p>
-          <div purpose="checklist" class="flex-column d-flex">
-            <p>Use policy automations to trigger app updates, execute scripts, or create tickets in Jira and Zendesk.</p>
-            <p>Generate webhooks to integrate with your favorite tools and systems.</p>
-            <p>Optionally integrate Google Calendar to schedule time for your users to update software when it’s convenient for them.</p>
-          </div>
-        </div>
+      <div purpose="feature-with-image" class="reverse">
         <div purpose="feature-image">
           <img alt="Automate patch management" src="/images/feature-image-automate-patch-management-1056x754@2x.png">
         </div>
+        <div purpose="feature-text">
+          <h3>Automate patch management</h3>
+          <p>Fleet’s policy engine continuously evaluates every managed device using osquery - installed software versions, configuration state, and system metrics. When a device falls out of compliance, Fleet automatically installs the correct software. No ticket. No manual intervention.</p>
+          <div purpose="checklist">
+            <p>Policies run every hour across all online devices, shrinking vulnerability exposure windows from weeks to hours.</p>
+            <p>Stage rollouts across deployment rings using real device telemetry. Advance rings based on actual stability data, not help-desk silence.</p>
+            <p>Configure exclusions, scoping, and custom intervals for complex environments.</p>
+          </div>
+        </div>
       </div>
 
-      <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-center mx-auto align-items-center">
+      <div purpose="feature-with-image">
         <div purpose="feature-image">
           <img alt="The right software at the right moment" src="/images/feature-image-self-service-1056x754@2x.png">
         </div>
-        <div purpose="feature-text" class="d-flex flex-column">
+        <div purpose="feature-text">
           <h3>The right software at the right moment</h3>
           <p>Use self-service to keep employees productive and secure with software curated to their needs.</p>
-          <div purpose="checklist" class="flex-column d-flex">
+          <div purpose="checklist">
             <p>Install organization-approved software for macOS, Windows, and Linux.</p>
             <p>Quickly deliver software for teams of any size, tailored to small groups or the entire organization.</p>
           </div>
@@ -135,7 +135,7 @@
             </div>
             <div purpose="feature-text" class="d-flex flex-column">
               <h3>Mitigate CVEs automatically</h3>
-              <p>Build automations that close tickets or mitigate vulnerabilities by updating or removing software and running custom scripts.</p>
+              <p>When a vulnerability is disclosed, Fleet already knows which devices are exposed. Automatically update or remove vulnerable software and run custom scripts - before a ticket is ever created.</p>
               <div purpose="checklist" class="flex-column d-flex">
                 <p>Automatically detect when old vulnerabilities are reintroduced, or mitigations falter.</p>
                 <p>Track and mitigate zero days, with live queries and policies, even before they're officially published as CVEs.</p>
@@ -146,10 +146,10 @@
           </div>
           <div purpose="feature-slide" :class="[visibleFeature === 'on-demand-data' ? '' : 'invisible']" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-start">
             <div purpose="feature-image">
-              <img alt="Deep context from the environment" src="/images/software-management-feature-slide-on-demand-data-528x377@2x.png">
+              <img alt="Ground-truth data from every device" src="/images/software-management-feature-slide-on-demand-data-528x377@2x.png">
             </div>
             <div purpose="feature-text" class="d-flex flex-column">
-              <h3>Deep context from the environment</h3>
+              <h3>Ground-truth data from every device</h3>
               <p>Fleet gives you data down to the chip level on every endpoint to help you make sense of which vulnerabilities to prioritize.</p>
               <div purpose="checklist" class="flex-column d-flex">
                 <p>Automate prioritization with an admin-level agent that has visibility down to the chipset of any endpoint</p>
@@ -167,7 +167,7 @@
             </div>
             <div purpose="feature-text" class="d-flex flex-column">
               <h3>Report what matters</h3>
-              <p>Let's face it, most built-in graphs leave you wanting more. Report MTTR and any other custom metrics exactly the way you want to using fresh data from real computers.</p>
+              <p>See which devices have out-of-date software, which vulnerabilities they're exposed to, and exactly how long they've been at risk - down to the hour.</p>
               <div purpose="checklist" class="flex-column d-flex">
                 <p>Track any “celebrity” CVE across every OS, every cloud, and every device, and show how quickly it was mitigated.</p>
                 <p>Avoid distracting your CISO with bloated reports. Only communicate facts important to your organization's KPIs. Show real-time mitigation progress (%) or sync with your favorite data tool like Microsoft BI.</p>
@@ -175,28 +175,28 @@
             </div>
           </div>
         </div>
-        <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-center mx-auto align-items-center">
-          <div purpose="feature-text" class="d-flex flex-column">
+        <div purpose="feature-with-image" class="reverse">
+          <div purpose="feature-image">
+            <img alt="Up-to-date data without scans" src="/images/software-management-feature-image-up-to-date-data-without-scans-528x377@2x.png">
+          </div>
+          <div purpose="feature-text">
             <h3>Up-to-date data without scans</h3>
             <p>Traditional network vulnerability scans can clog your network and even haunt your printers with pages full of wingdings. Fleet does things differently.</p>
-            <div purpose="checklist" class="flex-column d-flex">
+            <div purpose="checklist">
               <p>Eliminate the risk of side effects from scanning the network.</p>
               <p>Lightweight enough for the most brittle environments (OT, data centers, embedded/BTS, low-latency gaming servers).</p>
               <p>Quickly pull data about important CVEs and zero days during an incident or audit.</p>
             </div>
           </div>
-          <div purpose="feature-image">
-            <img alt="Up-to-date data without scans" src="/images/software-management-feature-image-up-to-date-data-without-scans-528x377@2x.png">
-          </div>
         </div>
-        <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-center mx-auto align-items-center">
+        <div purpose="feature-with-image">
           <div purpose="feature-image">
             <img alt="Untangle your security stack" src="/images/software-management-feature-image-untangle-your-security-stack-528x377@2x.png">
           </div>
-          <div purpose="feature-text" class="d-flex flex-column">
+          <div purpose="feature-text">
             <h3>Untangle your security stack</h3>
             <p>Use open data and APIs to connect your vulnerability solution with osquery, the agent you might already have deployed.</p>
-            <div purpose="checklist" class="flex-column d-flex">
+            <div purpose="checklist">
               <p>Normalize asset management data and software inventories from multiple tools and operating systems.</p>
               <p>Help teams work on vulnerabilities that have actually been exploited (CISA KEVs) or have a high probability of being exploited (EPSS), or whatever is important in your environment.</p>
               <p>Process CVEs across cloud and non-cloud assets in a single platform and see who's responsible for what.</p>
@@ -217,7 +217,7 @@
   <div purpose="page-container" class="py-0">
     <div purpose="bottom-cta">
       <h4>Software management</h4>
-      <h2>Manage software consistently</h2>
+      <h2>Patch faster. Stay compliant.</h2>
       <div purpose="button-row" class="d-flex justify-content-center align-items-center mx-auto">
         <a class="btn btn-primary mr-0" purpose="contact-button" href="/contact">Get a demo</a>
         <!-- <animated-arrow-button href="/try">Try it yourself</animated-arrow-button> -->

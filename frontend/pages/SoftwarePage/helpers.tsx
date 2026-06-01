@@ -188,19 +188,34 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   {
     value: "labelsIncludeAny",
     label: "Include any",
-    helpText: "Hosts that have any of the selected labels.",
+    helpText: (
+      <>
+        Software will only be available for install on hosts that{" "}
+        <strong>have any</strong> of these labels.
+      </>
+    ),
     disabled: false,
   },
   {
     value: "labelsIncludeAll",
     label: "Include all",
-    helpText: "Hosts that have all of the selected labels.",
+    helpText: (
+      <>
+        Software will only be available for install on hosts that{" "}
+        <strong>have all</strong> of these labels.
+      </>
+    ),
     disabled: false,
   },
   {
     value: "labelsExcludeAny",
     label: "Exclude any",
-    helpText: "Hosts that don't have any of the selected labels.",
+    helpText: (
+      <>
+        Software will only be available for install on hosts that{" "}
+        <strong>don&apos;t have any</strong> of these labels.
+      </>
+    ),
     disabled: false,
   },
 ];

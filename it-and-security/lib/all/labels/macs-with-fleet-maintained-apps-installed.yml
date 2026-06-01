@@ -18,11 +18,6 @@
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode';
   label_membership_type: dynamic
   platform: darwin
-- name: Macs with Microsoft Teams installed
-  description: macOS hosts with Microsoft Teams installed
-  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.teams2';
-  label_membership_type: dynamic
-  platform: darwin
 - name: Macs with Slack installed
   description: macOS hosts with Slack installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyspeck.slackmacgap';
@@ -103,6 +98,11 @@
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.spotify.client';
   label_membership_type: dynamic
   platform: darwin
+- name: Macs with Santa installed
+  description: macOS hosts with Santa installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.northpolesec.santa';
+  label_membership_type: dynamic
+  platform: darwin
 - name: Macs with Rectangle installed
   description: macOS hosts with Rectangle installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Rectangle';
@@ -146,5 +146,20 @@
 - name: Macs with Cursor installed
   description: macOS hosts with Cursor installed
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.230313mzl4w4u92';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Nudge installed
+  description: macOS hosts with Nudge installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.macadmins.Nudge';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Adobe Acrobat Reader installed
+  description: macOS hosts with Adobe Acrobat Reader installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Adobe Acrobat Pro installed
+  description: macOS hosts with Adobe Acrobat Pro installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Acrobat.Pro';
   label_membership_type: dynamic
   platform: darwin

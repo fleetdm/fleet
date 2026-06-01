@@ -514,7 +514,7 @@ func getBodyTag(ctx context.Context, ds fleet.Datastore, host fleet.HostPolicyMe
 		var policy *calendar.PolicyLiteWithMeta
 		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
 		if !ok {
-			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
+			id, err := strconv.ParseUint(policyIDs[0], 10, strconv.IntSize)
 			if err != nil {
 				logger.ErrorContext(ctx, "parse policy id", "err", err)
 				// Do nothing

@@ -105,6 +105,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -156,6 +157,172 @@ describe("PolicyForm - component", () => {
       expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     });
 
+    // Regression test for #38348: clicking Save with an empty query body must
+    // not submit, even before the debounced SQL validator has populated
+    // errors.query. The synchronous guard in promptSavePolicy enforces this.
+    it("does not call onUpdate when Save is clicked with an empty query body", async () => {
+      const onUpdate = jest.fn();
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: "", // empty query body
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+          app: {
+            currentUser: createMockUser(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <PolicyForm
+          router={createMockRouter()}
+          teamIdForApi={3}
+          policyIdForEdit={mockPolicy.id}
+          showOpenSchemaActionText={false}
+          storedPolicy={createMockPolicy({ query: "" })}
+          isStoredPolicyLoading={false}
+          isTeamObserver={false}
+          isUpdatingPolicy={false}
+          onCreatePolicy={jest.fn()}
+          onOsqueryTableSelect={jest.fn()}
+          goToSelectTargets={jest.fn()}
+          onUpdate={onUpdate}
+          onOpenSchemaSidebar={jest.fn()}
+          renderLiveQueryWarning={jest.fn()}
+          backendValidators={{}}
+          onClickAutofillDescription={jest.fn()}
+          onClickAutofillResolution={jest.fn()}
+          isFetchingAutofillDescription={false}
+          isFetchingAutofillResolution={false}
+          resetAiAutofillData={jest.fn()}
+          currentAutomatedPolicies={[]}
+        />
+      );
+
+      // On initial render `errors.query` is not yet set (the SQL validator is
+      // debounced 500ms), so Save is enabled. This reproduces the race the
+      // synchronous guard exists to handle: the user can click Save before
+      // the debounce fires.
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+
+      expect(onUpdate).not.toHaveBeenCalled();
+      // The synchronous guard sets errors.query = EMPTY_QUERY_ERR, which
+      // SQLEditor surfaces as its label text.
+      expect(
+        screen.getByText("Query text must be present")
+      ).toBeInTheDocument();
+    });
+
+    // Regression test for #38348: a policy with a non-empty but syntactically
+    // invalid query must be savable. Only empty queries block Save.
+    it("allows saving a policy whose query has a SQL syntax error", async () => {
+      const onUpdate = jest.fn();
+      const invalidSQL = "SELEKT * FROM bogus";
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: invalidSQL,
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+          app: {
+            currentUser: createMockUser(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <PolicyForm
+          router={createMockRouter()}
+          teamIdForApi={3}
+          policyIdForEdit={mockPolicy.id}
+          showOpenSchemaActionText={false}
+          storedPolicy={createMockPolicy({ query: invalidSQL })}
+          isStoredPolicyLoading={false}
+          isTeamObserver={false}
+          isUpdatingPolicy={false}
+          onCreatePolicy={jest.fn()}
+          onOsqueryTableSelect={jest.fn()}
+          goToSelectTargets={jest.fn()}
+          onUpdate={onUpdate}
+          onOpenSchemaSidebar={jest.fn()}
+          renderLiveQueryWarning={jest.fn()}
+          backendValidators={{}}
+          onClickAutofillDescription={jest.fn()}
+          onClickAutofillResolution={jest.fn()}
+          isFetchingAutofillDescription={false}
+          isFetchingAutofillResolution={false}
+          resetAiAutofillData={jest.fn()}
+          currentAutomatedPolicies={[]}
+        />
+      );
+
+      // Wait past the 500ms debounce so the SQL validator runs and flags the
+      // syntax error. The error surfaces as SQLEditor's label text.
+      await waitFor(() => {
+        expect(
+          screen.getByText("Syntax error. Please review before saving.")
+        ).toBeInTheDocument();
+      });
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+
+      expect(onUpdate).toHaveBeenCalledTimes(1);
+      expect(onUpdate.mock.calls[0][0].query).toBe(invalidSQL);
+    });
+
     it("disables save and run button with tooltip for missing policy platforms", async () => {
       const render = createCustomRenderer({
         withBackendMock: true,
@@ -170,6 +337,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: undefined, // missing policy platforms
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -243,6 +411,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: undefined, // missing policy platforms
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -334,6 +503,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: "linux",
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             setLastEditedQueryName: jest.fn(),
             setLastEditedQueryDescription: jest.fn(),
@@ -439,6 +609,43 @@ describe("PolicyForm - component", () => {
 
         expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual(["Fun"]);
         expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
+        expect(onUpdate.mock.calls[0][0].labels_include_all).toEqual([]);
+      });
+
+      it("should set labels_include_all when picking the Include all option", async () => {
+        const onUpdate = jest.fn();
+        const props = { ...defaultProps, onUpdate };
+        render(<PolicyForm {...props} />);
+        await waitFor(() => {
+          expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+        });
+
+        await userEvent.click(screen.getByLabelText("Custom"));
+        await userEvent.click(
+          await screen.findByRole("checkbox", {
+            name: "Fun",
+          })
+        );
+
+        // Open the scope dropdown and pick "Include all".
+        await userEvent.click(
+          screen.getByRole("option", { name: "Include any" })
+        );
+        let includeAllOption: unknown;
+        await waitFor(() => {
+          includeAllOption = screen.getByRole("option", {
+            name: "Include all",
+          });
+        });
+        await userEvent.click(includeAllOption as Element);
+
+        const saveButton = screen.getByRole("button", { name: "Save" });
+        expect(saveButton).toBeEnabled();
+        await userEvent.click(saveButton);
+
+        expect(onUpdate.mock.calls[0][0].labels_include_all).toEqual(["Fun"]);
+        expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
+        expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual([]);
       });
 
       it("should clear labels when saving a new query in All hosts target mode", async () => {
@@ -465,6 +672,7 @@ describe("PolicyForm - component", () => {
 
         expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
         expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual([]);
+        expect(onUpdate.mock.calls[0][0].labels_include_all).toEqual([]);
       });
     });
 
@@ -504,6 +712,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: patchPolicy.critical,
             lastEditedQueryPlatform: patchPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -583,8 +792,6 @@ describe("PolicyForm - component", () => {
       });
     });
   });
-  // TODO: Consider testing save button is disabled for a sql error
-  // Trickiness is in modifying react-ace using react-testing library
 
   describe("renderPolicyFleetName", () => {
     it("does not render anything on free tier", () => {
@@ -613,6 +820,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -657,6 +865,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -669,12 +878,78 @@ describe("PolicyForm - component", () => {
         },
       });
 
-      render(<PolicyForm {...defaultProps} />);
+      render(
+        <PolicyForm
+          {...defaultProps}
+          storedPolicy={createMockPolicy({
+            name: "Foo",
+            team_id: createMockTeamSummary().id,
+          })}
+        />
+      );
 
       expect(screen.getByText(/Editing policy for/i)).toBeInTheDocument();
       expect(
         screen.getByText(createMockTeamSummary().name)
       ).toBeInTheDocument();
+    });
+
+    it("shows 'Editing policy for All fleets' when editing an inherited (global) policy from a team's view", () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            // currentTeam reflects the URL (the team whose policy list the
+            // user came from), not the policy's true Fleet.
+            currentTeam: createMockTeamSummary(),
+            isGlobalObserver: false,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isTeamMaintainerOrTeamAdmin: false,
+            isOnGlobalTeam: true,
+            isPremiumTier: true,
+            isSandboxMode: false,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+          policy: {
+            policyTeamId: undefined,
+            lastEditedQueryId: mockPolicy.id,
+            lastEditedQueryName: mockPolicy.name,
+            lastEditedQueryDescription: mockPolicy.description,
+            lastEditedQueryBody: mockPolicy.query,
+            lastEditedQueryResolution: mockPolicy.resolution,
+            lastEditedQueryCritical: mockPolicy.critical,
+            lastEditedQueryPlatform: mockPolicy.platform,
+            lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
+            lastEditedQueryLabelsExcludeAny: [],
+            defaultPolicy: false,
+            setLastEditedQueryName: jest.fn(),
+            setLastEditedQueryDescription: jest.fn(),
+            setLastEditedQueryBody: jest.fn(),
+            setLastEditedQueryResolution: jest.fn(),
+            setLastEditedQueryCritical: jest.fn(),
+            setLastEditedQueryPlatform: jest.fn(),
+          },
+        },
+      });
+
+      // The stored policy is global (team_id === null) — the form must show
+      // "All fleets", not the URL team's name.
+      render(
+        <PolicyForm
+          {...defaultProps}
+          storedPolicy={createMockPolicy({ name: "Foo", team_id: null })}
+        />
+      );
+
+      expect(screen.getByText(/Editing policy for/i)).toBeInTheDocument();
+      expect(screen.getByText("All fleets")).toBeInTheDocument();
+      expect(
+        screen.queryByText(createMockTeamSummary().name)
+      ).not.toBeInTheDocument();
     });
 
     it("shows 'Creating a new policy' when there is no existing policy", () => {
@@ -704,6 +979,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: false,
             lastEditedQueryPlatform: undefined,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),

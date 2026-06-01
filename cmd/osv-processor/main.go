@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -58,6 +59,7 @@ type ProcessedVuln struct {
 }
 
 type Config struct {
+	Platform              string
 	InputDir              string
 	OutputDir             string
 	Versions              string
@@ -79,18 +81,38 @@ type ArtifactData struct {
 	Vulnerabilities map[string][]ProcessedVuln `json:"vulnerabilities"`
 }
 
+type RHELArtifactData struct {
+	SchemaVersion   string                     `json:"schema_version"`
+	RHELVersion     string                     `json:"rhel_version"`
+	Generated       string                     `json:"generated"`
+	TotalCVEs       int                        `json:"total_cves"`
+	TotalPackages   int                        `json:"total_packages"`
+	Vulnerabilities map[string][]ProcessedVuln `json:"vulnerabilities"`
+}
+
 func main() {
-	inputDir := flag.String("input", "/tmp/ubuntu-osv", "Input directory with OSV JSON files")
+	platform := flag.String("platform", "ubuntu", "Platform to process: ubuntu or rhel")
+	inputDir := flag.String("input", "", "Input directory with OSV JSON files (default: /tmp/ubuntu-osv for ubuntu, /tmp/rhel-osv for rhel)")
 	outputDir := flag.String("output", "./artifacts", "Output directory for artifacts")
-	versions := flag.String("versions", "", "Comma-separated Ubuntu versions to process (inclusive)")
-	excludeVersions := flag.String("exclude-versions", "", "Comma-separated Ubuntu versions to exclude (ignored if --versions is set)")
-	changedFilesToday := flag.String("changed-files-today", "", "Path to file containing CVE files changed today (generates today's deltas)")
-	changedFilesYesterday := flag.String("changed-files-yesterday", "", "Path to file containing CVE files changed yesterday (generates yesterday's deltas)")
+	versions := flag.String("versions", "", "Comma-separated versions to process (inclusive)")
+	excludeVersions := flag.String("exclude-versions", "", "Comma-separated versions to exclude (ignored if --versions is set)")
+	changedFilesToday := flag.String("changed-files-today", "", "Path to file containing CVE files changed today (ubuntu only)")
+	changedFilesYesterday := flag.String("changed-files-yesterday", "", "Path to file containing CVE files changed yesterday (ubuntu only)")
 	flag.Parse()
+
+	if *inputDir == "" {
+		switch *platform {
+		case "rhel":
+			*inputDir = "/tmp/rhel-osv"
+		default:
+			*inputDir = "/tmp/ubuntu-osv"
+		}
+	}
 
 	runTime := time.Now().UTC()
 
 	cfg := Config{
+		Platform:              *platform,
 		InputDir:              *inputDir,
 		OutputDir:             *outputDir,
 		Versions:              *versions,
@@ -103,8 +125,17 @@ func main() {
 		RunTime:               runTime,
 	}
 
-	if err := run(cfg); err != nil {
-		log.Fatalf("Error: %v", err)
+	switch cfg.Platform {
+	case "ubuntu":
+		if err := run(cfg); err != nil {
+			log.Fatalf("Error: %v", err)
+		}
+	case "rhel":
+		if err := runRHEL(cfg); err != nil {
+			log.Fatalf("Error: %v", err)
+		}
+	default:
+		log.Fatalf("Unknown platform: %s (supported: ubuntu, rhel)", cfg.Platform)
 	}
 }
 
@@ -516,4 +547,249 @@ func loadChangedFiles(changedFilesPath string) (map[string]struct{}, error) {
 	}
 
 	return changedFiles, nil
+}
+
+// extractRHELVersion extracts the major RHEL version from an ecosystem string.
+// Only "enterprise_linux" ecosystems are supported; variants like rhel_e4s, rhel_eus,
+// and rhel_software_collections are skipped.
+//
+// Repository suffixes (appstream, baseos, crb, nfv, realtime) and variant suffixes
+// (server, workstation, client, computenode, fastdatapath, hypervisor) are stripped —
+// all collapse to the same major version. For example, both
+// "Red Hat:enterprise_linux:7::server" and "Red Hat:enterprise_linux:7::workstation"
+// map to "7". Deduplication of CVE+package pairs across these variants happens in
+// runRHEL.
+//
+// Examples:
+//
+//	"Red Hat:enterprise_linux:9::appstream"  -> "9"
+//	"Red Hat:enterprise_linux:8::baseos"     -> "8"
+//	"Red Hat:enterprise_linux:7::server"     -> "7"
+//	"Red Hat:enterprise_linux:7::workstation"-> "7"
+//	"Red Hat:enterprise_linux:10.0"          -> "10"
+//	"Red Hat:enterprise_linux:10.1"          -> "10"
+//	"Red Hat:rhel_e4s:8.8::appstream"        -> ""  (not enterprise_linux)
+func extractRHELVersion(ecosystem string) string {
+	parts := strings.Split(ecosystem, ":")
+	if len(parts) < 3 || parts[0] != "Red Hat" {
+		return ""
+	}
+	if parts[1] != "enterprise_linux" {
+		return ""
+	}
+	// parts[2] is the version, possibly with minor: "9", "8", "10.0", "10.1"
+	ver := parts[2]
+	// Extract major version only
+	if dotIdx := strings.Index(ver, "."); dotIdx >= 0 {
+		ver = ver[:dotIdx]
+	}
+	return ver
+}
+
+// vulnKey is used for deduplication of CVE+package entries across ecosystems.
+type vulnKey struct {
+	pkg string
+	cve string
+}
+
+func runRHEL(cfg Config) error {
+	// Delta generation is not supported for RHEL — the data source is a full GCS zip
+	// download with no git-based change tracking. Fail fast if callers pass delta flags.
+	if cfg.ChangedFilesToday != "" || cfg.ChangedFilesYesterday != "" {
+		return errors.New("--changed-files-today and --changed-files-yesterday are not supported with --platform rhel (no git-based change tracking for GCS data)")
+	}
+
+	if err := os.MkdirAll(cfg.OutputDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	targetVersions, excludedVersions := buildVersionFilter(cfg.Versions, cfg.ExcludeVersions)
+	log.Printf("Processing RHEL OSV files from %s", cfg.InputDir)
+
+	artifacts := make(map[string]*RHELArtifactData)
+	// Track seen CVE+package pairs per version for deduplication across ecosystems
+	seen := make(map[string]map[vulnKey]struct{})
+
+	filesProcessed := 0
+	filesSkipped := 0
+
+	err := filepath.Walk(cfg.InputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() || !strings.HasSuffix(path, ".json") {
+			return nil
+		}
+
+		osvData, err := parseOSVFile(path)
+		if err != nil {
+			log.Printf("Failed to parse %s: %v", path, err)
+			filesSkipped++
+			return nil
+		}
+
+		// Extract all CVE IDs from this advisory
+		cveIDs := extractCVEIDs(osvData)
+		if len(cveIDs) == 0 {
+			filesSkipped++
+			return nil
+		}
+
+		for _, affected := range osvData.Affected {
+			ecosystem := affected.Package.Ecosystem
+			packageName := affected.Package.Name
+
+			rhelVer := extractRHELVersion(ecosystem)
+			if rhelVer == "" {
+				continue
+			}
+
+			if targetVersions != nil {
+				if !targetVersions[rhelVer] {
+					continue
+				}
+			} else if excludedVersions != nil {
+				if excludedVersions[rhelVer] {
+					continue
+				}
+			}
+
+			introduced, fixed := extractVersionRange(affected.Ranges)
+
+			for _, cveID := range cveIDs {
+				// Deduplicate: same CVE+package can appear in baseos, appstream, crb
+				if seen[rhelVer] == nil {
+					seen[rhelVer] = make(map[vulnKey]struct{})
+				}
+				key := vulnKey{pkg: packageName, cve: cveID}
+				if _, exists := seen[rhelVer][key]; exists {
+					continue
+				}
+				seen[rhelVer][key] = struct{}{}
+
+				vuln := ProcessedVuln{
+					CVE:        cveID,
+					Published:  osvData.Published,
+					Modified:   osvData.Modified,
+					Introduced: introduced,
+					Fixed:      fixed,
+					Versions:   affected.Versions,
+				}
+
+				packages, modifiedVuln := transformVuln(packageName, cveID, &vuln)
+				if packages == nil {
+					continue
+				}
+				vulnToUse := &vuln
+				if modifiedVuln != nil {
+					vulnToUse = modifiedVuln
+				}
+
+				for _, pkg := range packages {
+					if _, exists := artifacts[rhelVer]; !exists {
+						artifacts[rhelVer] = &RHELArtifactData{
+							SchemaVersion:   "1.0",
+							RHELVersion:     rhelVer,
+							Vulnerabilities: make(map[string][]ProcessedVuln),
+						}
+					}
+					artifacts[rhelVer].Vulnerabilities[pkg] = append(artifacts[rhelVer].Vulnerabilities[pkg], *vulnToUse)
+				}
+			}
+		}
+
+		filesProcessed++
+		if filesProcessed%1000 == 0 {
+			log.Printf("Processed %d files...", filesProcessed)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("error walking directory: %w", err)
+	}
+
+	log.Printf("Processed %d files, skipped %d files", filesProcessed, filesSkipped)
+	log.Printf("Discovered %d RHEL versions", len(artifacts))
+
+	for ver, artifact := range artifacts {
+		artifact.Generated = cfg.GeneratedTimestamp
+		artifact.TotalCVEs = countTotalRHELCVEs(artifact)
+		artifact.TotalPackages = len(artifact.Vulnerabilities)
+
+		outputFile := filepath.Join(cfg.OutputDir, fmt.Sprintf("osv-rhel-%s-%s.json.gz", ver, cfg.DateStr))
+
+		if err := writeRHELArtifact(outputFile, artifact); err != nil {
+			return fmt.Errorf("failed to write artifact for RHEL %s: %w", ver, err)
+		}
+
+		log.Printf("RHEL %s: %d packages, %d CVEs -> %s",
+			ver, artifact.TotalPackages, artifact.TotalCVEs, outputFile)
+	}
+
+	return nil
+}
+
+// extractCVEIDs returns all CVE IDs from an OSV entry.
+// RHEL advisories list CVEs in the "upstream" field (same as Ubuntu).
+func extractCVEIDs(osv *OSVData) []string {
+	var cves []string
+	for _, upstream := range osv.Upstream {
+		if strings.HasPrefix(upstream, "CVE-") {
+			cves = append(cves, upstream)
+		}
+	}
+	// Fallback: check Related field
+	if len(cves) == 0 {
+		for _, related := range osv.Related {
+			if strings.HasPrefix(related, "CVE-") {
+				cves = append(cves, related)
+			}
+		}
+	}
+	// Fallback: check ID itself
+	if len(cves) == 0 {
+		if strings.HasPrefix(osv.ID, "CVE-") {
+			cves = append(cves, osv.ID)
+		}
+	}
+	return cves
+}
+
+func countTotalRHELCVEs(artifact *RHELArtifactData) int {
+	seen := make(map[string]bool)
+	for _, vulns := range artifact.Vulnerabilities {
+		for _, vuln := range vulns {
+			seen[vuln.CVE] = true
+		}
+	}
+	return len(seen)
+}
+
+func writeRHELArtifact(path string, artifact *RHELArtifactData) (err error) {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := file.Close(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
+
+	gzWriter := gzip.NewWriter(file)
+	defer func() {
+		if cerr := gzWriter.Close(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
+
+	encoder := json.NewEncoder(gzWriter)
+
+	if err = encoder.Encode(artifact); err != nil {
+		return err
+	}
+
+	return nil
 }

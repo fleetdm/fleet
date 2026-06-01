@@ -81,7 +81,7 @@ org_settings:
     #   • https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp
     ###########################################################
     # volume_purchasing_program:
-    #   - location: "My location." # This must exactly match a "Location" name in Apple Business (AB).
+    #   - location: "My organization unit." # This must exactly match an "Organization Unit" name in Apple Business (AB). Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
     #     fleets:
     #       - "💻 Workstations"
     #       - "📱🔐 Personal mobile devices"

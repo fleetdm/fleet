@@ -60,6 +60,7 @@ interface ITableContainerProps<T = any> {
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   searchable?: boolean;
+  disableSearch?: boolean;
   wideSearch?: boolean;
   disablePagination?: boolean;
   /**
@@ -94,8 +95,6 @@ interface ITableContainerProps<T = any> {
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
   customControl?: () => JSX.Element | null;
-  /** Filter button right of the search rendering alternative responsive design where search bar moves to new line but filter button remains inline with other table headers */
-  customFiltersButton?: () => JSX.Element;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
   /** This is called when you click on a row. This was added as `onSelectSingleRow`
@@ -154,6 +153,7 @@ const TableContainer = <T,>({
   isAllPagesSelected,
   toggleAllPagesSelected,
   searchable,
+  disableSearch,
   wideSearch,
   disablePagination,
   disableNextPage,
@@ -173,7 +173,6 @@ const TableContainer = <T,>({
   hideFooter,
   onQueryChange,
   customControl,
-  customFiltersButton,
   stackControls,
   onSelectSingleRow,
   onClickRow,
@@ -404,12 +403,12 @@ const TableContainer = <T,>({
                       placeholder={inputPlaceHolder}
                       defaultValue={searchQuery}
                       onChange={onSearchQueryChange}
+                      disabled={disableSearch}
                     />
                   </div>
                 </TooltipWrapper>
               </div>
             )}
-            {customFiltersButton && customFiltersButton()}
           </div>
         </div>
       );
@@ -423,6 +422,7 @@ const TableContainer = <T,>({
               placeholder={inputPlaceHolder}
               defaultValue={searchQuery}
               onChange={onSearchQueryChange}
+              disabled={disableSearch}
             />
           </div>
         )}
@@ -479,6 +479,7 @@ const TableContainer = <T,>({
                       placeholder={inputPlaceHolder}
                       defaultValue={searchQuery}
                       onChange={onSearchQueryChange}
+                      disabled={disableSearch}
                     />
                   </div>
                 </TooltipWrapper>
@@ -491,9 +492,9 @@ const TableContainer = <T,>({
   }, [
     actionButton,
     customControl,
-    customFiltersButton,
     disableActionButton,
     disableCount,
+    disableSearch,
     disableTableHeader,
     inputPlaceHolder,
     isLoading,

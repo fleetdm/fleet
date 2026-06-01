@@ -89,7 +89,7 @@ export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
   platform?: CommaSeparatedPlatformString;
-  scope: "software-titles";
+  scope: "software-titles" | "software-library";
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
@@ -148,7 +148,7 @@ export interface IFleetMaintainedAppResponse {
   fleet_maintained_app: IFleetMaintainedAppDetails;
 }
 
-interface IAddFleetMaintainedAppPostBody {
+interface IAddFleetMaintainedAppFormData {
   fleet_id: number;
   fleet_maintained_app_id: number;
   pre_install_query?: string;
@@ -163,7 +163,7 @@ interface IAddFleetMaintainedAppPostBody {
   categories: string[];
 }
 
-export interface IAddAppStoreAppPostBody {
+export interface IAddAppStoreAppFormData {
   app_store_id: string;
   fleet_id: number;
   platform: ApplePlatform | "android";
@@ -178,7 +178,7 @@ export interface IAddAppStoreAppPostBody {
 }
 
 // 4.77 Edit for Android app is not yet available
-export interface IEditAppStoreAppPostBody {
+export interface IEditAppStoreAppFormData {
   fleet_id: number;
   self_service?: boolean;
   // No automatic_install on edit VPP or android app
@@ -202,7 +202,7 @@ const handleAndroidForm = (
 ) => {
   const { SOFTWARE_APP_STORE_APPS } = endpoints;
 
-  const body: IAddAppStoreAppPostBody = {
+  const body: IAddAppStoreAppFormData = {
     app_store_id: formData.applicationID,
     fleet_id: teamId,
     platform: formData.platform,
@@ -235,7 +235,7 @@ const handleVppAppForm = (teamId: number, formData: ISoftwareVppFormData) => {
     throw new Error("Selected app is required. This should not happen.");
   }
 
-  const body: IAddAppStoreAppPostBody = {
+  const body: IAddAppStoreAppFormData = {
     app_store_id: formData.selectedApp.app_store_id,
     fleet_id: teamId,
     platform: formData.selectedApp?.platform, // Nested platform
@@ -328,21 +328,22 @@ const handleEditPackageForm = (
 
 const handleDisplayNameAppStoreAppForm = (
   formData: ISoftwareDisplayNameFormData,
-  body: IEditAppStoreAppPostBody
+  body: IEditAppStoreAppFormData
 ) => {
   body.display_name = formData.displayName || "";
 };
 
 const handleConfigurationAppStoreAppForm = (
   formData: ISoftwareConfigurationFormData,
-  body: IEditAppStoreAppPostBody
+  body: IEditAppStoreAppFormData
 ) => {
-  body.configuration = formData.configuration || "{}";
+  // Use ?? to preserve empty strings (iOS/iPadOS clears config with "")
+  body.configuration = formData.configuration ?? "{}";
 };
 
 const handleAutoUpdateConfigAppStoreAppForm = (
   formData: ISoftwareAutoUpdateConfigFormData,
-  body: IEditAppStoreAppPostBody
+  body: IEditAppStoreAppFormData
 ) => {
   body.auto_update_enabled = formData.autoUpdateEnabled;
   if (formData.autoUpdateEnabled) {
@@ -367,7 +368,7 @@ const handleAutoUpdateConfigAppStoreAppForm = (
 
 const handleEditAppStoreAppForm = (
   formData: ISoftwareVppFormData,
-  body: IEditAppStoreAppPostBody
+  body: IEditAppStoreAppFormData
 ) => {
   body.self_service = formData.selfService;
 
@@ -596,7 +597,10 @@ export default {
     onUploadProgress,
     signal,
   }: {
-    data: IEditPackageFormData | ISoftwareDisplayNameFormData;
+    data:
+      | IEditPackageFormData
+      | ISoftwareDisplayNameFormData
+      | ISoftwareConfigurationFormData;
     orignalPackage?: ISoftwarePackage;
     softwareId: number;
     teamId: number;
@@ -608,7 +612,10 @@ export default {
     const formData = new FormData();
     formData.append("fleet_id", teamId.toString());
 
-    if ("displayName" in data) {
+    if ("configuration" in data) {
+      // Handles Edit configuration form (iOS/iPadOS in-house apps)
+      formData.append("configuration", data.configuration);
+    } else if ("displayName" in data) {
       // Handles Edit display name form only
       handleDisplayNameForm(data, formData);
     } else {
@@ -661,7 +668,7 @@ export default {
   ) => {
     const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
 
-    const body: IEditAppStoreAppPostBody = { fleet_id: teamId };
+    const body: IEditAppStoreAppFormData = { fleet_id: teamId };
 
     if ("displayName" in formData) {
       // Handles Edit display name form only
@@ -795,7 +802,7 @@ export default {
     const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
 
     // Base64 encode script fields to bypass WAF rules that block script patterns
-    const body: IAddFleetMaintainedAppPostBody = {
+    const body: IAddFleetMaintainedAppFormData = {
       fleet_id: teamId,
       fleet_maintained_app_id: formData.appId,
       pre_install_query: encodeScriptBase64(formData.preInstallQuery),

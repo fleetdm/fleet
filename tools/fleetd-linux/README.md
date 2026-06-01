@@ -10,6 +10,10 @@ To build all docker images run:
 ```sh
 ./tools/fleetd-linux/build-all.sh
 ```
+To build all docker images using `edge` channels from our staging TUF:
+```sh
+UPDATE_URL=https://updates-staging.fleetdm.com ORBIT_CHANNEL=edge DESKTOP_CHANNEL=edge OSQUERYD_CHANNEL=edge ./tools/fleetd-linux/build-all.sh
+```
 
 ## Run fleetd containers
 

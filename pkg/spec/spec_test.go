@@ -293,6 +293,83 @@ Missing: $FLEET_SECRET_MISSING`
 	assert.Equal(t, expectedXML, string(xmlResult))
 }
 
+// TestExpandEnvJSONDocument verifies that env vars and FLEET_SECRET_ vars
+// expanded inside JSON documents are JSON-string-escaped, not XML-escaped.
+func TestExpandEnvJSONDocument(t *testing.T) {
+	testutils.SaveEnv(t)
+
+	t.Run("env var JSON-escaped", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("API_KEY", `a"b\c`)
+		input := `{"key":"$API_KEY"}`
+		got, err := ExpandEnv(input)
+		require.NoError(t, err)
+
+		var parsed map[string]string
+		require.NoError(t, json.Unmarshal([]byte(got), &parsed))
+		assert.Equal(t, `a"b\c`, parsed["key"])
+	})
+
+	t.Run("FLEET_SECRET_ JSON-escaped when expanded", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("FLEET_SECRET_PWD", `p"<&'d`)
+		input := []byte(`{"pwd":"$FLEET_SECRET_PWD"}`)
+		got, err := ExpandEnvBytesIncludingSecrets(input)
+		require.NoError(t, err)
+
+		var parsed map[string]string
+		require.NoError(t, json.Unmarshal(got, &parsed))
+		assert.Equal(t, `p"<&'d`, parsed["pwd"])
+	})
+
+	t.Run("FLEET_SECRET_ left as placeholder when ignored", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("FLEET_SECRET_PWD", `whatever`)
+		input := []byte(`{"pwd":"$FLEET_SECRET_PWD"}`)
+		got, err := ExpandEnvBytesIgnoreSecrets(input)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"pwd":"$FLEET_SECRET_PWD"}`, string(got))
+	})
+
+	t.Run("FLEET_VAR_ left for server regardless of format", func(t *testing.T) {
+		os.Clearenv()
+		input := []byte(`{"v":"$FLEET_VAR_HOST_HARDWARE_SERIAL"}`)
+		got, err := ExpandEnvBytesIgnoreSecrets(input)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"v":"$FLEET_VAR_HOST_HARDWARE_SERIAL"}`, string(got))
+	})
+
+	t.Run("leading whitespace still detected as JSON", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("API_KEY", `"quoted"`)
+		input := "\n  " + `{"key":"$API_KEY"}`
+		got, err := ExpandEnv(input)
+		require.NoError(t, err)
+
+		var parsed map[string]string
+		require.NoError(t, json.Unmarshal([]byte(got), &parsed))
+		assert.Equal(t, `"quoted"`, parsed["key"])
+	})
+
+	t.Run("XML still XML-escapes (regression guard)", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("API_KEY", `a&b<c`)
+		input := `<Add>$API_KEY</Add>`
+		got, err := ExpandEnv(input)
+		require.NoError(t, err)
+		assert.Equal(t, `<Add>a&amp;b&lt;c</Add>`, got)
+	})
+
+	t.Run("plain text neither escapes nor corrupts", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("API_KEY", `a"b&c<d>`)
+		input := `hello $API_KEY world`
+		got, err := ExpandEnv(input)
+		require.NoError(t, err)
+		assert.Equal(t, `hello a"b&c<d> world`, got)
+	})
+}
+
 func TestGetExclusionZones(t *testing.T) {
 	// Test with a small dedicated fixture where exact byte positions are stable
 	t.Run("testdata/policies/policies.yml", func(t *testing.T) {
@@ -382,4 +459,67 @@ func TestRewriteNewToOldKeys(t *testing.T) {
 		assert.Equal(t, "team", conflictErr.Old)
 		assert.Equal(t, "fleet", conflictErr.New)
 	})
+}
+
+func TestGroupFromBytesTeamKinds(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []byte
+	}{
+		{
+			"kind: team with team: key",
+			[]byte(`
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: macOS
+`),
+		},
+		{
+			"kind: fleet with fleet: key",
+			[]byte(`
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: macOS
+`),
+		},
+		{
+			"kind: fleet with team: key",
+			[]byte(`
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: macOS
+`),
+		},
+		{
+			"kind: team with fleet: key",
+			[]byte(`
+apiVersion: v1
+kind: team
+spec:
+  fleet:
+    name: macOS
+`),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g, err := GroupFromBytes(tt.in)
+			require.NoError(t, err)
+			require.Len(t, g.Teams, 1)
+			require.NotNil(t, g.Teams[0])
+
+			var team map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(g.Teams[0], &team))
+			name, ok := team["name"]
+			require.True(t, ok)
+			assert.Equal(t, `"macOS"`, string(name))
+		})
+	}
 }

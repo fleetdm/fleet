@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.20.7",
+      "version": "0.24.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Ollama' AND publisher = 'Ollama';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Ollama' AND publisher = 'Ollama' AND version_compare(version, '0.20.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Ollama' AND publisher = 'Ollama' AND version_compare(version, '0.24.0') < 0);"
       },
-      "installer_url": "https://github.com/ollama/ollama/releases/download/v0.20.7/OllamaSetup.exe",
+      "installer_url": "https://github.com/ollama/ollama/releases/download/v0.24.0/OllamaSetup.exe",
       "install_script_ref": "e14c71ee",
       "uninstall_script_ref": "3f049b5d",
-      "sha256": "eb67a3a654034cccd27bfb90639890a1071b857876a8393128f72e6edb671b0f",
+      "sha256": "c445439b0101f0cc6a3419a4a198353472dbef22028843e4fc10203ef7352c75",
       "default_categories": [
         "Developer tools"
       ]

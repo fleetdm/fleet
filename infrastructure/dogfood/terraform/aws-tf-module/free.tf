@@ -6,6 +6,8 @@ locals {
     FLEET_LOGGING_TRACING_ENABLED              = "true"
     FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "25"
+    FLEET_MYSQL_CONN_MAX_LIFETIME              = "14400"
+    FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME = "14400"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
     # ELASTIC_APM_SERVER_URL                     = var.elastic_url
@@ -61,7 +63,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.18.3"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.27.1"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -90,7 +92,10 @@ module "free" {
     }
   }
   redis_config = {
-    name = local.customer_free
+    name           = local.customer_free
+    engine         = "redis"
+    engine_version = "7.1"
+    family         = "redis7"
     log_delivery_configuration = [
       {
         destination      = "dogfood-free-redis-logs"
@@ -106,6 +111,17 @@ module "free" {
   }
   ecs_cluster = {
     cluster_name = local.customer_free
+    cluster_configuration = {
+      execute_command_configuration = {
+        logging = "OVERRIDE"
+        log_configuration = {
+          cloud_watch_log_group_name = "/aws/ecs/${local.customer_free}"
+        }
+      }
+    }
+    cloudwatch_log_group = {
+      retention_in_days = 365
+    }
   }
   fleet_config = {
     image               = local.geolite2_image
@@ -193,7 +209,7 @@ resource "aws_route53_record" "free" {
 }
 
 module "ses-free" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.1"
   zone_id           = aws_route53_zone.free.zone_id
   domain            = "free.fleetdm.com"
   extra_txt_records = []
@@ -207,7 +223,7 @@ module "migrations_free" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.1"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.2"
   ecs_cluster              = module.free.byo-db.byo-ecs.service.cluster
   task_definition          = module.free.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.free.byo-db.byo-ecs.task_definition.revision

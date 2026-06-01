@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -29,6 +30,16 @@ var (
 	ErrRecoveryLockNotEligible = errors.New("host not eligible for recovery lock rotation")
 )
 
+// Sentinel errors for managed local account password rotation.
+var (
+	// ErrManagedLocalAccountRotationPending indicates a rotation is already in progress for the host.
+	ErrManagedLocalAccountRotationPending = errors.New("managed local account rotation already pending")
+
+	// ErrManagedLocalAccountNotEligible indicates the host is not eligible for rotation
+	// (e.g., no existing password, status=failed, missing account UUID).
+	ErrManagedLocalAccountNotEligible = errors.New("host not eligible for managed local account rotation")
+)
+
 type MDMAppleCommandIssuer interface {
 	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, name string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string, name string) error
@@ -40,6 +51,7 @@ type MDMAppleCommandIssuer interface {
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
+	SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
 	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
 }
 
@@ -428,6 +440,160 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Scope              PayloadScope
 }
 
+// AppleHostReconcileInfo is a per-host record used by the batched Apple
+// profile reconciler. It contains only the fields needed to decide which
+// profiles should be installed on the host given its team, platform, and
+// label membership.
+type AppleHostReconcileInfo struct {
+	HostID           uint       `db:"id"`
+	UUID             string     `db:"uuid"`
+	TeamID           *uint      `db:"team_id"`
+	Platform         string     `db:"platform"`
+	LabelUpdatedAt   time.Time  `db:"label_updated_at"`
+	DeviceEnrolledAt *time.Time `db:"device_enrolled_at"`
+}
+
+// EffectiveTeamID returns 0 for hosts not in a team. team_id=0 is its own
+// team (the "no team" / global scope), NOT a fallback for teamed hosts:
+// a host with team_id=5 matches profiles with team_id=5 only, it does
+// not also inherit team_id=0 profiles. Equality between EffectiveTeamID
+// and a profile's team_id is the correct match check.
+func (h *AppleHostReconcileInfo) EffectiveTeamID() uint {
+	if h.TeamID == nil {
+		return 0
+	}
+	return *h.TeamID
+}
+
+// AppleProfileIncludeMode indicates how a profile's include-labels gate
+// applicability to a host. Independent of exclude-labels, which always
+// have "exclude any" semantics. A single profile may carry both include
+// labels (with one consistent mode) and exclude labels.
+type AppleProfileIncludeMode int
+
+const (
+	// AppleProfileIncludeNone means the profile has no include labels —
+	// applicability is determined entirely by team, platform, and any
+	// exclude labels present.
+	AppleProfileIncludeNone AppleProfileIncludeMode = iota
+	// AppleProfileIncludeAll requires the host to be a member of every
+	// (non-broken) include label.
+	AppleProfileIncludeAll
+	// AppleProfileIncludeAny requires the host to be a member of at
+	// least one include label.
+	AppleProfileIncludeAny
+)
+
+// AppleProfileLabelRef is a single label reference attached to a profile.
+// A nil LabelID means the label was deleted (the assignment is "broken").
+type AppleProfileLabelRef struct {
+	LabelID   *uint
+	CreatedAt time.Time
+	// LabelMembershipType mirrors labels.label_membership_type: 0=dynamic,
+	// 1=manual. Needed by the exclude-any handler so dynamic labels that
+	// were created after a host's last label_updated_at are treated as
+	// "results not yet reported" instead of "host is not a member".
+	LabelMembershipType int
+}
+
+// AppleLabeledEntity is the minimal view of a label-gated Apple MDM
+// entity (profile or declaration) that the team/platform/label dispatcher
+// and the per-mode handlers need. The same dispatcher and handlers run
+// against both AppleProfileForReconcile and AppleDeclarationForReconcile
+// so the rules cannot drift between the two reconcilers.
+type AppleLabeledEntity interface {
+	GetTeamID() uint
+	GetIncludeMode() AppleProfileIncludeMode
+	GetIncludeLabels() []AppleProfileLabelRef
+	GetExcludeLabels() []AppleProfileLabelRef
+	HasBrokenLabel() bool
+}
+
+// AppleProfileForReconcile is the profile data needed by the batched
+// reconciler to compute desired state per host in memory.
+//
+// Include and exclude labels are stored separately so a profile can carry
+// both: applicability becomes (include gate passes) AND (exclude gate
+// passes), with each gate skipped when its slice is empty.
+type AppleProfileForReconcile struct {
+	ProfileUUID       string
+	ProfileIdentifier string
+	ProfileName       string
+	TeamID            uint // 0 means global
+	Checksum          []byte
+	SecretsUpdatedAt  *time.Time
+	Scope             PayloadScope
+	IncludeMode       AppleProfileIncludeMode
+	IncludeLabels     []AppleProfileLabelRef
+	ExcludeLabels     []AppleProfileLabelRef
+}
+
+// AppleLabeledEntity implementation.
+func (p *AppleProfileForReconcile) GetTeamID() uint                          { return p.TeamID }
+func (p *AppleProfileForReconcile) GetIncludeMode() AppleProfileIncludeMode  { return p.IncludeMode }
+func (p *AppleProfileForReconcile) GetIncludeLabels() []AppleProfileLabelRef { return p.IncludeLabels }
+func (p *AppleProfileForReconcile) GetExcludeLabels() []AppleProfileLabelRef { return p.ExcludeLabels }
+
+// HasBrokenLabel reports whether any include or exclude label on the
+// profile references a deleted label. Used to keep broken-label profiles
+// exempt from removal (matches legacy behaviour: a profile with a broken
+// label is never auto-removed from a host that already has it).
+func (p *AppleProfileForReconcile) HasBrokenLabel() bool {
+	return anyAppleLabelBroken(p.IncludeLabels) || anyAppleLabelBroken(p.ExcludeLabels)
+}
+
+// AppleDeclarationForReconcile is the declaration data needed by the
+// batched DDM reconciler. The label-gating fields mirror
+// AppleProfileForReconcile exactly so the same dispatcher and handlers
+// run against both — there is no second copy of the team / platform /
+// label logic to fall out of sync.
+type AppleDeclarationForReconcile struct {
+	DeclarationUUID       string
+	DeclarationIdentifier string
+	DeclarationName       string
+	TeamID                uint // 0 means global
+	Token                 []byte
+	SecretsUpdatedAt      *time.Time
+	Scope                 PayloadScope
+	IncludeMode           AppleProfileIncludeMode
+	IncludeLabels         []AppleProfileLabelRef
+	ExcludeLabels         []AppleProfileLabelRef
+	// HasFleetVariables is true if the declaration references any $FLEET_VAR_*.
+	// The reconciler sets VariablesUpdatedAt on the host declaration row so the
+	// host knows to re-deliver when variable values change.
+	//
+	// This does not cover $FLEET_SECRET_* variables and SecretsUpdatedAt as that is handled at upload time
+	// where we extract the secrets and their last update time.
+	HasFleetVariables bool
+}
+
+// AppleLabeledEntity implementation.
+func (d *AppleDeclarationForReconcile) GetTeamID() uint                         { return d.TeamID }
+func (d *AppleDeclarationForReconcile) GetIncludeMode() AppleProfileIncludeMode { return d.IncludeMode }
+func (d *AppleDeclarationForReconcile) GetIncludeLabels() []AppleProfileLabelRef {
+	return d.IncludeLabels
+}
+
+func (d *AppleDeclarationForReconcile) GetExcludeLabels() []AppleProfileLabelRef {
+	return d.ExcludeLabels
+}
+
+// HasBrokenLabel: see AppleProfileForReconcile.HasBrokenLabel.
+func (d *AppleDeclarationForReconcile) HasBrokenLabel() bool {
+	return anyAppleLabelBroken(d.IncludeLabels) || anyAppleLabelBroken(d.ExcludeLabels)
+}
+
+// anyAppleLabelBroken reports whether any label reference has a nil
+// LabelID (the label was deleted, leaving the assignment "broken").
+func anyAppleLabelBroken(labels []AppleProfileLabelRef) bool {
+	for _, l := range labels {
+		if l.LabelID == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
 // encryption profiles. Each host may be counted in only one of six mutually-exclusive categories:
 // Verified, Verifying, ActionRequired, Enforcing, Failed, RemovingEnforcement.
@@ -522,18 +688,39 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                      *uint `json:"team_id" renameto:"fleet_id"`
-	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
-	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	ManualAgentInstall          *bool `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware          *bool `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows   *bool `json:"require_all_software_windows"`
-	LockEndUserInfo             *bool `json:"lock_end_user_info"`
+	TeamID                      *uint   `json:"team_id" renameto:"fleet_id"`
+	EnableEndUserAuthentication *bool   `json:"enable_end_user_authentication"`
+	EnableReleaseDeviceManually *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	ManualAgentInstall          *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	RequireAllSoftware          *bool   `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows   *bool   `json:"require_all_software_windows"`
+	LockEndUserInfo             *bool   `json:"lock_end_user_info"`
+	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
+	EndUserLocalAccountType     *string `json:"end_user_local_account_type"`
 }
 
 // AuthzType implements authz.AuthzTyper.
 func (p MDMAppleSetupPayload) AuthzType() string {
 	return "mdm_apple_settings"
+}
+
+// Validate validates the MDMAppleSetupPayload and updates the provided MacOSSetup with the new values if they are valid.
+// It returns an error if any of the values are invalid, and a boolean indicating whether any updates were made to the MacOSSetup.
+func (p MDMAppleSetupPayload) Validate(macOSSetupConfig *MacOSSetup) (didUpdate bool, err error) {
+	if p.EndUserLocalAccountType != nil {
+		if !IsValidPrimaryAccountType(*p.EndUserLocalAccountType) {
+			return false, NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+		}
+		if PrimaryAccountType(*p.EndUserLocalAccountType).RequiresLocalAdminAccount() && (!macOSSetupConfig.EnableManagedLocalAccount.Valid || !macOSSetupConfig.EnableManagedLocalAccount.Value) {
+			return false, NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, *p.EndUserLocalAccountType))
+		}
+
+		if !macOSSetupConfig.EndUserLocalAccountType.Valid || macOSSetupConfig.EndUserLocalAccountType.Value != *p.EndUserLocalAccountType {
+			macOSSetupConfig.EndUserLocalAccountType = optjson.SetString(*p.EndUserLocalAccountType)
+			didUpdate = true
+		}
+	}
+	return didUpdate, nil
 }
 
 // HostDEPAssignment represents a row in the host_dep_assignments table.
@@ -720,9 +907,25 @@ type MDMAppleDeclaration struct {
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 
-	CreatedAt        time.Time  `db:"created_at" json:"created_at"`
-	UploadedAt       time.Time  `db:"uploaded_at" json:"uploaded_at"`
-	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
+	CreatedAt          time.Time  `db:"created_at" json:"created_at"`
+	UploadedAt         time.Time  `db:"uploaded_at" json:"uploaded_at"`
+	SecretsUpdatedAt   *time.Time `db:"secrets_updated_at" json:"-"`
+	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
+}
+
+// EffectiveDDMToken computes the per-declaration token that incorporates both
+// the static content hash and the host-specific variables_updated_at timestamp.
+// When variablesUpdatedAt is nil (declaration has no Fleet variables), the
+// effective token equals the static token unchanged.
+func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time) string {
+	if variablesUpdatedAt == nil {
+		return staticToken
+	}
+	// Must match MySQL's DATETIME(6) string representation used in
+	// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '').
+	hasher := md5.New() // nolint:gosec // used for declarative management token
+	hasher.Write([]byte(staticToken + variablesUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	return hex.EncodeToString(hasher.Sum(nil))
 }
 
 type MDMAppleRawDeclaration struct {
@@ -815,11 +1018,16 @@ type MDMAppleHostDeclaration struct {
 
 	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
 	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
+
+	// VariablesUpdatedAt tracks when the Fleet variable values for this host
+	// were last computed. Non-null only for declarations that use Fleet variables.
+	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
 }
 
 func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
 	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
+	varsEqual := p.VariablesUpdatedAt == nil && other.VariablesUpdatedAt == nil || p.VariablesUpdatedAt != nil && other.VariablesUpdatedAt != nil && p.VariablesUpdatedAt.Equal(*other.VariablesUpdatedAt)
 	return statusEqual &&
 		p.HostUUID == other.HostUUID &&
 		p.DeclarationUUID == other.DeclarationUUID &&
@@ -828,7 +1036,8 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
 		p.Token == other.Token &&
-		secretsEqual
+		secretsEqual &&
+		varsEqual
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
@@ -896,6 +1105,15 @@ type MDMAppleDDMDeclarationItem struct {
 	Status          *string   `db:"status"`
 	OperationType   *string   `db:"operation_type"`
 	UploadedAt      time.Time `db:"uploaded_at"`
+	// VariablesUpdatedAt is not part of the DDM profile, but part of the host-ddm tuple, as the variables'
+	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
+	// ServerToken field is just for the static token of the DDM.
+	VariablesUpdatedAt *time.Time `db:"variables_updated_at"`
+	// RawJSON is conditionally loaded only for declarations that use Fleet
+	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
+	// so that handleDeclarationItems can check variable resolution without an
+	// extra query.
+	RawJSON *json.RawMessage `db:"raw_json"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
@@ -1170,6 +1388,7 @@ type MDMManagedCertificate struct {
 	Type                 CAConfigAssetType `db:"type"`
 	CAName               string            `db:"ca_name"`
 	Serial               *string           `db:"serial"`
+	UpdatedAt            time.Time         `db:"updated_at"`
 }
 
 func (m MDMManagedCertificate) Equal(other MDMManagedCertificate) bool {
@@ -1212,11 +1431,45 @@ type AppleMDMVPPInstaller interface {
 }
 
 const (
-	DeviceLocationCmdName  = "DeviceLocation"
-	EnableLostModeCmdName  = "EnableLostMode"
-	DisableLostModeCmdName = "DisableLostMode"
-	SetRecoveryLockCmdName = "SetRecoveryLock"
+	DeviceLocationCmdName       = "DeviceLocation"
+	EnableLostModeCmdName       = "EnableLostMode"
+	DisableLostModeCmdName      = "DisableLostMode"
+	SetRecoveryLockCmdName      = "SetRecoveryLock"
+	AccountConfigurationCmdName = "AccountConfiguration"
+	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
 )
+
+// ManagedLocalAccountUsername is the short name Fleet provisions on macOS hosts
+// via the AccountConfiguration MDM command when the managed local account
+// feature is enabled.
+const ManagedLocalAccountUsername = "_fleetadmin"
+
+// PrimaryAccountType represents the type of the primary account for MacOS going through setup experience.
+// Documented at https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary
+// if `SetPrimarySetupAccountAsRegularUser` or `SkipPrimarySetupAccountCreation` is true, you must configure a local admin account.
+type PrimaryAccountType string
+
+const (
+	// The end user account will be created as an admin
+	PrimaryAccountTypeAdmin PrimaryAccountType = "admin"
+	// The end user account will be created as a standard user, but requires a local admin account to be configured.
+	PrimaryAccountTypeStandard PrimaryAccountType = "standard"
+	// The screen to setup a primary account will be skipped, and a local admin account must be configured.
+	PrimaryAccountTypeNone PrimaryAccountType = "none"
+)
+
+func IsValidPrimaryAccountType(accountType string) bool {
+	switch PrimaryAccountType(accountType) {
+	case PrimaryAccountTypeAdmin, PrimaryAccountTypeStandard, PrimaryAccountTypeNone:
+		return true
+	default:
+		return false
+	}
+}
+
+func (t PrimaryAccountType) RequiresLocalAdminAccount() bool {
+	return t == PrimaryAccountTypeStandard || t == PrimaryAccountTypeNone
+}
 
 type HostLocationData struct {
 	HostID    uint    `db:"host_id"`
@@ -1252,4 +1505,16 @@ type HostAutoRotationInfo struct {
 	HostUUID    string `db:"host_uuid"`
 	HostID      uint   `db:"host_id"`
 	DisplayName string `db:"display_name"`
+}
+
+// HostManagedLocalAccountAutoRotationInfo carries the per-host data the rotation cron
+// needs to enqueue a SetAutoAdminPassword command and decide whether to log the activity.
+// InitiatedByFleet=false means a manual rotation was deferred (UUID was missing at click
+// time) and the activity has already been logged by the service layer.
+type HostManagedLocalAccountAutoRotationInfo struct {
+	HostUUID         string `db:"host_uuid"`
+	HostID           uint   `db:"host_id"`
+	DisplayName      string `db:"display_name"`
+	AccountUUID      string `db:"account_uuid"`
+	InitiatedByFleet bool   `db:"initiated_by_fleet"`
 }

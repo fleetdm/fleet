@@ -84,3 +84,10 @@ export OTEL_BLRP_MAX_EXPORT_BATCH_SIZE=1
 ## Using SigNoz
 
 After starting Fleet with the above configuration, you should start seeing traces, logs, and metrics in SigNoz UI at http://localhost:8085.
+
+## Pre-canned dashboards
+
+JSON exports of Fleet-specific SigNoz dashboards live alongside this README. Import them from the SigNoz UI via **Dashboards → New dashboard → Import JSON** (top-right dropdown).
+
+- `database_custom_dashboard.json` — MySQL query metrics (RPS, latency, slow queries) derived from `db.sql.*` instrumentation.
+- `host_cache_dashboard.json` — Redis-backed host lookup cache (`LoadHostByNodeKey` / `LoadHostByOrbitNodeKey`). Shows hit rate over time, lookups/sec by result, errors/sec by op, and invalidations/sec by write-path reason. Requires `FLEET_REDIS_HOST_CACHE_ENABLED=true` (default on).

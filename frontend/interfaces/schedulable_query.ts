@@ -34,6 +34,7 @@ export interface ISchedulableQuery {
   stats: ISchedulableQueryStats;
   editingExistingQuery?: boolean;
   labels_include_any?: ILabelQuery[];
+  labels_include_all?: ILabelQuery[];
 }
 
 export interface IEnhancedQuery extends ISchedulableQuery {
@@ -102,7 +103,7 @@ export interface IQueryKeyQueriesLoadAll {
 }
 // Create a new query
 /** POST /api/v1/fleet/queries */
-export interface ICreateQueryRequestBody {
+export interface ICreateQueryFormData {
   name: string;
   query: string;
   description?: string;
@@ -115,14 +116,15 @@ export interface ICreateQueryRequestBody {
   automations_enabled?: boolean; // whether to send data to the configured log destination according to the query's `interval`. Default false if ommitted.
   logging?: QueryLoggingOption;
   labels_include_any?: string[];
+  labels_include_all?: string[];
 }
 
 // response is ISchedulableQuery
 
-// Modify a query by id
+// Edit a query by id
 /** PATCH /api/v1/fleet/queries/{id} */
-export interface IModifyQueryRequestBody
-  extends Omit<ICreateQueryRequestBody, "name" | "query" | "fleet_id"> {
+export interface IEditQueryFormData
+  extends Omit<ICreateQueryFormData, "name" | "query" | "fleet_id"> {
   id?: number;
   name?: string;
   query?: string;
@@ -139,7 +141,7 @@ export interface IModifyQueryRequestBody
 
 // Delete a query by name
 /** DELETE /api/v1/fleet/queries/{name} */
-export interface IDeleteQueryRequestBody {
+export interface IDeleteQueryFormData {
   fleet_id?: number; // searches for a global query if omitted
 }
 
@@ -149,7 +151,7 @@ export interface IDeleteQueryRequestBody {
 
 // Delete queries by id
 /** POST /api/v1/fleet/queries/delete */
-export interface IDeleteQueriesRequestBody {
+export interface IDeleteQueriesFormData {
   ids: number[];
 }
 

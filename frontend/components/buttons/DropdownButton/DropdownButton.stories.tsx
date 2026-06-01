@@ -31,7 +31,6 @@ const meta: Meta<typeof DropdownButton> = {
     variant: {
       options: [
         "default",
-        "success",
         "alert",
         "pill",
         "link",
@@ -47,17 +46,6 @@ const meta: Meta<typeof DropdownButton> = {
     type: {
       options: ["button", "submit", "reset"],
       control: "select",
-    },
-  },
-  parameters: {
-    backgrounds: {
-      default: "header",
-      values: [
-        {
-          name: "header",
-          value: "linear-gradient(270deg, #202226 0%, #353840 100%)",
-        },
-      ],
     },
   },
   args: {

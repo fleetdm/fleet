@@ -1,0 +1,169 @@
+<!-- CIS Windows 11 Enterprise v4.0.0 – Windows Defender Firewall (Section 9) -->
+<Replace>
+  <!-- 9.1.1: Domain Profile – Firewall state = On -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableFirewall</LocURI>
+    </Target>
+    <Data>true</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.1.2: Domain Profile – Inbound connections = Block (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/DomainProfile/DefaultInboundAction</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.1.5: Domain Profile – Log dropped packets = Yes -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableLogDroppedPackets</LocURI>
+    </Target>
+    <Data>true</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.1.6: Domain Profile – Log file max size = 16384 KB -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/DomainProfile/LogMaxFileSize</LocURI>
+    </Target>
+    <Data>16384</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.2.1: Private Profile – Firewall state = On -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall</LocURI>
+    </Target>
+    <Data>true</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.2.2: Private Profile – Inbound connections = Block (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/DefaultInboundAction</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.2.5: Private Profile – Log dropped packets = Yes -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableLogDroppedPackets</LocURI>
+    </Target>
+    <Data>true</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.2.6: Private Profile – Log file max size = 16384 KB -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PrivateProfile/LogMaxFileSize</LocURI>
+    </Target>
+    <Data>16384</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.3.1: Public Profile – Firewall state = On -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall</LocURI>
+    </Target>
+    <Data>true</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.3.2: Public Profile – Inbound connections = Block (1) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PublicProfile/DefaultInboundAction</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.3.4: Public Profile – Disable local policy merge -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PublicProfile/AllowLocalPolicyMerge</LocURI>
+    </Target>
+    <Data>false</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.3.5: Public Profile – Disable local IPsec policy merge -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PublicProfile/AllowLocalIpsecPolicyMerge</LocURI>
+    </Target>
+    <Data>false</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.3.8: Public Profile – Log dropped packets = Yes -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">bool</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableLogDroppedPackets</LocURI>
+    </Target>
+    <Data>true</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- 9.3.9: Public Profile – Log file max size = 16384 KB -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Vendor/MSFT/Firewall/MdmStore/PublicProfile/LogMaxFileSize</LocURI>
+    </Target>
+    <Data>16384</Data>
+  </Item>
+</Replace>

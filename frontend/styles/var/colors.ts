@@ -33,6 +33,7 @@ const STATIC_COLORS = {
   "ui-blue-10": "#F1F0FF",
   "tooltip-bg": "#3E4771",
   "ui-light-grey": "#FAFAFA",
+  "ui-success": "#3db67b",
   "ui-error": "#d66c7b",
   "ui-warning": "#ebbc43",
   "ui-fleet-black-5-down": "#F0F1F4",
@@ -46,6 +47,11 @@ const STATIC_COLORS = {
   "core-vibrant-blue-down": "#4b4ab4",
   "ui-vibrant-blue-25": "#d9d9fe",
   "ui-vibrant-blue-10": "#f1f0ff",
+
+  // Static (un-themed): same value in light AND dark mode. Use for foreground
+  // on always-colored surfaces (flash toasts, tooltips, etc.)
+  "static-white": "#e8eaf0",
+  "static-black": "#192147",
 } as const;
 
 export type Colors = keyof typeof STATIC_COLORS;

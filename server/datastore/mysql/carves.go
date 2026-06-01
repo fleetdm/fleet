@@ -8,8 +8,25 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+var carvesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":          "id",
+	"host_id":     "host_id",
+	"created_at":  "created_at",
+	"name":        "name",
+	"block_count": "block_count",
+	"block_size":  "block_size",
+	"carve_size":  "carve_size",
+	"carve_id":    "carve_id",
+	"request_id":  "request_id",
+	"session_id":  "session_id",
+	"expired":     "expired",
+	"max_block":   "max_block",
+	"error":       "error",
+}
 
 func upsertCarveDB(ctx context.Context, writer sqlx.ExecerContext, metadata *fleet.CarveMetadata) (int64, error) {
 	stmt := `INSERT INTO carve_metadata (
@@ -234,7 +251,10 @@ func (ds *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions)
 	if !opt.Expired {
 		stmt += ` WHERE NOT expired `
 	}
-	stmt, params := appendListOptionsToSQL(stmt, &opt.ListOptions)
+	stmt, params, err := appendListOptionsToSQLSecure(stmt, &opt.ListOptions, carvesAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list carves")
+	}
 	carves := []*fleet.CarveMetadata{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &carves, stmt, params...); err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "list carves")

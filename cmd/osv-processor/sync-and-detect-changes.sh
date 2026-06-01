@@ -16,6 +16,10 @@ set -euo pipefail
 REPO_URL="https://github.com/canonical/ubuntu-security-notices.git"
 REPO_DIR="ubuntu-security-notices"
 DAYS_TO_KEEP=3 # how much git history to get for initial clone
+# Fallback depth used when --shallow-since returns no commits (upstream was quiet).
+# The sync only needs the tip commit to populate the working tree.
+# We grab a few extra commits so the warning log shows recent upstream activity for debugging.
+FALLBACK_DEPTH=3
 
 echo "=== OSV Repository Sync ==="
 echo ""
@@ -57,7 +61,17 @@ else
     git config core.sparseCheckout true
     echo "osv/" > .git/info/sparse-checkout
 
-    git fetch --shallow-since="${DAYS_TO_KEEP} days ago" origin main
+    if ! git fetch --shallow-since="${DAYS_TO_KEEP} days ago" origin main; then
+        echo ""
+        echo "WARNING: --shallow-since=${DAYS_TO_KEEP}d returned no commits."
+        echo "Upstream has been quiet for >${DAYS_TO_KEEP} days. Falling back to --depth=${FALLBACK_DEPTH}."
+        echo ""
+        git fetch --depth="${FALLBACK_DEPTH}" origin main
+        echo "Recent history:"
+        git log --pretty=format:'%h %ci %s' origin/main
+        echo ""
+        echo ""
+    fi
     git checkout -b main --track origin/main
 
     COMMIT_SHA=$(git rev-parse HEAD)

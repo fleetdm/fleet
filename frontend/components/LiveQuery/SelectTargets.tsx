@@ -407,6 +407,7 @@ const SelectTargets = ({
 
     const emptySearchString = `No matching ${displayType}.`;
 
+    // Purposefully not using <EmptyState/> as we just want a simple string rendered
     const renderEmptySearchString = () => {
       if (entitiesToDisplay.length === 0 && searchTerm !== "") {
         return (
