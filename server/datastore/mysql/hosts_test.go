@@ -9425,6 +9425,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.ConditionalAccessBypassDevice(ctx, host.ID)
 	require.NoError(t, err)
 
+	err = ds.UpsertHostGoogleCloudIdentityResolution(ctx, host.ID, "user@example.com", "fleet")
+	require.NoError(t, err)
+
 	err = ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID)
 	require.NoError(t, err)
 

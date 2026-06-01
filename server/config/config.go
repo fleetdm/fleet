@@ -785,6 +785,7 @@ type FleetConfig struct {
 	Calendar                   CalendarConfig
 	Partnerships               PartnershipsConfig
 	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
+	GoogleCloudIdentity        GoogleCloudIdentityConfig        `yaml:"google_cloud_identity"`
 	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
 
 	// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
@@ -840,6 +841,62 @@ type MicrosoftCompliancePartnerConfig struct {
 // Currently only set on Cloud environments.
 func (m MicrosoftCompliancePartnerConfig) IsSet() bool {
 	return m.ProxyAPIKey != ""
+}
+
+// GoogleCloudIdentityConfig holds the server configuration for the Google
+// Cloud Identity ClientState integration. Customers create their own GCP
+// service account (or workload-identity federation principal) with
+// domain-wide delegation and the
+// `https://www.googleapis.com/auth/cloud-identity.devices` scope. There is
+// no Fleet-hosted proxy — Fleet talks directly to cloudidentity.googleapis.com.
+//
+// Exactly one of (ServiceAccountJSON or ServiceAccountJSONBytes) OR
+// (WorkloadIdentityAudience + WorkloadIdentityServiceAccountEmail) must be set.
+// SA-JSON fields take precedence if both are set.
+type GoogleCloudIdentityConfig struct {
+	// ServiceAccountJSON is the filesystem path to a Google service-account
+	// JSON key (the file you download from the GCP console after creating an
+	// SA and a key).
+	ServiceAccountJSON string `yaml:"service_account_json"`
+	// ServiceAccountJSONBytes is the raw JSON bytes of a service-account key,
+	// for callers that prefer to pass credentials inline (e.g. Kubernetes
+	// secrets mounted as env vars) rather than via a file path.
+	ServiceAccountJSONBytes string `yaml:"service_account_json_bytes"`
+	// WorkloadIdentityAudience is the full audience URI for workload identity
+	// federation, e.g.
+	// "//iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL_ID/providers/PROVIDER_ID".
+	WorkloadIdentityAudience string `yaml:"workload_identity_audience"`
+	// WorkloadIdentityServiceAccountEmail is the service-account email to
+	// impersonate via WIF, e.g.
+	// "fleet-cloud-identity@PROJECT.iam.gserviceaccount.com".
+	WorkloadIdentityServiceAccountEmail string `yaml:"workload_identity_service_account_email"`
+	// ImpersonatedAdmin is the Workspace admin email Fleet impersonates via
+	// domain-wide delegation. Required — Google rejects bare service-account
+	// identities for Cloud Identity device APIs. Typically a service-only
+	// super-admin (e.g. fleet-cloud-identity@example.com).
+	ImpersonatedAdmin string `yaml:"impersonated_admin"`
+	// CustomerID is the Cloud Identity customer ID as returned by the
+	// Directory API's customers/my_customer endpoint (starting with `C`).
+	// Validated against my_customer at startup; mismatch is a hard error.
+	CustomerID string `yaml:"customer_id"`
+	// PartnerSuffix is the global default suffix used in the ClientState
+	// resource name (`{customerID-without-C}-{suffix}`). Defaults to "fleet".
+	// Teams may override this via team.Config.Integrations.GoogleCloudIdentityPartnerSuffix.
+	PartnerSuffix string `yaml:"partner_suffix"`
+	// WorkspaceDomains is a comma-separated list of email domains Fleet will
+	// emit ClientStates for. Any EV account on a host whose email is outside
+	// this list is filtered out entirely (e.g. personal Gmail signed in
+	// alongside a corporate Workspace identity). Required; no default.
+	WorkspaceDomains string `yaml:"workspace_domains"`
+}
+
+// IsSet returns true if enough configuration has been provided to attempt
+// authentication. The auth layer is responsible for picking SA-JSON vs WIF
+// based on which fields are populated.
+func (g GoogleCloudIdentityConfig) IsSet() bool {
+	hasSAJSON := g.ServiceAccountJSON != "" || g.ServiceAccountJSONBytes != ""
+	hasWIF := g.WorkloadIdentityAudience != "" && g.WorkloadIdentityServiceAccountEmail != ""
+	return (hasSAJSON || hasWIF) && g.ImpersonatedAdmin != "" && g.CustomerID != "" && g.WorkspaceDomains != ""
 }
 
 type MDMConfig struct {
@@ -1755,6 +1812,16 @@ func (man Manager) addConfigs() {
 	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 
+	// Google Cloud Identity
+	man.addConfigString("google_cloud_identity.service_account_json", "", "Path to a Google service-account JSON key file")
+	man.addConfigString("google_cloud_identity.service_account_json_bytes", "", "Raw JSON bytes of a Google service-account key")
+	man.addConfigString("google_cloud_identity.workload_identity_audience", "", "Audience URI for workload identity federation")
+	man.addConfigString("google_cloud_identity.workload_identity_service_account_email", "", "Service account email to impersonate via WIF")
+	man.addConfigString("google_cloud_identity.impersonated_admin", "", "Workspace admin email Fleet impersonates via domain-wide delegation")
+	man.addConfigString("google_cloud_identity.customer_id", "", "Cloud Identity customer ID (starting with C)")
+	man.addConfigString("google_cloud_identity.partner_suffix", "fleet", "Default partner suffix used in the ClientState resource name")
+	man.addConfigString("google_cloud_identity.workspace_domains", "", "Comma-separated list of Workspace email domains Fleet emits ClientStates for")
+
 	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
 
 	// Conditional Access
@@ -2079,6 +2146,16 @@ func (man Manager) LoadConfig() FleetConfig {
 		Partnerships: PartnershipsConfig{
 			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
 			EnablePrimo:       man.getConfigBool("partnerships.enable_primo"),
+		},
+		GoogleCloudIdentity: GoogleCloudIdentityConfig{
+			ServiceAccountJSON:                  man.getConfigString("google_cloud_identity.service_account_json"),
+			ServiceAccountJSONBytes:             man.getConfigString("google_cloud_identity.service_account_json_bytes"),
+			WorkloadIdentityAudience:            man.getConfigString("google_cloud_identity.workload_identity_audience"),
+			WorkloadIdentityServiceAccountEmail: man.getConfigString("google_cloud_identity.workload_identity_service_account_email"),
+			ImpersonatedAdmin:                   man.getConfigString("google_cloud_identity.impersonated_admin"),
+			CustomerID:                          man.getConfigString("google_cloud_identity.customer_id"),
+			PartnerSuffix:                       man.getConfigString("google_cloud_identity.partner_suffix"),
+			WorkspaceDomains:                    man.getConfigString("google_cloud_identity.workspace_domains"),
 		},
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
 			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),

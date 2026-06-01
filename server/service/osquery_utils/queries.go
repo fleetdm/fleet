@@ -1010,6 +1010,24 @@ var macOSEntraIDDetails = DetailQuery{
 	DirectIngestFunc: directIngestEntraIDDetails,
 }
 
+// macOSGoogleEndpointVerificationDetails holds the query and ingestion function
+// for macOS for the Google Cloud Identity ClientState integration. It reads
+// Endpoint Verification's local accounts.json — one file per local user — via
+// the Fleet-provided `endpoint_verification_accounts` osquery table and emits
+// one row per (signed-in Workspace identity on the device), each of which
+// becomes a deviceUser resource Fleet PATCHes a ClientState onto.
+//
+// Multi-account-per-host is normal — users routinely have personal Gmail signed
+// in alongside their corporate Workspace identity, and on shared kiosks a single
+// device hosts many. The resolution layer is responsible for filtering to the
+// configured Workspace domain(s) before emitting ClientStates.
+var macOSGoogleEndpointVerificationDetails = DetailQuery{
+	Query:            `SELECT username, gaia_id, resource_id, email, last_sync FROM endpoint_verification_accounts;`,
+	Discovery:        discoveryTable("endpoint_verification_accounts"),
+	Platforms:        []string{"darwin"},
+	DirectIngestFunc: directIngestGoogleEndpointVerificationDetails,
+}
+
 // windowsEntraIDDetails holds the query and ingestion function for Windows for Microsoft "Conditional access" feature.
 var windowsEntraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID of Windows devices that logged in to Entra via "Access work or school".
@@ -2113,6 +2131,115 @@ func directIngestEntraIDDetails(
 		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
 	}
 	return nil
+}
+
+// directIngestGoogleEndpointVerificationDetails ingests rows from the
+// endpoint_verification_accounts osquery table and stages them as pending
+// ClientStates in host_google_cloud_identity_clientstates.
+//
+// The osquery query returns one row per (Workspace identity, host); rows
+// with emails outside the configured workspace_domains list are filtered out
+// (no PATCHes for personal Gmail or third-party Workspace tenants signed in
+// alongside the corporate identity).
+//
+// The canonical deviceUser resource name (devices/.../deviceUsers/...) is
+// NOT resolved here — that requires a Cloud Identity API call which can't
+// run in the distributed-query write path. The sync hook in
+// processConditionalAccess does the lookup lazily on first PATCH.
+func directIngestGoogleEndpointVerificationDetails(
+	ctx context.Context,
+	logger *slog.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// Host either has no EV-resolved Workspace identities, or EV is not
+		// installed at all. No-op; the integration has nothing to PATCH.
+		return nil
+	}
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load app config for google cloud identity ingest")
+	}
+
+	settings := appCfg.Integrations.GoogleCloudIdentity
+	if settings == nil || len(settings.WorkspaceDomains) == 0 {
+		// Integration not configured (or no domains allowlisted) — nothing
+		// to ingest. The gating function ensures the query only fires when
+		// the integration is enabled, but the runtime settings can still be
+		// empty during initial setup.
+		logger.DebugContext(ctx, "google_cloud_identity: settings not yet configured",
+			"host_id", host.ID,
+		)
+		return nil
+	}
+
+	allowedDomains := normalizeDomains(settings.WorkspaceDomains)
+	partnerSuffix := settings.PartnerSuffix
+	if partnerSuffix == "" {
+		partnerSuffix = "fleet"
+	}
+	// TODO(google_cloud_identity): apply team-level partner_suffix override
+	// once team.Config plumbing is wired. For v1 prototype using org default.
+
+	// One row per (signed-in Workspace identity on the host). The
+	// endpoint_verification_accounts table returns a `resource_id` per row
+	// — useful as evidence EV is installed and the user is signed in, but
+	// no longer load-bearing for resolution: the sync layer queries Cloud
+	// Identity by `host.hardware_serial` (via Devices.List + DeviceUsers.List)
+	// and matches by `workspace_email`, since that flow works with a
+	// DWD service account whereas the rawResourceId lookup endpoint
+	// requires end-user creds.
+	for _, row := range rows {
+		email := strings.TrimSpace(strings.ToLower(row["email"]))
+		if email == "" {
+			continue
+		}
+		if !domainAllowed(email, allowedDomains) {
+			continue
+		}
+
+		if err := ds.UpsertHostGoogleCloudIdentityResolution(
+			ctx, host.ID, email, partnerSuffix,
+		); err != nil {
+			// Log and continue — one bad row shouldn't drop the whole batch.
+			logger.ErrorContext(ctx, "google_cloud_identity: upsert resolution",
+				"host_id", host.ID,
+				"email", email,
+				"err", err,
+			)
+		}
+	}
+	return nil
+}
+
+// normalizeDomains lowercases and trims each configured Workspace domain for
+// case-insensitive matching.
+func normalizeDomains(domains []string) []string {
+	if len(domains) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(domains))
+	for _, p := range domains {
+		d := strings.TrimSpace(strings.ToLower(p))
+		if d != "" {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// domainAllowed returns true if the email's domain matches one of the
+// configured workspace_domains.
+func domainAllowed(email string, allowed []string) bool {
+	at := strings.LastIndexByte(email, '@')
+	if at < 0 {
+		return false
+	}
+	dom := email[at+1:]
+	return slices.Contains(allowed, dom)
 }
 
 func directIngestScheduledQueryStats(ctx context.Context, logger *slog.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {
@@ -3340,6 +3467,7 @@ var tpmPINQueries = map[string]DetailQuery{
 
 type Integrations struct {
 	ConditionalAccessMicrosoft bool
+	GoogleCloudIdentity        bool
 }
 
 func GetDetailQueries(
@@ -3415,6 +3543,10 @@ func GetDetailQueries(
 	if integrations.ConditionalAccessMicrosoft {
 		generatedMap["conditional_access_microsoft_device_id"] = macOSEntraIDDetails
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
+	}
+
+	if integrations.GoogleCloudIdentity {
+		generatedMap["google_cloud_identity_endpoint_verification"] = macOSGoogleEndpointVerificationDetails
 	}
 
 	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {

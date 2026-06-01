@@ -3153,6 +3153,26 @@ type Datastore interface {
 	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
 	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
 
+	// UpsertHostGoogleCloudIdentityResolution records that Fleet has detected an EV-resolved
+	// Workspace identity on a host. Called from osquery distributed-query ingest with
+	// the user's Workspace email. The canonical device_user_resource is filled in
+	// lazily by SetHostGoogleCloudIdentityResolvedDeviceUser.
+	UpsertHostGoogleCloudIdentityResolution(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix string) error
+	// SetHostGoogleCloudIdentityResolvedDeviceUser records the canonical
+	// devices/{deviceId}/deviceUsers/{deviceUserId} resource name that the
+	// resolution layer discovered via FindDeviceBySerial + ListDeviceUsers +
+	// match-by-email.
+	SetHostGoogleCloudIdentityResolvedDeviceUser(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix, deviceUserResource string) error
+	// LoadHostGoogleCloudIdentityClientStates returns every ClientState row Fleet is tracking for a host.
+	LoadHostGoogleCloudIdentityClientStates(ctx context.Context, hostID uint) ([]*HostGoogleCloudIdentityClientState, error)
+	// SetHostGoogleCloudIdentityClientState records the values Fleet just successfully PATCHed to
+	// Cloud Identity, so the next sync can diff against them. Keyed by
+	// (host_id, workspace_email, partner_suffix).
+	SetHostGoogleCloudIdentityClientState(ctx context.Context, hostID uint, workspaceEmail, partnerSuffix string, managed, compliant bool, scoreReason, etag string) error
+	// DeleteHostGoogleCloudIdentityClientStates removes all rows for a host (e.g. when the integration
+	// is disabled for the host's team). Retraction of the remote ClientState is a separate sync step.
+	DeleteHostGoogleCloudIdentityClientStates(ctx context.Context, hostID uint) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Host identity certificates
 

@@ -109,6 +109,11 @@ github.com/fleetdm/fleet/v4/server/fleet/Integrations	ConditionalAccessEnabled	o
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleCloudIdentityEnabled	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleCloudIdentity	*fleet.GoogleCloudIdentitySettings
+github.com/fleetdm/fleet/v4/server/fleet/GoogleCloudIdentitySettings	CustomerID	string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleCloudIdentitySettings	PartnerSuffix	string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleCloudIdentitySettings	WorkspaceDomains	[]string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	MDM	fleet.MDM
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleServerURL	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	DeprecatedAppleBMDefaultTeam	string

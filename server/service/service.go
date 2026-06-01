@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	google_cloud_identity "github.com/fleetdm/fleet/v4/server/integrations/google_cloud_identity"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -67,6 +68,17 @@ type Service struct {
 	digiCertService   fleet.DigiCertService
 
 	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
+
+	// googleCloudIdentitySyncer is lazy-initialized on first use to avoid
+	// threading a Syncer through every NewService call site. nil until the
+	// integration's first PATCH attempt; subsequent calls reuse the same
+	// instance. The init is guarded by a pointer-to-Once so the Service
+	// struct stays safe to copy (Fleet's Service is passed by value across
+	// many handlers).
+	googleCloudIdentitySyncer     *google_cloud_identity.Syncer
+	googleCloudIdentitySyncerOnce *sync.Once
+	googleCloudIdentitySyncerMu   *sync.Mutex
+	googleCloudIdentitySyncerErr  error
 
 	keyValueStore fleet.KeyValueStore
 
@@ -192,6 +204,8 @@ func NewService(
 		digiCertService:      digiCertService,
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
+		googleCloudIdentitySyncerOnce:   new(sync.Once),
+		googleCloudIdentitySyncerMu:     new(sync.Mutex),
 		keyValueStore:                   keyValueStore,
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,

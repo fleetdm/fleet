@@ -19,8 +19,19 @@ type TeamIntegrations struct {
 	Jira           []*TeamJiraIntegration         `json:"jira"`
 	Zendesk        []*TeamZendeskIntegration      `json:"zendesk"`
 	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
-	// ConditionalAccessEnabled indicates whether the conditional access feature is enabled on this team.
+	// ConditionalAccessEnabled indicates whether the Microsoft Entra conditional
+	// access feature is enabled on this team.
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled,omitempty"`
+	// GoogleCloudIdentityEnabled indicates whether Fleet should emit Cloud
+	// Identity ClientState PATCHes for hosts on this team. Off by default; the
+	// server-side `google_cloud_identity` config block must also be set for
+	// this to do anything.
+	GoogleCloudIdentityEnabled optjson.Bool `json:"google_cloud_identity_enabled,omitzero"`
+	// GoogleCloudIdentityPartnerSuffix optionally overrides the global
+	// `partner_suffix` for hosts on this team, enabling team-scoped CAA
+	// expressions like `device.vendors["fleet-engineering-{C-id}"]`. Empty
+	// string means use the AppConfig default.
+	GoogleCloudIdentityPartnerSuffix string `json:"google_cloud_identity_partner_suffix,omitempty"`
 }
 
 // Copy returns a deep copy of TeamIntegrations
@@ -57,6 +68,10 @@ func (ti TeamIntegrations) Copy() TeamIntegrations {
 
 	// Copy ConditionalAccessEnabled
 	result.ConditionalAccessEnabled = ti.ConditionalAccessEnabled
+
+	// Copy Google Cloud Identity fields
+	result.GoogleCloudIdentityEnabled = ti.GoogleCloudIdentityEnabled
+	result.GoogleCloudIdentityPartnerSuffix = ti.GoogleCloudIdentityPartnerSuffix
 
 	return result
 }
@@ -473,8 +488,35 @@ type Integrations struct {
 	Jira           []*JiraIntegration           `json:"jira"`
 	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
 	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
-	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
+	// ConditionalAccessEnabled indicates whether Microsoft Entra conditional
+	// access is enabled/disabled for "No team".
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
+	// GoogleCloudIdentityEnabled indicates whether Cloud Identity ClientState
+	// PATCHes are enabled for hosts on "No team".
+	GoogleCloudIdentityEnabled optjson.Bool `json:"google_cloud_identity_enabled,omitzero"`
+	// GoogleCloudIdentity holds the runtime-editable settings for the Cloud
+	// Identity integration (partner suffix, workspace domain allowlist,
+	// customer ID). Auth credentials live in server config, not here, since
+	// they must be set at startup and shouldn't be DB-editable.
+	GoogleCloudIdentity *GoogleCloudIdentitySettings `json:"google_cloud_identity,omitempty"`
+}
+
+// GoogleCloudIdentitySettings holds the runtime-editable knobs for the
+// Cloud Identity ClientState integration. These are admin-settable via
+// AppConfig (server-restart-free) and complement the credential block in
+// server config.
+type GoogleCloudIdentitySettings struct {
+	// CustomerID is the Cloud Identity customer ID returned by
+	// admin.directory's customers/my_customer (starts with C). Validated at
+	// integration startup against the live API.
+	CustomerID string `json:"customer_id,omitempty"`
+	// PartnerSuffix is the default suffix used in the ClientState resource
+	// name (`{customerID-without-C}-{suffix}`). Defaults to "fleet" if empty.
+	PartnerSuffix string `json:"partner_suffix,omitempty"`
+	// WorkspaceDomains is the list of email domains Fleet emits ClientStates
+	// for. EV-detected accounts on emails outside this list are silently
+	// filtered. Required; integration is a no-op until set.
+	WorkspaceDomains []string `json:"workspace_domains,omitempty"`
 }
 
 // ValidateConditionalAccessIntegration validates "Conditional access" can be enabled on a team/"No team".
