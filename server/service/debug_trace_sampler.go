@@ -55,6 +55,17 @@ func handleTraceSamplerGet(w http.ResponseWriter, r *http.Request, logger *slog.
 }
 
 func handleTraceSamplerPatch(w http.ResponseWriter, r *http.Request, logger *slog.Logger, ds fleet.Datastore) {
+	// The /debug auth middleware always installs the viewer in context; if it
+	// is missing here, the middleware was bypassed and we should refuse to
+	// record a change rather than silently log user_id=0 (indistinguishable
+	// from a real user id of 0 and weakens the audit trail).
+	v, ok := viewer.FromContext(r.Context())
+	if !ok {
+		logger.ErrorContext(r.Context(), "debug trace_sampler PATCH refused: viewer missing from context")
+		http.Error(w, "viewer required", http.StatusInternalServerError)
+		return
+	}
+
 	var req traceSamplerPatchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("invalid JSON body: %v", err), http.StatusBadRequest)
@@ -89,15 +100,11 @@ func handleTraceSamplerPatch(w http.ResponseWriter, r *http.Request, logger *slo
 		return
 	}
 
-	updatedBy := uint(0)
-	if v, ok := viewer.FromContext(r.Context()); ok {
-		updatedBy = v.UserID()
-	}
 	logger.InfoContext(r.Context(), "trace sampler settings updated",
 		"high_volume_ratio", current.HighVolumeRatio,
 		"standard_ratio", current.StandardRatio,
 		"force_full", current.ForceFull,
-		"updated_by_user_id", updatedBy,
+		"updated_by_user_id", v.UserID(),
 	)
 
 	// Return the updated row so callers can confirm what was applied.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/platform/tracing"
@@ -80,10 +81,17 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 	// ParentBased so a remote sampled parent (e.g., an upstream span) keeps
 	// the whole trace coherent even on the hot-agent path.
 	sampler := tracing.NewRouteTierSampler(traceRegistry)
+	// ParentBased semantics:
+	//   - Remote parent SAMPLED: honor the upstream decision via AlwaysSample.
+	//   - Remote parent NOT SAMPLED: honor it via NeverSample, keeping trace
+	//     coherence across services. (Defaulting to our local sampler here
+	//     would let us locally sample a span whose upstream parent was
+	//     explicitly dropped, breaking distributed traces.)
+	//   - No remote parent: use our route-aware sampler.
 	parentBased := sdktrace.ParentBased(
 		sampler,
 		sdktrace.WithRemoteParentSampled(sdktrace.AlwaysSample()),
-		sdktrace.WithRemoteParentNotSampled(sampler),
+		sdktrace.WithRemoteParentNotSampled(sdktrace.NeverSample()),
 	)
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithResource(res),
@@ -98,6 +106,12 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 	)
 	if err != nil {
 		initFatal(err, "Failed to initialize OTEL metrics exporter")
+		// initFatal is normally os.Exit in production but stubbed in tests;
+		// shut the already-constructed tracer provider down so its batch
+		// span processor goroutine doesn't leak between test runs.
+		shutdownContext, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		_ = tracerProvider.Shutdown(shutdownContext)
+		cancel()
 		return nil, nil, nil, nil
 	}
 
@@ -145,6 +159,12 @@ func initOTELProviders(cfg config.FleetConfig, traceRegistry *tracing.Registry, 
 		)
 		if err != nil {
 			initFatal(err, "Failed to initialize OTEL log exporter")
+			// Same as the metrics-exporter failure path: shut down what was
+			// already constructed so tests do not leak goroutines.
+			shutdownContext, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			_ = tracerProvider.Shutdown(shutdownContext)
+			_ = meterProvider.Shutdown(shutdownContext)
+			cancel()
 			return nil, nil, nil, nil
 		}
 		loggerProvider = otelsdklog.NewLoggerProvider(

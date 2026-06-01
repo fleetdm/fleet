@@ -153,10 +153,43 @@ func TestNormalizeSpanName(t *testing.T) {
 			"GET /api/_version_/fleet/queries",
 		},
 		{"vuln.update_host_counts", "vuln.update_host_counts"},
+		// Mux regex constraints on path params are stripped to the bare
+		// {name} form so the registry can stay decoupled from the
+		// constraint syntax.
+		{
+			"GET /api/_version_/fleet/hosts/{id:[0-9]+}",
+			"GET /api/_version_/fleet/hosts/{id}",
+		},
+		{
+			"PATCH /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/fleets/{fleet_id:[0-9]+}/secrets",
+			"PATCH /api/_version_/fleet/fleets/{fleet_id}/secrets",
+		},
+		// Params without a regex constraint pass through unchanged.
+		{
+			"GET /api/_version_/fleet/device/{token}/desktop",
+			"GET /api/_version_/fleet/device/{token}/desktop",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.in, func(t *testing.T) {
 			require.Equal(t, c.want, normalizeSpanName(c.in))
 		})
 	}
+}
+
+func TestRegistry_LookupMatchesMuxRegexParams(t *testing.T) {
+	// Concrete bug Qodo flagged: registration uses the bare {id} form, but
+	// gorilla's GetPathTemplate returns the full {id:[0-9]+} form. The
+	// sampler must normalize before lookup so the tier policy still applies.
+	r := NewRegistry()
+	r.Register(http.MethodGet, "/api/_version_/fleet/hosts/{id}", TierStandard)
+	r.Register(http.MethodPatch, "/api/_version_/fleet/fleets/{fleet_id}/secrets", TierAlways)
+
+	got, ok := r.Lookup("GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}")
+	require.True(t, ok, "regex-constrained {id:[0-9]+} must normalize to {id}")
+	require.Equal(t, TierStandard, got)
+
+	got, ok = r.Lookup("PATCH /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/fleets/{fleet_id:[0-9]+}/secrets")
+	require.True(t, ok, "regex-constrained {fleet_id:[0-9]+} must normalize to {fleet_id}")
+	require.Equal(t, TierAlways, got)
 }

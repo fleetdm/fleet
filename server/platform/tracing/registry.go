@@ -52,17 +52,20 @@ func NewRegistry() *Registry {
 	return &Registry{routes: make(map[string]Tier)}
 }
 
-// Register classifies a method+path. The path should use "_version_" as
-// the placeholder for the gorilla/mux fleetversion segment (the form that
-// span names take after normalization). Both alternate-path forms (e.g.
-// "/api/v1/osquery/..." and "/api/osquery/...") must be registered
-// separately if both exist.
+// Register classifies a method+path. Paths are normalized on write the
+// same way they are on Lookup — the gorilla/mux version segment is
+// collapsed to "_version_" and regex-constrained params (e.g.
+// "{id:[0-9]+}") are stripped to "{id}". Callers can therefore register
+// in either the readable form ("/api/_version_/fleet/hosts/{id}") or the
+// raw template form, and lookups will still match. Both alternate-path
+// forms (e.g. "/api/v1/osquery/..." and "/api/osquery/...") still need
+// separate registrations.
 //
-// Re-registering the same method+path overwrites the prior tier.
+// Re-registering the same normalized method+path overwrites the prior tier.
 func (r *Registry) Register(method, path string, tier Tier) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.routes[spanKey(method, path)] = tier
+	r.routes[normalizeSpanName(spanKey(method, path))] = tier
 }
 
 // Lookup returns the tier for a span name and a bool indicating whether
@@ -80,13 +83,28 @@ func (r *Registry) Lookup(spanName string) (Tier, bool) {
 
 // versionTemplatePattern matches the gorilla/mux version segment Fleet
 // inserts via /_version_/ → /{fleetversion:(?:v1|2022-04|latest)}/ at
-// registration time. The sampler normalizes spans back to /_version_/
-// before lookup so the registry stays decoupled from the configured
-// version list.
+// registration time. Normalized back to /_version_/ so the registry
+// stays decoupled from the configured version list.
 var versionTemplatePattern = regexp.MustCompile(`\{fleetversion:[^}]*\}`)
 
+// muxParamRegexPattern strips regex constraints from gorilla/mux path
+// params: e.g. {id:[0-9]+} → {id}, {fleet_id:[0-9]+} → {fleet_id}. Fleet
+// uses this style extensively (sessions, fleets, users, invites — see
+// server/service/handler.go), and the route tier policy in
+// server/service/tracing_tiers.go registers the simpler {id} form. Without
+// this normalization, spans whose mux template includes the regex would
+// miss the registry and silently fall to TierAlways at 100% sampling.
+var muxParamRegexPattern = regexp.MustCompile(`\{([a-zA-Z0-9_]+):[^}]+\}`)
+
 func normalizeSpanName(name string) string {
-	return versionTemplatePattern.ReplaceAllString(name, "_version_")
+	// Apply versionTemplatePattern first because it strips both the param
+	// name and the surrounding braces (replacing with `_version_`).
+	// muxParamRegexPattern preserves the braces; running it first would
+	// turn {fleetversion:...} into {fleetversion}, which would then no
+	// longer match versionTemplatePattern.
+	name = versionTemplatePattern.ReplaceAllString(name, "_version_")
+	name = muxParamRegexPattern.ReplaceAllString(name, "{$1}")
+	return name
 }
 
 func spanKey(method, path string) string {

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
@@ -67,7 +68,7 @@ func TestStartSettingsPoller_AppliesInitialReadImmediately(t *testing.T) {
 	// the reader has been hit at least once, then cancel.
 	require.Eventually(t, func() bool {
 		return r.getCalls.Load() >= 1
-	}, 1e9 /* 1s in nanoseconds — Eventually default tick */, 1e6)
+	}, time.Second, time.Millisecond)
 
 	cancel()
 	<-done
@@ -94,7 +95,7 @@ func TestStartSettingsPoller_HandlesErrorGracefully(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		return r.getCalls.Load() >= 1
-	}, 1e9, 1e6)
+	}, time.Second, time.Millisecond)
 
 	cancel()
 	<-done

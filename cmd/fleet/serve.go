@@ -1490,9 +1490,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Infra paths (liveness/version/metrics) are platform-owned and have zero
 	// diagnostic value as traces once their metric counterparts exist. Drop
 	// them unconditionally — even under ForceFull, since a 100% debug window
-	// should not flood SigNoz with probe spans.
+	// should not flood SigNoz with probe spans. Register /metrics here even
+	// though its handler is mounted conditionally below: registering a route
+	// whose handler isn't installed is a harmless lookup-table entry and
+	// keeps the policy in one place.
 	traceRegistry.Register(http.MethodGet, "/healthz", tracing.TierNever)
 	traceRegistry.Register(http.MethodGet, "/version", tracing.TierNever)
+	traceRegistry.Register(http.MethodGet, "/metrics", tracing.TierNever)
 	rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
 	rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
 	rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
@@ -1595,7 +1599,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
-		traceRegistry.Register(http.MethodGet, "/metrics", tracing.TierNever)
 		rootMux.Handle("/metrics", basicAuthHandler(
 			config.Prometheus.BasicAuth.Username,
 			config.Prometheus.BasicAuth.Password,
@@ -1604,7 +1607,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	} else {
 		if config.Prometheus.BasicAuth.Disable {
 			logger.InfoContext(ctx, "metrics endpoint enabled with http basic auth disabled")
-			traceRegistry.Register(http.MethodGet, "/metrics", tracing.TierNever)
 			rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", otelmw.WrapHandler(promhttp.Handler(), "/metrics", config)))
 		} else {
 			logger.InfoContext(ctx, "metrics endpoint disabled (http basic auth credentials not set)")
