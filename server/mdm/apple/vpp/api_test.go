@@ -712,9 +712,9 @@ func TestDoRetryIsBoundedAndNonRecursive(t *testing.T) {
 	vppRateLimitBackoffMultiplier = 2
 
 	t.Run("rate-limited (too many requests) retries a bounded number of times then fails", func(t *testing.T) {
-		var calls int32
+		var calls atomic.Int32
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
-			atomic.AddInt32(&calls, 1)
+			calls.Add(1)
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"errorMessage":"Too many requests","errorNumber":9646}`))
 		})
@@ -734,14 +734,14 @@ func TestDoRetryIsBoundedAndNonRecursive(t *testing.T) {
 			t.Fatal("AssociateAssets did not return — the retry loop is not bounded")
 		}
 
-		require.EqualValues(t, vppMaxAttempts, atomic.LoadInt32(&calls),
+		require.EqualValues(t, vppMaxAttempts, calls.Load(),
 			"expected exactly vppMaxAttempts requests; more means the retries are nesting/recursing")
 	})
 
 	t.Run("HTTP 500 + Retry-After is honored but capped and bounded", func(t *testing.T) {
-		var calls int32
+		var calls atomic.Int32
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
-			atomic.AddInt32(&calls, 1)
+			calls.Add(1)
 			w.Header().Set("Retry-After", "600") // Apple asks for 10 minutes
 			w.WriteHeader(http.StatusInternalServerError)
 		})
@@ -750,7 +750,7 @@ func TestDoRetryIsBoundedAndNonRecursive(t *testing.T) {
 		_, err := AssociateAssets(t.Context(), "tok", associateAssetsParams())
 		require.Error(t, err)
 		// Bounded to vppMaxAttempts — a sustained Retry-After must NOT loop forever.
-		require.EqualValues(t, vppMaxAttempts, atomic.LoadInt32(&calls))
+		require.EqualValues(t, vppMaxAttempts, calls.Load())
 		// Retry-After is honored but capped at maxVPPBackoff (5ms here), so the
 		// call finishes far under the 600s Apple requested — a multi-minute value
 		// can't pin a synchronous request open.
