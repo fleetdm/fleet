@@ -69,24 +69,18 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
 	}
-	labelMap, err := svc.validateProfileLabels(ctx, &teamID, labelsInclude)
+	includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAny:
-		cp.LabelsIncludeAny = labelMap
+		cp.LabelsIncludeAny = includeLabels
 	default:
 		// default include all
-		cp.LabelsIncludeAll = labelMap
+		cp.LabelsIncludeAll = includeLabels
 	}
-	if len(labelsExcludeAny) > 0 {
-		excludeMap, err := svc.validateProfileLabels(ctx, &teamID, labelsExcludeAny)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "validating exclude labels")
-		}
-		cp.LabelsExcludeAny = excludeMap
-	}
+	cp.LabelsExcludeAny = excludeLabels
 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.SyncML)}); err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))

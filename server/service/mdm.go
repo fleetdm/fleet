@@ -1878,24 +1878,18 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	if overlap := fleet.ProfileLabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
 	}
-	labelMap, err := svc.validateProfileLabels(ctx, &teamID, labelsInclude)
+	includeLabels, excludeLabels, err := svc.validateProfileLabelSets(ctx, &teamID, labelsInclude, labelsExcludeAny)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
 	switch labelsMembershipMode {
 	case fleet.LabelsIncludeAny:
-		cp.LabelsIncludeAny = labelMap
+		cp.LabelsIncludeAny = includeLabels
 	default:
 		// default include all
-		cp.LabelsIncludeAll = labelMap
+		cp.LabelsIncludeAll = includeLabels
 	}
-	if len(labelsExcludeAny) > 0 {
-		excludeMap, err := svc.validateProfileLabels(ctx, &teamID, labelsExcludeAny)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "validating exclude labels")
-		}
-		cp.LabelsExcludeAny = excludeMap
-	}
+	cp.LabelsExcludeAny = excludeLabels
 
 	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
 	if err != nil {
@@ -1968,17 +1962,40 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint
 	return profLabels, nil
 }
 
-func (svc *Service) validateProfileLabels(ctx context.Context, teamID *uint, labelNames []string) ([]fleet.ConfigurationProfileLabel, error) {
-	labelMap, err := svc.batchValidateProfileLabels(ctx, teamID, labelNames)
+// validateDeclarationLabelSets validates both include and exclude label sets in a single DB round-trip
+// and returns the resolved slices ready to assign to the declaration struct.
+func (svc *Service) validateDeclarationLabelSets(ctx context.Context, teamID uint, labelsInclude, labelsExcludeAny []string) (include, exclude []fleet.ConfigurationProfileLabel, err error) {
+	allLabelMap, err := svc.batchValidateDeclarationLabels(ctx, slices.Concat(labelsInclude, labelsExcludeAny), teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating profile labels")
+		return nil, nil, err
 	}
+	include = make([]fleet.ConfigurationProfileLabel, 0, len(labelsInclude))
+	for _, name := range labelsInclude {
+		include = append(include, allLabelMap[name])
+	}
+	exclude = make([]fleet.ConfigurationProfileLabel, 0, len(labelsExcludeAny))
+	for _, name := range labelsExcludeAny {
+		exclude = append(exclude, allLabelMap[name])
+	}
+	return include, exclude, nil
+}
 
-	var profLabels []fleet.ConfigurationProfileLabel
-	for _, label := range labelMap {
-		profLabels = append(profLabels, label)
+// validateProfileLabelSets validates both include and exclude label sets in a single DB round-trip
+// and returns the resolved slices ready to assign to the profile struct.
+func (svc *Service) validateProfileLabelSets(ctx context.Context, teamID *uint, labelsInclude, labelsExcludeAny []string) (include, exclude []fleet.ConfigurationProfileLabel, err error) {
+	allLabelMap, err := svc.batchValidateProfileLabels(ctx, teamID, slices.Concat(labelsInclude, labelsExcludeAny))
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
-	return profLabels, nil
+	include = make([]fleet.ConfigurationProfileLabel, 0, len(labelsInclude))
+	for _, name := range labelsInclude {
+		include = append(include, allLabelMap[name])
+	}
+	exclude = make([]fleet.ConfigurationProfileLabel, 0, len(labelsExcludeAny))
+	for _, name := range labelsExcludeAny {
+		exclude = append(exclude, allLabelMap[name])
+	}
+	return include, exclude, nil
 }
 
 type batchModifyMDMConfigProfilesRequest struct {
