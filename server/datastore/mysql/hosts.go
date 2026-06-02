@@ -6338,6 +6338,21 @@ func (ds *Datastore) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite
 	return ds.loadHostLite(ctx, &id, nil)
 }
 
+// hostLiteColumns is the shared SELECT column list
+const hostLiteColumns = `
+	h.id,
+	h.team_id,
+	h.osquery_host_id,
+	COALESCE(h.node_key, '') AS node_key,
+	h.computer_name,
+	h.hostname,
+	h.uuid,
+	h.hardware_model,
+	h.hardware_serial,
+	h.distributed_interval,
+	h.config_tls_refresh,
+	COALESCE(hst.seen_time, h.created_at) AS seen_time`
+
 func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *string) (*fleet.HostLite, error) {
 	if id == nil && identifier == nil {
 		return nil, errors.New("must set one of id or identifier")
@@ -6346,19 +6361,7 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
 		return nil, errors.New("cannot set both id and identifier")
 	}
 	stmt := `
-    SELECT
-      h.id,
-      h.team_id,
-      h.osquery_host_id,
-      COALESCE(h.node_key, '') AS node_key,
-	  h.computer_name,
-      h.hostname,
-      h.uuid,
-	  h.hardware_model,
-      h.hardware_serial,
-      h.distributed_interval,
-      h.config_tls_refresh,
-      COALESCE(hst.seen_time, h.created_at) AS seen_time
+    SELECT ` + hostLiteColumns + `
     FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
     %s
