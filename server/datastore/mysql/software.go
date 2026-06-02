@@ -6862,35 +6862,28 @@ func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, teamID uint, na
 	return ids, nil
 }
 
-// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.
-// Only categories that exist in the database are included in the map.
 func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 	if len(names) == 0 {
 		return map[string]uint{}, nil
 	}
-	names = fleet.TranslateLegacySoftwareCategoryNames(names)
 
-	stmt := `SELECT id, name FROM software_categories WHERE team_id = ? AND name IN (?)`
-	stmt, args, err := sqlx.In(stmt, teamID, names)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get software category name to id map")
-	}
-
-	var categories []fleet.SoftwareCategory
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, args...); err != nil {
+	// ORDER BY name ASC so emoji-prefixed rows ("💻 Productivity") sort after
+	// their legacy plain counterpart ("Productivity")
+	stmt := `SELECT id, name FROM software_categories WHERE team_id = ? ORDER BY name ASC`
+	var rows []fleet.SoftwareCategory
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software category name to id map")
 	}
 
-	result := make(map[string]uint, len(categories))
-	for _, cat := range categories {
-		result[cat.Name] = cat.ID
-	}
-	for plain, emoji := range fleet.LegacySoftwareCategoryNames {
-		if id, ok := result[emoji]; ok {
-			result[plain] = id
+	result := make(map[string]uint, len(names))
+	for _, n := range names {
+		for _, r := range rows {
+			if fleet.SoftwareCategoryReferenceMatches(n, r.Name) {
+				result[n] = r.ID
+				break
+			}
 		}
 	}
-
 	return result, nil
 }
 

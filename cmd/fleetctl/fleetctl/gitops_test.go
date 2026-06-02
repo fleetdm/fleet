@@ -7654,12 +7654,28 @@ software:
 policies:
 software:
   self_service_categories:
-    - "Security"
+    - "🔐 Security"
     - "🔐 Security"
 `)
 		_, err := runAppNoChecks([]string{"gitops", "-f", yml})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "duplicate")
 		assert.Contains(t, err.Error(), "🔐 Security")
+	})
+
+	t.Run("plain and emoji names treated as distinct", func(t *testing.T) {
+		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
+		state := setupGitOpsCategoriesMocks(t, ds, nil, fleet.GitOpsExceptions{})
+
+		yml := writeGitOpsCategoriesYAML(t, `controls:
+policies:
+software:
+  self_service_categories:
+    - "Security"
+    - "🔐 Security"
+`)
+		_, err := runAppNoChecks([]string{"gitops", "-f", yml})
+		require.NoError(t, err)
+		assert.ElementsMatch(t, []string{"Security", "🔐 Security"}, state.added)
 	})
 }

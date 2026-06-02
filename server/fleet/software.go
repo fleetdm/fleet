@@ -908,3 +908,13 @@ func TranslateLegacySoftwareCategoryNames(names []string) []string {
 	}
 	return out
 }
+
+func SoftwareCategoryReferenceMatches(reference string, name string) bool {
+	if strings.EqualFold(reference, name) {
+		return true
+	}
+	if t, ok := LegacySoftwareCategoryNames[reference]; ok && strings.EqualFold(t, name) {
+		return true
+	}
+	return false
+}

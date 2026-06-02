@@ -4322,7 +4322,7 @@ func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
 		assert.Empty(t, gitops.Software.SelfServiceCategories.Value)
 	})
 
-	t.Run("populated list sets Present true and canonicalizes names", func(t *testing.T) {
+	t.Run("populated list sets Present true and preserves names verbatim", func(t *testing.T) {
 		t.Parallel()
 		config := getTeamConfig(nil)
 		config += `software:
@@ -4335,8 +4335,7 @@ func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
 		gitops, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 		require.NoError(t, err)
 		assert.True(t, gitops.Software.SelfServiceCategories.Set)
-		// "Productivity" should be canonicalized to "💻 Productivity".
-		assert.Equal(t, []string{"🌎 Browsers", "💻 Productivity", "💼 Engineering"}, gitops.Software.SelfServiceCategories.Value)
+		assert.Equal(t, []string{"🌎 Browsers", "Productivity", "💼 Engineering"}, gitops.Software.SelfServiceCategories.Value)
 	})
 }
 

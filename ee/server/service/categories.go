@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -156,6 +157,26 @@ func (svc *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "create activity for deleted self-service category")
 	}
 	return nil
+}
+
+func (svc *Service) removeDuplicateOrMissingCategories(ctx context.Context, teamID uint, names []string) ([]string, []uint, error) {
+	names = server.RemoveDuplicatesFromSlice(names)
+	if len(names) == 0 {
+		return nil, nil, nil
+	}
+	categoryMap, err := svc.ds.GetSoftwareCategoryNameToIDMap(ctx, teamID, names)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "getting software category name to id map")
+	}
+	var categories []string
+	var ids []uint
+	for _, name := range names {
+		if id, ok := categoryMap[name]; ok {
+			categories = append(categories, name)
+			ids = append(ids, id)
+		}
+	}
+	return categories, ids, nil
 }
 
 func (svc *Service) teamNameForActivity(ctx context.Context, teamID uint) (*string, error) {

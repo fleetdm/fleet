@@ -1908,23 +1908,23 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 	// validate self service categories
 	if software.SelfServiceCategories.Set {
-		translated := fleet.TranslateLegacySoftwareCategoryNames(software.SelfServiceCategories.Value)
-		seen := make(map[string]struct{}, len(translated))
-		for i, name := range translated {
-			translated[i] = strings.TrimSpace(name)
-			if err := (fleet.SoftwareCategory{Name: translated[i]}).Validate(); err != nil {
+		declared := software.SelfServiceCategories.Value
+		seen := make(map[string]struct{}, len(declared))
+		for i, name := range declared {
+			declared[i] = strings.TrimSpace(name)
+			if err := (fleet.SoftwareCategory{Name: declared[i]}).Validate(); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("self_service_categories: %w", err))
 				continue
 			}
-			key := strings.ToLower(translated[i])
+			key := strings.ToLower(declared[i])
 			if _, ok := seen[key]; ok {
 				multiError = multierror.Append(multiError,
-					fmt.Errorf("self_service_categories: duplicate category %q", translated[i]))
+					fmt.Errorf("self_service_categories: duplicate category %q", declared[i]))
 				continue
 			}
 			seen[key] = struct{}{}
 		}
-		result.Software.SelfServiceCategories = optjson.SetSlice(translated)
+		result.Software.SelfServiceCategories = optjson.SetSlice(declared)
 	}
 
 	validateCategoryReferences := func(categories []string) {
@@ -1932,11 +1932,9 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			return
 		}
 		for _, name := range categories {
-			translated := name
-			if mapped, ok := fleet.LegacySoftwareCategoryNames[translated]; ok {
-				translated = mapped
-			}
-			if !slices.ContainsFunc(result.Software.SelfServiceCategories.Value, func(d string) bool { return strings.EqualFold(d, translated) }) {
+			if !slices.ContainsFunc(result.Software.SelfServiceCategories.Value, func(d string) bool {
+				return fleet.SoftwareCategoryReferenceMatches(name, d)
+			}) {
 				multiError = multierror.Append(multiError,
 					fmt.Errorf("category %q is not in software.self_service_categories", name))
 			}
