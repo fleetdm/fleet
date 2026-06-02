@@ -271,7 +271,7 @@ const canWipeHost = ({
 
   // Wipe is a Fleet Premium feature for macOS, Windows, Linux and iOS/iPadOS, but is available on Fleet Free for
   // Android (COBO) hosts. canWipeAndroid is already gated to Android COBO, so OR-ing it with isPremiumTier keeps the
-  // other platforms Premium-only (on Free tier with a non-Android host, canWipeAndroid is false).
+  // other platforms Premium-only.
   return (
     (isPremiumTier || canWipeAndroid) &&
     !isAccountDrivenEnrolledIosOrIpadosDevice &&

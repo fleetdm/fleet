@@ -8353,10 +8353,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, KnownExploit: true}}, http.StatusPaymentRequired, &countResp,
 	)
 
-	// lock/unlock/wipe a host. Lock and unlock are Premium-only for all platforms, so they bail with a license error
-	// before loading the host (a non-existent host id is fine). Wipe is Premium-only only for non-Android platforms
-	// (Android COBO wipe is available on Fleet Free), so it loads the host first; use a real non-Android host so it
-	// reaches the license check instead of a not-found error.
+	// lock/unlock/wipe a host. Wipe is Premium-only only for non-Android platforms (Android COBO wipe is available on Fleet Free).
 	wipeHost := s.createHosts(t, "darwin")[0]
 	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)

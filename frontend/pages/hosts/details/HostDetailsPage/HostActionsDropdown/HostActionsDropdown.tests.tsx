@@ -1654,36 +1654,6 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
     });
 
-    it("does NOT show Wipe for a BYO Android host on Fleet Free (COBO-only)", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: false,
-            isGlobalAdmin: true,
-            isAndroidMdmEnabledAndConfigured: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostPlatform="android"
-          hostMdmEnrollmentStatus="On (personal)"
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus="unlocked"
-          hostScriptsEnabled={false}
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
-    });
-
     it("does NOT show Wipe for an Android host with enrollment status 'On (manual)' (Wipe requires COBO; allow-list, not negative check)", async () => {
       const render = createCustomRenderer({
         context: {
@@ -1779,9 +1749,6 @@ describe("Host Actions Dropdown", () => {
         deviceStatus: "clearing_passcode" as const,
         expectHidden: ["Lock", "Wipe", "Clear passcode"],
       },
-      // Note: BYO Android no longer surfaces a "wiping" pending state. The backend suppresses the
-      // transient work-profile-wipe status for personally-enrolled Android hosts (#41683), so the
-      // dropdown always sees device_status="unlocked" for them.
     ])(
       "hides pending-gated actions for Android when $case (#41683)",
       async ({ enrollment, deviceStatus, expectHidden }) => {

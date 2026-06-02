@@ -3496,8 +3496,7 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 }
 
 // TestSuppressAndroidBYODWipeStatus verifies that the transient wipe status is hidden only for the unenroll-driven
-// work-profile wipe on Android BYOD (personal) hosts (#41683). Lock and Clear passcode are supported on BYOD Android,
-// so their pending states must NOT be suppressed.
+// work-profile wipe on Android BYOD (personal) hosts.
 func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 	newHost := func(platform string, enrollment *string, deviceStatus fleet.DeviceStatus, pending fleet.PendingDeviceAction) *fleet.Host {
 		return &fleet.Host{
@@ -3540,37 +3539,25 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 	}
 }
 
-// TestWipeHostFreeTierGating verifies the license gating of the core (Fleet Free) WipeHost implementation: Wipe is
-// available for Android (COBO) hosts but remains Premium-only for the other platforms, and BYO Android is rejected
-// (COBO-only). The actual Android wipe enqueue is covered by the premium integration tests.
-func TestWipeHostFreeTierGating(t *testing.T) {
+// TestWipeHostFreeTierAndroidBYORejected verifies the core (Fleet Free) WipeHost rejects BYO (personally-owned)
+// Android hosts, since Wipe is COBO-only (BYO uses Unenroll). The non-Android license gate is already covered by the
+// free-tier TestPremiumEndpointsWithoutLicense integration test, and the Premium BYO rejection by
+// TestAndroidLockWipeClearPasscode; this guards the same rejection in the core implementation.
+func TestWipeHostFreeTierAndroidBYORejected(t *testing.T) {
 	ds := new(mock.Store)
-	// Default newTestService license is Fleet Free, so svc is the core service (not ee-wrapped).
+	// Default newTestService license is Fleet Free.
 	svc, ctx := newTestService(t, ds, nil, nil)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 	const hostID = 1
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (personal)")}}, nil
+	}
+	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 
-	t.Run("non-Android returns missing license", func(t *testing.T) {
-		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-			return &fleet.Host{ID: hostID, Platform: "darwin"}, nil
-		}
-		ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
-
-		err := svc.WipeHost(ctx, hostID, nil)
-		require.ErrorIs(t, err, fleet.ErrMissingLicense)
-	})
-
-	t.Run("BYO Android is rejected (COBO-only)", func(t *testing.T) {
-		ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-			return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new("On (personal)")}}, nil
-		}
-		ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
-
-		err := svc.WipeHost(ctx, hostID, nil)
-		var badRequest *fleet.BadRequestError
-		require.ErrorAs(t, err, &badRequest)
-	})
+	err := svc.WipeHost(ctx, hostID, nil)
+	var badRequest *fleet.BadRequestError
+	require.ErrorAs(t, err, &badRequest)
 }
 
 func TestBulkOperationFilterValidation(t *testing.T) {
