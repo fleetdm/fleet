@@ -1,4 +1,4 @@
-- name: DEX - Hardware inventory - system information
+- name: DEX - Hardware inventory - System information
   description: Comprehensive system hardware identification including model, serial, manufacturer, and form factor.
   query: |
     SELECT
@@ -90,7 +90,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 600
-- name: DEX - Hardware experience - device health
+- name: DEX - Hardware experience - Device health
   description: CPU class, RAM tier, swap/compression pressure, and battery condition in a single row. This is the physical-layer health signal — answers whether the hardware can keep up with what the user is asking it to do.
   query: |
     SELECT
@@ -218,7 +218,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 14400
-- name: DEX - Application experience - process health
+- name: DEX - Application experience - Process health
   description: Top 25 processes by resident memory with classification into user_app, mgmt_agent, or system. Flags memory hogs and identifies whether pressure comes from productivity apps, security agents, or OS internals. Management agent stability matters — a crashing osqueryd or falcon-sensor means the fleet is flying blind.
   query: |
     SELECT
@@ -321,7 +321,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 600
-- name: DEX - Application experience - crash summary
+- name: DEX - Application experience - Crash summary
   description: Top 25 crashing apps in the last 7 days, grouped by identifier (SW-01). Prevents a single noisy crasher from blurring the picture — one row per app with total count, severity tier, and last crash time. Feeds software_score (50% weight) and crash baseline (CB-01/CB-02).
   query: |
     SELECT
@@ -354,7 +354,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 14400
-- name: DEX - Application experience - crash detail
+- name: DEX - Application experience - Crash detail
   description: Last 5 crash events per app for the top 25 crashing apps (7-day window). Provides diagnostic detail (exception_type, responsible process) without letting a single noisy crasher dominate the results. Capped at 125 rows (25 apps × 5 each).
   query: |
     SELECT
@@ -405,7 +405,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 14400
-- name: DEX - Application experience - adoption gap
+- name: DEX - Application experience - Adoption gap
   description: Managed app recency check (SW-02). Reports days_since_opened and usage_tier for all user-facing installed apps. The server-side scoring layer filters this against the dex_managed_apps registry to compute adoption_gap_count and the software_score penalty (35% weight).
   query: |
     SELECT
@@ -457,7 +457,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 14400
-- name: DEX - System experience - security posture
+- name: DEX - System experience - Security posture
   description: Verifying the following components are enabled on the host - filevault, sip, gatekeeper, firewall
   query: |
     SELECT
@@ -469,7 +469,7 @@
   automations_enabled: true
   logging: snapshot
   interval: 3600
-- name: DEX - Application Experience - Windows Application Crashes (7 days)
+- name: DEX - Application experience - Windows application crashes (7 days)
   description: Application crashes and hangs from Windows Event Log. Identifies problematic applications affecting user productivity.
   query: |
     SELECT
@@ -492,7 +492,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Application Experience - Windows Installed Applications
+- name: DEX - Application experience - Windows installed applications
   description: Inventory of installed Windows programs with version information.
   query: |
     SELECT
@@ -506,7 +506,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Hardware Inventory - Windows Disk Drive Details
+- name: DEX - Hardware inventory - Windows disk drive details
   description: Physical disk drive information including type and size on Windows.
   query: |
     SELECT
@@ -524,7 +524,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Hardware Inventory - Windows Display Information
+- name: DEX - Hardware inventory - Windows display information
   description: Display adapter information on Windows.
   query: |
     SELECT
@@ -541,7 +541,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Security Compliance - Password Policy Status
+- name: DEX - Security compliance - Password policy status
   description: Password policy configuration for security compliance verification.
   query: |
     SELECT
@@ -556,7 +556,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Security Compliance - Scheduled Tasks and Cron Jobs
+- name: DEX - Security compliance - Scheduled tasks and cron jobs
   description: Scheduled tasks and jobs that could indicate persistence mechanisms or maintenance activities.
   query: |
     SELECT
@@ -575,7 +575,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Security Compliance - Secure Boot Status (Windows)
+- name: DEX - Security compliance - Secure Boot status (Windows)
   description: Windows Secure Boot status for hardware security compliance.
   query: |
     SELECT
@@ -589,7 +589,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Security Compliance - TPM Status (Windows)
+- name: DEX - Security compliance - TPM status (Windows)
   description: Trusted Platform Module status for hardware security compliance.
   query: |
     SELECT
@@ -609,7 +609,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Security Compliance - Windows Antivirus and Security Software
+- name: DEX - Security compliance - Windows antivirus and security software
   description: Detects installed antivirus and endpoint protection software on Windows.
   query: |
     SELECT
@@ -635,7 +635,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Security Compliance - Windows BitLocker Status
+- name: DEX - Security compliance - Windows BitLocker status
   description: Windows BitLocker encryption status for all drives.
   query: |
     SELECT
@@ -655,7 +655,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Security Compliance - Windows Firewall Status
+- name: DEX - Security compliance - Windows firewall status
   description: Windows firewall and security center status.
   query: |
     SELECT
@@ -670,7 +670,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Security Compliance - Windows Services Inventory
+- name: DEX - Security compliance - Windows services inventory
   description: Windows services inventory for security and compliance auditing.
   query: |
     SELECT
@@ -698,7 +698,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - Security Compliance - Windows Update Status
+- name: DEX - Security compliance - Windows update status
   description: Windows Update configuration and recent update history.
   query: |
     SELECT
@@ -723,7 +723,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - System Performance - System Crashes and Unexpected Shutdowns
+- name: DEX - System performance - System crashes and unexpected shutdowns
   description: Detects unexpected shutdowns and system crashes. Frequent crashes significantly degrade user experience.
   query: |
     SELECT
@@ -741,7 +741,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - System Performance - Windows BSOD Events (30 days)
+- name: DEX - System performance - Windows BSOD events (30 days)
   description: Blue Screen of Death events from Windows Event Log. BSODs severely impact productivity and indicate system instability.
   query: |
     SELECT
@@ -758,7 +758,7 @@
   platform: windows
   automations_enabled: true
   logging: snapshot
-- name: DEX - User Sentiment Proxy - Reboot Frequency (90 days)
+- name: DEX - User sentiment proxy - Reboot frequency (90 days)
   description: Counts system reboots over the past 90 days using log analysis. Frequent reboots indicate instability or forced updates.
   query: |
     SELECT
