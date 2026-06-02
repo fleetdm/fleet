@@ -1,1 +1,1 @@
-* Fixed a data race in `api_endpoints.Init()` that caused flaky test failures when parallel integration tests each started their own test server concurrently.
+* Updated initialization semantics around api_endpoints. The catalog is now loaded from the embedded YAML once at package initialization time.
