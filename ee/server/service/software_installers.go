@@ -403,7 +403,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	if payload.Categories != nil {
 		categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
 		if err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(ctx, err, "filtering software installer categories")
 		}
 		payload.Categories = categories
 		payload.CategoryIDs = catIDs
@@ -2707,7 +2707,7 @@ func (svc *Service) softwareBatchUpload(
 
 			categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, tmID, p.Categories)
 			if err != nil {
-				return err
+				return ctxerr.Wrap(ctx, err, "filtering software installer categories")
 			}
 			installer.Categories = categories
 			installer.CategoryIDs = catIDs

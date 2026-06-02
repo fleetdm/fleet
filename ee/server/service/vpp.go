@@ -340,7 +340,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 			categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(teamID), payload.Categories)
 			if err != nil {
-				return nil, err
+				return nil, ctxerr.Wrap(ctx, err, "filtering vpp app categories")
 			}
 			payload.Categories = categories
 
@@ -921,7 +921,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(teamID), appID.Categories)
 		if err != nil {
-			return 0, "", err
+			return 0, "", ctxerr.Wrap(ctx, err, "filtering vpp app categories")
 		}
 		appID.Categories = categories
 		appID.CategoryIDs = catIDs
@@ -1254,7 +1254,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if payload.Categories != nil {
 		categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(teamID), payload.Categories)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, ctxerr.Wrap(ctx, err, "filtering vpp app categories")
 		}
 		payload.Categories = categories
 		appToWrite.CategoryIDs = catIDs

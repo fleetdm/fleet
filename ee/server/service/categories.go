@@ -40,7 +40,7 @@ func (svc *Service) NewSoftwareCategory(ctx context.Context, teamID *uint, name 
 	name = strings.TrimSpace(name)
 	if err := (fleet.SoftwareCategory{Name: name}).Validate(); err != nil {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "validating new software category")
 	}
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
@@ -84,7 +84,7 @@ func (svc *Service) UpdateSoftwareCategory(ctx context.Context, id uint, name st
 	name = strings.TrimSpace(name)
 	if err := (fleet.SoftwareCategory{Name: name}).Validate(); err != nil {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "validating updated software category")
 	}
 
 	// we need to load the category first to scope authz to its team_id

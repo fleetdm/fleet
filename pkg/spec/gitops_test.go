@@ -4371,5 +4371,41 @@ func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
 		assert.Contains(t, err.Error(), `"Forbidden"`)
 		assert.Contains(t, err.Error(), "self_service_categories")
 	})
+
+	t.Run("app_store_apps referencing undeclared category fails at parse", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += `software:
+  self_service_categories:
+    - "Allowed"
+  app_store_apps:
+    - app_store_id: "12345"
+      categories:
+        - "Forbidden"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `"Forbidden"`)
+		assert.Contains(t, err.Error(), "self_service_categories")
+	})
+
+	t.Run("fleet_maintained_apps referencing undeclared category fails at parse", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += `software:
+  self_service_categories:
+    - "Allowed"
+  fleet_maintained_apps:
+    - slug: 1password/darwin
+      categories:
+        - "Forbidden"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `"Forbidden"`)
+		assert.Contains(t, err.Error(), "self_service_categories")
+	})
 }
 

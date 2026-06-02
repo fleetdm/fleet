@@ -34,6 +34,7 @@ type MockClient struct {
 	TeamNameOverride string
 	WithoutMDM       bool
 	WithoutVPP       bool
+	Categories       []fleet.SoftwareCategory
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -345,7 +346,10 @@ func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, e
 	}, nil
 }
 
-func (MockClient) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error) {
+func (c MockClient) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error) {
+	if teamID == 1 {
+		return c.Categories, nil
+	}
 	return nil, nil
 }
 
@@ -2581,25 +2585,12 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 	})
 }
 
-type MockClientWithCategories struct {
-	MockClient
-}
-
-func (MockClientWithCategories) ListSelfServiceCategories(teamID uint) ([]fleet.SoftwareCategory, error) {
-	// Only Team A (id=1 in MockClient) gets custom categories so the unassigned
-	// fleet confirms the "no categories" → omit-key branch.
-	if teamID != 1 {
-		return nil, nil
-	}
-	return []fleet.SoftwareCategory{
-		{ID: 10, Name: "🌎 Browsers", TeamID: 1},
-		{ID: 11, Name: "💼 Engineering", TeamID: 1},
-	}, nil
-}
-
 func TestGenerateGitopsEmitsSelfServiceCategories(t *testing.T) {
 	configureFMAManifestServer(t)
-	fleetClient := &MockClientWithCategories{}
+	fleetClient := &MockClient{Categories: []fleet.SoftwareCategory{
+		{ID: 10, Name: "🌎 Browsers", TeamID: 1},
+		{ID: 11, Name: "💼 Engineering", TeamID: 1},
+	}}
 	action := createGenerateGitopsAction(fleetClient)
 
 	tempDir := os.TempDir() + "/" + uuid.New().String()

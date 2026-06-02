@@ -6863,7 +6863,7 @@ func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, teamID uint, na
 }
 
 // GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.
-// Only categories that exist in the database are included in the map, but outdated default categories that were named
+// Only categories that exist in the database are included in the map, but outdated default categories that were renamed
 // get matched to their new names.
 func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 	if len(names) == 0 {

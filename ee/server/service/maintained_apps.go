@@ -182,7 +182,7 @@ func (svc *Service) AddFleetMaintainedApp(
 
 	categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
 	if err != nil {
-		return 0, err
+		return 0, ctxerr.Wrap(ctx, err, "filtering fleet-maintained app categories")
 	}
 	payload.Categories = categories
 	payload.CategoryIDs = catIDs

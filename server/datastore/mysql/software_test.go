@@ -12349,57 +12349,39 @@ func testGetSoftwareCategoryNameToIDMap(t *testing.T, ds *Datastore) {
 	customCat, err := ds.NewSoftwareCategory(ctx, team1.ID, "MyCustom")
 	require.NoError(t, err)
 
-	t.Run("empty input returns empty map", func(t *testing.T) {
-		got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, nil)
-		require.NoError(t, err)
-		assert.Empty(t, got)
-	})
-
-	t.Run("plain legacy reference resolves to emoji-prefixed row", func(t *testing.T) {
-		got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, []string{"Productivity"})
-		require.NoError(t, err)
-		assert.Equal(t, map[string]uint{"Productivity": emojiProductivity.ID}, got)
-	})
-
-	t.Run("emoji reference resolves literally", func(t *testing.T) {
-		got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, []string{"🔐 Security"})
-		require.NoError(t, err)
-		assert.Equal(t, map[string]uint{"🔐 Security": emojiSecurity.ID}, got)
-	})
-
-	t.Run("non-legacy reference resolves literally", func(t *testing.T) {
-		got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, []string{"MyCustom"})
-		require.NoError(t, err)
-		assert.Equal(t, map[string]uint{"MyCustom": customCat.ID}, got)
-	})
-
-	t.Run("unknown name is omitted from result", func(t *testing.T) {
-		got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, []string{"NotOnAnyTeam"})
-		require.NoError(t, err)
-		assert.Empty(t, got)
-	})
-
-	t.Run("mixed hits and misses across forms", func(t *testing.T) {
-		got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, []string{"Productivity", "🔐 Security", "MyCustom", "NotFound"})
-		require.NoError(t, err)
-		assert.Equal(t, map[string]uint{
+	// Lookups against the seeded + custom state: each input maps to whatever row
+	// resolves, with translation fallback for legacy plain names.
+	lookups := []struct {
+		desc string
+		in   []string
+		want map[string]uint
+	}{
+		{"empty input returns empty map", nil, map[string]uint{}},
+		{"plain legacy reference resolves to emoji-prefixed row", []string{"Productivity"}, map[string]uint{"Productivity": emojiProductivity.ID}},
+		{"emoji reference resolves literally", []string{"🔐 Security"}, map[string]uint{"🔐 Security": emojiSecurity.ID}},
+		{"non-legacy reference resolves literally", []string{"MyCustom"}, map[string]uint{"MyCustom": customCat.ID}},
+		{"unknown name is omitted from result", []string{"NotOnAnyTeam"}, map[string]uint{}},
+		{"mixed hits and misses across forms", []string{"Productivity", "🔐 Security", "MyCustom", "NotFound"}, map[string]uint{
 			"Productivity": emojiProductivity.ID,
 			"🔐 Security":   emojiSecurity.ID,
 			"MyCustom":     customCat.ID,
-		}, got)
-	})
+		}},
+	}
+	for _, tc := range lookups {
+		got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, tc.in)
+		require.NoError(t, err, tc.desc)
+		assert.Equal(t, tc.want, got, tc.desc)
+	}
 
-	t.Run("literal plain row wins over translation when both exist", func(t *testing.T) {
-		plainProductivity, err := ds.NewSoftwareCategory(ctx, team1.ID, "Productivity")
-		require.NoError(t, err)
-		got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, []string{"Productivity"})
-		require.NoError(t, err)
-		assert.Equal(t, map[string]uint{"Productivity": plainProductivity.ID}, got)
-	})
+	// Literal plain row wins over translation when both rows exist on the team.
+	plainProductivity, err := ds.NewSoftwareCategory(ctx, team1.ID, "Productivity")
+	require.NoError(t, err)
+	got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team1.ID, []string{"Productivity"})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]uint{"Productivity": plainProductivity.ID}, got)
 
-	t.Run("other teams' rows are not visible", func(t *testing.T) {
-		got, err := ds.GetSoftwareCategoryNameToIDMap(ctx, team2.ID, []string{"MyCustom"})
-		require.NoError(t, err)
-		assert.Empty(t, got)
-	})
+	// Other teams' rows are not visible.
+	got, err = ds.GetSoftwareCategoryNameToIDMap(ctx, team2.ID, []string{"MyCustom"})
+	require.NoError(t, err)
+	assert.Empty(t, got)
 }
