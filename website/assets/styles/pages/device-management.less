@@ -449,7 +449,7 @@
       h5 {
         font-size: 16px;
         line-height: 1.2;
-        font-weight: 800;
+        font-weight: 700;
       }
       p {
         font-size: 14px;
@@ -541,10 +541,18 @@
       padding: 0;
     }
     [purpose='hero-text'] {
-      max-width: 410px;
+      max-width: 642px
     }
     [purpose='page-content'] {
       gap: 120px;
+    }
+    [purpose='tweets-container'] {
+      margin-top: 120px;
+    }
+    [parasails-component='scrollable-tweets'] {
+      [purpose='tweets'] {
+        padding-bottom: 120px;
+      }
     }
     [purpose='large-page-section'] {
       display: flex;
@@ -605,6 +613,9 @@
 
       }
     }
+    [purpose='feature-row'] {
+      gap: 48px;
+    }
 
   }
 
@@ -621,6 +632,14 @@
     }
     [purpose='page-content'] {
       gap: 80px;
+    }
+    [purpose='tweets-container'] {
+      margin-top: 80px;
+    }
+    [parasails-component='scrollable-tweets'] {
+      [purpose='tweets'] {
+        padding-bottom: 80px;
+      }
     }
     [purpose='page-section'] {
       display: flex;
@@ -709,9 +728,6 @@
         margin-right: auto;
       }
     }
-    [purpose='hero-image'] {
-      margin-bottom: 60px;
-    }
 
     [purpose='bottom-cta'] {
       h2 {
@@ -724,9 +740,18 @@
   }
 
   @media (max-width: 575px) {
+    h1 {
+      font-size: 32px;
+    }
+    h2 {
+      font-size: 24px;
+    }
     [purpose='feature-with-image'] {
       [purpose='feature-text'] {
         width: 100%;
+        h2 {
+          font-size: 24px;
+        }
       }
     }
     [purpose='hero-image'] {
@@ -833,38 +858,13 @@
 
   @media (max-width: 390px) {
 
-    h1 {
-      font-size: 32px;
-    }
-    h2 {
-      font-size: 24px;
-    }
+
     [purpose='testimonial-quote'] {
       [purpose='quote'] {
         p {
           font-size: 16px;
         }
       }
-    }
-    [purpose='page-headline'] {
-      width: 100%;
-      h2 {
-        font-size: 24px;
-      }
-    }
-    [purpose='calendar-feature-text'] {
-      h3 {
-        font-size: 24px;
-      }
-    }
-    [purpose='feature-table'] {
-      [purpose='feature-name'] {
-        display: flex;
-        height: unset;
-      }
-    }
-    [purpose='page-container'] {
-      padding: 48px 16px;
     }
     [purpose='button-row'] {
       flex-direction: column;
@@ -875,8 +875,7 @@
       }
     }
     [purpose='tweets-container'] {
-      padding-left: 16px;
-      padding-right: 16px;
+
     }
     [parasails-component='scrollable-tweets'] {
       [purpose='tweets'] {
