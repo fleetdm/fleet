@@ -561,7 +561,7 @@ The icon should now be available to use with the `Icon` component from the given
 
 ### File size
 
-The recommend line limit per page/component is 500 lines. This is only a recommendation.
+The recommended line limit per page/component is 500 lines. This is only a recommendation.
 Larger files are to be split into multiple files if possible, especially components which could be split into subcomponents.
 
 ## Testing
