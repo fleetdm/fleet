@@ -2209,21 +2209,20 @@ func testNewMDMWindowsConfigProfileSoftwareUpdateTracking(t *testing.T, ds *Data
 	require.NoError(t, err)
 	require.True(t, configured)
 
-	// A second OS-update profile for the same team is rejected.
+	// A second OS-update profile for the same team is allowed.
 	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		Name:   "su2",
 		SyncML: osUpdateSyncML,
 	}, nil)
-	require.Error(t, err)
-	require.ErrorContains(t, err, fleet.WindowsProfileOSUpdateAlreadyExistsErrorMessage)
+	require.NoError(t, err)
 
-	// The rejected profile must not have been persisted (atomic rollback).
-	var rejectedCount int
+	// The allowed profile must have been persisted.
+	var persistedCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &rejectedCount,
+		return sqlx.GetContext(ctx, q, &persistedCount,
 			`SELECT COUNT(*) FROM mdm_windows_configuration_profiles WHERE team_id = 0 AND name = ?`, "su2")
 	})
-	require.Zero(t, rejectedCount)
+	require.Equal(t, 1, persistedCount)
 
 	// A non OS-update profile is unaffected by the existing tracked one.
 	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{

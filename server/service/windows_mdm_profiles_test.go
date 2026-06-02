@@ -446,18 +446,4 @@ func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
 		require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
 		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
 	})
-
-	t.Run("datastore reports an existing OS updates profile", func(t *testing.T) {
-		svc, ctx, ds := setup(t, true)
-		ds.AppConfigFunc = appConfigWith(nil)
-		ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
-			return nil, &fleet.BadRequestError{
-				Message: fleet.WindowsProfileOSUpdateAlreadyExistsErrorMessage,
-			}
-		}
-
-		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll)
-		require.Error(t, err)
-		require.ErrorContains(t, err, fleet.WindowsProfileOSUpdateAlreadyExistsErrorMessage)
-	})
 }

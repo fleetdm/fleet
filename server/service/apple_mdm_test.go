@@ -1191,20 +1191,6 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 			})
 		}
 	})
-
-	t.Run("datastore reports an existing OS updates declaration", func(t *testing.T) {
-		svc, ctx, ds := setup(t, true)
-		ds.AppConfigFunc = appConfigWith(nil)
-		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
-			return nil, &fleet.BadRequestError{
-				Message: fleet.AppleDeclarationOSUpdateAlreadyExistsErrorMessage,
-			}
-		}
-
-		_, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
-		require.Error(t, err)
-		require.ErrorContains(t, err, fleet.AppleDeclarationOSUpdateAlreadyExistsErrorMessage)
-	})
 }
 
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.

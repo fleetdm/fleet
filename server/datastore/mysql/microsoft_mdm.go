@@ -3685,23 +3685,8 @@ func (ds *Datastore) HasWindowsUpdateConfigProfileConfigured(ctx context.Context
 }
 
 // trackWindowsUpdateConfigProfileDB records profileUUID as the team's OS-update
-// profile within the caller's transaction, failing if the team already has one
-// so the surrounding profile insert rolls back.
+// profile within the caller's transaction
 func trackWindowsUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, teamID uint, profileUUID string) error {
-	const checkStmt = `
-	SELECT COUNT(*) > 0 FROM mdm_configuration_profile_update_settings mcpus
-		INNER JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = mcpus.windows_profile_uuid
-	WHERE mwcp.team_id = ? AND mcpus.windows_profile_uuid != ?`
-	var alreadyConfigured bool
-	if err := sqlx.GetContext(ctx, tx, &alreadyConfigured, checkStmt, teamID, profileUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "checking for existing software update profile")
-	}
-	if alreadyConfigured {
-		return &fleet.BadRequestError{
-			Message: fleet.WindowsProfileOSUpdateAlreadyExistsErrorMessage,
-		}
-	}
-
 	const insertStmt = `INSERT INTO mdm_configuration_profile_update_settings (windows_profile_uuid) VALUES (?)
 		ON DUPLICATE KEY UPDATE windows_profile_uuid = windows_profile_uuid`
 	if _, err := tx.ExecContext(ctx, insertStmt, profileUUID); err != nil {

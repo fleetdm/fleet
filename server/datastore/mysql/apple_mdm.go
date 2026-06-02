@@ -8608,23 +8608,8 @@ func (ds *Datastore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, 
 }
 
 // trackAppleUpdateConfigProfileDB records declUUID as the team's OS-update
-// declaration within the caller's transaction, failing if the team already has
-// one so the surrounding declaration insert rolls back.
+// declaration within the caller's transaction
 func trackAppleUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, teamID uint, declUUID string) error {
-	const checkStmt = `
-	SELECT COUNT(*) > 0 FROM mdm_configuration_profile_update_settings mcpus
-		INNER JOIN mdm_apple_declarations mad ON mad.declaration_uuid = mcpus.apple_declaration_uuid
-	WHERE mad.team_id = ? AND mcpus.apple_declaration_uuid != ?`
-	var alreadyConfigured bool
-	if err := sqlx.GetContext(ctx, tx, &alreadyConfigured, checkStmt, teamID, declUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "checking for existing software update profile")
-	}
-	if alreadyConfigured {
-		return &fleet.BadRequestError{
-			Message: fleet.AppleDeclarationOSUpdateAlreadyExistsErrorMessage,
-		}
-	}
-
 	const insertStmt = `INSERT INTO mdm_configuration_profile_update_settings (apple_declaration_uuid) VALUES (?)
 		ON DUPLICATE KEY UPDATE apple_declaration_uuid = apple_declaration_uuid`
 	if _, err := tx.ExecContext(ctx, insertStmt, declUUID); err != nil {

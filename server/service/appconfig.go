@@ -595,7 +595,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		if hasProfile {
 			return nil, &fleet.BadRequestError{
-				Message: fleet.AppleDeclarationOSUpdateAlreadyExistsErrorMessage,
+				Message: fleet.OSUpdatesAlreadyConfiguredErrorMessage,
 			}
 		}
 	}
@@ -608,7 +608,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		if hasProfile {
 			return nil, &fleet.BadRequestError{
-				Message: fleet.WindowsProfileOSUpdateAlreadyExistsErrorMessage,
+				Message: fleet.OSUpdatesAlreadyConfiguredErrorMessage,
 			}
 		}
 	}

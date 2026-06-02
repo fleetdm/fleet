@@ -2740,14 +2740,14 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 		freeTier    bool // if false, OS update profile should fail
 	}{
 		{
-			name:     "rejects more than one Apple OS update declaration",
-			profiles: []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1"), appleOSUpdate("apple-os-2", "os-update-2")},
-			wantErr:  "Only one Apple declaration profile with OS updates is allowed per team.",
+			name:      "Allows more than one Apple OS update declaration",
+			profiles:  []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1"), appleOSUpdate("apple-os-2", "os-update-2")},
+			wantApple: true,
 		},
 		{
-			name:     "rejects more than one Windows OS update profile",
-			profiles: []fleet.MDMProfileBatchPayload{windowsOSUpdate("win-os-1", "/Install"), windowsOSUpdate("win-os-2", "/Pause")},
-			wantErr:  "Only one Windows profile with OS updates is allowed per team.",
+			name:        "Allows more than one Windows OS update profile",
+			profiles:    []fleet.MDMProfileBatchPayload{windowsOSUpdate("win-os-1", "/Install"), windowsOSUpdate("win-os-2", "/Pause")},
+			wantWindows: true,
 		},
 		{
 			name:       "rejects Apple OS update declaration when OS updates already configured",

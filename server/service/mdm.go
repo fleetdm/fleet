@@ -2223,10 +2223,6 @@ func (svc *Service) BatchSetMDMProfiles(
 			continue
 		}
 
-		if seenAppleDeclOSUpdate {
-			// Two profiles with OS updates.
-			return &fleet.BadRequestError{Message: "Only one Apple declaration profile with OS updates is allowed per team."}
-		}
 		seenAppleDeclOSUpdate = true
 		rawAppleDecl = p.RawJSON
 	}
@@ -2236,10 +2232,6 @@ func (svc *Service) BatchSetMDMProfiles(
 			continue
 		}
 
-		if seenWindowsProfileOSUpdate {
-			// Two profiles with OS updates.
-			return &fleet.BadRequestError{Message: "Only one Windows profile with OS updates is allowed per team."}
-		}
 		seenWindowsProfileOSUpdate = true
 		rawWindowsProfile = p.SyncML
 	}
@@ -2249,19 +2241,19 @@ func (svc *Service) BatchSetMDMProfiles(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting raw declaration values")
 		}
+		// This is fine to only pass one of many into, it does re-check the type, but would be a no-op here as we have our guard above.
+		// So it checks the remaining things which is applicable for all profiles trying to set.
 		if err := svc.handleDeclarationSoftwareUpdate(ctx, rawDecl, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "handling declaration software update")
 		}
-
-		// We don't check already configured here, as batch setting will delete the old one and set a new one.
 	}
 
 	if seenWindowsProfileOSUpdate {
+		// This is fine to only pass one of many into, it does re-check the type, but would be a no-op here as we have our guard above.
+		// So it checks the remaining things which is applicable for all profiles trying to set.
 		if err := svc.handleWindowsProfileSoftwareUpdate(ctx, rawWindowsProfile, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "handling Windows profile software update")
 		}
-
-		// We don't check already configured here, as batch setting will delete the old one and set a new one.
 	}
 
 	if dryRun {

@@ -6627,18 +6627,17 @@ func testNewMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *Datastor
 	require.NoError(t, err)
 	require.True(t, configured)
 
-	// A second OS-update declaration for the same team is rejected.
+	// A second OS-update declaration for the same team is allowed.
 	_, err = ds.NewMDMAppleDeclaration(ctx, suDecl("su2", "com.fleet.su2"), nil)
-	require.Error(t, err)
-	require.ErrorContains(t, err, fleet.AppleDeclarationOSUpdateAlreadyExistsErrorMessage)
+	require.NoError(t, err)
 
-	// The rejected declaration must not have been persisted (atomic rollback).
-	var rejectedCount int
+	// The allowed declaration must have been persisted.
+	var persistedCount int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &rejectedCount,
+		return sqlx.GetContext(ctx, q, &persistedCount,
 			`SELECT COUNT(*) FROM mdm_apple_declarations WHERE team_id = 0 AND identifier = ?`, "com.fleet.su2")
 	})
-	require.Zero(t, rejectedCount)
+	require.Equal(t, 1, persistedCount)
 
 	// A non OS-update declaration is unaffected by the existing tracked one.
 	_, err = ds.NewMDMAppleDeclaration(ctx, declForTest("other", "other", ""), nil)
