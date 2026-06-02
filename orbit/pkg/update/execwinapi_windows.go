@@ -209,8 +209,7 @@ const windowsMDMSyncTriggerTimeout = 2 * time.Minute
 
 // TriggerWindowsMDMSync starts an on-demand, client-initiated OMA-DM session with the Fleet MDM server so that queued Windows MDM commands
 // are delivered without waiting for the device's next scheduled poll. It runs the OS deviceenroller for Fleet's enrollment in
-// client-initiated mode: `deviceenroller.exe /o <EnrollmentGUID> /c`. This is deliberately the client-initiated path, not the
-// push-initiated path (`/c /z`), which fails with Event 4603 (GetPushAlertInfo / notificationIdNotRetrieved) on current Windows builds.
+// client-initiated mode: `deviceenroller.exe /o <EnrollmentGUID> /c`.
 //
 // Microsoft does not publicly document these deviceenroller flags or the Event 4603 behavior. Both were established empirically while
 // investigating Fleet issue #43773 and validated end-to-end on Windows 11 25H2 (build 26200): `/o <GUID> /c` reliably starts a session and
