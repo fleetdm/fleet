@@ -230,6 +230,7 @@ input[type="number"] {
   border: 1px solid var(--app-border);
   border-radius: var(--radius-lg);
   padding: var(--pad-medium);
+  box-shadow: var(--shadow-card);
 }
 /* Dense card variant — for rows like Active processes / cron triggers
  * where the default 16px padding makes the list look airy. Replaces the
