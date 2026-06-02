@@ -1750,16 +1750,13 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 		ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
 			return &fleet.HostOrbitInfo{Version: orbitVersion}, nil
 		}
-		ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, hostUUIDsOrDeviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
-			assert.Equal(t, []string{deviceID}, hostUUIDsOrDeviceIDs, "poll command must target the enrollment's device id")
-			if caps != nil {
-				caps.enqueued = cmd
-			}
-			return nil
-		}
-		ds.SetMDMWindowsEnrollmentPollScheduleRelaxedFunc = func(ctx context.Context, id uint, relaxed bool) error {
+		ds.MDMWindowsEnqueuePollScheduleCommandFunc = func(
+			ctx context.Context, mdmDeviceID string, id uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
+		) error {
+			assert.Equal(t, deviceID, mdmDeviceID, "poll command must target the enrollment's device id")
 			assert.Equal(t, enrollmentID, id)
 			if caps != nil {
+				caps.enqueued = cmd
 				caps.intendedRelaxed = &relaxed
 			}
 			return nil
@@ -1809,8 +1806,7 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 
 		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(true))
 		require.NoError(t, err)
-		assert.False(t, ds.MDMWindowsInsertCommandForHostsFuncInvoked, "no enqueue when intended already matches desired")
-		assert.False(t, ds.SetMDMWindowsEnrollmentPollScheduleRelaxedFuncInvoked)
+		assert.False(t, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked, "no enqueue when intended already matches desired")
 	})
 
 	t.Run("non-capable host that intends relaxed is restored to fast", func(t *testing.T) {
@@ -1832,8 +1828,7 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 
 		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(false))
 		require.NoError(t, err)
-		assert.False(t, ds.MDMWindowsInsertCommandForHostsFuncInvoked)
-		assert.False(t, ds.SetMDMWindowsEnrollmentPollScheduleRelaxedFuncInvoked)
+		assert.False(t, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
 	})
 
 	t.Run("unlinked host is treated as not-capable", func(t *testing.T) {
@@ -1846,7 +1841,7 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), device)
 		require.NoError(t, err)
 		assert.False(t, ds.HostLiteByIdentifierFuncInvoked, "must not resolve a host without a UUID")
-		assert.False(t, ds.MDMWindowsInsertCommandForHostsFuncInvoked)
+		assert.False(t, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
 	})
 
 	t.Run("missing orbit info is treated as not-capable", func(t *testing.T) {
@@ -1860,7 +1855,7 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 
 		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(false))
 		require.NoError(t, err)
-		assert.False(t, ds.MDMWindowsInsertCommandForHostsFuncInvoked)
+		assert.False(t, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
 	})
 }
 

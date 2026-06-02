@@ -2005,6 +2005,31 @@ func testMDMWindowsPollScheduleRelaxed(t *testing.T, ds *Datastore) {
 	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
 	require.NoError(t, err)
 	require.False(t, got.PollScheduleRelaxed)
+
+	// MDMWindowsEnqueuePollScheduleCommand enqueues the Replace and records the intended schedule in one transaction: the queued poll command
+	// is delivered to the device, the intended-state flag flips, and the poll command itself is excluded from has_pending_commands (so it never
+	// triggers a wake on its own).
+	pollCmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte("<Replace></Replace>"),
+		TargetLocURI: syncml.DMClientPollIntervalLocURI,
+	}
+	require.NoError(t, ds.MDMWindowsEnqueuePollScheduleCommand(ctx, d.MDMDeviceID, enrollmentID, pollCmd, true))
+
+	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.True(t, got.PollScheduleRelaxed, "intended schedule should be recorded as relaxed")
+
+	pending, err := ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
+	require.NoError(t, err)
+	require.Len(t, pending, 1, "the poll Replace should be queued for delivery")
+	require.Equal(t, pollCmd.CommandUUID, pending[0].CommandUUID)
+
+	// The poll Replace is internal and must not, by itself, mark the host as having pending commands.
+	state, err := ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+	require.False(t, state.HasPendingCommands, "internal poll Replace must not set has_pending_commands")
 }
 
 func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {

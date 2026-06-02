@@ -2113,6 +2113,11 @@ type Datastore interface {
 	// once per intended change.
 	SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx context.Context, enrollmentID uint, relaxed bool) error
 
+	// MDMWindowsEnqueuePollScheduleCommand enqueues the DMClient poll-schedule Replace command and records the intended relaxed state for the
+	// enrollment in a single transaction, so a transient failure between the two writes cannot leave a queued Replace without its matching
+	// intended-state flag (which would make the next management session enqueue a duplicate Replace).
+	MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *MDMWindowsCommand, relaxed bool) error
+
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
 	MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*MDMWindowsEnrolledDevice, error)
 

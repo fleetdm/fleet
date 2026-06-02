@@ -104,11 +104,32 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 // written once per intended change; delivery and acknowledgment of the Replace itself are handled by the standard Windows MDM command
 // queue.
 func (ds *Datastore) SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx context.Context, enrollmentID uint, relaxed bool) error {
-	if _, err := ds.writer(ctx).ExecContext(ctx,
+	return ds.setMDMWindowsEnrollmentPollScheduleRelaxedDB(ctx, ds.writer(ctx), enrollmentID, relaxed)
+}
+
+func (ds *Datastore) setMDMWindowsEnrollmentPollScheduleRelaxedDB(ctx context.Context, tx sqlx.ExtContext, enrollmentID uint, relaxed bool) error {
+	if _, err := tx.ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET poll_schedule_relaxed = ? WHERE id = ?`, relaxed, enrollmentID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set mdm windows enrollment poll schedule relaxed")
 	}
 	return nil
+}
+
+// MDMWindowsEnqueuePollScheduleCommand enqueues the DMClient poll-schedule Replace command and records the intended relaxed state for the
+// enrollment in a single transaction. Performing both writes atomically prevents a transient failure between them from leaving a queued
+// Replace without its matching intended-state flag, which would otherwise make the next management session enqueue a duplicate Replace.
+func (ds *Datastore) MDMWindowsEnqueuePollScheduleCommand(
+	ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
+) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, []string{mdmDeviceID}, cmd); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueue windows MDM poll schedule command")
+		}
+		if err := ds.setMDMWindowsEnrollmentPollScheduleRelaxedDB(ctx, tx, enrollmentID, relaxed); err != nil {
+			return ctxerr.Wrap(ctx, err, "record windows MDM poll schedule intended")
+		}
+		return nil
+	})
 }
 
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
@@ -262,17 +283,20 @@ func (ds *Datastore) recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx co
 	if len(enrollmentIDs) == 0 {
 		return nil
 	}
-	stmt, args, err := sqlx.In(
-		`UPDATE mdm_windows_enrollments e SET e.has_pending_commands = `+windowsMDMHasPendingCommandsExpr+` WHERE e.id IN (?)`,
-		syncml.DMClientPollIntervalLocURI, enrollmentIDs,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build recompute has_pending_commands by enrollment ids")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "recompute has_pending_commands by enrollment ids")
-	}
-	return nil
+	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
+	return common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMProfileDeleteBatchSize, func(batch []uint) error {
+		stmt, args, err := sqlx.In(
+			`UPDATE mdm_windows_enrollments e SET e.has_pending_commands = `+windowsMDMHasPendingCommandsExpr+` WHERE e.id IN (?)`,
+			syncml.DMClientPollIntervalLocURI, batch,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build recompute has_pending_commands by enrollment ids")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "recompute has_pending_commands by enrollment ids")
+		}
+		return nil
+	})
 }
 
 // recomputeMDMWindowsHasPendingCommandsByHostUUIDs refreshes has_pending_commands for the enrollments of the given hosts. Used by the
@@ -281,17 +305,20 @@ func (ds *Datastore) recomputeMDMWindowsHasPendingCommandsByHostUUIDs(ctx contex
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
-	stmt, args, err := sqlx.In(
-		`UPDATE mdm_windows_enrollments e SET e.has_pending_commands = `+windowsMDMHasPendingCommandsExpr+` WHERE e.host_uuid IN (?)`,
-		syncml.DMClientPollIntervalLocURI, hostUUIDs,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build recompute has_pending_commands by host uuids")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "recompute has_pending_commands by host uuids")
-	}
-	return nil
+	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
+	return common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMProfileDeleteBatchSize, func(batch []string) error {
+		stmt, args, err := sqlx.In(
+			`UPDATE mdm_windows_enrollments e SET e.has_pending_commands = `+windowsMDMHasPendingCommandsExpr+` WHERE e.host_uuid IN (?)`,
+			syncml.DMClientPollIntervalLocURI, batch,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build recompute has_pending_commands by host uuids")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "recompute has_pending_commands by host uuids")
+		}
+		return nil
+	})
 }
 
 // MDMWindowsInsertEnrolledDevice inserts a new MDMWindowsEnrolledDevice in the

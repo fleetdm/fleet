@@ -2077,6 +2077,14 @@ const (
 // windowsMDMHostSupportsSync reports whether the enrolled host's fleetd is new enough to start an on-demand OMA-DM session when asked. The
 // orbit version is read from host_orbit_info (Fleet's established out-of-request signal); a missing/unlinked host or unknown version is
 // treated as not-capable, which keeps the host on the fast poll (the safe default).
+//
+// Known limitation: this version-based gate and the wake-notification path (which reads the live X-Fleet-Capabilities header on each
+// orbit-config request) are two snapshots of the same capability that update at different cadences. On a fleetd downgrade below
+// minWindowsMDMSyncOrbitVersion, the live header drops CapabilityWindowsMDMSync immediately so no wake is set, but this gate still sees the
+// stale higher version and leaves the host on the relaxed poll until osquery re-ingests orbit_info (after which the next management session
+// restores the fast poll). Command latency regresses to the relaxed interval for that window. This is accepted: fleetd auto-updates forward,
+// so downgrades are uncommon, and the condition is self-healing. Driving both paths off a single persisted capability flag (written by the
+// orbit-config endpoint) would close the window but is deferred.
 func (svc *Service) windowsMDMHostSupportsSync(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) (bool, error) {
 	if device.HostUUID == "" {
 		return false, nil
@@ -2142,11 +2150,10 @@ func (svc *Service) reconcileWindowsMDMPollSchedule(ctx context.Context, device 
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build windows MDM poll schedule command")
 	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.MDMDeviceID}, cmd); err != nil {
+	// Enqueue the Replace and record the intended schedule atomically so a transient failure between the two writes cannot leave the queued
+	// command without its matching intended-state flag, which would otherwise make the next management session enqueue a duplicate Replace.
+	if err := svc.ds.MDMWindowsEnqueuePollScheduleCommand(ctx, device.MDMDeviceID, device.ID, cmd, desiredRelaxed); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueue windows MDM poll schedule command")
-	}
-	if err := svc.ds.SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx, device.ID, desiredRelaxed); err != nil {
-		return ctxerr.Wrap(ctx, err, "record windows MDM poll schedule intended")
 	}
 	svc.logger.DebugContext(ctx, "reconciled Windows MDM poll schedule", "device_id", device.MDMDeviceID, "relaxed", desiredRelaxed)
 	return nil
