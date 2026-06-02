@@ -1523,6 +1523,29 @@ type Service interface {
 
 	// UnenrollMDM unenrolls the host from MDM
 	UnenrollMDM(ctx context.Context, hostID uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Apple Platform SSO (PSSO)
+
+	// PSSONonce issues a fresh nonce for the Mac extension to embed in
+	// subsequent registration/token JWTs.
+	PSSONonce(ctx context.Context) (string, error)
+	// PSSORegisterBegin returns the redirect URL the Mac extension's WebView
+	// should follow to start the upstream IdP's OAuth code flow.
+	PSSORegisterBegin(ctx context.Context) (string, error)
+	// PSSORegisterComplete consumes the code returned by the upstream IdP,
+	// validates the device-key payload, and persists the registration.
+	PSSORegisterComplete(ctx context.Context, req PSSORegisterRequest) error
+	// PSSOToken handles the per-sign-in protocol message: parses the inbound
+	// signed JWT, dispatches on RequestType (key_request / key_exchange /
+	// password_request), and returns the JWE response body.
+	PSSOToken(ctx context.Context, jwtBytes []byte) ([]byte, error)
+	// PSSOJWKS returns the JSON web key set that publishes Fleet's PSSO
+	// signing public key.
+	PSSOJWKS(ctx context.Context) ([]byte, error)
+	// PSSOAASA returns the apple-app-site-association JSON used by Apple's
+	// framework to bind the extension's authsrv: entitlement to a Team+Bundle ID.
+	PSSOAASA(ctx context.Context) ([]byte, error)
 }
 
 type KeyValueStore interface {

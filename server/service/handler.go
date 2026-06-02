@@ -1281,6 +1281,7 @@ func RegisterAppleMDMProtocolServices(
 	profileService nanomdm_service.ProfileService,
 	serverURLPrefix string,
 	fleetConfig config.FleetConfig,
+	svc fleet.Service,
 ) error {
 	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
 		return fmt.Errorf("scep: %w", err)
@@ -1290,6 +1291,9 @@ func RegisterAppleMDMProtocolServices(
 	}
 	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
+	}
+	if err := registerPSSO(mux, svc, logger, fleetConfig); err != nil {
+		return fmt.Errorf("psso: %w", err)
 	}
 	return nil
 }
@@ -1314,6 +1318,25 @@ func registerMDMServiceDiscovery(
 		}
 	})
 	mux.Handle(apple_mdm.ServiceDiscoveryPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryPath, fleetConfig))
+	return nil
+}
+
+func registerPSSO(
+	mux *http.ServeMux,
+	svc fleet.Service,
+	logger *slog.Logger,
+	fleetConfig config.FleetConfig,
+) error {
+	// Apple Platform SSO (PSSO) endpoints. Paths follow the SCEP convention
+	// (no /api/ prefix, no version). The Mac extension talks to these directly;
+	// auth is via signed JWTs verified inside the token handler. We register
+	// directly on the root *http.ServeMux (not the versioned /api router) so
+	// the paths Apple's framework expects (`/.well-known/...`, raw protocol
+	// paths) resolve without any prefix rewriting.
+	pssoLogger := logger.With("component", "mdm-apple-psso")
+	for path, handler := range pssoHandlers(svc, pssoLogger) {
+		mux.Handle(path, otel.WrapHandler(handler, path, fleetConfig))
+	}
 	return nil
 }
 
