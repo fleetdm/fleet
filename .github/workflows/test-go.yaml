@@ -64,7 +64,9 @@ jobs:
     with:
       suite: ${{ matrix.suite }}
       is_cron: ${{ github.event_name == 'schedule' }}
-    secrets: inherit
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
 
   # ──────────────────────────────────────────────────────────────────────────
   # Suites that need MySQL: always-run versions (every push/PR + cron).
@@ -80,7 +82,9 @@ jobs:
       suite: ${{ matrix.suite }}
       mysql: ${{ matrix.mysql }}
       is_cron: ${{ github.event_name == 'schedule' }}
-    secrets: inherit
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
 
   # ──────────────────────────────────────────────────────────────────────────
   # Extended MySQL coverage: only on the nightly cron schedule.
@@ -97,7 +101,9 @@ jobs:
       suite: ${{ matrix.suite }}
       mysql: ${{ matrix.mysql }}
       is_cron: true
-    secrets: inherit
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
 
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
