@@ -4408,4 +4408,3 @@ func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
 		assert.Contains(t, err.Error(), "self_service_categories")
 	})
 }
-
