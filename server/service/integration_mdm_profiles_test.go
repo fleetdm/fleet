@@ -8834,6 +8834,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	}, http.StatusOK)
 	hostProfiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
+	testProfile = nil
 	for _, p := range hostProfiles {
 		if p.Identifier == "com.test.profile" {
 			testProfile = &p
@@ -8842,6 +8843,13 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	}
 	require.NotNil(t, testProfile)
 	require.EqualValues(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be pending again due to device mapping deletion
+
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status *fleet.MDMDeliveryStatus
+		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_identifier = ?`, host.UUID, testProfile.Identifier)
+		require.Nil(t, status)
+		return err
+	})
 }
 
 func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {

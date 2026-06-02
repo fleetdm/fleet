@@ -4755,7 +4755,9 @@ func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID 
 }
 
 func (ds *Datastore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error {
-	return deleteHostSCIMUserMapping(ctx, ds.writer(ctx), hostID)
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return deleteHostSCIMUserMapping(ctx, tx, hostID)
+	})
 }
 
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
