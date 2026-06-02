@@ -7,7 +7,6 @@
     font-size: $x-small;
   }
 
-  // Scroll horizontally at narrow widths instead of truncating Name/Description.
   .data-table-block .data-table__wrapper {
     overflow-x: auto;
   }
