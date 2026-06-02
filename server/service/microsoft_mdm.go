@@ -1761,6 +1761,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 					if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeWipeFailedHost{
 						HostID:          host.ID,
 						HostDisplayName: host.DisplayName(),
+						HostPlatform:    host.Platform,
 					}); err != nil {
 						svc.logger.WarnContext(ctx, "failed to create wipe_failed_host activity",
 							"host_id", host.ID, "err", err)
