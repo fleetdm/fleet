@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -32,8 +33,8 @@ func patchTraceSamplerHandler(logger *slog.Logger, ds fleet.Datastore) http.Hand
 		// real user id of 0 and weakens the audit trail.
 		v, ok := viewer.FromContext(r.Context())
 		if !ok {
-			logger.ErrorContext(r.Context(), "debug trace_sampler PATCH refused: viewer missing from context")
-			http.Error(w, "viewer required", http.StatusInternalServerError)
+			handleServerError(w, r, logger, "debug trace_sampler PATCH refused: viewer missing from context", "viewer required",
+				errors.New("viewer missing from context"))
 			return
 		}
 
@@ -50,8 +51,7 @@ func patchTraceSamplerHandler(logger *slog.Logger, ds fleet.Datastore) http.Hand
 
 		current, err := ds.GetTraceSamplerSettings(r.Context())
 		if err != nil {
-			logger.ErrorContext(r.Context(), "debug trace_sampler PATCH read-modify failed", "err", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			handleServerError(w, r, logger, "debug trace_sampler PATCH read-modify failed", "internal error", err)
 			return
 		}
 
@@ -66,8 +66,7 @@ func patchTraceSamplerHandler(logger *slog.Logger, ds fleet.Datastore) http.Hand
 		}
 
 		if err := ds.SetTraceSamplerSettings(r.Context(), current); err != nil {
-			logger.ErrorContext(r.Context(), "debug trace_sampler PATCH write failed", "err", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
+			handleServerError(w, r, logger, "debug trace_sampler PATCH write failed", "internal error", err)
 			return
 		}
 
@@ -84,13 +83,20 @@ func patchTraceSamplerHandler(logger *slog.Logger, ds fleet.Datastore) http.Hand
 		current.UpdatedAt = time.Time{}
 		b, err := json.MarshalIndent(current, "", "  ")
 		if err != nil {
-			logger.ErrorContext(r.Context(), "debug trace_sampler PATCH encode response failed", "err", err)
-			http.Error(w, "encoding response", http.StatusInternalServerError)
+			handleServerError(w, r, logger, "debug trace_sampler PATCH encode response failed", "encoding response", err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = w.Write(b)
 	}
+}
+
+// handleServerError centralizes the internal-error response used throughout the trace sampler PATCH handler: it logs logMsg
+// with err, records err on the context for the error-handling middleware, and writes clientMsg to the client as a 500.
+func handleServerError(w http.ResponseWriter, r *http.Request, logger *slog.Logger, logMsg, clientMsg string, err error) {
+	logger.ErrorContext(r.Context(), logMsg, "err", err)
+	ctxerr.Handle(r.Context(), err)
+	http.Error(w, clientMsg, http.StatusInternalServerError)
 }
 
 func validateTraceSamplerPatch(req traceSamplerPatchRequest) error {

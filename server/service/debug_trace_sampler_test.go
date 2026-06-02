@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mockds "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/tracing"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -31,7 +30,7 @@ func adminAuthedRequest(t *testing.T, method, target string, body string) (*mock
 	svc.On("GetSessionByKey", mock.Anything, "fake_session_key").
 		Return(&fleet.Session{UserID: 42, ID: 1}, nil)
 	svc.On("UserUnauthorized", mock.Anything, uint(42)).
-		Return(&fleet.User{ID: 42, GlobalRole: ptr.String(fleet.RoleAdmin)}, nil)
+		Return(&fleet.User{ID: 42, GlobalRole: new(fleet.RoleAdmin)}, nil)
 
 	var reqBody io.Reader
 	if body != "" {
