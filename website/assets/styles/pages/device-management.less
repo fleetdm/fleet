@@ -5,6 +5,7 @@
 
   h1 {
     .title-xl();
+    margin-bottom: 0px;
   }
   h2 {
     .title-l();
@@ -411,7 +412,6 @@
 
   [purpose='feature-with-image'] {
     .feature-with-image();
-    // margin-bottom: 0px;
     [purpose='feature-text'] {
       h2 {
         font-size: 28px;
@@ -508,7 +508,6 @@
     }
     h4 {
       font-size: 16px;
-      margin-bottom: 8px;
     }
     [purpose='button-row'] {
       margin-top: 40px;
@@ -728,15 +727,6 @@
         margin-right: auto;
       }
     }
-
-    [purpose='bottom-cta'] {
-      h2 {
-        font-size: 32px;
-      }
-      br {
-        display: none;
-      }
-    }
   }
 
   @media (max-width: 575px) {
@@ -758,6 +748,15 @@
        img {
          max-width: 100%;
        }
+    }
+    [purpose='button-row'] {
+      flex-direction: column;
+      width: 100%;
+      [purpose='cta-button'] {
+        width: 100%;
+        margin-bottom: 16px;
+        margin-right: 0;
+      }
     }
     [purpose='feature-item'] {
       flex: 1 0 100%;
@@ -858,33 +857,13 @@
 
   @media (max-width: 390px) {
 
-
-    [purpose='testimonial-quote'] {
-      [purpose='quote'] {
-        p {
-          font-size: 16px;
-        }
-      }
-    }
-    [purpose='button-row'] {
-      flex-direction: column;
-      [purpose='cta-button'] {
-        width: 100%;
-        margin-bottom: 16px;
         margin-right: 0;
+    [purpose='page-headline'] {
+      br {
+        display: none;
       }
     }
-    [purpose='tweets-container'] {
 
-    }
-    [parasails-component='scrollable-tweets'] {
-      [purpose='tweets'] {
-        margin-top: 32px;
-        margin-bottom: 0px;
-        padding-left: 16px;
-        padding-bottom: 32px;
-      }
-    }
 
   }
 }
