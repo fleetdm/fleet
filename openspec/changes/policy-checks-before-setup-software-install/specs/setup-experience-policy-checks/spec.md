@@ -3,11 +3,13 @@
 ### Requirement: Windows/Linux setup-experience software is gated by its associated policy
 
 Each Windows/Linux setup-experience software installer SHALL be "policy-gated" when a team policy references it. Concretely, an
-item that is a software installer (`software_installers.install_during_setup = 1`) is gated when a team policy for the host's team has
-`software_installer_id` equal to that installer. The association SHALL be discovered server-side with no REST API, YAML,
-fleetctl, fleetd, activity, or permission changes, and SHALL be recorded on the setup-experience status row at enqueue time as an
-internal (`json:"-"`) `policy_id`. Items with no associated policy SHALL install unconditionally exactly as before. VPP items and
-macOS/iOS/iPadOS items SHALL never be policy-gated.
+item that is a software installer (`software_installers.install_during_setup = 1`) is gated when a policy scoped to the host's
+team has `software_installer_id` equal to that installer. The association SHALL match by team scope, including the global / "No
+team" case: a host with `team_id` NULL (`teamID = 0`) SHALL be gated by global policies (`policies.team_id IS NULL`), so the
+lookup SHALL map `teamID = 0` to `team_id IS NULL` rather than `team_id = 0`. The association SHALL be discovered server-side with
+no REST API, YAML, fleetctl, fleetd, activity, or permission changes, and SHALL be recorded on the setup-experience status row at
+enqueue time as an internal (`json:"-"`) `policy_id`. Items with no associated policy SHALL install unconditionally exactly as
+before. VPP items and macOS/iOS/iPadOS items SHALL never be policy-gated.
 
 #### Scenario: Associated policy recorded at enqueue
 
@@ -19,6 +21,13 @@ macOS/iOS/iPadOS items SHALL never be policy-gated.
 
 - **WHEN** the targeted installer has no team policy referencing it
 - **THEN** the row's `policy_id` SHALL be NULL and the item SHALL be installed during setup as before
+
+#### Scenario: Global policy gates a No-team host
+
+- **WHEN** a Windows or Linux host with no team (`team_id` NULL / `teamID = 0`) enrolls and a global policy
+  (`policies.team_id IS NULL`) has install-software automation pointing at one of the host's setup-experience installers
+- **THEN** the inserted `setup_experience_status_results` row SHALL carry that global policy's `policy_id` (the lookup SHALL NOT
+  miss it by comparing `team_id = 0`)
 
 #### Scenario: Apple platforms are never gated
 

@@ -7,7 +7,8 @@ Setup experience for Windows/Linux is a server-driven, polled state machine. The
 (`ee/server/service/setup_experience.go:178-348`), which installs software items one at a time (FIFO by display name), marking
 each `running` then `success`/`failure`. On Windows Autopilot/OOBE-ESP the device is held at the Enrollment Status Page until
 all items reach a terminal state. The status enum is `pending|running|success|failure|cancelled`
-(`server/fleet/setup_experience.go:8-15`); `success`/`failure` are terminal.
+(`server/fleet/setup_experience.go:8-15`); `success`/`failure` are terminal (and `cancelled` is also final, used when
+`requireAllSoftware` cancels remaining items, though `IsTerminalStatus()` itself returns only success/failure).
 
 Policies are osquery SQL queries. Results land via `SubmitDistributedQueryResults` ->
 `RecordPolicyQueryExecutions` (`server/datastore/mysql/policies.go:662-796`), which upserts `policy_membership(host_id,
@@ -39,11 +40,16 @@ must surgically reverse that for associated policies only.
 
 ### Association is implicit via `policies.software_installer_id`, resolved at enqueue time
 
-A Windows/Linux setup-experience item (`software_installers.install_during_setup = 1`) is policy-gated iff some team policy has
-`software_installer_id` equal to that installer. `EnqueueSetupExperienceItems` already joins `software_installers` for the host's
-team; extend it to `LEFT JOIN policies p ON p.software_installer_id = si.id AND p.team_id <=> <team>` and store the matched
-`policy_id` on the new `setup_experience_status_results.policy_id` column. Resolving at enqueue time (rather than per-poll) fixes
-the gate for the duration of this setup run and gives us the exact set of policies to un-skip.
+A Windows/Linux setup-experience item (`software_installers.install_during_setup = 1`) is policy-gated iff a policy scoped to the
+host's team has `software_installer_id` equal to that installer. `EnqueueSetupExperienceItems` already joins `software_installers`
+for the host's team; extend it to `LEFT JOIN policies p ON p.software_installer_id = si.id` with the team predicate and store the
+matched `policy_id` on the new `setup_experience_status_results.policy_id` column. Resolving at enqueue time (rather than per-poll)
+fixes the gate for the duration of this setup run and gives us the exact set of policies to un-skip.
+
+**Global / "No team" hosts.** Global-scope policies have `policies.team_id IS NULL`, and "No team" hosts have `team_id` NULL /
+`teamID = 0`. The team predicate must therefore map `teamID = 0` to `p.team_id IS NULL` (e.g. `p.team_id <=> NULLIF(?, 0)`), not
+`p.team_id = 0`, or the gate would never apply to global policies / No-team hosts. Follow the existing null-safe team-scoping
+pattern used elsewhere in `server/datastore/mysql/policies.go`.
 
 If more than one policy targets the same installer, pick deterministically (lowest `policy_id`) and log the ambiguity. (Open
 question: confirm product expectation for multi-policy.)
@@ -94,7 +100,7 @@ row. Because `policy_id` is orthogonal to the existing mutually-exclusive value 
 tweak to allow `policy_id` alongside `software_installer_id`; no run-script script-ref handling is required. The new column is
 `json:"-"` -> no API change.
 
-A migration adds these columns (`make migration name=AddPolicyGateToSetupExperienceResults`). Down is a no-op per repo
+A migration adds this column (`make migration name=AddPolicyGateToSetupExperienceResults`). Down is a no-op per repo
 convention; include a migration test.
 
 ### Scope guard: Windows/Linux only

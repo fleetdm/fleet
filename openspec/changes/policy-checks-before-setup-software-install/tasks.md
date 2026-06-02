@@ -37,7 +37,9 @@ conclusions back into `design.md` decisions 2 and 3.
 
 - [ ] 4.1 Extend `EnqueueSetupExperienceItems` (`server/datastore/mysql/setup_experience.go:198-236`, Windows/Linux installer
       branch only) to `LEFT JOIN policies ON software_installer_id` for the host's team and persist the matched `policy_id`
-      (deterministic lowest id on ties; log ambiguity). Do not touch the VPP / macOS branches.
+      (deterministic lowest id on ties; log ambiguity). Map `teamID = 0` to `policies.team_id IS NULL` so global policies gate
+      No-team hosts (use the existing null-safe team-scoping pattern; do NOT compare `team_id = 0`). Do not touch the VPP / macOS
+      branches.
 - [ ] 4.2 Add a datastore method to return the associated `policy_id`s for a host's non-terminal setup-experience items (drives
       the selective un-skip).
 - [ ] 4.3 Add/extend a datastore method to fetch the freshest `policy_membership` pass/fail for `(host_id, policy_id)` including
