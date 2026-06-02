@@ -696,7 +696,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallPending),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstallPending),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostPendingInstall.ID},
@@ -706,7 +706,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: &inHouseTitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallPending),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstallPending),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInHousePendingInstall.ID},
@@ -716,7 +716,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwarePending),
+						SoftwareStatusFilter:  new(fleet.SoftwarePending),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostPendingInstall.ID, hostPendingUninstall.ID},
@@ -726,7 +726,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: &inHouseTitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwarePending),
+						SoftwareStatusFilter:  new(fleet.SoftwarePending),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInHousePendingInstall.ID},
@@ -736,7 +736,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallFailed),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstallFailed),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostFailedInstall.ID},
@@ -746,7 +746,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: &inHouseTitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstallFailed),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstallFailed),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInHouseFailedInstall.ID},
@@ -756,7 +756,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareFailed),
+						SoftwareStatusFilter:  new(fleet.SoftwareFailed),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostFailedInstall.ID, hostFailedUninstall.ID},
@@ -766,7 +766,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: &inHouseTitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareFailed),
+						SoftwareStatusFilter:  new(fleet.SoftwareFailed),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInHouseFailedInstall.ID},
@@ -776,7 +776,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstalled),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstalled),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInstalled.ID},
@@ -786,7 +786,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: &inHouseTitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareInstalled),
+						SoftwareStatusFilter:  new(fleet.SoftwareInstalled),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostInHouseInstalled.ID},
@@ -796,7 +796,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareUninstallPending),
+						SoftwareStatusFilter:  new(fleet.SoftwareUninstallPending),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostPendingUninstall.ID},
@@ -806,7 +806,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 					opts: fleet.HostListOptions{
 						ListOptions:           fleet.ListOptions{PerPage: 100},
 						SoftwareTitleIDFilter: installerMeta.TitleID,
-						SoftwareStatusFilter:  ptr.T(fleet.SoftwareUninstallFailed),
+						SoftwareStatusFilter:  new(fleet.SoftwareUninstallFailed),
 						TeamFilter:            teamFilter,
 					},
 					wantHostIDs: []uint{hostFailedUninstall.ID},
