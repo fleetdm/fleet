@@ -209,6 +209,14 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 Bulk SWAG (Stuff-We-All-Get) orders of any kind are reviewed and placed by the [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team). If we're ordering a new SWAG item, the Content Specialist will work with the [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team) to obtain an approved product template. 
 
+##### Request swag
+
+There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. To request swag:
+1. [Create an issue](https://github.com/orgs/fleetdm/projects/65) on the :help-marketing board.
+2. Provide order details (e.g. expected shirt size, name, and shipping details).
+3. Decide if you'd like to include a personalized message and attach it to the issue.
+
+
 #### Video
 
 Fleet uses YouTube to help keep the community up-to-date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Sprint demos!").  

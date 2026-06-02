@@ -562,5 +562,5 @@ see new-workshop.sh in the marketing folder
 
 
 
-<meta name="maintainedBy" value="johnjeremiah">
+<meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Marketing event execution">

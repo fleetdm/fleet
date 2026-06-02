@@ -58,5 +58,5 @@ The following campaigns are scheduled for launch in **March 2026**. Campaign nam
 
 
 
-<meta name="maintainedBy" value="johnjeremiah">
+<meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Digital Campaigns">

@@ -29,5 +29,5 @@ If these steps are completed for any current online or in-person training, the F
 
 >This is a clear set of instructions, but it is also a system of honor, kind of like getting knighted. Once made a knight, you can knight other knights ("System admins" also tend to follow this pattern.) Use this power wisely. We want students to have great experiences. Great Experiences in classes are delvered by qualified instructors.
 
-<meta name="maintainedBy" value="nonpunctual">
+<meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="Product education">

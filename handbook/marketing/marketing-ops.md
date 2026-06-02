@@ -738,5 +738,5 @@ Fleet uses a virtual persona — Grace West (gracewest at fleetdm.com) — as th
 
 Once verified, the **From** dropdown in Gmail's compose window lets you switch to "Grace West <gracewest at fleetdm.com>" when sending.
 
-<meta name="maintainedBy" value="johnjeremiah">
+<meta name="maintainedBy" value="akuthiala">
 <meta name="title" value="🫧 Marketing ops">
