@@ -4337,5 +4337,39 @@ func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
 		assert.True(t, gitops.Software.SelfServiceCategories.Set)
 		assert.Equal(t, []string{"🌎 Browsers", "Productivity", "💼 Engineering"}, gitops.Software.SelfServiceCategories.Value)
 	})
+
+	t.Run("duplicate name in payload fails at parse", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += `software:
+  self_service_categories:
+    - "🔐 Security"
+    - "🔐 Security"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate")
+		assert.Contains(t, err.Error(), "🔐 Security")
+	})
+
+	t.Run("package referencing undeclared category fails at parse", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += `software:
+  self_service_categories:
+    - "Allowed"
+  packages:
+    - url: https://example.com/installer.pkg
+      hash_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+      categories:
+        - "Forbidden"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `"Forbidden"`)
+		assert.Contains(t, err.Error(), "self_service_categories")
+	})
 }
 
