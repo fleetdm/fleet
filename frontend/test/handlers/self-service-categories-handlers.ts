@@ -45,6 +45,15 @@ export const emptySelfServiceCategoriesHandler = http.get(categoriesUrl, () =>
   HttpResponse.json({ self_service_categories: [] })
 );
 
+export const listSelfServiceCategoriesErrorHandler = http.get(
+  categoriesUrl,
+  () =>
+    HttpResponse.json(
+      { errors: [{ name: "base", reason: "Internal Server Error" }] },
+      { status: 500 }
+    )
+);
+
 // POST /software/self_service_categories
 export const addSelfServiceCategoryHandler = http.post(
   categoriesUrl,
