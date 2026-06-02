@@ -4,6 +4,7 @@
 package update
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -199,6 +201,12 @@ func IsRunningOnWindowsServer() (bool, error) {
 // MDM enrollment provisioning doc. It is the value of the ProviderID registry value on Fleet's enrollment.
 const fleetMDMProviderID = "Fleet"
 
+// windowsMDMSyncTriggerTimeout bounds the deviceenroller invocation. The sync receiver calls TriggerWindowsMDMSync
+// synchronously and orbit's RunConfigReceivers waits for every receiver to return, so a hung deviceenroller would
+// otherwise stall the whole config-receiver loop. `deviceenroller /o /c` starts a session and returns well within
+// this in practice; the timeout is a generous backstop, not the expected duration.
+const windowsMDMSyncTriggerTimeout = 2 * time.Minute
+
 // TriggerWindowsMDMSync starts an on-demand, client-initiated OMA-DM session with the Fleet MDM server so that
 // queued Windows MDM commands are delivered without waiting for the device's next scheduled poll. It runs the OS
 // deviceenroller for Fleet's enrollment in client-initiated mode: `deviceenroller.exe /o <EnrollmentGUID> /c`.
@@ -216,17 +224,30 @@ func TriggerWindowsMDMSync() error {
 		return fmt.Errorf("find Fleet MDM enrollment: %w", err)
 	}
 
-	systemRoot := os.Getenv("SystemRoot")
-	if systemRoot == "" {
-		systemRoot = `C:\Windows`
+	// Resolve System32 via the Windows API rather than trusting the SystemRoot env var, so the path we execute as
+	// SYSTEM can't be redirected by a tampered process environment. orbit is a 64-bit process, so this is the real
+	// (64-bit) System32 that contains deviceenroller.exe; there is no WOW64 redirection to account for. Fall back to
+	// SystemRoot (then a hardcoded default) only if the API call fails.
+	systemDir, sysDirErr := windows.GetSystemDirectory()
+	if sysDirErr != nil || systemDir == "" {
+		systemRoot := os.Getenv("SystemRoot")
+		if systemRoot == "" {
+			systemRoot = `C:\Windows`
+		}
+		systemDir = filepath.Join(systemRoot, "System32")
 	}
-	// orbit is a 64-bit process, so System32 resolves to the real (64-bit) System32 that contains
-	// deviceenroller.exe; there is no WOW64 redirection to account for.
-	deviceEnroller := filepath.Join(systemRoot, "System32", "deviceenroller.exe")
+	deviceEnroller := filepath.Join(systemDir, "deviceenroller.exe")
 
-	cmd := exec.Command(deviceEnroller, "/o", guid, "/c")
+	// Bound the call so a hung deviceenroller cannot block the config-receiver loop indefinitely.
+	ctx, cancel := context.WithTimeout(context.Background(), windowsMDMSyncTriggerTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, deviceEnroller, "/o", guid, "/c")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	if out, err := cmd.CombinedOutput(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("run deviceenroller /o %s /c timed out after %s (output: %q)", guid, windowsMDMSyncTriggerTimeout, string(out))
+		}
 		return fmt.Errorf("run deviceenroller /o %s /c: %w (output: %q)", guid, err, string(out))
 	}
 	return nil
