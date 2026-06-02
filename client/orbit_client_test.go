@@ -201,7 +201,7 @@ func TestExecuteConfigReceiversBackoffOnError(t *testing.T) {
 
 	client.RegisterConfigReceiver(rfunc)
 	err := client.ExecuteConfigReceivers()
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, targetCalls, callCount)
 
 	// Verify intervals grew between calls (backoff).
@@ -244,7 +244,7 @@ func TestExecuteConfigReceiversResetOnSuccess(t *testing.T) {
 
 	client.RegisterConfigReceiver(rfunc)
 	err := client.ExecuteConfigReceivers()
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Equal(t, 4, callCount)
 
 	// After recovery, interval should be close to base (1s), not backed off
