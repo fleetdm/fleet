@@ -4407,4 +4407,53 @@ func TestGitOpsSelfServiceCategoriesPresence(t *testing.T) {
 		assert.Contains(t, err.Error(), `"Forbidden"`)
 		assert.Contains(t, err.Error(), "self_service_categories")
 	})
+
+	t.Run("validation rejects empty, whitespace-only, and over-length names", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += fmt.Sprintf(`software:
+  self_service_categories:
+    - ""
+    - "   "
+    - %q
+`, strings.Repeat("x", 256))
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "name is required")
+		assert.Contains(t, err.Error(), "must be at most 255")
+	})
+
+	t.Run("names are trimmed and case-only duplicates are caught", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += `software:
+  self_service_categories:
+    - "  Productivity  "
+    - "PRODUCTIVITY"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate")
+		// The second entry collides with the trimmed first.
+		assert.Contains(t, err.Error(), "PRODUCTIVITY")
+	})
+
+	t.Run("legacy plain reference matches declared emoji form", func(t *testing.T) {
+		t.Parallel()
+		config := getTeamConfig(nil)
+		config += `software:
+  self_service_categories:
+    - "💻 Productivity"
+  packages:
+    - url: https://example.com/installer.pkg
+      hash_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+      categories:
+        - "Productivity"
+`
+		path, basePath := createTempFile(t, "", config)
+		_, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+		require.NoError(t, err)
+	})
 }

@@ -2821,6 +2821,10 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
 
+	if err := c.doSelfServiceCategories(config, dryRun); err != nil {
+		return nil, nil, err
+	}
+
 	format := applyingTeamFormat
 	if dryRun {
 		format = dryRunAppliedTeamFormat
@@ -2910,7 +2914,10 @@ func (c *Client) doSelfServiceCategories(config *spec.GitOps, dryRun bool) error
 	if !config.Software.SelfServiceCategories.Set {
 		return nil
 	}
-	teamID := *config.TeamID
+	var teamID uint
+	if config.TeamID != nil {
+		teamID = *config.TeamID
+	}
 
 	existing, err := c.ListSelfServiceCategories(teamID)
 	if err != nil {
@@ -2934,14 +2941,14 @@ func (c *Client) doSelfServiceCategories(config *spec.GitOps, dryRun bool) error
 	if dryRun {
 		return nil
 	}
-	for _, cat := range toDelete {
-		if err := c.DeleteSelfServiceCategory(cat.ID); err != nil {
-			return fmt.Errorf("deleting self-service category %q: %w", cat.Name, err)
-		}
-	}
 	for _, name := range toInsert {
 		if _, err := c.AddSelfServiceCategory(teamID, name); err != nil {
 			return fmt.Errorf("adding self-service category %q: %w", name, err)
+		}
+	}
+	for _, cat := range toDelete {
+		if err := c.DeleteSelfServiceCategory(cat.ID); err != nil {
+			return fmt.Errorf("deleting self-service category %q: %w", cat.Name, err)
 		}
 	}
 	return nil

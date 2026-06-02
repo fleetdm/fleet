@@ -7447,129 +7447,181 @@ func TestGitOpsModeYamlFreeTierRejected(t *testing.T) {
 func TestGitOpsSelfServiceCategoriesReconcile(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
-	existing := []fleet.SoftwareCategory{
-		{ID: 100, Name: "🌎 Browsers", TeamID: 1},
-		{ID: 101, Name: "💻 Productivity", TeamID: 1},
-		{ID: 102, Name: "Stale Category", TeamID: 1},
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
+	setupEmptyGitOpsMocks(ds)
+	setupDefaultTeamConfigMocks(ds)
+
+	var (
+		existing      []fleet.SoftwareCategory
+		exceptions    fleet.GitOpsExceptions
+		added         []string
+		deleted       []uint
+		listedTeamIDs []uint
+		actions       []string // ordered "add"/"del" markers; only read by the first case
+	)
+	reset := func(e []fleet.SoftwareCategory, x fleet.GitOpsExceptions) {
+		existing, exceptions, added, deleted, listedTeamIDs = e, x, nil, nil, nil
 	}
 
-	yamlPath := func(t *testing.T, body string) string {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: exceptions}}, nil
+	}
+	ds.ListTeamsFunc = func(ctx context.Context, _ fleet.TeamFilter, _ fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Test Fleet" {
+			return &fleet.Team{ID: 1, Name: "Test Fleet"}, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) { return id == 1, nil }
+	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+		listedTeamIDs = append(listedTeamIDs, teamID)
+		return slices.Clone(existing), nil
+	}
+	ds.NewSoftwareCategoryFunc = func(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
+		added = append(added, name)
+		actions = append(actions, "add")
+		return &fleet.SoftwareCategory{ID: uint(1000 + len(added)), Name: name, TeamID: teamID}, nil
+	}
+	ds.SoftwareCategoryFunc = func(ctx context.Context, id uint) (*fleet.SoftwareCategory, error) {
+		for _, c := range existing {
+			if c.ID == id {
+				return &c, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+	ds.DeleteSoftwareCategoryFunc = func(ctx context.Context, id uint) error {
+		deleted = append(deleted, id)
+		actions = append(actions, "del")
+		return nil
+	}
+
+	teamYAML := func(body string) []string {
 		f, err := os.CreateTemp(t.TempDir(), "categories-*.yml")
 		require.NoError(t, err)
 		_, err = f.WriteString("name: Test Fleet\nteam_settings:\n  secrets:\n" + body)
 		require.NoError(t, err)
 		require.NoError(t, f.Close())
-		return f.Name()
+		return []string{"gitops", "-f", f.Name()}
+	}
+	unassignedYAML := func(body string) []string {
+		dir := t.TempDir()
+		globalPath := filepath.Join(dir, "global.yml")
+		require.NoError(t, os.WriteFile(globalPath, []byte(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+    - secret: globalSecret
+software:
+`), 0o600))
+		unassignedPath := filepath.Join(dir, "unassigned.yml")
+		require.NoError(t, os.WriteFile(unassignedPath, []byte("name: Unassigned\ncontrols:\npolicies:\n"+body), 0o600))
+		return []string{"gitops", "-f", globalPath, "-f", unassignedPath}
 	}
 
-	installCategoryMocks := func(ds *mock.Store, exceptions fleet.GitOpsExceptions, existing []fleet.SoftwareCategory) (*[]string, *[]uint) {
-		setupEmptyGitOpsMocks(ds)
-		setupDefaultTeamConfigMocks(ds)
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{GitOpsConfig: fleet.GitOpsConfig{Exceptions: exceptions}}, nil
-		}
-		ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-			return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
-		}
-		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-			if name == "Test Fleet" {
-				return &fleet.Team{ID: 1, Name: "Test Fleet"}, nil
-			}
-			return nil, &notFoundError{}
-		}
-		ds.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) { return id == 1, nil }
-		var added []string
-		var deleted []uint
-		ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
-			return slices.Clone(existing), nil
-		}
-		ds.NewSoftwareCategoryFunc = func(ctx context.Context, teamID uint, name string) (*fleet.SoftwareCategory, error) {
-			added = append(added, name)
-			return &fleet.SoftwareCategory{ID: uint(1000 + len(added)), Name: name, TeamID: teamID}, nil
-		}
-		ds.SoftwareCategoryFunc = func(ctx context.Context, id uint) (*fleet.SoftwareCategory, error) {
-			for _, c := range existing {
-				if c.ID == id {
-					return &c, nil
-				}
-			}
-			return nil, &notFoundError{}
-		}
-		ds.DeleteSoftwareCategoryFunc = func(ctx context.Context, id uint) error {
-			deleted = append(deleted, id)
-			return nil
-		}
-		return &added, &deleted
+	teamExisting := []fleet.SoftwareCategory{
+		{ID: 100, Name: "🌎 Browsers", TeamID: 1},
+		{ID: 101, Name: "💻 Productivity", TeamID: 1},
+		{ID: 102, Name: "Stale Category", TeamID: 1},
+	}
+	noTeamExisting := []fleet.SoftwareCategory{
+		{ID: 200, Name: "🌎 Browsers", TeamID: 0},
+		{ID: 201, Name: "💻 Productivity", TeamID: 0},
+		{ID: 202, Name: "Stale No-team Category", TeamID: 0},
 	}
 
-	t.Run("explicit list reconciles to exactly that list", func(t *testing.T) {
-		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
-		added, deleted := installCategoryMocks(ds, fleet.GitOpsExceptions{}, existing)
-
-		_, err := runAppNoChecks([]string{"gitops", "-f", yamlPath(t, `controls:
+	// explicit list reconciles: adds new, keeps existing, deletes stale,
+	// and all inserts run before any deletes (cascade safety).
+	reset(teamExisting, fleet.GitOpsExceptions{})
+	_, err := runAppNoChecks(teamYAML(`controls:
 policies:
 software:
   self_service_categories:
     - "🌎 Browsers"
     - "💼 Engineering"
-`)})
-		require.NoError(t, err)
-		assert.Equal(t, []string{"💼 Engineering"}, *added)
-		assert.ElementsMatch(t, []uint{101, 102}, *deleted)
-	})
+`))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"💼 Engineering"}, added)
+	assert.ElementsMatch(t, []uint{101, 102}, deleted)
+	assert.Equal(t, []string{"add", "del", "del"}, actions, "all inserts must run before any deletes")
 
-	t.Run("empty list deletes all categories", func(t *testing.T) {
-		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
-		added, deleted := installCategoryMocks(ds, fleet.GitOpsExceptions{}, existing)
-
-		_, err := runAppNoChecks([]string{"gitops", "-f", yamlPath(t, `controls:
+	// empty list deletes all categories.
+	reset(teamExisting, fleet.GitOpsExceptions{})
+	_, err = runAppNoChecks(teamYAML(`controls:
 policies:
 software:
   self_service_categories: []
-`)})
-		require.NoError(t, err)
-		assert.Empty(t, *added)
-		assert.ElementsMatch(t, []uint{100, 101, 102}, *deleted)
-	})
+`))
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.ElementsMatch(t, []uint{100, 101, 102}, deleted)
 
-	t.Run("absent key leaves categories untouched", func(t *testing.T) {
-		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
-		added, deleted := installCategoryMocks(ds, fleet.GitOpsExceptions{}, existing)
-
-		_, err := runAppNoChecks([]string{"gitops", "-f", yamlPath(t, `controls:
+	// absent key leaves categories untouched.
+	reset(teamExisting, fleet.GitOpsExceptions{})
+	_, err = runAppNoChecks(teamYAML(`controls:
 policies:
 software:
   packages: []
-`)})
-		require.NoError(t, err)
-		assert.Empty(t, *added)
-		assert.Empty(t, *deleted)
-	})
+`))
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.Empty(t, deleted)
 
-	t.Run("software exception + software omitted skips reconciliation", func(t *testing.T) {
-		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
-		added, deleted := installCategoryMocks(ds, fleet.GitOpsExceptions{Software: true}, existing)
-
-		_, err := runAppNoChecks([]string{"gitops", "-f", yamlPath(t, `controls:
+	// software exception + software omitted skips reconciliation.
+	reset(teamExisting, fleet.GitOpsExceptions{Software: true})
+	_, err = runAppNoChecks(teamYAML(`controls:
 policies:
-`)})
-		require.NoError(t, err)
-		assert.Empty(t, *added)
-		assert.Empty(t, *deleted)
-	})
+`))
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.Empty(t, deleted)
 
-	t.Run("plain and emoji names treated as distinct", func(t *testing.T) {
-		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
-		added, _ := installCategoryMocks(ds, fleet.GitOpsExceptions{}, nil)
-
-		_, err := runAppNoChecks([]string{"gitops", "-f", yamlPath(t, `controls:
+	// plain and emoji names treated as distinct.
+	reset(nil, fleet.GitOpsExceptions{})
+	_, err = runAppNoChecks(teamYAML(`controls:
 policies:
 software:
   self_service_categories:
     - "Security"
     - "🔐 Security"
-`)})
-		require.NoError(t, err)
-		assert.ElementsMatch(t, []string{"Security", "🔐 Security"}, *added)
-	})
+`))
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"Security", "🔐 Security"}, added)
+
+	// no-team explicit list reconciles under team_id = 0.
+	reset(noTeamExisting, fleet.GitOpsExceptions{})
+	_, err = runAppNoChecks(unassignedYAML(`software:
+  self_service_categories:
+    - "🌎 Browsers"
+    - "💼 Engineering"
+`))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"💼 Engineering"}, added)
+	assert.ElementsMatch(t, []uint{201, 202}, deleted)
+	for _, id := range listedTeamIDs {
+		assert.EqualValues(t, 0, id, "no-team reconcile must list categories on team 0")
+	}
+
+	// no-team empty list deletes all.
+	reset(noTeamExisting, fleet.GitOpsExceptions{})
+	_, err = runAppNoChecks(unassignedYAML(`software:
+  self_service_categories: []
+`))
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.ElementsMatch(t, []uint{200, 201, 202}, deleted)
 }
+
