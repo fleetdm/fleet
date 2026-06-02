@@ -2934,14 +2934,14 @@ func (c *Client) doSelfServiceCategories(config *spec.GitOps, dryRun bool) error
 	if dryRun {
 		return nil
 	}
-	for _, name := range toInsert {
-		if _, err := c.AddSelfServiceCategory(teamID, name); err != nil {
-			return fmt.Errorf("adding self-service category %q: %w", name, err)
-		}
-	}
 	for _, cat := range toDelete {
 		if err := c.DeleteSelfServiceCategory(cat.ID); err != nil {
 			return fmt.Errorf("deleting self-service category %q: %w", cat.Name, err)
+		}
+	}
+	for _, name := range toInsert {
+		if _, err := c.AddSelfServiceCategory(teamID, name); err != nil {
+			return fmt.Errorf("adding self-service category %q: %w", name, err)
 		}
 	}
 	return nil

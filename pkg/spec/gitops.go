@@ -1906,16 +1906,43 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		multiError = multierror.Append(multiError, validateRawKeys(softwareRaw, reflect.TypeFor[Software](), filePath, []string{"software"})...)
 	}
 
+	// validate self service categories
 	if software.SelfServiceCategories.Set {
 		translated := fleet.TranslateLegacySoftwareCategoryNames(software.SelfServiceCategories.Value)
+		seen := make(map[string]struct{}, len(translated))
 		for i, name := range translated {
 			translated[i] = strings.TrimSpace(name)
 			if err := (fleet.SoftwareCategory{Name: translated[i]}).Validate(); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("self_service_categories: %w", err))
+				continue
 			}
+			key := strings.ToLower(translated[i])
+			if _, ok := seen[key]; ok {
+				multiError = multierror.Append(multiError,
+					fmt.Errorf("self_service_categories: duplicate category %q", translated[i]))
+				continue
+			}
+			seen[key] = struct{}{}
 		}
 		result.Software.SelfServiceCategories = optjson.SetSlice(translated)
 	}
+
+	validateCategoryReferences := func(categories []string) {
+		if !result.Software.SelfServiceCategories.Set {
+			return
+		}
+		for _, name := range categories {
+			translated := name
+			if mapped, ok := fleet.LegacySoftwareCategoryNames[translated]; ok {
+				translated = mapped
+			}
+			if !slices.ContainsFunc(result.Software.SelfServiceCategories.Value, func(d string) bool { return strings.EqualFold(d, translated) }) {
+				multiError = multierror.Append(multiError,
+					fmt.Errorf("category %q is not in software.self_service_categories", name))
+			}
+		}
+	}
+
 	for _, item := range software.AppStoreApps {
 		if item.AppStoreID == "" {
 			multiError = multierror.Append(multiError, errors.New("software app store id required"))
@@ -1941,6 +1968,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 		item = item.ResolvePaths(baseDir)
 
+		validateCategoryReferences(item.Categories)
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
 	for _, maintainedAppSpec := range software.FleetMaintainedApps {
@@ -1982,6 +2010,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 		}
 
+		validateCategoryReferences(maintainedAppSpec.Categories)
 		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &maintainedAppSpec)
 	}
 	for _, teamLevelPackage := range software.Packages {
@@ -2153,49 +2182,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
+			validateCategoryReferences(softwarePackageSpec.Categories)
 			result.Software.Packages = append(result.Software.Packages, softwarePackageSpec)
-		}
-	}
-
-	if result.Software.SelfServiceCategories.Set {
-		declared := result.Software.SelfServiceCategories.Value
-		validateCategoryReference := func(kind, identifier, name string) {
-			translated := name
-			if mapped, ok := fleet.LegacySoftwareCategoryNames[translated]; ok {
-				translated = mapped
-			}
-			if !slices.ContainsFunc(declared, func(d string) bool { return strings.EqualFold(d, translated) }) {
-				multiError = multierror.Append(multiError,
-					fmt.Errorf("%s %q references category %q which is not in software.self_service_categories", kind, identifier, name))
-			}
-		}
-		for _, pkg := range result.Software.Packages {
-			if pkg == nil {
-				continue
-			}
-			identifier := pkg.URL
-			if identifier == "" {
-				identifier = pkg.SHA256
-			}
-			for _, name := range pkg.Categories {
-				validateCategoryReference("software package", identifier, name)
-			}
-		}
-		for _, app := range result.Software.AppStoreApps {
-			if app == nil {
-				continue
-			}
-			for _, name := range app.Categories {
-				validateCategoryReference("app_store_app", app.AppStoreID, name)
-			}
-		}
-		for _, fma := range result.Software.FleetMaintainedApps {
-			if fma == nil {
-				continue
-			}
-			for _, name := range fma.Categories {
-				validateCategoryReference("fleet_maintained_app", fma.Slug, name)
-			}
 		}
 	}
 

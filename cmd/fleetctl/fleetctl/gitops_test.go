@@ -7645,4 +7645,21 @@ software:
 		assert.Contains(t, err.Error(), `"Forbidden"`)
 		assert.Contains(t, err.Error(), "self_service_categories")
 	})
+
+	t.Run("duplicate category in payload fails at parse", func(t *testing.T) {
+		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, KeyValueStore: testing_utils.NewMemKeyValueStore()})
+		setupGitOpsCategoriesMocks(t, ds, nil, fleet.GitOpsExceptions{})
+
+		yml := writeGitOpsCategoriesYAML(t, `controls:
+policies:
+software:
+  self_service_categories:
+    - "Security"
+    - "🔐 Security"
+`)
+		_, err := runAppNoChecks([]string{"gitops", "-f", yml})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate")
+		assert.Contains(t, err.Error(), "🔐 Security")
+	})
 }
