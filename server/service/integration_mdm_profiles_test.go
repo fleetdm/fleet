@@ -8842,7 +8842,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		}
 	}
 	require.NotNil(t, testProfile)
-	require.EqualValues(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be pending again due to device mapping deletion
+	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be pending again due to device mapping deletion
 
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status *fleet.MDMDeliveryStatus
