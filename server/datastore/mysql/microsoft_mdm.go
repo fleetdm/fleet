@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -98,8 +99,10 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 	return &winMDMDevice, nil
 }
 
-// SetMDMWindowsEnrollmentPollScheduleRelaxed records whether the given Windows MDM enrollment's DMClient poll
-// schedule has been relaxed, so the management session does not re-send the poll Replace on every session.
+// SetMDMWindowsEnrollmentPollScheduleRelaxed records the intended DMClient poll schedule for the given Windows MDM
+// enrollment (relaxed vs the aggressive default). The management session re-enqueues a poll Replace only when the
+// desired schedule differs from this, so it is written once per intended change; delivery and acknowledgment of
+// the Replace itself are handled by the standard Windows MDM command queue.
 func (ds *Datastore) SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx context.Context, enrollmentID uint, relaxed bool) error {
 	if _, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET poll_schedule_relaxed = ? WHERE id = ?`, relaxed, enrollmentID); err != nil {
@@ -233,7 +236,9 @@ func (ds *Datastore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Co
 // host's most recent Windows MDM enrollment has queued, unacknowledged commands. The pending-commands check is a
 // correlated EXISTS against the command queue (indexed on enrollment_id, short-circuits to false for the common
 // case of no pending commands), so it adds no extra round trip to the awaiting-configuration read that already
-// runs on the polling path. Reader-backed; wrap the context with ctxdb.RequirePrimary for primary-routed reads.
+// runs on the polling path. Internal poll-schedule Replace commands are excluded so tuning the poll cadence does
+// not itself request an on-demand wake (it rides the device's existing poll). Reader-backed; wrap the context
+// with ctxdb.RequirePrimary for primary-routed reads.
 func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
 	const stmt = `
 		SELECT
@@ -241,7 +246,9 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 			EXISTS (
 				SELECT 1
 				FROM windows_mdm_command_queue wmcq
+				JOIN windows_mdm_commands wmc ON wmc.command_uuid = wmcq.command_uuid
 				WHERE wmcq.enrollment_id = e.id
+					AND wmc.target_loc_uri <> ?
 					AND NOT EXISTS (
 						SELECT 1
 						FROM windows_mdm_command_results wmcr
@@ -256,7 +263,7 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 		AwaitingConfiguration fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
 		HasPendingCommands    int                                   `db:"has_pending_commands"`
 	}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, syncml.DMClientPollIntervalLocURI, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hostUUID))
 		}

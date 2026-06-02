@@ -870,9 +870,10 @@ type MDMWindowsEnrolledDevice struct {
 	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
 	CredentialsHash         *[]byte                         `db:"credentials_hash"`
 	CredentialsAcknowledged bool                            `db:"credentials_acknowledged"`
-	// PollScheduleRelaxed records whether this enrollment's DMClient poll schedule has been relaxed (via an
-	// in-session Replace) because the host's fleetd can be woken on demand. It lets the management session
-	// reconcile the schedule without re-sending the Replace on every poll.
+	// PollScheduleRelaxed is the INTENDED DMClient poll schedule for this enrollment: true once we have enqueued a
+	// Replace to relax its poll (because its fleetd can be woken on demand), false for the aggressive default.
+	// Delivery and acknowledgment of that Replace are tracked by the standard Windows MDM command queue, so this
+	// only records what we last asked for; the management session re-enqueues only when desired differs from it.
 	PollScheduleRelaxed bool      `db:"poll_schedule_relaxed"`
 	CreatedAt           time.Time `db:"created_at"`
 	UpdatedAt           time.Time `db:"updated_at"`

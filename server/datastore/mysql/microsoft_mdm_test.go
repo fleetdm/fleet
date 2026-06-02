@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -1989,18 +1990,18 @@ func testMDMWindowsPollScheduleRelaxed(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
 	enrollmentID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d.MDMHardwareID)
 
-	// New enrollment defaults to not-relaxed.
+	// New enrollment defaults to not-relaxed (the intended schedule is the aggressive default).
 	got, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
 	require.NoError(t, err)
 	require.False(t, got.PollScheduleRelaxed)
 
-	// Relax, then read it back.
+	// Record the intended schedule as relaxed, then read it back.
 	require.NoError(t, ds.SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx, enrollmentID, true))
 	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
 	require.NoError(t, err)
 	require.True(t, got.PollScheduleRelaxed)
 
-	// Restore.
+	// Restore the intended schedule to the aggressive default.
 	require.NoError(t, ds.SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx, enrollmentID, false))
 	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
 	require.NoError(t, err)
@@ -2063,6 +2064,55 @@ func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {
 	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
 	require.NoError(t, err)
 	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, state.AwaitingConfiguration)
+
+	// Re-enrollment scoping: when a host has more than one enrollment row for the same UUID, the combined read
+	// must come from the latest enrollment only (the query orders by created_at DESC, id DESC and takes one row).
+	// Give the now-stale enrollment a pending command, then add a newer enrollment for the same host UUID with no
+	// pending commands and a distinct awaiting value, and confirm neither the stale awaiting value nor its pending
+	// command leaks into the result.
+	stalePending := &fleet.MDMWindowsCommand{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec></Exec>"), TargetLocURI: "./test/stale"}
+	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{d.HostUUID}, stalePending))
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.True(t, state.HasPendingCommands, "sanity: the stale enrollment has a pending command before re-enrollment")
+
+	newer := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-CFGSTATE",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               d.HostUUID,
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, newer))
+	_, err = ds.SetMDMWindowsAwaitingConfiguration(ctx, newer.MDMDeviceID, fleet.WindowsMDMAwaitingConfigurationNone, fleet.WindowsMDMAwaitingConfigurationActive)
+	require.NoError(t, err)
+
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, state.AwaitingConfiguration,
+		"combined read must reflect the latest enrollment, not the stale one (Pending)")
+	require.False(t, state.HasPendingCommands,
+		"a pending command on the stale enrollment must not leak into the latest enrollment's state")
+
+	// Internal poll-schedule commands are excluded from the pending-command signal: a pending poll Replace on the
+	// latest enrollment must NOT set HasPendingCommands (tuning the poll should not itself request a wake).
+	pollCmd := &fleet.MDMWindowsCommand{CommandUUID: uuid.NewString(), RawCommand: []byte("<Replace></Replace>"), TargetLocURI: syncml.DMClientPollIntervalLocURI}
+	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{newer.MDMDeviceID}, pollCmd))
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.False(t, state.HasPendingCommands, "a pending poll-schedule command must not count as a pending command")
+
+	// A non-poll pending command on the same (latest) enrollment still sets the signal, proving the exclusion is
+	// specific to the poll LocURI and not a blanket suppression.
+	realCmd := &fleet.MDMWindowsCommand{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec></Exec>"), TargetLocURI: "./test/real"}
+	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{newer.MDMDeviceID}, realCmd))
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.True(t, state.HasPendingCommands, "a non-poll pending command must still count")
 }
 
 func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {

@@ -2108,8 +2108,9 @@ type Datastore interface {
 	// MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and returns the device information
 	MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*MDMWindowsEnrolledDevice, error)
 
-	// SetMDMWindowsEnrollmentPollScheduleRelaxed records whether the given Windows MDM enrollment's DMClient
-	// poll schedule has been relaxed, used to reconcile the schedule in the management session.
+	// SetMDMWindowsEnrollmentPollScheduleRelaxed records the intended DMClient poll schedule for the given Windows
+	// MDM enrollment (relaxed vs the aggressive default). Delivery/acknowledgment of the poll Replace itself is
+	// handled by the Windows MDM command queue; this is written once per intended change.
 	SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx context.Context, enrollmentID uint, relaxed bool) error
 
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
@@ -2162,9 +2163,11 @@ type Datastore interface {
 	// transition occurred.
 	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
 
-	// GetMDMWindowsAwaitingConfigurationByHostUUID returns the awaiting
-	// configuration value for the Windows MDM enrollment of the given host.
-	// This is a lightweight read for the orbit config polling path.
+	// GetMDMWindowsAwaitingConfigurationByHostUUID returns ONLY the awaiting_configuration value for the Windows
+	// MDM enrollment of the given host. It is a deliberately lightweight read for callers (e.g. the
+	// setup-experience cancel gate) that need just that value. Orbit config polling, which also needs the
+	// pending-command state, must use GetMDMWindowsHostConfigState instead so it does not issue two reads for the
+	// same enrollment.
 	GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (WindowsMDMAwaitingConfiguration, error)
 
 	// GetMDMWindowsHostConfigState returns the Windows MDM per-host state read on the orbit config polling path

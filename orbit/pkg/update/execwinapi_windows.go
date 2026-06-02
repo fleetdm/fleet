@@ -205,6 +205,10 @@ const fleetMDMProviderID = "Fleet"
 // This is deliberately the client-initiated path, not the push-initiated path (`/c /z`), which fails with Event
 // 4603 (GetPushAlertInfo / notificationIdNotRetrieved) on current Windows builds.
 //
+// Microsoft does not publicly document these deviceenroller flags or the Event 4603 behavior. Both were
+// established empirically while investigating Fleet issue #43773 and validated end-to-end on Windows 11 25H2
+// (build 26200): `/o <GUID> /c` reliably starts a session and delivers queued commands, while `/c /z` does not.
+//
 // Exported so it can be built/tested for Windows from tools/. Not meant to be called from outside this package.
 func TriggerWindowsMDMSync() error {
 	guid, err := fleetMDMEnrollmentGUID()
@@ -244,6 +248,10 @@ func fleetMDMEnrollmentGUID() (string, error) {
 		return "", fmt.Errorf("read enrollment subkeys: %w", err)
 	}
 
+	// EnrollmentState == 1 is the active state observed for Fleet's MDM enrollment on tested Windows builds; the
+	// registry DWORD under Enrollments is not authoritatively documented by Microsoft. The ProviderID == "Fleet"
+	// check in the loop below scopes the match to Fleet's own enrollment, so this never selects an unrelated
+	// (e.g. Intune) enrollment that might use a different state value.
 	const enrollmentStateActive = 1
 	for _, name := range names {
 		k, err := registry.OpenKey(registry.LOCAL_MACHINE, enrollmentsPath+`\`+name, registry.QUERY_VALUE)
