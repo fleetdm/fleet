@@ -243,6 +243,8 @@ release_osqueryd_to_edge () {
         git checkout -b "$BRANCH_NAME"
         # Update the version used to build osqueryd targets.
         "$GO_TOOLS_DIRECTORY/replace" .github/workflows/generate-osqueryd-targets.yml "OSQUERY_VERSION: .+\n" "OSQUERY_VERSION: $VERSION\n"
+        # Update the version used to test fleetd changes.
+        "$GO_TOOLS_DIRECTORY/replace" .github/workflows/fleet-and-orbit.yml "OSQUERY_VERSION: .+\n" "OSQUERY_VERSION: $VERSION\n"
         git add .github/workflows/generate-osqueryd-targets.yml
         git commit -m "Bump osqueryd version to $VERSION"
         git push origin "$BRANCH_NAME"

@@ -12,11 +12,13 @@ on:
       - prepare-*
     paths:
       - "orbit/**.go"
+      - "client/**.go"
       - ".github/workflows/fleet-and-orbit.yml"
       - "Dockerfile-desktop-linux"
   pull_request:
     paths:
       - "orbit/**.go"
+      - "client/**.go"
       - ".github/workflows/fleet-and-orbit.yml"
       - "Dockerfile-desktop-linux"
   workflow_dispatch: # Manual
@@ -32,7 +34,7 @@ defaults:
     shell: bash
 
 env:
-  OSQUERY_VERSION: 5.9.1
+  OSQUERY_VERSION: 5.23.0
 
 permissions:
   contents: read
@@ -129,7 +131,6 @@ jobs:
 
       - name: Run Fleet server
         env:
-          FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
           FLEET_SERVER_ADDRESS: 0.0.0.0:1337
           FLEET_SERVER_TLS: false
           FLEET_LOGGING_DEBUG: true
@@ -286,13 +287,11 @@ jobs:
 
       - name: Build Repository and run TUF server
         env:
-          SYSTEMS: "macos windows linux linux-arm64"
+          SYSTEMS: "macos windows linux"
           PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
           PKG_TUF_URL: http://localhost:8081
           DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
           DEB_TUF_URL: http://localhost:8081
-          RPM_FLEET_URL: ${{ needs.gen.outputs.address }}
-          RPM_TUF_URL: http://localhost:8081
           MSI_FLEET_URL: ${{ needs.gen.outputs.address }}
           MSI_TUF_URL: http://localhost:8081
           ENROLL_SECRET: ${{ needs.gen.outputs.enroll_secret }}
@@ -300,7 +299,6 @@ jobs:
           MACOS_USE_PREBUILT_OSQUERYD_APP_TAR_GZ: 1
           GENERATE_PKG: 1
           GENERATE_DEB: 1
-          GENERATE_RPM: 1
           GENERATE_MSI: 1
           FLEET_DESKTOP: 1
         run: |
@@ -337,8 +335,11 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Checkout Code
+      - name: Checkout uninstall script
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          sparse-checkout: it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
+          sparse-checkout-cone-mode: false
 
       - name: Download pkg
         id: download
