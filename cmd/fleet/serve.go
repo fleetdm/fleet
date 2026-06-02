@@ -538,6 +538,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.WarnContext(cmd.Context(), "Disabling custom OS updates and FileVault management because Fleet Premium license is not present")
 	}
 
+	if config.MDM.EnableCustomFileVault && !license.IsPremium() {
+		config.MDM.EnableCustomFileVault = false
+		logger.WarnContext(cmd.Context(), "Disabling custom FileVault management because Fleet Premium license is not present")
+	}
+
 	mdmStorage, err := mds.NewMDMAppleMDMStorage()
 	if err != nil {
 		initFatal(err, "initialize mdm apple MySQL storage")

@@ -123,5 +123,5 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 2. [ ] QA: Added comment to user story confirming successful completion of test plan.
 3. [ ] QA: Determined whether this story needs Playwright automation.
    - Needs automation: Yes / No
-   - If yes, filed a follow-up issue in the :help-qa project with status "Needs automation": TODO <!-- link -->
+   - If yes, filed a follow-up issue in the :help-qa project with status "Needs automation": <!-- link -->
 

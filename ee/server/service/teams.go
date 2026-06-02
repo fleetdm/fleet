@@ -261,6 +261,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, fleet.NewInvalidArgumentError("ipados_updates.minimum_version", v)
 		}
 
+		if payload.MDM != nil && (payload.MDM.MacOSUpdates != nil && payload.MDM.MacOSUpdates.Configured()) || (payload.MDM.IOSUpdates != nil && payload.MDM.IOSUpdates.Configured()) || (payload.MDM.IPadOSUpdates != nil && payload.MDM.IPadOSUpdates.Configured()) {
+			// Verify that we don't have a custom OS updates declaration
+			hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check for existing custom OS updates declaration profile")
+			}
+			if hasProfile {
+				return nil, &fleet.BadRequestError{
+					Message: fleet.CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage,
+				}
+			}
+		}
+
 		if payload.MDM.WindowsUpdates != nil {
 			if err := payload.MDM.WindowsUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("windows_updates", err.Error())
@@ -268,6 +281,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if payload.MDM.WindowsUpdates.DeadlineDays.Set || payload.MDM.WindowsUpdates.GracePeriodDays.Set {
 				windowsUpdatesUpdated = !team.Config.MDM.WindowsUpdates.Equal(*payload.MDM.WindowsUpdates)
 				team.Config.MDM.WindowsUpdates = *payload.MDM.WindowsUpdates
+			}
+		}
+
+		if payload.MDM != nil && payload.MDM.WindowsUpdates != nil && payload.MDM.WindowsUpdates.Configured() {
+			// Verify that we don't have a custom OS updates profile
+			hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check for existing custom OS updates profile")
+			}
+			if hasProfile {
+				return nil, &fleet.BadRequestError{
+					Message: fleet.CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage,
+				}
 			}
 		}
 
@@ -1609,10 +1635,37 @@ func (svc *Service) editTeamFromSpec(
 			team.Config.MDM.IPadOSUpdates.Deadline.Value != spec.MDM.IPadOSUpdates.Deadline.Value
 		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
 	}
+
+	if spec.MDM.MacOSUpdates.Configured() || spec.MDM.IOSUpdates.Configured() || spec.MDM.IPadOSUpdates.Configured() {
+		// Verify that we don't have a custom OS updates declaration
+		hasProfile, err := svc.ds.HasAppleUpdateConfigProfileConfigured(ctx, team.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check for existing custom OS updates declaration profile")
+		}
+		if hasProfile {
+			return &fleet.BadRequestError{
+				Message: fleet.CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage,
+			}
+		}
+	}
+
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
 		mdmWindowsUpdatesEdited = team.Config.MDM.WindowsUpdates.DeadlineDays.Value != spec.MDM.WindowsUpdates.DeadlineDays.Value ||
 			team.Config.MDM.WindowsUpdates.GracePeriodDays.Value != spec.MDM.WindowsUpdates.GracePeriodDays.Value
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
+	}
+
+	if spec.MDM.WindowsUpdates.Configured() {
+		// Verify that we don't have a custom OS updates profile
+		hasProfile, err := svc.ds.HasWindowsUpdateConfigProfileConfigured(ctx, team.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check for existing custom OS updates profile")
+		}
+		if hasProfile {
+			return &fleet.BadRequestError{
+				Message: fleet.CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage,
+			}
+		}
 	}
 
 	oldEnableDiskEncryption := team.Config.MDM.EnableDiskEncryption

@@ -35,6 +35,10 @@ const (
 	MDMProfileProcessingTTL       = 1 * time.Minute            // We use a low time here, to avoid letting it sit for too long in case of errors.
 
 	AppleMDMCommandTypeClearPasscode = "ClearPasscode"
+
+	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
+	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
+	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).

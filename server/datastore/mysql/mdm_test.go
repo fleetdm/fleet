@@ -15,8 +15,10 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -43,6 +45,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestListMDMCommandsRequiresPerPage", testListMDMCommandsRequiresPerPage},
 		{"TestListMDMCommandsPagination", testListMDMCommandsPagination},
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
+		{"TestBatchSetMDMProfilesSoftwareUpdateTracking", testBatchSetMDMProfilesSoftwareUpdateTracking},
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
 		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
@@ -322,7 +325,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		{
 			name:          "macOS host by UUID",
 			identifier:    macH.UUID,
-			commandStatus: ptr.T(fleet.MDMCommandStatusFilterPending),
+			commandStatus: new(fleet.MDMCommandStatusFilterPending),
 			expected:      []string{appleCmdUUID2, appleCmdUUID3},
 		},
 		{
@@ -1419,6 +1422,57 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		}, nil,
 		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: true, AndroidConfigProfile: false},
 	)
+}
+
+func testBatchSetMDMProfilesSoftwareUpdateTracking(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	winOSUpdate := func(name string) *fleet.MDMWindowsConfigProfile {
+		return &fleet.MDMWindowsConfigProfile{
+			Name: name,
+			SyncML: fmt.Appendf(nil,
+				`<Replace><Item><Target><LocURI>./Device%s/Install</LocURI></Target></Item></Replace>`,
+				syncml.FleetOSUpdateTargetLocURI),
+		}
+	}
+	appleOSUpdate := func(name, identifier string) *fleet.MDMAppleDeclaration {
+		return &fleet.MDMAppleDeclaration{
+			Name:       name,
+			Identifier: identifier,
+			RawJSON: json.RawMessage(fmt.Sprintf(`{
+				"Type": %q,
+				"Identifier": %q,
+				"Payload": {"TargetOSVersion": "14.0", "TargetLocalDateTime": "2025-01-01T12:00:00"}
+			}`, apple_mdm.DeclarationTypeSoftwareUpdate, identifier)),
+		}
+	}
+
+	// A batch with an OS-update Windows profile and Apple declaration tracks both.
+	_, err := ds.BatchSetMDMProfiles(ctx, nil, nil,
+		[]*fleet.MDMWindowsConfigProfile{winOSUpdate("win-os")},
+		[]*fleet.MDMAppleDeclaration{appleOSUpdate("apple-os", "com.fleet.os")}, nil, nil)
+	require.NoError(t, err)
+
+	winConfigured, err := ds.HasWindowsUpdateConfigProfileConfigured(ctx, 0)
+	require.NoError(t, err)
+	require.True(t, winConfigured)
+	appleConfigured, err := ds.HasAppleUpdateConfigProfileConfigured(ctx, 0)
+	require.NoError(t, err)
+	require.True(t, appleConfigured)
+
+	// Re-applying a batch without the OS-update profiles deletes them, and the
+	// tracking rows are cleared via ON DELETE CASCADE.
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil,
+		[]*fleet.MDMWindowsConfigProfile{{Name: "other", SyncML: []byte("<Replace></Replace>")}},
+		nil, nil, nil)
+	require.NoError(t, err)
+
+	winConfigured, err = ds.HasWindowsUpdateConfigProfileConfigured(ctx, 0)
+	require.NoError(t, err)
+	require.False(t, winConfigured)
+	appleConfigured, err = ds.HasAppleUpdateConfigProfileConfigured(ctx, 0)
+	require.NoError(t, err)
+	require.False(t, appleConfigured)
 }
 
 func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
