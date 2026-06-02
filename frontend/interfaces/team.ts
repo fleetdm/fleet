@@ -7,7 +7,7 @@ import {
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
-import { ITokenTeam } from "./mdm";
+import { ITokenFleet, ITokenTeam } from "./mdm";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -153,3 +153,8 @@ export const getTeamDisplayName = (team: ITokenTeam) =>
   team.team_id === APP_CONTEXT_NO_TEAM_ID
     ? APP_CONTEXT_NO_TEAM_SUMMARY.name
     : team.name;
+
+export const getFleetDisplayName = (fleet: ITokenFleet) =>
+  fleet.fleet_id === APP_CONTEXT_NO_TEAM_ID
+    ? APP_CONTEXT_NO_TEAM_SUMMARY.name
+    : fleet.name;

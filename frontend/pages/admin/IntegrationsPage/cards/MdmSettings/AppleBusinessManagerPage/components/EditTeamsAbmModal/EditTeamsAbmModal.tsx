@@ -38,9 +38,9 @@ export const getOptions = (availableTeams: ITeamSummary[] = []) => {
  * returned by the get token API.
  */
 interface SelectedTeamNames {
-  ios_team: IMdmAbToken["ios_team"]["name"];
-  ipados_team: IMdmAbToken["ipados_team"]["name"];
-  macos_team: IMdmAbToken["macos_team"]["name"];
+  ios_team: IMdmAbToken["ios_fleet"]["name"];
+  ipados_team: IMdmAbToken["ipados_fleet"]["name"];
+  macos_team: IMdmAbToken["macos_fleet"]["name"];
 }
 
 /**
@@ -82,9 +82,9 @@ const EditTeamsAbmModal = ({
 
   const [selectedTeamNames, setSelectedTeamNames] = useState<SelectedTeamNames>(
     {
-      ios_team: token.ios_team.name,
-      ipados_team: token.ipados_team.name,
-      macos_team: token.macos_team.name,
+      ios_team: token.ios_fleet.name,
+      ipados_team: token.ipados_fleet.name,
+      macos_team: token.macos_fleet.name,
     }
   );
 
