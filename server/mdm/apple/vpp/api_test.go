@@ -782,6 +782,28 @@ func TestDoRetryIsBoundedAndNonRecursive(t *testing.T) {
 	})
 }
 
+// TestDoVPPAttemptClampsRetryAfter verifies that an absurdly large Retry-After
+// value is clamped to the backoff cap before being scaled to a time.Duration,
+// rather than overflowing the int64 nanosecond math (which could wrap negative
+// and bypass the cap). Uses the default maxVPPBackoff and calls doVPPAttempt
+// directly (it doesn't sleep), so the test is instant.
+func TestDoVPPAttemptClampsRetryAfter(t *testing.T) {
+	setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+		// ~1e14 seconds: seconds * 1e9 ns overflows int64 if not clamped first.
+		w.Header().Set("Retry-After", "99999999999999")
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, dev_mode.Env("FLEET_DEV_VPP_URL"), nil)
+	require.NoError(t, err)
+
+	done, retryAfter, err := doVPPAttempt[any](req, nil)
+	require.NoError(t, err)
+	require.False(t, done, "a 500 + Retry-After should be retryable, not terminal")
+	require.Greater(t, retryAfter, time.Duration(0), "clamped Retry-After must stay positive (no overflow to negative)")
+	require.Equal(t, maxVPPBackoff, retryAfter, "an over-cap Retry-After should clamp to the backoff cap")
+}
+
 func TestIsMaxDevicesPerUserError(t *testing.T) {
 	cases := []struct {
 		name     string
