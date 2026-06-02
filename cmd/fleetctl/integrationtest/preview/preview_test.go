@@ -57,7 +57,7 @@ func TestIntegrationsPreview(t *testing.T) {
 	ok = strings.Contains(appConf, `enable_software_inventory: true`)
 	require.True(t, ok, appConf)
 
-	// dashboard chart data collection must remain enabled. Regression guard:
+	// Regression guard:
 	// preview used to apply its config patch via the deprecated `host_settings`
 	// key, which wholesale-replaced the Features struct and silently zeroed the
 	// historical_data sub-keys. Applying via `features` merges field-by-field
@@ -65,6 +65,8 @@ func TestIntegrationsPreview(t *testing.T) {
 	ok = strings.Contains(appConf, `uptime: true`)
 	require.True(t, ok, appConf)
 	ok = strings.Contains(appConf, `vulnerabilities: true`)
+	require.True(t, ok, appConf)
+	ok = strings.Contains(appConf, `enable_host_users: true`)
 	require.True(t, ok, appConf)
 
 	// current instance checks must be on

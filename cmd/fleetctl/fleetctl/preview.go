@@ -406,8 +406,8 @@ func previewCommand() *cli.Command {
 				return fmt.Errorf("failed to apply starter library: %w", err)
 			}
 
-			// disable analytics collection and enable software inventory for preview.
-			// otherwise use the defaults for both.
+			// disable analytics collection and enable software inventory for preview,
+			// and preserve all other existing values.
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
 				"features":        {"enable_software_inventory": true},
 				"server_settings": {"enable_analytics": false},
