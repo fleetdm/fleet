@@ -43,7 +43,7 @@ jobs:
     # Don't cancel other jobs if one test suite fails. Since our product teams are tightly coupled, we never want to see our tests fail due
     # to an unrelated issue in another product area.
     continue-on-error: true
-    runs-on: ubuntu-16core
+    runs-on: ubuntu-8core
 
     env:
       RACE_ENABLED: false
@@ -116,7 +116,7 @@ jobs:
         go-version-file: 'go.mod'
 
     - name: Install gotestsum
-      run: go install gotest.tools/gotestsum@latest
+      run: go install gotest.tools/gotestsum@c4a0df2e75a225d979a444342dd3db752b53619f # v1.13.0
 
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies

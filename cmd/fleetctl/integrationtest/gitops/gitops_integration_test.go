@@ -7,7 +7,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/fleetctltest"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -128,10 +128,10 @@ func (s *integrationGitopsTestSuite) TestFleetGitops() {
 	globalFile := path.Join(repoDir, "default.yml")
 
 	// Dry run
-	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
+	_ = fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
 
 	// Real run
-	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
+	_ = fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
 }
 
 func (s *integrationGitopsTestSuite) createFleetctlConfig() *os.File {
@@ -172,13 +172,13 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
 	globalFile := path.Join("..", "..", "fleetctl", "testdata", "gitops", "global_integration.yml")
 
 	// Dry run
-	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
+	_ = fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
 	secrets, err := s.DS.GetSecretVariables(ctx, []string{secretName1})
 	require.NoError(t, err)
 	require.Empty(t, secrets)
 
 	// Real run
-	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
+	_ = fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
 	// Check secrets
 	secrets, err = s.DS.GetSecretVariables(ctx, []string{secretName1, secretName2})
 	require.NoError(t, err)
@@ -260,6 +260,6 @@ queries:
 	t.Setenv("FLEET_URL", s.Server.URL)
 
 	// Applying a DDM declaration with Fleet variables should fail without a premium license
-	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
 	require.ErrorContains(t, err, "missing or invalid license")
 }

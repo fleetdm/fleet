@@ -211,6 +211,35 @@ type AppStoreAppUpdatePayload struct {
 	SoftwareAutoUpdateConfig
 }
 
+// VPPClientUserStatus is the lifecycle state of a row in vpp_client_users.
+type VPPClientUserStatus string
+
+const (
+	// VPPClientUserStatusPending means Fleet generated a client_user_id but
+	// Apple has not yet acknowledged the registration (or returned an error).
+	VPPClientUserStatusPending VPPClientUserStatus = "pending"
+	// VPPClientUserStatusRegistered means Apple has returned a userId for the
+	// client_user_id, and the row is ready for use in Associate Assets.
+	VPPClientUserStatusRegistered VPPClientUserStatus = "registered"
+	// VPPClientUserStatusRetired is reserved for future use when a host is
+	// unenrolled or its Managed Apple ID changes.
+	VPPClientUserStatusRetired VPPClientUserStatus = "retired"
+)
+
+// VPPClientUser represents a row in `vpp_client_users` — the mapping between a
+// VPP token (location), a Managed Apple ID, and the Fleet-generated
+// `clientUserId` we send to Apple's user-scoped VPP endpoints.
+type VPPClientUser struct {
+	ID             uint                `db:"id" json:"-"`
+	VPPTokenID     uint                `db:"vpp_token_id" json:"vpp_token_id"`
+	ManagedAppleID string              `db:"managed_apple_id" json:"managed_apple_id"`
+	ClientUserID   string              `db:"client_user_id" json:"client_user_id"`
+	AppleUserID    *string             `db:"apple_user_id" json:"apple_user_id,omitempty"`
+	Status         VPPClientUserStatus `db:"status" json:"status"`
+	CreatedAt      time.Time           `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time           `db:"updated_at" json:"updated_at"`
+}
+
 // FleetVarsSupportedInAppleAppConfig is the allow-list of Fleet variables that
 // can appear in an iOS / iPadOS managed app configuration plist. Subset of the
 // variables supported in Apple configuration profiles — credential variables
@@ -291,4 +320,16 @@ func findUnsupportedFleetVar(v any) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// VPPInstallReleaseInfo carries the per-install data the cancel path needs to
+// decide whether (and how) to release a previously-reserved VPP license seat
+// for a canceled install. AssociatedEventID is set only when this install was
+// the one that called AssociateAssets; HasOtherActiveInstall is true when
+// another non-canceled, non-failed install for the same (host, adam_id) is
+// still in flight and would still need the seat.
+type VPPInstallReleaseInfo struct {
+	AdamID                string
+	AssociatedEventID     string
+	HasOtherActiveInstall bool
 }

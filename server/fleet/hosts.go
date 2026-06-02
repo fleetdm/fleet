@@ -57,6 +57,57 @@ func (s HostStatus) IsValid() bool {
 	}
 }
 
+// placeholderHardwareSerials is the set of well-known junk SMBIOS serial numbers that OEM/BIOS firmware and VM
+// templates emit in place of a real, unique serial. Keys are already trimmed and lower-cased; compare against a
+// normalized serial. The list is best-effort and will never be exhaustive, so IsPlaceholderHardwareSerial also applies
+// a repeated-character heuristic and callers fall back to a unique identifier when a serial is a placeholder.
+var placeholderHardwareSerials = map[string]struct{}{
+	"to be filled by o.e.m.":   {},
+	"default string":           {},
+	"system serial number":     {},
+	"not specified":            {},
+	"not applicable":           {},
+	"none":                     {},
+	"oem":                      {},
+	"o.e.m.":                   {},
+	"default":                  {},
+	"unknown":                  {},
+	"chassis serial number":    {},
+	"base board serial number": {},
+	"baseboard serial number":  {},
+	"123456789":                {},
+	"0123456789":               {},
+	"1234567890":               {},
+	"1234567":                  {},
+	"n/a":                      {},
+	"na":                       {},
+	"invalid":                  {},
+}
+
+// IsPlaceholderHardwareSerial reports whether serial is empty or a well-known placeholder/junk value that does not
+// uniquely identify a device (common on whitebox/consumer hardware and un-sysprepped VM templates). Callers must not
+// use such a serial to match or link a host, since multiple unrelated devices report the same value; they should fall
+// back to an unambiguous identifier instead.
+//
+// Matching is case-insensitive and trimmed. In addition to the known-value set, a serial made up of a single repeated
+// character (e.g. "0", "00000000", "xxxxxxx", "-------") is treated as a placeholder, since those cannot be enumerated.
+func IsPlaceholderHardwareSerial(serial string) bool {
+	s := strings.TrimSpace(serial)
+	if s == "" {
+		return true
+	}
+	if _, ok := placeholderHardwareSerials[strings.ToLower(s)]; ok {
+		return true
+	}
+	// A serial that is the same character repeated (all zeros, all dots, all dashes, etc.) is never a real identity.
+	for i := 1; i < len(s); i++ {
+		if s[i] != s[0] {
+			return false
+		}
+	}
+	return true
+}
+
 // MDMEnrollStatus defines the possible MDM enrollment statuses.
 type MDMEnrollStatus string
 
@@ -1267,6 +1318,11 @@ type HostMDM struct {
 	MDMID                  *uint   `db:"mdm_id" json:"-" csv:"-"`
 	Name                   string  `db:"name" json:"-" csv:"-"`
 	DEPProfileAssignStatus *string `db:"dep_profile_assign_status" json:"-" csv:"-"`
+	// ManagedAppleID is set for iOS/iPadOS hosts enrolled via Account-Driven
+	// User Enrollment, sourced from the IdP account email resolved from the
+	// OAuth Bearer token at TokenUpdate time. Apple does not reliably populate
+	// UserLongName on User Enrollment so we don't fall back to it.
+	ManagedAppleID *string `db:"managed_apple_id" json:"-" csv:"-"`
 }
 
 // HasJSONProfileAssigned returns true if Fleet has assigned an ADE/DEP JSON

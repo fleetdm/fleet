@@ -23,21 +23,18 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 The Product Design department is responsible for reviewing and collecting feedback from users, would-be users, and future users, prioritizing changes, designing the changes, and delivering these changes to the engineering team. Product Design prioritizes and shapes all changes involving functionality or usage, including the UI, REST API, command line, and webhooks. 
 
+### Triage new requests
+
+The Head of Product Design is responsible for going through the inbox on the [drafting board](https://github.com/orgs/fleetdm/projects/67) and adding the correct [working group](https://fleetdm.com/handbook/company/product-groups#working-groups) label.
+
+Once labeled, each working group's Product Designer (PD) is responsible for reviewing the inbox on their working group board and deciding whether each new request contributes to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year. If yes, the PD adds the `~product-maturity` label so it's reviewed at the next [unpacking the why](#unpacking-the-why) call. If a request doesn't meet these criteria but meets a different [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization), the PD removes the "Unpacked" checkbox in the feature request issue and either prioritizes it as a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#scrum-items) to bring through [fast draft or full draft](https://fleetdm.com/handbook/company/product-groups#drafting-tracks-full-draft-vs-fast-draft), or sets it aside and adds it to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board. If the request doesn't meet any criteria, the PD removes it from their working group board.
+
 
 ### Unpacking the why
 
-The Head of Product Design (HPD) and a former IT admin review the new customer/prospect/community requests in the "📨 Inbox" column the [drafting board](https://github.com/orgs/fleetdm/projects/67) to synthesize why users are making the request (i.e. what problem are they trying to solve).
+During this call, the Head of Product Design (HPD) and a former IT admin review all requests tagged with the `~product-maturity` label (applied during [triage](#triage-new-requests)) to synthesize why users are making each request (i.e. what problem they're trying to solve). Afterward, one or more user stories are filed and added to the [release planning project](https://github.com/orgs/fleetdm/projects/87).
 
-Only requests that meet the [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization) are unpacked. If a request doesn't meet the criteria, the HPD leaves the "Unpacked" checkbox in the feature request issue unchecked and removes the request from the drafting board.
-
-If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
-
-
-### Unpacking the how
-
-3 weeks before end of each quarter, The Head of Product Design starts a daily 1h meeting with the CEO. The Head of Product Design brings an objective for the next quarter and the appropriate subject matter expert to understand what users will expect. This helps Product Designers at Fleet understand how Fleet will design a particular feature. 
-
-As soon as we've addressed the next quarter's objectives, the Head of Product Design cancels the daily meeting. 
+If a customer or prospect request is missing a Gong snippet or requires additional information to understand the "why", the HPD will @mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
 
 
 ### Triage new bugs
@@ -176,7 +173,7 @@ If the candidate passes all of these steps then continue with [hiring a new team
 
 ### Confirm and celebrate
 
-The Head of Product Design (HPD), Product Designers (PD), and the relevant Customer Solutions Architects (CSAs) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
+The Head of Product Design (HPD), Product Designers (PD), and the relevant Customer Solutions Architects (CSAs) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up to the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
 
 If the original request is a customer request, it's up to the relevant CSA to decide if the request is fulfilled.  If it is, we assign the relevant Customer Success Manager (CSM) and add the `:help-customers` label to add the customer request to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79).
 

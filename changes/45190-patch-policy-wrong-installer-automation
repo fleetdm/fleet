@@ -1,0 +1,1 @@
+- Fixed a bug where patch policies with software install automations used an inactive, older installer and not the latest.

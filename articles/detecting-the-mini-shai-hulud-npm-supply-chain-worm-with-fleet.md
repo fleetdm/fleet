@@ -204,6 +204,6 @@ About the author: [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv) is Fle
 <meta name="articleTitle" value="Detecting the Mini Shai-Hulud npm supply chain worm with Fleet">
 <meta name="authorFullName" value="Dhruv Majumdar">
 <meta name="authorGitHubUsername" value="drvcodenta">
-<meta name="category" value="articles">
+<meta name="category" value="security">
 <meta name="publishedOn" value="2026-05-13">
 <meta name="description" value="How we detected the Mini Shai-Hulud npm supply chain worm across our fleet using Fleet live queries and deep scan scripts.">

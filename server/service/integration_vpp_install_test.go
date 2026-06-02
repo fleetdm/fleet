@@ -927,7 +927,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", iosHost.ID), nil, http.StatusOK, &hostResp)
-	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after successful software install for iDevice")
+	// iOS/iPadOS enrollment sets refetch_requested=true (cleared on DeviceInformation ack);
+	// the VPP install path queues its own RefetchApps command via host_mdm_commands and
+	// must not touch the host-level flag, so it should still be true here.
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should remain true after VPP install on iDevice (cleared only by DeviceInformation ack)")
 
 	// Now we have a refetch apps command in flight to update the host software inventory
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1035,7 +1038,10 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", ipodHost.ID), nil, http.StatusOK, &hostResp)
-	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after successful software install for iDevice")
+	// iOS/iPadOS enrollment sets refetch_requested=true (cleared on DeviceInformation ack);
+	// the VPP install path queues its own RefetchApps command via host_mdm_commands and
+	// must not touch the host-level flag, so it should still be true here.
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should remain true after VPP install on iDevice (cleared only by DeviceInformation ack)")
 
 	// Now we have a refetch apps command in flight to update the host software inventory
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1312,7 +1318,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 
 	// turn off MDM for the host
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost.ID), nil, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`{"enrollment_id": null, "host_display_name":%q, "host_serial":%q, "installed_from_dep":false, "platform": "darwin"}`, mdmHost.DisplayName(), mdmHost.HardwareSerial), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "enrollment_id": null, "host_display_name":%q, "host_serial":%q, "installed_from_dep":false, "platform": "darwin"}`, mdmHost.ID, mdmHost.DisplayName(), mdmHost.HardwareSerial), 0)
 
 	// upcoming activities now have only the script
 	listResp = listHostUpcomingActivitiesResponse{}
@@ -1375,23 +1381,25 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 
 	// turn off MDM for the host
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost2.ID), nil, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`{"enrollment_id": null, "host_display_name":%q, "host_serial":%q, "installed_from_dep":false, "platform": "darwin"}`, mdmHost2.DisplayName(), mdmHost2.HardwareSerial), 0)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "enrollment_id": null, "host_display_name":%q, "host_serial":%q, "installed_from_dep":false, "platform": "darwin"}`, mdmHost2.ID, mdmHost2.DisplayName(), mdmHost2.HardwareSerial), 0)
 
 	// upcoming activities are now empty
 	listResp = listHostUpcomingActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost2.ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Activities, 0)
 
-	// host's past activities should have the first VPP app cancellation because it was activated
+	// host's past activities should have mdm_unenrolled at the head (emitted last in the unenroll
+	// flow, descending order) followed by the first VPP app cancellation because it was activated.
 	listPastResp = listActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", mdmHost2.ID), nil, http.StatusOK, &listPastResp)
-	require.GreaterOrEqual(t, len(listPastResp.Activities), 1)
-	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[0].Type)
-	require.Contains(t, string(*listPastResp.Activities[0].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
-	require.Contains(t, string(*listPastResp.Activities[0].Details), `"status": "failed_install"`)
-	if len(listPastResp.Activities) > 1 {
-		// the second activity should not be the cancellation of the second app
-		require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[1].Type)
+	require.GreaterOrEqual(t, len(listPastResp.Activities), 2)
+	require.Equal(t, fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), listPastResp.Activities[0].Type)
+	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[1].Type)
+	require.Contains(t, string(*listPastResp.Activities[1].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
+	require.Contains(t, string(*listPastResp.Activities[1].Details), `"status": "failed_install"`)
+	if len(listPastResp.Activities) > 2 {
+		// the third activity should not be the cancellation of the second app
+		require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[2].Type)
 	}
 
 	// listing the host's software available for install shows the cancelled app as failed
@@ -1641,7 +1649,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		if cmd.Command.RequestType == "InstallApplication" {
+		switch cmd.Command.RequestType {
+		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
@@ -1651,6 +1660,9 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
+
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
 		}
 	}
 
@@ -1822,7 +1834,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		if cmd.Command.RequestType == "InstallApplication" {
+		switch cmd.Command.RequestType {
+		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			assert.Equal(t, installCmdUUID, cmd.CommandUUID)
 
@@ -1832,6 +1845,8 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 
 			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected MDM command on client", cmd.Command.RequestType)
 		}
 	}
 

@@ -276,7 +276,15 @@ describe("SelfService", () => {
     expect(moreDropdown).toBeDisabled();
   });
 
-  it("renders self service unsupported message for BYOD Account-Driven User Enrollment on mobile view", () => {
+  it("renders the self-service list for BYOD Account-Driven User Enrollment on mobile view", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({ id: 1, name: "user-enrolled-app" }),
+        ],
+      })
+    );
+
     const render = createCustomRenderer({ withBackendMock: true });
 
     render(
@@ -287,13 +295,11 @@ describe("SelfService", () => {
       />
     );
 
+    // The "not supported" gate has been removed; the user-enrolled host gets
+    // the same self-service list as a manually-enrolled iOS/iPadOS host.
+    expect(await screen.findByText("user-enrolled-app")).toBeInTheDocument();
     expect(
-      screen.getByText(/Self-service isn't supported/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /Self-service is currently not supported on personal iOS and iPadOS devices/i
-      )
-    ).toBeInTheDocument();
+      screen.queryByText(/Self-service isn't supported/i)
+    ).not.toBeInTheDocument();
   });
 });

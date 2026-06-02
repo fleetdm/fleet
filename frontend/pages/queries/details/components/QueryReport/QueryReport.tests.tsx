@@ -28,7 +28,7 @@ describe("QueryReport", () => {
         report_clipped: false,
       },
     ];
-    render(<QueryReport {...{ isClipped, queryReport }} />);
+    render(<QueryReport queryId={1} {...{ isClipped, queryReport }} />);
 
     expect(screen.getByText(/value2/)).toBeInTheDocument();
     expect(screen.queryByText("truncated")).not.toBeInTheDocument();
@@ -61,7 +61,7 @@ describe("QueryReport", () => {
         report_clipped: false,
       },
     ];
-    render(<QueryReport {...{ isClipped, queryReport }} />);
+    render(<QueryReport queryId={1} {...{ isClipped, queryReport }} />);
 
     expect(screen.getByText(/value2/)).toBeInTheDocument();
     expect(screen.getByText(/(truncated)/)).toBeInTheDocument();
@@ -90,7 +90,7 @@ describe("QueryReport", () => {
       },
     ];
     const { user } = renderWithSetup(
-      <QueryReport {...{ isClipped, queryReport }} />
+      <QueryReport queryId={1} {...{ isClipped, queryReport }} />
     );
 
     await user.hover(screen.getByText(/\d+ result/));

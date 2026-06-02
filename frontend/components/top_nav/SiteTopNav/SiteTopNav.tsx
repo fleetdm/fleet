@@ -174,8 +174,7 @@ const SiteTopNav = ({
     const lightLogoURL =
       config.org_info.org_logo_url_light_mode ||
       config.org_info.org_logo_url_light_background;
-    const hasDarkLogo = darkLogoURL && darkLogoURL !== lightLogoURL;
-    const orgLogoURL = darkMode && hasDarkLogo ? darkLogoURL : lightLogoURL;
+    const orgLogoURL = darkMode ? darkLogoURL : lightLogoURL;
     const active = navItem.location.regex.test(currentPath);
 
     const navItemBaseClass = "site-nav-item";

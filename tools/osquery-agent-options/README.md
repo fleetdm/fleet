@@ -4,7 +4,7 @@ This directory contains a script (a Go command) that generates the struct needed
 
 It writes the resulting Go code to stdout (the `osqueryOptions` and the `osqueryCommandLineFlags` structs) to a file provided as argument.
 
-This command only supports macOS.
+This command supports macOS and Linux.
 
 Whenever there's a new version of osquery, just update the variable `osqueryVersion`.
 

@@ -54,6 +54,7 @@ func TestVPP(t *testing.T) {
 		{"MapAdamIDsRecentInstalls", testMapAdamIDsRecentInstalls},
 		{"GetHostVPPInstallByCommandUUID", testGetHostVPPInstallByCommandUUID},
 		{"RetryVPPInstallForHost", testRetryVPPAppInstallForHost},
+		{"VPPClientUsers", testVPPClientUsers},
 		{"BackfillVPPAppCountriesLowestIDWins", testBackfillVPPAppCountriesLowestIDWins},
 		{"GetVPPTokenOwningAppInCountrySkipsExpired", testGetVPPTokenOwningAppInCountrySkipsExpired},
 	}
@@ -2437,24 +2438,24 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// list hosts filtering by vpp1 installed status
-	hosts, err := ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstalled)})
+	hosts, err := ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: new(fleet.SoftwareInstalled)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host1.Host.ID, hosts[0].ID)
 
 	// list hosts filtering by vpp2 failed status
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallFailed)})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: new(fleet.SoftwareInstallFailed)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host2.Host.ID, hosts[0].ID)
 
 	// list hosts filtering by vpp2 pending status
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallPending)})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: new(fleet.SoftwareInstallPending)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 0)
 
 	// list hosts filtering by vpp1 pending status
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallPending)})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: new(fleet.SoftwareInstallPending)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host3.Host.ID, hosts[0].ID)
@@ -2464,12 +2465,12 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// now nothing is returned for Installed for vpp1
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstalled)})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: new(fleet.SoftwareInstalled)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 0)
 
 	// and host1 is returned for pending for vpp1
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallPending), ListOptions: fleet.ListOptions{OrderKey: "id"}})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: new(fleet.SoftwareInstallPending), ListOptions: fleet.ListOptions{OrderKey: "id"}})
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
 	require.Equal(t, host1.Host.ID, hosts[0].ID)
@@ -2481,7 +2482,7 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	// has no effect because the install was failed, it stays failed
 	// list hosts filtering by vpp2 failed status
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallFailed)})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: new(fleet.SoftwareInstallFailed)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host2.Host.ID, hosts[0].ID)
@@ -3388,6 +3389,96 @@ func testHasVPPAppConfigurationChanged(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.want, got)
 		})
 	}
+}
+
+func testVPPClientUsers(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	tokenA, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "fleet-org-A", "loc-a")
+	require.NoError(t, err)
+	tokenADB, err := ds.InsertVPPToken(ctx, tokenA)
+	require.NoError(t, err)
+	tokenB, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "fleet-org-B", "loc-b")
+	require.NoError(t, err)
+	tokenBDB, err := ds.InsertVPPToken(ctx, tokenB)
+	require.NoError(t, err)
+
+	// Empty list before any inserts.
+	rows, err := ds.ListVPPClientUsersForToken(ctx, tokenADB.ID)
+	require.NoError(t, err)
+	require.Empty(t, rows)
+
+	// Not-found returns the standard fleet.IsNotFound error.
+	_, err = ds.GetVPPClientUser(ctx, tokenADB.ID, "user@example.com")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// Insert a pending row.
+	require.NoError(t, ds.InsertVPPClientUser(ctx, &fleet.VPPClientUser{
+		VPPTokenID:     tokenADB.ID,
+		ManagedAppleID: "user@example.com",
+		ClientUserID:   "11111111-1111-1111-1111-111111111111",
+		Status:         fleet.VPPClientUserStatusPending,
+	}))
+
+	got, err := ds.GetVPPClientUser(ctx, tokenADB.ID, "user@example.com")
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPClientUserStatusPending, got.Status)
+	require.Equal(t, "11111111-1111-1111-1111-111111111111", got.ClientUserID)
+	require.Nil(t, got.AppleUserID)
+
+	// Upsert: same (vpp_token_id, managed_apple_id) updates client_user_id, status, apple_user_id.
+	appleUserID := "apple-user-1"
+	require.NoError(t, ds.InsertVPPClientUser(ctx, &fleet.VPPClientUser{
+		VPPTokenID:     tokenADB.ID,
+		ManagedAppleID: "user@example.com",
+		ClientUserID:   "22222222-2222-2222-2222-222222222222",
+		AppleUserID:    &appleUserID,
+		Status:         fleet.VPPClientUserStatusRegistered,
+	}))
+
+	got, err = ds.GetVPPClientUser(ctx, tokenADB.ID, "user@example.com")
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPClientUserStatusRegistered, got.Status)
+	require.Equal(t, "22222222-2222-2222-2222-222222222222", got.ClientUserID)
+	require.NotNil(t, got.AppleUserID)
+	require.Equal(t, "apple-user-1", *got.AppleUserID)
+
+	// Same Managed Apple ID under a different token coexists (separate VPP location).
+	require.NoError(t, ds.InsertVPPClientUser(ctx, &fleet.VPPClientUser{
+		VPPTokenID:     tokenBDB.ID,
+		ManagedAppleID: "user@example.com",
+		ClientUserID:   "33333333-3333-3333-3333-333333333333",
+		Status:         fleet.VPPClientUserStatusRegistered,
+	}))
+
+	gotA, err := ds.GetVPPClientUser(ctx, tokenADB.ID, "user@example.com")
+	require.NoError(t, err)
+	gotB, err := ds.GetVPPClientUser(ctx, tokenBDB.ID, "user@example.com")
+	require.NoError(t, err)
+	require.NotEqual(t, gotA.ClientUserID, gotB.ClientUserID)
+
+	// Defaulting: empty status field falls back to 'pending'.
+	require.NoError(t, ds.InsertVPPClientUser(ctx, &fleet.VPPClientUser{
+		VPPTokenID:     tokenADB.ID,
+		ManagedAppleID: "second@example.com",
+		ClientUserID:   "44444444-4444-4444-4444-444444444444",
+	}))
+	gotDefault, err := ds.GetVPPClientUser(ctx, tokenADB.ID, "second@example.com")
+	require.NoError(t, err)
+	require.Equal(t, fleet.VPPClientUserStatusPending, gotDefault.Status)
+
+	// List returns all rows for a token, ordered by id.
+	rows, err = ds.ListVPPClientUsersForToken(ctx, tokenADB.ID)
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	require.Less(t, rows[0].ID, rows[1].ID)
+
+	// FK CASCADE: deleting the parent token clears the rows.
+	require.NoError(t, ds.DeleteVPPToken(ctx, tokenBDB.ID))
+	rowsB, err := ds.ListVPPClientUsersForToken(ctx, tokenBDB.ID)
+	require.NoError(t, err)
+	require.Empty(t, rowsB)
 }
 
 // testBackfillVPPAppCountriesLowestIDWins guards the deterministic

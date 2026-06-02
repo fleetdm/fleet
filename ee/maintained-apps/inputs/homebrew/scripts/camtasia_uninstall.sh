@@ -17,12 +17,23 @@ trash() {
   fi
 
   local trash="/Users/$logged_in_user/.Trash"
-  local file_name="$(basename "${target_file}")"
+  local file file_name
+  local found_any=false
+  local i=0
 
-  if [[ -e "$target_file" ]]; then
-    echo "removing $target_file."
-    mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}"
-  else
+  # Glob-expand target_file (compgen preserves spaces in the path; [[ -e "$x" ]] does not expand *).
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    if [[ -e "$file" ]] || [[ -L "$file" ]]; then
+      found_any=true
+      i=$((i + 1))
+      file_name="$(basename "$file")"
+      echo "removing $file."
+      mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}"
+    fi
+  done < <(compgen -G "$target_file" 2>/dev/null)
+
+  if [[ "$found_any" == false ]]; then
     echo "$target_file doesn't exist."
   fi
 }

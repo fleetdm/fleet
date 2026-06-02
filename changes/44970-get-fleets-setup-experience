@@ -1,0 +1,1 @@
+- Fixed `fleetctl get fleets` (and `fleetctl get teams`) so the software section, including each app's `setup_experience` value, reflects the real configuration instead of being read from the (potentially stale) team config. Software is now fetched from the software titles and setup experience endpoints, which are the source of truth.
