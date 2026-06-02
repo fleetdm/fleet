@@ -322,7 +322,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		{
 			name:          "macOS host by UUID",
 			identifier:    macH.UUID,
-			commandStatus: ptr.T(fleet.MDMCommandStatusFilterPending),
+			commandStatus: new(fleet.MDMCommandStatusFilterPending),
 			expected:      []string{appleCmdUUID2, appleCmdUUID3},
 		},
 		{
