@@ -233,7 +233,7 @@ type DisassociateAssetsRequest = AssociateAssetsRequest
 // cancelled before reaching the device).
 //
 // https://developer.apple.com/documentation/devicemanagement/disassociate_assets
-func DisassociateAssets(ctx context.Context, token string, params *DisassociateAssetsRequest) (string, error) {
+func DisassociateAssets(token string, params *DisassociateAssetsRequest) (string, error) {
 	if err := params.Validate(); err != nil {
 		return "", err
 	}
@@ -243,7 +243,7 @@ func DisassociateAssets(ctx context.Context, token string, params *DisassociateA
 		return "", fmt.Errorf("encoding params as JSON: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, getBaseURL()+"/assets/disassociate", &reqBody)
+	req, err := http.NewRequest(http.MethodPost, getBaseURL()+"/assets/disassociate", &reqBody)
 	if err != nil {
 		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
 	}
@@ -590,7 +590,9 @@ func do[T any](req *http.Request, token string, dest *T) error {
 		}
 	}
 
-	return fmt.Errorf("Apple VPP endpoint still failing after %d attempts (last: %s)", vppMaxAttempts, lastReason)
+	return &ErrorResponse{
+		ErrorMessage: fmt.Sprintf("gave up after %d attempts (last: %s)", vppMaxAttempts, lastReason),
+	}
 }
 
 func doVPPAttempt[T any](req *http.Request, dest *T) (done bool, retryAfter time.Duration, err error) {

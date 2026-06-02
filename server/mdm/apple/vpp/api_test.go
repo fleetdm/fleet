@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -779,6 +780,40 @@ func TestDoRetryIsBoundedAndNonRecursive(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "context")
 		require.Less(t, time.Since(start), 2*time.Second, "ctx cancellation should abort the backoff sleep")
+	})
+
+	t.Run("applies a growing backoff between retries", func(t *testing.T) {
+		// Override for measurable, non-flaky spacing; restore afterward.
+		oa, oi, om, ob := vppMaxAttempts, vppRateLimitInterval, vppRateLimitBackoffMultiplier, maxVPPBackoff
+		t.Cleanup(func() {
+			vppMaxAttempts, vppRateLimitInterval, vppRateLimitBackoffMultiplier, maxVPPBackoff = oa, oi, om, ob
+		})
+		vppMaxAttempts = 3
+		vppRateLimitInterval = 30 * time.Millisecond
+		vppRateLimitBackoffMultiplier = 2
+		maxVPPBackoff = time.Second // generous, so capping doesn't interfere here
+
+		var mu sync.Mutex
+		var times []time.Time
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			times = append(times, time.Now())
+			mu.Unlock()
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"errorMessage":"Too many requests","errorNumber":9646}`))
+		})
+
+		_, err := AssociateAssets(t.Context(), "tok", associateAssetsParams())
+		require.Error(t, err)
+
+		mu.Lock()
+		defer mu.Unlock()
+		require.Len(t, times, 3)
+		// The backoff is actually applied between attempts (not skipped) and
+		// grows (30ms, then 60ms). Timers fire at-or-after their interval, so
+		// these lower bounds are not flaky.
+		require.GreaterOrEqual(t, times[1].Sub(times[0]), 30*time.Millisecond)
+		require.GreaterOrEqual(t, times[2].Sub(times[1]), 60*time.Millisecond)
 	})
 }
 
