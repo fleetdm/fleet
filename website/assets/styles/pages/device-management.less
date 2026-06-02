@@ -1,7 +1,6 @@
 #device-management-page {
   @heading-lineheight: 120%;
   @text-lineheight: 150%;
-
   background: linear-gradient(180deg, #E8F1F6 0%, #FFF 2.51%);
 
   h1 {
@@ -26,7 +25,6 @@
     color: @core-fleet-black-75;
     margin-bottom: 0px;
   }
-
   strong {
     color: @core-fleet-black;
   }
@@ -73,7 +71,6 @@
     img {
       width: 100%;
     }
-
   }
   [purpose='page-section'] {
     display: flex;
@@ -105,14 +102,12 @@
     color: #FFF;
     text-align: center;
 
-    /* Body/Emphasis/SM */
+
     font-family: Inter;
     font-size: 14px;
     font-style: normal;
     font-weight: 700;
-    line-height: 21px; /* 150% */
-    // padding-top: 64px;
-    // padding-bottom: 64px;
+    line-height: 21px;
   }
 
   [purpose='quote-and-logos'] {
@@ -276,7 +271,7 @@
     h5 {
       color: #192147;
 
-      /* Title XS */
+
       font-family: Inter;
       font-size: 16px;
       font-style: normal;
@@ -287,7 +282,7 @@
   p {
       color: #515774;
 
-      /* Body/MD */
+
       font-family: Inter;
       font-size: 16px;
       font-style: normal;
@@ -439,12 +434,6 @@
     }
   }
 
-  [purpose='feature-note'] {
-    padding-top: 40px;
-    font-size: 12px;
-    margin-bottom: 0px;
-  }
-
   [purpose='feature-headline'] {
     max-width: 510px;
     margin-bottom: 80px;
@@ -531,10 +520,6 @@
   }
 
 
-  @media (max-width: 1199px) {
-
-
-  }
 
   @media (max-width: 991px) {
     [purpose='page-container'] {
@@ -597,24 +582,6 @@
             height: 20px;
             width: auto;
           }
-          // &.fastly {
-          //   padding: 0 19.482px 0 20.55px;
-          //   img {
-          //     height: 12px;
-          //   }
-          // }
-          // &.easygo {
-          //   padding: 0 24.418px 0 24.447px;
-          //   img {
-          //     height: 20px;
-          //   }
-          // }
-          // &.conductor-one {
-          //   padding: 0 26.913px 0 27.856px;
-          //   img {
-          //     height: 20px;
-          //   }
-          // }
           &.grafana {
             padding: 0 8.138px 0 7.804px;
             img {
@@ -705,18 +672,6 @@
               height: 20px;
               width: auto;
             }
-            &.nutanix {
-              padding: 0 29.374px 0 29.775px;
-              img {
-                height: 14px;
-              }
-            }
-            &.leidos {
-              padding: 26px 33.637px 26px 33px;
-              img {
-                height: 24px;
-              }
-            }
             &.fastly {
               padding: 26px 36.723px 26px 37px;
               img {
@@ -762,21 +717,6 @@
       h2 {
         font-size: 32px;
       }
-    }
-    [purpose='video-modal'] {
-      [purpose='modal-dialog'] {
-        max-width: 97vw;
-      }
-      [purpose='modal-content'] {
-        max-width: 540px;
-        height: 304px;
-      }
-      iframe {
-        width: 540px;
-        height: 304px;
-      }
-    }
-    [purpose='bottom-cta'] {
       br {
         display: none;
       }
