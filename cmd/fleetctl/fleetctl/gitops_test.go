@@ -567,6 +567,61 @@ software:
 	// assert.Equal(t, "hydrant2_secret", h2.ClientSecret)
 }
 
+// TestGitOpsWindowsEntraIDs verifies that Windows Entra tenant and application client IDs round-trip through a
+// `fleetctl gitops` apply (issue #46388). The client IDs include an upper-case GUID and a case-only duplicate of it,
+// which exercises server-side normalization: client IDs are authorized case-insensitively, so they are stored
+// canonically (lower-cased and de-duplicated) to avoid functionally-identical entries that differ only in case.
+// SetupFullGitOpsPremiumServer configures the WSTEP cert/key so Windows MDM can be enabled, which the Entra ID
+// settings require.
+func TestGitOpsWindowsEntraIDs(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	ds, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "Fleet GitOps Entra Test"
+	)
+	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+controls:
+  windows_enabled_and_configured: true
+  android_enabled_and_configured: true
+  windows_entra_tenant_ids:
+    - 1a86b496-e2a4-43ef-ba00-20004e29b13b
+  windows_entra_client_ids:
+    - ABCDEF12-3456-7890-ABCD-EF1234567890
+    - abcdef12-3456-7890-abcd-ef1234567890
+    - 11111111-2222-3333-4444-555555555555
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, fleetServerURL, orgName))
+	require.NoError(t, err)
+
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name()})
+
+	require.True(t, ds.SaveAppConfigFuncInvoked)
+	require.Equal(t, []string{"1a86b496-e2a4-43ef-ba00-20004e29b13b"}, (*savedAppConfigPtr).MDM.WindowsEntraTenantIDs.Value)
+	// The upper-case client ID and its case-only duplicate are normalized to a single canonical lower-case entry.
+	require.Equal(t,
+		[]string{"abcdef12-3456-7890-abcd-ef1234567890", "11111111-2222-3333-4444-555555555555"},
+		(*savedAppConfigPtr).MDM.WindowsEntraClientIDs.Value)
+}
+
 func TestGitOpsExceptionEnforcement(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
