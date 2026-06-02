@@ -434,15 +434,20 @@ func sanitizeNonPremiumHostListOptions(isPremium bool, opt *fleet.HostListOption
 	opt.DEPAssignProfileResponseFilter = nil
 }
 
-// suppressAndroidBYODWipeStatus hides the transient lock/wipe status for Android BYOD (personal) hosts. Unenrolling such
-// a host fires a work-profile-only AMAPI WIPE under the hood (see UnenrollAndroidHost), which writes wipe_ref and would
-// otherwise surface as device_status="wiping" / pending_action="wipe". The admin clicked Unenroll, not Wipe, and we no
-// longer present a pending badge for this flow, so we force the status back to unlocked/none. The underlying unenroll
-// mechanism is unaffected; the host simply transitions to "Off" once it removes its work profile.
+// suppressAndroidBYODWipeStatus hides the transient wipe status for Android BYOD (personal) hosts. Unenrolling such a
+// host fires a work-profile-only AMAPI WIPE under the hood (see UnenrollAndroidHost), which writes wipe_ref and would
+// otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe, and we no longer present a pending badge
+// for this flow, so we force the status back to unlocked/none. The underlying unenroll mechanism is unaffected; the
+// host simply transitions to "Off" once it removes its work profile.
+//
+// This is narrowed to the wipe pending action on purpose: BYOD Android still supports Lock and Clear passcode, whose
+// pending/active states must remain visible.
 func suppressAndroidBYODWipeStatus(host *fleet.Host) {
-	if host.FleetPlatform() == "android" && host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
-		host.MDM.DeviceStatus = ptr.String(string(fleet.DeviceStatusUnlocked))
-		host.MDM.PendingAction = ptr.String(string(fleet.PendingActionNone))
+	if host.FleetPlatform() == "android" &&
+		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" &&
+		host.MDM.PendingAction != nil && *host.MDM.PendingAction == string(fleet.PendingActionWipe) {
+		host.MDM.DeviceStatus = new(string(fleet.DeviceStatusUnlocked))
+		host.MDM.PendingAction = new(string(fleet.PendingActionNone))
 	}
 }
 

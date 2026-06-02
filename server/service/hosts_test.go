@@ -3495,16 +3495,17 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 }
 
-// TestSuppressAndroidBYODWipeStatus verifies that the transient lock/wipe status is hidden only for Android BYOD
-// (personal) hosts, whose Unenroll fires a work-profile-only AMAPI WIPE under the hood (#41683).
+// TestSuppressAndroidBYODWipeStatus verifies that the transient wipe status is hidden only for the unenroll-driven
+// work-profile wipe on Android BYOD (personal) hosts (#41683). Lock and Clear passcode are supported on BYOD Android,
+// so their pending states must NOT be suppressed.
 func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
-	newHost := func(platform string, enrollment *string) *fleet.Host {
+	newHost := func(platform string, enrollment *string, deviceStatus fleet.DeviceStatus, pending fleet.PendingDeviceAction) *fleet.Host {
 		return &fleet.Host{
 			Platform: platform,
 			MDM: fleet.MDMHostData{
 				EnrollmentStatus: enrollment,
-				DeviceStatus:     new(string(fleet.DeviceStatusWiped)),
-				PendingAction:    new(string(fleet.PendingActionWipe)),
+				DeviceStatus:     new(string(deviceStatus)),
+				PendingAction:    new(string(pending)),
 			},
 		}
 	}
@@ -3513,23 +3514,27 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 		name         string
 		platform     string
 		enrollment   *string
+		deviceStatus fleet.DeviceStatus
+		pending      fleet.PendingDeviceAction
 		wantSuppress bool
 	}{
-		{name: "android BYOD personal", platform: "android", enrollment: new("On (personal)"), wantSuppress: true},
-		{name: "android COBO automatic", platform: "android", enrollment: new("On (automatic)"), wantSuppress: false},
-		{name: "non-android personal", platform: "darwin", enrollment: new("On (personal)"), wantSuppress: false},
-		{name: "android nil enrollment", platform: "android", enrollment: nil, wantSuppress: false},
+		{name: "android BYOD pending wipe", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: true},
+		{name: "android BYOD pending lock", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionLock, wantSuppress: false},
+		{name: "android BYOD pending clear_passcode", platform: "android", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusUnlocked, pending: fleet.PendingActionClearPasscode, wantSuppress: false},
+		{name: "android COBO pending wipe", platform: "android", enrollment: new("On (automatic)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
+		{name: "non-android pending wipe", platform: "darwin", enrollment: new("On (personal)"), deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
+		{name: "android nil enrollment pending wipe", platform: "android", enrollment: nil, deviceStatus: fleet.DeviceStatusWiped, pending: fleet.PendingActionWipe, wantSuppress: false},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			host := newHost(tt.platform, tt.enrollment)
+			host := newHost(tt.platform, tt.enrollment, tt.deviceStatus, tt.pending)
 			suppressAndroidBYODWipeStatus(host)
 			if tt.wantSuppress {
 				require.Equal(t, string(fleet.DeviceStatusUnlocked), *host.MDM.DeviceStatus)
 				require.Equal(t, string(fleet.PendingActionNone), *host.MDM.PendingAction)
 			} else {
-				require.Equal(t, string(fleet.DeviceStatusWiped), *host.MDM.DeviceStatus)
-				require.Equal(t, string(fleet.PendingActionWipe), *host.MDM.PendingAction)
+				require.Equal(t, string(tt.deviceStatus), *host.MDM.DeviceStatus)
+				require.Equal(t, string(tt.pending), *host.MDM.PendingAction)
 			}
 		})
 	}

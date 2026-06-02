@@ -1284,7 +1284,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 	}
 	host, err := svc.ds.Host(ctx, hostID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get host lite")
+		return ctxerr.Wrap(ctx, err, "get host")
 	}
 
 	// Authorize again with team loaded now that we have the host's team_id.
@@ -1310,7 +1310,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 		}
 	}
 	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
-		if errors.Is(err, fleet.ErrMDMNotConfigured) {
+		if errors.Is(err, fleet.ErrAndroidMDMNotConfigured) {
 			err = fleet.NewInvalidArgumentError("host_id", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 		}
 		return ctxerr.Wrap(ctx, err, "check android MDM enabled")
