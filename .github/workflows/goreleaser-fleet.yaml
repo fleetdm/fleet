@@ -58,8 +58,6 @@ jobs:
         uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
         with:
           node-version-file: package.json
-          # Security best practice to disable caching in release/publish workflows
-          package-manager-cache: false
 
       - name: Install JS Dependencies
         run: make deps-js
