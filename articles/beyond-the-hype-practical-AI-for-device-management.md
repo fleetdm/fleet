@@ -1,4 +1,4 @@
-## Real lessons on cutting tool sprawl, using GitOps to manage change safely, and getting more from AI without adding headcount.
+## Moving from manual engineering workflows to AI
 
 AI promises to transform IT—but what does that actually look like for teams managing devices at scale? This session brings together practitioners from Fleet and Foursquare to share hard-won lessons from modernizing their device management practices: consolidating tools for radical visibility across platforms, adopting GitOps to bring stability and accountability to fleet operations, and using AI to accelerate engineering output without adding headcount.
 
@@ -15,6 +15,7 @@ As device management complexity grows, IT and platform teams are rethinking how 
 
 
 <meta name="articleTitle" value="Beyond the hype, practical AI for device management">
+<meta name="introductionTextBlockOne" value="Real lessons on cutting tool sprawl, using GitOps to manage change safely, and getting more from AI without adding headcount.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/webinar-beyond-the-hype-ai-device-management-800x450@2x.png">
 
 <meta name="authorFullName" value="n/a">
