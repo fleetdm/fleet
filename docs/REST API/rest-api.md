@@ -15115,8 +15115,6 @@ or
 - [Get errors](#get-errors)
 - [Get database information](#get-database-information)
 - [Get profiling information](#get-profiling-information)
-- [Get trace sampling settings](#get-trace-sampling-settings)
-- [Adjust trace sampling](#adjust-trace-sampling)
 
 The Fleet server exposes a handful of API endpoints to retrieve debug information about the server itself in order to help troubleshooting. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
 
@@ -15190,73 +15188,6 @@ Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 
 #### Parameters
 None.
-
-### Get trace sampling settings
-
-Returns the current [trace sampling](https://fleetdm.com/docs/deploy/reference-architectures#sampling) settings. Only has effect when tracing is enabled (see [logging_tracing_enabled](https://fleetdm.com/docs/configuration/fleet-server-configuration#logging-tracing-enabled)). Requires a global admin.
-
-`GET /debug/trace_sampler`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /debug/trace_sampler`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "high_volume_ratio": 0.001,
-  "standard_ratio": 0.02,
-  "force_full": false,
-  "updated_at": "2026-06-01T00:00:00Z"
-}
-```
-
-### Adjust trace sampling
-
-Updates one or more [trace sampling](https://fleetdm.com/docs/deploy/reference-architectures#sampling) settings at runtime, without restarting the server. Only the fields included in the request body are changed. Each Fleet server polls for changes about once a minute, so an update applies across all servers within roughly a minute. Requires a global admin.
-
-`PATCH /debug/trace_sampler`
-
-#### Parameters
-
-| Name              | Type    | In   | Description                                                                                                          |
-| ----------------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------- |
-| high_volume_ratio | float   | body | Sample rate for high-volume agent routes, between 0 and 1 (inclusive).                                               |
-| standard_ratio    | float   | body | Sample rate for standard admin/read routes, between 0 and 1 (inclusive).                                             |
-| force_full        | boolean | body | When `true`, sample every route at 100% (except never-sampled infrastructure paths), ignoring the ratios above.      |
-
-At least one field is required. Ratios outside the `[0, 1]` range are rejected.
-
-#### Example
-
-`PATCH /debug/trace_sampler`
-
-##### Request body
-
-```json
-{
-  "force_full": true
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "high_volume_ratio": 0.001,
-  "standard_ratio": 0.02,
-  "force_full": true
-}
-```
 
 ## Custom variables
 

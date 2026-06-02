@@ -1503,37 +1503,6 @@ A comma-delimited set of log topics to disable. If a topic is included in both t
     disable_topics: deprecated-field-names
   ```
 
-### logging_tracing_enabled
-
-Whether or not to enable tracing. When enabled, the Fleet server exports traces (and, when `logging_otel_logs_enabled` is also set, logs) to an [OpenTelemetry](https://opentelemetry.io/) collector over OTLP.
-
-The export destination and resource attributes are configured through the standard OpenTelemetry SDK environment variables, the most common being:
-
-- `OTEL_EXPORTER_OTLP_ENDPOINT` - the OTLP collector endpoint, e.g. `http://localhost:4317`.
-- `OTEL_SERVICE_NAME` - the service name reported with each span (defaults to `fleet`).
-
-See the [OpenTelemetry SDK environment variable reference](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) for the full list, and [Traces](https://fleetdm.com/docs/deploy/reference-architectures#traces) for how Fleet samples traces in production.
-
-- Default value: `false`
-- Environment variable: `FLEET_LOGGING_TRACING_ENABLED`
-- Config file format:
-  ```yaml
-  logging:
-    tracing_enabled: true
-  ```
-
-### logging_otel_logs_enabled
-
-Whether or not to export logs to an OpenTelemetry collector in addition to stderr. Requires `logging_tracing_enabled` to be `true` so that exported log records can be correlated with traces.
-
-- Default value: `false`
-- Environment variable: `FLEET_LOGGING_OTEL_LOGS_ENABLED`
-- Config file format:
-  ```yaml
-  logging:
-    otel_logs_enabled: true
-  ```
-
 ## Filesystem
 
 ### filesystem_status_log_file
