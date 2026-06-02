@@ -175,24 +175,51 @@ fn check_go(path: &str) -> DepCheck {
     }
 }
 
-fn check_nvm() -> DepCheck {
-    let installed = dirs::home_dir()
+/// Which version manager (if any) we detected. Drives both the
+/// "Node version manager" dep row and the Node install command so the
+/// suggested fix matches what the user actually has on their system.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NodeManager {
+    Nvm,
+    N,
+    None,
+}
+
+struct VersionManagerCheck {
+    dep: DepCheck,
+    detected: NodeManager,
+}
+
+fn check_node_version_manager(path: &str) -> VersionManagerCheck {
+    // nvm is a shell function (sourced from ~/.nvm/nvm.sh), not a
+    // binary — so a PATH probe wouldn't find it. n is a regular binary,
+    // so a plain `run` works. Prefer nvm when both are present because
+    // it's what Fleet's docs reference.
+    let nvm_installed = dirs::home_dir()
         .map(|h| h.join(".nvm/nvm.sh").exists())
         .unwrap_or(false);
-    let version = if installed {
-        run_login_shell("nvm --version").and_then(|(ok, s)| {
-            if ok {
-                extract_version(&s)
-            } else {
-                None
-            }
-        })
+    let nvm_version = if nvm_installed {
+        run_login_shell("nvm --version")
+            .filter(|(ok, _)| *ok)
+            .and_then(|(_, s)| extract_version(&s))
     } else {
         None
     };
-    DepCheck {
-        id: "nvm".into(),
-        name: "nvm".into(),
+    let (n_installed, n_version) = match run(path, "n", &["--version"]) {
+        Some((true, out)) => (true, extract_version(&out)),
+        _ => (false, None),
+    };
+
+    let (detected, version) = match (nvm_installed, n_installed) {
+        (true, _) => (NodeManager::Nvm, nvm_version.map(|v| format!("nvm {v}"))),
+        (false, true) => (NodeManager::N, n_version.map(|v| format!("n {v}"))),
+        (false, false) => (NodeManager::None, None),
+    };
+    let installed = detected != NodeManager::None;
+
+    let dep = DepCheck {
+        id: "node-version-manager".into(),
+        name: "nvm or n".into(),
         installed,
         version,
         required: None,
@@ -202,11 +229,15 @@ fn check_nvm() -> DepCheck {
             "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash"
                 .into(),
         doc_url: Some("https://github.com/nvm-sh/nvm#install--update-script".into()),
-        note: Some("Needed to install the exact Node version Fleet pins.".into()),
-    }
+        note: Some(
+            "Lets you install/switch Node versions. Either nvm (default) or `n` (brew install n) works."
+                .into(),
+        ),
+    };
+    VersionManagerCheck { dep, detected }
 }
 
-fn check_node(path: &str, required: Option<&str>) -> DepCheck {
+fn check_node(path: &str, required: Option<&str>, manager: NodeManager) -> DepCheck {
     let (installed, version) = match run(path, "node", &["-v"]) {
         Some((true, out)) => (true, extract_version(&out)),
         _ => (false, None),
@@ -222,6 +253,18 @@ fn check_node(path: &str, required: Option<&str>) -> DepCheck {
         .and_then(|r| extract_version(r))
         .and_then(|v| v.split('.').next().map(|s| s.to_string()))
         .unwrap_or_else(|| "24".into());
+    let (install_command, note) = match manager {
+        NodeManager::N => (
+            format!("n {major}"),
+            "Fleet pins a specific Node major. Use `n` to install/switch.",
+        ),
+        // Same instructions for Nvm (preferred) and None (we suggest the
+        // documented default rather than `n`).
+        _ => (
+            format!("nvm install {major} && nvm use {major}"),
+            "Fleet pins a specific Node major. Use nvm or `n` to install/switch.",
+        ),
+    };
     DepCheck {
         id: "node".into(),
         name: "Node.js".into(),
@@ -230,9 +273,9 @@ fn check_node(path: &str, required: Option<&str>) -> DepCheck {
         required: required.map(|s| s.to_string()),
         version_ok,
         runtime_ok: None,
-        install_command: format!("nvm install {major} && nvm use {major}"),
+        install_command,
         doc_url: None,
-        note: Some("Fleet pins a specific Node major. Use nvm to install/switch.".into()),
+        note: Some(note.into()),
     }
 }
 
@@ -339,13 +382,14 @@ pub fn check_dependencies(
         shellpath::shell_path()
     };
 
+    let vm = check_node_version_manager(&path);
     let mut checks = vec![
         check_xcode(&path),
         check_brew(&path),
         check_git(&path),
         check_go(&path),
-        check_nvm(),
-        check_node(&path, req_node.as_deref()),
+        vm.dep,
+        check_node(&path, req_node.as_deref(), vm.detected),
         check_yarn(&path),
         check_docker(&path),
     ];
