@@ -384,7 +384,13 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 
 		v, ok := lookupEnv(env)
 		if !ok {
-			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
+			// If the source used ${var} braced syntax, the hint should reflect that.
+			ref := "$" + env
+			if startPos+1 < len(s) && s[startPos+1] == '{' {
+				ref = "${" + env + "}"
+			}
+			err = multierror.Append(err, fmt.Errorf("environment variable %q not set; if you intended the literal string %s then please escape it as \\%s.",
+				env, ref, ref))
 			return "", false
 		}
 		escaped, escErr := escapeValue(v, env)
