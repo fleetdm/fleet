@@ -1,1 +1,0 @@
-* Fixed a bug where Windows hosts with an empty `display_version` in the database would get 0 CVEs from MSRC vulnerability scanning.

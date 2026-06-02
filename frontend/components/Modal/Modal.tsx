@@ -1,9 +1,10 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import classnames from "classnames";
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
 
 const baseClass = "modal";
+const CLOSE_ANIMATION_MS = 100;
 
 type ModalWidth = "medium" | "large" | "xlarge" | "auto";
 //                  650px    800px      850px      auto
@@ -55,10 +56,24 @@ const Modal = ({
   disableClosingModal = false,
   className,
 }: IModalProps): JSX.Element => {
+  const isDownOnBackgroundRef = useRef(false);
+  const isFormDirtyRef = useRef(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const isClosingRef = useRef(false);
+
+  const handleClose = useCallback(() => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    setIsClosing(true);
+    setTimeout(() => {
+      onExit();
+    }, CLOSE_ANIMATION_MS);
+  }, [onExit]);
+
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onExit();
+        handleClose();
       }
     };
 
@@ -71,7 +86,7 @@ const Modal = ({
         document.removeEventListener("keydown", closeWithEscapeKey);
       }
     };
-  }, [disableClosingModal, onExit]);
+  }, [disableClosingModal, handleClose]);
 
   useEffect(() => {
     if (onEnter) {
@@ -92,6 +107,7 @@ const Modal = ({
 
   const backgroundClasses = classnames(`${baseClass}__background`, {
     [`${baseClass}__hidden`]: isHidden,
+    [`${baseClass}__closing`]: isClosing,
   });
 
   const modalContainerClasses = classnames(
@@ -100,6 +116,7 @@ const Modal = ({
     `${baseClass}__modal_container__${width}`,
     {
       [`${className}__loading`]: isLoading,
+      [`${baseClass}__closing`]: isClosing,
     }
   );
 
@@ -111,11 +128,57 @@ const Modal = ({
     [`${baseClass}__content-disabled`]: isContentDisabled,
   });
 
+  const handleBackgroundMouseDown = () => {
+    isDownOnBackgroundRef.current = true;
+  };
+
+  const handleBackgroundMouseUp = () => {
+    if (
+      !disableClosingModal &&
+      isDownOnBackgroundRef.current &&
+      !isFormDirtyRef.current
+    ) {
+      handleClose();
+    }
+    isDownOnBackgroundRef.current = false;
+  };
+
+  const handleContainerMouseDown = (e: React.MouseEvent) => e.stopPropagation();
+
+  const handleContainerMouseUp = (e: React.MouseEvent) => e.stopPropagation();
+
+  const handleContainerInput = () => {
+    isFormDirtyRef.current = true;
+  };
+
+  const handleContainerClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const isCheckbox =
+      target instanceof HTMLInputElement && target.type === "checkbox";
+    const isToggle = !!target.closest('button[role="switch"]');
+    if (isCheckbox || isToggle) {
+      isFormDirtyRef.current = true;
+    }
+  };
+
   return (
-    <div className={backgroundClasses}>
+    <div
+      className={backgroundClasses}
+      style={
+        {
+          "--modal-close-duration": `${CLOSE_ANIMATION_MS}ms`,
+        } as React.CSSProperties
+      }
+      onMouseDown={handleBackgroundMouseDown}
+      onMouseUp={handleBackgroundMouseUp}
+    >
       <div
         className={modalContainerClasses}
         tabIndex={-1} // Make focusable
+        onMouseDown={handleContainerMouseDown}
+        onMouseUp={handleContainerMouseUp}
+        onInput={handleContainerInput}
+        onClick={handleContainerClick}
       >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
@@ -123,7 +186,7 @@ const Modal = ({
             <div className={`${baseClass}__ex`}>
               <Button
                 variant="icon"
-                onClick={onExit}
+                onClick={handleClose}
                 iconStroke
                 autofocus={isContentDisabled}
               >

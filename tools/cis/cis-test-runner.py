@@ -50,6 +50,10 @@ VERSION_MAP = {
         "image": "ghcr.io/cirruslabs/macos-sequoia-base:latest",
         "dir": "macos-15",
     },
+    "26": {
+        "image": "ghcr.io/cirruslabs/macos-tahoe-base:latest",
+        "dir": "macos-26",
+    },
 }
 
 SSH_OPTS = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
@@ -73,7 +77,12 @@ SSH_BREAKING_CIS_IDS: dict[str, set[str]] = {
     #   2.3.3.5 - Ensure Remote Management Is Disabled (also disables sshd)
     "13": set(),
     "14": {"2.3.3.4", "2.3.3.5"},
-    "15": set(),
+    # macOS 15 Sequoia v2.0.0:
+    #   2.3.3.4 - Ensure Remote Login Is Disabled (disables sshd)
+    "15": {"2.3.3.4"},
+    # macOS 26 Tahoe v1.0.0:
+    #   2.3.3.4 - Ensure Remote Login Is Disabled (disables sshd)
+    "26": {"2.3.3.4"},
 }
 
 # CIS IDs whose MDM profiles break VM password authentication (the
@@ -93,6 +102,7 @@ PASSWORD_POLICY_CIS_IDS: dict[str, set[str]] = {
     "13": set(),
     "14": {"5.2.1", "5.2.2", "5.2.3", "5.2.4", "5.2.5", "5.2.6", "5.2.7", "5.2.8"},
     "15": set(),
+    "26": set(),
 }
 
 # CIS IDs that cannot be reliably tested automatically due to one of:
@@ -138,6 +148,7 @@ NON_AUTOMATABLE_CIS_IDS: dict[str, dict[str, str]] = {
         "2.8.1": "Universal Control profile toggling unreliable",
     },
     "15": {},
+    "26": {},
 }
 
 # ---------------------------------------------------------------------------
@@ -1707,7 +1718,8 @@ Examples:
             "chosen based on --macos-version: "
             "13=ghcr.io/cirruslabs/macos-ventura-base:latest, "
             "14=ghcr.io/cirruslabs/macos-sonoma-base:latest, "
-            "15=ghcr.io/cirruslabs/macos-sequoia-base:latest."
+            "15=ghcr.io/cirruslabs/macos-sequoia-base:latest, "
+            "26=ghcr.io/cirruslabs/macos-tahoe-base:latest."
         ),
     )
 

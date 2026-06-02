@@ -86,6 +86,20 @@ func TestListMaintainedAppsAuth(t *testing.T) {
 			true,
 			true,
 		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+			false,
+			false,
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			false,
+			false,
+			true,
+		},
 	}
 
 	var forbiddenError *authz.Forbidden
@@ -222,6 +236,20 @@ func TestGetMaintainedAppAuth(t *testing.T) {
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 			true,
 			true,
+			true,
+		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+			false,
+			false,
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			false,
+			false,
 			true,
 		},
 	}

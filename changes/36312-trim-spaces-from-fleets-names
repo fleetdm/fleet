@@ -1,1 +1,0 @@
-* Made sure that fleet names are trimmed and validate to prevent whitespace-only or padded names across API, gitops, frontend, and existing data.

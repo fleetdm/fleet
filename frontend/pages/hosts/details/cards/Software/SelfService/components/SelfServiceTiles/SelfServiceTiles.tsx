@@ -4,7 +4,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import Card from "components/Card";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
@@ -40,8 +40,8 @@ const SelfServiceTiles = ({
 
   if (isEmptySearch) {
     return (
-      <EmptyTable
-        graphicName="empty-search-question"
+      <EmptyState
+        variant="list"
         header="No items match your search"
         info={
           <>

@@ -700,4 +700,360 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		require.False(t, ds.CancelHostUpcomingActivityFuncInvoked, "cancel upcoming activity should NOT be called again")
 		require.Equal(t, 1, activityCallCount, "activity should still have been emitted only once (no duplicate)")
 	})
+
+	t.Run("windows software install failure with require_all_software_windows=true emits activity and cancels", func(t *testing.T) {
+		// Mirror of "software install failure triggers cancel and activity"
+		// for a Windows host. Asserts that the same emit-once-per-host
+		// invariant holds when the gating setting is `require_all_software_windows`
+		// (rather than `require_all_software`, which is the macOS counterpart).
+		teamID := uint(1)
+		failedSoftwareTitleID := uint(99)
+		failedSoftwareName := "WindowsApp"
+		pendingExecID := "pending-win-exec"
+
+		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+			require.Equal(t, hostUUID, hUUID)
+			require.Equal(t, softwareUUID, executionID)
+			require.Equal(t, fleet.SetupExperienceStatusFailure, status)
+			return true, nil
+		}
+		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
+		// Windows uses OsqueryHostID as the setup-experience host identifier
+		// (see fleet.HostUUIDForSetupExperience). Set it so the cancel
+		// helper can locate setup-experience rows.
+		osqueryHostID := "windows-osquery-id"
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID: 2, UUID: hostUUID, Platform: "windows",
+				TeamID: &teamID, OsqueryHostID: &osqueryHostID,
+			}, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			require.Equal(t, teamID, tid)
+			return &fleet.TeamLite{
+				ID: teamID,
+				Config: fleet.TeamConfigLite{
+					MDM: fleet.TeamMDM{
+						MacOSSetup: fleet.MacOSSetup{
+							RequireAllSoftwareWindows: true,
+						},
+					},
+				},
+			}, nil
+		}
+		// Windows cancel-gate: this test exercises the OOBE/Autopilot path,
+		// so awaiting_configuration is Active. The non-ESP cases (None -> no cancel,
+		// no activity) are covered in the matrix subtest below.
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return fleet.WindowsMDMAwaitingConfigurationActive, nil
+		}
+
+		installerID := uint(20)
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, tID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			require.Equal(t, osqueryHostID, hUUID, "Windows looks up by OsqueryHostID, not UUID")
+			return []*fleet.SetupExperienceStatusResult{
+				{
+					ID:                              5,
+					HostUUID:                        osqueryHostID,
+					Name:                            failedSoftwareName,
+					Status:                          fleet.SetupExperienceStatusFailure,
+					SoftwareInstallerID:             &installerID,
+					HostSoftwareInstallsExecutionID: &softwareUUID,
+					SoftwareTitleID:                 &failedSoftwareTitleID,
+				},
+				{
+					ID:                              6,
+					HostUUID:                        osqueryHostID,
+					Name:                            "PendingWinApp",
+					Status:                          fleet.SetupExperienceStatusPending,
+					SoftwareInstallerID:             &installerID,
+					HostSoftwareInstallsExecutionID: &pendingExecID,
+				},
+			}, nil
+		}
+		ds.CancelHostUpcomingActivityFuncInvoked = false
+		ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hID uint, executionID string) (fleet.ActivityDetails, error) {
+			require.Equal(t, uint(2), hID)
+			require.Equal(t, pendingExecID, executionID)
+			return nil, nil
+		}
+		ds.CancelPendingSetupExperienceStepsFuncInvoked = false
+		ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error {
+			require.Equal(t, osqueryHostID, hUUID)
+			return nil
+		}
+
+		var activityFnCalled bool
+		var recordedActivity fleet.ActivityDetails
+		activityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activityFnCalled = true
+			recordedActivity = activity
+			return nil
+		}
+
+		result := fleet.SetupExperienceSoftwareInstallResult{
+			HostUUID:        hostUUID,
+			ExecutionID:     softwareUUID,
+			InstallerStatus: fleet.SoftwareInstallFailed,
+		}
+		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
+		require.NoError(t, err)
+		require.True(t, updated)
+		require.True(t, activityFnCalled, "Windows host with require_all_software_windows=true must emit canceled_setup_experience")
+		require.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked, "Windows host must cancel pending setup-experience steps")
+		require.True(t, ds.CancelHostUpcomingActivityFuncInvoked)
+
+		canceledActivity, ok := recordedActivity.(fleet.ActivityTypeCanceledSetupExperience)
+		require.True(t, ok)
+		require.Equal(t, uint(2), canceledActivity.HostID)
+		require.Equal(t, failedSoftwareName, canceledActivity.SoftwareTitle)
+		require.Equal(t, failedSoftwareTitleID, canceledActivity.SoftwareTitleID)
+	})
+
+	t.Run("windows cancel-gate matrix (issue #45946)", func(t *testing.T) {
+		// Exhaustive matrix for the gate at maybeCancelPendingSetupExperienceSteps that decides
+		// whether a failed setup-experience software install triggers the cancellation cascade +
+		// canceled_setup_experience activity. The gate keys off mdm_windows_enrollments.awaiting_configuration
+		// (Pending|Active = device is in Fleet-tracked ESP -> cancel; anything else -> skip).
+		//
+		// Cases mirror the five install paths:
+		//   1. OOBE Autopilot                            (Automatic + OOBE -> Active)   -> cancel
+		//   2. OOBE non-Autopilot Entra-join / Settings  (Automatic + OOBE -> Pending)  -> cancel
+		//   3. post-OOBE BYOD work/school account        (Automatic + !OOBE -> None)    -> skip
+		//   4. post-OOBE manual orbit + auto-Windows-MDM (Programmatic enroll -> None)  -> skip
+		//   5. post-OOBE manual orbit, no Windows MDM    (no enrollment row)            -> skip
+		//
+		// Additionally exercises the race-window fallback by device_name: when the primary
+		// awaiting_configuration lookup misses (host_uuid not yet linked by osquery's
+		// directIngestMDMDeviceIDWindows), the gate falls back to the most-recent unlinked
+		// enrollment matching ComputerName.
+		teamID := uint(1)
+		computerName := "DESKTOP-NOAUTOPILOT"
+		osqueryHostID := "windows-osquery-id-matrix"
+
+		notFound := func(context.Context, string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return 0, &notFoundError{}
+		}
+		returns := func(v fleet.WindowsMDMAwaitingConfiguration) func(context.Context, string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return func(context.Context, string) (fleet.WindowsMDMAwaitingConfiguration, error) { return v, nil }
+		}
+
+		cases := []struct {
+			name                 string
+			primary              func(context.Context, string) (fleet.WindowsMDMAwaitingConfiguration, error)
+			fallbackDevice       *fleet.MDMWindowsEnrolledDevice // nil = fallback also returns notFound
+			expectCancel         bool
+			expectFallbackLookup bool
+		}{
+			{
+				name:         "case 1: OOBE Autopilot (Automatic + OOBE -> Active)",
+				primary:      returns(fleet.WindowsMDMAwaitingConfigurationActive),
+				expectCancel: true,
+			},
+			{
+				name:         "case 2: OOBE Entra-join / Settings (Automatic + OOBE -> Pending)",
+				primary:      returns(fleet.WindowsMDMAwaitingConfigurationPending),
+				expectCancel: true,
+			},
+			{
+				name:         "case 3: post-OOBE BYOD work/school (Automatic + !OOBE -> None)",
+				primary:      returns(fleet.WindowsMDMAwaitingConfigurationNone),
+				expectCancel: false,
+			},
+			{
+				name:         "case 4: post-OOBE manual orbit + auto-Windows-MDM (Programmatic -> None)",
+				primary:      returns(fleet.WindowsMDMAwaitingConfigurationNone),
+				expectCancel: false,
+			},
+			{
+				name:                 "case 5: post-OOBE manual orbit, no Windows MDM (notFound, no fallback row)",
+				primary:              notFound,
+				fallbackDevice:       nil,
+				expectCancel:         false,
+				expectFallbackLookup: true,
+			},
+			{
+				name:                 "race window: primary misses, fallback finds Pending -> cancel",
+				primary:              notFound,
+				fallbackDevice:       &fleet.MDMWindowsEnrolledDevice{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending},
+				expectCancel:         true,
+				expectFallbackLookup: true,
+			},
+			{
+				name:                 "race window: primary misses, fallback finds Active -> cancel",
+				primary:              notFound,
+				fallbackDevice:       &fleet.MDMWindowsEnrolledDevice{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive},
+				expectCancel:         true,
+				expectFallbackLookup: true,
+			},
+			{
+				name:                 "race window: primary misses, fallback finds None -> skip",
+				primary:              notFound,
+				fallbackDevice:       &fleet.MDMWindowsEnrolledDevice{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone},
+				expectCancel:         false,
+				expectFallbackLookup: true,
+			},
+		}
+
+		failedSoftwareTitleID := uint(99)
+		failedSoftwareName := "MatrixApp"
+		installerID := uint(20)
+		pendingExecID := "pending-matrix-exec"
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+					return true, nil
+				}
+				ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+					return &fleet.Host{
+						ID: 7, UUID: hostUUID, Platform: "windows", ComputerName: computerName,
+						TeamID: &teamID, OsqueryHostID: &osqueryHostID,
+					}, nil
+				}
+				ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+					return &fleet.TeamLite{
+						ID: teamID,
+						Config: fleet.TeamConfigLite{
+							MDM: fleet.TeamMDM{
+								MacOSSetup: fleet.MacOSSetup{RequireAllSoftwareWindows: true},
+							},
+						},
+					}, nil
+				}
+				ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = tc.primary
+				ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc = func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error) {
+					require.Equal(t, computerName, deviceName)
+					if tc.fallbackDevice == nil {
+						return nil, &notFoundError{}
+					}
+					return tc.fallbackDevice, nil
+				}
+				ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, tID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+					return []*fleet.SetupExperienceStatusResult{
+						{
+							ID:                              5,
+							HostUUID:                        osqueryHostID,
+							Name:                            failedSoftwareName,
+							Status:                          fleet.SetupExperienceStatusFailure,
+							SoftwareInstallerID:             &installerID,
+							HostSoftwareInstallsExecutionID: &softwareUUID,
+							SoftwareTitleID:                 &failedSoftwareTitleID,
+						},
+						{
+							ID:                              6,
+							HostUUID:                        osqueryHostID,
+							Name:                            "PendingApp",
+							Status:                          fleet.SetupExperienceStatusPending,
+							SoftwareInstallerID:             &installerID,
+							HostSoftwareInstallsExecutionID: &pendingExecID,
+						},
+					}, nil
+				}
+				ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hID uint, executionID string) (fleet.ActivityDetails, error) {
+					return nil, nil
+				}
+				ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error { return nil }
+
+				ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked = false
+				ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked = false
+				ds.CancelHostUpcomingActivityFuncInvoked = false
+				ds.CancelPendingSetupExperienceStepsFuncInvoked = false
+				ds.ListSetupExperienceResultsByHostUUIDFuncInvoked = false
+
+				var activityFnCalled bool
+				activityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+					activityFnCalled = true
+					return nil
+				}
+
+				result := fleet.SetupExperienceSoftwareInstallResult{
+					HostUUID:        hostUUID,
+					ExecutionID:     softwareUUID,
+					InstallerStatus: fleet.SoftwareInstallFailed,
+				}
+				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
+				require.NoError(t, err)
+				require.True(t, updated, "installer status row must still be updated to failure regardless of gate decision")
+				require.True(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked,
+					"the new gate must always consult awaiting_configuration first")
+				require.Equal(t, tc.expectFallbackLookup, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked,
+					"fallback by device_name must run iff the primary lookup returned notFound")
+				require.Equal(t, tc.expectCancel, activityFnCalled,
+					"canceled_setup_experience activity emission must match expected cancel decision")
+				require.Equal(t, tc.expectCancel, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+					"CancelPendingSetupExperienceSteps invocation must match expected cancel decision")
+				require.Equal(t, tc.expectCancel, ds.CancelHostUpcomingActivityFuncInvoked,
+					"CancelHostUpcomingActivity invocation must match expected cancel decision")
+				require.Equal(t, tc.expectCancel, ds.ListSetupExperienceResultsByHostUUIDFuncInvoked,
+					"ListSetupExperienceResultsByHostUUID must only be invoked when the gate decides to cancel")
+			})
+		}
+	})
+
+	t.Run("software install failure with require_all=false does not emit activity or cancel", func(t *testing.T) {
+		// Spec invariant: when require_all_software (macOS) /
+		// require_all_software_windows (Windows) is false, a software
+		// install failure during ESP MUST NOT cancel pending steps and MUST
+		// NOT emit a canceled_setup_experience activity. The device just
+		// proceeds to the desktop and the failure is visible only in
+		// Fleet's host activity feed (via the install-status path, not
+		// canceled_setup_experience).
+		teamID := uint(1)
+
+		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+			return true, nil
+		}
+		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFuncInvoked = false
+		// Windows host with OsqueryHostID set so the cancel helper can run if
+		// it ever (incorrectly) reaches the lookup path. This test asserts
+		// it does NOT reach that path because of the require_all=false
+		// early-return.
+		osqueryHostID := "windows-osquery-id-noreq"
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID: 3, UUID: hostUUID, Platform: "windows",
+				TeamID: &teamID, OsqueryHostID: &osqueryHostID,
+			}, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{
+				ID: teamID,
+				Config: fleet.TeamConfigLite{
+					MDM: fleet.TeamMDM{
+						MacOSSetup: fleet.MacOSSetup{
+							RequireAllSoftwareWindows: false,
+						},
+					},
+				},
+			}, nil
+		}
+		ds.CancelPendingSetupExperienceStepsFuncInvoked = false
+		ds.CancelHostUpcomingActivityFuncInvoked = false
+		ds.ListSetupExperienceResultsByHostUUIDFuncInvoked = false
+
+		var activityFnCalled bool
+		activityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activityFnCalled = true
+			return nil
+		}
+
+		result := fleet.SetupExperienceSoftwareInstallResult{
+			HostUUID:        hostUUID,
+			ExecutionID:     softwareUUID,
+			InstallerStatus: fleet.SoftwareInstallFailed,
+		}
+		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
+		require.NoError(t, err)
+		require.True(t, updated, "the installer status row should still be updated to failure")
+		require.False(t, activityFnCalled, "no canceled_setup_experience activity when require_all=false")
+		require.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"no cancel-pending-steps when require_all=false")
+		require.False(t, ds.CancelHostUpcomingActivityFuncInvoked,
+			"no upcoming-activity cancel when require_all=false")
+		// The early-return path inside maybeCancelPendingSetupExperienceSteps
+		// should not even reach the ListSetupExperienceResultsByHostUUID query.
+		require.False(t, ds.ListSetupExperienceResultsByHostUUIDFuncInvoked,
+			"require_all=false should early-return before listing setup-experience results")
+	})
 }

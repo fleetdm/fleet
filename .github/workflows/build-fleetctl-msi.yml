@@ -1,0 +1,204 @@
+name: Build fleetctl Windows MSI
+
+# This workflow builds a signed Windows .msi installer for fleetctl
+# for manual testing purposes only.
+#
+# NOTE: For production releases, the goreleaser workflow (.github/workflows/goreleaser-fleet.yaml)
+# handles building and uploading the fleetctl MSI automatically when a fleet-* tag is pushed.
+# This workflow is kept for manual testing only.
+#
+# TESTING:
+# To test the MSI build process:
+# 1. Go to Actions -> Build fleetctl Windows MSI -> Run workflow
+# 2. Select your branch (e.g., main or feature branch)
+# 3. Test mode defaults to true (recommended) - MSI will be built and uploaded as an artifact
+# 4. To test release upload, set test_mode to false (use with caution)
+
+on:
+  workflow_dispatch: # Manual trigger for testing only
+    inputs:
+      test_mode:
+        description: "Test mode - will skip release upload if enabled (recommended: true)"
+        type: boolean
+        default: true
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: write # Needed to upload release assets
+  id-token: write # Needed for attestations
+  attestations: write # Needed to create build provenance attestations
+
+jobs:
+  build-sign-msi:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: extract_version
+        run: |
+          REF_NAME="${{ github.ref_name }}"
+
+          # Check if running from a tag
+          if [[ "${{ github.ref }}" == refs/tags/* ]] && [[ "$REF_NAME" == fleet-* ]]; then
+            VERSION="${REF_NAME#fleet-}"
+            VERSION="${VERSION#v}"
+            TAG_NAME="$REF_NAME"
+          else
+            VERSION="test-$(date +%Y%m%d-%H%M%S)"
+            TAG_NAME="fleet-${VERSION}"
+          fi
+
+          # For MSI, we need a numeric version (X.Y.Z). Use 0.0.0 for test builds.
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            MSI_VERSION="$VERSION"
+          else
+            MSI_VERSION="0.0.0"
+          fi
+
+          # Determine test mode
+          if [ "${{ github.event.inputs.test_mode }}" = "false" ]; then
+            IS_TEST_MODE="false"
+          else
+            IS_TEST_MODE="true"
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "msi_version=$MSI_VERSION" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "is_test_mode=$IS_TEST_MODE" >> $GITHUB_OUTPUT
+          echo "Fleet version: $VERSION (MSI version: $MSI_VERSION)"
+          if [ "$IS_TEST_MODE" = "true" ]; then
+            echo "TEST MODE: MSI will be built but NOT uploaded to release"
+          else
+            echo "PRODUCTION MODE: MSI will be uploaded to release $TAG_NAME"
+          fi
+
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Build fleetctl binary
+        run: |
+          VERSION="${{ steps.extract_version.outputs.version }}"
+
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            BRANCH_NAME="${{ steps.extract_version.outputs.tag_name }}"
+          else
+            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          fi
+
+          LDFLAGS="-X github.com/fleetdm/fleet/v4/server/version.appName=fleetctl \
+                   -X github.com/fleetdm/fleet/v4/server/version.version=${VERSION} \
+                   -X github.com/fleetdm/fleet/v4/server/version.branch=${BRANCH_NAME} \
+                   -X github.com/fleetdm/fleet/v4/server/version.revision=${GITHUB_SHA} \
+                   -X github.com/fleetdm/fleet/v4/server/version.buildDate=$(date -u +%Y-%m-%d) \
+                   -X github.com/fleetdm/fleet/v4/server/version.buildUser=github-actions"
+
+          echo "Building fleetctl for windows/${{ matrix.arch }}..."
+          CGO_ENABLED=0 GOOS=windows GOARCH=${{ matrix.arch }} go build \
+            -trimpath \
+            -ldflags "$LDFLAGS" \
+            -o fleetctl.exe \
+            ./cmd/fleetctl
+
+          if [ ! -f fleetctl.exe ]; then
+            echo "Error: fleetctl.exe not found after build"
+            exit 1
+          fi
+
+          echo "Built fleetctl.exe ($(wc -c < fleetctl.exe) bytes)"
+
+      - name: Install WiX 3.14.1
+        run: |
+          curl -fSL -o wix314-binaries.zip \
+            https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip
+          mkdir -p "$RUNNER_TEMP/wix"
+          unzip -q wix314-binaries.zip -d "$RUNNER_TEMP/wix"
+          echo "$RUNNER_TEMP/wix" >> $GITHUB_PATH
+
+      - name: Setup DigiCert KeyLocker
+        env:
+          DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
+          DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
+          DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
+          DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
+        run: |
+          # Decode certificate
+          echo "$DIGICERT_KEYLOCKER_CERTIFICATE" | base64 --decode > /d/Certificate_pkcs12.p12
+
+          # Set environment variables for subsequent steps
+          echo "SM_HOST=$DIGICERT_KEYLOCKER_HOST_URL" >> "$GITHUB_ENV"
+          echo "SM_API_KEY=$DIGICERT_API_KEY" >> "$GITHUB_ENV"
+          echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> "$GITHUB_ENV"
+          echo "SM_CLIENT_CERT_PASSWORD=$DIGICERT_KEYLOCKER_PASSWORD" >> "$GITHUB_ENV"
+
+          # Add signing tools to PATH
+          echo "C:\Program Files (x86)\Windows Kits\10\App Certification Kit" >> $GITHUB_PATH
+          echo "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools" >> $GITHUB_PATH
+          echo "C:\Program Files\DigiCert\DigiCert Keylocker Tools" >> $GITHUB_PATH
+
+      - name: Install DigiCert KeyLocker KSP
+        run: |
+          curl https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" --fail-with-body -o Keylockertools-windows-x64.msi
+          msiexec /i Keylockertools-windows-x64.msi /quiet /qn
+          smksp_registrar.exe list
+          smctl.exe keypair ls
+          C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
+        shell: cmd
+
+      - name: Sync certificates
+        run: |
+          smctl windows certsync
+        shell: cmd
+
+      - name: Build and sign MSI
+        env:
+          DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
+          SKIP_UPLOAD: ${{ inputs.test_mode && 'true' || 'false' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          chmod +x tools/build-fleetctl-msi/main.sh
+          ./tools/build-fleetctl-msi/main.sh \
+            fleetctl.exe \
+            "${{ steps.extract_version.outputs.msi_version }}" \
+            "${{ matrix.arch }}"
+
+      - name: Upload MSI artifact (test mode)
+        if: ${{ inputs.test_mode }}
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: fleetctl-msi-${{ matrix.arch }}
+          path: dist/fleetctl_v${{ steps.extract_version.outputs.msi_version }}_windows_${{ matrix.arch }}.msi
+          retention-days: 7
+
+      - name: Attest MSI
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: dist/fleetctl_v${{ steps.extract_version.outputs.msi_version }}_windows_${{ matrix.arch }}.msi
+          push-to-registry: false

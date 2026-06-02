@@ -1,1 +1,0 @@
-*  Added GET /api/v1/fleet/hosts/{id}/reports endpoint (also accessible as /hosts/{id}/queries) that lists the query reports associated with a specific host.

@@ -1,1 +1,0 @@
-- Fixed a server panic when uploading a Windows/Apple/Android MDM profile to a fleet on a free license (fleets are a premium feature).

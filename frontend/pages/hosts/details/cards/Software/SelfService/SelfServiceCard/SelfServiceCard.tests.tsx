@@ -89,7 +89,7 @@ describe("SelfServiceCard", () => {
 
     render(<SelfServiceCard {...props} />);
 
-    expect(screen.getByText("Error loading software.")).toBeInTheDocument();
+    expect(screen.getByText("Error loading software")).toBeInTheDocument();
   });
 
   it("renders empty state when isEmpty is true", () => {

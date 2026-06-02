@@ -22,6 +22,7 @@ export interface ScriptsLocation {
     fleet_id?: string;
     status?: string;
     page?: string;
+    add_script?: string;
   };
 }
 interface IScriptsProps {

@@ -3,7 +3,7 @@ import React, { useMemo } from "react";
 import { IGetConfigProfileStatusResponse } from "services/entities/config_profiles";
 
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import {
   generateTableConfig,
@@ -36,7 +36,7 @@ const ConfigProfileStatusTable = ({
       columnConfigs={columnConfigs}
       data={tableData}
       isLoading={false}
-      emptyComponent={() => <EmptyTable />}
+      emptyComponent={() => <EmptyState header="No host status available" />} // Unreachable empty state, kept for consistency
       showMarkAllPages={false}
       isAllPagesSelected={false}
       manualSortBy

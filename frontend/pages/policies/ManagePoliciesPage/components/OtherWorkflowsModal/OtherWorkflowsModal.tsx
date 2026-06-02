@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { InjectedRouter, Link } from "react-router";
+import { InjectedRouter } from "react-router";
 import { isEmpty, noop, omit } from "lodash";
 
 import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
@@ -253,7 +253,7 @@ const OtherWorkflowsModal = ({
           showText="Show example payload"
           caretPosition="after"
           onClick={() => setShowExamplePayload(!showExamplePayload)}
-          disabled={!isPolicyAutomationsEnabled || gitOpsModeEnabled}
+          disabled={!isPolicyAutomationsEnabled}
         />
         {showExamplePayload && <ExamplePayload />}
       </>
@@ -309,7 +309,7 @@ const OtherWorkflowsModal = ({
   };
 
   // Disable saving if ticket workflow is selected but no integration is chosen
-  const disableSave = (changedItems: IFormPolicy[]) => {
+  const disableSave = () => {
     if (
       isPolicyAutomationsEnabled &&
       !isWebhookEnabled &&

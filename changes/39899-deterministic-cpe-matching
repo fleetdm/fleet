@@ -1,1 +1,0 @@
-* Fixed nondeterministic CPE matching when multiple CPE candidates share the same product name.

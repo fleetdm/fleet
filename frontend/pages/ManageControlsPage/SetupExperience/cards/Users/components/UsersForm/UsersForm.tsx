@@ -1,23 +1,36 @@
 import React, { useContext, useEffect, useState } from "react";
 
-import PATHS from "router/paths";
 import mdmAPI from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TooltipWrapper from "components/TooltipWrapper";
+import { EndUserLocalAccountType } from "interfaces/mdm";
+
+import EndUserAuthSection from "./components/EndUserAuthSection";
+import LocalAccountSection, {
+  effectiveEnableManagedLocalAccount,
+} from "./components/LocalAccountSection/LocalAccountSection";
 
 const baseClass = "users-form";
+
+export interface IUsersFormData {
+  endUserAuthEnabled: boolean;
+  lockEndUserInfo: boolean;
+  enableManagedLocalAccount: boolean;
+  localAccountType: EndUserLocalAccountType;
+}
 
 interface IUsersFormProps {
   currentTeamId: number;
   defaultIsEndUserAuthEnabled: boolean;
   defaultLockEndUserInfo: boolean;
   defaultEnableManagedLocalAccount: boolean;
+  /** The radio value to start from. Defaults to the option that doesn't
+   * force the managed local account on. */
+  defaultLocalAccountType?: EndUserLocalAccountType;
+  isIdPConfigured: boolean;
 }
 
 const UsersForm = ({
@@ -25,59 +38,82 @@ const UsersForm = ({
   defaultIsEndUserAuthEnabled,
   defaultLockEndUserInfo,
   defaultEnableManagedLocalAccount,
+  defaultLocalAccountType = EndUserLocalAccountType.ADMIN,
+  isIdPConfigured,
 }: IUsersFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
+  const gitOpsModeEnabled = !!config?.gitops.gitops_mode_enabled;
 
-  const [isEndUserAuthEnabled, setEndUserAuthEnabled] = useState(
-    defaultIsEndUserAuthEnabled
-  );
-  const [lockEndUserInfo, setLockEndUserInfo] = useState(
-    defaultLockEndUserInfo
-  );
-  const [enableManagedLocalAccount, setEnableManagedLocalAccount] = useState(
-    defaultEnableManagedLocalAccount
-  );
+  const [formData, setFormData] = useState<IUsersFormData>({
+    endUserAuthEnabled: defaultIsEndUserAuthEnabled,
+    lockEndUserInfo: defaultLockEndUserInfo,
+    enableManagedLocalAccount: defaultEnableManagedLocalAccount,
+    localAccountType: defaultLocalAccountType,
+  });
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Re-sync local state when the parent refetches config (e.g. team switch).
   // useState initializers only run on first mount, so without this the form
   // would show and save the previous team's settings.
   useEffect(() => {
-    setEndUserAuthEnabled(defaultIsEndUserAuthEnabled);
-    setLockEndUserInfo(defaultLockEndUserInfo);
-    setEnableManagedLocalAccount(defaultEnableManagedLocalAccount);
+    setFormData({
+      endUserAuthEnabled: defaultIsEndUserAuthEnabled,
+      lockEndUserInfo: defaultLockEndUserInfo,
+      enableManagedLocalAccount: defaultEnableManagedLocalAccount,
+      localAccountType: defaultLocalAccountType,
+    });
   }, [
     defaultIsEndUserAuthEnabled,
     defaultLockEndUserInfo,
     defaultEnableManagedLocalAccount,
+    defaultLocalAccountType,
   ]);
 
-  const onToggleEndUserAuth = (newCheckVal: boolean) => {
-    setEndUserAuthEnabled(newCheckVal);
-    // Sync lock end user info with EUA: enabling EUA enables it, disabling EUA disables it.
-    setLockEndUserInfo(newCheckVal);
+  const onEndUserAuthChange = (value: boolean) => {
+    // Sync lock end user info with EUA only when Apple MDM is configured.
+    // Without Apple MDM the field is read-only, so we leave whatever value
+    // came from the backend untouched.
+    setFormData((prev) => ({
+      ...prev,
+      endUserAuthEnabled: value,
+      lockEndUserInfo: isMacMdmEnabledAndConfigured
+        ? value
+        : prev.lockEndUserInfo,
+    }));
   };
 
-  const onChangeLockEndUserInfo = (newCheckVal: boolean) => {
-    setLockEndUserInfo(newCheckVal);
+  const onLockEndUserInfoChange = (value: boolean) => {
+    setFormData((prev) => ({ ...prev, lockEndUserInfo: value }));
   };
 
-  const onToggleManagedLocalAccount = (newCheckVal: boolean) => {
-    setEnableManagedLocalAccount(newCheckVal);
+  const onEnableManagedLocalAccountChange = (value: boolean) => {
+    setFormData((prev) => ({ ...prev, enableManagedLocalAccount: value }));
   };
 
-  const onClickSave = async () => {
+  const onLocalAccountTypeChange = (value: EndUserLocalAccountType) => {
+    setFormData((prev) => ({ ...prev, localAccountType: value }));
+  };
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
     setIsUpdating(true);
-    const canLockEndUserInfo = isEndUserAuthEnabled && lockEndUserInfo;
+    const canLockEndUserInfo =
+      formData.endUserAuthEnabled && formData.lockEndUserInfo;
 
     try {
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
-        enable_end_user_authentication: isEndUserAuthEnabled,
-        lock_end_user_info: canLockEndUserInfo,
-        enable_managed_local_account: enableManagedLocalAccount,
+        enable_end_user_authentication: formData.endUserAuthEnabled,
+        // Apple-only fields are omitted when Apple MDM isn't configured.
+        ...(isMacMdmEnabledAndConfigured && {
+          lock_end_user_info: canLockEndUserInfo,
+          enable_managed_local_account: effectiveEnableManagedLocalAccount(
+            formData
+          ),
+          end_user_local_account_type: formData.localAccountType,
+        }),
       });
       renderFlash("success", "Successfully updated.");
     } catch {
@@ -85,70 +121,29 @@ const UsersForm = ({
     }
 
     setIsUpdating(false);
-    setLockEndUserInfo(canLockEndUserInfo);
+    if (isMacMdmEnabledAndConfigured) {
+      setFormData((prev) => ({ ...prev, lockEndUserInfo: canLockEndUserInfo }));
+    }
   };
 
   return (
     <div className={baseClass}>
-      <form onSubmit={onClickSave}>
-        <Checkbox
-          disabled={gitOpsModeEnabled}
-          value={isEndUserAuthEnabled}
-          onChange={onToggleEndUserAuth}
-          helpText={
-            <span>
-              End users are required to authenticate with your{" "}
-              <CustomLink
-                url={PATHS.ADMIN_INTEGRATIONS_SSO_END_USERS}
-                text="identity provider (IdP)"
-              />{" "}
-              when setting up new hosts.
-            </span>
-          }
-        >
-          End user authentication
-        </Checkbox>
-        {isEndUserAuthEnabled && (
-          <div className={`${baseClass}__advanced-options`}>
-            <Checkbox
-              disabled={gitOpsModeEnabled}
-              onChange={onChangeLockEndUserInfo}
-              value={lockEndUserInfo}
-            >
-              <TooltipWrapper
-                tipContent={
-                  <span>
-                    End user can&apos;t edit the local account&apos;s{" "}
-                    <b>Account Name</b> and
-                    <br />
-                    <b>Full Name</b> in macOS Setup Assistant. These fields will
-                    be
-                    <br />
-                    locked to values from your IdP.
-                  </span>
-                }
-              >
-                Lock end user info
-              </TooltipWrapper>
-            </Checkbox>
-          </div>
-        )}
-        <Checkbox
-          disabled={gitOpsModeEnabled}
-          value={enableManagedLocalAccount}
-          onChange={onToggleManagedLocalAccount}
-          helpText={
-            <span>
-              Fleet generates a user (_fleetadmin) and unique password for each
-              host, accessible in <b>Host details</b> &gt;{" "}
-              <b>Show managed account</b>.
-            </span>
-          }
-        >
-          <TooltipWrapper tipContent="Creates a hidden managed local admin account for remote troubleshooting on macOS hosts.">
-            Managed local account
-          </TooltipWrapper>
-        </Checkbox>
+      <form onSubmit={onSubmit}>
+        <LocalAccountSection
+          formData={formData}
+          onLocalAccountTypeChange={onLocalAccountTypeChange}
+          onEnableManagedLocalAccountChange={onEnableManagedLocalAccountChange}
+          isMacMdmEnabledAndConfigured={!!isMacMdmEnabledAndConfigured}
+        />
+        <EndUserAuthSection
+          endUserAuthEnabled={formData.endUserAuthEnabled}
+          lockEndUserInfo={formData.lockEndUserInfo}
+          onEndUserAuthChange={onEndUserAuthChange}
+          onLockEndUserInfoChange={onLockEndUserInfoChange}
+          isIdPConfigured={isIdPConfigured}
+          isMacMdmEnabledAndConfigured={!!isMacMdmEnabledAndConfigured}
+          gitOpsModeEnabled={gitOpsModeEnabled}
+        />
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button

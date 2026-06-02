@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	software_mock "github.com/fleetdm/fleet/v4/server/mock/software"
@@ -134,7 +135,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 
 	// check the software installer
 	var id uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &id,
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, payload.TeamID, payload.Filename)
 	})
@@ -210,7 +211,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerSignedURL() {
 
 func getLatestSoftwareInstallExecID(t *testing.T, ds *mysql.Datastore, hostID uint) string {
 	var installUUID string
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &installUUID,
 			"SELECT execution_id FROM host_software_installs WHERE host_id = ? ORDER BY id desc", hostID)
 	})
@@ -258,7 +259,7 @@ func (s *integrationInstallTestSuite) TestShScriptInstallOnDarwin() {
 
 	// Get the title ID from the database
 	var id uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &id,
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, createTeamResp.Team.ID, filename)
 	})

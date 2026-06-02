@@ -21,17 +21,17 @@ As for other types of custom settings, DDM profiles are associated with a fleet 
 Via the UI, all custom settings are set in the "Controls -> OS settings -> Custom settings" page. Apple's "traditional" profiles (`.mobileconfig` files), Apple's DDM `.json` profiles and Windows' `.xml` profiles can all be uploaded and managed here.
 
 Via the API (which is used by the UI), the following endpoints support DDM profiles:
-* `GET /api/latest/fleet/configuration_profiles` lists all configuration profiles, including DDM profiles. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles).
-* `POST /api/latest/fleet/configuration_profiles` uploads a new configuration profile, which may be a DDM profile. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile).
-* `DELETE /api/latest/fleet/configuration_profiles/{profile_uuid}` deletes a configuration profile, which may be a DDM profile. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#delete-custom-os-setting-configuration-profile).
+* `GET /api/latest/fleet/configuration_profiles` lists all configuration profiles, including DDM profiles. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles).
+* `POST /api/latest/fleet/configuration_profiles` uploads a new configuration profile, which may be a DDM profile. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile).
+* `DELETE /api/latest/fleet/configuration_profiles/{profile_uuid}` deletes a configuration profile, which may be a DDM profile. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#delete-configuration-profile).
 * `GET /api/latest/fleet/configuration_profiles/summary` provides fleet-level statistics of custom settings by status, including DDM profiles. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#get-os-settings-summary).
-* `GET /api/latest/fleet/configuration_profiles/{profile_uuid}` provides either the metadata or the profile's content (as a file attachment) for a specific profile, which may be a DDM one. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#get-or-download-custom-os-setting-configuration-profile).
+* `GET /api/latest/fleet/configuration_profiles/{profile_uuid}` provides either the metadata or the profile's content (as a file attachment) for a specific profile, which may be a DDM one. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#get-or-download-configuration-profile).
 * `GET /api/latest/fleet/configuration_profiles/{profile_uuid}/status` provides statistics of a specific custom settings by status, including DDM profiles. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#get-os-setting-configuration-profile-status).
-* `POST /api/latest/fleet/hosts/{host_id}/configuration_profiles/{profile_uuid}/resend` resends a specific profile to a specific host, which may be a DDM profile (which is interesting, since the batch-resend doesn't support DDM). See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#resend-custom-os-setting-configuration-profile).
+* `POST /api/latest/fleet/hosts/{host_id}/configuration_profiles/{profile_uuid}/resend` resends a specific profile to a specific host, which may be a DDM profile (which is interesting, since the batch-resend doesn't support DDM). See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile).
 
 Note that the following endpoints do _not_ support DDM profiles:
 * `GET /api/latest/fleet/hosts/{id}/configuration_profiles` lists only the Apple `.mobileconfig` profiles of the host, not the DDM profiles nor the Windows profiles. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#get-configuration-profiles-assigned-to-a-host).
-* `POST /api/_version_/fleet/configuration_profiles/resend/batch` batch-resends a specific configuration profile to all hosts where it is in a specific status (e.g. "failed"). Does not support re-sending a DDM profile. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#batch-resend-custom-os-setting-configuration-profile).
+* `POST /api/_version_/fleet/configuration_profiles/resend/batch` batch-resends a specific configuration profile to all hosts where it is in a specific status (e.g. "failed"). Does not support re-sending a DDM profile. See [the API reference](https://fleetdm.com/docs/rest-api/rest-api#batch-resend-configuration-profile).
 
 
 Via `fleetctl gitops`, the following YAML section can be used to manage profiles:
@@ -129,7 +129,15 @@ The profiles names must be unique across all platforms and profile types for a g
 
 * As mentioned earlier, label restrictions (include any, include all and exclude any) are supported for DDM profiles, same as for other types of profiles.
 * Fleet secrets [are supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L885-L888) and are expanded with their values when the declaration is sent to the host.
-* Fleet _variables_ [are **not** supported](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/service/apple_mdm.go#L948-L953) for DDM.
+* The following Fleet _variables_ are supported for DDM:
+  - `$FLEET_VAR_HOST_HARDWARE_SERIAL`
+  - `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`
+  - `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`
+  - `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`
+  - `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`
+  - `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`
+  - `$FLEET_VAR_HOST_UUID`
+  - `$FLEET_VAR_HOST_PLATFORM`
 * DDM profiles [cannot include OS updates settings](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L670-L672), as those are handled by Fleet via the "Controls -> OS updates" settings.
 * DDM profiles [cannot be of a type that requires assets](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L674-L676), as assets are currently not supported.
 * DDM profiles [cannot have a "status subscription" type](https://github.com/fleetdm/fleet/blob/bd027dc4210b113983c3133251b51754e7d24c6f/server/fleet/apple_mdm.go#L678-L680).

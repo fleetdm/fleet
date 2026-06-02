@@ -2,6 +2,8 @@
 
 This directory contains a Helm Chart that makes deploying Fleet on Kubernetes easy.
 
+> **Migrating from v6.x?** The Bitnami MySQL and Redis sub-charts have been replaced. See [MIGRATION.md](MIGRATION.md) for upgrade instructions.
+
 ### Usage
 
 #### 1. Create namespace

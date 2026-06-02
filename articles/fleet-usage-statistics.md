@@ -38,13 +38,23 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "numSoftwareCPEs": 999,
   "numSoftwareCVEs": 999,
   "numHostsNotResponding": 9,
+  "numHostsFleetDesktopEnabled": 999,
   "aiFeaturesDisabled": true,
   "maintenanceWindowsEnabled": true,
   "maintenanceWindowsConfigured": true,
   "oktaConditionalAccessConfigured": true,
+  "entraConditionalAccessConfigured": true,
   "conditionalAccessBypassDisabled": false,
+  "conditionalAccessEnabled": true,
   "numHostsFleetDesktopEnabled": 999,
+  "numFleetsManagedAdminAccountEnabled": 999,
   "anyFleetRecoveryLockPasswordEnabled": true,
+  "gitOpsModeEnabled": true,
+  "gitOpsModeExceptions": [
+    "labels",
+    "software",
+    "secrets"
+  ],
   "fleetMaintainedAppsMacOS": [
     "1password/darwin",
     "slack/darwin",

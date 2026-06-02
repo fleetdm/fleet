@@ -7,7 +7,7 @@ import {
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
-import { ITokenTeam } from "./mdm";
+import { EndUserLocalAccountType, ITokenTeam } from "./mdm";
 
 export default PropTypes.shape({
   id: PropTypes.number.isRequired,
@@ -41,9 +41,7 @@ export interface ITeam extends ITeamSummary {
   count?: number;
   created_at?: string;
   features?: IConfigFeatures;
-  agent_options?: {
-    [key: string]: any;
-  };
+  agent_options?: Record<string, unknown>;
   user_count?: number;
   host_count?: number;
   secrets?: IEnrollSecret[];
@@ -66,9 +64,12 @@ export interface ITeam extends ITeamSummary {
       apple_enable_release_device_manually: boolean | null;
       macos_manual_agent_install: boolean | null;
       require_all_software_macos: boolean | null;
+      require_all_software_windows: boolean | null;
       lock_end_user_info: boolean | null;
+      enable_create_local_admin_account?: boolean;
+      end_user_local_account_type?: EndUserLocalAccountType;
     };
-    macos_setup: {
+    macos_setup?: {
       enable_managed_local_account?: boolean;
     };
     windows_updates: {
@@ -114,10 +115,10 @@ export interface INewTeamUser {
 /**
  * The shape of the body expected from the API when adding new users to teams
  */
-export interface INewTeamUsersBody {
+export interface INewTeamUsersFormData {
   users: INewTeamUser[];
 }
-export interface IRemoveTeamUserBody {
+export interface IRemoveTeamUserFormData {
   users: { id?: number }[];
 }
 interface INewTeamSecret {
@@ -125,10 +126,10 @@ interface INewTeamSecret {
   secret: string;
   created_at?: string;
 }
-export interface INewTeamSecretBody {
+export interface INewTeamSecretFormData {
   secrets: INewTeamSecret[];
 }
-export interface IRemoveTeamSecretBody {
+export interface IRemoveTeamSecretFormData {
   secrets: { secret: string }[];
 }
 

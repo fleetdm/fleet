@@ -2,112 +2,22 @@ package fleetctl
 
 import (
 	"errors"
-	"fmt"
-	"strconv"
 
-	"github.com/AbGuthrie/goquery/v2"
-	gqconfig "github.com/AbGuthrie/goquery/v2/config"
-	gqhosts "github.com/AbGuthrie/goquery/v2/hosts"
-	gqmodels "github.com/AbGuthrie/goquery/v2/models"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
 
-type activeQuery struct {
-	status  string
-	results []map[string]string
-}
+// goqueryRunner is set by the fleetctl binary's main package via
+// SetGoqueryRunner. Keeping the github.com/AbGuthrie/goquery/v2 import out of
+// this package prevents its init function from being linked into binaries
+// (e.g. fleet server) that transitively import the fleetctl package without
+// needing the goquery subcommand.
+var goqueryRunner func(*service.Client) error
 
-type goqueryClient struct {
-	client       *service.Client
-	queryCounter int
-	queries      map[string]activeQuery
-	// goquery passes the UUID, while we need the hostname (or ID) to
-	// query against Fleet. Keep a mapping so that we know how to target
-	// the host.
-	hostnameByUUID map[string]string
-}
-
-func newGoqueryClient(fleetClient *service.Client) *goqueryClient {
-	return &goqueryClient{
-		client:         fleetClient,
-		queryCounter:   0,
-		queries:        make(map[string]activeQuery),
-		hostnameByUUID: make(map[string]string),
-	}
-}
-
-func (c *goqueryClient) CheckHost(query string) (gqhosts.Host, error) {
-	res, err := c.client.SearchTargets(query, nil, nil)
-	if err != nil {
-		return gqhosts.Host{}, err
-	}
-
-	var host *fleet.Host
-	for _, h := range res.Hosts {
-		// We allow hosts to be looked up by hostname in addition to UUID
-		if query == h.UUID || query == h.Hostname || query == h.ComputerName {
-			host = h
-			break
-		}
-	}
-
-	if host == nil {
-		return gqhosts.Host{}, fmt.Errorf("host %s not found", query)
-	}
-
-	c.hostnameByUUID[host.UUID] = host.Hostname
-
-	return gqhosts.Host{
-		UUID:         host.UUID,
-		ComputerName: host.ComputerName,
-		Platform:     host.Platform,
-		Version:      host.OsqueryVersion,
-	}, nil
-}
-
-func (c *goqueryClient) ScheduleQuery(uuid, query string) (string, error) {
-	c.queryCounter++
-	queryName := strconv.Itoa(c.queryCounter)
-
-	hostname, ok := c.hostnameByUUID[uuid]
-	if !ok {
-		return "", errors.New("could not lookup host")
-	}
-
-	res, err := c.client.LiveQuery(query, nil, []string{}, []string{hostname})
-	if err != nil {
-		return "", err
-	}
-
-	c.queries[queryName] = activeQuery{status: "Pending"}
-
-	// We need to start a separate thread due to goquery expecting
-	// scheduling a query and retrieving results to be separate
-	// operations.
-	go func() {
-		select {
-		case hostResult := <-res.Results():
-			c.queries[queryName] = activeQuery{status: "Completed", results: hostResult.Rows}
-
-			// Print an error
-		case err := <-res.Errors():
-			c.queries[queryName] = activeQuery{status: "error: " + err.Error()}
-		}
-	}()
-
-	gqhosts.AddQueryToHost(uuid, gqhosts.Query{Name: queryName, SQL: query})
-	return queryName, nil
-}
-
-func (c *goqueryClient) FetchResults(queryName string) (gqmodels.Rows, string, error) {
-	res, ok := c.queries[queryName]
-	if !ok {
-		return nil, "", fmt.Errorf("Unknown query %s", queryName)
-	}
-
-	return res.results, res.status, nil
+// SetGoqueryRunner registers the implementation of the `fleetctl goquery`
+// subcommand. Call from package main before CreateApp.
+func SetGoqueryRunner(runner func(*service.Client) error) {
+	goqueryRunner = runner
 }
 
 func goqueryCommand() *cli.Command {
@@ -121,13 +31,14 @@ func goqueryCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			if goqueryRunner == nil {
+				return errors.New("goquery support is not built into this binary")
+			}
+			fleetClient, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
-
-			goquery.Run(newGoqueryClient(fleet), gqconfig.Config{})
-			return nil
+			return goqueryRunner(fleetClient)
 		},
 	}
 }

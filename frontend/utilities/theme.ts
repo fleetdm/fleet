@@ -1,5 +1,10 @@
-const THEME_KEY = "fleet-dark-mode";
+const THEME_KEY = "fleet-theme";
 const TRANSITION_MS = 300;
+
+export type ThemeMode = "system" | "light" | "dark";
+
+const isThemeMode = (value: unknown): value is ThemeMode =>
+  value === "system" || value === "light" || value === "dark";
 
 const systemPrefersDark = (): boolean => {
   return (
@@ -9,15 +14,20 @@ const systemPrefersDark = (): boolean => {
   );
 };
 
-export const isDarkMode = (): boolean => {
-  // Explicit user choice wins; otherwise inherit the system preference so
-  // first-time visitors match their OS theme without us persisting anything.
-  const stored = localStorage.getItem(THEME_KEY);
-  if (stored !== null) {
-    return stored === "true";
+export const getThemeMode = (): ThemeMode => {
+  let stored: string | null = null;
+  try {
+    stored = localStorage.getItem(THEME_KEY);
+  } catch {
+    // localStorage can throw in restricted environments; fall back to system.
   }
-  return systemPrefersDark();
+  return isThemeMode(stored) ? stored : "system";
 };
+
+const resolveDark = (mode: ThemeMode): boolean =>
+  mode === "system" ? systemPrefersDark() : mode === "dark";
+
+export const isDarkMode = (): boolean => resolveDark(getThemeMode());
 
 // Apply a theme change to the DOM and notify listeners. `animate` adds a
 // blanket transition class so the whole UI cross-fades instead of snapping.
@@ -34,25 +44,33 @@ const applyDarkMode = (dark: boolean, animate: boolean): void => {
   );
 };
 
-export const toggleDarkMode = (): boolean => {
-  const dark = !isDarkMode();
-  localStorage.setItem(THEME_KEY, String(dark));
-  applyDarkMode(dark, true);
-  return dark;
+export const setThemeMode = (mode: ThemeMode): void => {
+  try {
+    if (mode === "system") {
+      localStorage.removeItem(THEME_KEY);
+    } else {
+      localStorage.setItem(THEME_KEY, mode);
+    }
+  } catch {
+    // localStorage can throw in restricted environments; the DOM still
+    // gets the updated theme below, the choice just won't persist.
+  }
+  applyDarkMode(resolveDark(mode), true);
 };
 
 export const initTheme = (): void => {
-  if (isDarkMode()) {
+  const mode = getThemeMode();
+  if (resolveDark(mode)) {
     document.body.classList.add("dark-mode");
   }
 
-  // Follow OS theme changes live — but only while the user has no explicit
-  // preference stored. Once they've toggled in-app, their choice sticks
+  // Follow OS theme changes live — but only while the user is on "system".
+  // Once they've picked light or dark explicitly, their choice sticks
   // regardless of what the OS does.
   if (typeof window !== "undefined" && window.matchMedia) {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     media.addEventListener("change", (e) => {
-      if (localStorage.getItem(THEME_KEY) !== null) return;
+      if (getThemeMode() !== "system") return;
       applyDarkMode(e.matches, true);
     });
   }

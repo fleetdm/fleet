@@ -8,17 +8,20 @@ import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink/CustomLink";
 import PageDescription from "components/PageDescription";
-import EmptyTable from "components/EmptyTable";
-import Card from "components/Card";
+import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import UploadList from "components/UploadList";
 
 import AddEntraTenantModal from "../components/AddEntraTenantModal";
 import DeleteEntraTenantModal from "../components/DeleteEntraTenantModal";
+import AddEntraClientIDModal from "../components/AddEntraClientIDModal";
+import DeleteEntraClientIDModal from "../components/DeleteEntraClientIDModal";
 
 import EntraTenantsListHeader from "./EntraTenantsListHeader";
 import EntraTenantsListItem from "./EntraTenantsListItem";
+import EntraClientIDsListHeader from "./EntraClientIDsListHeader";
+import EntraClientIDsListItem from "./EntraClientIDsListItem";
 
 const generateMdmTermsOfUseUrl = (domain: string) => {
   return `${domain}/api/mdm/microsoft/tos`;
@@ -34,13 +37,21 @@ const WindowsAutomaticEnrollmentPage = () => {
   const { config } = useContext(AppContext);
 
   const deletingTenantId = useRef<null | string>(null);
+  const deletingClientId = useRef<null | string>(null);
 
   const [showAddTenantModal, setShowAddTenantModal] = useState(false);
   const [showDeleteTenantModal, setShowDeleteTenantModal] = useState(false);
+  const [showAddClientIdModal, setShowAddClientIdModal] = useState(false);
+  const [showDeleteClientIdModal, setShowDeleteClientIdModal] = useState(false);
 
   const onDeleteTenant = (tenantId: string) => {
     deletingTenantId.current = tenantId;
     setShowDeleteTenantModal(true);
+  };
+
+  const onDeleteClientId = (clientId: string) => {
+    deletingClientId.current = clientId;
+    setShowDeleteClientIdModal(true);
   };
 
   const renderEntraTenants = () => {
@@ -48,25 +59,23 @@ const WindowsAutomaticEnrollmentPage = () => {
 
     if (!tenants || tenants.length === 0) {
       return (
-        <Card paddingSize="xxlarge">
-          <EmptyTable
-            className={`${baseClass}__empty-tenant-message`}
-            header="No tenants added"
-            info="Add your Entra tenant ID to be able to enroll Windows hosts."
-            primaryButton={
-              <GitOpsModeTooltipWrapper
-                renderChildren={(disable) => (
-                  <Button
-                    onClick={() => setShowAddTenantModal(true)}
-                    disabled={disable}
-                  >
-                    Add
-                  </Button>
-                )}
-              />
-            }
-          />
-        </Card>
+        <EmptyState
+          variant="header-list"
+          header="No tenants added"
+          info="Add your Entra tenant ID to be able to enroll Windows hosts."
+          primaryButton={
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disable) => (
+                <Button
+                  onClick={() => setShowAddTenantModal(true)}
+                  disabled={disable}
+                >
+                  Add
+                </Button>
+              )}
+            />
+          }
+        />
       );
     }
 
@@ -83,6 +92,50 @@ const WindowsAutomaticEnrollmentPage = () => {
           <EntraTenantsListItem
             tenantId={listItem}
             onClickDelete={() => onDeleteTenant(listItem)}
+          />
+        )}
+      />
+    );
+  };
+
+  const renderEntraClientIds = () => {
+    const clientIds = config?.mdm.windows_entra_client_ids;
+
+    if (!clientIds || clientIds.length === 0) {
+      return (
+        <EmptyState
+          variant="header-list"
+          header="No client IDs added"
+          info="Add your Entra application client ID to enroll Windows hosts."
+          primaryButton={
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disable) => (
+                <Button
+                  onClick={() => setShowAddClientIdModal(true)}
+                  disabled={disable}
+                >
+                  Add
+                </Button>
+              )}
+            />
+          }
+        />
+      );
+    }
+
+    return (
+      <UploadList
+        className={`${baseClass}__client-id-list`}
+        listItems={clientIds}
+        HeadingComponent={() => (
+          <EntraClientIDsListHeader
+            onClickAddClientId={() => setShowAddClientIdModal(true)}
+          />
+        )}
+        ListItemComponent={({ listItem }) => (
+          <EntraClientIDsListItem
+            clientId={listItem}
+            onClickDelete={() => onDeleteClientId(listItem)}
           />
         )}
       />
@@ -151,6 +204,10 @@ const WindowsAutomaticEnrollmentPage = () => {
             <h2>Entra tenants</h2>
             <div>{renderEntraTenants()}</div>
           </section>
+          <section className={`${baseClass}__client-ids-container`}>
+            <h2>Entra application client IDs</h2>
+            <div>{renderEntraClientIds()}</div>
+          </section>
         </div>
         {showAddTenantModal && (
           <AddEntraTenantModal onExit={() => setShowAddTenantModal(false)} />
@@ -161,6 +218,20 @@ const WindowsAutomaticEnrollmentPage = () => {
             onExit={() => {
               deletingTenantId.current = null;
               setShowDeleteTenantModal(false);
+            }}
+          />
+        )}
+        {showAddClientIdModal && (
+          <AddEntraClientIDModal
+            onExit={() => setShowAddClientIdModal(false)}
+          />
+        )}
+        {showDeleteClientIdModal && deletingClientId.current && (
+          <DeleteEntraClientIDModal
+            clientId={deletingClientId.current}
+            onExit={() => {
+              deletingClientId.current = null;
+              setShowDeleteClientIdModal(false);
             }}
           />
         )}

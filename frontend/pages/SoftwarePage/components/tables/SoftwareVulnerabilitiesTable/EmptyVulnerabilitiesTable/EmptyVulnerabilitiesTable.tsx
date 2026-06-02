@@ -1,7 +1,7 @@
 import React from "react";
 import CustomLink from "components/CustomLink";
-import EmptyTable from "components/EmptyTable";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import EmptyState from "components/EmptyState";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import { IVulnerabilitiesEmptyStateReason } from "services/entities/vulnerabilities";
 
 export interface IEmptyVulnerabilitiesTableProps {
@@ -22,32 +22,27 @@ const LearnMoreLink = () => (
 
 const emptyStateDetails: Record<
   IVulnerabilitiesEmptyStateReason,
-  Partial<IEmptyTableProps>
+  Partial<IEmptyStateProps>
 > = {
   "no-vulns-detected": {
-    graphicName: "empty-search-question",
     header: "No vulnerabilities detected",
-    info: "Expecting to see vulnerabilities? Check back later.",
+    info: "Vulnerability data will appear after the next scheduled check-in.",
   },
   "no-matching-items": {
-    graphicName: "empty-search-question",
     header: "No items match the current search criteria",
     info: "Expecting to see vulnerabilities? Check back later.",
   },
   "invalid-cve": {
-    graphicName: "empty-search-exclamation",
     header: "That vulnerability (CVE) is not valid",
     info:
       'Try updating your search to use CVE format: "CVE-YYYY-<4 or more digits>"',
   },
   "unknown-cve": {
-    graphicName: "empty-search-question",
     header: "This is not a known CVE",
     info: "None of Fleet's vulnerability sources are aware of this CVE.",
     additionalInfo: <LearnMoreLink />,
   },
   "known-vuln": {
-    graphicName: "empty-search-check",
     header:
       "This is a known vulnerability (CVE), but it wasn't detected on any hosts",
     additionalInfo: <LearnMoreLink />,
@@ -63,8 +58,7 @@ const EmptyVulnerabilitiesTable: React.FC<IEmptyVulnerabilitiesTableProps> = ({
 }) => {
   if (isSoftwareDisabled) {
     return (
-      <EmptyTable
-        graphicName="empty-search-question"
+      <EmptyState
         header="Software inventory disabled"
         info={
           <>
@@ -81,8 +75,7 @@ const EmptyVulnerabilitiesTable: React.FC<IEmptyVulnerabilitiesTableProps> = ({
     );
   }
 
-  const defaultEmptyState: IEmptyTableProps = {
-    graphicName: "empty-search-question",
+  const defaultEmptyState: IEmptyStateProps = {
     header: "No items match the current search criteria",
     info: "Expecting to see vulnerabilities? Check back later.",
   };
@@ -105,7 +98,7 @@ const EmptyVulnerabilitiesTable: React.FC<IEmptyVulnerabilitiesTableProps> = ({
       "Try removing the exploited vulnerabilities filter to expand your search.";
   }
 
-  return <EmptyTable {...emptyState} />;
+  return <EmptyState {...emptyState} />;
 };
 
 export default EmptyVulnerabilitiesTable;

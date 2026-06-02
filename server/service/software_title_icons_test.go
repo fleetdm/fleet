@@ -12,7 +12,7 @@ import (
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/s3"
+	"github.com/fleetdm/fleet/v4/server/datastore/s3/s3test"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -26,7 +26,7 @@ func TestGetSoftwareTitleIcon(t *testing.T) {
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 	ds := new(mock.Store)
 
-	mockIconStore := s3.SetupTestSoftwareTitleIconStore(t, "software-title-icons-unit-test", "icon-store-prefix")
+	mockIconStore := s3test.SetupSoftwareTitleIconStore(t, "software-title-icons-unit-test", "icon-store-prefix")
 	svc, _ := newTestService(t, ds, nil, nil, &TestServerOpts{
 		License:                &fleet.LicenseInfo{Tier: fleet.TierPremium},
 		SoftwareTitleIconStore: mockIconStore,
@@ -116,7 +116,7 @@ func TestUploadSoftwareTitleIcon(t *testing.T) {
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
 	ds := new(mock.Store)
 
-	mockIconStore := s3.SetupTestSoftwareTitleIconStore(t, "software-title-icons-unit-test", "icon-store-prefix")
+	mockIconStore := s3test.SetupSoftwareTitleIconStore(t, "software-title-icons-unit-test", "icon-store-prefix")
 	opts := &TestServerOpts{
 		License:                &fleet.LicenseInfo{Tier: fleet.TierPremium},
 		SoftwareTitleIconStore: mockIconStore,

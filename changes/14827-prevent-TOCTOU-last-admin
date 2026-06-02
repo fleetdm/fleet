@@ -1,1 +1,0 @@
-* Fixed a TOCTOU related issue when checking before deleting last admin.

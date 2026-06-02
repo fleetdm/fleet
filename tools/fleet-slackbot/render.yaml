@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: starter
     rootDir: tools/fleet-slackbot
-    buildCommand: npm install
+    buildCommand: yarn install --frozen-lockfile
     startCommand: node app.js
     healthCheckPath: /healthz
     envVars:

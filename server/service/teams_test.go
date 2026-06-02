@@ -228,6 +228,16 @@ func TestApplyTeamSpecs(t *testing.T) {
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: true,
 		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+		// Hydrated to match what teams loaded from the DB look like after
+		// migration 20260423161823 backfills historical_data. Without these
+		// defaults, the "Features for existing teams" cases below would
+		// diff against the team-spec-applied defaults inside
+		// editTeamFromSpec and spuriously emit historical_data enable
+		// activities — which the test's activity callback doesn't expect.
+		HistoricalData: fleet.HistoricalDataSettings{
+			Uptime:          true,
+			Vulnerabilities: true,
+		},
 	}
 
 	mkspec := func(s string) *json.RawMessage {
@@ -255,6 +265,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					EnableHostUsers:         true,
 					EnableSoftwareInventory: false,
 					AdditionalQueries:       nil,
+					HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 				},
 			},
 			{
@@ -265,6 +276,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					EnableHostUsers:         false,
 					EnableSoftwareInventory: true,
 					AdditionalQueries:       nil,
+					HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 				},
 			},
 			{
@@ -279,6 +291,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 					EnableHostUsers:         false,
 					EnableSoftwareInventory: false,
 					AdditionalQueries:       ptr.RawMessage([]byte(`{"example": "query"}`)),
+					HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 				},
 			},
 		}

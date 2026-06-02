@@ -55,8 +55,8 @@ variable "redis_instance_count" {
   default     = 3
 
   validation {
-    condition     = var.redis_instance_count >= 3
-    error_message = "var.redis_instance_count must be greater than or equal to 3."
+    condition     = var.redis_instance_count >= 1
+    error_message = "var.redis_instance_count must be greater than or equal to 1."
   }
 }
 

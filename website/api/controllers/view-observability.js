@@ -17,7 +17,7 @@ module.exports = {
 
 
   fn: async function () {
-    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.testimonials) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
+    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.testimonials)) {
       throw {badConfig: 'builtStaticContent.testimonials'};
     }
     // Get testimonials for the <scrolalble-tweets> component.
@@ -33,38 +33,44 @@ module.exports = {
       pagePersonalization = 'eo-security';
     }
 
-    // Specify an order for the testimonials on this page using the last names of quote authors
-    let testimonialOrderForThisPage = [
-      'Ahmed Elshaer',
-      'Brendan Shaklovitz',
-      'Arsenio Figueroa',
-      'Luis Madrigal',
-      'Andre Shields',
-      'Tom Larkin',
-      'Eric Tan',
-      'Charles Zaffery',
-      'Kenny Botelho',
-      'Scott MacVicar',
-      'Matt Carr',
-      'Erik Gomez',
-      'Mike Arpaia',
-      'Chandra Majumdar',
-      'Justin LaBo',
-      'tom larkin',
-    ];
-    // Filter the testimonials by product category and the filtered list we built above.
-    testimonialsForScrollableTweets = _.filter(testimonialsForScrollableTweets, (testimonial)=>{
-      return _.contains(testimonial.productCategories, 'Observability') && _.contains(testimonialOrderForThisPage, testimonial.quoteAuthorName);
-    });
+    // Only filter and sort testimonials when static content has been built.
+    // If the build-static-content script was not run, we'll show a placeholder testimonial that is added by the custom hook.
+    if(sails.config.builtStaticContent.compiledPagePartialsAppPath) {
 
-    testimonialsForScrollableTweets.sort((a, b)=>{
-      if(testimonialOrderForThisPage.indexOf(a.quoteAuthorName) === -1){
-        return 1;
-      } else if(testimonialOrderForThisPage.indexOf(b.quoteAuthorName) === -1) {
-        return -1;
-      }
-      return testimonialOrderForThisPage.indexOf(a.quoteAuthorName) - testimonialOrderForThisPage.indexOf(b.quoteAuthorName);
-    });
+      // Specify an order for the testimonials on this page using the last names of quote authors
+      let testimonialOrderForThisPage = [
+        'Ahmed Elshaer',
+        'Brendan Shaklovitz',
+        'Arsenio Figueroa',
+        'Luis Madrigal',
+        'Andre Shields',
+        'Tom Larkin',
+        'Eric Tan',
+        'Charles Zaffery',
+        'Kenny Botelho',
+        'Scott MacVicar',
+        'Matt Carr',
+        'Erik Gomez',
+        'Mike Arpaia',
+        'Chandra Majumdar',
+        'Justin LaBo',
+        'tom larkin',
+        'Andy Gombar',
+      ];
+      // Filter the testimonials by product category and the filtered list we built above.
+      testimonialsForScrollableTweets = _.filter(testimonialsForScrollableTweets, (testimonial)=>{
+        return _.contains(testimonial.productCategories, 'Observability') && _.contains(testimonialOrderForThisPage, testimonial.quoteAuthorName);
+      });
+
+      testimonialsForScrollableTweets.sort((a, b)=>{
+        if(testimonialOrderForThisPage.indexOf(a.quoteAuthorName) === -1){
+          return 1;
+        } else if(testimonialOrderForThisPage.indexOf(b.quoteAuthorName) === -1) {
+          return -1;
+        }
+        return testimonialOrderForThisPage.indexOf(a.quoteAuthorName) - testimonialOrderForThisPage.indexOf(b.quoteAuthorName);
+      });
+    }
 
     // Respond with view.
     return {

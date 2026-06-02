@@ -707,10 +707,13 @@ const EditIconModal = ({
             <b>{displayName === "" ? previewInfo.name : displayName}</b>.
           </>
         );
-        // Invalidate software titles list cache so the edit is reflected
+        // Invalidate software list caches so the edit is reflected
         // if the user navigates back before the stale time has passed.
         queryClient.invalidateQueries({
           queryKey: [{ scope: "software-titles" }],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
         });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
@@ -720,6 +723,9 @@ const EditIconModal = ({
         queryClient.invalidateQueries({
           queryKey: [{ scope: "software-titles" }],
         });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
@@ -727,6 +733,9 @@ const EditIconModal = ({
         renderFlash("success", nameSuccessMessage);
         queryClient.invalidateQueries({
           queryKey: [{ scope: "software-titles" }],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
         });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());

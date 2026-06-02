@@ -1,0 +1,1 @@
+* Fixed Fleet Desktop failing to start on openSUSE Leap 16, by dropping the `-i` (login shell) flag from the sudo invocation used to launch Fleet Desktop and key-escrow dialogs as the logged-in user.

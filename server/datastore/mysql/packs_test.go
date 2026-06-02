@@ -136,6 +136,23 @@ func testPacksList(t *testing.T, ds *Datastore) {
 	packs, err = ds.ListPacks(context.Background(), fleet.PackListOptions{IncludeSystemPacks: false})
 	require.Nil(t, err)
 	assert.Len(t, packs, 2)
+
+	for _, key := range []string{"id", "name", "description", "platform", "disabled", "pack_type", "created_at", "updated_at"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			result, err := ds.ListPacks(context.Background(), fleet.PackListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 10},
+			})
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, err := ds.ListPacks(context.Background(), fleet.PackListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+		})
+		require.Error(t, err)
+	})
 }
 
 func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {

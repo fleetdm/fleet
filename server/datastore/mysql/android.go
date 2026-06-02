@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -16,6 +17,20 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
+
+// truncateRunes returns s shortened to at most maxRunes characters, preserving the start of the
+// string. utf8mb4 VARCHAR(N) in MySQL counts characters (runes), not bytes, so we slice on runes
+// to align with the column constraint.
+func truncateRunes(s string, maxRunes int) string {
+	if len(s) <= maxRunes {
+		// Fast path: ASCII fits in maxRunes bytes -> maxRunes characters max.
+		return s
+	}
+	if utf8.RuneCountInString(s) <= maxRunes {
+		return s
+	}
+	return string([]rune(s)[:maxRunes])
+}
 
 func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
 	if !host.IsValid() {
@@ -382,6 +397,17 @@ func (ds *Datastore) AndroidHostLiteByHostUUID(ctx context.Context, hostUUID str
 	return result, nil
 }
 
+// AndroidDeviceExistsByDeviceID reports whether an android_devices row exists for the given AMAPI device_id (the `Y` in
+// `enterprises/X/devices/Y`).
+func (ds *Datastore) AndroidDeviceExistsByDeviceID(ctx context.Context, deviceID string) (bool, error) {
+	const stmt = `SELECT EXISTS(SELECT 1 FROM android_devices WHERE device_id = ?)`
+	var exists bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, stmt, deviceID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking android device exists by device_id")
+	}
+	return exists, nil
+}
+
 func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
 	// Insert the host in the builtin label memberships, adding them to the "All
 	// Hosts" and "Android" labels.
@@ -457,9 +483,10 @@ UPDATE host_mdm
 func (ds *Datastore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (bool, error) {
 	var rows int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// installed_from_dep is also cleared because Android has no DEP/ABM equivalent (no "Pending" state).
 		result, err := tx.ExecContext(ctx, `
 UPDATE host_mdm
-	SET server_url = '', mdm_id = NULL, enrolled = 0
+	SET server_url = '', mdm_id = NULL, enrolled = 0, installed_from_dep = 0
 	WHERE host_id = ? AND enrolled = 1`, hostID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android host")
@@ -519,7 +546,7 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, is_personal_enrollment, host_id) VALUES %s
-		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), mdm_id = VALUES(mdm_id), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ",")), args...)
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), installed_from_dep = VALUES(installed_from_dep), mdm_id = VALUES(mdm_id), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ",")), args...)
 
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
@@ -857,11 +884,151 @@ func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestU
 	return &req, nil
 }
 
+// NewMDMAndroidCommand inserts a row into mdm_android_commands at command-issue time. The caller is responsible for
+// generating cmd.CommandUUID (mirroring the Apple/Windows callsites that pre-populate the UUID).
+func (ds *Datastore) NewMDMAndroidCommand(ctx context.Context, cmd *android.MDMAndroidCommand) error {
+	const stmt = `
+		INSERT INTO mdm_android_commands
+			(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message)
+		VALUES
+			(?, ?, ?, ?, ?, ?, ?)
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		cmd.CommandUUID,
+		cmd.HostUUID,
+		cmd.OperationName,
+		cmd.CommandType,
+		cmd.Status,
+		cmd.ErrorCode,
+		cmd.ErrorMessage,
+	)
+	return ctxerr.Wrap(ctx, err, "inserting mdm android command")
+}
+
+// GetMDMAndroidCommandByUUID returns the command row identified by its Fleet-generated command_uuid.
+func (ds *Datastore) GetMDMAndroidCommandByUUID(ctx context.Context, commandUUID string) (*android.MDMAndroidCommand, error) {
+	return ds.getMDMAndroidCommand(ctx, "command_uuid", commandUUID)
+}
+
+// GetMDMAndroidCommandByOperationName returns the command row identified by its AMAPI operation
+// name. Used by the Pub/Sub COMMAND handler to map an incoming notification back to Fleet state.
+func (ds *Datastore) GetMDMAndroidCommandByOperationName(ctx context.Context, operationName string) (*android.MDMAndroidCommand, error) {
+	return ds.getMDMAndroidCommand(ctx, "operation_name", operationName)
+}
+
+// getMDMAndroidCommand is the shared implementation for the two lookup variants. column is one of
+// the indexed columns on mdm_android_commands (command_uuid or operation_name); we never accept
+// caller-supplied column names so this is not a SQL-injection risk.
+func (ds *Datastore) getMDMAndroidCommand(ctx context.Context, column, value string) (*android.MDMAndroidCommand, error) {
+	stmt := `
+		SELECT
+			command_uuid, host_uuid, operation_name, command_type, status,
+			error_code, error_message, created_at, updated_at
+		FROM mdm_android_commands
+		WHERE ` + column + ` = ?
+	`
+	cmd := android.MDMAndroidCommand{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &cmd, stmt, value)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, common_mysql.NotFound("MDMAndroidCommand").WithName(value)
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting mdm android command by %s", column)
+	}
+	return &cmd, nil
+}
+
+// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and upserts
+// host_mdm_actions.lock_ref in a single transaction. Mirrors WipeHostViaWindowsMDM.
+func (ds *Datastore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "lock_ref")
+}
+
+// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and upserts
+// host_mdm_actions.wipe_ref in a single transaction.
+func (ds *Datastore) WipeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "wipe_ref")
+}
+
+// ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and
+// upserts host_mdm_actions.clear_passcode_ref in a single transaction.
+func (ds *Datastore) ClearPasscodeHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
+	return ds.issueAndroidHostMDMRef(ctx, host, cmd, "clear_passcode_ref")
+}
+
+// ClearHostMDMActions deletes the host_mdm_actions row for the given host. Used by the Android
+// pub/sub re-enrollment path to drop stale lock/wipe/clear-passcode refs from a previous enrollment
+// cycle.
+func (ds *Datastore) ClearHostMDMActions(ctx context.Context, hostID uint) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_actions WHERE host_id = ?`, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear host_mdm_actions")
+	}
+	return nil
+}
+
+// issueAndroidHostMDMRef performs the two-write transaction. refColumn is hard-coded by callers. The caller is responsible for populating cmd.CommandUUID.
+func (ds *Datastore) issueAndroidHostMDMRef(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand, refColumn string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		const insertCmdStmt = `
+			INSERT INTO mdm_android_commands
+				(command_uuid, host_uuid, operation_name, command_type, status, error_code, error_message)
+			VALUES
+				(?, ?, ?, ?, ?, ?, ?)
+		`
+		if _, err := tx.ExecContext(ctx, insertCmdStmt,
+			cmd.CommandUUID, cmd.HostUUID, cmd.OperationName, cmd.CommandType, cmd.Status,
+			cmd.ErrorCode, cmd.ErrorMessage,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert mdm_android_commands for "+refColumn)
+		}
+
+		actionsStmt := fmt.Sprintf(`
+			INSERT INTO host_mdm_actions (host_id, %s, fleet_platform)
+			VALUES (?, ?, ?)
+			ON DUPLICATE KEY UPDATE %s = VALUES(%s), fleet_platform = VALUES(fleet_platform)
+		`, refColumn, refColumn, refColumn)
+		if _, err := tx.ExecContext(ctx, actionsStmt, host.ID, cmd.CommandUUID, host.FleetPlatform()); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert host_mdm_actions for android "+refColumn)
+		}
+		return nil
+	})
+}
+
+// mdmAndroidCommandErrorMessageMaxRunes mirrors the VARCHAR(1024) limit on mdm_android_commands.error_message.
+const mdmAndroidCommandErrorMessageMaxRunes = 1024
+
+// UpdateMDMAndroidCommandStatus updates the row at command_uuid with a new status (and optional error code / message).
+// NotFound is returned if no row matches command_uuid.
+func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+	if errorMessage != nil {
+		trimmed := truncateRunes(*errorMessage, mdmAndroidCommandErrorMessageMaxRunes)
+		errorMessage = &trimmed
+	}
+	const stmt = `
+		UPDATE mdm_android_commands
+		SET status = ?, error_code = ?, error_message = ?
+		WHERE command_uuid = ?
+	`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, status, errorCode, errorMessage, commandUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating mdm android command status")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "rows affected updating mdm android command status")
+	}
+	if n == 0 {
+		return common_mysql.NotFound("MDMAndroidCommand").WithName(commandUUID)
+	}
+	return nil
+}
+
 const androidApplicableProfilesQuery = `
 	-- non label-based profiles
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		0 as count_profile_labels,
@@ -891,6 +1058,7 @@ const androidApplicableProfilesQuery = `
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		COUNT(*) as count_profile_labels,
@@ -925,6 +1093,7 @@ const androidApplicableProfilesQuery = `
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		COUNT(*) as count_profile_labels,
@@ -969,6 +1138,7 @@ const androidApplicableProfilesQuery = `
 	SELECT
 		macp.profile_uuid,
 		macp.name,
+		macp.checksum,
 		h.uuid as host_uuid,
 		h.id as host_id,
 		COUNT(*) as count_profile_labels,
@@ -1038,13 +1208,10 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		(
 		-- at least one profile is missing from host_mdm_android_profiles
 			hmap.host_uuid IS NULL OR
-			-- profile was never sent or was updated after sent
-			-- TODO(ap): need to make sure we set it to NULL when profile is updated
-			( hmap.included_in_policy_version IS NULL AND COALESCE(hmap.status, '') <> ? ) OR
-			hmap.status IS NULL OR
-			-- profile was sent in older policy version than currently applied
-			(hmap.included_in_policy_version IS NOT NULL AND ad.applied_policy_id = ds.host_uuid AND
-				hmap.included_in_policy_version < COALESCE(ad.applied_policy_version, 0))
+			-- profile content changed (checksum mismatch)
+			hmap.checksum != ds.checksum OR
+			-- profile needs retry (status reset to NULL after transient failure)
+			hmap.status IS NULL
 		)
 
 	UNION
@@ -1082,7 +1249,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 
 		var hostUUIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt,
-			fleet.MDMDeliveryFailed, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending); err != nil {
+			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending); err != nil {
 			return ctxerr.Wrap(ctx, err, "list android hosts with profile changes")
 		}
 
@@ -1095,6 +1262,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	SELECT
 		ds.profile_uuid,
 		ds.name as profile_name,
+		ds.checksum,
 		ds.host_uuid,
 		COALESCE(hmap.request_fail_count, 0) as request_fail_count,
 		COALESCE(apr.error_details, '') as last_error_details
@@ -1117,6 +1285,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	SELECT
 		hmap.profile_uuid,
 		hmap.profile_name,
+		hmap.checksum,
 		hmap.host_uuid,
 		hmap.request_fail_count,
 		COALESCE(apr.error_details, '') as last_error_details
@@ -1183,8 +1352,22 @@ func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []
 }
 
 func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
+	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, false)
+}
+
+// bulkUpsertMDMAndroidHostProfiles upserts host/profile rows.
+func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, preserveExistingDetail bool) error {
 	if len(payload) == 0 {
 		return nil
+	}
+
+	detailUpdate := "detail = VALUES(detail),"
+	if preserveExistingDetail {
+		// detail intentionally omitted from the ON DUPLICATE KEY UPDATE clause:
+		// the reconciler owns this field and may carry a forward-looking message
+		// (e.g. "Waiting for certificate ..." on withheld ONC profiles) that
+		// must survive this state reset.
+		detailUpdate = ""
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
@@ -1200,20 +1383,22 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 				device_request_uuid,
 				request_fail_count,
 				included_in_policy_version,
+				checksum,
 				can_reverify
 			)
 			VALUES %s
 			ON DUPLICATE KEY UPDATE
 				status = VALUES(status),
 				operation_type = VALUES(operation_type),
-				detail = VALUES(detail),
+				%s
 				profile_name = VALUES(profile_name),
 				policy_request_uuid = VALUES(policy_request_uuid),
 				device_request_uuid = VALUES(device_request_uuid),
 				request_fail_count = VALUES(request_fail_count),
 				included_in_policy_version = VALUES(included_in_policy_version),
+				checksum = VALUES(checksum),
 				can_reverify = VALUES(can_reverify)
-`, strings.TrimSuffix(valuePart, ","),
+`, strings.TrimSuffix(valuePart, ","), detailUpdate,
 		)
 
 		// Taken from BulkUpsertMDMAppleHostProfiles: We need to run with retry
@@ -1231,12 +1416,16 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMAndroidProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		checksum := p.Checksum
+		if checksum == nil {
+			checksum = make([]byte, 16)
+		}
 		args := []any{
 			p.HostUUID, p.Status, p.OperationType,
 			p.Detail, p.ProfileUUID, p.ProfileName,
 			p.PolicyRequestUUID, p.DeviceRequestUUID, p.RequestFailCount,
-			p.IncludedInPolicyVersion, p.CanReverify,
+			p.IncludedInPolicyVersion, checksum, p.CanReverify,
 		}
 		return valuePart, args
 	}
@@ -1289,9 +1478,9 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 
 func (ds *Datastore) ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
 	stmt := `
-		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
+		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version, checksum
 		FROM host_mdm_android_profiles
-		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? 
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ?
 		AND (status = 'pending' OR (status = 'failed' AND can_reverify = true))
 	`
 
@@ -1443,20 +1632,22 @@ WHERE
 		}
 	}
 
+	// Mark every row backing an incoming profile as needing reprocessing. We do NOT
+	// touch `detail` here: that column is owned by the reconciler and may carry a
+	// forward-looking message (e.g. "Waiting for certificate ..." on ONC profiles)
 	const updateIncludedInPolicyVersionStmt = `
 	UPDATE
 		host_mdm_android_profiles
 	SET
 		included_in_policy_version = NULL,
-		detail = NULL,
 		policy_request_uuid = NULL,
 		device_request_uuid = NULL,
 		status = NULL,
 		request_fail_count = 0
 	WHERE
-		profile_uuid IN (SELECT profile_uuid FROM mdm_android_configuration_profiles WHERE name IN (?))
+		profile_uuid IN (SELECT profile_uuid FROM mdm_android_configuration_profiles WHERE team_id = ? AND name IN (?))
 	`
-	stmt, args, err = sqlx.In(updateIncludedInPolicyVersionStmt, incomingNames)
+	stmt, args, err = sqlx.In(updateIncludedInPolicyVersionStmt, profileTeamID, incomingNames)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "build query to update included in policy version")
 	}
@@ -1532,7 +1723,12 @@ func cancelAndroidHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx
 	return nil
 }
 
-// For android we set the status to NIL
+// bulkSetPendingMDMAndroidHostProfilesDB resets the status of every applicable
+// Android host profile to NULL so the next reconciler tick picks them up. New
+// rows are inserted with an empty detail; for existing rows we deliberately
+// leave the detail column alone so forward-looking messages (e.g. the
+// "Waiting for certificate ..." text on ONC profiles withheld pending a cert
+// install) are not wiped between this call and the next reconciler run.
 func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 	ctx context.Context,
 	hostUUIDs []string,
@@ -1573,9 +1769,8 @@ func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 		}
 	}
 
-	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "bulk upsert android host profiles")
+	if err := ds.bulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert, true); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "bulk reset android host profiles to pending")
 	}
 
 	return true, nil
@@ -1718,7 +1913,7 @@ WHERE
 // HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
 // identified by application_id and global_or_team_id is different from the existing one. This
 // is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
-func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error) {
+func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error) {
 	const stmt = `
 SELECT
 	CAST(? AS JSON) != configuration AS has_changed
@@ -1747,10 +1942,10 @@ WHERE
 }
 
 // GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
-func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error) {
+func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error) {
 	stmt := `SELECT configuration FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`
 
-	var config json.RawMessage
+	var config []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, applicationID, teamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1759,10 +1954,10 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, application
 		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
 
-	return &config, nil
+	return config, nil
 }
 
-func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error) {
+func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error) {
 	stmt := `
 	SELECT aac.configuration
 	FROM android_app_configurations aac
@@ -1771,7 +1966,7 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 	WHERE vat.id = ?
 `
 
-	var config json.RawMessage
+	var config []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, vppAppTeamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1780,10 +1975,10 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
 
-	return &config, nil
+	return config, nil
 }
 
-func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error) {
+func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error) {
 	const bulkGetStmt = `
 	SELECT
 		application_id,
@@ -1802,15 +1997,15 @@ func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs
 	}
 
 	var configs []*struct {
-		ApplicationID string          `db:"application_id"`
-		Configuration json.RawMessage `db:"configuration"`
+		ApplicationID string `db:"application_id"`
+		Configuration []byte `db:"configuration"`
 	}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
 
-	m := make(map[string]json.RawMessage, len(configs))
+	m := make(map[string][]byte, len(configs))
 	for _, c := range configs {
 		m[c.ApplicationID] = c.Configuration
 	}
@@ -1869,7 +2064,7 @@ func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID st
 }
 
 // updateAndroidAppConfigurationTx inserts or updates an app configuration using a transaction
-func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID uint, appID string, config json.RawMessage) error {
+func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID uint, appID string, config []byte) error {
 	err := fleet.ValidateAndroidAppConfiguration(config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")

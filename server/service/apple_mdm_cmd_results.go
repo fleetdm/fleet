@@ -10,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/micromdm/plist"
@@ -65,7 +64,7 @@ func NewInstalledApplicationListResultsHandler(
 	commander *apple_mdm.MDMAppleCommander,
 	logger *slog.Logger,
 	verifyTimeout, verifyRequestDelay time.Duration,
-	newActivityFn mdmlifecycle.NewActivityFunc,
+	newActivityFn fleet.NewActivityFunc,
 ) fleet.MDMCommandResultsHandler {
 	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
 		installedAppResult, ok := commandResults.(InstalledApplicationListResult)
@@ -171,7 +170,7 @@ func NewInstalledApplicationListResultsHandler(
 				HostUUID:      installedAppResult.HostUUID(),
 				CommandUUID:   expectedInstall.InstallCommandUUID,
 				CommandStatus: terminalStatus,
-			}, fleet.NewActivityFunc(newActivityFn)); err != nil {
+			}, newActivityFn); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating setup experience status from VPP install result")
 			} else if updated {
 				fromSetupExperience = true

@@ -444,3 +444,115 @@ func TestSyncOSVChecksumMatch(t *testing.T) {
 	require.Empty(t, result.Downloaded)
 	require.Empty(t, result.Failed)
 }
+
+func TestSyncOSVPartialFailureNotReturnedAsError(t *testing.T) {
+	// Documents the behavior RefreshAll guards against: SyncOSV reports per-
+	// version failures via SyncResult.Failed but does NOT return an error when
+	// some downloads succeed.
+	tmpDir := t.TempDir()
+	date := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+
+	good := "osv-ubuntu-2204-2026-04-01.json.gz"
+	bad := "osv-ubuntu-2404-2026-04-01.json.gz"
+
+	release := &ReleaseInfo{
+		TagName: "cve-202604010000",
+		Assets: map[string]*AssetInfo{
+			good: {Name: good, ID: 1},
+			bad:  {Name: bad, ID: 2},
+		},
+	}
+
+	mockDownload := func(ctx context.Context, assetID int64, dstPath string) error {
+		if assetID == 2 {
+			return errors.New("simulated download failure")
+		}
+		return os.WriteFile(dstPath, []byte("ok"), 0o644)
+	}
+
+	result, err := syncOSVWithDownloader(context.Background(), tmpDir, []string{"2204", "2404"}, date, release, mockDownload, osvFilename)
+	require.NoError(t, err, "SyncOSV does not return error on partial failure")
+	require.Contains(t, result.Downloaded, "2204")
+	require.Contains(t, result.Failed, "2404")
+}
+
+func TestVersionsFromRelease(t *testing.T) {
+	release := &ReleaseInfo{
+		TagName: "cve-202604270000",
+		Assets: map[string]*AssetInfo{
+			"osv-ubuntu-2204-2026-04-27.json.gz": {Name: "osv-ubuntu-2204-2026-04-27.json.gz"},
+			"osv-ubuntu-2404-2026-04-27.json.gz": {Name: "osv-ubuntu-2404-2026-04-27.json.gz"},
+			"osv-rhel-8-2026-04-27.json.gz":      {Name: "osv-rhel-8-2026-04-27.json.gz"},
+			"osv-rhel-9-2026-04-27.json.gz":      {Name: "osv-rhel-9-2026-04-27.json.gz"},
+		},
+	}
+
+	ubuntu, rhel := versionsFromRelease(release)
+	require.ElementsMatch(t, []string{"2204", "2404"}, ubuntu)
+	require.ElementsMatch(t, []string{"8", "9"}, rhel)
+}
+
+func TestVersionsFromReleaseEmpty(t *testing.T) {
+	release := &ReleaseInfo{TagName: "cve-202604270000", Assets: map[string]*AssetInfo{}}
+	ubuntu, rhel := versionsFromRelease(release)
+	require.Empty(t, ubuntu)
+	require.Empty(t, rhel)
+}
+
+func TestVersionFromAssetName(t *testing.T) {
+	tests := []struct {
+		name     string
+		prefix   string
+		expected string
+	}{
+		{"osv-ubuntu-2204-2026-04-27.json.gz", OSVFilePrefix, "2204"},
+		{"osv-rhel-9-2026-04-27.json.gz", OSVRHELFilePrefix, "9"},
+		{"osv-rhel-10-2026-04-27.json.gz", OSVRHELFilePrefix, "10"},
+		{"osv-ubuntu-.json.gz", OSVFilePrefix, ""},
+		{"osv-ubuntu", OSVFilePrefix, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, versionFromAssetName(tt.name, tt.prefix))
+		})
+	}
+}
+
+func TestReleaseDateFromAssets(t *testing.T) {
+	release := &ReleaseInfo{
+		Assets: map[string]*AssetInfo{
+			"osv-ubuntu-2204-2026-04-27.json.gz": {Name: "osv-ubuntu-2204-2026-04-27.json.gz"},
+		},
+	}
+
+	d, ok := releaseDateFromAssets(release)
+	require.True(t, ok)
+	require.Equal(t, time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC), d)
+
+	emptyRelease := &ReleaseInfo{Assets: map[string]*AssetInfo{}}
+	_, ok = releaseDateFromAssets(emptyRelease)
+	require.False(t, ok)
+}
+
+func TestDateFromAssetName(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected time.Time
+		ok       bool
+	}{
+		{"osv-ubuntu-2204-2026-04-27.json.gz", time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC), true},
+		{"osv-rhel-9-2026-04-08.json.gz", time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC), true},
+		{"osv-ubuntu-2204.json.gz", time.Time{}, false},
+		{"some-other-file.json", time.Time{}, false},
+		{"short", time.Time{}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d, ok := dateFromAssetName(tt.name)
+			require.Equal(t, tt.ok, ok)
+			require.Equal(t, tt.expected, d)
+		})
+	}
+}

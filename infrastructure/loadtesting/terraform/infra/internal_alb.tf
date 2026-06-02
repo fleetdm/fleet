@@ -27,9 +27,9 @@ resource "aws_lb" "internal" {
   idle_timeout               = 905
   drop_invalid_header_fields = true
   access_logs {
-      bucket  = module.logging_alb.log_s3_bucket_id
-      prefix  = local.customer
-      enabled = true
+    bucket  = module.logging_alb.log_s3_bucket_id
+    prefix  = local.customer
+    enabled = true
   }
 }
 
@@ -41,6 +41,23 @@ resource "aws_lb_listener" "internal" {
   default_action {
     type             = "forward"
     target_group_arn = resource.aws_lb_target_group.internal.arn
+  }
+}
+
+resource "aws_lb_listener" "internal_https" {
+  load_balancer_arn = resource.aws_lb.internal.arn
+  port              = 443
+  protocol          = "HTTPS"
+  certificate_arn   = data.aws_acm_certificate.certificate.arn
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+
+  default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Not Found"
+      status_code  = "404"
+    }
   }
 }
 

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 2.3.1.2</string>
+      <key>PayloadType</key>
+      <string>com.apple.applicationaccess</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-2.3.1.2.check</string>
+      <key>PayloadUUID</key>
+      <string>935C5381-F3FD-4C55-8CC4-1BFC20A83206</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>allowAirPlayIncomingRequests</key>
+      <false/>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 2.3.1.2 - Ensure AirPlay Receiver Is Disabled</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure AirPlay Receiver Is Disabled</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-2.3.1.2</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>5FA896B1-6CC3-4F7F-8B73-0E457372EC47</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

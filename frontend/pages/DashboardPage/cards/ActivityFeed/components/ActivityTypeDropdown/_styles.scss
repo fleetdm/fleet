@@ -4,7 +4,7 @@
     top: 0;
     padding-top: $pad-small;
     background-color: $core-fleet-white;
-   
+
     .icon {
       position: absolute;
       left: 12px;
@@ -14,7 +14,7 @@
 
   &__search-input {
     width: 100%;
-    line-height: 1.5;
+    line-height: $line-height;
     background-color: $core-fleet-white;
     border: solid 1px $ui-fleet-black-10;
     border-radius: $border-radius;
