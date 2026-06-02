@@ -66,7 +66,7 @@ jobs:
       is_cron: ${{ github.event_name == 'schedule' }}
     secrets:
       FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
-      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ github.event_name == 'schedule' && secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL || '' }}
 
   # ──────────────────────────────────────────────────────────────────────────
   # Suites that need MySQL: always-run versions (every push/PR + cron).
@@ -84,7 +84,7 @@ jobs:
       is_cron: ${{ github.event_name == 'schedule' }}
     secrets:
       FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
-      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ github.event_name == 'schedule' && secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL || '' }}
 
   # ──────────────────────────────────────────────────────────────────────────
   # Extended MySQL coverage: only on the nightly cron schedule.
