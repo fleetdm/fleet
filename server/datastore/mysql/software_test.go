@@ -123,6 +123,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareShPackageForDarwin", testListHostSoftwareShPackageForDarwin},
 		{"HostSWPaginationWithMultipleFMAVersions", testHostSWPaginationWithMultipleFMAVersions},
 		{"SoftwareLiteByID", testSoftwareLiteByID},
+		{"GetDisplayNamesByTeamAndTitleIdsBatching", testGetDisplayNamesByTeamAndTitleIdsBatching},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4264,6 +4265,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			require.True(t, ok, "unexpected software %s%s", g.Name, g.Source)
 			require.Equal(t, e.Name, g.Name)
 			require.Equal(t, e.Source, g.Source)
+			require.Equal(t, e.BundleIdentifier, g.BundleIdentifier)
 			if e.SoftwarePackage != nil {
 				require.Equal(t, e.SoftwarePackage.SelfService, g.SoftwarePackage.SelfService)
 				require.Equal(t, e.SoftwarePackage.AppStoreID, g.SoftwarePackage.AppStoreID)
@@ -4964,22 +4966,25 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults(expected, sw, true, i1.Name+i1.Source, i3.Name+i3.Source, i2.Name+i2.Source, i4.Name+i4.Source, i5.Name+i5.Source, i6.Name+i6.Source) // i3 is for team, i2 is available (excluded)
 
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp1",
-		Source:      "apps",
-		Status:      expectStatus(fleet.SoftwareInstalled),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+		Name:             "vpp1",
+		Source:           "apps",
+		BundleIdentifier: "com.app.vpp1",
+		Status:           expectStatus(fleet.SoftwareInstalled),
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "darwin", SelfService: new(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp2",
-		Source:      "apps",
-		Status:      expectStatus(fleet.SoftwareInstallPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		Name:             "vpp2",
+		Source:           "apps",
+		BundleIdentifier: "com.app.vpp2",
+		Status:           expectStatus(fleet.SoftwareInstallPending),
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "darwin", SelfService: new(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 	expected["vpp3apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp3",
-		Source:      "apps",
-		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, Platform: "darwin", SelfService: ptr.Bool(true)},
+		Name:             "vpp3",
+		Source:           "apps",
+		BundleIdentifier: "com.app.vpp3",
+		Status:           nil,
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, Platform: "darwin", SelfService: new(true)},
 	}
 
 	expectedAvailableOnly["vpp1apps"] = expected["vpp1apps"]
@@ -5027,9 +5032,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults(map[string]fleet.HostSoftwareWithInstaller{
 		i3.Name + i3.Source: expected[i3.Name+i3.Source],
 		"vpp1apps": {
-			Name:   "vpp1",
-			Source: "apps",
-			Status: expectStatus(fleet.SoftwareInstallPending),
+			Name:             "vpp1",
+			Source:           "apps",
+			BundleIdentifier: "com.app.vpp1",
+			Status:           expectStatus(fleet.SoftwareInstallPending),
 			AppStoreApp: &fleet.SoftwarePackageOrApp{
 				AppStoreID:  vpp1,
 				Platform:    "darwin",
@@ -5631,6 +5637,7 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 			require.True(t, ok, "unexpected software name:%s source:%s", g.Name, g.Source)
 			require.Equal(t, e.Name, g.Name)
 			require.Equal(t, e.Source, g.Source)
+			require.Equal(t, e.BundleIdentifier, g.BundleIdentifier)
 			if e.SoftwarePackage != nil {
 				require.Equal(t, e.SoftwarePackage.SelfService, g.SoftwarePackage.SelfService)
 				require.Equal(t, e.SoftwarePackage.AppStoreID, g.SoftwarePackage.AppStoreID)
@@ -5773,28 +5780,32 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults(expected, sw, true) // i3 is for team, i2 is available (excluded)
 
 	expected["vpp1ios_apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp1",
-		Source:      "ios_apps",
-		Status:      expectStatus(fleet.SoftwareInstalled),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "ios", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+		Name:             "vpp1",
+		Source:           "ios_apps",
+		BundleIdentifier: "com.app.vpp1",
+		Status:           expectStatus(fleet.SoftwareInstalled),
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "ios", SelfService: new(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2ios_apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp2",
-		Source:      "ios_apps",
-		Status:      expectStatus(fleet.SoftwareInstallPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "ios", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		Name:             "vpp2",
+		Source:           "ios_apps",
+		BundleIdentifier: "com.app.vpp2",
+		Status:           expectStatus(fleet.SoftwareInstallPending),
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "ios", SelfService: new(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 	expected["vpp3ios_apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp3",
-		Source:      "ios_apps",
-		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, Platform: "ios", SelfService: ptr.Bool(false)},
+		Name:             "vpp3",
+		Source:           "ios_apps",
+		BundleIdentifier: "com.app.vpp3",
+		Status:           nil,
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, Platform: "ios", SelfService: new(false)},
 	}
 	expected["vpp4ios_apps"] = fleet.HostSoftwareWithInstaller{
-		Name:        "vpp4",
-		Source:      "ios_apps",
-		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp4, Platform: "ios", SelfService: ptr.Bool(false)},
+		Name:             "vpp4",
+		Source:           "ios_apps",
+		BundleIdentifier: "com.app.vpp4",
+		Status:           nil,
+		AppStoreApp:      &fleet.SoftwarePackageOrApp{AppStoreID: vpp4, Platform: "ios", SelfService: new(false)},
 	}
 	expectedAvailableOnly := map[string]fleet.HostSoftwareWithInstaller{}
 	expectedAvailableOnly["vpp1ios_apps"] = expected["vpp1ios_apps"]
@@ -5949,6 +5960,8 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "1.2.3", sw[0].InstalledVersions[0].Version)
 	assert.Equal(t, "apps", sw[0].InstalledVersions[0].Source)
 	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].InstalledVersions[0].BundleIdentifier)
+	// top-level bundle_identifier comes from software_titles.bundle_identifier
+	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].BundleIdentifier)
 
 	// The vpp app is installed by fleet, and also has been inventoried by osquery
 	// Ensure we don't lose the version for the vpp app
@@ -5984,6 +5997,7 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, vPPApp.Name, sw[0].Name)
 	assert.Equal(t, vPPApp.AdamID, sw[0].AppStoreApp.AppStoreID)
 	assert.Equal(t, "0.1.0", sw[0].InstalledVersions[0].Version)
+	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].BundleIdentifier)
 	assert.Nil(t, sw[0].Status)
 
 	// insert an icon
@@ -12159,4 +12173,74 @@ func testListSoftwareVulnerabilitiesBySoftwareIDs(t *testing.T, ds *Datastore) {
 	result, err = ds.ListSoftwareVulnerabilitiesBySoftwareIDs(ctx, []uint{}, fleet.UbuntuOSVSource)
 	require.NoError(t, err)
 	require.Nil(t, result)
+}
+
+func testGetDisplayNamesByTeamAndTitleIdsBatching(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Insert 35,000 software titles with display names to exercise multiple
+	// batches (batch size is 32,000).
+	const totalTitles = 35_000
+	titleIDs := make([]uint, 0, totalTitles)
+
+	// Batch-insert titles
+	const insertBatch = 1000
+	for start := 0; start < totalTitles; start += insertBatch {
+		end := min(start+insertBatch, totalTitles)
+		valuesSQL := strings.Builder{}
+		args := make([]any, 0, (end-start)*2)
+		for i := start; i < end; i++ {
+			if i > start {
+				valuesSQL.WriteString(",")
+			}
+			valuesSQL.WriteString("(?, 'apps')")
+			args = append(args, fmt.Sprintf("batch-test-sw-%d", i))
+		}
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO software_titles (name, source) VALUES "+valuesSQL.String(), args...)
+		require.NoError(t, err)
+
+		lastID, err := res.LastInsertId()
+		require.NoError(t, err)
+		rowsAff, err := res.RowsAffected()
+		require.NoError(t, err)
+		// MySQL returns the first auto-inc ID for a batch insert
+		for j := range rowsAff {
+			titleIDs = append(titleIDs, uint(lastID+j)) //nolint:gosec // test-only, no overflow risk
+		}
+	}
+	require.Len(t, titleIDs, totalTitles)
+
+	// Insert display names for all titles (team_id=0)
+	for start := 0; start < totalTitles; start += insertBatch {
+		end := min(start+insertBatch, totalTitles)
+		valuesSQL := strings.Builder{}
+		args := make([]any, 0, (end-start)*2)
+		for i := start; i < end; i++ {
+			if i > start {
+				valuesSQL.WriteString(",")
+			}
+			valuesSQL.WriteString("(0, ?, ?)")
+			args = append(args, titleIDs[i], fmt.Sprintf("Display Name %d", i))
+		}
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			"INSERT INTO software_title_display_names (team_id, software_title_id, display_name) VALUES "+valuesSQL.String(), args...)
+		require.NoError(t, err)
+	}
+
+	// Call the function under test with all 35,000 IDs (spans 2 batches: 32K + 3K)
+	result, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, 0, titleIDs)
+	require.NoError(t, err)
+	require.Len(t, result, totalTitles)
+
+	// Verify a sample of results
+	for _, i := range []int{0, 1, 1000, 31999, 32000, 34999} {
+		expected := fmt.Sprintf("Display Name %d", i)
+		assert.Equal(t, expected, result[titleIDs[i]], "mismatch at index %d", i)
+	}
+
+	// Empty input should return empty map, not error
+	result, err = ds.getDisplayNamesByTeamAndTitleIds(ctx, 0, nil)
+	require.NoError(t, err)
+	require.Empty(t, result)
 }

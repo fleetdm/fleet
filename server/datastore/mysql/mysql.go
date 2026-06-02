@@ -94,6 +94,7 @@ type Datastore struct {
 	//
 	// Production binaries never set this. Tests opt in by calling
 	// Datastore.EnableTestWindowsEagerHook.
+	// TODO(MHJ): Marked for deletion
 	testWindowsEagerHook func(ctx context.Context, hostUUIDs, profileUUIDs []string) (bool, error)
 
 	// set this to the execution ids of activities that should be activated in

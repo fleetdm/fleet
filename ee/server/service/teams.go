@@ -324,6 +324,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if !team.Config.MDM.MacOSSetup.EnableEndUserAuthentication && team.Config.MDM.MacOSSetup.LockEndUserInfo.Value {
 				return nil, fleet.NewInvalidArgumentError("setup_experience.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info".`)
 			}
+
+			if err := payload.MDM.MacOSSetup.Validate(); err != nil {
+				return nil, err
+			}
+
+			// move over values that we just validated, so they get updated.
+			team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = payload.MDM.MacOSSetup.EnableManagedLocalAccount
+			team.Config.MDM.MacOSSetup.EndUserLocalAccountType = payload.MDM.MacOSSetup.EndUserLocalAccountType
 		}
 	}
 
@@ -1741,29 +1749,14 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = spec.MDM.MacOSSetup.RequireAllSoftwareWindows
 
+	// Whether Windows/Android MDM is configured is gated at the global level
+	// in ModifyAppConfig; createTeamFromSpec doesn't gate custom_settings on
+	// the configured flag, and gating it here can spuriously reject team
+	// edits when the cached AppConfig lags behind a recent enable.
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
-		if !windowsEnabledAndConfigured &&
-			len(spec.MDM.WindowsSettings.CustomSettings.Value) > 0 &&
-			!fleet.MDMProfileSpecsMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.configuration_profiles",
-				`Couldn’t edit windows_settings.configuration_profiles. `+fleet.ErrWindowsMDMNotConfigured.Error()))
-		}
-
 		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
 	}
-
-	androidEnabledAndConfigured := appCfg.MDM.AndroidEnabledAndConfigured
-	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.AndroidEnabledAndConfigured.Valid {
-		androidEnabledAndConfigured = opts.DryRunAssumptions.AndroidEnabledAndConfigured.Value
-	}
 	if spec.MDM.AndroidSettings.CustomSettings.Set {
-		if !androidEnabledAndConfigured &&
-			len(spec.MDM.AndroidSettings.CustomSettings.Value) > 0 &&
-			!fleet.MDMProfileSpecsMatch(team.Config.MDM.AndroidSettings.CustomSettings.Value, spec.MDM.AndroidSettings.CustomSettings.Value) {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("android_settings.configuration_profiles",
-				`Couldn’t edit android_settings.configuration_profiles. `+fleet.ErrAndroidMDMNotConfigured.Error()))
-		}
-
 		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
 	}
 
@@ -2248,14 +2241,10 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
-	if payload.EndUserLocalAccountType != nil {
-		if *payload.EndUserLocalAccountType != "admin" {
-			return fleet.NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
-		}
-		if !tm.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid || tm.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value != *payload.EndUserLocalAccountType {
-			tm.Config.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString(*payload.EndUserLocalAccountType)
-			didUpdate = true
-		}
+	if didUpdateFromValidation, err := payload.Validate(&tm.Config.MDM.MacOSSetup); err != nil {
+		return err
+	} else if didUpdateFromValidation {
+		didUpdate = true
 	}
 
 	if didUpdate {

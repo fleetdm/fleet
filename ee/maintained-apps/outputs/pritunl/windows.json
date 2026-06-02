@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.3.4566.62",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Pritunl %' AND publisher = 'Pritunl';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Pritunl %' AND publisher = 'Pritunl' AND version_compare(version, '1.3.4566.62') < 0);"
+      },
+      "installer_url": "https://github.com/pritunl/pritunl-client/releases/download/1.3.4566.62/Pritunl.exe",
+      "install_script_ref": "83fd35ff",
+      "uninstall_script_ref": "c81cc77c",
+      "sha256": "55f5bdd909ea9a55641aab0c7b51a55f7f99f1df11cdad16b951b737cf56422f",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "83fd35ff": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Pritunl ships as an Inno Setup installer.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    Write-Host \"Starting Pritunl install with: $($processOptions.ArgumentList)\"\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "c81cc77c": "# Attempts to locate Pritunl's Inno Setup uninstaller from the registry and run it silently.\n\n$displayNameLike = \"Pritunl*\"\n$publisher = \"Pritunl\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like \"$publisher*\"\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"pritunl\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = $uninstall.UninstallString\n$uninstallArgs = \"/VERYSILENT /NORESTART\"\n\n$splitArgs = $uninstallCommand.Split('\"')\nif ($splitArgs.Length -gt 1) {\n    if ($splitArgs.Length -eq 3) {\n        $existingArgs = $splitArgs[2].Trim()\n        if ($existingArgs -ne '') {\n            $uninstallArgs = \"$existingArgs $uninstallArgs\"\n        }\n    } elseif ($splitArgs.Length -gt 3) {\n        Write-Host \"Error: Uninstall command contains multiple quoted strings\"\n        Exit 1\n    }\n    $uninstallCommand = $splitArgs[1]\n}\n\nWrite-Host \"Uninstall command: $uninstallCommand\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $uninstallCommand\n        ArgumentList = $uninstallArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

@@ -1,6 +1,13 @@
-import React, { useState, useCallback, useContext, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+} from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
+import { InjectedRouter } from "react-router";
 
 import { LEARN_MORE_ABOUT_BASE_LINK, PRIMO_TOOLTIP } from "utilities/constants";
 import { getGitOpsModeTipContent } from "utilities/helpers";
@@ -33,7 +40,18 @@ import { generateTableHeaders, generateDataSet } from "./FleetTableConfig";
 const baseClass = "manage-fleets";
 const noFleetsClass = "no-fleets";
 
-const ManageFleetsPage = (): JSX.Element => {
+interface IManageFleetsPageProps {
+  router: InjectedRouter;
+  location: {
+    pathname: string;
+    query: { create_fleet?: string };
+  };
+}
+
+const ManageFleetsPage = ({
+  router,
+  location,
+}: IManageFleetsPageProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const {
     currentTeam,
@@ -46,6 +64,33 @@ const ManageFleetsPage = (): JSX.Element => {
 
   const [isUpdatingFleets, setIsUpdatingFleets] = useState(false);
   const [showCreateFleetModal, setShowCreateFleetModal] = useState(false);
+
+  // Mirror the gate used by the in-page "Create fleet" button:
+  // Primo mode and GitOps mode both disable creation.
+  const isCreateFleetDisabled =
+    !!config?.partnerships?.enable_primo ||
+    !!(config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url);
+
+  // Open the create modal when arriving with ?create_fleet=1 (e.g., from
+  // the command palette). Gate on the same predicate as the in-page
+  // button — the param alone must not bypass Primo/GitOps restrictions.
+  // Wait for config to load before evaluating so the deep link can't
+  // slip through while isCreateFleetDisabled is still a stale false.
+  useEffect(() => {
+    if (location.query.create_fleet !== "1") return;
+    if (!config) return;
+    if (!isCreateFleetDisabled) {
+      setShowCreateFleetModal(true);
+    }
+    const { create_fleet, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    location.query,
+    location.pathname,
+    router,
+    isCreateFleetDisabled,
+    config,
+  ]);
   const [showDeleteFleetModal, setShowDeleteFleetModal] = useState(false);
   const [showRenameFleetModal, setShowRenameFleetModal] = useState(false);
   const [fleetEditing, setFleetEditing] = useState<IFleet>();
@@ -267,10 +312,9 @@ const ManageFleetsPage = (): JSX.Element => {
   }, [fleets]);
 
   const disabledPrimaryActionTooltip = (() => {
-    if (config?.partnerships?.enable_primo) {
-      return PRIMO_TOOLTIP;
-    }
-    if (config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url) {
+    if (!isCreateFleetDisabled) return null;
+    if (config?.partnerships?.enable_primo) return PRIMO_TOOLTIP;
+    if (config?.gitops?.repository_url) {
       return getGitOpsModeTipContent(config.gitops.repository_url);
     }
     return null;
