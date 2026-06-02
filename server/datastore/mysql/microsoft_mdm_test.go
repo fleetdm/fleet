@@ -66,7 +66,6 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsUnenrollCleansUpProfiles", testMDMWindowsUnenrollCleansUpProfiles},
 		{"TestWindowsMDMGlobalDisableBlocksReconciler", testWindowsMDMGlobalDisableBlocksReconciler},
 		{"TestMDMWindowsAwaitingConfigurationCAS", testMDMWindowsAwaitingConfigurationCAS},
-		{"TestMDMWindowsAwaitingConfigurationByHostUUID", testMDMWindowsAwaitingConfigurationByHostUUID},
 		{"TestMDMWindowsGetHostConfigState", testMDMWindowsGetHostConfigState},
 		{"TestMDMWindowsPollScheduleRelaxed", testMDMWindowsPollScheduleRelaxed},
 		{"TestMDMWindowsHasSetupExperienceItems", testMDMWindowsHasSetupExperienceItems},
@@ -2053,6 +2052,9 @@ func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {
 		`INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, ?, ?)`,
 		enrollmentID, cmd.CommandUUID, []byte("<Status></Status>"), responseID, "200")
 	require.NoError(t, err)
+	// has_pending_commands is denormalized and refreshed on ack inside MDMWindowsSaveResponse; this test records the
+	// result directly, so recompute the flag the same way that path does.
+	require.NoError(t, ds.recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, ds.writer(ctx), []uint{enrollmentID}))
 
 	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
 	require.NoError(t, err)
@@ -6167,105 +6169,6 @@ func testMDMWindowsAwaitingConfigurationCAS(t *testing.T, ds *Datastore) {
 		require.True(t, afterSecond.AwaitingConfigurationAt.Equal(originalTS),
 			"timestamp must be preserved across Active->None (got %v, want %v)",
 			*afterSecond.AwaitingConfigurationAt, originalTS)
-	})
-}
-
-// testMDMWindowsAwaitingConfigurationByHostUUID verifies the GetMDMWindowsAwaitingConfigurationByHostUUID lookup
-// used in the orbit-config hot path: returns the awaiting_configuration value for the most-recent enrollment of
-// the host UUID, returns NotFound for unknown hosts, and never cross-leaks between host UUIDs.
-func testMDMWindowsAwaitingConfigurationByHostUUID(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	// newWindowsHost creates a Windows host plus a linked enrollment row in the requested initial state. Each
-	// subtest gets its own host (distinct UUID) so subtests don't pollute each other's state.
-	newWindowsHost := func(t *testing.T, hostnameSlug string, initial fleet.WindowsMDMAwaitingConfiguration) (*fleet.Host, string) {
-		t.Helper()
-		host := test.NewHost(t, ds, hostnameSlug, "10.0.0.10", hostnameSlug+"-key", uuid.NewString(), time.Now())
-		host.Platform = "windows"
-		require.NoError(t, ds.UpdateHost(ctx, host))
-		mdmDeviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
-			deviceNameSuffix:      hostnameSlug,
-			hostUUID:              host.UUID,
-			awaitingConfiguration: initial,
-		})
-		return host, mdmDeviceID
-	}
-
-	t.Run("returns current state and reflects transitions", func(t *testing.T) {
-		host, mdmDeviceID := newWindowsHost(t, "win-current", fleet.WindowsMDMAwaitingConfigurationPending)
-
-		got, err := ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, got)
-
-		tr, err := ds.SetMDMWindowsAwaitingConfiguration(ctx, mdmDeviceID,
-			fleet.WindowsMDMAwaitingConfigurationPending,
-			fleet.WindowsMDMAwaitingConfigurationActive)
-		require.NoError(t, err)
-		require.True(t, tr)
-
-		got, err = ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, got)
-	})
-
-	t.Run("returns most recent enrollment when host has multiple", func(t *testing.T) {
-		// The function ORDER BYs `created_at DESC, id DESC LIMIT 1`. That clause exists for a single concrete
-		// reason: a host_uuid can have multiple mdm_windows_enrollments rows when a device re-enrolls during
-		// Autopilot reset. Without this subtest, the ORDER BY clause could be deleted and the rest of the test
-		// suite would still pass.
-		host := test.NewHost(t, ds, "win-multi", "10.0.0.20", "win-multi-key", uuid.NewString(), time.Now())
-		host.Platform = "windows"
-		require.NoError(t, ds.UpdateHost(ctx, host))
-
-		// Older enrollment in Active state.
-		olderDeviceID := insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
-			deviceNameSuffix:      "OLDER",
-			hostUUID:              host.UUID,
-			awaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive,
-		})
-
-		// Backdate the older enrollment so the primary `created_at DESC` sort is exercised (not just the
-		// `id DESC` fallback that would happen with two rows inserted within the same microsecond).
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
-				"UPDATE mdm_windows_enrollments SET created_at = DATE_SUB(NOW(6), INTERVAL 1 HOUR) WHERE mdm_device_id = ?",
-				olderDeviceID)
-			return err
-		})
-
-		// Newer enrollment in Pending state (re-enrolled device).
-		insertWindowsEnrolledDevice(t, ctx, ds, windowsEnrollmentFixture{
-			deviceNameSuffix:      "NEWER",
-			hostUUID:              host.UUID,
-			awaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending,
-		})
-
-		got, err := ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, got,
-			"must return the most-recent enrollment's state, not the older one")
-	})
-
-	t.Run("does not cross-leak between hosts", func(t *testing.T) {
-		// Negative case: hostA's lookup must not return hostB's state. Without this, removing the
-		// `WHERE host_uuid = ?` clause would silently pass other tests because they each use one host.
-		hostA, _ := newWindowsHost(t, "win-iso-a", fleet.WindowsMDMAwaitingConfigurationActive)
-		hostB, _ := newWindowsHost(t, "win-iso-b", fleet.WindowsMDMAwaitingConfigurationPending)
-
-		gotA, err := ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, hostA.UUID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, gotA)
-
-		gotB, err := ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, hostB.UUID)
-		require.NoError(t, err)
-		require.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, gotB)
-	})
-
-	t.Run("unknown host UUID returns NotFound", func(t *testing.T) {
-		_, err := ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, "nonexistent-"+uuid.NewString())
-		require.Error(t, err)
-		require.True(t, fleet.IsNotFound(err), "unknown host UUID must return NotFound, got: %v", err)
 	})
 }
 

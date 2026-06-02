@@ -2163,14 +2163,9 @@ type Datastore interface {
 	// transition occurred.
 	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
 
-	// GetMDMWindowsAwaitingConfigurationByHostUUID returns ONLY the awaiting_configuration value for the Windows MDM enrollment of the given
-	// host. It is a deliberately lightweight read for callers (e.g. the setup-experience cancel gate) that need just that value. Orbit config
-	// polling, which also needs the pending-command state, must use GetMDMWindowsHostConfigState instead so it does not issue two reads for
-	// the same enrollment.
-	GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (WindowsMDMAwaitingConfiguration, error)
-
-	// GetMDMWindowsHostConfigState returns the Windows MDM per-host state read on the orbit config polling path in a single query: the
-	// awaiting-configuration value and whether the host has queued, unacknowledged Windows MDM commands.
+	// GetMDMWindowsHostConfigState returns the Windows MDM per-host state read on the orbit config polling path and by the setup-experience
+	// cancel gate, in a single indexed row read: the awaiting-configuration value and whether the host's most recent enrollment has queued,
+	// unacknowledged commands (the denormalized has_pending_commands flag). Returns NotFound if the host has no Windows MDM enrollment.
 	GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*MDMWindowsHostConfigState, error)
 
 	// HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
