@@ -51,8 +51,8 @@ export default {
   },
 
   downloadPublicKey: () => {
-    const { MDM_APPLE_ABM_PUBLIC_KEY } = endpoints;
-    return sendRequest("GET", MDM_APPLE_ABM_PUBLIC_KEY);
+    const { MDM_APPLE_AB_PUBLIC_KEY } = endpoints;
+    return sendRequest("GET", MDM_APPLE_AB_PUBLIC_KEY);
   },
 
   uploadToken: (token: File): Promise<IMdmAbToken> => {

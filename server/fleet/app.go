@@ -194,7 +194,7 @@ type MDM struct {
 	// AppleBusinessManager defines the associations between AB tokens
 	// and the fleets used to assign hosts when they're ingested from Apple
 	// Business.
-	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager" renameto:"apple_business"`
+	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager" renameto:"apple_business,inline"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set

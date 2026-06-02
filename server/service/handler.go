@@ -836,7 +836,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Deprecated: this endpoint shouldn't be used anymore in favor of the
 	// new flow described in https://github.com/fleetdm/fleet/issues/10383
 	ue.POST("/api/_version_/fleet/mdm/apple/dep/key_pair", newMDMAppleDEPKeyPairEndpoint, nil)
-	ue.GET("/api/_version_/fleet/mdm/apple/abm_public_key", generateABMKeyPairEndpoint, nil)
+	ue.GET("/api/_version_/fleet/mdm/apple/ab_public_key", generateABMKeyPairEndpoint, nil)
 	ue.POST("/api/_version_/fleet/ab_tokens", uploadABMTokenEndpoint, uploadABMTokenRequest{})
 	ue.DELETE("/api/_version_/fleet/ab_tokens/{id:[0-9]+}", deleteABMTokenEndpoint, deleteABMTokenRequest{})
 	ue.GET("/api/_version_/fleet/ab_tokens", listABMTokensEndpoint, nil)

@@ -246,4 +246,8 @@ var deprecatedPathAliases = []eu.DeprecatedPathAlias{
 		Method: "PATCH", PrimaryPath: "/api/_version_/fleet/ab_tokens/{id:[0-9]+}/renew",
 		DeprecatedPaths: []string{"/api/_version_/fleet/abm_tokens/{id:[0-9]+}/renew"},
 	},
+	{
+		Method: "GET", PrimaryPath: "/api/_version_/fleet/mdm/apple/ab_public_key",
+		DeprecatedPaths: []string{"/api/_version_/fleet/mdm/apple/abm_public_key"},
+	},
 }
