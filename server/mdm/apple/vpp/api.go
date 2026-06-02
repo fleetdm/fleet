@@ -189,7 +189,7 @@ func (r *AssociateAssetsRequest) Validate() error {
 }
 
 // AssociateAssets associates assets to serial numbers or client user IDs
-// according the the request parameters provided.
+// according to the request parameters provided.
 //
 // https://developer.apple.com/documentation/devicemanagement/associate_assets
 func AssociateAssets(ctx context.Context, token string, params *AssociateAssetsRequest) (string, error) {
@@ -605,7 +605,7 @@ func doVPPAttempt[T any](req *http.Request, dest *T) (done bool, retryAfter time
 		return true, 0, fmt.Errorf("reading response body from Apple VPP endpoint: %w", err)
 	}
 
-	// For HTTP 5xx server error responses, a Retry-After header indicates how
+	// For an HTTP 500 server error response, a Retry-After header indicates how
 	// long the client must wait before making additional requests.
 	//
 	// https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3742679
@@ -613,6 +613,14 @@ func doVPPAttempt[T any](req *http.Request, dest *T) (done bool, retryAfter time
 		seconds, perr := strconv.ParseInt(ra, 10, 0)
 		if perr != nil {
 			return true, 0, fmt.Errorf("parsing retry-after header: %w", perr)
+		}
+		// Clamp to our backoff cap before scaling to a Duration: do() caps the
+		// wait at maxVPPBackoff anyway, and converting an absurdly large value
+		// would overflow the int64 Duration math (potentially wrapping negative).
+		// Non-positive values are left as-is and fall through to do()'s default
+		// backoff.
+		if maxSeconds := int64(maxVPPBackoff / time.Second); seconds > maxSeconds {
+			seconds = maxSeconds
 		}
 		return false, time.Duration(seconds) * time.Second, nil
 	}
