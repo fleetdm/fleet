@@ -14,6 +14,7 @@ import {
 import { ILabelPolicy } from "interfaces/label";
 import {
   API_ALL_TEAMS_ID,
+  API_NO_TEAM_ID,
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
   APP_CONTEXT_NO_TEAM_SUMMARY,
@@ -177,7 +178,7 @@ const PolicyDetailsPage = ({
     ["team", policyTeamId],
     () => teamsAPI.load(policyTeamId as number),
     {
-      enabled: !!policyTeamId && policyTeamId > 0,
+      enabled: policyTeamId != null && policyTeamId >= API_NO_TEAM_ID,
       refetchOnWindowFocus: false,
     }
   );

@@ -307,9 +307,7 @@ const PolicyForm = ({
     mutate: saveAutomations,
     isLoading: isSavingAutomations,
   } = useUpdatePolicyAutomations({
-    // storedPolicy is guaranteed present once the form (and this section)
-    // renders — the page shows a spinner while it loads.
-    policy: storedPolicy as IPolicy,
+    policy: storedPolicy,
     teamIdForApi: automationsTeamId,
     isGlobalPolicy,
     automationsConfig,

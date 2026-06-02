@@ -28,7 +28,9 @@ export interface IUpdatePolicyAutomationsVars {
 }
 
 interface IUseUpdatePolicyAutomationsArgs {
-  policy: IPolicy;
+  /** May be `undefined` during initial render / for a not-yet-loaded policy;
+   *  the mutation guards against this and is only invokable once it's set. */
+  policy: IPolicy | undefined;
   teamIdForApi: number | undefined;
   isGlobalPolicy: boolean;
   automationsConfig: IConfig | ITeamConfig | undefined;
@@ -55,13 +57,16 @@ const useUpdatePolicyAutomations = ({
 
   // Adds or removes this policy from the fleet/global webhook+ticket policy_ids
   // list (the backend stores membership for both webhooks and tickets there).
-  const saveWebhookOrTicketMembership = async (enabled: boolean) => {
+  const saveWebhookOrTicketMembership = async (
+    policyId: number,
+    enabled: boolean
+  ) => {
     const existingWebhook =
       automationsConfig?.webhook_settings?.failing_policies_webhook ?? {};
     const currentIds = existingWebhook.policy_ids ?? [];
     const nextIds = enabled
-      ? Array.from(new Set([...currentIds, policy.id]))
-      : currentIds.filter((id) => id !== policy.id);
+      ? Array.from(new Set([...currentIds, policyId]))
+      : currentIds.filter((id) => id !== policyId);
 
     const payload = {
       webhook_settings: {
@@ -81,10 +86,17 @@ const useUpdatePolicyAutomations = ({
 
   return useMutation(
     ({ policyUpdate, webhookOrTicketUpdate }: IUpdatePolicyAutomationsVars) => {
+      if (!policy) {
+        return Promise.reject(
+          new Error("Cannot update automations without a policy.")
+        );
+      }
+      const { id: policyId } = policy;
+
       const requests: Promise<unknown>[] = [];
       if (policyUpdate) {
         requests.push(
-          teamPoliciesAPI.update(policy.id, {
+          teamPoliciesAPI.update(policyId, {
             team_id: teamIdForApi,
             ...policyUpdate,
           })
@@ -92,12 +104,22 @@ const useUpdatePolicyAutomations = ({
       }
       if (webhookOrTicketUpdate) {
         requests.push(
-          saveWebhookOrTicketMembership(webhookOrTicketUpdate.enabled)
+          saveWebhookOrTicketMembership(policyId, webhookOrTicketUpdate.enabled)
         );
       }
       return Promise.all(requests);
     },
-    { onSuccess, onError }
+    {
+      onSuccess,
+      onError: () => {
+        if (isGlobalPolicy) {
+          queryClient.invalidateQueries(["config"]);
+        } else {
+          queryClient.invalidateQueries(["teams", teamIdForApi]);
+        }
+        onError?.();
+      },
+    }
   );
 };
 
