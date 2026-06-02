@@ -1678,8 +1678,7 @@ func runGetMDMAB(c *cli.Context) error {
 
 	bm, err := client.GetAppleBM()
 	if err != nil {
-		var nfe service.NotFoundErr
-		if errors.As(err, &nfe) {
+		if _, ok := errors.AsType[service.NotFoundErr](err); ok {
 			log(c, "Error: No Apple Business (AB) server token found. Use `fleetctl generate mdm-ab` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
 			return nil
 		}
@@ -1688,14 +1687,14 @@ func runGetMDMAB(c *cli.Context) error {
 
 	defaultTeam := bm.DefaultTeam
 	if defaultTeam == "" {
-		defaultTeam = "No team"
+		defaultTeam = "Unassigned"
 	}
 	printKeyValueTable(c, [][]string{
 		{"Apple ID:", bm.AppleID},
 		{"Organization name:", bm.OrgName},
 		{"MDM server URL:", bm.MDMServerURL},
 		{"Renew date:", bm.RenewDate.Format("January 2, 2006")},
-		{"Default team:", defaultTeam},
+		{"Default fleet:", defaultTeam},
 	})
 
 	warnDate := time.Now().Add(expirationWarning)

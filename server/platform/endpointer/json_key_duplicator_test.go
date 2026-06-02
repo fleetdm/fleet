@@ -210,11 +210,11 @@ func TestDuplicateJSONKeys(t *testing.T) {
 				require.Len(t, abm, 1)
 				tok := abm[0].(map[string]any)
 				macosTeam := tok["macos_team"].(map[string]any)
-				assert.Equal(t, float64(22), macosTeam["team_id"])
+				assert.InDelta(t, float64(22), macosTeam["team_id"], 0)
 				_, hasFleetID := macosTeam["fleet_id"]
 				assert.False(t, hasFleetID, "macos_team must not be contaminated with fleet_id")
 				macosFleet := tok["macos_fleet"].(map[string]any)
-				assert.Equal(t, float64(22), macosFleet["fleet_id"])
+				assert.InDelta(t, float64(22), macosFleet["fleet_id"], 0)
 				_, hasTeamID := macosFleet["team_id"]
 				assert.False(t, hasTeamID, "macos_fleet must not be contaminated with team_id")
 
@@ -225,7 +225,7 @@ func TestDuplicateJSONKeys(t *testing.T) {
 				_, hasOldContainer := newTok["macos_team"]
 				assert.False(t, hasOldContainer, "ab_tokens token should not contain old-named macos_team")
 				newFleet := newTok["macos_fleet"].(map[string]any)
-				assert.Equal(t, float64(22), newFleet["fleet_id"])
+				assert.InDelta(t, float64(22), newFleet["fleet_id"], 0)
 			},
 		},
 		{

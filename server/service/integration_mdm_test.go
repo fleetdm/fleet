@@ -11992,7 +11992,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	// the deprecated abm_public_key path still resolves to the same endpoint
 	var deprecatedResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/abm_public_key", nil, http.StatusOK, &deprecatedResp)
-	require.Nil(t, deprecatedResp.Err)
+	require.NoError(t, deprecatedResp.Err)
 	require.NotEmpty(t, deprecatedResp.PublicKey)
 
 	var tokensResp listABMTokensResponse

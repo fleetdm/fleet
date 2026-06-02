@@ -64,12 +64,12 @@ func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool) []byte {
 
 	oldToNew := make(map[string]string, len(rules))
 	newToOld := make(map[string]string, len(rules))
-	inlineOld := make(map[string]bool, len(rules))
+	inlineOld := make(map[string]struct{}, len(rules))
 	for _, r := range rules {
 		oldToNew[r.OldKey] = r.NewKey
 		newToOld[r.NewKey] = r.OldKey
 		if r.Inline {
-			inlineOld[r.OldKey] = true
+			inlineOld[r.OldKey] = struct{}{}
 		}
 	}
 
@@ -175,7 +175,7 @@ func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool) []byte {
 					// container instead re-runs the duplicator over its value so
 					// nested renames also surface under the old name, the way
 					// they did before this container was renamed.
-					if inlineOld[keyName] && startsWithContainer(val) {
+					if _, ok := inlineOld[keyName]; ok && startsWithContainer(val) {
 						// compact is irrelevant here: the result is re-encoded
 						// by the outer encoder, which applies its own indent.
 						oldVal := duplicateJSONKeys([]byte(val), rules, true)

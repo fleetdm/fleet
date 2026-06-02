@@ -59,7 +59,7 @@ func (s *extractAliasRulesSuite) TestRenametoInlineOption() {
 		TeamID uint     `json:"team_id" renameto:"fleet_id"`
 	}
 	rules := ExtractAliasRules(inlineAlias{})
-	require.Equal(s.T(), []AliasRule{
+	s.Require().Equal([]AliasRule{
 		{OldKey: "abm_tokens", NewKey: "ab_tokens", Inline: true},
 		{OldKey: "team_id", NewKey: "fleet_id"},
 	}, rules)
