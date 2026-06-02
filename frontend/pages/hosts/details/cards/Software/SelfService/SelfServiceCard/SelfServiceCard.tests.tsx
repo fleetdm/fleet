@@ -73,7 +73,6 @@ const createTestProps = (
   isError: false,
   isFetching: false,
   isEmpty: false,
-  isEmptySearch: false,
   router: createMockRouter(),
   pathname: "/device/software",
   onClickInstallAction: jest.fn(),
@@ -375,9 +374,8 @@ describe("SelfServiceCard", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders empty search state when isEmptySearch is true", () => {
+  it("renders empty search state when the search query yields no rows", () => {
     const props = createTestProps({
-      isEmptySearch: true,
       enhancedSoftware: [],
       queryParams: { ...DEFAULT_QUERY_PARAMS, query: "nonexistent" },
     });

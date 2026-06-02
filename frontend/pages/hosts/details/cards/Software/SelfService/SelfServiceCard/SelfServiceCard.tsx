@@ -48,7 +48,6 @@ export interface ISelfServiceCardProps {
   isError: boolean;
   isFetching: boolean;
   isEmpty: boolean;
-  isEmptySearch: boolean;
   router: InjectedRouter;
   pathname: string;
   isMobileView?: boolean;
@@ -67,7 +66,6 @@ const SelfServiceCard = ({
   isError,
   isFetching,
   isEmpty,
-  isEmptySearch,
   router,
   pathname,
   isMobileView,
@@ -297,7 +295,6 @@ const SelfServiceCard = ({
           selfServiceData={selfServiceData}
           tableConfig={tableConfig}
           isFetching={isFetching}
-          isEmptySearch={isEmptySearch}
           onSortChange={onSortChange}
           onClientSidePaginationChange={onClientSidePaginationChange}
         />

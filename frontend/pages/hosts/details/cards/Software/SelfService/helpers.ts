@@ -32,6 +32,10 @@ const INSTALLED_OR_IN_FLIGHT_UI_STATUSES = new Set<string>([
   "failed_uninstall",
   "failed_uninstall_installed",
   "failed_uninstall_update_available",
+  // Script packages: `ran_script` means it already executed — don't re-run on
+  // install_all. `never_ran_script` IS eligible (not in this set) so first-time
+  // script runs are queued.
+  "ran_script",
 ]);
 
 export interface ICategory {

@@ -2,7 +2,6 @@ import React from "react";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyState from "components/EmptyState";
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import CustomLink from "components/CustomLink";
 import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
@@ -22,7 +21,6 @@ interface SelfServiceTableProps {
   selfServiceData?: IGetDeviceSoftwareResponse;
   tableConfig: any;
   isFetching: boolean;
-  isEmptySearch: boolean;
   onSortChange: (query: ITableQueryData) => void;
   onClientSidePaginationChange: (page: number) => void;
 }
@@ -35,13 +33,18 @@ const SelfServiceTable = ({
   selfServiceData,
   tableConfig,
   isFetching,
-  isEmptySearch,
   onSortChange,
   onClientSidePaginationChange,
 }: SelfServiceTableProps): JSX.Element => {
   const initialSortHeader = queryParams.order_key || "name";
   const initialSortDirection = queryParams.order_direction || "asc";
   const initialSortPage = queryParams.page || 0;
+  // The table renders emptyComponent only when its post-filter data is empty.
+  // If the user has a search query at that point, the search is what produced
+  // the empty result; otherwise the category filter (or the initial dataset)
+  // did. Derived here so the parent doesn't have to know about TableContainer's
+  // internal search filter to compute this accurately.
+  const isEmptySearch = !!queryParams.query;
 
   return (
     <div className={`${baseClass}__table`}>
@@ -77,7 +80,10 @@ const SelfServiceTable = ({
               }
             />
           ) : (
-            <EmptySoftwareTable />
+            <EmptyState
+              header="No items match the current search criteria"
+              info="Expecting to see software? Check back later."
+            />
           )
         }
         showMarkAllPages={false}
