@@ -35,6 +35,7 @@ module.exports = {
         'Website - Contact forms',
         'Website - Sign up',
         'Website - Newsletter',
+        'Website - Swag request',
         'Event',
         'GitHub - Stared fleetdm/fleet',
         'GitHub - Forked fleetdm/fleet',

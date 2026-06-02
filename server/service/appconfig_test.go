@@ -981,6 +981,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1036,6 +1037,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1073,6 +1075,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1117,6 +1120,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1161,6 +1165,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1205,6 +1210,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1274,6 +1280,7 @@ func TestMDMConfig(t *testing.T) {
 				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
 				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
 		},
 		{
@@ -1329,6 +1336,30 @@ func TestMDMConfig(t *testing.T) {
 				},
 			},
 			expectedError: "setup_experience.macos_manual_agent_install Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.",
+		},
+		{
+			name:        "windows entra client IDs require premium",
+			licenseTier: "free",
+			newMDM: fleet.MDM{
+				WindowsEntraClientIDs: optjson.SetSlice([]string{"11111111-1111-1111-1111-111111111111"}),
+			},
+			expectedError: licenseErr,
+		},
+		{
+			name:        "windows entra client IDs require Windows MDM enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				WindowsEntraClientIDs: optjson.SetSlice([]string{"11111111-1111-1111-1111-111111111111"}),
+			},
+			expectedError: "Couldn't set Windows Entra client IDs, Windows MDM is not enabled.",
+		},
+		{
+			name:        "windows entra client ID must be a valid GUID",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				WindowsEntraClientIDs: optjson.SetSlice([]string{"not-a-guid"}),
+			},
+			expectedError: "Invalid Entra client ID: not-a-guid",
 		},
 		{
 			name:        "try to disable End User Authentication with Lock End User Info enabled",
@@ -1482,6 +1513,56 @@ func TestMDMConfig(t *testing.T) {
 			require.Equal(t, tt.expectedMDM, ac.MDM)
 		})
 	}
+}
+
+func TestModifyAppConfigWindowsEntraClientIDNormalization(t *testing.T) {
+	ds := new(mock.Store)
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	// Windows MDM must be enabled to set client IDs, which requires a configured WSTEP cert/key pair.
+	cfg := config.TestConfig()
+	cfg.MDM.WindowsWSTEPIdentityCert = "testdata/server.pem"
+	cfg.MDM.WindowsWSTEPIdentityKey = "testdata/server.key"
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		MDM:            fleet.MDM{WindowsEnabledAndConfigured: true},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig, nil
+	}
+	var saved *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		saved = conf
+		return nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	// Mixed case plus a case-only duplicate. They should be normalized to lower-case and de-duplicated.
+	raw := []byte(`{"mdm":{"windows_entra_client_ids":[` +
+		`"AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",` +
+		`"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",` +
+		`"BBBBBBBB-bbbb-BBBB-bbbb-BBBBBBBBBBBB"]}}`)
+	modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
+	require.NoError(t, err)
+
+	want := []string{
+		"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+		"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+	}
+	require.True(t, ds.SaveAppConfigFuncInvoked)
+	require.Equal(t, want, saved.MDM.WindowsEntraClientIDs.Value)
+	require.Equal(t, want, modified.MDM.WindowsEntraClientIDs.Value)
 }
 
 func TestDiskEncryptionSetting(t *testing.T) {
@@ -2296,6 +2377,35 @@ func TestModifyAppConfigGitOpsHistoricalDataDefaults(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tt.expected, updated.Features.HistoricalData)
 			require.Equal(t, tt.expected, dsAppConfig.Features.HistoricalData)
+		})
+	}
+}
+
+// TestDiffStringSlices covers the helper that computes per-value added/removed activity emissions for the Entra
+// tenant ID and client ID allowlists, including the deduplication that prevents a repeated config entry from
+// producing duplicate activities.
+func TestDiffStringSlices(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		old         []string
+		current     []string
+		wantAdded   []string
+		wantRemoved []string
+	}{
+		{"both empty", nil, nil, nil, nil},
+		{"add one", nil, []string{"a"}, []string{"a"}, nil},
+		{"remove one", []string{"a"}, nil, nil, []string{"a"}},
+		{"no change", []string{"a", "b"}, []string{"a", "b"}, nil, nil},
+		{"add and remove", []string{"a", "b"}, []string{"b", "c"}, []string{"c"}, []string{"a"}},
+		{"order preserved", []string{}, []string{"c", "a", "b"}, []string{"c", "a", "b"}, nil},
+		{"dedup added (repeated new entry)", nil, []string{"a", "a", "b", "a"}, []string{"a", "b"}, nil},
+		{"dedup removed (repeated old entry)", []string{"a", "a", "b"}, []string{"b"}, nil, []string{"a"}},
+		{"repeated unchanged entry yields nothing", []string{"a"}, []string{"a", "a"}, nil, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			added, removed := diffStringSlices(tc.old, tc.current)
+			assert.Equal(t, tc.wantAdded, added)
+			assert.Equal(t, tc.wantRemoved, removed)
 		})
 	}
 }

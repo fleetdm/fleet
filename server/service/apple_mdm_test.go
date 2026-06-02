@@ -2472,6 +2472,7 @@ func TestMDMCheckout(t *testing.T) {
 	}
 	ctx := context.Background()
 	uuid, serial, installedFromDEP, displayName, platform := "ABC-DEF-GHI", "XYZABC", true, "Test's MacBook", "darwin"
+	hostID := uint(42)
 
 	ds.MDMTurnOffFunc = func(ctx context.Context, hostUUID string) ([]*fleet.User, []fleet.ActivityDetails, error) {
 		require.Equal(t, uuid, hostUUID)
@@ -2481,6 +2482,7 @@ func TestMDMCheckout(t *testing.T) {
 	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 		require.Equal(t, uuid, hostUUID)
 		return &fleet.HostMDMCheckinInfo{
+			HostID:           hostID,
 			HardwareSerial:   serial,
 			DisplayName:      displayName,
 			InstalledFromDEP: installedFromDEP,
@@ -2499,10 +2501,12 @@ func TestMDMCheckout(t *testing.T) {
 		require.True(t, ok)
 		require.Nil(t, user)
 		require.Equal(t, "mdm_unenrolled", activity.ActivityName())
+		require.Equal(t, hostID, a.HostID)
 		require.Equal(t, serial, a.HostSerial)
 		require.Equal(t, displayName, a.HostDisplayName)
 		require.True(t, a.InstalledFromDEP)
 		require.Equal(t, platform, a.Platform)
+		require.Equal(t, []uint{hostID}, a.HostIDs())
 		return nil
 	}
 

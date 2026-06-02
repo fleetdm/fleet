@@ -1857,3 +1857,86 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 		assert.False(t, ds.MDMWindowsInsertCommandForHostsFuncInvoked)
 	})
 }
+
+// TestHasAuthorizedAzureAudience covers the audience-matching logic that authorizes Entra-issued tokens for Windows
+// automatic enrollment, including the v2 (client ID / GUID `aud`) path added for issue #46388 and the unchanged v1
+// (server-URL `aud`) path.
+func TestHasAuthorizedAzureAudience(t *testing.T) {
+	const (
+		serverHost = "fleet.example.com"
+		clientID   = "11111111-1111-1111-1111-111111111111"
+		clientID2  = "22222222-2222-2222-2222-222222222222"
+		serverURL  = "https://fleet.example.com"
+	)
+	for _, tc := range []struct {
+		name      string
+		audiences []string
+		clientIDs []string
+		want      bool
+	}{
+		// v1 (server URL) path - unchanged behavior, no client IDs configured.
+		{"v1 server URL, no client IDs", []string{serverURL}, nil, true},
+		{"v1 server URL with path", []string{serverURL + "/some/path"}, nil, true},
+		{"v1 host case-insensitive (RFC 3986)", []string{"https://Fleet.Example.COM"}, nil, true},
+		{"v1 same host different port is rejected", []string{"https://fleet.example.com:8443"}, nil, false},
+		{"v1 different host", []string{"https://evil.example.com"}, nil, false},
+
+		// v2 (client ID) path.
+		{"v2 client ID match", []string{clientID}, []string{clientID}, true},
+		{"v2 matches second configured client ID", []string{clientID2}, []string{clientID, clientID2}, true},
+		{"v2 client ID, case-insensitive aud", []string{strings.ToUpper(clientID)}, []string{clientID}, true},
+		{"v2 client ID with surrounding whitespace", []string{"  " + clientID + "  "}, []string{clientID}, true},
+		{"v2 client ID not in allowlist", []string{"99999999-9999-9999-9999-999999999999"}, []string{clientID}, false},
+
+		// Backward compatibility: a v2-style GUID aud with no client IDs configured is not authorized.
+		{"GUID aud, no client IDs configured", []string{clientID}, nil, false},
+
+		// Mixed / multiple audiences: any one match wins.
+		{"multiple auds, client ID wins", []string{"urn:something", clientID}, []string{clientID}, true},
+		{"multiple auds, server URL wins", []string{"urn:something", serverURL}, []string{clientID}, true},
+		{"multiple auds, none match", []string{"urn:something", "https://other.example.com"}, []string{clientID}, false},
+
+		// Degenerate inputs.
+		{"empty audiences", nil, []string{clientID}, false},
+		{"empty everything", nil, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, hasAuthorizedAzureAudience(tc.audiences, serverHost, tc.clientIDs))
+		})
+	}
+
+	// A GUID aud must not match a misconfigured (empty) serverHost - GUIDs parse to a URL with an empty host.
+	t.Run("empty serverHost does not match GUID aud", func(t *testing.T) {
+		assert.False(t, hasAuthorizedAzureAudience([]string{clientID}, "", nil))
+	})
+}
+
+// TestHasAuthorizedAzureTenant covers the tenant-matching logic that authorizes Entra-issued tokens by the `tid`
+// claim. The comparison is case-insensitive: the GUID validator accepts upper-case tenant IDs, and
+// Entra emits `tid` lower-cased, so a tenant ID stored with upper-case hex must still authorize enrollment.
+func TestHasAuthorizedAzureTenant(t *testing.T) {
+	const (
+		tenantA = "1a86b496-e2a4-43ef-ba00-20004e29b13b"
+		tenantB = "6dca58c4-c817-4730-831b-f3348931df05"
+	)
+	for _, tc := range []struct {
+		name      string
+		tenantIDs []string
+		token     string
+		want      bool
+	}{
+		{"exact match", []string{tenantA}, tenantA, true},
+		{"matches second configured", []string{tenantA, tenantB}, tenantB, true},
+		{"configured upper, token lower", []string{strings.ToUpper(tenantB)}, tenantB, true},
+		{"configured lower, token upper", []string{tenantB}, strings.ToUpper(tenantB), true},
+		{"surrounding whitespace", []string{"  " + tenantA + "  "}, tenantA, true},
+		{"not configured", []string{tenantA}, tenantB, false},
+		{"empty configured", nil, tenantA, false},
+		{"empty token", []string{tenantA}, "", false},
+		{"empty token with whitespace", []string{tenantA}, "   ", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, hasAuthorizedAzureTenant(tc.tenantIDs, tc.token))
+		})
+	}
+}
