@@ -12042,7 +12042,7 @@ func testListHostSoftwareFMAReplacedInstallerOutOfScope(t *testing.T, ds *Datast
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "storage_v1",
-		FleetMaintainedAppID: ptr.Uint(fma.ID),
+		FleetMaintainedAppID: new(fma.ID),
 		Filename:             "spotify.pkg",
 		Title:                "Spotify",
 		Version:              "1.0",
@@ -12061,7 +12061,7 @@ func testListHostSoftwareFMAReplacedInstallerOutOfScope(t *testing.T, ds *Datast
 	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           hostInstall,
-		InstallScriptExitCode: ptr.Int(0),
+		InstallScriptExitCode: new(int(0)),
 	}, nil)
 	require.NoError(t, err)
 
@@ -12083,7 +12083,7 @@ func testListHostSoftwareFMAReplacedInstallerOutOfScope(t *testing.T, ds *Datast
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr2,
 		StorageID:            "storage_v2",
-		FleetMaintainedAppID: ptr.Uint(fma.ID),
+		FleetMaintainedAppID: new(fma.ID),
 		Filename:             "spotify.pkg",
 		Title:                "Spotify",
 		Version:              "2.0",
@@ -12182,7 +12182,7 @@ func testListHostSoftwareFMAReplacedInstallerInScopeShowsActiveMetadata(t *testi
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "old_storage",
-		FleetMaintainedAppID: ptr.Uint(fma.ID),
+		FleetMaintainedAppID: new(fma.ID),
 		Filename:             "fma.pkg",
 		Title:                "FMA App",
 		Version:              "1.0",
@@ -12200,7 +12200,7 @@ func testListHostSoftwareFMAReplacedInstallerInScopeShowsActiveMetadata(t *testi
 	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           hostInstall,
-		InstallScriptExitCode: ptr.Int(0),
+		InstallScriptExitCode: new(int(0)),
 	}, nil)
 	require.NoError(t, err)
 
@@ -12217,7 +12217,7 @@ func testListHostSoftwareFMAReplacedInstallerInScopeShowsActiveMetadata(t *testi
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr2,
 		StorageID:            "new_storage",
-		FleetMaintainedAppID: ptr.Uint(fma.ID),
+		FleetMaintainedAppID: new(fma.ID),
 		Filename:             "fma.pkg",
 		Title:                "FMA App",
 		Version:              "2.0",
@@ -12274,7 +12274,7 @@ func testInstalledInstallersSqlPicksActiveInstaller(t *testing.T, ds *Datastore)
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "iisql_storage_v1",
-		FleetMaintainedAppID: ptr.Uint(fma.ID),
+		FleetMaintainedAppID: new(fma.ID),
 		Filename:             "iisql.pkg",
 		Title:                "IISql App",
 		Version:              "1.0",
@@ -12300,7 +12300,7 @@ func testInstalledInstallersSqlPicksActiveInstaller(t *testing.T, ds *Datastore)
 		InstallScript:        "exit 0",
 		InstallerFile:        tfr2,
 		StorageID:            "iisql_storage_v2",
-		FleetMaintainedAppID: ptr.Uint(fma.ID),
+		FleetMaintainedAppID: new(fma.ID),
 		Filename:             "iisql.pkg",
 		Title:                "IISql App",
 		Version:              "2.0",
@@ -12363,7 +12363,7 @@ func testListHostSoftwareUninstallFMAReplacedRespectsActiveInstaller(t *testing.
 		UninstallScript:      "exit 0",
 		InstallerFile:        tfr,
 		StorageID:            "uninst_v1",
-		FleetMaintainedAppID: ptr.Uint(fma.ID),
+		FleetMaintainedAppID: new(fma.ID),
 		Filename:             "fma_uninst.pkg",
 		Title:                "FMA Uninst App",
 		Version:              "1.0",
@@ -12382,7 +12382,7 @@ func testListHostSoftwareUninstallFMAReplacedRespectsActiveInstaller(t *testing.
 	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           hostInstall,
-		InstallScriptExitCode: ptr.Int(0),
+		InstallScriptExitCode: new(int(0)),
 	}, nil)
 	require.NoError(t, err)
 
@@ -12415,7 +12415,7 @@ func testListHostSoftwareUninstallFMAReplacedRespectsActiveInstaller(t *testing.
 		UninstallScript:      "exit 0",
 		InstallerFile:        tfr2,
 		StorageID:            "uninst_v2",
-		FleetMaintainedAppID: ptr.Uint(fma.ID),
+		FleetMaintainedAppID: new(fma.ID),
 		Filename:             "fma_uninst.pkg",
 		Title:                "FMA Uninst App",
 		Version:              "2.0",
