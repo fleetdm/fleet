@@ -26,18 +26,11 @@ The Product Design department is responsible for reviewing and collecting feedba
 
 ### Unpacking the why
 
-The Head of Product Design (HPD) and a former IT admin review the new customer/prospect/community requests in the "📨 Inbox" column the [drafting board](https://github.com/orgs/fleetdm/projects/67) to synthesize why users are making the request (i.e. what problem are they trying to solve).
+The Head of Product Design (HPD) and a former IT admin review new customer, prospect, and community requests in the "📨 Inbox" column of the [drafting board](https://github.com/orgs/fleetdm/projects/67) to synthesize why users are making each request (i.e. what problem they're trying to solve).
 
-Only requests that meet the [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization) are unpacked. If a request doesn't meet the criteria, the HPD leaves the "Unpacked" checkbox in the feature request issue unchecked and removes the request from the drafting board.
+Only requests that contribute to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year (`~product-maturity` label) are unpacked. If a request doesn't meet this criteria but meets a different [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization), the HPD removes the "Unpacked" checkbox in the feature request issue and adds the request to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board. If the request doesn't meet any criteria, the HPD removes it from the drafting board.
 
-If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
-
-
-### Unpacking the how
-
-3 weeks before end of each quarter, The Head of Product Design starts a daily 1h meeting with the CEO. The Head of Product Design brings an objective for the next quarter and the appropriate subject matter expert to understand what users will expect. This helps Product Designers at Fleet understand how Fleet will design a particular feature. 
-
-As soon as we've addressed the next quarter's objectives, the Head of Product Design cancels the daily meeting. 
+If a customer or prospect request is missing a Gong snippet or requires additional information to understand the "why", the HPD will @mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🌦️ :help-customers](https://github.com/orgs/fleetdm/projects/79) board.
 
 
 ### Triage new bugs

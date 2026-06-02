@@ -825,7 +825,7 @@ Anyone in the company is invited to submit requests or simply listen in on the �
 
 To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new/choose) using the feature request template. If you found that an issue already exists, add the `:product` label to it.
 
-New requests are reviewed daily by the Head of Product Design and a former IT admin during the ["Unpacking the why"](https://fleetdm.com/handbook/product-design#unpacking-the-why) call. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
+New requests are reviewed daily by the Head of Product Design. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
 
 > **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label, remove the `:product` label, and remove the issue from the 🦢 Drafting project.
 
@@ -836,7 +836,7 @@ To prioritize a new feature, it must meet one of these criteria:
 
 1. Bug
 2. Small UX improvement (`~spiffier` label) that isn't quite a bug but it's so small that it's worthwhile
-3. Contributes to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year (`~product-maturity` label)
+3. Contributes to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year (`~product-maturity` label). These features are reviewed by the Head of Product Design and a former IT admin during the ["Unpacking the why"](https://fleetdm.com/handbook/product-design#unpacking-the-why) call, and user stories are filed and added to the [release planning project](https://github.com/orgs/fleetdm/projects/87).
 4. Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
 5. Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
 
@@ -849,11 +849,7 @@ If an issue has the `:product` and `story` label, then it's a user story that is
 
 ### How feature requests are prioritized
 
-Prioritization of new feature requests happens at the 🎁🗣 Feature Fest meeting.
-
-Before the 🎁🗣 Feature Fest meeting, the [Customer renewals DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) adds customer requests to the 🎁🗣 Feature Fest board (`~feature fest` label) that are a high priority.
-
-Before the meeting, the Feature prioritization DRI adds requests from Fleet's roadmap that contribute to Fleet's [quarterly key results (KRs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=A1).
+Prioritization of new feature requests happens at the 🎁🗣 Feature Fest meeting. Before the meeting, during the [🦢📊 Product design sprint review ritual](https://fleetdm.com/handbook/product-design#rituals), the [Feature prioritization DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) and Product Designers add requests associated with upcoming user stories on Fleet's [release planning project](https://github.com/orgs/fleetdm/projects/87).
 
 At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs all requests in the inbox. When the team weighs a request, it is immediately prioritized or put to the side (not prioritized).
 
