@@ -592,8 +592,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			notifs.RunSetupExperience = true
 		case state.HasPendingCommands:
 			// Outside the ESP: if this host's fleetd can start an on-demand OMA-DM session, ask it to sync now so queued commands apply without
-			// waiting for the (relaxed) poll. Older fleetd that does not advertise the capability never sets it here, and ignores the unknown
-			// notification field if it ever sees it.
+			// waiting for the poll.
 			if mp, ok := capabilities.FromContext(ctx); ok && mp.Has(fleet.CapabilityWindowsMDMSync) {
 				notifs.WindowsMDMSyncRequest = true
 			}

@@ -100,8 +100,7 @@ const (
 	CapabilityEndUserAuth Capability = "end_user_auth"
 	// CapabilityWindowsMDMSync denotes the ability of Windows fleetd to start an on-demand OMA-DM session (via deviceenroller) when the server
 	// signals that the host has queued Windows MDM commands. This lets the server relax the aggressive Windows MDM poll while keeping command
-	// latency low. The server gates the WindowsMDMSyncRequest notification on it; Windows fleetd advertises it from GetOrbitClientCapabilities
-	// now that the agent-side handler that starts the session exists.
+	// latency low.
 	CapabilityWindowsMDMSync Capability = "windows_mdm_sync"
 )
 
