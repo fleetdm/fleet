@@ -309,7 +309,7 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	// simulate a broken label by nullifying its id in the join table
 	// (direct DeleteLabel is now blocked when referenced by a profile)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, lbl.ID)
+		_, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE apple_profile_uuid = ? AND label_id = ?`, labelProf.ProfileUUID, lbl.ID)
 		return err
 	})
 
