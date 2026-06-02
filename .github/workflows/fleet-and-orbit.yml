@@ -76,17 +76,12 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
-
-      - name: Set up Node.js
-        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
-        with:
-          node-version-file: package.json
 
       - name: Start tunnel
         env:
@@ -117,13 +112,14 @@ jobs:
           done
 
       - name: Start Infra Dependencies
-        run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose up -d mysql redis &
+        run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose up -d mysql redis
 
-      - name: Install JS Dependencies
-        run: make deps-js
-
-      - name: Generate and bundle go & js code
-        run: make generate
+      - name: Generate go code
+        # Skip the frontend bundle (generate-js/webpack) and Node setup: this workflow
+        # only tests orbit/osquery enrollment against the API and never serves the web
+        # UI, so building the React bundle is wasted work on the critical path.
+        # generate-go still produces server/bindata so the `full`-tagged build compiles.
+        run: make generate-go
 
       - name: Build fleet and fleetctl
         # fleet-dev builds fleet with "race" enabled.
@@ -189,7 +185,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -229,7 +225,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -272,7 +268,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -336,7 +332,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout uninstall script
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
           sparse-checkout-cone-mode: false
