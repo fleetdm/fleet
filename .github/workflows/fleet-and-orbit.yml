@@ -348,9 +348,24 @@ jobs:
 
       - name: Wait until fleet address is reachable and fleet responds
         run: |
-          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          # macOS runners cache negative DNS (NXDOMAIN) answers aggressively through
+          # mDNSResponder. The fleet address CNAME is created at run time, so if the
+          # first lookup happens before the record has propagated, macOS can keep
+          # serving the stale negative result and this loop hangs until the 60m job
+          # timeout (Linux/Windows re-resolve eagerly and don't hit this). Flush the
+          # resolver cache on every attempt and cap the total wait so we fail fast.
+          attempts=0
+          max_attempts=60 # ~10 minutes at 10s intervals
+          until curl -v --fail --connect-timeout 10 ${{ needs.gen.outputs.address }}/version;
           do
-            echo "Awaiting until fleet server responds..."
+            attempts=$((attempts+1))
+            if [ "$attempts" -ge "$max_attempts" ]; then
+              echo "Fleet server did not respond after $max_attempts attempts; giving up."
+              exit 1
+            fi
+            echo "Awaiting until fleet server responds (attempt $attempts/$max_attempts)..."
+            sudo dscacheutil -flushcache
+            sudo killall -HUP mDNSResponder
             sleep 10
           done
 
@@ -407,9 +422,18 @@ jobs:
 
       - name: Wait until fleet address is reachable and fleet responds
         run: |
-          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          # Cap the total wait so a stuck connection fails fast instead of hanging
+          # until the 60m job timeout.
+          attempts=0
+          max_attempts=60 # ~10 minutes at 10s intervals
+          until curl -v --fail --connect-timeout 10 ${{ needs.gen.outputs.address }}/version;
           do
-            echo "Awaiting until fleet server responds..."
+            attempts=$((attempts+1))
+            if [ "$attempts" -ge "$max_attempts" ]; then
+              echo "Fleet server did not respond after $max_attempts attempts; giving up."
+              exit 1
+            fi
+            echo "Awaiting until fleet server responds (attempt $attempts/$max_attempts)..."
             sleep 10
           done
 
@@ -466,9 +490,18 @@ jobs:
 
       - name: Wait until fleet address is reachable and fleet responds
         run: |
-          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          # Cap the total wait so a stuck connection fails fast instead of hanging
+          # until the 60m job timeout.
+          attempts=0
+          max_attempts=60 # ~10 minutes at 10s intervals
+          until curl -v --fail --connect-timeout 10 ${{ needs.gen.outputs.address }}/version;
           do
-            echo "Awaiting until fleet server responds..."
+            attempts=$((attempts+1))
+            if [ "$attempts" -ge "$max_attempts" ]; then
+              echo "Fleet server did not respond after $max_attempts attempts; giving up."
+              exit 1
+            fi
+            echo "Awaiting until fleet server responds (attempt $attempts/$max_attempts)..."
             sleep 10
           done
 
