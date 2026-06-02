@@ -241,7 +241,7 @@ func (svc *Service) releaseVPPSeat(ctx context.Context, host *fleet.Host, info *
 		req.SerialNumbers = []string{host.HardwareSerial}
 	}
 
-	if _, err := vpp.DisassociateAssets(tokenDB.Token, req); err != nil {
+	if _, err := vpp.DisassociateAssets(ctx, tokenDB.Token, req); err != nil {
 		return ctxerr.Wrap(ctx, err, "disassociate vpp assets on cancel")
 	}
 	return nil

@@ -1614,7 +1614,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	} else {
 		assignmentFilter.SerialNumber = host.HardwareSerial
 	}
-	assignments, err := vpp.GetAssignments(token, assignmentFilter)
+	assignments, err := vpp.GetAssignments(ctx, token, assignmentFilter)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
 	}
@@ -1670,7 +1670,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 			req.SerialNumbers = []string{host.HardwareSerial}
 		}
 
-		eventID, err = vpp.AssociateAssets(token, req)
+		eventID, err = vpp.AssociateAssets(ctx, token, req)
 		if err == nil {
 			// We reserved a seat; remember the request so we can release it if a
 			// later step fails.
@@ -1709,7 +1709,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 		// must release it — otherwise the seat leaks (no install will ever use
 		// it). Best-effort: log and continue returning the original error.
 		if assocReq != nil {
-			if _, dErr := vpp.DisassociateAssets(token, assocReq); dErr != nil {
+			if _, dErr := vpp.DisassociateAssets(ctx, token, assocReq); dErr != nil {
 				svc.logger.ErrorContext(ctx, "failed to release reserved VPP license after install insert failure",
 					"err", dErr, "host_id", host.ID, "adam_id", vppApp.AdamID)
 			}
