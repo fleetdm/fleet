@@ -1445,7 +1445,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	// implemented anyways at some point.
 	//
 	// [1]: https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3729433
-	assignments, err := vpp.GetAssignments(token, &vpp.AssignmentFilter{AdamID: vppApp.AdamID, SerialNumber: host.HardwareSerial})
+	assignments, err := vpp.GetAssignments(ctx, token, &vpp.AssignmentFilter{AdamID: vppApp.AdamID, SerialNumber: host.HardwareSerial})
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
 	}
@@ -1490,7 +1490,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 			}
 		}
 
-		eventID, err = vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{Assets: assets, SerialNumbers: []string{host.HardwareSerial}})
+		eventID, err = vpp.AssociateAssets(ctx, token, &vpp.AssociateAssetsRequest{Assets: assets, SerialNumbers: []string{host.HardwareSerial}})
 		if err != nil {
 			return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
