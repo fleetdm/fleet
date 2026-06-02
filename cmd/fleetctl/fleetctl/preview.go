@@ -407,11 +407,7 @@ func previewCommand() *cli.Command {
 			}
 
 			// disable analytics collection and enable software inventory for preview.
-			// Use `features` (not the deprecated `host_settings` alias): the legacy
-			// alias is unmarshaled by wholesale-replacing the entire Features struct,
-			// which would zero out any field not in this partial patch — including the
-			// historical_data sub-keys that drive the dashboard charts, silently
-			// disabling data collection. `features` merges field-by-field instead.
+			// otherwise use the defaults for both.
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
 				"features":        {"enable_software_inventory": true},
 				"server_settings": {"enable_analytics": false},
