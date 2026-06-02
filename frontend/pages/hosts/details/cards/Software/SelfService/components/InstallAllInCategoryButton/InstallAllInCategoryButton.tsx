@@ -43,8 +43,8 @@ const InstallAllInCategoryButton = ({
         deviceToken,
         categoryId
       );
-      onSuccess();
       setShowModal(false);
+      onSuccess();
     } catch (error) {
       renderFlash("error", "Couldn't install. Please try again.");
     } finally {

@@ -21,6 +21,17 @@ const INSTALLED_OR_IN_FLIGHT_UI_STATUSES = new Set<string>([
   "recently_installed",
   "recently_updated",
   "update_available", // user clicks "Update", not "Install" — not eligible for install_all
+  // `recently_uninstalled` = the user JUST uninstalled this; inventory hasn't
+  // refreshed yet. Including it in install_all would immediately re-install
+  // what they just removed. Once inventory catches up the status becomes
+  // `uninstalled` and install_all will pick it up again — this is a transient
+  // guard, not a permanent exclusion.
+  "recently_uninstalled",
+  // failed_uninstall variants: the item is still installed (the uninstall
+  // failed). Install_all is for things the user doesn't have yet.
+  "failed_uninstall",
+  "failed_uninstall_installed",
+  "failed_uninstall_update_available",
 ]);
 
 export interface ICategory {
@@ -34,6 +45,9 @@ export interface ICategory {
 
 const ALL_ITEM: ICategory = { id: 0, label: "All", value: "All" };
 
+/** @deprecated Static fallback list — used by `SoftwareOptionsSelector` and
+ * `SelfServicePreview` on the Software page. New code should consume the
+ * dynamic `/software/self_service_categories` endpoint instead. */
 export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 1, label: "🌎 Browsers", value: "Browsers" },
   { id: 2, label: "👬 Communication", value: "Communication" },
@@ -43,34 +57,11 @@ export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 6, label: "🛠️ Utilities", value: "Utilities" },
 ];
 
+/** @deprecated See `CATEGORIES_ITEMS`. */
 export const CATEGORIES_NAV_ITEMS: ICategory[] = [
   ALL_ITEM,
   ...CATEGORIES_ITEMS,
 ];
-
-export const filterSoftwareByCategory = (
-  software?: IDeviceSoftwareWithUiStatus[],
-  category_id?: number
-): IDeviceSoftwareWithUiStatus[] => {
-  // Find the category value string for the given id
-  const category = CATEGORIES_NAV_ITEMS.find((cat) => cat.id === category_id);
-
-  // If "All" is selected or category not found, return all software items
-  if (!category || category.value === "All") {
-    return software || [];
-  }
-
-  // Otherwise, filter software items whose categories include the category value
-  return (software || []).filter(
-    (softwareItem) =>
-      softwareItem.software_package?.categories?.includes(
-        category.value as SoftwareCategory
-      ) ||
-      softwareItem.app_store_app?.categories?.includes(
-        category.value as SoftwareCategory
-      )
-  );
-};
 
 /**
  * Strips a leading emoji + whitespace from a custom category name so it can be
@@ -98,16 +89,19 @@ export const filterSoftwareByCustomCategory = (
     return software;
   }
   const category = categories.find((c) => c.id === categoryId);
+  // Categories may still be loading, or the URL may reference a deleted category.
+  // Either way, falling through to `software` would surface the wrong "Install all" count
+  // and let the user bulk-install items outside the requested category.
   if (!category) {
-    return software;
+    return [];
   }
-  const normalized = stripEmojiPrefix(category.name);
+  const normalized = stripEmojiPrefix(category.name).toLowerCase();
   return software.filter((item) => {
     const itemCategories = [
       ...(item.software_package?.categories ?? []),
       ...(item.app_store_app?.categories ?? []),
     ];
-    return itemCategories.some((c) => c === normalized);
+    return itemCategories.some((c) => c.toLowerCase() === normalized);
   });
 };
 

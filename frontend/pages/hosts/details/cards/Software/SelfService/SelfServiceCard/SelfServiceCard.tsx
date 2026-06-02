@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
@@ -52,7 +52,7 @@ export interface ISelfServiceCardProps {
   router: InjectedRouter;
   pathname: string;
   isMobileView?: boolean;
-  onClickInstallAction?: any;
+  onClickInstallAction: (softwareId: number, isScriptPackage?: boolean) => void;
   onInstallAllSuccess?: () => void;
 }
 
@@ -77,15 +77,16 @@ const SelfServiceCard = ({
   const initialSortHeader = queryParams.order_key || "name";
   const initialSortDirection = queryParams.order_direction || "asc";
 
-  // BE for #39018 is not ready; the categories service has a NODE_ENV dev
-  // mock so this query returns seeded data in `make serve`. When BE lands,
-  // a device-token-scoped variant of this endpoint will be needed.
-  const { data: categoriesData } = useQuery<
+  // The categories endpoint is fleet-scoped. Until a device-token-scoped
+  // variant exists, we pull fleet_id=0 (global) categories as a temporary
+  // stand-in. Keep the queryKey's second element in sync with the queryFn arg
+  // when scoping changes — they must match to avoid cross-fleet cache bleed.
+  const { data: categoriesData, isSuccess: isCategoriesSuccess } = useQuery<
     ISelfServiceCategoriesResponse,
     Error,
     ISelfServiceCategory[]
   >(
-    ["device_self_service_categories"],
+    ["device_self_service_categories", 0],
     () => selfServiceCategoriesAPI.getCategories(0),
     {
       select: (response) => response.self_service_categories,
@@ -165,17 +166,45 @@ const SelfServiceCard = ({
     );
   };
 
-  const onCategoryChange = (categoryId: number | undefined) => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        category_id: categoryId,
-        query: queryParams.query,
-        order_key: initialSortHeader,
-        order_direction: initialSortDirection,
-        page: 0,
-      })
-    );
-  };
+  const onCategoryChange = useCallback(
+    (categoryId: number | undefined) => {
+      router.push(
+        getPathWithQueryParams(pathname, {
+          category_id: categoryId,
+          query: queryParams.query,
+          order_key: initialSortHeader,
+          order_direction: initialSortDirection,
+          page: 0,
+        })
+      );
+    },
+    [
+      pathname,
+      queryParams.query,
+      initialSortHeader,
+      initialSortDirection,
+      router,
+    ]
+  );
+
+  // Recover from stale links: if the URL has a category_id but the categories
+  // endpoint resolved to an empty list (e.g. admin deleted them all), the
+  // dropdown is hidden and the software list is empty with no UI to clear.
+  // Drop the param so the user lands back on "All".
+  useEffect(() => {
+    if (
+      isCategoriesSuccess &&
+      categories.length === 0 &&
+      queryParams.category_id !== undefined
+    ) {
+      onCategoryChange(undefined);
+    }
+  }, [
+    isCategoriesSuccess,
+    categories.length,
+    queryParams.category_id,
+    onCategoryChange,
+  ]);
 
   if (isLoading)
     return <Spinner {...(isMobileView && { variant: "mobile" })} />;

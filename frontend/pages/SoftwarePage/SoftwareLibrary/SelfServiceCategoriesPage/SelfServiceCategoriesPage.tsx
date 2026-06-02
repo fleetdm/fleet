@@ -206,7 +206,7 @@ const SelfServiceCategoriesPage = ({
               Self-service categories
             </span>
             {canManage && (
-              <Button variant="text-icon" onClick={() => setShowAddModal(true)}>
+              <Button variant="inverse" onClick={() => setShowAddModal(true)}>
                 <Icon name="plus" />
                 Add category
               </Button>

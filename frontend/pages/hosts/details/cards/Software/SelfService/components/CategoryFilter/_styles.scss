@@ -4,10 +4,6 @@
 }
 
 .self-service-category-filter {
-  &__menu {
-    min-width: 240px;
-  }
-
   // The visible trigger is a real Fleet <Button variant="unstyled">. Its
   // :focus-visible outline comes from button-variant() in
   // components/buttons/Button/_styles.scss, so we just style layout here.
@@ -37,12 +33,10 @@
   &__icon {
     svg {
       transition: transform 0.25s ease;
-      transform: rotate(0deg);
     }
 
     &--open {
       svg {
-        transition: transform 0.25s ease;
         transform: rotate(180deg);
       }
     }

@@ -9,7 +9,6 @@ import Select, {
 
 import { COLORS } from "styles/var/colors";
 import { PADDING } from "styles/var/padding";
-import { FONT_SIZES } from "styles/var/fonts";
 import { ISelfServiceCategory } from "interfaces/self_service_category";
 
 import Button from "components/buttons/Button";
@@ -163,11 +162,8 @@ const CategoryFilter = ({
   const options = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
     if (query === "") return allOptions;
-    // Keep "All" pinned at the top; filter the rest by label
-    return allOptions.filter(
-      (option) =>
-        option.value === ALL_CATEGORIES_VALUE ||
-        option.label.toLowerCase().includes(query)
+    return allOptions.filter((option) =>
+      option.label.toLowerCase().includes(query)
     );
   }, [allOptions, searchQuery]);
 
@@ -202,8 +198,6 @@ const CategoryFilter = ({
       new KeyboardEvent("keydown", {
         key: event.key,
         code: event.code,
-        keyCode: event.keyCode,
-        which: event.keyCode,
         bubbles: true,
         cancelable: true,
       })
@@ -243,8 +237,7 @@ const CategoryFilter = ({
       // 1px offset = 2px beyond the button) so the menu sits flush against
       // the outline rather than overlapping it.
       marginTop: PADDING["pad-xsmall"],
-      minWidth: "240px",
-      maxWidth: "350px",
+      width: "340px",
       maxHeight: "none",
       position: "absolute",
       left: "0",
@@ -262,8 +255,11 @@ const CategoryFilter = ({
     }),
     noOptionsMessage: (baseStyles) => ({
       ...baseStyles,
-      padding: PADDING["pad-small"],
-      fontSize: FONT_SIZES["x-small"],
+      // Match an option's vertical padding + font-size so the menu height
+      // doesn't jump between options and the no-match message. Drop the
+      // horizontal padding so the message stays on one line.
+      padding: "10px 0",
+      fontSize: "14px",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",

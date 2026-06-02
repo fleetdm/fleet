@@ -718,6 +718,7 @@ const SoftwareSelfService = ({
         isEmptySearch={isEmptySearch}
         router={router}
         pathname={pathname}
+        onClickInstallAction={onClickInstallAction}
         onInstallAllSuccess={onInstallOrUninstall}
       />
       {showUninstallSoftwareModal && selectedSoftwareForUninstall.current && (

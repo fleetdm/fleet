@@ -26,11 +26,13 @@ const SelfServiceFilters = ({
   installAllSlot,
 }: SelfServiceFiltersProps) => (
   <div className={baseClass}>
-    <CategoryFilter
-      categories={categories}
-      selectedCategoryId={categoryId}
-      onChange={onCategoryChange}
-    />
+    {categories.length > 0 && (
+      <CategoryFilter
+        categories={categories}
+        selectedCategoryId={categoryId}
+        onChange={onCategoryChange}
+      />
+    )}
     <div className={`${baseClass}__actions`}>
       {installAllSlot}
       <SearchField
