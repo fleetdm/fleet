@@ -197,25 +197,24 @@ func IsRunningOnWindowsServer() (bool, error) {
 	return false, nil
 }
 
-// fleetMDMProviderID must match syncml.DocProvisioningAppProviderID, the provider ID Fleet sets in the Windows
-// MDM enrollment provisioning doc. It is the value of the ProviderID registry value on Fleet's enrollment.
+// fleetMDMProviderID must match syncml.DocProvisioningAppProviderID, the provider ID Fleet sets in the Windows MDM enrollment provisioning
+// doc. It is the value of the ProviderID registry value on Fleet's enrollment.
 const fleetMDMProviderID = "Fleet"
 
-// windowsMDMSyncTriggerTimeout bounds the deviceenroller invocation. The sync receiver calls TriggerWindowsMDMSync
-// synchronously and orbit's RunConfigReceivers waits for every receiver to return, so a hung deviceenroller would
-// otherwise stall the whole config-receiver loop. `deviceenroller /o /c` starts a session and returns well within
-// this in practice; the timeout is a generous backstop, not the expected duration.
+// windowsMDMSyncTriggerTimeout bounds the deviceenroller invocation. The sync receiver calls TriggerWindowsMDMSync synchronously and
+// orbit's RunConfigReceivers waits for every receiver to return, so a hung deviceenroller would otherwise stall the whole config-receiver
+// loop. `deviceenroller /o /c` starts a session and returns well within this in practice; the timeout is a generous backstop, not the
+// expected duration.
 const windowsMDMSyncTriggerTimeout = 2 * time.Minute
 
-// TriggerWindowsMDMSync starts an on-demand, client-initiated OMA-DM session with the Fleet MDM server so that
-// queued Windows MDM commands are delivered without waiting for the device's next scheduled poll. It runs the OS
-// deviceenroller for Fleet's enrollment in client-initiated mode: `deviceenroller.exe /o <EnrollmentGUID> /c`.
-// This is deliberately the client-initiated path, not the push-initiated path (`/c /z`), which fails with Event
-// 4603 (GetPushAlertInfo / notificationIdNotRetrieved) on current Windows builds.
+// TriggerWindowsMDMSync starts an on-demand, client-initiated OMA-DM session with the Fleet MDM server so that queued Windows MDM commands
+// are delivered without waiting for the device's next scheduled poll. It runs the OS deviceenroller for Fleet's enrollment in
+// client-initiated mode: `deviceenroller.exe /o <EnrollmentGUID> /c`. This is deliberately the client-initiated path, not the
+// push-initiated path (`/c /z`), which fails with Event 4603 (GetPushAlertInfo / notificationIdNotRetrieved) on current Windows builds.
 //
-// Microsoft does not publicly document these deviceenroller flags or the Event 4603 behavior. Both were
-// established empirically while investigating Fleet issue #43773 and validated end-to-end on Windows 11 25H2
-// (build 26200): `/o <GUID> /c` reliably starts a session and delivers queued commands, while `/c /z` does not.
+// Microsoft does not publicly document these deviceenroller flags or the Event 4603 behavior. Both were established empirically while
+// investigating Fleet issue #43773 and validated end-to-end on Windows 11 25H2 (build 26200): `/o <GUID> /c` reliably starts a session and
+// delivers queued commands, while `/c /z` does not.
 //
 // Exported so it can be built/tested for Windows from tools/. Not meant to be called from outside this package.
 func TriggerWindowsMDMSync() error {
@@ -224,10 +223,9 @@ func TriggerWindowsMDMSync() error {
 		return fmt.Errorf("find Fleet MDM enrollment: %w", err)
 	}
 
-	// Resolve System32 via the Windows API rather than trusting the SystemRoot env var, so the path we execute as
-	// SYSTEM can't be redirected by a tampered process environment. orbit is a 64-bit process, so this is the real
-	// (64-bit) System32 that contains deviceenroller.exe; there is no WOW64 redirection to account for. Fall back to
-	// SystemRoot (then a hardcoded default) only if the API call fails.
+	// Resolve System32 via the Windows API rather than trusting the SystemRoot env var, so the path we execute as SYSTEM can't be redirected
+	// by a tampered process environment. orbit is a 64-bit process, so this is the real (64-bit) System32 that contains deviceenroller.exe;
+	// there is no WOW64 redirection to account for. Fall back to SystemRoot (then a hardcoded default) only if the API call fails.
 	systemDir, sysDirErr := windows.GetSystemDirectory()
 	if sysDirErr != nil || systemDir == "" {
 		systemRoot := os.Getenv("SystemRoot")
@@ -254,8 +252,8 @@ func TriggerWindowsMDMSync() error {
 }
 
 // fleetMDMEnrollmentGUID returns the enrollment GUID of the active Fleet Windows MDM enrollment by scanning
-// HKLM\SOFTWARE\Microsoft\Enrollments for the subkey whose ProviderID is Fleet's and whose EnrollmentState is
-// active. The subkey name is the enrollment GUID that deviceenroller's /o argument expects.
+// HKLM\SOFTWARE\Microsoft\Enrollments for the subkey whose ProviderID is Fleet's and whose EnrollmentState is active. The subkey name is
+// the enrollment GUID that deviceenroller's /o argument expects.
 func fleetMDMEnrollmentGUID() (string, error) {
 	const enrollmentsPath = `SOFTWARE\Microsoft\Enrollments`
 	root, err := registry.OpenKey(registry.LOCAL_MACHINE, enrollmentsPath, registry.READ)
@@ -269,10 +267,9 @@ func fleetMDMEnrollmentGUID() (string, error) {
 		return "", fmt.Errorf("read enrollment subkeys: %w", err)
 	}
 
-	// EnrollmentState == 1 is the active state observed for Fleet's MDM enrollment on tested Windows builds; the
-	// registry DWORD under Enrollments is not authoritatively documented by Microsoft. The ProviderID == "Fleet"
-	// check in the loop below scopes the match to Fleet's own enrollment, so this never selects an unrelated
-	// (e.g. Intune) enrollment that might use a different state value.
+	// EnrollmentState == 1 is the active state observed for Fleet's MDM enrollment on tested Windows builds; the registry DWORD under
+	// Enrollments is not authoritatively documented by Microsoft. The ProviderID == "Fleet" check in the loop below scopes the match to
+	// Fleet's own enrollment, so this never selects an unrelated (e.g. Intune) enrollment that might use a different state value.
 	const enrollmentStateActive = 1
 	for _, name := range names {
 		k, err := registry.OpenKey(registry.LOCAL_MACHINE, enrollmentsPath+`\`+name, registry.QUERY_VALUE)

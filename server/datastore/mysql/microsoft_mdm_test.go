@@ -2065,11 +2065,10 @@ func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, state.AwaitingConfiguration)
 
-	// Re-enrollment scoping: when a host has more than one enrollment row for the same UUID, the combined read
-	// must come from the latest enrollment only (the query orders by created_at DESC, id DESC and takes one row).
-	// Give the now-stale enrollment a pending command, then add a newer enrollment for the same host UUID with no
-	// pending commands and a distinct awaiting value, and confirm neither the stale awaiting value nor its pending
-	// command leaks into the result.
+	// Re-enrollment scoping: when a host has more than one enrollment row for the same UUID, the combined read must come from the latest
+	// enrollment only (the query orders by created_at DESC, id DESC and takes one row). Give the now-stale enrollment a pending command, then
+	// add a newer enrollment for the same host UUID with no pending commands and a distinct awaiting value, and confirm neither the stale
+	// awaiting value nor its pending command leaks into the result.
 	stalePending := &fleet.MDMWindowsCommand{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec></Exec>"), TargetLocURI: "./test/stale"}
 	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{d.HostUUID}, stalePending))
 	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
@@ -2098,16 +2097,16 @@ func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {
 	require.False(t, state.HasPendingCommands,
 		"a pending command on the stale enrollment must not leak into the latest enrollment's state")
 
-	// Internal poll-schedule commands are excluded from the pending-command signal: a pending poll Replace on the
-	// latest enrollment must NOT set HasPendingCommands (tuning the poll should not itself request a wake).
+	// Internal poll-schedule commands are excluded from the pending-command signal: a pending poll Replace on the latest enrollment must NOT
+	// set HasPendingCommands (tuning the poll should not itself request a wake).
 	pollCmd := &fleet.MDMWindowsCommand{CommandUUID: uuid.NewString(), RawCommand: []byte("<Replace></Replace>"), TargetLocURI: syncml.DMClientPollIntervalLocURI}
 	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{newer.MDMDeviceID}, pollCmd))
 	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
 	require.NoError(t, err)
 	require.False(t, state.HasPendingCommands, "a pending poll-schedule command must not count as a pending command")
 
-	// A non-poll pending command on the same (latest) enrollment still sets the signal, proving the exclusion is
-	// specific to the poll LocURI and not a blanket suppression.
+	// A non-poll pending command on the same (latest) enrollment still sets the signal, proving the exclusion is specific to the poll LocURI
+	// and not a blanket suppression.
 	realCmd := &fleet.MDMWindowsCommand{CommandUUID: uuid.NewString(), RawCommand: []byte("<Exec></Exec>"), TargetLocURI: "./test/real"}
 	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{newer.MDMDeviceID}, realCmd))
 	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)

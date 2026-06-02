@@ -1129,6 +1129,13 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		return nil
 	}
 
+	// The trusted management session reconciles the DMClient poll schedule, which resolves the host to check whether its fleetd supports
+	// on-demand sync. This test is about the rekey flow, so report the host as not found -> windowsMDMHostSupportsSync returns not-capable and
+	// the poll reconcile is a no-op.
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+		return nil, &notFoundError{}
+	}
+
 	ackCalled := 0
 	ds.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string) error {
 		require.Equal(t, "device", deviceId)
@@ -1732,9 +1739,9 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 		intendedRelaxed *bool
 	}
 
-	// newSvc returns a mock-backed Service whose host-resolution chain (HostLiteByIdentifier -> GetHostOrbitInfo)
-	// reports the given orbit version (which drives windowsMDMHostSupportsSync), capturing the enqueued poll
-	// command and the intended-schedule write so tests can assert them.
+	// newSvc returns a mock-backed Service whose host-resolution chain (HostLiteByIdentifier -> GetHostOrbitInfo) reports the given orbit
+	// version (which drives windowsMDMHostSupportsSync), capturing the enqueued poll command and the intended-schedule write so tests can
+	// assert them.
 	newSvc := func(t *testing.T, orbitVersion string, caps *captures) *Service {
 		ds := new(mock.Store)
 		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
@@ -1770,8 +1777,8 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 		}
 	}
 
-	// assertEnqueuedInterval parses the captured raw command exactly as the session delivery path does, confirming
-	// it is a well-formed Replace on the Poll node with the expected interval.
+	// assertEnqueuedInterval parses the captured raw command exactly as the session delivery path does, confirming it is a well-formed Replace
+	// on the Poll node with the expected interval.
 	assertEnqueuedInterval := func(t *testing.T, cmd *fleet.MDMWindowsCommand, interval string) {
 		t.Helper()
 		require.NotNil(t, cmd, "a poll command should have been enqueued")
@@ -1808,8 +1815,8 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 
 	t.Run("non-capable host that intends relaxed is restored to fast", func(t *testing.T) {
 		var caps captures
-		// An older orbit (below the on-demand-sync minimum) whose intended schedule is relaxed must be put back on
-		// the fast poll so its commands still get delivered without a wake.
+		// An older orbit (below the on-demand-sync minimum) whose intended schedule is relaxed must be put back on the fast poll so its commands
+		// still get delivered without a wake.
 		svc := newSvc(t, "1.0.0", &caps)
 
 		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(true))
@@ -1830,8 +1837,7 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 	})
 
 	t.Run("unlinked host is treated as not-capable", func(t *testing.T) {
-		// No host UUID means there is no fleetd to wake, so the host stays on the fast poll and the host-resolution
-		// chain is not even consulted.
+		// No host UUID means there is no fleetd to wake, so the host stays on the fast poll and the host-resolution chain is not even consulted.
 		svc := newSvc(t, minWindowsMDMSyncOrbitVersion, nil)
 		ds := svc.ds.(*mock.Store)
 		device := newDevice(false)
@@ -1844,8 +1850,8 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 	})
 
 	t.Run("missing orbit info is treated as not-capable", func(t *testing.T) {
-		// A host whose orbit version is unknown (no host_orbit_info row yet) cannot be assumed to support the
-		// on-demand wake, so it stays on the fast poll.
+		// A host whose orbit version is unknown (no host_orbit_info row yet) cannot be assumed to support the on-demand wake, so it stays on the
+		// fast poll.
 		svc := newSvc(t, minWindowsMDMSyncOrbitVersion, nil)
 		ds := svc.ds.(*mock.Store)
 		ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {

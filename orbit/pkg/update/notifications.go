@@ -30,8 +30,7 @@ type checkAssignedEnrollmentProfileFunc func(url string) error
 // It ensures only one renewal command is executed at any given time, and that
 // it doesn't re-execute the command until a certain amount of time has passed.
 type renewEnrollmentProfileConfigReceiver struct {
-	// Frequency is the minimum amount of time that must pass between two
-	// executions of the profile renewal command.
+	// Frequency is the minimum amount of time that must pass between two executions of the profile renewal command.
 	Frequency time.Duration
 
 	// for tests, to be able to mock command execution. If nil, will use
@@ -272,14 +271,13 @@ func (w *windowsMDMEnrollmentConfigReceiver) attemptUnenrollment(actionLabel str
 	}
 }
 
-// execSyncFunc starts an on-demand Windows MDM (OMA-DM) session with the Fleet server. Indirected so tests can
-// mock it; if nil the receiver uses TriggerWindowsMDMSync.
+// execSyncFunc starts an on-demand Windows MDM (OMA-DM) session with the Fleet server. Indirected so tests can mock it; if nil the receiver
+// uses TriggerWindowsMDMSync.
 type execSyncFunc func() error
 
-// windowsMDMSyncConfigReceiver reacts to the server's WindowsMDMSyncRequest notification by starting an
-// on-demand OMA-DM session, so queued Windows MDM commands are delivered without waiting for the device's next
-// scheduled poll. This is what lets the server relax the aggressive Windows MDM poll while keeping command
-// latency low.
+// windowsMDMSyncConfigReceiver reacts to the server's WindowsMDMSyncRequest notification by starting an on-demand OMA-DM session, so queued
+// Windows MDM commands are delivered without waiting for the device's next scheduled poll. This is what lets the server relax the
+// aggressive Windows MDM poll while keeping command latency low.
 type windowsMDMSyncConfigReceiver struct {
 	// Frequency is the minimum amount of time that must pass between two on-demand sync attempts, so a
 	// notification that lingers for a few config polls (before the server observes the command as acked) does
@@ -298,8 +296,8 @@ func ApplyWindowsMDMSyncFetcherMiddleware(frequency time.Duration) fleet.OrbitCo
 	return &windowsMDMSyncConfigReceiver{Frequency: frequency}
 }
 
-// Run starts an on-demand Windows MDM sync when the server sets WindowsMDMSyncRequest, so queued commands are
-// delivered promptly even when the device's OMA-DM poll schedule has been relaxed.
+// Run starts an on-demand Windows MDM sync when the server sets WindowsMDMSyncRequest, so queued commands are delivered promptly even when
+// the device's OMA-DM poll schedule has been relaxed.
 func (w *windowsMDMSyncConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 	if cfg.Notifications.WindowsMDMSyncRequest {
 		w.attemptSync()
@@ -322,8 +320,8 @@ func (w *windowsMDMSyncConfigReceiver) attemptSync() {
 			fn = TriggerWindowsMDMSync
 		}
 		if err := fn(); err != nil {
-			// lastRun is intentionally not updated on failure, so the next config poll retries while the
-			// command is still queued (matches the enrollment receiver's behavior).
+			// lastRun is intentionally not updated on failure, so the next config poll retries while the command is still queued (matches the
+			// enrollment receiver's behavior).
 			log.Info().Err(err).Msg("triggering on-demand Windows MDM sync failed")
 			return
 		}

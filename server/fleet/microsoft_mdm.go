@@ -844,10 +844,9 @@ const (
 	WindowsMDMAwaitingConfigurationActive WindowsMDMAwaitingConfiguration = 2
 )
 
-// MDMWindowsHostConfigState is the per-host Windows MDM state read in a single query on each orbit config
-// check-in for a connected Windows host: the Autopilot ESP awaiting-configuration value and whether the host's
-// most recent Windows MDM enrollment has queued, unacknowledged MDM commands. Reading both in one query keeps
-// the hot orbit config path to a single round trip.
+// MDMWindowsHostConfigState is the per-host Windows MDM state read in a single query on each orbit config check-in for a connected Windows
+// host: the Autopilot ESP awaiting-configuration value and whether the host's most recent Windows MDM enrollment has queued, unacknowledged
+// MDM commands. Reading both in one query keeps the hot orbit config path to a single round trip.
 type MDMWindowsHostConfigState struct {
 	AwaitingConfiguration WindowsMDMAwaitingConfiguration
 	HasPendingCommands    bool
@@ -870,10 +869,10 @@ type MDMWindowsEnrolledDevice struct {
 	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
 	CredentialsHash         *[]byte                         `db:"credentials_hash"`
 	CredentialsAcknowledged bool                            `db:"credentials_acknowledged"`
-	// PollScheduleRelaxed is the INTENDED DMClient poll schedule for this enrollment: true once we have enqueued a
-	// Replace to relax its poll (because its fleetd can be woken on demand), false for the aggressive default.
-	// Delivery and acknowledgment of that Replace are tracked by the standard Windows MDM command queue, so this
-	// only records what we last asked for; the management session re-enqueues only when desired differs from it.
+	// PollScheduleRelaxed is the INTENDED DMClient poll schedule for this enrollment: true once we have enqueued a Replace to relax its poll
+	// (because its fleetd can be woken on demand), false for the aggressive default. Delivery and acknowledgment of that Replace are tracked
+	// by the standard Windows MDM command queue, so this only records what we last asked for; the management session re-enqueues only when
+	// desired differs from it.
 	PollScheduleRelaxed bool      `db:"poll_schedule_relaxed"`
 	CreatedAt           time.Time `db:"created_at"`
 	UpdatedAt           time.Time `db:"updated_at"`

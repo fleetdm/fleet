@@ -1140,8 +1140,8 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		return ds, svc, ctx, host
 	}
 
-	// withWindowsMDMSyncCapability returns a context whose X-Fleet-Capabilities advertise CapabilityWindowsMDMSync,
-	// as a Windows fleetd that supports on-demand sync would send on its orbit config request.
+	// withWindowsMDMSyncCapability returns a context whose X-Fleet-Capabilities advertise CapabilityWindowsMDMSync, as a Windows fleetd that
+	// supports on-demand sync would send on its orbit config request.
 	withWindowsMDMSyncCapability := func(ctx context.Context) context.Context {
 		req := httptest.NewRequest("POST", "/api/fleet/orbit/config", nil)
 		cm := fleet.CapabilityMap{fleet.CapabilityWindowsMDMSync: struct{}{}}

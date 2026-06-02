@@ -591,9 +591,9 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			// During the Autopilot ESP, the setup experience flow delivers queued commands.
 			notifs.RunSetupExperience = true
 		case state.HasPendingCommands:
-			// Outside the ESP: if this host's fleetd can start an on-demand OMA-DM session, ask it to sync now so
-			// queued commands apply without waiting for the (relaxed) poll. Older fleetd that does not advertise
-			// the capability never sets it here, and ignores the unknown notification field if it ever sees it.
+			// Outside the ESP: if this host's fleetd can start an on-demand OMA-DM session, ask it to sync now so queued commands apply without
+			// waiting for the (relaxed) poll. Older fleetd that does not advertise the capability never sets it here, and ignores the unknown
+			// notification field if it ever sees it.
 			if mp, ok := capabilities.FromContext(ctx); ok && mp.Has(fleet.CapabilityWindowsMDMSync) {
 				notifs.WindowsMDMSyncRequest = true
 			}
