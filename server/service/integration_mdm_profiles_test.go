@@ -2055,6 +2055,62 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 	})
 }
 
+func (s *integrationMDMTestSuite) TestGetHostConfigurationProfilesSingleMDM() {
+	t := s.T()
+	ctx := context.Background()
+
+	// save original config for cleanup
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	originalCopy := appCfg.Copy()
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.SaveAppConfig(ctx, originalCopy))
+	})
+
+	// create hosts for each platform
+	appleHost := createOrbitEnrolledHost(t, "darwin", "apple-cfg-profiles", s.ds)
+	windowsHost := createOrbitEnrolledHost(t, "windows", "windows-cfg-profiles", s.ds)
+
+	checkEndpoint := func(t *testing.T, hostID uint, expectedStatus int) {
+		var resp getHostProfilesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/configuration_profiles", hostID), nil, expectedStatus, &resp)
+		if expectedStatus == http.StatusOK {
+			require.NotNil(t, resp.Profiles)
+			require.Equal(t, hostID, resp.HostID)
+		}
+	}
+
+	setMDMConfig := func(apple, windows, android bool) {
+		appCfg, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+		appCfg.MDM.EnabledAndConfigured = apple
+		appCfg.MDM.WindowsEnabledAndConfigured = windows
+		appCfg.MDM.AndroidEnabledAndConfigured = android
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+	}
+
+	t.Run("apple only", func(t *testing.T) {
+		setMDMConfig(true, false, false)
+		checkEndpoint(t, appleHost.ID, http.StatusOK)
+	})
+
+	t.Run("windows only", func(t *testing.T) {
+		setMDMConfig(false, true, false)
+		checkEndpoint(t, windowsHost.ID, http.StatusOK)
+	})
+
+	t.Run("android only", func(t *testing.T) {
+		setMDMConfig(false, false, true)
+		// use apple host ID; the endpoint should still be reachable
+		checkEndpoint(t, appleHost.ID, http.StatusOK)
+	})
+
+	t.Run("none configured", func(t *testing.T) {
+		setMDMConfig(false, false, false)
+		checkEndpoint(t, appleHost.ID, http.StatusBadRequest)
+	})
+}
+
 func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	t := s.T()
 

@@ -1142,6 +1142,7 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
   const isWindowsHost = isWindows(host.platform);
+  const isLinuxHost = isLinuxLike(host.platform);
   const isAppleDeviceHost = isAppleDevice(host.platform);
   const isChromeOsHost = host?.platform === "chrome";
 
@@ -1885,6 +1886,7 @@ const HostDetailsPage = ({
               hostName={host.display_name}
               hostPlatform={host.platform}
               isWindowsHost={isWindowsHost}
+              isLinuxHost={isLinuxHost}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
             />
