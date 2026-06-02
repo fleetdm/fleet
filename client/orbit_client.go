@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/backoff"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
@@ -177,6 +178,7 @@ var (
 	netErrInterval                     = 5 * time.Minute
 	configRetryOnNetworkError          = 30 * time.Second
 	defaultOrbitConfigReceiverInterval = 30 * time.Second
+	maxConfigBackoff                   = 5 * time.Minute
 )
 
 // NewOrbitClient creates a new OrbitClient.
@@ -321,13 +323,28 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 	ticker := time.NewTicker(oc.ReceiverUpdateInterval)
 	defer ticker.Stop()
 
+	// Backoff tracker for the config polling loop. See #45553.
+	configBackoff := backoff.New(oc.ReceiverUpdateInterval, maxConfigBackoff)
+
 	for {
 		select {
 		case <-oc.receiverUpdateContext.Done():
 			return nil
 		case <-ticker.C:
 			if err := oc.RunConfigReceivers(); err != nil {
-				log.Error().Err(err).Msg("running config receivers")
+				configBackoff.RecordFailure()
+				ticker.Reset(configBackoff.Interval())
+				log.Error().Err(err).
+					Str("next_retry", configBackoff.Interval().String()).
+					Msg("running config receivers, backing off")
+			} else {
+				if configBackoff.InBackoff() {
+					log.Info().
+						Str("backoff_duration", configBackoff.TimeSinceBackoffStarted().String()).
+						Msg("config receivers succeeded, exiting backoff")
+				}
+				configBackoff.RecordSuccess()
+				ticker.Reset(oc.ReceiverUpdateInterval)
 			}
 		}
 	}
