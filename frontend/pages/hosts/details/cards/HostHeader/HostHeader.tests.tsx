@@ -202,21 +202,21 @@ describe("HostHeader", () => {
     expect(screen.getByText("Wiped")).toBeInTheDocument();
   });
 
-  it("renders 'Unenroll pending' (not 'Wipe pending') for BYO Android during pending wipe (#41683)", () => {
-    // BYO Android Unenroll fires an AMAPI WIPE under the hood, so the backend surfaces this as
-    // hostMdmDeviceStatus="wiping". The label is overridden in HostHeader for BYO so the badge
-    // matches the action the admin took (Unenroll), not the underlying mechanism.
+  it("does not render an 'Unenroll pending' badge for BYO Android (#41683)", () => {
+    // BYO Android Unenroll fires an AMAPI WIPE under the hood, but the backend now suppresses the transient
+    // status for BYO Android hosts (device_status reports "unlocked"), so no pending badge is shown. The
+    // HostHeader no longer overrides the label to "Unenroll pending".
     render(
       <HostHeader
         summaryData={{ ...defaultSummaryData, platform: "android" }}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
         renderActionsDropdown={renderActionDropdown}
-        hostMdmDeviceStatus={"wiping" as HostMdmDeviceStatusUIState}
+        hostMdmDeviceStatus={"unlocked" as HostMdmDeviceStatusUIState}
         hostMdmEnrollmentStatus="On (personal)"
       />
     );
-    expect(screen.getByText("Unenroll pending")).toBeInTheDocument();
+    expect(screen.queryByText("Unenroll pending")).not.toBeInTheDocument();
     expect(screen.queryByText("Wipe pending")).not.toBeInTheDocument();
   });
 
