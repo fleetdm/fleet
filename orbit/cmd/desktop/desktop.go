@@ -154,8 +154,8 @@ func main() {
 	// Backoff trackers are per communication path so each can back off
 	// independently -- a healthy path must not reset a failing one's
 	// backoff. See #45553 for the full behavioral contract.
-	const maxPingBackoff = 30 * time.Minute
-	pingBackoff := backoff.New(pingInterval, maxPingBackoff)
+	const maxSummaryBackoff = 5 * time.Minute
+	summaryBackoff := backoff.New(pingInterval, maxSummaryBackoff)
 
 	// Used to trigger a policy check when clicking on "My device" or "About Fleet".
 	var fleetDesktopCheckTrigger atomic.Bool
@@ -273,8 +273,9 @@ func main() {
 			done := make(chan interface{})
 
 			go func() {
-				const checkTokenBase = 5 * time.Second
-				tokenBackoff := backoff.New(checkTokenBase, maxPingBackoff)
+				const checkTokenBase = 1 * time.Second
+				const maxTokenBackoff = 5 * time.Minute
+				tokenBackoff := backoff.New(checkTokenBase, maxTokenBackoff)
 				ticker := time.NewTicker(checkTokenBase)
 				defer ticker.Stop()
 				defer close(done)
@@ -351,16 +352,10 @@ func main() {
 				// Reset the ticker to the appropriate interval. Normally this
 				// is pingInterval, but during backoff it increases exponentially.
 				// The 1ms reset from user clicks will be overridden here.
-				pingTicker.Reset(pingBackoff.Interval())
+				pingTicker.Reset(summaryBackoff.Interval())
 
 				if err := client.Ping(); err != nil {
-					pingBackoff.RecordFailure()
-					// Reset the ticker to the new (longer) backoff interval.
-					pingTicker.Reset(pingBackoff.Interval())
-
-					log.Error().Err(err).Int("count", pingErrCount).
-						Str("next_retry", pingBackoff.Interval().String()).
-						Msg("ping failed, backing off")
+					log.Error().Err(err).Int("count", pingErrCount).Msg("ping failed")
 					pingErrCount++
 					// We try 5 more times to make sure one bad request doesn't trigger the offline indicator.
 					// So it might take up to ~1m (6 * 10s) for Fleet Desktop to show the offline indicator.
@@ -371,12 +366,6 @@ func main() {
 				}
 
 				// Successfully connected to Fleet.
-				if pingBackoff.InBackoff() {
-					log.Info().Str("backoff_duration", pingBackoff.TimeSinceBackoffStarted().String()).
-						Msg("ping succeeded, exiting backoff")
-				}
-				pingBackoff.RecordSuccess()
-				pingTicker.Reset(pingInterval)
 				pingErrCount = 0
 
 				// Check if we need to fetch the "Fleet desktop" summary from Fleet.
@@ -399,17 +388,32 @@ func main() {
 					case errors.Is(err, fleetclient.ErrMissingLicense):
 						// Policy reporting in Fleet Desktop requires a license,
 						// so we just show the "My device" item as usual.
+						summaryBackoff.RecordSuccess()
 						menuManager.SetConnected(&fleet.DesktopSummary{}, true)
 					case errors.Is(err, fleetclient.ErrUnauthenticated):
-						log.Debug().Err(err).Msg("get desktop summary auth failure")
+						summaryBackoff.RecordFailure()
+						pingTicker.Reset(summaryBackoff.Interval())
+						log.Debug().Err(err).
+							Str("next_retry", summaryBackoff.Interval().String()).
+							Msg("get desktop summary auth failure, backing off")
 						// This usually happens every ~1 hour when the token expires.
 						<-checkToken()
 					default:
-						log.Error().Err(err).Msg("get desktop summary failed")
+						summaryBackoff.RecordFailure()
+						pingTicker.Reset(summaryBackoff.Interval())
+						log.Error().Err(err).
+							Str("next_retry", summaryBackoff.Interval().String()).
+							Msg("get desktop summary failed, backing off")
 					}
 					continue
 				}
 
+				if summaryBackoff.InBackoff() {
+					log.Info().Str("backoff_duration", summaryBackoff.TimeSinceBackoffStarted().String()).
+						Msg("desktop summary succeeded, exiting backoff")
+				}
+				summaryBackoff.RecordSuccess()
+				pingTicker.Reset(pingInterval)
 				menuManager.SetConnected(&sum.DesktopSummary, false)
 				menuManager.UpdateFailingPolicies(sum.DesktopSummary.FailingPolicies)
 

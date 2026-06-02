@@ -9,6 +9,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	t.Parallel()
 	tracker := New(10*time.Second, 30*time.Minute)
 	require.NotNil(t, tracker)
 	assert.Equal(t, 10*time.Second, tracker.baseInterval)
@@ -18,6 +19,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewFloorsGarbageInputs(t *testing.T) {
+	t.Parallel()
 	// Zero base and max
 	tr := New(0, 0)
 	assert.GreaterOrEqual(t, tr.baseInterval, minInterval)
@@ -30,10 +32,10 @@ func TestNewFloorsGarbageInputs(t *testing.T) {
 	assert.GreaterOrEqual(t, tr.baseInterval, minInterval)
 	tr.RecordFailure()
 	assert.GreaterOrEqual(t, tr.Interval(), minInterval)
-
 }
 
 func TestIntervalReturnsBaseOnSuccess(t *testing.T) {
+	t.Parallel()
 	tracker := New(10*time.Second, 30*time.Minute)
 	assert.Equal(t, 10*time.Second, tracker.Interval())
 }
@@ -42,6 +44,7 @@ func TestIntervalReturnsBaseOnSuccess(t *testing.T) {
 // base_interval=10s, max_backoff=1800s
 // 1st error: 20s, 2nd: 40s, 3rd: 80s, ..., 8th+: 1800s (capped)
 func TestExponentialBackoff(t *testing.T) {
+	t.Parallel()
 	base := 10 * time.Second
 	maxB := 30 * time.Minute
 	tracker := New(base, maxB)
@@ -75,6 +78,7 @@ func TestExponentialBackoff(t *testing.T) {
 
 // Oracle: a single success resets backoff completely.
 func TestSuccessResetsBackoff(t *testing.T) {
+	t.Parallel()
 	tracker := New(10*time.Second, 30*time.Minute)
 
 	// Build up some backoff
@@ -94,6 +98,7 @@ func TestSuccessResetsBackoff(t *testing.T) {
 // Oracle Edge Case: server returns 200 then immediately 500.
 // consecutive_failures resets to 0 on the 200, then starts from 1 on the 500.
 func TestSuccessThenFailureRestartsFromOne(t *testing.T) {
+	t.Parallel()
 	tracker := New(10*time.Second, 30*time.Minute)
 
 	// Build up backoff
@@ -115,6 +120,7 @@ func TestSuccessThenFailureRestartsFromOne(t *testing.T) {
 
 // Oracle: interval never drops below base_interval.
 func TestIntervalNeverBelowBase(t *testing.T) {
+	t.Parallel()
 	tracker := New(10*time.Second, 30*time.Minute)
 
 	// Even with 0 failures, should return base
@@ -128,6 +134,7 @@ func TestIntervalNeverBelowBase(t *testing.T) {
 
 // Oracle: interval never exceeds max_backoff.
 func TestIntervalNeverExceedsMax(t *testing.T) {
+	t.Parallel()
 	tracker := New(10*time.Second, 30*time.Minute)
 
 	// Record many failures to push well past max
@@ -141,6 +148,7 @@ func TestIntervalNeverExceedsMax(t *testing.T) {
 // Oracle Behavioral Invariant: backoff state is per-tracker.
 // One tracker backing off does not affect another.
 func TestPerPathIsolation(t *testing.T) {
+	t.Parallel()
 	desktopTracker := New(10*time.Second, 30*time.Minute)
 	orbitTracker := New(30*time.Second, 30*time.Minute)
 
@@ -162,6 +170,7 @@ func TestPerPathIsolation(t *testing.T) {
 // Oracle: single-host transient blip (1 error then success).
 // One 20s wait instead of 10s, then back to normal.
 func TestSingleTransientError(t *testing.T) {
+	t.Parallel()
 	tracker := New(10*time.Second, 30*time.Minute)
 
 	tracker.RecordFailure()
@@ -178,6 +187,7 @@ func TestSingleTransientError(t *testing.T) {
 // Oracle: the agent never stops retrying. There is no "give up" behavior.
 // (Tracker has no max attempts -- it just tracks state and returns intervals.)
 func TestNoGiveUp(t *testing.T) {
+	t.Parallel()
 	tracker := New(10*time.Second, 30*time.Minute)
 
 	// Even after a large number of failures, Interval returns a bounded value
@@ -192,6 +202,7 @@ func TestNoGiveUp(t *testing.T) {
 // Oracle Ordering Guarantee: intervals are monotonically non-decreasing
 // during a consecutive error sequence (ignoring jitter noise).
 func TestMonotonicallyNonDecreasing(t *testing.T) {
+	t.Parallel()
 	tracker := New(10*time.Second, 30*time.Minute)
 
 	var prevBase time.Duration
@@ -207,6 +218,7 @@ func TestMonotonicallyNonDecreasing(t *testing.T) {
 }
 
 func TestTimeSinceBackoffStarted(t *testing.T) {
+	t.Parallel()
 	tracker := New(10*time.Second, 30*time.Minute)
 
 	// Not in backoff
@@ -223,7 +235,10 @@ func TestTimeSinceBackoffStarted(t *testing.T) {
 	assert.Equal(t, time.Duration(0), tracker.TimeSinceBackoffStarted())
 }
 
+// TestConcurrentAccess hammers a tracker from multiple goroutines.
+// Run with -race to verify there are no data races.
 func TestConcurrentAccess(t *testing.T) {
+	t.Parallel()
 	tracker := New(10*time.Second, 30*time.Minute)
 	done := make(chan struct{})
 
@@ -257,6 +272,7 @@ func newForTest(base, maxB time.Duration) *Tracker {
 // a ticker-based loop that adjusts its interval based on backoff state.
 // Uses short durations (milliseconds) to keep the test fast.
 func TestTickerIntegration(t *testing.T) {
+	t.Parallel()
 	base := 10 * time.Millisecond
 	maxB := 200 * time.Millisecond
 	tracker := newForTest(base, maxB)
@@ -302,6 +318,7 @@ func TestTickerIntegration(t *testing.T) {
 // TestTickerIntegrationMaxCap verifies the ticker caps at maxBackoff
 // using real timing.
 func TestTickerIntegrationMaxCap(t *testing.T) {
+	t.Parallel()
 	base := 5 * time.Millisecond
 	maxB := 50 * time.Millisecond
 	tracker := newForTest(base, maxB)
@@ -326,6 +343,7 @@ func TestTickerIntegrationMaxCap(t *testing.T) {
 // TestMultipleTrackersWithTickers simulates per-path isolation with real
 // tickers: two paths where one fails and the other succeeds.
 func TestMultipleTrackersWithTickers(t *testing.T) {
+	t.Parallel()
 	pingTracker := newForTest(10*time.Millisecond, 200*time.Millisecond)
 	tokenTracker := newForTest(10*time.Millisecond, 200*time.Millisecond)
 
