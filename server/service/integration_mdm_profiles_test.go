@@ -8725,7 +8725,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 
 	for _, p := range hostProfiles {
 		if p.Identifier == "com.test.profile" {
-			fmt.Printf("%v\n", p.Status)
 			testProfile = &p
 			break
 		}
@@ -8827,6 +8826,22 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	}
 	require.NotNil(t, testProfile)
 	require.EqualValues(t, fleet.MDMDeliveryVerifying, *testProfile.Status)
+
+	// Verify deleting the device mapping also triggers a resend
+	s.Do("PUT", "/api/latest/fleet/hosts/"+hostIdStr+"/device_mapping", putHostDeviceMappingRequest{
+		Email:  "",
+		Source: "idp",
+	}, http.StatusOK)
+	hostProfiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	for _, p := range hostProfiles {
+		if p.Identifier == "com.test.profile" {
+			testProfile = &p
+			break
+		}
+	}
+	require.NotNil(t, testProfile)
+	require.EqualValues(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be pending again due to device mapping deletion
 }
 
 func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
