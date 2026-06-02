@@ -502,6 +502,9 @@ module.exports.custom = {
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
 
+  // Apply form
+  // applicationReplyEmailAddress: '…',
+
   // Render instance trials
   // renderOwnerId: '…',
   // renderApiToken: '…',

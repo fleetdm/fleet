@@ -2117,6 +2117,9 @@ type Datastore interface {
 	// find a row because the host->enrollment link has not been resolved yet.
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx context.Context, deviceName string) (*MDMWindowsEnrolledDevice, error)
 
+	// WindowsHostLiteByHardwareSerial returns a HostLite for the Windows host whose hardware_serial matches the given serial.
+	WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*HostLite, error)
+
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
 
@@ -2400,6 +2403,8 @@ type Datastore interface {
 	BulkDeleteMDMWindowsHostsConfigProfiles(ctx context.Context, payload []*MDMWindowsProfilePayload) error
 
 	// NewMDMWindowsConfigProfile creates and returns a new configuration profile.
+	// An OS-update (software update) profile is tracked as the team's OS-update
+	// profile within the same transaction, failing if one already exists.
 	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
 
 	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
@@ -2413,6 +2418,8 @@ type Datastore interface {
 		macDeclarations []*MDMAppleDeclaration, androidProfiles []*MDMAndroidConfigProfile, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
 
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
+	// An OS-update (software update) declaration is tracked as the team's OS-update
+	// profile within the same transaction, failing if one already exists.
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration, usesFleetVars []FleetVarName) (*MDMAppleDeclaration, error)
 
 	// SetOrUpdateMDMAppleDeclaration upserts the MDM Apple declaration.
@@ -3331,6 +3338,12 @@ type Datastore interface {
 	// has a different scope than the incoming profile. If we don't do this we must implement some sort of "move" semantics
 	// to allow for scope changes when a host switches teams or when a profile is updated.
 	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
+
+	// HasAppleUpdateConfigProfileConfigured checks if a declaration profile for the team already exists in the update_settings table.
+	HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
+
+	// HasWindowsUpdateConfigProfileConfigured checks if a profile for the team already exists in the update_settings table.
+	HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
 }
 
 type AndroidDatastore interface {

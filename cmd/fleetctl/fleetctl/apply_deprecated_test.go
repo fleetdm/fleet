@@ -237,6 +237,12 @@ func TestApplyAsGitOpsDeprecatedKeys(t *testing.T) {
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return nil, &notFoundError{}
 	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 
 	// Apply global config.
 	name := writeTmpYml(t, `---
@@ -1509,6 +1515,12 @@ func TestApplySpecsDeprecatedKeys(t *testing.T) {
 		}
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{}, nil
+		}
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
+		}
+		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
 		}
 	}
 

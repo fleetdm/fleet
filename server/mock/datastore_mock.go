@@ -1321,6 +1321,8 @@ type MDMWindowsGetEnrolledDeviceWithHostUUIDFunc func(ctx context.Context, hostU
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error)
 
+type WindowsHostLiteByHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.HostLite, error)
+
 type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) error
 
 type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error
@@ -2040,6 +2042,10 @@ type IsAppleEnrollmentRenewalCommandFunc func(ctx context.Context, commandUUID s
 type MDMAppleResetOnReenrollmentFunc func(ctx context.Context, hostUUID string, preserveHostActivities bool) error
 
 type VerifyAppleConfigProfileScopesDoNotConflictFunc func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error
+
+type HasAppleUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
+
+type HasWindowsUpdateConfigProfileConfiguredFunc func(ctx context.Context, teamID uint) (bool, error)
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3989,6 +3995,9 @@ type DataStore struct {
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc
 	MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked bool
 
+	WindowsHostLiteByHardwareSerialFunc        WindowsHostLiteByHardwareSerialFunc
+	WindowsHostLiteByHardwareSerialFuncInvoked bool
+
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc        MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool
 
@@ -5068,6 +5077,12 @@ type DataStore struct {
 
 	VerifyAppleConfigProfileScopesDoNotConflictFunc        VerifyAppleConfigProfileScopesDoNotConflictFunc
 	VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked bool
+
+	HasAppleUpdateConfigProfileConfiguredFunc        HasAppleUpdateConfigProfileConfiguredFunc
+	HasAppleUpdateConfigProfileConfiguredFuncInvoked bool
+
+	HasWindowsUpdateConfigProfileConfiguredFunc        HasWindowsUpdateConfigProfileConfiguredFunc
+	HasWindowsUpdateConfigProfileConfiguredFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -9615,6 +9630,13 @@ func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx contex
 	return s.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc(ctx, deviceName)
 }
 
+func (s *DataStore) WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*fleet.HostLite, error) {
+	s.mu.Lock()
+	s.WindowsHostLiteByHardwareSerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.WindowsHostLiteByHardwareSerialFunc(ctx, hardwareSerial)
+}
+
 func (s *DataStore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error {
 	s.mu.Lock()
 	s.MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked = true
@@ -12133,4 +12155,18 @@ func (s *DataStore) VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Cont
 	s.VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyAppleConfigProfileScopesDoNotConflictFunc(ctx, cps)
+}
+
+func (s *DataStore) HasAppleUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.HasAppleUpdateConfigProfileConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasAppleUpdateConfigProfileConfiguredFunc(ctx, teamID)
+}
+
+func (s *DataStore) HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.HasWindowsUpdateConfigProfileConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasWindowsUpdateConfigProfileConfiguredFunc(ctx, teamID)
 }

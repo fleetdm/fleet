@@ -1034,46 +1034,162 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, d)
 	})
+}
 
-	t.Run("OS update declaration blocked without custom OS updates flag", func(t *testing.T) {
-		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, false)
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-
-		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
-			return s, nil, nil
-		}
-
-		b := []byte(`{
+// TestNewMDMAppleDeclarationSoftwareUpdate exercises the OS-updates handling
+// performed by handleDeclarationSoftwareUpdate through the public
+// NewMDMAppleDeclaration entry point. Skip validation is enabled so the
+// declaration reaches the software-update handling without tripping the
+// user-provided payload validation first.
+func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
+	const (
+		osUpdateDecl = `{
 			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
 			"Identifier": "test-os-update"
-		}`)
-		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "OS updates settings")
-	})
+		}`
+		otherDecl = `{
+			"Type": "com.apple.configuration.passcode.settings",
+			"Identifier": "test-passcode"
+		}`
+	)
 
-	t.Run("OS update declaration allowed with skip validation even without custom OS updates flag", func(t *testing.T) {
-		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: fleet.TierPremium}, true)
+	// configuredSettings returns an AppleOSUpdateSettings that reports Configured() == true.
+	configuredSettings := func() fleet.AppleOSUpdateSettings {
+		return fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("14.0"),
+			Deadline:       optjson.SetString("2025-01-01"),
+		}
+	}
+
+	// setup wires the common mocks required for NewMDMAppleDeclaration to reach
+	// the software-update handling code with skip-validation enabled.
+	setup := func(t *testing.T, premium bool) (fleet.Service, context.Context, *mock.Store) {
+		licenseTier := fleet.TierFree
+		if premium {
+			licenseTier = fleet.TierPremium
+		}
+		svc, ctx, ds := setupAppleMDMServiceWithSkipValidation(t, &fleet.LicenseInfo{Tier: licenseTier}, true)
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 		ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, s string) (string, *time.Time, error) {
 			return s, nil, nil
 		}
+		// The existing-profile check and tracking insert now happen inside this
+		// datastore call's transaction; the unit test only verifies that the
+		// service passes the correct isSoftwareUpdate flag and surfaces errors.
 		ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			d.DeclarationUUID = "decl-uuid"
 			return d, nil
 		}
 		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 		) (updates fleet.MDMProfilesUpdates, err error) {
 			return fleet.MDMProfilesUpdates{}, nil
 		}
+		// Team lookup used by the enterprise overrides for teamID > 0 cases.
+		ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: tid, Name: "team1"}, nil
+		}
+		return svc, ctx, ds
+	}
 
-		b := []byte(`{
-			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
-			"Identifier": "test-os-update"
-		}`)
-		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-os-update", fleet.LabelsIncludeAll)
+	// appConfigWith builds an AppConfig with MDM enabled (so VerifyMDMAppleConfigured
+	// passes) plus the provided mutation applied for OS update settings.
+	appConfigWith := func(apply func(*fleet.AppConfig)) func(context.Context) (*fleet.AppConfig, error) {
+		return func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.EnabledAndConfigured = true
+			if apply != nil {
+				apply(ac)
+			}
+			return ac, nil
+		}
+	}
+
+	t.Run("non software-update declaration skips OS update checks", func(t *testing.T) {
+		svc, ctx, ds := setup(t, true)
+
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(otherDecl), nil, "test-passcode", fleet.LabelsIncludeAll)
 		require.NoError(t, err)
 		assert.NotNil(t, d)
+		assert.False(t, ds.TeamMDMConfigFuncInvoked)
+	})
+
+	t.Run("software-update declaration requires premium license", func(t *testing.T) {
+		svc, ctx, ds := setup(t, false)
+
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		// The gate fails before the declaration is inserted.
+		assert.False(t, ds.NewMDMAppleDeclarationFuncInvoked)
+		assert.False(t, ds.TeamMDMConfigFuncInvoked)
+	})
+
+	t.Run("no team - app config has no OS updates configured", func(t *testing.T) {
+		svc, ctx, ds := setup(t, true)
+		ds.AppConfigFunc = appConfigWith(nil)
+
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
+		require.NoError(t, err)
+		assert.NotNil(t, d)
+		assert.False(t, ds.TeamMDMConfigFuncInvoked)
+		assert.True(t, ds.NewMDMAppleDeclarationFuncInvoked)
+	})
+
+	t.Run("team - team config has no OS updates configured", func(t *testing.T) {
+		svc, ctx, ds := setup(t, true)
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			assert.EqualValues(t, 5, teamID)
+			return &fleet.TeamMDM{}, nil
+		}
+
+		d, err := svc.NewMDMAppleDeclaration(ctx, 5, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
+		require.NoError(t, err)
+		assert.NotNil(t, d)
+		assert.True(t, ds.TeamMDMConfigFuncInvoked)
+		assert.True(t, ds.NewMDMAppleDeclarationFuncInvoked)
+	})
+
+	t.Run("no team - app config has OS updates configured is rejected", func(t *testing.T) {
+		platforms := map[string]func(*fleet.AppConfig){
+			"macOS":  func(ac *fleet.AppConfig) { ac.MDM.MacOSUpdates = configuredSettings() },
+			"iOS":    func(ac *fleet.AppConfig) { ac.MDM.IOSUpdates = configuredSettings() },
+			"iPadOS": func(ac *fleet.AppConfig) { ac.MDM.IPadOSUpdates = configuredSettings() },
+		}
+		for name, apply := range platforms {
+			t.Run(name, func(t *testing.T) {
+				svc, ctx, ds := setup(t, true)
+				ds.AppConfigFunc = appConfigWith(apply)
+
+				_, err := svc.NewMDMAppleDeclaration(ctx, 0, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
+				require.Error(t, err)
+				require.ErrorContains(t, err, "OS updates are already configured")
+				// The gate fails before the declaration is inserted.
+				assert.False(t, ds.NewMDMAppleDeclarationFuncInvoked)
+			})
+		}
+	})
+
+	t.Run("team - team config has OS updates configured is rejected", func(t *testing.T) {
+		platforms := map[string]func(*fleet.TeamMDM){
+			"macOS":  func(tc *fleet.TeamMDM) { tc.MacOSUpdates = configuredSettings() },
+			"iOS":    func(tc *fleet.TeamMDM) { tc.IOSUpdates = configuredSettings() },
+			"iPadOS": func(tc *fleet.TeamMDM) { tc.IPadOSUpdates = configuredSettings() },
+		}
+		for name, apply := range platforms {
+			t.Run(name, func(t *testing.T) {
+				svc, ctx, ds := setup(t, true)
+				ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+					tc := &fleet.TeamMDM{}
+					apply(tc)
+					return tc, nil
+				}
+
+				_, err := svc.NewMDMAppleDeclaration(ctx, 5, []byte(osUpdateDecl), nil, "test-os-update", fleet.LabelsIncludeAll)
+				require.Error(t, err)
+				require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+				assert.False(t, ds.NewMDMAppleDeclarationFuncInvoked)
+			})
+		}
 	})
 }
 

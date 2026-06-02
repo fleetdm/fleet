@@ -50,7 +50,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		Name:   profileName,
 		SyncML: data,
 	}
-	if err := cp.ValidateUserProvided(svc.config.MDM.EnableCustomOSUpdatesAndFileVault); err != nil {
+	if err := cp.ValidateUserProvided(); err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
 			return nil, ctxerr.Wrap(ctx,
@@ -106,6 +106,10 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
 	}
 
+	if err := svc.handleWindowsProfileSoftwareUpdate(ctx, cp.SyncML, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "handling windows profile software update")
+	}
+
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp, usesFleetVars)
 	if err != nil {
 		var existsErr endpointer.ExistsErrorInterface
@@ -138,6 +142,59 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	}
 
 	return newCP, nil
+}
+
+// handleWindowsProfileSoftwareUpdate validates the preconditions for an OS-update
+// (software update) profile: premium license and OS updates not already configured
+// via settings. The "already exists" check and tracking-table insert happen
+// atomically in ds.NewMDMWindowsConfigProfile.
+func (svc *Service) handleWindowsProfileSoftwareUpdate(
+	ctx context.Context,
+	syncML []byte,
+	teamID uint,
+) error {
+	if !bytes.Contains(syncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+		return nil
+	}
+
+	lic, _ := license.FromContext(ctx)
+	if lic == nil || !lic.IsPremium() {
+		return fleet.ErrMissingLicense
+	}
+
+	osUpdatesConfigured, err := isWindowsOSUpdatesConfigured(ctx, teamID, svc)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if Windows OS updates are configured")
+	}
+	if osUpdatesConfigured {
+		return &fleet.BadRequestError{
+			Message: fleet.OSUpdatesAlreadyConfiguredErrorMessage,
+		}
+	}
+
+	return nil
+}
+
+func isWindowsOSUpdatesConfigured(ctx context.Context, teamID uint, svc *Service) (bool, error) {
+	var windowsOSUpdates fleet.WindowsUpdates
+	if teamID > 0 {
+		teamConfig, err := svc.ds.TeamMDMConfig(ctx, teamID)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting team config")
+		}
+		windowsOSUpdates = teamConfig.WindowsUpdates
+	} else {
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		windowsOSUpdates = appConfig.MDM.WindowsUpdates
+	}
+
+	if windowsOSUpdates.Configured() {
+		return true, nil
+	}
+	return false, nil
 }
 
 // fleetVarsSupportedInWindowsProfiles lists the Fleet variables that are
