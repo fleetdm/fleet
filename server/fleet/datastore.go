@@ -2114,8 +2114,7 @@ type Datastore interface {
 	SetMDMWindowsEnrollmentPollScheduleRelaxed(ctx context.Context, enrollmentID uint, relaxed bool) error
 
 	// MDMWindowsEnqueuePollScheduleCommand enqueues the DMClient poll-schedule Replace command and records the intended relaxed state for the
-	// enrollment in a single transaction, so a transient failure between the two writes cannot leave a queued Replace without its matching
-	// intended-state flag (which would make the next management session enqueue a duplicate Replace).
+	// enrollment.
 	MDMWindowsEnqueuePollScheduleCommand(ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *MDMWindowsCommand, relaxed bool) error
 
 	// MDMWindowsGetEnrolledDeviceWithHostUUID returns the MDMWindowsEnrolledDevice information for a given HostUUID
@@ -2168,9 +2167,9 @@ type Datastore interface {
 	// transition occurred.
 	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
 
-	// GetMDMWindowsHostConfigState returns the Windows MDM per-host state read on the orbit config polling path and by the setup-experience
-	// cancel gate, in a single indexed row read: the awaiting-configuration value and whether the host's most recent enrollment has queued,
-	// unacknowledged commands (the denormalized has_pending_commands flag). Returns NotFound if the host has no Windows MDM enrollment.
+	// GetMDMWindowsHostConfigState returns the Windows MDM per-host state: the awaiting-configuration value and whether
+	// the host's most recent enrollment has queued, unacknowledged commands (the denormalized has_pending_commands
+	// flag). Returns NotFound if the host has no Windows MDM enrollment.
 	GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*MDMWindowsHostConfigState, error)
 
 	// HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software

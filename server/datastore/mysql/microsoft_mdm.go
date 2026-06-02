@@ -39,6 +39,10 @@ import (
 // also matches the batch sizes used elsewhere in Fleet for host-table bulk ops.
 const windowsMDMProfileDeleteBatchSize = 10000
 
+// windowsMDMCommandQueueBatchSize is the number of enrollments/hosts to process per batch when enqueuing Windows MDM commands, resolving
+// their enrollment IDs, and recomputing the denormalized has_pending_commands flag for the affected enrollments.
+const windowsMDMCommandQueueBatchSize = 10000
+
 func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
 	var unused string
 
@@ -116,8 +120,7 @@ func (ds *Datastore) setMDMWindowsEnrollmentPollScheduleRelaxedDB(ctx context.Co
 }
 
 // MDMWindowsEnqueuePollScheduleCommand enqueues the DMClient poll-schedule Replace command and records the intended relaxed state for the
-// enrollment in a single transaction. Performing both writes atomically prevents a transient failure between them from leaving a queued
-// Replace without its matching intended-state flag, which would otherwise make the next management session enqueue a duplicate Replace.
+// enrollment in a single transaction.
 func (ds *Datastore) MDMWindowsEnqueuePollScheduleCommand(
 	ctx context.Context, mdmDeviceID string, enrollmentID uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
 ) error {
@@ -232,9 +235,9 @@ SELECT EXISTS (
 
 // GetMDMWindowsHostConfigState returns the Windows MDM per-host state read on each orbit config check-in for a connected Windows host: the
 // Autopilot ESP awaiting-configuration value and whether the host's most recent enrollment has queued, unacknowledged commands. This is a
-// single indexed row read; has_pending_commands is a denormalized flag maintained in the enqueue/ack transactions (see
-// recomputeMDMWindowsHasPendingCommands*), so the hot polling path never recomputes an EXISTS across the command queue. Internal
-// poll-schedule Replaces are excluded from the flag, so tuning the poll cadence does not itself request an on-demand wake. Reader-backed;
+// single indexed row read; has_pending_commands is a denormalized flag maintained in the enqueue/ack transactions (set directly on a
+// non-poll enqueue, recomputed via EXISTS on acknowledgment), so the hot polling path never recomputes an EXISTS across the command queue.
+// Internal poll-schedule Replaces are excluded from the flag, so tuning the poll cadence does not itself request an on-demand wake. Reader-backed;
 // wrap the context with ctxdb.RequirePrimary for primary-routed reads.
 func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
 	const stmt = `
@@ -276,15 +279,16 @@ const windowsMDMHasPendingCommandsExpr = `EXISTS (
 		)
 )`
 
-// recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs refreshes the has_pending_commands flag for the given enrollments. Call it inside
-// the transaction that changed the command queue or results (enqueue, acknowledgment) so the orbit-config hot path can read the flag
-// instead of recomputing the EXISTS on every check-in.
+// recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs refreshes the has_pending_commands flag for the given enrollments by evaluating the
+// full EXISTS. Call it inside the transaction that may have cleared an enrollment's last pending command (acknowledgment) so the flag can
+// flip back to false. The enqueue paths do NOT use this: inserting a non-poll command can only set the flag true, so they call the cheaper
+// markMDMWindowsHasPendingCommandsBy* helpers instead of recomputing the EXISTS.
 func (ds *Datastore) recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx context.Context, tx sqlx.ExtContext, enrollmentIDs []uint) error {
 	if len(enrollmentIDs) == 0 {
 		return nil
 	}
 	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
-	return common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMProfileDeleteBatchSize, func(batch []uint) error {
+	return common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMCommandQueueBatchSize, func(batch []uint) error {
 		stmt, args, err := sqlx.In(
 			`UPDATE mdm_windows_enrollments e SET e.has_pending_commands = `+windowsMDMHasPendingCommandsExpr+` WHERE e.id IN (?)`,
 			syncml.DMClientPollIntervalLocURI, batch,
@@ -299,23 +303,40 @@ func (ds *Datastore) recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx co
 	})
 }
 
-// recomputeMDMWindowsHasPendingCommandsByHostUUIDs refreshes has_pending_commands for the enrollments of the given hosts. Used by the
-// profile-delivery enqueue path, which inserts queue rows keyed by host UUID rather than enrollment id.
-func (ds *Datastore) recomputeMDMWindowsHasPendingCommandsByHostUUIDs(ctx context.Context, tx sqlx.ExtContext, hostUUIDs []string) error {
+// markMDMWindowsHasPendingCommandsByEnrollmentIDs sets has_pending_commands = 1 for the given enrollments without recomputing the EXISTS.
+// The enqueue paths use it because inserting a non-poll command means a pending command now exists by construction; only the acknowledgment
+// path, which can clear the last pending command, needs the full recompute.
+func (ds *Datastore) markMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx context.Context, tx sqlx.ExtContext, enrollmentIDs []uint) error {
+	if len(enrollmentIDs) == 0 {
+		return nil
+	}
+	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
+	return common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMCommandQueueBatchSize, func(batch []uint) error {
+		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET has_pending_commands = 1 WHERE id IN (?)`, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build mark has_pending_commands by enrollment ids")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark has_pending_commands by enrollment ids")
+		}
+		return nil
+	})
+}
+
+// markMDMWindowsHasPendingCommandsByHostUUIDs is markMDMWindowsHasPendingCommandsByEnrollmentIDs keyed by host UUID, for the
+// profile-delivery enqueue path that inserts queue rows by host UUID rather than enrollment id.
+func (ds *Datastore) markMDMWindowsHasPendingCommandsByHostUUIDs(ctx context.Context, tx sqlx.ExtContext, hostUUIDs []string) error {
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
 	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
-	return common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMProfileDeleteBatchSize, func(batch []string) error {
-		stmt, args, err := sqlx.In(
-			`UPDATE mdm_windows_enrollments e SET e.has_pending_commands = `+windowsMDMHasPendingCommandsExpr+` WHERE e.host_uuid IN (?)`,
-			syncml.DMClientPollIntervalLocURI, batch,
-		)
+	return common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMCommandQueueBatchSize, func(batch []string) error {
+		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET has_pending_commands = 1 WHERE host_uuid IN (?)`, batch)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build recompute has_pending_commands by host uuids")
+			return ctxerr.Wrap(ctx, err, "build mark has_pending_commands by host uuids")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "recompute has_pending_commands by host uuids")
+			return ctxerr.Wrap(ctx, err, "mark has_pending_commands by host uuids")
 		}
 		return nil
 	})
@@ -599,9 +620,11 @@ func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.C
 					return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
 				}
 
-				// Refresh the denormalized pending-commands flag for this batch's hosts, in this same transaction.
-				if err := ds.recomputeMDMWindowsHasPendingCommandsByHostUUIDs(ctx, tx, queueHostUUIDs); err != nil {
-					return err
+				// A non-poll insert means a pending command now exists, so set the flag directly in this same transaction.
+				if cmd.TargetLocURI != syncml.DMClientPollIntervalLocURI {
+					if err := ds.markMDMWindowsHasPendingCommandsByHostUUIDs(ctx, tx, queueHostUUIDs); err != nil {
+						return err
+					}
 				}
 			}
 
@@ -754,7 +777,7 @@ func (ds *Datastore) mdmWindowsInsertCommandForEnrollmentIDsDB(ctx context.Conte
 	}
 
 	// Batch insert into command queue.
-	if err := common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMProfileDeleteBatchSize, func(batch []uint) error {
+	if err := common_mysql.BatchProcessSimple(enrollmentIDs, windowsMDMCommandQueueBatchSize, func(batch []uint) error {
 		valuesPart := strings.Repeat("(?, ?),", len(batch))
 		valuesPart = strings.TrimSuffix(valuesPart, ",")
 
@@ -772,15 +795,17 @@ func (ds *Datastore) mdmWindowsInsertCommandForEnrollmentIDsDB(ctx context.Conte
 		return err
 	}
 
-	// Refresh the denormalized pending-commands flag for the affected enrollments, in this same transaction.
-	return ds.recomputeMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, tx, enrollmentIDs)
+	if cmd.TargetLocURI == syncml.DMClientPollIntervalLocURI {
+		return nil
+	}
+	return ds.markMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx, tx, enrollmentIDs)
 }
 
 // getEnrollmentIDsByHostUUIDDB fetches enrollment IDs for a list of host UUIDs
 // using an indexed batch query. Returns the most recent enrollment per host.
 func (ds *Datastore) getEnrollmentIDsByHostUUIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUIDs []string) ([]uint, error) {
 	var allIDs []uint
-	err := common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMProfileDeleteBatchSize, func(batch []string) error {
+	err := common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMCommandQueueBatchSize, func(batch []string) error {
 		stmt, args, err := sqlx.In(
 			`SELECT MAX(id) FROM mdm_windows_enrollments WHERE host_uuid IN (?) GROUP BY host_uuid`,
 			batch)
