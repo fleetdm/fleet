@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -178,4 +179,75 @@ func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 	case <-time.NewTimer(2 * time.Second).C:
 		require.Fail(t, "receiver interrupt cancel didn't work")
 	}
+}
+
+func TestExecuteConfigReceiversBackoffOnError(t *testing.T) {
+	client := clientWithConfig(&fleet.OrbitConfig{})
+	client.ReceiverUpdateInterval = 1 * time.Second
+
+	var callTimes []time.Time
+	callCount := 0
+	targetCalls := 4
+
+	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+		callTimes = append(callTimes, time.Now())
+		callCount++
+		if callCount >= targetCalls {
+			client.receiverUpdateCancelFunc()
+			return nil
+		}
+		return errors.New("server error")
+	})
+
+	client.RegisterConfigReceiver(rfunc)
+	err := client.ExecuteConfigReceivers()
+	require.Nil(t, err)
+	require.Equal(t, targetCalls, callCount)
+
+	// Verify intervals grew between calls (backoff).
+	// Call 1->2 should be ~2s (1s * 2^1), 2->3 should be ~4s (1s * 2^2).
+	for i := 2; i < len(callTimes)-1; i++ {
+		prev := callTimes[i].Sub(callTimes[i-1])
+		curr := callTimes[i+1].Sub(callTimes[i])
+		assert.GreaterOrEqual(t, curr, prev/2,
+			"interval %d->%d (%v) should grow vs %d->%d (%v)",
+			i, i+1, curr, i-1, i, prev)
+	}
+}
+
+func TestExecuteConfigReceiversResetOnSuccess(t *testing.T) {
+	client := clientWithConfig(&fleet.OrbitConfig{})
+	client.ReceiverUpdateInterval = 1 * time.Second
+
+	callCount := 0
+	var intervalAfterRecovery time.Duration
+	var recoveryStart time.Time
+
+	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+		callCount++
+		switch {
+		case callCount <= 2:
+			// First 2 calls fail -- build up backoff
+			return errors.New("server error")
+		case callCount == 3:
+			// Success -- should reset backoff
+			recoveryStart = time.Now()
+			return nil
+		case callCount == 4:
+			// Next call should be at base interval (~1s), not backed off
+			intervalAfterRecovery = time.Since(recoveryStart)
+			client.receiverUpdateCancelFunc()
+			return nil
+		}
+		return nil
+	})
+
+	client.RegisterConfigReceiver(rfunc)
+	err := client.ExecuteConfigReceivers()
+	require.Nil(t, err)
+	require.Equal(t, 4, callCount)
+
+	// After recovery, interval should be close to base (1s), not backed off
+	assert.Less(t, intervalAfterRecovery, 3*time.Second,
+		"after success, interval should reset near base, got %v", intervalAfterRecovery)
 }
