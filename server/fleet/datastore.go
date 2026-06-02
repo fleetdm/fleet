@@ -3403,9 +3403,9 @@ type AndroidDatastore interface {
 
 	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the wipe_ref on host_mdm_actions in a
 	// single transaction. Used by COBO Wipe (which surfaces as PendingAction=wipe -> DeviceStatus=wiped) and by BYO Unenroll
-	// (which sends an AMAPI WIPE work-profile-only; the wipe_ref is what HostLockWipeStatus.IsPendingWipe reads to flip
-	// device_status to "wiping"). The frontend overrides the badge label to "Unenroll pending" for BYO Android based on
-	// enrollment status. The caller must populate cmd.CommandUUID and cmd.OperationName before invoking.
+	// (which sends an AMAPI WIPE work-profile-only; the wipe_ref is what HostLockWipeStatus.IsPendingWipe reads). For BYO Android
+	// the resulting transient wipe status is suppressed (see suppressAndroidBYODWipeStatus) so no pending badge is shown. The caller
+	// must populate cmd.CommandUUID and cmd.OperationName before invoking.
 	WipeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
 
 	// ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and writes the

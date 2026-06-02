@@ -214,7 +214,6 @@ describe("HostHeader", () => {
       />
     );
     expect(screen.getByText("Wipe pending")).toBeInTheDocument();
-    expect(screen.queryByText("Unenroll pending")).not.toBeInTheDocument();
   });
 
   it("renders 'Clear passcode pending' badge for Android (#41683)", () => {
