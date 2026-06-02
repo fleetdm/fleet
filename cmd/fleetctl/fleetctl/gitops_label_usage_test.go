@@ -70,6 +70,31 @@ func TestGetLabelUsageMultipleLabelKeysError(t *testing.T) {
 	assert.NotContains(t, err.Error(), "/absolute/path/to/")
 }
 
+func TestGetLabelUsageIncludeExcludeOverlapError(t *testing.T) {
+	absPath := "/absolute/path/to/profile.mobileconfig"
+
+	// A label appearing in both include and exclude is rejected before any apply.
+	cases := []fleet.MDMProfileSpec{
+		{Path: absPath, LabelsIncludeAll: []string{"shared-label"}, LabelsExcludeAny: []string{"shared-label"}},
+		{Path: absPath, LabelsIncludeAny: []string{"shared-label"}, LabelsExcludeAny: []string{"shared-label"}},
+		{Path: absPath, LabelsIncludeAll: []string{"ok-label", "shared-label"}, LabelsExcludeAny: []string{"shared-label", "other-label"}},
+	}
+	for _, profileSpec := range cases {
+		config := &spec.GitOps{
+			Controls: spec.GitOpsControls{
+				MacOSSettings: &fleet.MacOSSettings{
+					CustomSettings: []fleet.MDMProfileSpec{profileSpec},
+				},
+			},
+		}
+
+		_, err := getLabelUsage(config)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "shared-label")
+		assert.Contains(t, err.Error(), "profile.mobileconfig")
+	}
+}
+
 func TestGetLabelUsageIncludeAndExcludeAllowed(t *testing.T) {
 	absPath := "/absolute/path/to/profile.mobileconfig"
 
