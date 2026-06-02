@@ -151,11 +151,11 @@ func main() {
 	const pingInterval = 10 * time.Second // same value as default distributed/read
 	pingTicker := time.NewTicker(pingInterval)
 
-	// Backoff trackers are per communication path so each can back off
-	// independently -- a healthy path must not reset a failing one's
-	// backoff. See #45553 for the full behavioral contract.
-	const maxSummaryBackoff = 5 * time.Minute
-	summaryBackoff := backoff.New(pingInterval, maxSummaryBackoff)
+	// Backoff is only needed in checkToken (see below), which is the
+	// tight retry loop that caused #44816. The main ping loop doesn't
+	// need backoff because Ping is unauthenticated (no DB cost) and
+	// DesktopSummary already runs at most once every 5 minutes.
+	// See #45553 for the full behavioral contract.
 
 	// Used to trigger a policy check when clicking on "My device" or "About Fleet".
 	var fleetDesktopCheckTrigger atomic.Bool
@@ -349,10 +349,9 @@ func main() {
 			for {
 				<-pingTicker.C
 
-				// Reset the ticker to the appropriate interval. Normally this
-				// is pingInterval, but during backoff it increases exponentially.
-				// The 1ms reset from user clicks will be overridden here.
-				pingTicker.Reset(summaryBackoff.Interval())
+				// Reset the ticker to the intended interval,
+				// in case we reset it to 1ms (when clicking on "My device").
+				pingTicker.Reset(pingInterval)
 
 				if err := client.Ping(); err != nil {
 					log.Error().Err(err).Int("count", pingErrCount).Msg("ping failed")
@@ -388,32 +387,18 @@ func main() {
 					case errors.Is(err, fleetclient.ErrMissingLicense):
 						// Policy reporting in Fleet Desktop requires a license,
 						// so we just show the "My device" item as usual.
-						summaryBackoff.RecordSuccess()
 						menuManager.SetConnected(&fleet.DesktopSummary{}, true)
 					case errors.Is(err, fleetclient.ErrUnauthenticated):
-						summaryBackoff.RecordFailure()
-						pingTicker.Reset(summaryBackoff.Interval())
-						log.Debug().Err(err).
-							Str("next_retry", summaryBackoff.Interval().String()).
-							Msg("get desktop summary auth failure, backing off")
+						log.Debug().Err(err).Msg("get desktop summary auth failure")
 						// This usually happens every ~1 hour when the token expires.
+						// checkToken has its own backoff to avoid retry storms (#44816).
 						<-checkToken()
 					default:
-						summaryBackoff.RecordFailure()
-						pingTicker.Reset(summaryBackoff.Interval())
-						log.Error().Err(err).
-							Str("next_retry", summaryBackoff.Interval().String()).
-							Msg("get desktop summary failed, backing off")
+						log.Error().Err(err).Msg("get desktop summary failed")
 					}
 					continue
 				}
 
-				if summaryBackoff.InBackoff() {
-					log.Info().Str("backoff_duration", summaryBackoff.TimeSinceBackoffStarted().String()).
-						Msg("desktop summary succeeded, exiting backoff")
-				}
-				summaryBackoff.RecordSuccess()
-				pingTicker.Reset(pingInterval)
 				menuManager.SetConnected(&sum.DesktopSummary, false)
 				menuManager.UpdateFailingPolicies(sum.DesktopSummary.FailingPolicies)
 
