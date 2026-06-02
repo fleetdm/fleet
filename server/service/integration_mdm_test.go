@@ -18675,11 +18675,24 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	require.Equal(t, "315360000s", issuedCommand.Duration, "android commands must use the long duration to mirror Apple/Windows queue semantics")
 	require.NotEmpty(t, issuedToDeviceName)
 
-	// wipe_ref must be written so device_status flips to "wiping"
+	// Per #41683 the transient work-profile-wipe status is suppressed for BYO Android at the API layer, so the host must
+	// NOT surface a pending wipe (no "Unenroll pending" badge). The host simply transitions to "Off" once it removes its
+	// work profile.
 	var byoResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", byoHostID), nil, http.StatusOK, &byoResp)
-	require.NotNil(t, byoResp.Host.MDM.PendingAction)
-	require.Equal(t, "wipe", *byoResp.Host.MDM.PendingAction, "BYO unenroll must write wipe_ref so device_status reflects 'wiping' until the AMAPI ack")
+	if byoResp.Host.MDM.PendingAction != nil {
+		require.Empty(t, *byoResp.Host.MDM.PendingAction, "BYO Android unenroll must not surface a pending action")
+	}
+	if byoResp.Host.MDM.DeviceStatus != nil {
+		require.Equal(t, "unlocked", *byoResp.Host.MDM.DeviceStatus, "BYO Android unenroll must not surface a wipe device_status")
+	}
+
+	// The wipe_ref is still written under the hood (suppression is presentation-only), so the work-profile wipe runs.
+	byoHost, err := s.ds.Host(ctx, byoHostID)
+	require.NoError(t, err)
+	byoLockWipe, err := s.ds.GetHostLockWipeStatus(ctx, byoHost)
+	require.NoError(t, err)
+	require.True(t, byoLockWipe.IsPendingWipe(), "BYO unenroll must still write wipe_ref so the work-profile wipe runs")
 
 	// Reset between sub-cases.
 	didCallAMAPIDelete = false
