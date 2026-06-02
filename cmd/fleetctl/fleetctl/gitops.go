@@ -850,14 +850,20 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 	for _, osSettingName := range []interface{}{config.Controls.MacOSSettings, config.Controls.WindowsSettings} {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
+				var labels []string
+				if len(setting.LabelsIncludeAny) > 0 {
+					labels = setting.LabelsIncludeAny
+				}
 				if len(setting.LabelsIncludeAll) > 0 && len(setting.LabelsIncludeAny) > 0 {
 					return nil, fmt.Errorf("configuration profile '%s' cannot use both `labels_include_all` and `labels_include_any`; please choose one.", filepath.Base(setting.Path))
 				}
-				includeLabels := slices.Concat(setting.LabelsIncludeAll, setting.LabelsIncludeAny)
-				if overlap := fleet.ProfileLabelOverlap(includeLabels, setting.LabelsExcludeAny); overlap != "" {
+				if len(setting.LabelsIncludeAll) > 0 {
+					labels = setting.LabelsIncludeAll
+				}
+				if overlap := fleet.ProfileLabelOverlap(labels, setting.LabelsExcludeAny); overlap != "" {
 					return nil, fmt.Errorf("configuration profile '%s': label %q cannot appear in both include and exclude lists.", filepath.Base(setting.Path), overlap)
 				}
-				labels := slices.Concat(setting.LabelsIncludeAll, setting.LabelsIncludeAny, setting.LabelsExcludeAny)
+				labels = append(labels, setting.LabelsExcludeAny...)
 				updateLabelUsage(labels, filepath.Base(setting.Path), "configuration profile", result)
 			}
 		}

@@ -1390,7 +1390,7 @@ func ProfileLabelOverlap(include, exclude []string) string {
 		seen[n] = struct{}{}
 	}
 	for _, n := range exclude {
-		if _, ok := seen[n]; ok {
+		if _, overlapExists := seen[n]; overlapExists {
 			return n
 		}
 	}
