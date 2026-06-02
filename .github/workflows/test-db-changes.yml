@@ -6,6 +6,13 @@ on:
       - main
       - patch-*
       - prepare-*
+      # Release branches. The out-of-order migration incidents surfaced on RC
+      # branches (e.g. rc-minor-fleet-v4.86.0), so the migration checks below
+      # need to run there too, not just on main.
+      - minor-fleet-*
+      - patch-fleet-*
+      - rc-minor-*
+      - rc-patch-*
   pull_request:
     paths:
       - '**.go'
@@ -40,14 +47,11 @@ jobs:
       with:
         fetch-depth: 0
 
-    # TODO: This doesn't cover all scenarios since other PRs might
-    # be merged into `main` after this check has passed.
-    #
-    # We should add a Slack notification or something similar for
-    # when this check fails on `main`.
-    #
-    # TODO: This only checks for added files, we should also check for renames,
-    # which should be more of an edge case, but they might still happen
+    # This catches a new or renumbered migration whose timestamp is older than a
+    # migration already present on the base ref. The "Migration upgrade
+    # simulation" step below is the stronger backstop: it detects out-of-order
+    # migrations against released versions, including ones this filename-only
+    # check cannot see.
     - name: Check migration order
       run: |
         # if the workflow is run during a push event (on merges to main and
@@ -58,7 +62,10 @@ jobs:
         fi
 
         all_migrations=($(ls server/datastore/mysql/migrations/tables/20*_*.go | sort -r | grep -v '_test.go'))
-        new_migrations=($(git diff --find-renames --name-only --diff-filter=A $base_ref -- server/datastore/mysql/migrations/tables/20\*_\*.go ':(exclude,glob)server/datastore/mysql/migrations/tables/20*_*_test.go' | sort -r))
+        # --diff-filter=AR + --name-status catches both added (A) and renamed (R)
+        # migrations; a renumber shows up as a rename, and "{print $NF}" takes the
+        # new path (the destination of the rename, or the added file).
+        new_migrations=($(git diff --find-renames --name-status --diff-filter=AR $base_ref -- server/datastore/mysql/migrations/tables/20\*_\*.go ':(exclude,glob)server/datastore/mysql/migrations/tables/20*_*_test.go' | awk '{print $NF}' | sort -r))
 
         index=0
         for migration in "${new_migrations[@]}"; do
@@ -110,3 +117,123 @@ jobs:
         	echo "Ref: https://github.com/fleetdm/fleet/blob/main/handbook/engineering/scaling-fleet.md#foreign-keys-and-locking"
         	exit 1
         fi
+
+    # Simulates upgrading a real released Fleet database to this branch's code and
+    # fails if the result is not a clean migration state. This catches out-of-order
+    # migrations: goose only applies migrations whose timestamp is greater than the
+    # newest already-applied one, so a migration older than what a released version
+    # already applied is skipped forever and the server refuses to start.
+    #
+    # Both incidents surfaced on RC branches (a cherry-pick / patch migration that
+    # diverged from what a GA release already applied), which is why this also runs
+    # on release branches, simulating the upgrade from the most recent GA releases.
+    #
+    # Released DB state is reconstructed from each tag's committed schema.sql, which
+    # records every applied table migration in migration_status_tables (no need to
+    # build old binaries). FK checks are disabled while loading the dump because it
+    # has forward references between tables.
+    - name: Migration upgrade simulation
+      env:
+        FLEET_MYSQL_ADDRESS: 127.0.0.1:3307
+        FLEET_MYSQL_USERNAME: root
+        FLEET_MYSQL_PASSWORD: toor
+        # Number of most-recent GA release tags to simulate upgrading FROM. Covers
+        # the latest minor plus recent patches, which is where the incidents came from.
+        GA_TAG_COUNT: "3"
+      run: |
+        git fetch --tags --quiet --force || true
+
+        # On a PR, skip when no migrations changed (keeps non-migration PRs fast).
+        # Always run on push / manual dispatch.
+        if [ "${{github.event_name}}" == "pull_request" ]; then
+          if [ -z "$(git diff --name-only "origin/${{github.base_ref}}" -- 'server/datastore/mysql/migrations/')" ]; then
+            echo "No migration changes in this PR; skipping upgrade simulation."
+            exit 0
+          fi
+        fi
+
+        echo "Building fleet from this branch..."
+        go build -o /tmp/fleet ./cmd/fleet
+
+        mysql_root() { docker compose exec -T mysql_test mysql -uroot -ptoor "$@"; }
+
+        # Table-migration versions known to this branch (extracted from filenames).
+        known_versions=$(ls server/datastore/mysql/migrations/tables/20*_*.go \
+          | grep -v '_test.go' | sed -E 's#.*/([0-9]+)_.*#\1#' | sort -u)
+
+        # Migrations intentionally removed from code and tolerated as "unknown" on
+        # old databases. Mirror knownUnknownTableMigrations in
+        # server/datastore/mysql/mysql.go.
+        legacy_unknown=$(printf '%s\n' 20210924114500)
+
+        # GA release versions, ascending. Strip the "fleet-v" prefix first, then drop
+        # pre-releases / RCs (whose version, e.g. 4.86.0-rc.1, contains a "-").
+        ga_versions=$(git tag --list 'fleet-v*' | sed -E 's/^fleet-v//' | grep -vE '\-' | sort -V)
+
+        # On a release/RC branch (e.g. rc-minor-fleet-v4.86.0, rc-patch-fleet-v4.85.2)
+        # only simulate upgrading FROM GA releases older than this branch's target
+        # version. Simulating from a newer line would be a nonsensical "downgrade"
+        # and a false positive (it would flag that line's newer migrations as unknown).
+        # On main (no version in the ref name) there is no cap.
+        target_ref="${{ github.base_ref || github.ref_name }}"
+        target_ver=$(printf '%s' "$target_ref" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1 || true)
+        if [ -n "$target_ver" ]; then
+          ga_versions=$(echo "$ga_versions" | awk -v t="$target_ver" '
+            { split($0,a,"."); split(t,b,".");
+              for (i=1; i<=3; i++) { if (a[i]+0 < b[i]+0) { print; break } if (a[i]+0 > b[i]+0) break } }')
+        fi
+
+        base_tags=$(echo "$ga_versions" | sed '/^$/d' | tail -n "$GA_TAG_COUNT" | sed 's/^/fleet-v/')
+        if [ -z "$base_tags" ]; then
+          echo "No eligible GA tags found to simulate from; skipping."
+          exit 0
+        fi
+        echo "Simulating upgrade to this branch from: $(echo $base_tags | tr '\n' ' ')"
+
+        overall_rc=0
+        for tag in $base_tags; do
+          echo "::group::Upgrade simulation: ${tag} -> this branch"
+          if ! git cat-file -e "${tag}:server/datastore/mysql/schema.sql" 2>/dev/null; then
+            echo "no schema.sql at ${tag}, skipping"
+            echo "::endgroup::"
+            continue
+          fi
+
+          mysql_root -e "DROP DATABASE IF EXISTS upgrade_sim; CREATE DATABASE upgrade_sim;"
+          { echo "SET FOREIGN_KEY_CHECKS=0;"; git show "${tag}:server/datastore/mysql/schema.sql"; } \
+            | mysql_root upgrade_sim
+          echo "released base max table-migration version: $(mysql_root -N -e 'SELECT MAX(version_id) FROM migration_status_tables;' upgrade_sim)"
+
+          # Apply this branch's migrations on top, twice (the second run must be a no-op).
+          export FLEET_MYSQL_DATABASE=upgrade_sim
+          /tmp/fleet prepare db --dev --no-prompt || true
+          /tmp/fleet prepare db --dev --no-prompt 2>&1 | tail -n 5 || true
+
+          applied=$(mysql_root -N -e "SELECT version_id FROM migration_status_tables WHERE version_id > 0 AND is_applied;" upgrade_sim | sort -u)
+          # missing: known in this branch but never applied -> goose skipped them.
+          missing=$(comm -23 <(echo "$known_versions") <(echo "$applied"))
+          # unknown: applied on the released DB but absent from this branch (e.g. a
+          # renumbered migration), minus tolerated legacy migrations.
+          unknown=$(comm -13 <(echo "$known_versions") <(echo "$applied") | grep -vxFf <(echo "$legacy_unknown") || true)
+
+          if [ -n "$unknown" ]; then
+            overall_rc=1
+            echo "❌ fail: ${tag} has applied migrations that are missing or renumbered in this branch:"
+            echo "$unknown" | head -n 20 | sed 's/^/    - /'
+            echo "  A Fleet server on ${tag} would try to re-run or block on these after upgrading."
+          elif [ -n "$missing" ]; then
+            overall_rc=1
+            echo "❌ fail: these migrations are older than one already applied in ${tag} and would never run on upgrade:"
+            echo "$missing" | head -n 20 | sed 's/^/    - /'
+            echo "  Fix: bump the migration timestamp so it sorts after every released migration (see the /bump-migration skill)."
+          else
+            echo "✅ ${tag} -> this branch upgrades to a clean migration state"
+          fi
+          echo "::endgroup::"
+        done
+
+        if [ "$overall_rc" -ne 0 ]; then
+          echo "❌ Out-of-order migration detected. This can prevent Fleet from starting after an upgrade."
+          echo "See https://github.com/fleetdm/fleet/blob/main/server/datastore/mysql/migrations/README.md"
+        fi
+        exit $overall_rc
