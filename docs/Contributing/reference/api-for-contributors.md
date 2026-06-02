@@ -549,15 +549,15 @@ Delete pack by name.
 
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
 
-- [Generate Apple Business public key (ADE)](#generate-apple-business-manager-public-key-ade)
+- [Generate Apple Business public key (ADE)](#generate-apple-business-public-key-ade)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Upload APNS certificate](#upload-apns-certificate)
-- [Add ABM token](#add-abm-token)
-- [Count ABM tokens](#count-abm-tokens)
+- [Add AB token](#add-ab-token)
+- [Count AB tokens](#count-ab-tokens)
 - [Turn off Apple MDM](#turn-off-apple-mdm)
-- [Update ABM token's teams](#update-abm-tokens-teams)
-- [Renew ABM token](#renew-abm-token)
-- [Delete ABM token](#delete-abm-token)
+- [Update AB token's fleets](#update-ab-tokens-fleets)
+- [Renew AB token](#renew-ab-token)
+- [Delete AB token](#delete-ab-token)
 - [Add VPP token](#add-VPP-token)
 - [Update VPP token's teams](#update-vpp-tokens-teams)
 - [Renew VPP token](#renew-vpp-token)
@@ -588,11 +588,11 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 
 ### Generate Apple Business public key (ADE)
 
-`GET /api/v1/fleet/mdm/apple/abm_public_key`
+`GET /api/v1/fleet/mdm/apple/ab_public_key`
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/abm_public_key`
+`GET /api/v1/fleet/mdm/apple/ab_public_key`
 
 ##### Default response
 
@@ -662,9 +662,9 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
-### Add ABM token
+### Add AB token
 
-`POST /api/v1/fleet/abm_tokens`
+`POST /api/v1/fleet/ab_tokens`
 
 #### Parameters
 
@@ -674,7 +674,7 @@ Content-Type: application/octet-stream
 
 #### Example
 
-`POST /api/v1/fleet/abm_tokens`
+`POST /api/v1/fleet/ab_tokens`
 
 ##### Request header
 
@@ -700,27 +700,41 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 ```json
-"abm_token": {
-  "id": 1,
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management Inc.",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2024-10-20T00:00:00Z",
-  "terms_expired": false,
-  "macos_team": null,
-  "ios_team": null,
-  "ipados_team": null,
-  "byod_team": null,
-  "macos_fleet": null,
-  "ios_fleet": null,
-  "ipados_fleet": null,
-  "byod_fleet": null
+{
+  "ab_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2024-10-20T00:00:00Z",
+    "terms_expired": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "byod_fleet": null
+  },
+  "abm_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2024-10-20T00:00:00Z",
+    "terms_expired": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "byod_fleet": null,
+    "macos_team": null,
+    "ios_team": null,
+    "ipados_team": null,
+    "byod_team": null,
+  }
 }
 ```
 
 ### Count AB tokens
 
-`GET /api/v1/fleet/abm_tokens/count`
+`GET /api/v1/fleet/ab_tokens/count`
 
 Get the number of AB tokens on the Fleet server.
 
@@ -730,7 +744,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/abm_tokens/count`
+`GET /api/v1/fleet/ab_tokens/count`
 
 ##### Default response
 
@@ -754,32 +768,32 @@ None.
 
 `Status: 204`
 
-### Update ABM token's teams
+### Update AB token's fleets
 
-`PATCH /api/v1/fleet/abm_tokens/:id/teams`
+`PATCH /api/v1/fleet/ab_tokens/:id/fleets`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id | integer | path | *Required* The AB token's ID |
-| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
-| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
-| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
-| byod_team_id | integer | body | iOS/iPadOS BYOD hosts enrolling via Account-driven User Enrollment are automatically added to this team. If not specified, defaults to "No team". |
+| macos_fleet_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
+| ios_fleet_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
+| ipados_fleet_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
+| byod_fleet_id | integer | body | iOS/iPadOS BYOD hosts enrolling via Account-driven User Enrollment are automatically added to this team. If not specified, defaults to "No team". |
 
 #### Example
 
-`PATCH /api/v1/fleet/abm_tokens/1/teams`
+`PATCH /api/v1/fleet/ab_tokens/1/fleets`
 
 ##### Request body
 
 ```json
 {
-  "macos_team_id": 1,
-  "ios_team_id": 2,
-  "ipados_team_id": 3,
-  "byod_team_id": 4
+  "macos_fleet_id": 1,
+  "ios_fleet_id": 2,
+  "ipados_fleet_id": 3,
+  "byod_fleet_id": 4
 }
 ```
 
@@ -788,38 +802,51 @@ None.
 `Status: 200`
 
 ```json
-"abm_token": {
-  "id": 1,
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management Inc.",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2024-11-29T00:00:00Z",
-  "terms_expired": false,
-  "macos_team": 1,
-  "ios_team": 2,
-  "ipados_team": 3,
-  "byod_team": 4,
-  "macos_fleet": 1,
-  "ios_fleet": 2,
-  "ipados_fleet": 3,
-  "byod_fleet": 4
-
+{
+  "ab_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2024-11-29T00:00:00Z",
+    "terms_expired": false,
+    "macos_fleet": 1,
+    "ios_fleet": 2,
+    "ipados_fleet": 3,
+    "byod_fleet": 4
+  },
+  "abm_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2024-11-29T00:00:00Z",
+    "terms_expired": false,
+    "macos_fleet": 1,
+    "ios_fleet": 2,
+    "ipados_fleet": 3,
+    "byod_fleet": 4,
+    "macos_team": 1,
+    "ios_team": 2,
+    "ipados_team": 3,
+    "byod_team": 4
+  }
 }
 ```
 
-### Renew ABM token
+### Renew AB token
 
-`PATCH /api/v1/fleet/abm_tokens/:id/renew`
+`PATCH /api/v1/fleet/ab_tokens/:id/renew`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| id | integer | path | *Required* The ABM token's ID |
+| id | integer | path | *Required* The AB token's ID |
 
 #### Example
 
-`PATCH /api/v1/fleet/abm_tokens/1/renew`
+`PATCH /api/v1/fleet/ab_tokens/1/renew`
 
 ##### Request header
 
@@ -845,37 +872,51 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 ```json
-"abm_token": {
-  "id": 1,
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management Inc.",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2025-10-20T00:00:00Z",
-  "terms_expired": false,
-  "macos_team": null,
-  "ios_team": null,
-  "ipados_team": null,
-  "byod_team": null,
-  "macos_fleet": null,
-  "ios_fleet": null,
-  "ipados_fleet": null,
-  "byod_fleet": null
+{
+  "ab_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2025-10-20T00:00:00Z",
+    "terms_expired": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "byod_fleet": null
+  },
+  "abm_token": {
+    "id": 1,
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2025-10-20T00:00:00Z",
+    "terms_expired": false,
+    "macos_fleet": null,
+    "ios_fleet": null,
+    "ipados_fleet": null,
+    "byod_fleet": null,
+    "macos_team": null,
+    "ios_team": null,
+    "ipados_team": null,
+    "byod_team": null
+  }
 }
 ```
 
-### Delete ABM token
+### Delete AB token
 
-`DELETE /api/v1/fleet/abm_tokens/:id`
+`DELETE /api/v1/fleet/ab_tokens/:id`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| id | integer | path | *Required* The ABM token's ID |
+| id | integer | path | *Required* The AB token's ID |
 
 #### Example
 
-`DELETE /api/v1/fleet/abm_tokens/1`
+`DELETE /api/v1/fleet/ab_tokens/1`
 
 ##### Default response
 
@@ -935,7 +976,7 @@ Content-Type: application/octet-stream
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| id | integer | path | *Required* The ABM token's ID |
+| id | integer | path | *Required* The VPP token's ID |
 | team_ids | list | body | If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, defaults to all teams. |
 
 #### Example
@@ -1341,7 +1382,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium_
 
-Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business Manager.
+Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business.
 
 `GET /api/v1/fleet/hosts/:id/dep_assignment`
 
@@ -1383,7 +1424,7 @@ Returns the raw data about a DEP device's current state from the [Get Device Det
     "response_updated_at": "2025-12-04T01:35:27Z",
     "added_at": "2025-12-04T01:35:27Z",
     "deleted_at": null,
-    "abm_token_id": 1,
+    "ab_token_id": 1,
     "mdm_migration_deadline": "2025-12-05T00:00:00Z",
     "mdm_migration_completed": "2025-12-05T00:00:00Z"
   }
