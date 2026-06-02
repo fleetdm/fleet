@@ -75,49 +75,6 @@ func IsMaxDevicesPerUserError(err error) bool {
 	return false
 }
 
-// IsUnknownClientUserError reports whether err indicates that Apple does not
-// recognize the clientUserId(s) Fleet sent on an associate-assets or
-// assignment query — typically because the user record was retired or never
-// completed registration on Apple's side, while Fleet still has it cached as
-// 'registered'.
-//
-// Used by the install flow to self-heal: on this error the caller should
-// re-register the VPP user via the v1 endpoint, replace the stale row, and
-// retry the original associate-assets call once.
-//
-// Confirmed code from production traffic:
-//   - 9609 / "Unable to find the registered user."
-//
-// Other codes (9605, 9612, 9627) are listed defensively against Apple's
-// docs; same substring backstop as IsMaxDevicesPerUserError catches future
-// drift.
-func IsUnknownClientUserError(err error) bool {
-	if err == nil {
-		return false
-	}
-	var resp *ErrorResponse
-	if !errors.As(err, &resp) || resp == nil {
-		return false
-	}
-	switch resp.ErrorNumber {
-	case 9605, 9609, 9612, 9627:
-		return true
-	}
-	msg := strings.ToLower(resp.ErrorMessage)
-	if strings.Contains(msg, "unable to find") &&
-		(strings.Contains(msg, "registered user") || strings.Contains(msg, "client user") || strings.Contains(msg, "user")) {
-		return true
-	}
-	if strings.Contains(msg, "client user") &&
-		(strings.Contains(msg, "not found") || strings.Contains(msg, "unknown")) {
-		return true
-	}
-	if strings.Contains(msg, "user not found") {
-		return true
-	}
-	return false
-}
-
 // ResponseErrorInfo represents the request-specific information regarding the
 // failure.
 //
@@ -232,10 +189,10 @@ func (r *AssociateAssetsRequest) Validate() error {
 }
 
 // AssociateAssets associates assets to serial numbers or client user IDs
-// according the the request parameters provided.
+// according to the request parameters provided.
 //
 // https://developer.apple.com/documentation/devicemanagement/associate_assets
-func AssociateAssets(token string, params *AssociateAssetsRequest) (string, error) {
+func AssociateAssets(ctx context.Context, token string, params *AssociateAssetsRequest) (string, error) {
 	if err := params.Validate(); err != nil {
 		return "", err
 	}
@@ -245,7 +202,48 @@ func AssociateAssets(token string, params *AssociateAssetsRequest) (string, erro
 		return "", fmt.Errorf("encoding params as JSON: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, getBaseURL()+"/assets/associate", &reqBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, getBaseURL()+"/assets/associate", &reqBody)
+	if err != nil {
+		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	var respBody struct {
+		EventID string `json:"eventId"`
+	}
+
+	if err := do(req, token, &respBody); err != nil {
+		return "", fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+	}
+
+	return respBody.EventID, nil
+}
+
+// DisassociateAssetsRequest is the body for Apple's disassociate-assets
+// endpoint. The shape is identical to AssociateAssetsRequest (same assets +
+// mutually-exclusive serialNumbers/clientUserIds contract), so it shares the
+// type and Validate.
+type DisassociateAssetsRequest = AssociateAssetsRequest
+
+// DisassociateAssets releases (un-reserves) assets previously associated to
+// serial numbers or client user IDs, returning the reserved seats to the
+// VPP location. Use this to avoid leaking a license when an install that
+// reserved a seat does not proceed (e.g. the activation failed or was
+// cancelled before reaching the device).
+//
+// https://developer.apple.com/documentation/devicemanagement/disassociate_assets
+func DisassociateAssets(token string, params *DisassociateAssetsRequest) (string, error) {
+	if err := params.Validate(); err != nil {
+		return "", err
+	}
+
+	var reqBody bytes.Buffer
+	if err := json.NewEncoder(&reqBody).Encode(params); err != nil {
+		return "", fmt.Errorf("encoding params as JSON: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, getBaseURL()+"/assets/disassociate", &reqBody)
 	if err != nil {
 		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
 	}
@@ -297,21 +295,24 @@ type RegisterUserResponse struct {
 // (e.g. invalid Managed Apple ID).
 //
 // https://developer.apple.com/documentation/devicemanagement/registervppuserrequest
-func RegisterUser(token, clientUserID, managedAppleID string) (string, error) {
+func RegisterUser(ctx context.Context, token, clientUserID, managedAppleID string) (string, error) {
 	if clientUserID == "" || managedAppleID == "" {
 		return "", errors.New("RegisterUser: clientUserId and managedAppleId are required")
 	}
 
 	// v1 takes the VPP server token in the body rather than the
-	// Authorization header.
+	// Authorization header. Apple keys the user record on email, so we send
+	// the Managed Apple ID as both managedAppleIDStr and email.
 	reqParams := struct {
 		SToken            string `json:"sToken"`
 		ClientUserIDStr   string `json:"clientUserIdStr"`
 		ManagedAppleIDStr string `json:"managedAppleIDStr"`
+		Email             string `json:"email"`
 	}{
 		SToken:            token,
 		ClientUserIDStr:   clientUserID,
 		ManagedAppleIDStr: managedAppleID,
+		Email:             managedAppleID,
 	}
 
 	var reqBody bytes.Buffer
@@ -319,7 +320,7 @@ func RegisterUser(token, clientUserID, managedAppleID string) (string, error) {
 		return "", fmt.Errorf("encoding params as JSON: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, getV1BaseURL()+"/registerVPPUserSrv", &reqBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, getV1BaseURL()+"/registerVPPUserSrv", &reqBody)
 	if err != nil {
 		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
 	}
@@ -344,73 +345,6 @@ func RegisterUser(token, clientUserID, managedAppleID string) (string, error) {
 	}
 
 	return resp.User.UserID.String(), nil
-}
-
-// VPPUserStatus mirrors the lifecycle states Apple reports in v2 /users
-// responses for a VPP user.
-type VPPUserStatus string
-
-const (
-	// VPPUserStatusRegistered: Apple has accepted the registration and
-	// issued an invite, but the end user has not yet linked their Apple
-	// Account.
-	VPPUserStatusRegistered VPPUserStatus = "Registered"
-	// VPPUserStatusAssociated: end user has accepted the invite and the
-	// Apple Account is bound to the VPP user record.
-	VPPUserStatusAssociated VPPUserStatus = "Associated"
-	// VPPUserStatusRetired: the user has been retired; a new registration
-	// for the same Managed Apple ID is permitted at this location.
-	VPPUserStatusRetired VPPUserStatus = "Retired"
-)
-
-// User is a single entry from Apple's v2 /users list response.
-type User struct {
-	ClientUserID string        `json:"clientUserId"`
-	IDHash       string        `json:"idHash"`
-	Status       VPPUserStatus `json:"status"`
-}
-
-// GetUserByManagedAppleID looks up the active VPP user for the given Managed
-// Apple ID at the location identified by the bearer token. Apple enforces
-// uniqueness on (location, managedAppleId), so a successful response carries
-// at most one non-retired user.
-//
-// Returns (nil, nil) when Apple has no user (or only retired users) for the
-// Apple ID — callers should fall through to RegisterUser in that case.
-// Returns a non-nil error only for transport / Apple-application errors.
-//
-// Used by the install self-heal path to recover a stale clientUserId after
-// Fleet's local cache drifts from Apple's record (e.g. a stale DB restore).
-//
-// https://developer.apple.com/documentation/devicemanagement/get-users
-func GetUserByManagedAppleID(ctx context.Context, token, managedAppleID string) (*User, error) {
-	if managedAppleID == "" {
-		return nil, errors.New("GetUserByManagedAppleID: managedAppleID is required")
-	}
-
-	q := url.Values{}
-	q.Set("managedAppleId", managedAppleID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, getBaseURL()+"/users?"+q.Encode(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
-	}
-
-	var resp struct {
-		Users []User `json:"users"`
-	}
-	if err := do(req, token, &resp); err != nil {
-		return nil, fmt.Errorf("making request to Apple VPP endpoint: %w", err)
-	}
-
-	// Apple's contract is at-most-one non-retired user per (location, Apple ID),
-	// but we scan the full slice defensively in case a Retired ghost is
-	// returned alongside an active record on some iOS revision.
-	for i := range resp.Users {
-		if resp.Users[i].Status != VPPUserStatusRetired {
-			return &resp.Users[i], nil
-		}
-	}
-	return nil, nil
 }
 
 // AssetFilter represents the filters for querying assets.
@@ -545,7 +479,7 @@ type Assignment struct {
 // GetAssignments fetches the assets from Apple's VPP API with optional filters.
 //
 // https://developer.apple.com/documentation/devicemanagement/get_assignments-o3j
-func GetAssignments(token string, filter *AssignmentFilter) ([]Assignment, error) {
+func GetAssignments(ctx context.Context, token string, filter *AssignmentFilter) ([]Assignment, error) {
 	baseURL := getBaseURL() + "/assignments"
 	reqURL, err := url.Parse(baseURL)
 	if err != nil {
@@ -562,7 +496,7 @@ func GetAssignments(token string, filter *AssignmentFilter) ([]Assignment, error
 		reqURL.RawQuery = query.Encode()
 	}
 
-	req, err := http.NewRequest(http.MethodGet, reqURL.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
 	}
@@ -583,6 +517,20 @@ func GetAssignments(token string, filter *AssignmentFilter) ([]Assignment, error
 	return bodyResp.Assignments, nil
 }
 
+const (
+	errorNumberTooManyRequests int32 = 9646
+)
+
+var (
+	// vppMaxAttempts is the initial attempt plus retries (4 = 1 + 3).
+	vppMaxAttempts = 4
+	maxVPPBackoff  = 30 * time.Second
+	// Backoff for the "too many requests" (rate-limited) case, which has no
+	// Apple-provided Retry-After to honor.
+	vppRateLimitInterval          = 5 * time.Second
+	vppRateLimitBackoffMultiplier = 3
+)
+
 func do[T any](req *http.Request, token string, dest *T) error {
 	// v1 endpoints carry the token in the request body, so callers pass an
 	// empty string to skip the Authorization header.
@@ -590,67 +538,108 @@ func do[T any](req *http.Request, token string, dest *T) error {
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
-	// Reset the request body for retries. After client.Do reads the body,
-	// it's consumed. GetBody (set by http.NewRequest for *bytes.Buffer)
-	// returns a fresh reader over the original bytes.
-	if req.GetBody != nil {
-		body, err := req.GetBody()
-		if err != nil {
-			return fmt.Errorf("resetting request body for VPP retry: %w", err)
+	ctx := req.Context()
+	var lastReason string
+
+	for attempt := 0; attempt < vppMaxAttempts; attempt++ {
+		// Reset the request body for each attempt. After client.Do reads the
+		// body it's consumed; GetBody (set by http.NewRequest for *bytes.Buffer)
+		// returns a fresh reader over the original bytes.
+		if req.GetBody != nil {
+			body, err := req.GetBody()
+			if err != nil {
+				return fmt.Errorf("resetting request body for VPP retry: %w", err)
+			}
+			req.Body = body
 		}
-		req.Body = body
+
+		done, retryAfter, err := doVPPAttempt(req, dest)
+		if done {
+			// Terminal outcome: success (err == nil, dest populated) or a
+			// non-retryable error.
+			return err
+		}
+
+		// Record why we're retrying for the eventual "exhausted" error.
+		if retryAfter > 0 {
+			lastReason = fmt.Sprintf("HTTP 500 with Retry-After %s", retryAfter)
+		} else {
+			lastReason = "rate limited (too many requests)"
+		}
+
+		// No need to back off after the final attempt — we're about to give up.
+		if attempt == vppMaxAttempts-1 {
+			break
+		}
+
+		// Compute the capped wait. For HTTP 500 we honor Apple's Retry-After
+		// (capped); for the rate-limited case Apple gives no wait, so we use our
+		// own incremental backoff.
+		wait := retryAfter
+		if wait <= 0 {
+			wait = vppRateLimitInterval
+			for i := 0; i < attempt; i++ {
+				wait *= time.Duration(vppRateLimitBackoffMultiplier)
+			}
+		}
+		if wait > maxVPPBackoff {
+			wait = maxVPPBackoff
+		}
+		if err := sleepContext(ctx, wait); err != nil {
+			return fmt.Errorf("waiting to retry Apple VPP endpoint: %w", err)
+		}
 	}
 
+	return &ErrorResponse{
+		ErrorMessage: fmt.Sprintf("gave up after %d attempts (last: %s)", vppMaxAttempts, lastReason),
+	}
+}
+
+func doVPPAttempt[T any](req *http.Request, dest *T) (done bool, retryAfter time.Duration, err error) {
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+		return true, 0, fmt.Errorf("making request to Apple VPP endpoint: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("reading response body from Apple VPP endpoint: %w", err)
+		return true, 0, fmt.Errorf("reading response body from Apple VPP endpoint: %w", err)
 	}
 
-	// For HTTP 5xx server error responses, a Retry-After header indicates
-	// how long the client must wait before making additional requests.
+	// For an HTTP 500 server error response, a Retry-After header indicates how
+	// long the client must wait before making additional requests.
 	//
 	// https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3742679
-	retryAfter := resp.Header.Get("Retry-After")
-	if resp.StatusCode == http.StatusInternalServerError && retryAfter != "" {
-		seconds, err := strconv.ParseInt(retryAfter, 10, 0)
-		if err != nil {
-			return fmt.Errorf("parsing retry-after header: %w", err)
+	if ra := resp.Header.Get("Retry-After"); resp.StatusCode == http.StatusInternalServerError && ra != "" {
+		seconds, perr := strconv.ParseInt(ra, 10, 0)
+		if perr != nil {
+			return true, 0, fmt.Errorf("parsing retry-after header: %w", perr)
 		}
-
-		ticker := time.NewTicker(time.Duration(seconds) * time.Second)
-		defer ticker.Stop()
-		<-ticker.C
-		return do(req, token, dest)
+		// Clamp to our backoff cap before scaling to a Duration: do() caps the
+		// wait at maxVPPBackoff anyway, and converting an absurdly large value
+		// would overflow the int64 Duration math (potentially wrapping negative).
+		// Non-positive values are left as-is and fall through to do()'s default
+		// backoff.
+		if maxSeconds := int64(maxVPPBackoff / time.Second); seconds > maxSeconds {
+			seconds = maxSeconds
+		}
+		return false, time.Duration(seconds) * time.Second, nil
 	}
 
 	// For some reason, Apple returns 200 OK even if you pass an invalid token in the Auth header.
 	// We will need to parse the response and check to see if it contains an error.
 	var errResp ErrorResponse
-	if err := json.Unmarshal(body, &errResp); err == nil && (errResp.ErrorMessage != "" || errResp.ErrorNumber != 0) {
-		switch errResp.ErrorNumber {
-		// 9646: There are too many requests for the current
-		// Organization and the request has been rejected, either due
-		// to high server volume or an MDM issue. Use an
-		// incremental/exponential backoff strategy to retry the
-		// request until successful.
+	if uerr := json.Unmarshal(body, &errResp); uerr == nil && (errResp.ErrorMessage != "" || errResp.ErrorNumber != 0) {
+		// Too many requests for the current Organization: the request was
+		// rejected due to high server volume or an MDM issue. Retry with
+		// incremental backoff.
 		//
 		// https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3783126
-		case 9646:
-			return retry.Do(
-				func() error { return do(req, token, dest) },
-				retry.WithBackoffMultiplier(3),
-				retry.WithInterval(5*time.Second),
-				retry.WithMaxAttempts(3),
-			)
-		default:
-			return &errResp
+		if errResp.ErrorNumber == errorNumberTooManyRequests {
+			return false, 0, nil
 		}
+		return true, 0, &errResp
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -658,16 +647,32 @@ func do[T any](req *http.Request, token string, dest *T) error {
 		if len(limitedBody) > 1000 {
 			limitedBody = limitedBody[:1000]
 		}
-		return fmt.Errorf("calling Apple VPP endpoint failed with status %d: %s", resp.StatusCode, string(limitedBody))
+		return true, 0, fmt.Errorf("calling Apple VPP endpoint failed with status %d: %s", resp.StatusCode, string(limitedBody))
 	}
 
 	if dest != nil {
-		if err := json.Unmarshal(body, dest); err != nil {
-			return fmt.Errorf("decoding response data from Apple VPP endpoint: %w", err)
+		if jerr := json.Unmarshal(body, dest); jerr != nil {
+			return true, 0, fmt.Errorf("decoding response data from Apple VPP endpoint: %w", jerr)
 		}
 	}
 
-	return nil
+	return true, 0, nil
+}
+
+// sleepContext waits for d to elapse or for ctx to be done, whichever comes
+// first, returning ctx.Err() if the context is canceled before the wait elapses.
+func sleepContext(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func getBaseURL() string {

@@ -567,33 +567,38 @@ const ManagePolicyPage = ({
     }
   };
 
-  // Open specific policy automation modal via query param (e.g. from command palette)
+  // Open specific policy automation modal via deep-link (e.g. from the
+  // command palette). Gate on the same predicate that hides the in-page
+  // automations dropdown (canManageAutomations) — the param must not
+  // bypass it. Strip the param either way so refreshes don't keep trying.
   useEffect(() => {
     const param = queryParams?.manage_automations;
     if (!param) return;
 
-    switch (param) {
-      case "webhooks":
-        setShowOtherWorkflowsModal(true);
-        break;
-      case "install_software":
-        setShowInstallSoftwareModal(true);
-        break;
-      case "run_script":
-        setShowPolicyRunScriptModal(true);
-        break;
-      case "calendar":
-        setShowCalendarEventsModal(true);
-        break;
-      case "conditional_access":
-        setShowConditionalAccessModal(true);
-        break;
-      default:
+    if (canManageAutomations) {
+      switch (param) {
+        case "webhooks":
+          setShowOtherWorkflowsModal(true);
+          break;
+        case "install_software":
+          setShowInstallSoftwareModal(true);
+          break;
+        case "run_script":
+          setShowPolicyRunScriptModal(true);
+          break;
+        case "calendar":
+          setShowCalendarEventsModal(true);
+          break;
+        case "conditional_access":
+          setShowConditionalAccessModal(true);
+          break;
+        default:
+      }
     }
 
     const { manage_automations, ...rest } = queryParams;
     router.replace({ pathname: location.pathname, query: rest });
-  }, [queryParams?.manage_automations]);
+  }, [queryParams, location.pathname, router, canManageAutomations]);
 
   const onUpdateOtherWorkflows = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;

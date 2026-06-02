@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
@@ -31676,4 +31677,187 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithEUAToken() {
 	require.Len(t, dms, 1, "host_emails must be populated after EUA-token orbit enrollment (issue #45066)")
 	require.Equal(t, idpEmail, dms[0].Email)
 	require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, dms[0].Source)
+}
+
+// TestTeamAdminCanReadHostPastActivities is a regression test for issue #46009:
+// after the OPA-tag fix, team-scoped users were still getting 403 on
+// GET /api/_version_/fleet/hosts/{id}/activities for any host with a
+// user-initiated past activity (locked_host being the common reproducer).
+// The cause was Service.UsersByIDs gating user enrichment behind an authz
+// check on an empty *fleet.User, which no team role can satisfy. The activity
+// ACL adapter now bypasses that check by going directly to the datastore.
+func (s *integrationEnterpriseTestSuite) TestTeamAdminCanReadHostPastActivities() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: t.Name(),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID))
+	})
+
+	teamAdminEmail := t.Name() + "_admin@example.com"
+	teamAdmin := &fleet.User{
+		Name:  teamAdminEmail,
+		Email: teamAdminEmail,
+		Teams: []fleet.UserTeam{
+			{Team: *team, Role: fleet.RoleAdmin},
+		},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	teamAdmin, err = s.ds.NewUser(ctx, teamAdmin)
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(t.Name() + "_host"),
+		NodeKey:         new(t.Name() + "_host"),
+		UUID:            t.Name() + "_host",
+		Hostname:        t.Name() + "_host.local",
+		Platform:        "darwin",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	// Insert a host-linked past activity attributed to the team admin. This
+	// mirrors what happens when the team admin locks one of their hosts —
+	// the activity row has user_id set, which forces enrichWithUserData to
+	// call the user lookup. Before the fix, that lookup went through
+	// Service.UsersByIDs and 403'd the team admin viewing the activity feed.
+	activitySvc := mysqltest.NewTestActivityService(t, s.ds)
+	apiUser := &activity_api.User{ID: teamAdmin.ID, Name: teamAdmin.Name, Email: teamAdmin.Email}
+	require.NoError(t, activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeLockedHost{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}))
+
+	t.Cleanup(func() { s.token = s.getTestAdminToken() })
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 1)
+	require.Equal(t, fleet.ActivityTypeLockedHost{}.ActivityName(), listResp.Activities[0].Type)
+	require.NotNil(t, listResp.Activities[0].ActorEmail)
+	require.Equal(t, teamAdmin.Email, *listResp.Activities[0].ActorEmail)
+	require.NotNil(t, listResp.Activities[0].ActorFullName)
+	require.Equal(t, teamAdmin.Name, *listResp.Activities[0].ActorFullName)
+}
+
+// After an FMA replacement, Library tab and device self-service must honor the active
+// installer's label scope so list and install agree.
+func (s *integrationEnterpriseTestSuite) TestFMAReplacedInstallerLabelScopeListAndInstallAgree() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Description: t.Name()})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID)) })
+
+	host := createOrbitEnrolledHost(t, "darwin", "fma_scope_host", s.ds)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+	host.TeamID = &team.ID
+	deviceToken := uuid.NewString()
+	createDeviceTokenForHost(t, s.ds, host.ID, deviceToken)
+
+	excludeLabel, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "_excl", Query: "select 1"})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
+	host.LabelUpdatedAt = time.Now()
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	// Old installer (FMA v1): no labels.
+	fma, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             t.Name() + " App",
+		Slug:             "fma-scope-test/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.example." + t.Name(),
+	})
+	require.NoError(t, err)
+
+	adminUserID := uint(1) // admin user from suite setup
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("v1"), t.TempDir)
+	require.NoError(t, err)
+	oldInstallerID, titleID, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr,
+		StorageID:            "fma_scope_v1",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "fma_scope.pkg",
+		Title:                t.Name() + " App",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               adminUserID,
+		SelfService:          true,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Successful install against old installer.
+	installUUID, err := s.ds.InsertSoftwareInstallRequest(ctx, host.ID, oldInstallerID, fleet.HostSoftwareInstallOptions{SelfService: true})
+	require.NoError(t, err)
+	_, err = s.ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           installUUID,
+		InstallScriptExitCode: new(int(0)),
+	}, nil)
+	require.NoError(t, err)
+
+	// Simulate FMA replacement.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET is_active = FALSE WHERE id = ?", oldInstallerID)
+		return err
+	})
+
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("v2"), t.TempDir)
+	require.NoError(t, err)
+	newInstallerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr2,
+		StorageID:            "fma_scope_v2",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "fma_scope.pkg",
+		Title:                t.Name() + " App",
+		Version:              "2.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               adminUserID,
+		SelfService:          true,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{
+			ByName: map[string]fleet.LabelIdent{
+				excludeLabel.Name: {LabelName: excludeLabel.Name, LabelID: excludeLabel.ID},
+			},
+			LabelScope: fleet.LabelScopeExcludeAny,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, oldInstallerID, newInstallerID)
+
+	// Library tab must not surface the title.
+	var hostSw getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &hostSw, "available_for_install", "true")
+	for _, sw := range hostSw.Software {
+		require.NotEqual(t, titleID, sw.ID, "title must not appear in Library tab when active installer excludes the host")
+	}
+
+	// Self-service must not surface the title.
+	var deviceSw getDeviceSoftwareResponse
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+deviceToken+"/software?self_service=true", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&deviceSw))
+	for _, sw := range deviceSw.Software {
+		require.NotEqual(t, titleID, sw.ID, "title must not appear in device self-service when active installer excludes the host")
+	}
+
+	// Install endpoint rejects with label-scope error.
+	resp := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't install. Host isn't member of the labels defined for this software title.")
 }

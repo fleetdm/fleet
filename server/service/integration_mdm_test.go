@@ -162,6 +162,10 @@ type appleVPPConfigSrvConf struct {
 	Assets        []vpp.Asset
 	SerialNumbers []string
 	Location      string
+	// Disassociations records every /assets/disassociate request the mock
+	// server received, in order. Used by tests that assert Fleet released a
+	// previously-reserved VPP seat (e.g. on install failure or cancel).
+	Disassociations []vpp.DisassociateAssetsRequest
 }
 
 var defaultVPPAssetList = []vpp.Asset{
@@ -363,7 +367,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, keyValueStore, logger, 0)
+							err = ReconcileAppleProfilesBatched(ctx, ds, mdmCommander, keyValueStore, logger, 0)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -376,7 +380,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 									s.onProfileJobDone()
 								}()
 							}
-							err = ReconcileAppleDeclarations(ctx, ds, mdmCommander, logger)
+							err = ReconcileAppleDeclarationsBatched(ctx, ds, mdmCommander, logger)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -597,6 +601,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}
 
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Handle /assets/disassociate — must come before the /associate
+		// catch-all below (HasSuffix prevents the substring "associate" from
+		// swallowing this case). Records every call so tests can assert Fleet
+		// released a reserved seat.
+		if strings.HasSuffix(r.URL.Path, "/disassociate") {
+			var req vpp.DisassociateAssetsRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+			s.appleVPPConfigSrvConfig.Disassociations = append(s.appleVPPConfigSrvConfig.Disassociations, req)
+			_, _ = w.Write([]byte(`{"eventId": "disassociate-evt"}`))
+			return
+		}
 		// Handle /associate
 		if strings.Contains(r.URL.Path, "associate") {
 			var associations vpp.AssociateAssetsRequest
@@ -1912,10 +1930,15 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 			found = true
 			require.Nil(t, activity.ActorID)
 			require.Nil(t, activity.ActorFullName)
-			require.JSONEq(t, fmt.Sprintf(`{"enrollment_id": null, "host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "platform": "darwin"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), string(*activity.Details))
+			require.JSONEq(t, fmt.Sprintf(`{"host_id": %d, "enrollment_id": null, "host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "platform": "darwin"}`, targetHostID, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), string(*activity.Details))
 		}
 	}
 	require.True(t, found)
+
+	// The unenroll activity must also show on the host details page activity timeline.
+	s.lastHostActivityMatches(targetHostID, "mdm_unenrolled",
+		fmt.Sprintf(`{"host_id": %d, "enrollment_id": null, "host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "platform": "darwin"}`,
+			targetHostID, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
 }
 
 func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
@@ -5900,7 +5923,7 @@ func (s *integrationMDMTestSuite) assertHostAppleConfigProfiles(want map[*fleet.
 		for _, gp := range gotProfs {
 			idents = append(idents, gp.Identifier)
 		}
-		require.Equal(t, len(wantProfs), len(gotProfs), "apple host uuid: %s, profiles: %v", h.UUID, idents)
+		require.Len(t, gotProfs, len(wantProfs), "apple host uuid: %s, profiles: %v - want %v", h.UUID, idents, wantProfs)
 
 		sort.Slice(gotProfs, func(i, j int) bool {
 			l, r := gotProfs[i], gotProfs[j]
@@ -18658,6 +18681,12 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	require.Equal(t, "315360000s", issuedCommand.Duration, "android commands must use the long duration to mirror Apple/Windows queue semantics")
 	require.NotEmpty(t, issuedToDeviceName)
 
+	// wipe_ref must be written so device_status flips to "wiping"
+	var byoResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", byoHostID), nil, http.StatusOK, &byoResp)
+	require.NotNil(t, byoResp.Host.MDM.PendingAction)
+	require.Equal(t, "wipe", *byoResp.Host.MDM.PendingAction, "BYO unenroll must write wipe_ref so device_status reflects 'wiping' until the AMAPI ack")
+
 	// Reset between sub-cases.
 	didCallAMAPIDelete = false
 	didCallAMAPIIssueWipe = false
@@ -18668,6 +18697,11 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", coboHostID), nil, http.StatusNoContent)
 	require.True(t, didCallAMAPIDelete, "COBO unenroll must call EnterprisesDevicesDelete")
 	require.False(t, didCallAMAPIIssueWipe, "COBO unenroll must not call EnterprisesDevicesIssueCommand")
+
+	// host_mdm.enrolled must stay 1 here. EnterprisesDevicesDelete returns 200 when AMAPI accepts the request, not when the device has processed it.
+	coboHostMDM, err := s.ds.GetHostMDM(ctx, coboHostID)
+	require.NoError(t, err)
+	require.True(t, coboHostMDM.Enrolled, "host_mdm.enrolled must stay true until the device acks via Pub/Sub DELETED")
 }
 
 // TestAndroidLockWipeClearPasscode exercises the three commands end-to-end against the real Fleet HTTP handler stack with a
@@ -18822,11 +18856,28 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.Equal(t, string(android.MDMAndroidCommandTypeWipe), row.CommandType)
 
 		assertHostMDMStatus(t, wipeHostID, "wipe", "unlocked")
+
+		// COBO Wipe ack must flip host_mdm.enrolled directly. AMAPI does not reliably send a STATUS_REPORT / ENROLLMENT with
+		// state=DELETED for a factory-reset COBO device (the agent is gone), so the COMMAND ack is the only authoritative unenroll
+		// signal. Without this, the host page sticks at "MDM On" + "Wiped" badge forever.
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
+
+		row, err = s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), row.Status)
+
+		wipeHostMDM, err := s.ds.GetHostMDM(ctx, wipeHostID)
+		require.NoError(t, err)
+		require.False(t, wipeHostMDM.Enrolled, "COBO Wipe ack must flip host_mdm.enrolled to false")
+
+		// wipe_ref stays so the host page surfaces "Wiped" -- COBO Wipe is destructive and the
+		// badge is correct. The host stays in Fleet until an admin deletes it manually or device re-enrolls.
+		assertHostMDMStatus(t, wipeHostID, "", "wiped")
 	})
 
-	t.Run("Clear passcode uses RESET_PASSWORD with empty newPassword and does not touch host_mdm_actions", func(t *testing.T) {
+	t.Run("Clear passcode uses RESET_PASSWORD with empty newPassword and transitions clear_passcode_ref through Pub/Sub ack", func(t *testing.T) {
 		// Fresh host to keep assertions self-contained; BYO vs COBO doesn't matter for
-		// clear-passcode (no host_mdm_actions write either way).
+		// clear-passcode (both surface the same "Clear passcode pending" device status).
 		passHostID := createAndroidHostForTest(t, s.ds, nil, false)
 
 		var cpResp fleet.ClearPasscodeResponse
@@ -18847,8 +18898,17 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		require.Equal(t, row.CommandUUID, cpResp.CommandUUID,
 			"the CommandUUID returned to API consumers must match the persisted row (#41683 review fix)")
 
-		// No PendingAction surface for clear-passcode -- it doesn't gate other actions, so the
-		// host page reports an unlocked, no-pending state.
+		// host_mdm_actions.clear_passcode_ref is written so device_status flips to "clearing passcode" while the AMAPI command is in flight
+		assertHostMDMStatus(t, passHostID, "clear_passcode", "unlocked")
+
+		// Pub/Sub COMMAND ack clears the ref and returns the host to its baseline (unlocked, no pending action). Mirrors the symmetric
+		// round-trip the Lock subtest above performs.
+		deliverPubSubCommand(t, androidmanagement.Operation{Name: opName, Done: true})
+
+		row, err = s.ds.GetMDMAndroidCommandByOperationName(ctx, opName)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), row.Status)
+
 		assertHostMDMStatus(t, passHostID, "", "unlocked")
 	})
 

@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -420,7 +419,7 @@ func (s *integrationTestSuite) finalizeOrder(t *testing.T, finalizeURL string, j
 // returning everything needed to test the finalize endpoint.
 func (s *integrationTestSuite) createOrderForFinalize(t *testing.T) (enroll *types.Enrollment, privateKey *ecdsa.PrivateKey, accountURL string, orderResp *types.OrderResponse, nonce string) {
 	t.Helper()
-	enroll = &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enroll = &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enroll)
 	privateKey, accountURL, nonce = s.createAccountForOrder(t, enroll)
 

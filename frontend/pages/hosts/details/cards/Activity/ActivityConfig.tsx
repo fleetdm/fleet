@@ -33,6 +33,7 @@ import CreatedManagedLocalAccountActivityItem from "./ActivityItems/CreatedManag
 import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/RotatedManagedLocalAccountPassword";
 import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
 import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
+import MdmUnenrolledActivityItem from "./ActivityItems/MdmUnenrolledActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -86,6 +87,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.RotatedManagedLocalAccountPassword]: RotatedManagedLocalAccountPasswordActivityItem,
   [ActivityType.FailedToRotateManagedLocalAccountPassword]: FailedToRotateManagedLocalAccountPasswordActivityItem,
   [ActivityType.FailedEnrollmentProfileRenewal]: FailedEnrollmentProfileRenewalActivityItem,
+  [ActivityType.MdmUnenrolled]: MdmUnenrolledActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<
