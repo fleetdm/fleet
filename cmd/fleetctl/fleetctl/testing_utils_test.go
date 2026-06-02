@@ -214,7 +214,7 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 		return []fleet.SoftwareAutoUpdateSchedule{}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, teamID uint, names []string) ([]uint, error) {
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return nil, nil
 	}
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {

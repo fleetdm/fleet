@@ -161,15 +161,15 @@ func (svc *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 
 func (svc *Service) removeDuplicateOrMissingCategories(ctx context.Context, teamID uint, names []string) ([]string, []uint, error) {
 	names = server.RemoveDuplicatesFromSlice(names)
+	categories := []string{}
+	ids := []uint{}
 	if len(names) == 0 {
-		return nil, nil, nil
+		return categories, ids, nil
 	}
 	categoryMap, err := svc.ds.GetSoftwareCategoryNameToIDMap(ctx, teamID, names)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "getting software category name to id map")
 	}
-	var categories []string
-	var ids []uint
 	for _, name := range names {
 		if id, ok := categoryMap[name]; ok {
 			categories = append(categories, name)
