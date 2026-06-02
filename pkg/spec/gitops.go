@@ -1909,21 +1909,26 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	// validate self service categories
 	if software.SelfServiceCategories.Set {
 		declared := software.SelfServiceCategories.Value
-		seen := make(map[string]struct{}, len(declared))
+		var seen []string
+
 		for i, name := range declared {
 			declared[i] = strings.TrimSpace(name)
+
 			if err := (fleet.SoftwareCategory{Name: declared[i]}).Validate(); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("self_service_categories: %w", err))
 				continue
 			}
-			key := strings.ToLower(declared[i])
-			if _, ok := seen[key]; ok {
+
+			// Doesn't catch utf8mb4_unicode_ci collation collisions (e.g. "🔐 Security" vs "🛡 Security") in dry runs.
+			if slices.ContainsFunc(seen, func(s string) bool { return strings.EqualFold(s, declared[i]) }) {
 				multiError = multierror.Append(multiError,
 					fmt.Errorf("self_service_categories: duplicate category %q", declared[i]))
 				continue
 			}
-			seen[key] = struct{}{}
+
+			seen = append(seen, declared[i])
 		}
+
 		result.Software.SelfServiceCategories = optjson.SetSlice(declared)
 	}
 
@@ -1931,6 +1936,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		if !result.Software.SelfServiceCategories.Set {
 			return
 		}
+
 		for _, name := range categories {
 			if !slices.ContainsFunc(result.Software.SelfServiceCategories.Value, func(d string) bool {
 				return fleet.SoftwareCategoryReferenceMatches(name, d)

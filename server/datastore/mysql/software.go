@@ -6862,13 +6862,15 @@ func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, teamID uint, na
 	return ids, nil
 }
 
+// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.
+// Only categories that exist in the database are included in the map, but outdated default categories that were named
+// get matched to their new names.
 func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 	if len(names) == 0 {
 		return map[string]uint{}, nil
 	}
 
-	// ORDER BY name ASC so emoji-prefixed rows ("💻 Productivity") sort after
-	// their legacy plain counterpart ("Productivity")
+	// order by name so that we match category IDs consistently
 	stmt := `SELECT id, name FROM software_categories WHERE team_id = ? ORDER BY name ASC`
 	var rows []fleet.SoftwareCategory
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID); err != nil {
