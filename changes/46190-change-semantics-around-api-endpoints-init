@@ -1,0 +1,1 @@
+* Fixed a data race in `api_endpoints.Init()` that caused flaky test failures when parallel integration tests each started their own test server concurrently.

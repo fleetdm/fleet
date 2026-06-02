@@ -1389,7 +1389,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
 
-		if err := apiendpoints.Init(apiHandler); err != nil {
+		if err := apiendpoints.Validate(apiHandler); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
 		apiHandler = service.WithMDMSSOCallbackRedirect(svc, logger, apiHandler)
