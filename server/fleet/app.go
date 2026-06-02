@@ -245,6 +245,10 @@ type MDM struct {
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
+	// WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for
+	// Windows automatic enrollment.
+	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
+
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
@@ -584,8 +588,12 @@ func (mos *MacOSSetup) Validate() error {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
 	}
 
-	if mos.EndUserLocalAccountType.Valid && mos.EndUserLocalAccountType.Value != "admin" {
-		return NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
+	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {
+		return NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+	}
+
+	if PrimaryAccountType(mos.EndUserLocalAccountType.Value).RequiresLocalAdminAccount() && (!mos.EnableManagedLocalAccount.Valid || !mos.EnableManagedLocalAccount.Value) {
+		return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, mos.EndUserLocalAccountType.Value))
 	}
 
 	return nil
@@ -936,6 +944,11 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.MDM.WindowsEntraTenantIDs.Set {
 		clone.MDM.WindowsEntraTenantIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraTenantIDs.Value)))
 		copy(clone.MDM.WindowsEntraTenantIDs.Value, c.MDM.WindowsEntraTenantIDs.Value)
+	}
+
+	if c.MDM.WindowsEntraClientIDs.Set {
+		clone.MDM.WindowsEntraClientIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraClientIDs.Value)))
+		copy(clone.MDM.WindowsEntraClientIDs.Value, c.MDM.WindowsEntraClientIDs.Value)
 	}
 
 	return &clone
@@ -1752,8 +1765,9 @@ type EmailConfig struct {
 }
 
 type SESConfig struct {
-	Region    string `json:"region"`
-	SourceARN string `json:"source_arn"`
+	Region       string `json:"region"`
+	SourceARN    string `json:"source_arn"`
+	SenderDomain string `json:"sender_domain"`
 }
 
 type UpdateIntervalConfig struct {

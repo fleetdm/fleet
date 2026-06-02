@@ -224,6 +224,16 @@ func (p *ProxyClient) EnterprisesDevicesDelete(ctx context.Context, deviceName s
 	return nil
 }
 
+func (p *ProxyClient) EnterprisesDevicesIssueCommand(ctx context.Context, deviceName string, command *androidmanagement.Command) (*androidmanagement.Operation, error) {
+	call := p.mgmt.Enterprises.Devices.IssueCommand(deviceName, command).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	op, err := call.Do()
+	if err != nil {
+		return nil, fmt.Errorf("issuing command to device %s: %w", deviceName, err)
+	}
+	return op, nil
+}
+
 func (p *ProxyClient) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
 	call := p.mgmt.Enterprises.Devices.List(enterpriseName).Context(ctx).PageToken(pageToken).PageSize(100).Fields("nextPageToken", "devices/name")
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)

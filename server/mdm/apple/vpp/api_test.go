@@ -594,101 +594,93 @@ func TestDoRetry(t *testing.T) {
 	})
 }
 
-func TestCreateUsers(t *testing.T) {
-	t.Run("rejects empty request", func(t *testing.T) {
-		_, err := CreateUsers("token", nil)
+func TestRegisterUser(t *testing.T) {
+	t.Run("rejects empty client user id or managed apple id", func(t *testing.T) {
+		_, err := RegisterUser("tok", "", "user@example.com")
 		require.Error(t, err)
 
-		_, err = CreateUsers("token", &CreateUsersRequest{})
+		_, err = RegisterUser("tok", "uuid-1", "")
 		require.Error(t, err)
 	})
 
-	t.Run("success path returns event id and users", func(t *testing.T) {
+	t.Run("success returns apple userId synchronously", func(t *testing.T) {
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, http.MethodPost, r.Method)
-			assert.Equal(t, "/users/create", r.URL.Path)
-			assert.Equal(t, "Bearer valid_token", r.Header.Get("Authorization"))
+			assert.Equal(t, "/registerVPPUserSrv", r.URL.Path)
+			// v1 carries the token in the body, not the Authorization header.
+			assert.Empty(t, r.Header.Get("Authorization"))
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 			body, err := io.ReadAll(r.Body)
 			assert.NoError(t, err)
 
-			var got CreateUsersRequest
+			var got struct {
+				SToken            string `json:"sToken"`
+				ClientUserIDStr   string `json:"clientUserIdStr"`
+				ManagedAppleIDStr string `json:"managedAppleIDStr"`
+				Email             string `json:"email"`
+			}
 			assert.NoError(t, json.Unmarshal(body, &got))
-			assert.Equal(t, []CreateUsersUser{
-				{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"},
-				{ClientUserId: "uuid-2", ManagedAppleId: "user2@example.com"},
-			}, got.Users)
+			assert.Equal(t, "valid_token", got.SToken)
+			assert.Equal(t, "uuid-1", got.ClientUserIDStr)
+			assert.Equal(t, "user1@example.com", got.ManagedAppleIDStr)
+			// Apple keys on email — Fleet sends the Managed Apple ID for both.
+			assert.Equal(t, "user1@example.com", got.Email)
 
 			_, _ = w.Write([]byte(`{
-				"eventId": "evt-123",
-				"users": [
-					{"userId":"apple-1","clientUserId":"uuid-1","managedAppleId":"user1@example.com","status":"Registered"},
-					{"userId":"apple-2","clientUserId":"uuid-2","managedAppleId":"user2@example.com","status":"Registered"}
-				]
+				"status": 0,
+				"user": {
+					"userId": 12345,
+					"status": "Registered",
+					"clientUserIdStr": "uuid-1",
+					"managedAppleIDStr": "user1@example.com"
+				}
 			}`))
 		})
 
-		resp, err := CreateUsers("valid_token", &CreateUsersRequest{
-			Users: []CreateUsersUser{
-				{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"},
-				{ClientUserId: "uuid-2", ManagedAppleId: "user2@example.com"},
-			},
-		})
+		appleUserID, err := RegisterUser("valid_token", "uuid-1", "user1@example.com")
 		require.NoError(t, err)
-		require.NotNil(t, resp)
-		require.Equal(t, "evt-123", resp.EventID)
-		require.Len(t, resp.Users, 2)
-		require.Equal(t, "apple-1", resp.Users[0].UserId)
-		require.Equal(t, "Registered", resp.Users[0].Status)
-		require.False(t, resp.Users[0].HasError())
-		require.False(t, resp.Users[1].HasError())
+		require.Equal(t, "12345", appleUserID)
 	})
 
-	t.Run("partial failure surfaces per-user error info", func(t *testing.T) {
+	t.Run("apple application error surfaces as ErrorResponse", func(t *testing.T) {
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			// v1 application errors come back as HTTP 200 with status=-1.
 			_, _ = w.Write([]byte(`{
-				"eventId": "evt-456",
-				"users": [
-					{"userId":"apple-1","clientUserId":"uuid-1","managedAppleId":"user1@example.com","status":"Registered"},
-					{"clientUserId":"uuid-2","managedAppleId":"user2@example.com","errorMessage":"Managed Apple ID not found","errorNumber":9637}
-				]
+				"status": -1,
+				"errorNumber": 9637,
+				"errorMessage": "Managed Apple ID not found"
 			}`))
 		})
 
-		resp, err := CreateUsers("valid_token", &CreateUsersRequest{
-			Users: []CreateUsersUser{
-				{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"},
-				{ClientUserId: "uuid-2", ManagedAppleId: "user2@example.com"},
-			},
-		})
-		require.NoError(t, err)
-		require.NotNil(t, resp)
-		require.Equal(t, "evt-456", resp.EventID)
-		require.Len(t, resp.Users, 2)
+		_, err := RegisterUser("valid_token", "uuid-1", "missing@example.com")
+		require.Error(t, err)
 
-		require.False(t, resp.Users[0].HasError())
-		require.Equal(t, "apple-1", resp.Users[0].UserId)
-
-		require.True(t, resp.Users[1].HasError())
-		require.Equal(t, "uuid-2", resp.Users[1].ClientUserId)
-		require.Equal(t, "Managed Apple ID not found", resp.Users[1].ErrorMessage)
-		require.EqualValues(t, 9637, resp.Users[1].ErrorNumber)
-		require.Empty(t, resp.Users[1].UserId)
+		var appleErr *ErrorResponse
+		require.ErrorAs(t, err, &appleErr)
+		require.EqualValues(t, 9637, appleErr.ErrorNumber)
+		require.Equal(t, "Managed Apple ID not found", appleErr.ErrorMessage)
 	})
 
-	t.Run("apple-level error from /users/create", func(t *testing.T) {
+	t.Run("apple transport-level error surfaces as ErrorResponse", func(t *testing.T) {
 		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`{"errorInfo":{},"errorMessage":"Bad Request","errorNumber":400}`))
+			_, _ = w.Write([]byte(`{"errorMessage":"Bad Request","errorNumber":400}`))
 		})
 
-		resp, err := CreateUsers("valid_token", &CreateUsersRequest{
-			Users: []CreateUsersUser{{ClientUserId: "uuid-1", ManagedAppleId: "user1@example.com"}},
-		})
+		_, err := RegisterUser("valid_token", "uuid-1", "user1@example.com")
 		require.Error(t, err)
-		require.Nil(t, resp)
 		require.Contains(t, err.Error(), "error number: 400")
+	})
+
+	t.Run("success without user object is treated as error", func(t *testing.T) {
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"status": 0}`))
+		})
+
+		_, err := RegisterUser("valid_token", "uuid-1", "user1@example.com")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "no user record")
 	})
 }
 

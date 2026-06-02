@@ -3430,6 +3430,7 @@ type hostSoftware struct {
 	ExitCode              *int       `db:"exit_code"`
 	LastOpenedAt          *time.Time `db:"last_opened_at"`
 	BundleIdentifier      *string    `db:"bundle_identifier"`
+	TitleBundleIdentifier *string    `db:"title_bundle_identifier"`
 	Version               *string    `db:"version"`
 	SoftwareID            *uint      `db:"software_id"`
 	SoftwareSource        *string    `db:"software_source"`
@@ -4602,6 +4603,365 @@ var hostSoftwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"source": "source",
 }
 
+// hostSoftwareTitleAssembler accumulates and de-duplicates host software title records
+// produced by ListHostSoftware. Its addRecord method holds the per-row merging logic
+// extracted from the main function so the CFG block count stays under nilaway's limit.
+type hostSoftwareTitleAssembler struct {
+	bySoftwareID                map[uint]*hostSoftware
+	bySoftwareTitleID           map[uint]*hostSoftware
+	byVPPAdamID                 map[string]*hostSoftware
+	byInHouseID                 map[uint]*hostSoftware
+	hostVPPInstalledTitles      map[uint]*hostSoftware
+	hostInHouseInstalledTitles  map[uint]*hostSoftware
+	hostInstalledSoftwareSet    map[uint]*hostSoftware
+	filteredBySoftwareTitleID   map[uint]*hostSoftware
+	filteredByVPPAdamID         map[string]*hostSoftware
+	filteredByInHouseID         map[uint]*hostSoftware
+	installedPathBySoftwareId   map[uint][]string
+	pathSignatureInformation    map[uint][]fleet.PathSignatureInformation
+	vulnerabilitiesBySoftwareID map[uint][]string
+	policiesBySoftwareTitleId   map[uint][]fleet.AutomaticInstallPolicy
+	iconsBySoftwareTitleID      map[uint]fleet.SoftwareTitleIcon
+	displayNames                map[uint]string
+
+	indexOfSoftwareTitle map[uint]uint
+	deduplicatedList     []*hostSoftware
+}
+
+func (a *hostSoftwareTitleAssembler) addRecord(
+	ctx context.Context,
+	ds *Datastore,
+	host *fleet.Host,
+	teamID uint,
+	softwareTitleRecord *hostSoftware,
+) {
+	softwareTitle := a.bySoftwareTitleID[softwareTitleRecord.ID]
+	inventoriedVPPApp := a.hostVPPInstalledTitles[softwareTitleRecord.ID]
+	inventoriedInHouseApp := a.hostInHouseInstalledTitles[softwareTitleRecord.ID]
+
+	if softwareTitle != nil && softwareTitle.SoftwareID != nil {
+		// if we have a software id, that means that this record has been installed on the host,
+		// we should double check the hostInstalledSoftwareSet,
+		// but we want to make sure that software id is present on the InstalledVersions list to be processed
+		if s, ok := a.hostInstalledSoftwareSet[*softwareTitle.SoftwareID]; ok {
+			softwareIDStr := strconv.FormatUint(uint64(*softwareTitle.SoftwareID), 10)
+			pushVersion(softwareIDStr, softwareTitleRecord, *s)
+		}
+	}
+	if inventoriedVPPApp != nil && inventoriedVPPApp.SoftwareID != nil {
+		// Vpp app installed on the host, we need to push this into the installed versions list as well
+		if s, ok := a.hostInstalledSoftwareSet[*inventoriedVPPApp.SoftwareID]; ok {
+			softwareIDStr := strconv.FormatUint(uint64(*inventoriedVPPApp.SoftwareID), 10)
+			pushVersion(softwareIDStr, softwareTitleRecord, *s)
+		}
+	}
+	if inventoriedInHouseApp != nil && inventoriedInHouseApp.SoftwareID != nil {
+		// in-house app installed on the host, we need to push this into the installed versions list as well
+		if s, ok := a.hostInstalledSoftwareSet[*inventoriedInHouseApp.SoftwareID]; ok {
+			softwareIDStr := strconv.FormatUint(uint64(*inventoriedInHouseApp.SoftwareID), 10)
+			pushVersion(softwareIDStr, softwareTitleRecord, *s)
+		}
+	}
+
+	if softwareTitleRecord.SoftwareIDList != nil {
+		softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
+		softwareSourceList := strings.Split(*softwareTitleRecord.SoftwareSourceList, ",")
+		softwareVersionList := strings.Split(*softwareTitleRecord.VersionList, ",")
+		softwareBundleIdentifierList := strings.Split(*softwareTitleRecord.BundleIdentifierList, ",")
+
+		for index, softwareIdStr := range softwareIDList {
+			version := &fleet.HostSoftwareInstalledVersion{}
+
+			if softwareId, err := strconv.ParseUint(softwareIdStr, 10, 32); err == nil {
+
+				softwareId := uint(softwareId)
+				if software, ok := a.bySoftwareID[softwareId]; ok {
+					version.Version = softwareVersionList[index]
+					version.BundleIdentifier = softwareBundleIdentifierList[index]
+					version.Source = softwareSourceList[index]
+					version.LastOpenedAt = software.LastOpenedAt
+					version.SoftwareID = softwareId
+					version.SoftwareTitleID = softwareTitleRecord.ID
+
+					version.InstalledPaths = a.installedPathBySoftwareId[softwareId]
+					version.Vulnerabilities = a.vulnerabilitiesBySoftwareID[softwareId]
+
+					if version.Source == "apps" {
+						version.SignatureInformation = a.pathSignatureInformation[softwareId]
+					}
+
+					if storedIndex, ok := a.indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
+						a.deduplicatedList[storedIndex].InstalledVersions = append(a.deduplicatedList[storedIndex].InstalledVersions, version)
+					} else {
+						softwareTitleRecord.InstalledVersions = append(softwareTitleRecord.InstalledVersions, version)
+					}
+				}
+			}
+		}
+	}
+
+	if softwareTitleRecord.VPPAppAdamIDList != nil {
+		vppAppAdamIDList := strings.Split(*softwareTitleRecord.VPPAppAdamIDList, ",")
+		vppAppSelfServiceList := strings.Split(*softwareTitleRecord.VPPAppSelfServiceList, ",")
+		vppAppVersionList := strings.Split(*softwareTitleRecord.VPPAppVersionList, ",")
+		vppAppPlatformList := strings.Split(*softwareTitleRecord.VPPAppPlatformList, ",")
+		vppAppIconURLList := strings.Split(*softwareTitleRecord.VPPAppIconUrlList, ",")
+
+		if storedIndex, ok := a.indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
+			softwareTitleRecord = a.deduplicatedList[storedIndex]
+		}
+
+		for index, vppAppAdamIdStr := range vppAppAdamIDList {
+			if vppAppAdamIdStr != "" {
+				softwareTitle = a.byVPPAdamID[vppAppAdamIdStr]
+				softwareTitleRecord.VPPAppAdamID = &vppAppAdamIdStr
+			}
+
+			vppAppSelfService := vppAppSelfServiceList[index]
+			if vppAppSelfService != "" {
+				if vppAppSelfService == "1" {
+					softwareTitleRecord.VPPAppSelfService = new(true)
+				} else {
+					softwareTitleRecord.VPPAppSelfService = new(false)
+				}
+			}
+
+			vppAppVersion := vppAppVersionList[index]
+			if vppAppVersion != "" {
+				softwareTitleRecord.VPPAppVersion = &vppAppVersion
+			}
+
+			vppAppPlatform := vppAppPlatformList[index]
+			if vppAppPlatform != "" {
+				softwareTitleRecord.VPPAppPlatform = &vppAppPlatform
+			}
+			VPPAppIconURL := vppAppIconURLList[index]
+			if VPPAppIconURL != "" {
+				softwareTitleRecord.VPPAppIconURL = &VPPAppIconURL
+			}
+		}
+	}
+
+	if softwareTitleRecord.InHouseAppIDList != nil {
+		inHouseAppIDList := strings.Split(*softwareTitleRecord.InHouseAppIDList, ",")
+		inHouseAppVersionList := strings.Split(*softwareTitleRecord.InHouseAppVersionList, ",")
+		inHouseAppPlatformList := strings.Split(*softwareTitleRecord.InHouseAppPlatformList, ",")
+		inHouseAppNameList := strings.Split(*softwareTitleRecord.InHouseAppNameList, ",")
+		inHouseAppSelfServiceList := strings.Split(*softwareTitleRecord.InHouseAppSelfServiceList, ",")
+
+		if storedIndex, ok := a.indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
+			softwareTitleRecord = a.deduplicatedList[storedIndex]
+		}
+
+		for index, inHouseAppIDStr := range inHouseAppIDList {
+			inHouseID64, err := strconv.ParseUint(inHouseAppIDStr, 10, 32)
+			if err != nil {
+				continue
+			}
+
+			inHouseID := uint(inHouseID64)
+
+			softwareTitle = a.byInHouseID[inHouseID]
+			softwareTitleRecord.InHouseAppID = &inHouseID
+
+			inHouseAppVersion := inHouseAppVersionList[index]
+			if inHouseAppVersion != "" {
+				softwareTitleRecord.InHouseAppVersion = &inHouseAppVersion
+			}
+
+			inHouseAppPlatform := inHouseAppPlatformList[index]
+			if inHouseAppPlatform != "" {
+				softwareTitleRecord.InHouseAppPlatform = &inHouseAppPlatform
+			}
+			inHouseAppName := inHouseAppNameList[index]
+			if inHouseAppName != "" {
+				softwareTitleRecord.InHouseAppName = &inHouseAppName
+			}
+			inHouseAppSelfService := inHouseAppSelfServiceList[index]
+			if inHouseAppSelfService != "" {
+				if inHouseAppSelfService == "1" {
+					softwareTitleRecord.InHouseAppSelfService = new(true)
+				} else {
+					softwareTitleRecord.InHouseAppSelfService = new(false)
+				}
+			}
+		}
+	}
+
+	if storedIndex, ok := a.indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
+		softwareTitleRecord = a.deduplicatedList[storedIndex]
+	}
+
+	// Merge the data of `software title` into `softwareTitleRecord`
+	// We should try to move as much of these attributes into the `stmt` query
+	if softwareTitle != nil {
+		softwareTitleRecord.Status = softwareTitle.Status
+		softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
+		softwareTitleRecord.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
+		softwareTitleRecord.LastUninstallScriptExecutionID = softwareTitle.LastUninstallScriptExecutionID
+		softwareTitleRecord.LastUninstallUninstalledAt = softwareTitle.LastUninstallUninstalledAt
+		if softwareTitle.PackageSelfService != nil {
+			softwareTitleRecord.PackageSelfService = softwareTitle.PackageSelfService
+		}
+	}
+
+	// promote the package name and version to the proper destination fields
+	if softwareTitleRecord.PackageName != nil {
+		if _, ok := a.filteredBySoftwareTitleID[softwareTitleRecord.ID]; ok {
+			hydrateHostSoftwareRecordFromDb(softwareTitleRecord, softwareTitle)
+		}
+	}
+	// Here and below: populate LastInstall for software packages, VPP apps, and in-house apps
+	// even if installer is out of scope so failed install attempts show the execution ID for viewing details.
+	if softwareTitleRecord.SoftwarePackage != nil && softwareTitleRecord.SoftwarePackage.LastInstall == nil {
+		if softwareTitle != nil && softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
+			softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
+				InstallUUID: *softwareTitle.LastInstallInstallUUID,
+			}
+			if softwareTitle.LastInstallInstalledAt != nil {
+				softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
+			}
+		}
+	}
+	// Populate LastUninstall for software packages even if installer is out of scope.
+	if softwareTitleRecord.SoftwarePackage != nil && softwareTitleRecord.SoftwarePackage.LastUninstall == nil {
+		if softwareTitle != nil && softwareTitle.LastUninstallScriptExecutionID != nil && *softwareTitle.LastUninstallScriptExecutionID != "" {
+			softwareTitleRecord.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
+				ExecutionID: *softwareTitle.LastUninstallScriptExecutionID,
+			}
+			if softwareTitle.LastUninstallUninstalledAt != nil {
+				softwareTitleRecord.SoftwarePackage.LastUninstall.UninstalledAt = *softwareTitle.LastUninstallUninstalledAt
+			}
+		}
+	}
+
+	// This happens when there is a software installed on the host but it is also a vpp record, so we want
+	// to grab the vpp data from the installed vpp record and merge it onto the software record
+	if installedVppRecord, ok := a.hostVPPInstalledTitles[softwareTitleRecord.ID]; ok {
+		softwareTitleRecord.VPPAppAdamID = installedVppRecord.VPPAppAdamID
+		softwareTitleRecord.VPPAppVersion = installedVppRecord.VPPAppVersion
+		softwareTitleRecord.VPPAppPlatform = installedVppRecord.VPPAppPlatform
+		softwareTitleRecord.VPPAppIconURL = installedVppRecord.VPPAppIconURL
+		softwareTitleRecord.VPPAppSelfService = installedVppRecord.VPPAppSelfService
+	}
+	// promote the VPP app id and version to the proper destination fields
+	if softwareTitleRecord.VPPAppAdamID != nil {
+		if _, ok := a.filteredByVPPAdamID[*softwareTitleRecord.VPPAppAdamID]; ok {
+			promoteSoftwareTitleVPPApp(softwareTitleRecord)
+		}
+	}
+	if softwareTitleRecord.AppStoreApp != nil && softwareTitleRecord.AppStoreApp.LastInstall == nil {
+		if softwareTitle != nil && softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
+			softwareTitleRecord.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
+				CommandUUID: *softwareTitle.LastInstallInstallUUID,
+			}
+			if softwareTitle.LastInstallInstalledAt != nil {
+				softwareTitleRecord.AppStoreApp.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
+			}
+		}
+	}
+
+	// This happens when there is a software installed on the host but it is
+	// also an in-house record, so we want to grab the in-house data from the
+	// installed record and merge it onto the software record
+	if installedInHouseRecord, ok := a.hostInHouseInstalledTitles[softwareTitleRecord.ID]; ok {
+		softwareTitleRecord.InHouseAppID = installedInHouseRecord.InHouseAppID
+		softwareTitleRecord.InHouseAppName = installedInHouseRecord.InHouseAppName
+		softwareTitleRecord.InHouseAppVersion = installedInHouseRecord.InHouseAppVersion
+		softwareTitleRecord.InHouseAppPlatform = installedInHouseRecord.InHouseAppPlatform
+		softwareTitleRecord.InHouseAppSelfService = installedInHouseRecord.InHouseAppSelfService
+	}
+	// promote the in-house app id and version to the proper destination fields
+	if softwareTitleRecord.InHouseAppID != nil {
+		if _, ok := a.filteredByInHouseID[*softwareTitleRecord.InHouseAppID]; ok {
+			promoteSoftwareTitleInHouseApp(softwareTitleRecord)
+		}
+	}
+	// N.b., in-house apps use SoftwarePackage struct with CommandUUID.
+	if softwareTitleRecord.SoftwarePackage != nil && softwareTitleRecord.InHouseAppID != nil && softwareTitleRecord.SoftwarePackage.LastInstall == nil {
+		if softwareTitle != nil && softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
+			softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
+				CommandUUID: *softwareTitle.LastInstallInstallUUID,
+			}
+			if softwareTitle.LastInstallInstalledAt != nil {
+				softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
+			}
+		}
+	}
+
+	// NOTE: in-house apps do not support automatic install policies at the moment
+	if policies, ok := a.policiesBySoftwareTitleId[softwareTitleRecord.ID]; ok {
+		switch {
+		case softwareTitleRecord.AppStoreApp != nil:
+			softwareTitleRecord.AppStoreApp.AutomaticInstallPolicies = policies
+		case softwareTitleRecord.SoftwarePackage != nil:
+			softwareTitleRecord.SoftwarePackage.AutomaticInstallPolicies = policies
+		default:
+			ds.logger.WarnContext(ctx, "software title record should have an associated VPP application or software package",
+				"team_id", teamID,
+				"host_id", host.ID,
+				"software_title_id", softwareTitleRecord.ID,
+			)
+		}
+	}
+
+	if icon, ok := a.iconsBySoftwareTitleID[softwareTitleRecord.ID]; ok {
+		softwareTitleRecord.IconUrl = new(icon.IconUrl())
+	}
+
+	if displayName, ok := a.displayNames[softwareTitleRecord.ID]; ok {
+		softwareTitleRecord.DisplayName = displayName
+	}
+
+	if _, ok := a.indexOfSoftwareTitle[softwareTitleRecord.ID]; !ok {
+		a.indexOfSoftwareTitle[softwareTitleRecord.ID] = uint(len(a.deduplicatedList))
+		a.deduplicatedList = append(a.deduplicatedList, softwareTitleRecord)
+	}
+}
+
+// filterOutOfScopeFailedHostSoftwareInstalls removes failed install entries that are not in
+// the osquery inventory and whose installer is out of label scope, so they don't surface
+// as available software on the host. Maps are mutated in place.
+func filterOutOfScopeFailedHostSoftwareInstalls(
+	bySoftwareTitleID map[uint]*hostSoftware,
+	byVPPAdamID map[string]*hostSoftware,
+	byInHouseID map[uint]*hostSoftware,
+	hostInstalledSoftwareTitleSet map[uint]struct{},
+	filteredBySoftwareTitleID map[uint]*hostSoftware,
+	filteredByVPPAdamID map[string]*hostSoftware,
+	filteredByInHouseID map[uint]*hostSoftware,
+) {
+	for titleID, st := range bySoftwareTitleID {
+		if st.InstallerID != nil {
+			if _, isInstalled := hostInstalledSoftwareTitleSet[titleID]; !isInstalled {
+				if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
+					if _, inScope := filteredBySoftwareTitleID[titleID]; !inScope {
+						delete(bySoftwareTitleID, titleID)
+					}
+				}
+			}
+		}
+	}
+	for adamID, st := range byVPPAdamID {
+		if _, isInstalled := hostInstalledSoftwareTitleSet[st.ID]; !isInstalled {
+			if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
+				if _, inScope := filteredByVPPAdamID[adamID]; !inScope {
+					delete(byVPPAdamID, adamID)
+				}
+			}
+		}
+	}
+	for appID, st := range byInHouseID {
+		if _, isInstalled := hostInstalledSoftwareTitleSet[st.ID]; !isInstalled {
+			if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
+				if _, inScope := filteredByInHouseID[appID]; !inScope {
+					delete(byInHouseID, appID)
+				}
+			}
+		}
+	}
+}
+
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	if !opts.VulnerableOnly && (opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit) {
 		return nil, nil, fleet.NewInvalidArgumentError(
@@ -4911,6 +5271,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				st.source,
 				st.extension_for,
 				st.upgrade_code,
+				st.bundle_identifier as title_bundle_identifier,
 				si.id as installer_id,
 				si.self_service as package_self_service,
 				si.filename as package_name,
@@ -5564,39 +5925,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 	}
 
-	// Filter out-of-scope FAILED installs from all app types.
-	// Only remove if not in inventory AND status is failed AND out of label scope.
-	for titleID, st := range bySoftwareTitleID {
-		if st.InstallerID != nil {
-			// Check if software is NOT actually installed (not in osquery inventory)
-			if _, isInstalled := hostInstalledSoftwareTitleSet[titleID]; !isInstalled {
-				// Only remove if install FAILED and installer is out of scope
-				if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
-					if _, inScope := filteredBySoftwareTitleID[titleID]; !inScope {
-						delete(bySoftwareTitleID, titleID)
-					}
-				}
-			}
-		}
-	}
-	for adamID, st := range byVPPAdamID {
-		if _, isInstalled := hostInstalledSoftwareTitleSet[st.ID]; !isInstalled {
-			if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
-				if _, inScope := filteredByVPPAdamID[adamID]; !inScope {
-					delete(byVPPAdamID, adamID)
-				}
-			}
-		}
-	}
-	for appID, st := range byInHouseID {
-		if _, isInstalled := hostInstalledSoftwareTitleSet[st.ID]; !isInstalled {
-			if st.Status != nil && *st.Status == fleet.SoftwareInstallFailed {
-				if _, inScope := filteredByInHouseID[appID]; !inScope {
-					delete(byInHouseID, appID)
-				}
-			}
-		}
-	}
+	filterOutOfScopeFailedHostSoftwareInstalls(
+		bySoftwareTitleID,
+		byVPPAdamID,
+		byInHouseID,
+		hostInstalledSoftwareTitleSet,
+		filteredBySoftwareTitleID,
+		filteredByVPPAdamID,
+		filteredByInHouseID,
+	)
 
 	if opts.OnlyAvailableForInstall {
 		bySoftwareTitleID = filteredBySoftwareTitleID
@@ -5941,6 +6278,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
 					software_titles.upgrade_code AS upgrade_code, -- should be empty or non-empty string for "programs" sourced software, null otherwise
+					software_titles.bundle_identifier AS title_bundle_identifier,
 					software_installers.id AS installer_id,
 					software_installers.self_service AS package_self_service,
 					software_installers.filename AS package_name,
@@ -5969,6 +6307,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source,
 					software_titles.extension_for,
 					software_titles.upgrade_code,
+					software_titles.bundle_identifier,
 					software_installers.id,
 					software_installers.self_service,
 					software_installers.filename,
@@ -5986,6 +6325,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
 					software_titles.upgrade_code AS upgrade_code, -- should always be null for vpp (mac) apps
+					software_titles.bundle_identifier AS title_bundle_identifier,
 					NULL AS installer_id,
 					NULL AS package_self_service,
 					NULL AS package_name,
@@ -6013,7 +6353,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.name,
 					software_titles.source,
 					software_titles.extension_for,
-					software_titles.upgrade_code
+					software_titles.upgrade_code,
+					software_titles.bundle_identifier
 			`)
 		}
 
@@ -6027,6 +6368,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.source AS source,
 					software_titles.extension_for AS extension_for,
 					software_titles.upgrade_code AS upgrade_code,
+					software_titles.bundle_identifier AS title_bundle_identifier,
 					NULL AS installer_id,
 					NULL AS package_self_service,
 					NULL AS package_name,
@@ -6054,7 +6396,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.name,
 					software_titles.source,
 					software_titles.extension_for,
-					software_titles.upgrade_code
+					software_titles.upgrade_code,
+					software_titles.bundle_identifier
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
@@ -6146,294 +6489,30 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
 		}
 
-		indexOfSoftwareTitle := make(map[uint]uint)
-		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
-		for _, softwareTitleRecord := range hostSoftwareList {
-			softwareTitle := bySoftwareTitleID[softwareTitleRecord.ID]
-			inventoriedVPPApp := hostVPPInstalledTitles[softwareTitleRecord.ID]
-			inventoriedInHouseApp := hostInHouseInstalledTitles[softwareTitleRecord.ID]
-
-			if softwareTitle != nil && softwareTitle.SoftwareID != nil {
-				// if we have a software id, that means that this record has been installed on the host,
-				// we should double check the hostInstalledSoftwareSet,
-				// but we want to make sure that software id is present on the InstalledVersions list to be processed
-				if s, ok := hostInstalledSoftwareSet[*softwareTitle.SoftwareID]; ok {
-					softwareIDStr := strconv.FormatUint(uint64(*softwareTitle.SoftwareID), 10)
-					pushVersion(softwareIDStr, softwareTitleRecord, *s)
-				}
-			}
-			if inventoriedVPPApp != nil && inventoriedVPPApp.SoftwareID != nil {
-				// Vpp app installed on the host, we need to push this into the installed versions list as well
-				if s, ok := hostInstalledSoftwareSet[*inventoriedVPPApp.SoftwareID]; ok {
-					softwareIDStr := strconv.FormatUint(uint64(*inventoriedVPPApp.SoftwareID), 10)
-					pushVersion(softwareIDStr, softwareTitleRecord, *s)
-				}
-			}
-			if inventoriedInHouseApp != nil && inventoriedInHouseApp.SoftwareID != nil {
-				// in-house app installed on the host, we need to push this into the installed versions list as well
-				if s, ok := hostInstalledSoftwareSet[*inventoriedInHouseApp.SoftwareID]; ok {
-					softwareIDStr := strconv.FormatUint(uint64(*inventoriedInHouseApp.SoftwareID), 10)
-					pushVersion(softwareIDStr, softwareTitleRecord, *s)
-				}
-			}
-
-			if softwareTitleRecord.SoftwareIDList != nil {
-				softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
-				softwareSourceList := strings.Split(*softwareTitleRecord.SoftwareSourceList, ",")
-				softwareVersionList := strings.Split(*softwareTitleRecord.VersionList, ",")
-				softwareBundleIdentifierList := strings.Split(*softwareTitleRecord.BundleIdentifierList, ",")
-
-				for index, softwareIdStr := range softwareIDList {
-					version := &fleet.HostSoftwareInstalledVersion{}
-
-					if softwareId, err := strconv.ParseUint(softwareIdStr, 10, 32); err == nil {
-
-						softwareId := uint(softwareId)
-						if software, ok := bySoftwareID[softwareId]; ok {
-							version.Version = softwareVersionList[index]
-							version.BundleIdentifier = softwareBundleIdentifierList[index]
-							version.Source = softwareSourceList[index]
-							version.LastOpenedAt = software.LastOpenedAt
-							version.SoftwareID = softwareId
-							version.SoftwareTitleID = softwareTitleRecord.ID
-
-							version.InstalledPaths = installedPathBySoftwareId[softwareId]
-							version.Vulnerabilities = vulnerabilitiesBySoftwareID[softwareId]
-
-							if version.Source == "apps" {
-								version.SignatureInformation = pathSignatureInformation[softwareId]
-							}
-
-							if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
-								deduplicatedList[storedIndex].InstalledVersions = append(deduplicatedList[storedIndex].InstalledVersions, version)
-							} else {
-								softwareTitleRecord.InstalledVersions = append(softwareTitleRecord.InstalledVersions, version)
-							}
-						}
-					}
-				}
-			}
-
-			if softwareTitleRecord.VPPAppAdamIDList != nil {
-				vppAppAdamIDList := strings.Split(*softwareTitleRecord.VPPAppAdamIDList, ",")
-				vppAppSelfServiceList := strings.Split(*softwareTitleRecord.VPPAppSelfServiceList, ",")
-				vppAppVersionList := strings.Split(*softwareTitleRecord.VPPAppVersionList, ",")
-				vppAppPlatformList := strings.Split(*softwareTitleRecord.VPPAppPlatformList, ",")
-				vppAppIconURLList := strings.Split(*softwareTitleRecord.VPPAppIconUrlList, ",")
-
-				if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
-					softwareTitleRecord = deduplicatedList[storedIndex]
-				}
-
-				for index, vppAppAdamIdStr := range vppAppAdamIDList {
-					if vppAppAdamIdStr != "" {
-						softwareTitle = byVPPAdamID[vppAppAdamIdStr]
-						softwareTitleRecord.VPPAppAdamID = &vppAppAdamIdStr
-					}
-
-					vppAppSelfService := vppAppSelfServiceList[index]
-					if vppAppSelfService != "" {
-						if vppAppSelfService == "1" {
-							softwareTitleRecord.VPPAppSelfService = ptr.Bool(true)
-						} else {
-							softwareTitleRecord.VPPAppSelfService = ptr.Bool(false)
-						}
-					}
-
-					vppAppVersion := vppAppVersionList[index]
-					if vppAppVersion != "" {
-						softwareTitleRecord.VPPAppVersion = &vppAppVersion
-					}
-
-					vppAppPlatform := vppAppPlatformList[index]
-					if vppAppPlatform != "" {
-						softwareTitleRecord.VPPAppPlatform = &vppAppPlatform
-					}
-					VPPAppIconURL := vppAppIconURLList[index]
-					if VPPAppIconURL != "" {
-						softwareTitleRecord.VPPAppIconURL = &VPPAppIconURL
-					}
-				}
-			}
-
-			if softwareTitleRecord.InHouseAppIDList != nil {
-				inHouseAppIDList := strings.Split(*softwareTitleRecord.InHouseAppIDList, ",")
-				inHouseAppVersionList := strings.Split(*softwareTitleRecord.InHouseAppVersionList, ",")
-				inHouseAppPlatformList := strings.Split(*softwareTitleRecord.InHouseAppPlatformList, ",")
-				inHouseAppNameList := strings.Split(*softwareTitleRecord.InHouseAppNameList, ",")
-				inHouseAppSelfServiceList := strings.Split(*softwareTitleRecord.InHouseAppSelfServiceList, ",")
-
-				if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
-					softwareTitleRecord = deduplicatedList[storedIndex]
-				}
-
-				for index, inHouseAppIDStr := range inHouseAppIDList {
-					inHouseID64, err := strconv.ParseUint(inHouseAppIDStr, 10, 32)
-					if err != nil {
-						continue
-					}
-
-					inHouseID := uint(inHouseID64)
-
-					softwareTitle = byInHouseID[inHouseID]
-					softwareTitleRecord.InHouseAppID = &inHouseID
-
-					inHouseAppVersion := inHouseAppVersionList[index]
-					if inHouseAppVersion != "" {
-						softwareTitleRecord.InHouseAppVersion = &inHouseAppVersion
-					}
-
-					inHouseAppPlatform := inHouseAppPlatformList[index]
-					if inHouseAppPlatform != "" {
-						softwareTitleRecord.InHouseAppPlatform = &inHouseAppPlatform
-					}
-					inHouseAppName := inHouseAppNameList[index]
-					if inHouseAppName != "" {
-						softwareTitleRecord.InHouseAppName = &inHouseAppName
-					}
-					inHouseAppSelfService := inHouseAppSelfServiceList[index]
-					if inHouseAppSelfService != "" {
-						if inHouseAppSelfService == "1" {
-							softwareTitleRecord.InHouseAppSelfService = ptr.Bool(true)
-						} else {
-							softwareTitleRecord.InHouseAppSelfService = ptr.Bool(false)
-						}
-					}
-				}
-			}
-
-			if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
-				softwareTitleRecord = deduplicatedList[storedIndex]
-			}
-
-			// Merge the data of `software title` into `softwareTitleRecord`
-			// We should try to move as much of these attributes into the `stmt` query
-			if softwareTitle != nil {
-				softwareTitleRecord.Status = softwareTitle.Status
-				softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
-				softwareTitleRecord.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
-				softwareTitleRecord.LastUninstallScriptExecutionID = softwareTitle.LastUninstallScriptExecutionID
-				softwareTitleRecord.LastUninstallUninstalledAt = softwareTitle.LastUninstallUninstalledAt
-				if softwareTitle.PackageSelfService != nil {
-					softwareTitleRecord.PackageSelfService = softwareTitle.PackageSelfService
-				}
-			}
-
-			// promote the package name and version to the proper destination fields
-			if softwareTitleRecord.PackageName != nil {
-				if _, ok := filteredBySoftwareTitleID[softwareTitleRecord.ID]; ok {
-					hydrateHostSoftwareRecordFromDb(softwareTitleRecord, softwareTitle)
-				}
-			}
-			// Here and below: populate LastInstall for software packages, VPP apps, and in-house apps
-			// even if installer is out of scope so failed install attempts show the execution ID for viewing details.
-			if softwareTitleRecord.SoftwarePackage != nil && softwareTitleRecord.SoftwarePackage.LastInstall == nil {
-				if softwareTitle != nil && softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
-					softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
-						InstallUUID: *softwareTitle.LastInstallInstallUUID,
-					}
-					if softwareTitle.LastInstallInstalledAt != nil {
-						softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
-					}
-				}
-			}
-			// Populate LastUninstall for software packages even if installer is out of scope.
-			if softwareTitleRecord.SoftwarePackage != nil && softwareTitleRecord.SoftwarePackage.LastUninstall == nil {
-				if softwareTitle != nil && softwareTitle.LastUninstallScriptExecutionID != nil && *softwareTitle.LastUninstallScriptExecutionID != "" {
-					softwareTitleRecord.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
-						ExecutionID: *softwareTitle.LastUninstallScriptExecutionID,
-					}
-					if softwareTitle.LastUninstallUninstalledAt != nil {
-						softwareTitleRecord.SoftwarePackage.LastUninstall.UninstalledAt = *softwareTitle.LastUninstallUninstalledAt
-					}
-				}
-			}
-
-			// This happens when there is a software installed on the host but it is also a vpp record, so we want
-			// to grab the vpp data from the installed vpp record and merge it onto the software record
-			if installedVppRecord, ok := hostVPPInstalledTitles[softwareTitleRecord.ID]; ok {
-				softwareTitleRecord.VPPAppAdamID = installedVppRecord.VPPAppAdamID
-				softwareTitleRecord.VPPAppVersion = installedVppRecord.VPPAppVersion
-				softwareTitleRecord.VPPAppPlatform = installedVppRecord.VPPAppPlatform
-				softwareTitleRecord.VPPAppIconURL = installedVppRecord.VPPAppIconURL
-				softwareTitleRecord.VPPAppSelfService = installedVppRecord.VPPAppSelfService
-			}
-			// promote the VPP app id and version to the proper destination fields
-			if softwareTitleRecord.VPPAppAdamID != nil {
-				if _, ok := filteredByVPPAdamID[*softwareTitleRecord.VPPAppAdamID]; ok {
-					promoteSoftwareTitleVPPApp(softwareTitleRecord)
-				}
-			}
-			if softwareTitleRecord.AppStoreApp != nil && softwareTitleRecord.AppStoreApp.LastInstall == nil {
-				if softwareTitle != nil && softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
-					softwareTitleRecord.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
-						CommandUUID: *softwareTitle.LastInstallInstallUUID,
-					}
-					if softwareTitle.LastInstallInstalledAt != nil {
-						softwareTitleRecord.AppStoreApp.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
-					}
-				}
-			}
-
-			// This happens when there is a software installed on the host but it is
-			// also an in-house record, so we want to grab the in-house data from the
-			// installed record and merge it onto the software record
-			if installedInHouseRecord, ok := hostInHouseInstalledTitles[softwareTitleRecord.ID]; ok {
-				softwareTitleRecord.InHouseAppID = installedInHouseRecord.InHouseAppID
-				softwareTitleRecord.InHouseAppName = installedInHouseRecord.InHouseAppName
-				softwareTitleRecord.InHouseAppVersion = installedInHouseRecord.InHouseAppVersion
-				softwareTitleRecord.InHouseAppPlatform = installedInHouseRecord.InHouseAppPlatform
-				softwareTitleRecord.InHouseAppSelfService = installedInHouseRecord.InHouseAppSelfService
-			}
-			// promote the in-house app id and version to the proper destination fields
-			if softwareTitleRecord.InHouseAppID != nil {
-				if _, ok := filteredByInHouseID[*softwareTitleRecord.InHouseAppID]; ok {
-					promoteSoftwareTitleInHouseApp(softwareTitleRecord)
-				}
-			}
-			// N.b., in-house apps use SoftwarePackage struct with CommandUUID.
-			if softwareTitleRecord.SoftwarePackage != nil && softwareTitleRecord.InHouseAppID != nil && softwareTitleRecord.SoftwarePackage.LastInstall == nil {
-				if softwareTitle != nil && softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
-					softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
-						CommandUUID: *softwareTitle.LastInstallInstallUUID,
-					}
-					if softwareTitle.LastInstallInstalledAt != nil {
-						softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
-					}
-				}
-			}
-
-			// NOTE: in-house apps do not support automatic install policies at the moment
-			if policies, ok := policiesBySoftwareTitleId[softwareTitleRecord.ID]; ok {
-				switch {
-				case softwareTitleRecord.AppStoreApp != nil:
-					softwareTitleRecord.AppStoreApp.AutomaticInstallPolicies = policies
-				case softwareTitleRecord.SoftwarePackage != nil:
-					softwareTitleRecord.SoftwarePackage.AutomaticInstallPolicies = policies
-				default:
-					ds.logger.WarnContext(ctx, "software title record should have an associated VPP application or software package",
-						"team_id", teamID,
-						"host_id", host.ID,
-						"software_title_id", softwareTitleRecord.ID,
-					)
-				}
-			}
-
-			if icon, ok := iconsBySoftwareTitleID[softwareTitleRecord.ID]; ok {
-				softwareTitleRecord.IconUrl = ptr.String(icon.IconUrl())
-			}
-
-			if displayName, ok := displayNames[softwareTitleRecord.ID]; ok {
-				softwareTitleRecord.DisplayName = displayName
-			}
-
-			if _, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; !ok {
-				indexOfSoftwareTitle[softwareTitleRecord.ID] = uint(len(deduplicatedList))
-				deduplicatedList = append(deduplicatedList, softwareTitleRecord)
-			}
+		assembler := &hostSoftwareTitleAssembler{
+			bySoftwareID:                bySoftwareID,
+			bySoftwareTitleID:           bySoftwareTitleID,
+			byVPPAdamID:                 byVPPAdamID,
+			byInHouseID:                 byInHouseID,
+			hostVPPInstalledTitles:      hostVPPInstalledTitles,
+			hostInHouseInstalledTitles:  hostInHouseInstalledTitles,
+			hostInstalledSoftwareSet:    hostInstalledSoftwareSet,
+			filteredBySoftwareTitleID:   filteredBySoftwareTitleID,
+			filteredByVPPAdamID:         filteredByVPPAdamID,
+			filteredByInHouseID:         filteredByInHouseID,
+			installedPathBySoftwareId:   installedPathBySoftwareId,
+			pathSignatureInformation:    pathSignatureInformation,
+			vulnerabilitiesBySoftwareID: vulnerabilitiesBySoftwareID,
+			policiesBySoftwareTitleId:   policiesBySoftwareTitleId,
+			iconsBySoftwareTitleID:      iconsBySoftwareTitleID,
+			displayNames:                displayNames,
+			indexOfSoftwareTitle:        make(map[uint]uint),
+			deduplicatedList:            make([]*hostSoftware, 0, len(hostSoftwareList)),
 		}
-
-		hostSoftwareList = deduplicatedList
+		for _, softwareTitleRecord := range hostSoftwareList {
+			assembler.addRecord(ctx, ds, host, teamID, softwareTitleRecord)
+		}
+		hostSoftwareList = assembler.deduplicatedList
 	}
 
 	perPage := opts.ListOptions.PerPage
@@ -6454,6 +6533,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	software := make([]*fleet.HostSoftwareWithInstaller, 0, len(hostSoftwareList))
 	for _, hs := range hostSoftwareList {
+		// Populate top-level bundle_identifier from the software_titles table
+		// (available even when installed_versions is empty), falling back to
+		// the first installed version for backwards compatibility.
+		switch {
+		case hs.TitleBundleIdentifier != nil && *hs.TitleBundleIdentifier != "":
+			hs.HostSoftwareWithInstaller.BundleIdentifier = *hs.TitleBundleIdentifier
+		case len(hs.InstalledVersions) > 0 && hs.InstalledVersions[0].BundleIdentifier != "":
+			hs.HostSoftwareWithInstaller.BundleIdentifier = hs.InstalledVersions[0].BundleIdentifier
+		}
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 

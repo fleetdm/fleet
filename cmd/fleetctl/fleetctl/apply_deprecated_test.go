@@ -605,6 +605,7 @@ func TestApplyMacosSetupDeprecatedKeys(t *testing.T) {
 		license := &fleet.LicenseInfo{Tier: tier, Expiration: time.Now().Add(24 * time.Hour)}
 		depStorage := SetupMockDEPStorageAndMockDEPServer(t)
 		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, DEPStorage: depStorage})
+		mockEmptyTeamSoftware(ds)
 
 		tm1 := &fleet.Team{ID: 1, Name: "tm1", Config: fleet.TeamConfig{
 			Features: fleet.Features{
@@ -902,7 +903,7 @@ spec:
 
 		// team macos setup assistant
 		name = writeTmpYml(t, fmt.Sprintf(team1Spec, "", emptyMacosSetup))
-		runAppCheckErr(t, []string{"apply", "-f", name}, `applying teams: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -928,7 +929,7 @@ spec:
 		assert.False(t, ds.SaveTeamFuncInvoked)
 
 		name = writeTmpYml(t, fmt.Sprintf(team1SpecEnableEndUserAuth, "true"))
-		runAppCheckErr(t, []string{"apply", "-f", name}, `applying teams: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `applying fleets: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)

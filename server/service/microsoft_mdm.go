@@ -957,6 +957,57 @@ func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet
 	}, nil
 }
 
+// hasAuthorizedAzureAudience reports whether any audience value in an Entra-issued JWT is authorized for Windows
+// automatic enrollment. An audience is authorized if either:
+//   - it equals a configured Entra application client ID (v2 access tokens, whose `aud` is the app's client ID, a
+//     GUID), compared case-insensitively after trimming
+//   - it parses as a URL whose host (host:port) matches serverHost (v1 access tokens, whose `aud` is the Fleet server URL).
+//
+// The client-ID (v2) path is additive: it does not change the v1 server-URL behavior. An audience that is neither a
+// known client ID nor a URL is ignored, so a token with multiple audiences is authorized if any one of them matches.
+// serverHost is the expected host including any port; callers pass url.URL.Host.
+func hasAuthorizedAzureAudience(audiences []string, serverHost string, clientIDs []string) bool {
+	clientIDSet := make(map[string]struct{}, len(clientIDs))
+	for _, id := range clientIDs {
+		clientIDSet[strings.ToLower(strings.TrimSpace(id))] = struct{}{}
+	}
+	for _, aud := range audiences {
+		// v2 token: `aud` is the application client ID (a GUID).
+		if _, ok := clientIDSet[strings.ToLower(strings.TrimSpace(aud))]; ok {
+			return true
+		}
+		// v1 token: `aud` is a URL whose host must match the Fleet server URL's. The audience may have multiple values
+		// and not everything in it will be a URL, and that's OK. Compare the full host (host:port) case-insensitively:
+		// per RFC 3986 the host is case-insensitive, but the port must match so a token for a different port on the same
+		// hostname is not authorized.
+		audURL, err := url.Parse(aud)
+		if err != nil {
+			continue
+		}
+		if audURL.Host != "" && strings.EqualFold(audURL.Host, serverHost) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasAuthorizedAzureTenant reports whether the token's tenant (the `tid` claim) matches one of the configured Entra
+// tenant IDs. The comparison is case-insensitive after trimming: Entra emits `tid` in lower-case, but validation
+// accepts configured tenant IDs in either case (it does not normalize them), so a tenant ID pasted with upper-case
+// hex digits must still authorize enrollment instead of silently failing to match the lower-cased claim.
+func hasAuthorizedAzureTenant(tenantIDs []string, tokenTenant string) bool {
+	tokenTenant = strings.TrimSpace(tokenTenant)
+	if tokenTenant == "" {
+		return false
+	}
+	for _, id := range tenantIDs {
+		if strings.EqualFold(strings.TrimSpace(id), tokenTenant) {
+			return true
+		}
+	}
+	return false
+}
+
 // authBinarySecurityToken checks if the provided token is valid. For programmatic enrollment, it
 // returns the orbit node key and host uuid. For automatic enrollment, it returns only the UPN (the
 // host uuid will be an empty string).
@@ -1044,27 +1095,16 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			return "", "", 0, fmt.Errorf("binary security token claim failed: %v", err)
 		}
 
-		hasExpectedAudience := false
-		for _, aud := range tokenData.Audience {
-			audURL, err := url.Parse(aud)
-			// The Audience may have multiple values and not everything in the aud will be a URL and that's OK
-			if err != nil {
-				continue
-			}
-			if audURL.Host == expectedURLParsed.Host {
-				hasExpectedAudience = true
-				break
-			}
-		}
-		if !hasExpectedAudience {
-			// Log bad audiences here for debugging
+		if !hasAuthorizedAzureAudience(tokenData.Audience, expectedURLParsed.Host, appConfig.MDM.WindowsEntraClientIDs.Value) {
+			// Log bad audiences here for debugging.
 			svc.logger.ErrorContext(ctx, "unexpected token audience in AzureAD Binary Security Token",
 				"expected_host", expectedURLParsed.Host,
+				"configured_client_ids", strings.Join(appConfig.MDM.WindowsEntraClientIDs.Value, ","),
 				"token_audiences", strings.Join(tokenData.Audience, ","),
 			)
 			return "", "", 0, ctxerr.Errorf(ctx, "token audience is not authorized")
 		}
-		if !slices.Contains(entraTenantIDs, tokenData.TenantID) {
+		if !hasAuthorizedAzureTenant(entraTenantIDs, tokenData.TenantID) {
 			svc.logger.ErrorContext(ctx, "unexpected token tenant in AzureAD Binary Security Token",
 				"token_tenant", tokenData.TenantID,
 			)
@@ -1721,6 +1761,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 					if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeWipeFailedHost{
 						HostID:          host.ID,
 						HostDisplayName: host.DisplayName(),
+						HostPlatform:    host.Platform,
 					}); err != nil {
 						svc.logger.WarnContext(ctx, "failed to create wipe_failed_host activity",
 							"host_id", host.ID, "err", err)
@@ -2819,6 +2860,38 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 			// then we found the host, so use the data from there for the activity
 			displayName = hosts[0].DisplayName()
 			serial = hosts[0].HardwareSerial
+
+			// Flip host_mdm.enrolled = 1 immediately so the Windows profile reconciler selects this host. This covers
+			// fresh enrollment, ESP/OOBE, and the post-disable re-enable cycle. The values written here are the same
+			// shape directIngestMDMWindows writes: discovery URL as server_url, fleet.WellKnownMDMFleet as the name.
+			// isServer is best-effort false (osquery corrects it later from installation_type); installed_from_dep
+			// mirrors osquery's "automatic" semantics (Azure AD + OOBE = automatic). On failure, we log and continue:
+			// osquery will reconcile the row on the next check-in.
+			appCfg, acErr := svc.ds.AppConfig(ctx)
+			if acErr != nil {
+				svc.logger.WarnContext(ctx, "loading app config for host_mdm sync after Windows MDM enrollment", "err", acErr)
+				ctxerr.Handle(ctx, acErr)
+			} else {
+				discoveryURL, dErr := microsoft_mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
+				if dErr != nil {
+					svc.logger.WarnContext(ctx, "resolving Windows MDM discovery URL after enrollment", "err", dErr)
+					ctxerr.Handle(ctx, dErr)
+				} else {
+					installedFromDep := enrollType == fleet.WindowsMDMEnrollTypeAutomatic && isInOOBE
+					if err := svc.ds.SetOrUpdateMDMData(ctx, hosts[0].ID,
+						false, // is_server: osquery corrects later from installation_type
+						true,  // enrolled
+						discoveryURL,
+						installedFromDep,
+						fleet.WellKnownMDMFleet,
+						"",    // fleet_enrollment_ref: empty for Windows
+						false, // is_personal_enrollment: always false for Windows
+					); err != nil {
+						svc.logger.WarnContext(ctx, "updating host_mdm.enrolled after Windows MDM enrollment", "err", err)
+						ctxerr.Handle(ctx, err)
+					}
+				}
+			}
 		}
 
 	}

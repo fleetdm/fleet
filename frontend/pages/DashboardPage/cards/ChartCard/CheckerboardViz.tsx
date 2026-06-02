@@ -63,12 +63,12 @@ const CheckerboardViz = ({
 
   let getColorLevel;
   if (!relativeScale) {
-    getColorLevel = (percentage: number): number => {
-      if (percentage === 0) return 0;
-      if (percentage <= 20) return 1;
-      if (percentage <= 40) return 2;
-      if (percentage <= 60) return 3;
-      if (percentage <= 80) return 4;
+    getColorLevel = (cell: ICellData): number => {
+      if (cell.percentage === 0) return 0;
+      if (cell.percentage <= 20) return 1;
+      if (cell.percentage <= 40) return 2;
+      if (cell.percentage <= 60) return 3;
+      if (cell.percentage <= 80) return 4;
       return 5;
     };
   } else {
@@ -78,14 +78,14 @@ const CheckerboardViz = ({
     // Exclude 0% points from the min/max calculation — they represent
     // "no data" cells (level-0) and would otherwise compress the ramp
     // toward zero whenever the grid contains empty slots.
-    const nonZeroPercs = data.map((d) => d.percentage).filter((p) => p > 0);
-    const minPerc = nonZeroPercs.length ? Math.min(...nonZeroPercs) : 0;
-    const maxPerc = nonZeroPercs.length ? Math.max(...nonZeroPercs) : 0;
-    const range = maxPerc - minPerc || 1; // avoid divide-by-zero
+    const nonZeroValues = data.map((d) => d.value).filter((p) => p > 0);
+    const minVal = nonZeroValues.length ? Math.min(...nonZeroValues) : 0;
+    const maxVal = nonZeroValues.length ? Math.max(...nonZeroValues) : 0;
+    const range = maxVal - minVal || 1; // avoid divide-by-zero
 
-    getColorLevel = (percentage: number): number => {
-      if (percentage === 0) return 0;
-      const scaled = ((percentage - minPerc) / range) * 5;
+    getColorLevel = (cell: ICellData): number => {
+      if (cell.value === 0) return 0;
+      const scaled = ((cell.value - minVal) / range) * 5;
       // Level zero is reserved for real 0, so ensure we return
       // something between 1 and 5.
       return Math.min(5, Math.ceil(scaled)) || 1;
@@ -323,7 +323,7 @@ const CheckerboardViz = ({
             {grid.map((cell) => {
               const col = is24h ? cell.hourRow : cell.dayIndex;
               const row = is24h ? 0 : cell.hourRow;
-              const level = getColorLevel(cell.percentage);
+              const level = getColorLevel(cell);
               // Filled cells have a bg-colored 1px stroke that visually blends
               // away. The level-0 (empty) cell uses a colored stroke instead,
               // so without insetting it would look 1px larger than filled

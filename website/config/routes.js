@@ -680,6 +680,22 @@ module.exports.routes = {
     }
   },
 
+  'GET /lp/android-mdm': {
+    action: 'landing-pages/view-android-mdm',
+    locals: {
+      pageTitleForMeta: 'Android MDM: open source Android device management at enterprise scale',
+      pageDescriptionForMeta: 'Fleet is open source Android MDM for modern IT and security teams. Enroll, configure, and secure Android phones and tablets with Android Enterprise, Work Profile, managed Google Play, and GitOps. Self-hosted or Fleet-hosted.',
+    }
+  },
+
+  'GET /lp/windows-mdm': {
+    action: 'landing-pages/view-windows-mdm',
+    locals: {
+      pageTitleForMeta: 'Windows MDM: open source Windows device management at enterprise scale',
+      pageDescriptionForMeta: 'Fleet is open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with Microsoft Entra ID, Windows Autopilot, BitLocker, and GitOps. Self-hosted or Fleet-hosted.',
+    }
+  },
+
   'GET /lp/on-premise': {
     action: 'landing-pages/view-on-premise',
     locals: {
@@ -1322,7 +1338,7 @@ module.exports.routes = {
   'GET /learn-more-about/setup-experience/run-script': '/guides/setup-experience',
   'GET /learn-more-about/setup-experience/end-user-authentication': '/guides/setup-experience',
   'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/setup-experience',
-  'GET /learn-more-about/built-in-variables': '/docs/configuration/yaml-files#variables',
+  'GET /learn-more-about/built-in-variables': '/guides/fleet-variables',
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
   'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
   'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id',
@@ -1332,7 +1348,8 @@ module.exports.routes = {
   'GET /learn-more-about/supported-fleet-maintained-app-slugs': 'https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json',
   'GET /learn-more-about/alternative-browser-host': '/guides/enroll-hosts#alternative-browser-host',
   'GET /learn-more-about/deploy-self-service-to-ios': '/guides/software-self-service#deploy-self-service-on-ios-and-ipados',
-  'GET /learn-more-about/android-software-managed-configuration': '/guides/install-app-store-apps#configuration',
+  'GET /learn-more-about/android-software-managed-configuration': '/guides/install-app-store-apps#managed-configuration',
+  'GET /learn-more-about/ios-software-managed-configuration': '/guides/install-app-store-apps#ios-and-ipados-managed-configuration',
   'GET /learn-more-about/microsoft-entra-tenant-id': 'https://entra.microsoft.com/#home',
   'GET /learn-more-about/recovery-lock-passwords': 'https://developer.apple.com/documentation/devicemanagement/set-recovery-lock-command',
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
@@ -1405,6 +1422,7 @@ module.exports.routes = {
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices': { action: 'android-proxy/get-android-devices' },
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false },
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false },
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId::issueCommand': { action: 'android-proxy/issue-command-on-android-device', csrf: false },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/applications/:applicationId': { action: 'android-proxy/get-enterprise-applications', skipAssets: false },
   'POST /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId::googleAction': { action: 'android-proxy/modify-enterprise-app-policy', csrf: false, skipAssets: false },
   'POST /api/android/v1/enterprises/:androidEnterpriseId/webApps': { action: 'android-proxy/create-enterprise-webapp', csrf: false, skipAssets: false },

@@ -773,6 +773,23 @@ This activity contains the following fields:
 }
 ```
 
+## retrieved_host_my_device_url
+
+Generated when a global admin retrieves a host's "My device" page URL (a credential-bearing link that opens the end user's device page). Fleet logs this for every retrieval, including reuse of an existing token.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 ## created_macos_profile
 
 Generated when a user adds a new macOS profile to a team (or no team).
@@ -1508,6 +1525,7 @@ This activity contains the following fields:
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
 - "command_uuid": ID of the in-house app installation.
 - "from_setup_experience": Whether the installation was triggered as part of the setup experience.
+- "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
 
 
 #### Example
@@ -1712,6 +1730,7 @@ This activity contains the following fields:
 - "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 #### Example
 
@@ -1788,6 +1807,7 @@ This activity contains the following fields:
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
+- "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
 
 #### Example
 
@@ -1860,6 +1880,7 @@ This activity contains the following fields:
 - "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
 - "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
 - "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
+- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 
 #### Example
@@ -2562,6 +2583,23 @@ This activity contains the following fields:
 }
 ```
 
+## rotated_managed_local_account_password
+
+Generated when a managed local account password is rotated.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+- "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
 ## enabled_managed_local_account
 
 Generated when a user turns on create managed local account for a fleet (or unassigned hosts).
@@ -2604,10 +2642,94 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 
+#### Example
+
 ```json
 {
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+	"host_id": 123,
+	"host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## failed_enrollment_profile_renewal
+
+Generated when an enrollment profile renewal (SCEP or ACME) has failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "command_uuid": Command ID we display details for.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "PWNED-VM-123",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+}
+```
+
+## created_label
+
+Generated when creating labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the new label.
+- "label_name": the name of the new label.
+- "fleet_id": the ID of the fleet the label belongs to.
+- "fleet_name": the name of the fleet the label belongs to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
+}
+```
+
+## edited_label
+
+Generated when editing labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the edited label.
+- "label_name": the name of the edited label.
+- "fleet_id": the ID of the fleet the label belongs to.
+- "fleet_name": the name of the fleet the label belongs to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
+}
+```
+
+## deleted_label
+
+Generated when deleting labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the deleted label.
+- "label_name": the name of the deleted label.
+- "fleet_id": the ID of the fleet the label belonged to.
+- "fleet_name": the name of the fleet the label belonged to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
 }
 ```
 

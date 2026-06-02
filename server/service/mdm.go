@@ -3748,6 +3748,7 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 
 	if err := svc.NewActivity(
 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeMDMUnenrolled{
+			HostID:           host.ID,
 			HostSerial:       host.HardwareSerial,
 			HostDisplayName:  host.DisplayName(),
 			InstalledFromDEP: installedFromDEP,
@@ -3762,20 +3763,13 @@ type clearPasscodeRequest struct {
 	HostID uint `url:"id"`
 }
 
-type clearPasscodeResponse struct {
-	*fleet.CommandEnqueueResult
-	Err error `json:"error,omitempty"`
-}
-
-func (r clearPasscodeResponse) Error() error { return r.Err }
-
 func clearPasscodeEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*clearPasscodeRequest)
 	res, err := svc.ClearPasscode(ctx, req.HostID)
 	if err != nil {
-		return clearPasscodeResponse{Err: err}, nil
+		return fleet.ClearPasscodeResponse{Err: err}, nil
 	}
-	return clearPasscodeResponse{CommandEnqueueResult: res}, nil
+	return fleet.ClearPasscodeResponse{CommandEnqueueResult: res}, nil
 }
 
 func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {

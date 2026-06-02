@@ -326,6 +326,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "enable_turn_on_windows_mdm_manually not found")
 				_, ok = gitops.Controls.WindowsEntraTenantIDs.([]any)
 				assert.True(t, ok, "windows_entra_tenant_ids not found")
+				_, ok = gitops.Controls.WindowsEntraClientIDs.([]any)
+				assert.True(t, ok, "windows_entra_client_ids not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
 				_, ok = gitops.Controls.AppleRequireHardwareAttestation.(bool)
@@ -4095,7 +4097,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
 		require.Nil(t, errs)
-		assert.Equal(t, "zoom/darwin", policy.FleetMaintainedAppSlug)
+		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
 	})
 
 	t.Run("fleet_maintained_app_slug not in FMAs", func(t *testing.T) {
@@ -4151,6 +4153,52 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		errs := parsePolicyInstallSoftware(".", nil, policy, nil, nil, nil)
 		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), "install_software can only be set on team policies")
+	})
+
+	t.Run("patch policy with the same fleet_maintained_app_slug", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec: fleet.PolicySpec{
+					Name:                   "fma policy",
+					Type:                   fleet.PolicyTypePatch,
+					FleetMaintainedAppSlug: "zoom/darwin",
+				},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Nil(t, errs)
+		assert.Equal(t, "zoom/darwin", policy.FleetMaintainedAppSlug)
+		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
+	})
+
+	t.Run("patch policy with different fleet_maintained_app_slug", func(t *testing.T) {
+		t.Parallel()
+
+		var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+		installSoftware.Other = &PolicyInstallSoftware{FleetMaintainedAppSlug: "zoom/darwin"}
+
+		policy := &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec: fleet.PolicySpec{
+					Name:                   "fma policy",
+					Type:                   fleet.PolicyTypePatch,
+					FleetMaintainedAppSlug: "1password/darwin",
+				},
+				InstallSoftware: installSoftware,
+			},
+		}
+		fmasBySlug := map[string]struct{}{"zoom/darwin": {}, "1password/darwin": {}}
+		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
+		require.Nil(t, errs)
+		assert.Equal(t, "1password/darwin", policy.FleetMaintainedAppSlug)
+		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
 	})
 }
 

@@ -14,8 +14,8 @@ before:
     - make deps
     - make generate
 
-gomod:
-  proxy: true
+# gomod:
+#   proxy: true
 
 builds:
   - id: fleet
@@ -71,5 +71,7 @@ dockers:
       - fleet
       - fleetctl
     dockerfile: tools/fleet-docker/Dockerfile
+    build_flag_templates:
+      - "--build-arg=FLEET_VERSION={{.Version}}"
     image_templates:
       - 'fleetdm/fleet:{{ envOrDefault "DOCKER_IMAGE_TAG" .Branch }}'

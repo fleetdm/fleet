@@ -52,11 +52,21 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 
 	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
 	query := `
-		SELECT name, install_location, version 
+		SELECT name, install_location, version, publisher
 		FROM programs
 		WHERE
 		LOWER(name) LIKE LOWER('%` + appName + `%')
 	`
+	// The catalog name can differ from the registry DisplayName (e.g. catalog
+	// "Amazon Corretto 25" vs DisplayName "Amazon Corretto (x64)"). The
+	// unique_identifier is the value that should match programs.name, so search
+	// on it as well.
+	if uniqueIdentifier != "" && uniqueIdentifier != appName {
+		if err := validateSqlInput(uniqueIdentifier); err != nil {
+			return false, fmt.Errorf("Invalid character found in uniqueIdentifier: '%w'. Not executing query...", err)
+		}
+		query += `	OR LOWER(name) LIKE LOWER('%` + uniqueIdentifier + `%')`
+	}
 	if appPath != "" {
 		query += fmt.Sprintf(" OR install_location LIKE '%%%s%%'", appPath)
 	}
@@ -71,6 +81,7 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 		Name            string `json:"name"`
 		InstallLocation string `json:"install_location"`
 		Version         string `json:"version"`
+		Publisher       string `json:"publisher"`
 	}
 	var results []AppResult
 	if err := json.Unmarshal(output, &results); err != nil {
@@ -80,10 +91,14 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueIdentifi
 
 	if len(results) > 0 {
 		for _, result := range results {
+			// Vendor is populated so name/version sanitizers that key off the
+			// publisher (e.g. JetBrains build-number normalization in
+			// MutateSoftwareOnIngestion) behave as they do in production.
 			software := &fleet.Software{
 				Name:    result.Name,
 				Version: result.Version,
 				Source:  "programs",
+				Vendor:  result.Publisher,
 			}
 			queries.MutateSoftwareOnIngestion(ctx, software, logger)
 			result.Version = software.Version
