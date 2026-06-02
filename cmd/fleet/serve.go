@@ -187,6 +187,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// alongside their WrapHandler calls further down in this function.
 	traceRegistry := tracing.NewRegistry()
 	service.RegisterTracingTiers(traceRegistry)
+	activity_bootstrap.RegisterTracingTiers(traceRegistry)
 	// Future bounded contexts: each exposes its own RegisterTracingTiers.
 
 	// Init OTEL providers (traces, metrics, logs) and the route aware sampler.

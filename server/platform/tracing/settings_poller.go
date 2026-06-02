@@ -4,11 +4,18 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // settingsPollInterval is how often each Fleet replica re-reads trace_sampler_settings. 60s matches industry defaults for
 // feature flag style runtime config.
 const settingsPollInterval = 60 * time.Second
+
+// pollTracer instruments the poll loop. When OTEL is not configured the global provider returns a no-op tracer, so this is
+// free when tracing is disabled.
+var pollTracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/platform/tracing")
 
 // settingsReader is the minimal datastore surface the poller needs. The full fleet.Datastore is large. Depending only on this
 // interface keeps the poller's tests cheap and the package free of cross context coupling.
@@ -23,9 +30,15 @@ type settingsReader interface {
 // the first read fails, the sampler keeps its compile time defaults and a warning is logged. The next tick will try again.
 func StartSettingsPoller(ctx context.Context, sampler *RouteTierSampler, ds settingsReader, logger *slog.Logger) {
 	pollAndApply := func(last *Settings) *Settings {
-		got, err := ds.GetTraceSamplerSettings(ctx)
+		spanCtx, span := pollTracer.Start(ctx, "tracing.poll_settings",
+			trace.WithNewRoot(),
+			trace.WithSpanKind(trace.SpanKindInternal),
+		)
+		defer span.End()
+
+		got, err := ds.GetTraceSamplerSettings(spanCtx)
 		if err != nil {
-			logger.ErrorContext(ctx, "trace sampler settings poll failed", "err", err)
+			logger.ErrorContext(spanCtx, "trace sampler settings poll failed", "err", err)
 			return last
 		}
 		if last != nil &&
@@ -35,7 +48,7 @@ func StartSettingsPoller(ctx context.Context, sampler *RouteTierSampler, ds sett
 			return last
 		}
 		sampler.Apply(got.HighVolumeRatio, got.StandardRatio, got.ForceFull)
-		logger.InfoContext(ctx, "trace sampler settings applied",
+		logger.InfoContext(spanCtx, "trace sampler settings applied",
 			"high_volume_ratio", got.HighVolumeRatio,
 			"standard_ratio", got.StandardRatio,
 			"force_full", got.ForceFull,
