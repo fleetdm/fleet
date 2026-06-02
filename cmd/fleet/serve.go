@@ -169,7 +169,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		fleethttp.SetBypassAllNetworkBlocking(true)
 	}
 
-	fleethttp.SetBlockPrivateNetworks(!config.Server.AllowPrivateNetworkIntegrations)
+	fleethttp.EnableNetworkBlocking(config.Server.AllowPrivateNetworkIntegrations)
 
 	license, err := initLicense(&config, devLicense, devExpiredLicense)
 	if err != nil {

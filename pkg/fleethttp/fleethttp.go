@@ -18,21 +18,26 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// privateNetworkBlocked controls whether outbound HTTP requests block
-// connections to private/reserved IP addresses. Enabled by fleet serve at
-// startup; off by default so tests and CLI tools are unaffected.
-var privateNetworkBlocked atomic.Bool
+// networkBlockingEnabled is true when fleet serve activates blocking.
+// Off by default so tests, CLI tools, and non-serve callers are unaffected.
+var networkBlockingEnabled atomic.Bool
+
+// privateNetworkAllowed is true when --allow_private_network_integrations
+// is set. Disables tier 2 (RFC 1918) but tier 1 (loopback, IMDS) stays blocked.
+var privateNetworkAllowed atomic.Bool
 
 // allBlockingBypassed disables ALL network blocking, including the
 // always-blocked tier (loopback, IMDS). Used in dev mode where
 // integrations are tested against localhost.
 var allBlockingBypassed atomic.Bool
 
-// SetBlockPrivateNetworks enables or disables blocking of private network
-// connections. Called by fleet serve at startup to enable blocking in
-// production (unless --allow_private_network_integrations is set).
-func SetBlockPrivateNetworks(block bool) {
-	privateNetworkBlocked.Store(block)
+// EnableNetworkBlocking activates network blocking. Called by fleet serve at startup.
+// In production (no flags): both tiers block.
+// With --allow_private_network_integrations: tier 1 blocks, tier 2 allowed.
+// In dev mode: all blocking bypassed.
+func EnableNetworkBlocking(allowPrivateNetworks bool) {
+	networkBlockingEnabled.Store(true)
+	privateNetworkAllowed.Store(allowPrivateNetworks)
 }
 
 // SetBypassAllNetworkBlocking disables all network blocking including
@@ -104,8 +109,9 @@ func ipInCIDRs(ip net.IP, cidrs []*net.IPNet) bool {
 // checks the resolved IP before connecting -- this catches DNS rebinding.
 func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Context, network, addr string) (net.Conn, error) {
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
-		// Dev mode: bypass all blocking so integrations can be tested against localhost.
-		if allBlockingBypassed.Load() {
+		// Blocking is only active when fleet serve enables it at startup.
+		// Tests, CLI tools, and dev mode skip all checks.
+		if !networkBlockingEnabled.Load() || allBlockingBypassed.Load() {
 			return dialer.DialContext(ctx, network, addr)
 		}
 
@@ -120,12 +126,14 @@ func privateNetworkBlockingDialContext(dialer *net.Dialer) func(ctx context.Cont
 		}
 
 		for _, ip := range ips {
-			// Always blocked: loopback and link-local (cloud IMDS).
+			// Tier 1: always blocked (loopback, cloud IMDS). Cannot be
+			// overridden with --allow_private_network_integrations.
 			if ipInCIDRs(ip.IP, alwaysBlockedCIDRs) {
 				return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
 			}
-			// Blocked when private network blocking is enabled.
-			if privateNetworkBlocked.Load() && ipInCIDRs(ip.IP, privateNetworkCIDRs) {
+			// Tier 2: private networks. Blocked unless
+			// --allow_private_network_integrations is set.
+			if !privateNetworkAllowed.Load() && ipInCIDRs(ip.IP, privateNetworkCIDRs) {
 				return nil, fmt.Errorf("%w: %s resolves to %s", ErrPrivateNetworkBlocked, host, ip.IP)
 			}
 		}
