@@ -1251,6 +1251,24 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	if err := svc.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, hostIDs)); err != nil {
 		return err
 	}
+
+	// Create pending certificate template records for Android hosts
+	androidUUIDs, err := svc.ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
+	if err != nil {
+		return err
+	}
+	if len(androidUUIDs) > 0 {
+		destTeamID := uint(0)
+		if teamID != nil {
+			destTeamID = *teamID
+		}
+		for hostUUID := range androidUUIDs {
+			if _, err := svc.ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, destTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "create pending certificate templates for transferred android host")
+			}
+		}
+	}
+
 	if !skipBulkPending {
 		if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
@@ -1273,11 +1291,6 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	}
 
 	// If there are any Android hosts, update their available apps.
-	androidUUIDs, err := svc.ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
-	if err != nil {
-		return err
-	}
-
 	if len(androidUUIDs) > 0 {
 		enterprise, err := svc.ds.GetEnterprise(ctx)
 		if err != nil {
@@ -1286,15 +1299,6 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 
 		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
-		}
-
-		// Create pending certificate template records for the destination team
-		if teamID != nil {
-			for hostUUID := range androidUUIDs {
-				if _, err := svc.ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, *teamID); err != nil {
-					return ctxerr.Wrap(ctx, err, "create pending certificate templates for transferred android host")
-				}
-			}
 		}
 	}
 
@@ -1416,6 +1420,27 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 	if err := svc.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, hostIDs)); err != nil {
 		return err
 	}
+
+	// Create pending certificate template records for Android hosts before
+	// marking profiles pending, so the reconciler sees the cert records and
+	// withholds dependent profiles. This matches the ordering used during
+	// enrollment in server/mdm/android/service/pubsub.go.
+	androidUUIDs, err := svc.ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
+	if err != nil {
+		return err
+	}
+	if len(androidUUIDs) > 0 {
+		destTeamID := uint(0)
+		if teamID != nil {
+			destTeamID = *teamID
+		}
+		for hostUUID := range androidUUIDs {
+			if _, err := svc.ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, destTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "create pending certificate templates for transferred android host")
+			}
+		}
+	}
+
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
@@ -1435,13 +1460,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 		}
 	}
 
-	// If there are any Android hosts, update their available apps and create
-	// pending certificate template records for the destination team.
-	androidUUIDs, err := svc.ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
-	if err != nil {
-		return err
-	}
-
+	// If there are any Android hosts, update their available apps.
 	if len(androidUUIDs) > 0 {
 		enterprise, err := svc.ds.GetEnterprise(ctx)
 		if err != nil {
@@ -1450,14 +1469,6 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 
 		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
-		}
-
-		if teamID != nil {
-			for hostUUID := range androidUUIDs {
-				if _, err := svc.ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, *teamID); err != nil {
-					return ctxerr.Wrap(ctx, err, "create pending certificate templates for transferred android host")
-				}
-			}
 		}
 	}
 
