@@ -884,6 +884,123 @@ software:
 	assert.Contains(t, buf.String(), fmt.Sprintf(fleetctl.ReapplyingTeamForVPPAppsMsg, newTeamName))
 }
 
+// TestGitOpsNewTeamVPPSharedWithUnsuppliedExistingTeam covers issue #44444: adding
+// a NEW team that shares a VPP token with an EXISTING team must succeed even when
+// the existing team's config file is NOT supplied in the same run. Detecting a
+// missing (new) team strips the VPP config and re-applies it after teams are
+// created; that re-apply must validate referenced teams against teams that exist in
+// Fleet, not only against teams whose files were supplied this run. Previously this
+// errored with "volume_purchasing_program team <existing> not found in team configs".
+func TestGitOpsNewTeamVPPSharedWithUnsuppliedExistingTeam(t *testing.T) {
+	testing_utils.StartAndServeVPPServer(t)
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+	renewDate := time.Now().Add(24 * time.Hour)
+	token, err := test.CreateVPPTokenEncoded(renewDate, "fleet", "ca")
+	require.NoError(t, err)
+
+	existingTeamName := "Existing Team"
+	newTeamName := "New Team"
+
+	// Pre-populate the existing team so it exists in Fleet, but deliberately do NOT
+	// supply its config file in the gitops run below.
+	existingTeam := &fleet.Team{ID: 42, Name: existingTeamName}
+	savedTeams[existingTeamName] = &existingTeam
+
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) { return 0, nil }
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
+	}
+
+	vppToken := &fleet.VPPTokenDB{
+		ID: 1, OrgName: "Fleet", Location: "Earth", RenewDate: renewDate,
+		Token: string(token), Teams: nil, CountryCode: "us",
+	}
+	tokensByTeams := make(map[uint]*fleet.VPPTokenDB)
+	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+		for _, teamID := range teams {
+			tokensByTeams[teamID] = vppToken
+		}
+		return vppToken, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{vppToken}, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+		if teamID == nil {
+			return vppToken, nil
+		}
+		tok, ok := tokensByTeams[*teamID]
+		if !ok {
+			return nil, sql.ErrNoRows
+		}
+		return tok, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
+	}
+	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error { return nil }
+	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error { return nil }
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) { return &fleet.TeamLite{}, nil }
+
+	globalCfg := fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+org_settings:
+  mdm:
+    volume_purchasing_program:
+      - location: Earth
+        fleets:
+          - %q
+          - %q
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "FLEET_GLOBAL_ENROLL_SECRET"
+`, existingTeamName, newTeamName)
+
+	newTeamCfg := fmt.Sprintf(`
+name: %q
+team_settings:
+  secrets:
+    - secret: "new-secret"
+agent_options:
+controls:
+policies:
+queries:
+software:
+  app_store_apps:
+    - app_store_id: "1"
+`, newTeamName)
+
+	tmpDir := t.TempDir()
+	globalFile := filepath.Join(tmpDir, "default.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalCfg), 0o600))
+	newTeamFile := filepath.Join(tmpDir, "new-team.yml")
+	require.NoError(t, os.WriteFile(newTeamFile, []byte(newTeamCfg), 0o600))
+
+	// Only default.yml + the new team's file — the existing team's file is omitted.
+	buf, err := fleetctltest.RunAppNoChecks([]string{
+		"gitops", "-f", globalFile, "-f", newTeamFile,
+	})
+	require.NoError(t, err)
+	assert.True(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+	assert.True(t, ds.SetTeamVPPAppsFuncInvoked)
+	assert.Contains(t, buf.String(), fmt.Sprintf(fleetctl.ReapplyingTeamForVPPAppsMsg, newTeamName))
+}
+
 func TestGitOpsVPP(t *testing.T) {
 	global := func(mdm string) string {
 		return fmt.Sprintf(`

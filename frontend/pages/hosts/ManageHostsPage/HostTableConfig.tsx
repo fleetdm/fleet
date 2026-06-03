@@ -190,7 +190,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "hardware_model",
     id: "hardware_model",
     Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
+      <TooltipTruncatedTextCell value={cellProps.cell.value} className="w250" />
     ),
   },
   // User email

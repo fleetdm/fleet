@@ -2438,24 +2438,24 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// list hosts filtering by vpp1 installed status
-	hosts, err := ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstalled)})
+	hosts, err := ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: new(fleet.SoftwareInstalled)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host1.Host.ID, hosts[0].ID)
 
 	// list hosts filtering by vpp2 failed status
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallFailed)})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: new(fleet.SoftwareInstallFailed)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host2.Host.ID, hosts[0].ID)
 
 	// list hosts filtering by vpp2 pending status
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallPending)})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: new(fleet.SoftwareInstallPending)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 0)
 
 	// list hosts filtering by vpp1 pending status
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallPending)})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: new(fleet.SoftwareInstallPending)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host3.Host.ID, hosts[0].ID)
@@ -2465,12 +2465,12 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// now nothing is returned for Installed for vpp1
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstalled)})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: new(fleet.SoftwareInstalled)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 0)
 
 	// and host1 is returned for pending for vpp1
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallPending), ListOptions: fleet.ListOptions{OrderKey: "id"}})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: new(fleet.SoftwareInstallPending), ListOptions: fleet.ListOptions{OrderKey: "id"}})
 	require.NoError(t, err)
 	require.Len(t, hosts, 2)
 	require.Equal(t, host1.Host.ID, hosts[0].ID)
@@ -2482,7 +2482,7 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	// has no effect because the install was failed, it stays failed
 	// list hosts filtering by vpp2 failed status
-	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallFailed)})
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: new(fleet.SoftwareInstallFailed)})
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, host2.Host.ID, hosts[0].ID)

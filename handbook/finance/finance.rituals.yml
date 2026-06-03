@@ -166,11 +166,11 @@
   description: "Daily, clean up any duplicate accounts."
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-duplicates-in-crm"
   dri: "Sampfluger88"
-- task: "Send Primo CRO weekly export"
+- task: "Send customer-preston weekly export"
   startedOn: "2026-03-13"
   frequency: "Weekly"
-  description: "Every Friday, send an export/email to Primo's CRO with a list of non-ICP contact form visitors."
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#send-primo-cro-weekly-export"
+  description: "Every Friday, send an export/email to customer-preston."
+  moreInfoUrl:
   dri: "sampfluger88"
   autoIssue:
     labels: [":help-gtm-ops"]
