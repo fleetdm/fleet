@@ -426,6 +426,7 @@ const PolicyDetailsPage = ({
                 className={`${baseClass}__resolve`}
                 title="Resolve"
                 value={lastEditedQueryResolution}
+                multiline
               />
             )}
             {renderAuthor()}

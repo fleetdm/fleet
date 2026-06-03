@@ -23,6 +23,13 @@
     align-items: baseline;
   }
 
+  &--multiline dd {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+  }
+
   &__horizontal {
     flex-direction: row;
   }
