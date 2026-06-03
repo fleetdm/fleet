@@ -108,9 +108,9 @@ Yes, but the depth of support varies. Most tools can enforce technical controls 
 
 GitOps for device management stores desired device configurations (configuration profiles, software lists, and Fleet Policies) in a Git repository. Changes go through pull requests with peer review, and a CI/CD pipeline applies approved changes to the device fleet. Native GitOps support is rare among MDMs today, and Fleet is one of the few that provides it, using declarative YAML and fleetctl gitops to apply changes. For a walkthrough with your specific configuration in mind, [book a Fleet walkthrough](https://fleetdm.com/contact).
 
-<meta name="articleTitle" value="Enterprise device management in 2026">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="articleTitle" value="Enterprise device management in 2026: end OS fragmentation">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-25">
-<meta name="description" value="Learn how enterprise device management handles macOS, Windows, Linux, iOS, and Android fleets in 2026 with GitOps, osquery, and compliance automation.">
+<meta name="publishedOn" value="2026-04-25">
+<meta name="description" value="Four OS platforms shouldn't mean four MDM tools. Here's what modern enterprise device management looks like in 2026.">
