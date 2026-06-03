@@ -2,7 +2,7 @@
 
 ### Bug fixes
 
-* Updated conditional access policy query to use parameter binding for platform filter.
+- Updated conditional access policy query to use parameter binding for platform filter.
 
 ## Fleet 4.86.0 (May 29, 2026)
 
