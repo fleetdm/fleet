@@ -130,9 +130,12 @@ jobs:
           FLEET_SERVER_ADDRESS: 0.0.0.0:1337
           FLEET_SERVER_TLS: false
           FLEET_LOGGING_DEBUG: true
-          # TEMP (debug): re-run detail queries frequently so the discovery-gated
-          # orbit_info query gets repeated chances to populate orbit_version. Remove
-          # together with the orbit_version wait gate below once debugging is done.
+          # Re-run host detail queries frequently (default is 1h). orbit_version comes
+          # from the discovery-gated orbit_info detail query, whose discovery misses on
+          # the first cycle because orbit's osquery extension registers a moment after
+          # osquery's first distributed read. A short interval lets a later cycle pick
+          # it up (extension registered by then), so orbit_version populates within the
+          # run. Required by the orbit_version wait gate below.
           FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL: 30s
         run: |
           mkdir ./fleet_log
@@ -144,29 +147,37 @@ jobs:
             echo "Retrying setup in 5s..."
             sleep 5
           done
-          # Wait until all three hosts are enrolled: one darwin, one ubuntu and one
-          # windows, each reporting a non-empty osquery_version. Matching on platform +
-          # osquery_version ensures osqueryd has checked in and that each machine merged
-          # into a single host, rather than counting raw host rows (which over-counts
-          # when a machine enrolls more than once).
+          # Wait until all three platforms (darwin, ubuntu, windows) are enrolled as
+          # distinct hosts AND have reported both osquery_version and orbit_version.
           #
-          # TEMP (debug): also require a non-empty orbit_version to investigate why the
-          # orbit_info detail query isn't ingesting. Revert this select() back to
-          # osquery_version-only (and drop FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL above)
-          # once done.
-          until [ "$(./build/fleetctl get hosts --json | jq -s -r '
-              [ .[]
-                | select((.spec.osquery_version // "") != "" and (.spec.orbit_version // "") != "")
-                | .spec.platform ]
-              | map(select(. == "darwin" or . == "ubuntu" or . == "windows"))
-              | unique | length')" -eq 3 ]; do
+          # osquery_version is on the host list, but orbit_version comes from
+          # host_orbit_info, which ListHosts ("fleetctl get hosts") does NOT join — only
+          # the per-host detail endpoint ("fleetctl get hosts <identifier>") returns it.
+          # So we read osquery_version from the list and look up orbit_version per host
+          # via its detail.
+          count_ready_platforms() {
+            local hosts platform hostname ov ready=0
+            hosts=$(./build/fleetctl get hosts --json || true)
+            for platform in darwin ubuntu windows; do
+              hostname=$(printf '%s' "$hosts" | jq -s -r --arg p "$platform" \
+                '[.[] | select(.spec.platform == $p and (.spec.osquery_version // "") != "") | .spec.hostname][0] // ""')
+              if [ -z "$hostname" ]; then
+                continue
+              fi
+              ov=$(./build/fleetctl get hosts --json "$hostname" 2>/dev/null | jq -s -r '(.[0].spec.orbit_version) // ""' || true)
+              if [ -n "$ov" ]; then
+                ready=$((ready + 1))
+              fi
+            done
+            echo "$ready"
+          }
+          until [ "$(count_ready_platforms)" -eq 3 ]; do
             echo "Waiting for darwin, ubuntu and windows hosts to fully enroll (osquery_version + orbit_version)..."
-            ./build/fleetctl get hosts --json | jq -r '"  platform=\(.spec.platform // "?") osquery_version=\(.spec.osquery_version // "") orbit_version=\(.spec.orbit_version // "")"'
+            ./build/fleetctl get hosts --json | jq -s -r '.[] | "  list: platform=\(.spec.platform // "?") hostname=\(.spec.hostname // "?") osquery_version=\(.spec.osquery_version // "")"'
             sleep 30
           done
           ./build/fleetctl get hosts
-          ./build/fleetctl get hosts --json
-          echo "Success! darwin, ubuntu and windows hosts enrolled."
+          echo "Success! darwin, ubuntu and windows hosts fully enrolled (osquery_version + orbit_version)."
 
       - name: Cleanup tunnel
         if: always()
@@ -400,26 +411,16 @@ jobs:
           done
           echo "Fleet server is down; run-server has finished."
 
-      # Read-only diagnostics: orbit shell's osqueryd is SIGKILLed at startup on the
-      # macos-15-arm64 runner with no osqueryd output. This step mutates nothing and
-      # never fails the job — it just captures why the kernel kills osqueryd (code
-      # signature, Gatekeeper verdict, quarantine xattr, arch, and the system log).
-      - name: Diagnose osqueryd (read-only)
-        if: always()
-        run: |
-          set +e
-          APP=/opt/orbit/bin/osqueryd/macos-app/stable/osquery.app
-          BIN="$APP/Contents/MacOS/osqueryd"
-          echo "=== runner ==="; sw_vers; uname -m
-          echo "=== binary arch ==="; file "$BIN"
-          echo "=== code signature ==="; codesign -dvv --verbose=4 "$BIN" 2>&1
-          echo "=== signature verify ==="; codesign --verify --deep --strict --verbose=2 "$APP" 2>&1
-          echo "=== gatekeeper assessment ==="; spctl --assess --type execute -vvv "$APP" 2>&1
-          echo "=== extended attributes (quarantine?) ==="; ls -l@ "$BIN" 2>&1; xattr -lr "$APP" 2>&1
-          echo "=== direct run ==="; sudo "$BIN" --version 2>&1; echo "direct exit=$?"
-          echo "=== system log (osqueryd / AMFI kills, last 3m) ==="
-          log show --last 3m --predicate 'process == "osqueryd" OR senderImagePath CONTAINS "AppleMobileFileIntegrity" OR eventMessage CONTAINS "osqueryd"' --info 2>&1 | tail -60
-          exit 0
+      # Warm up osqueryd before "Run orbit shell". The bundled osqueryd is a ~110MB
+      # notarized universal binary; its first launch on the macos-15-arm64 runner is
+      # slow (cold kernel code-signature validation + dyld/page-cache population). Orbit
+      # shell launches osqueryd and waits for its extension-manager socket to come up,
+      # and on a cold first launch that wait times out and orbit SIGKILLs osqueryd
+      # ("start osqueryd shell: signal: killed"). Pre-running --version warms those
+      # caches so the real launch comes up in time. (The binary is valid/notarized and
+      # Gatekeeper-accepted with no quarantine — this is purely a cold-start timing fix.)
+      - name: Warm up osqueryd
+        run: sudo /opt/orbit/bin/osqueryd/macos-app/stable/osquery.app/Contents/MacOS/osqueryd --version
 
       - name: Run orbit shell
         run: sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
