@@ -3894,8 +3894,8 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	}, nil)
 	require.NoError(t, err)
 
-	// break lblFoo by nullifying label_id in profile label associations (simulates deletion
-	// while bypassing the FK restriction that prevents deleting referenced labels)
+	// simulate a broken label by nullifying label_id in the join table
+	// (direct DeleteLabel is now blocked when referenced by a profile)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, lblFoo.ID)
 		return err
@@ -6386,8 +6386,8 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 		},
 	})
 
-	// simulate D3 and W2 being broken by nullifying labels[2] and [4] in the join table
-	// (direct DeleteLabel is now blocked when a label is referenced by a profile)
+	// simulate D3 and W2 profiles being broken by nullifying labels[2] and [4]
+	// in the join table (DeleteLabel is now blocked when referenced by a profile).
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, labels[2].ID); err != nil {
 			return err
