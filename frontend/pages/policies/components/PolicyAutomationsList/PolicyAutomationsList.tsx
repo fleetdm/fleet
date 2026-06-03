@@ -124,7 +124,7 @@ const PolicyAutomationsList = ({
                 {row.isSoftware ? (
                   <SoftwareIcon
                     name={row.name}
-                    url={row.iconUrl ?? undefined}
+                    url={row.iconUrl}
                     size="small"
                   />
                 ) : (

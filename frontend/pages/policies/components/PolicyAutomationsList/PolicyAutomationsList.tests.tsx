@@ -2,6 +2,8 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 
 import { IPolicy } from "interfaces/policy";
+import ENDPOINTS from "utilities/endpoints";
+
 import PolicyAutomationsList from "./PolicyAutomationsList";
 
 // Stub SoftwareIcon to avoid asset resolution in tests; surface the url prop so
@@ -60,7 +62,7 @@ describe("PolicyAutomationsList", () => {
     });
 
     it("forwards the custom software icon_url to SoftwareIcon", () => {
-      const iconUrl = "/api/latest/fleet/software/titles/42/icon?fleet_id=1";
+      const iconUrl = ENDPOINTS.SOFTWARE_ICON(42);
       render(
         <PolicyAutomationsList
           storedPolicy={createMockPolicy({

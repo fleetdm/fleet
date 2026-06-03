@@ -463,8 +463,8 @@ func TestPopulateSoftwareIconURLs(t *testing.T) {
 
 	customInstaller := teamPolicy(&fleet.PolicySoftwareTitle{SoftwareTitleID: customInstallerTitle}, nil, nil)
 	plainInstaller := teamPolicy(&fleet.PolicySoftwareTitle{SoftwareTitleID: plainInstallerTitle}, nil, nil)
-	vppPlain := teamPolicy(&fleet.PolicySoftwareTitle{SoftwareTitleID: vppPlainTitle}, ptr.Uint(vppAppsTeamsID), nil)
-	vppCustom := teamPolicy(&fleet.PolicySoftwareTitle{SoftwareTitleID: vppCustomTitle}, ptr.Uint(vppAppsTeamsID), nil)
+	vppPlain := teamPolicy(&fleet.PolicySoftwareTitle{SoftwareTitleID: vppPlainTitle}, new(vppAppsTeamsID), nil)
+	vppCustom := teamPolicy(&fleet.PolicySoftwareTitle{SoftwareTitleID: vppCustomTitle}, new(vppAppsTeamsID), nil)
 	patchPolicy := teamPolicy(nil, nil, &fleet.PolicySoftwareTitle{SoftwareTitleID: patchCustomTitle})
 	inheritedPolicy := &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: nil}}
 
