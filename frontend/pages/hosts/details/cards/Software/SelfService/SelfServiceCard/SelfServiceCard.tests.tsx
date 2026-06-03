@@ -222,9 +222,7 @@ describe("SelfServiceCard", () => {
 
     // Wait for the categories query to resolve so the CategoryFilter mounts
     // (it's gated on categories.length > 0 in SelfServiceFilters).
-    await user.click(
-      await screen.findByRole("button", { expanded: false })
-    );
+    await user.click(await screen.findByRole("button", { expanded: false }));
     const option = await screen.findByText("🌎 Browsers");
     await user.click(option);
 
@@ -348,9 +346,13 @@ describe("SelfServiceCard", () => {
 
     render(<SelfServiceCard {...props} />);
 
-    await user.click(screen.getByRole("button", { name: /Install all \(1\)/i }));
+    await user.click(
+      screen.getByRole("button", { name: /Install all \(1\)/i })
+    );
     // The confirm button inside the modal is labeled "Install all" (no count).
-    await user.click(await screen.findByRole("button", { name: /^Install all$/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /^Install all$/i })
+    );
 
     await waitFor(() => {
       expect(installAllCalled).toBe(true);

@@ -126,12 +126,12 @@ describe("hasInProgressInstallAllItems", () => {
   });
 
   it("returns true for pending statuses (offline-host scheduled)", () => {
-    expect(
-      hasInProgressInstallAllItems([makeItem("pending_install")])
-    ).toBe(true);
-    expect(
-      hasInProgressInstallAllItems([makeItem("pending_uninstall")])
-    ).toBe(true);
+    expect(hasInProgressInstallAllItems([makeItem("pending_install")])).toBe(
+      true
+    );
+    expect(hasInProgressInstallAllItems([makeItem("pending_uninstall")])).toBe(
+      true
+    );
   });
 
   it("returns true for uninstalling / updating / running_script", () => {
@@ -242,8 +242,8 @@ describe("filterSoftwareByCustomCategory", () => {
     const categories = [
       createMockSelfServiceCategory({ id: 1, name: "🌎 Browsers" }),
     ];
-    expect(
-      filterSoftwareByCustomCategory([security], categories, 1)
-    ).toEqual([]);
+    expect(filterSoftwareByCustomCategory([security], categories, 1)).toEqual(
+      []
+    );
   });
 });

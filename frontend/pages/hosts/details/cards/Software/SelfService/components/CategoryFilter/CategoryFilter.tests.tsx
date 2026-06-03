@@ -76,13 +76,12 @@ describe("CategoryFilter", () => {
     );
 
     await openMenu(user);
-    await user.type(
-      screen.getByPlaceholderText("Search categories"),
-      "secur"
-    );
+    await user.type(screen.getByPlaceholderText("Search categories"), "secur");
 
     expect(within(getMenu()).getByText("🔐 Security")).toBeInTheDocument();
-    expect(within(getMenu()).queryByText("🌎 Browsers")).not.toBeInTheDocument();
+    expect(
+      within(getMenu()).queryByText("🌎 Browsers")
+    ).not.toBeInTheDocument();
     expect(within(getMenu()).queryByText("All")).not.toBeInTheDocument();
   });
 
@@ -141,11 +140,7 @@ describe("CategoryFilter", () => {
   it("disables the trigger when isDisabled is true", () => {
     const render = createCustomRenderer();
     render(
-      <CategoryFilter
-        categories={CATEGORIES}
-        onChange={jest.fn()}
-        isDisabled
-      />
+      <CategoryFilter categories={CATEGORIES} onChange={jest.fn()} isDisabled />
     );
 
     expect(screen.getByRole("button")).toBeDisabled();

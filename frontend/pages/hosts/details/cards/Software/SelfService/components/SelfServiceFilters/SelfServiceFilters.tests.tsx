@@ -44,9 +44,7 @@ describe("SelfServiceFilters", () => {
       />
     );
 
-    expect(
-      screen.getByRole("button", { expanded: false })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { expanded: false })).toBeInTheDocument();
   });
 
   it("renders the install-all slot when provided", () => {

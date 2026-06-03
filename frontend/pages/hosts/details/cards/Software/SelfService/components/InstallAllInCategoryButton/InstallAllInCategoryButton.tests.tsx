@@ -30,25 +30,16 @@ describe("InstallAllInCategoryButton", () => {
 
   it("is disabled when uninstalledCount is 0", () => {
     const render = createCustomRenderer({ withBackendMock: true });
-    render(
-      <InstallAllInCategoryButton {...baseProps} uninstalledCount={0} />
-    );
-    expect(
-      screen.getByRole("button", { name: /Install all/i })
-    ).toBeDisabled();
+    render(<InstallAllInCategoryButton {...baseProps} uninstalledCount={0} />);
+    expect(screen.getByRole("button", { name: /Install all/i })).toBeDisabled();
   });
 
   it("is disabled when hasInProgressInCategory is true", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
-      <InstallAllInCategoryButton
-        {...baseProps}
-        hasInProgressInCategory
-      />
+      <InstallAllInCategoryButton {...baseProps} hasInProgressInCategory />
     );
-    expect(
-      screen.getByRole("button", { name: /Install all/i })
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Install all/i })).toBeDisabled();
   });
 
   it("opens the confirmation modal when clicked", async () => {
@@ -56,7 +47,9 @@ describe("InstallAllInCategoryButton", () => {
     const user = userEvent.setup();
     render(<InstallAllInCategoryButton {...baseProps} />);
 
-    await user.click(screen.getByRole("button", { name: /Install all \(3\)/i }));
+    await user.click(
+      screen.getByRole("button", { name: /Install all \(3\)/i })
+    );
 
     expect(
       await screen.findByText(/3 new apps will be installed/i)
@@ -66,11 +59,11 @@ describe("InstallAllInCategoryButton", () => {
   it("uses singular 'app' in the modal copy when count is 1", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     const user = userEvent.setup();
-    render(
-      <InstallAllInCategoryButton {...baseProps} uninstalledCount={1} />
-    );
+    render(<InstallAllInCategoryButton {...baseProps} uninstalledCount={1} />);
 
-    await user.click(screen.getByRole("button", { name: /Install all \(1\)/i }));
+    await user.click(
+      screen.getByRole("button", { name: /Install all \(1\)/i })
+    );
 
     expect(
       await screen.findByText(/1 new app will be installed/i)
@@ -89,7 +82,9 @@ describe("InstallAllInCategoryButton", () => {
     const user = userEvent.setup();
     render(<InstallAllInCategoryButton {...baseProps} />);
 
-    await user.click(screen.getByRole("button", { name: /Install all \(3\)/i }));
+    await user.click(
+      screen.getByRole("button", { name: /Install all \(3\)/i })
+    );
     await user.click(await screen.findByRole("button", { name: /Cancel/i }));
 
     await waitFor(() => {
@@ -114,12 +109,14 @@ describe("InstallAllInCategoryButton", () => {
     const onSuccess = jest.fn();
     const render = createCustomRenderer({ withBackendMock: true });
     const user = userEvent.setup();
-    render(
-      <InstallAllInCategoryButton {...baseProps} onSuccess={onSuccess} />
-    );
+    render(<InstallAllInCategoryButton {...baseProps} onSuccess={onSuccess} />);
 
-    await user.click(screen.getByRole("button", { name: /Install all \(3\)/i }));
-    await user.click(await screen.findByRole("button", { name: /^Install all$/i }));
+    await user.click(
+      screen.getByRole("button", { name: /Install all \(3\)/i })
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /^Install all$/i })
+    );
 
     await waitFor(() => {
       expect(onSuccess).toHaveBeenCalled();
@@ -144,8 +141,12 @@ describe("InstallAllInCategoryButton", () => {
       <InstallAllInCategoryButton {...baseProps} categoryId={undefined} />
     );
 
-    await user.click(screen.getByRole("button", { name: /Install all \(3\)/i }));
-    await user.click(await screen.findByRole("button", { name: /^Install all$/i }));
+    await user.click(
+      screen.getByRole("button", { name: /Install all \(3\)/i })
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /^Install all$/i })
+    );
 
     await waitFor(() => {
       expect(requestedUrl).not.toContain("category_id");
@@ -164,12 +165,14 @@ describe("InstallAllInCategoryButton", () => {
     const onSuccess = jest.fn();
     const render = createCustomRenderer({ withBackendMock: true });
     const user = userEvent.setup();
-    render(
-      <InstallAllInCategoryButton {...baseProps} onSuccess={onSuccess} />
-    );
+    render(<InstallAllInCategoryButton {...baseProps} onSuccess={onSuccess} />);
 
-    await user.click(screen.getByRole("button", { name: /Install all \(3\)/i }));
-    await user.click(await screen.findByRole("button", { name: /^Install all$/i }));
+    await user.click(
+      screen.getByRole("button", { name: /Install all \(3\)/i })
+    );
+    await user.click(
+      await screen.findByRole("button", { name: /^Install all$/i })
+    );
 
     // Give the failed promise a tick to settle.
     await waitFor(() => {
