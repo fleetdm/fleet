@@ -1,0 +1,34 @@
+# zizmor "blocking gate" configuration.
+#
+# This config is used by the zizmor job in .github/workflows/zizmor.yml. It disables the
+# audit rules for which we currently carry a backlog of findings, so the job fails the
+# build only for rules the repository ALREADY passes (catching regressions).
+#
+# As the backlog is burned down in follow-up work, delete the corresponding `disable: true`
+# entry below to start enforcing that rule too. The current finding counts (in our
+# .github/workflows + .github/actions scope) are noted for reference.
+#
+# This file is passed explicitly via the action's `config:` input rather than being named
+# .github/zizmor.yml, so a plain `zizmor .` run still reports the full backlog locally.
+
+rules:
+  artipacked: # 125 findings
+    disable: true
+  cache-poisoning: # 16 findings
+    disable: true
+  dependabot-cooldown: # 2 findings
+    disable: true
+  excessive-permissions: # 20 findings
+    disable: true
+  known-vulnerable-actions: # 418 findings (online audit)
+    disable: true
+  misfeature: # 11 findings
+    disable: true
+  ref-version-mismatch: # 44 findings (online audit)
+    disable: true
+  secrets-inherit: # 5 findings
+    disable: true
+  template-injection: # 234 findings
+    disable: true
+  unpinned-uses: # 31 findings
+    disable: true

@@ -271,6 +271,7 @@ func (svc *Service) handleAndroidWipeAckUnenroll(ctx context.Context, cmd *andro
 		displayName = hosts[0].DisplayName()
 	}
 	if err := svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+		HostID:           ah.Host.ID,
 		HostDisplayName:  displayName,
 		InstalledFromDEP: false,
 		Platform:         "android",
@@ -422,6 +423,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 				serial = hosts[0].HardwareSerial
 			}
 			_ = svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+				HostID:           host.Host.ID,
 				HostSerial:       serial,
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,
@@ -576,6 +578,7 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 				serial = hosts[0].HardwareSerial
 			}
 			_ = svc.newActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+				HostID:           host.Host.ID,
 				HostSerial:       serial,
 				HostDisplayName:  displayName,
 				InstalledFromDEP: false,

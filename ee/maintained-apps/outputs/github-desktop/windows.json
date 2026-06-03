@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.5.11",
+      "version": "3.5.12",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND publisher = 'GitHub, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND publisher = 'GitHub, Inc.' AND version_compare(version, '3.5.11') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND publisher = 'GitHub, Inc.' AND version_compare(version, '3.5.12') < 0);"
       },
-      "installer_url": "https://desktop.githubusercontent.com/releases/3.5.11-0435ec91/GitHubDesktopSetup-x64.msi",
+      "installer_url": "https://desktop.githubusercontent.com/releases/3.5.12-c6aad713/GitHubDesktopSetup-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "f0fcaa82",
-      "sha256": "21254eccada7f7496ec5804a0e4310a17bdd9797b01fda53469b6d46445dcca0",
+      "sha256": "33658fef56ab64d7650ca625f19aba9b027c4d69a1cc8bf1e695695ebd68602e",
       "default_categories": [
         "Developer tools"
       ],
