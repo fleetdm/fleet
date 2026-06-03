@@ -107,6 +107,7 @@ const ScriptListItem = ({
             onClick={onClickEdit}
             className={`${baseClass}__action-button`}
             variant="icon"
+            ariaLabel={`Edit ${script.name}`}
           >
             <Icon name="pencil" />
           </Button>
@@ -116,6 +117,7 @@ const ScriptListItem = ({
         className={`${baseClass}__action-button`}
         variant="icon"
         onClick={onClickDownload}
+        ariaLabel={`Download ${script.name}`}
       >
         <Icon name="download" />
       </Button>
@@ -126,6 +128,7 @@ const ScriptListItem = ({
             onClick={onClickDelete}
             className={`${baseClass}__action-button`}
             variant="icon"
+            ariaLabel={`Delete ${script.name}`}
           >
             <Icon name="trash" />
           </Button>
