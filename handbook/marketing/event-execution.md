@@ -6,23 +6,6 @@ We sponsor and participate in events so that we can support, connect, engage, an
 It's simple Open an issue: **[Propose an event](https://github.com/fleetdm/confidential/issues/new?template=propose-an-event.md)**
 
 
-## Current events
-
-
-| QTR | Event name | Date | Location |
-| :---- | :---- | :---- | :---- |
-| Q1 | [GitOps Workshop](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.kgy1oagh9dvl) | 2026-03-12 | Chicago |
-| Q1 | * **[Gartner Digital Workspace](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tvvzxp6efa6s)** | 2026-03-23 | San Diego |
-| Q2 | [GitOps Workshop](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9bojminke8bt) | 2026-04-07 | Minneapolis |
-| Q2 | [HappyHour-Apple](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.2lh2oum4rxur) | 2026-04-TBD | Austin |
-| Q2 | * **[MACAd-UK](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.u1lwe72sguc3)** | 2026-04-21 | Brighton, UK |
-| Q2 | * **[Gartner Digital Workplace UK](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.9h2x1faopsyk)** | 2026-04-28 | London |
-| Q2 | * **[MacAdmins Europe](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.qg7ymw2g9ui8)** | 2026-04-30 | Leiden, Netherlands |
-| Q2 | * **[MacDevOpsYVR](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.afz38t4pwdka)** | 2026-06-25 | Montreal |
-| Q2 | * **[PSU MacAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.yibj67h9z2xz)** | 2026-07-07 | PennState |
-| Q3 | * **[JNUC 2026 Gurrilla](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** | 2026-09-23 | Kansas City |
-| Q4 | * **[MacSysAdmin](https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.tk8t9mud265j)** |2026-09-29 | Gothenburg, Sweden |
-
 
 ## Event process
 There are three phases to running an event at FleetDM,
@@ -43,7 +26,7 @@ Anyone at Fleet can propose a future event. Fleet's [Head of GTM Architecture](h
 
 The "Settle events strategy" meeting is held on the first Wednesday of every quarter to discuss and lock in all events (conferences, field/sales events, and GitOps workshops) for the next quarter.
 
-The [Marketing Campaign Manager](https://fleetdm.com/handbook/marketing#team) is the DRI for this meeting. 
+The [Content Specialist](https://fleetdm.com/handbook/marketing#team) is the DRI for this meeting. 
 
 Once events have been settled for the upcoming quarter, Fleet does not make changes except in extreme circumstances.
 
@@ -60,7 +43,7 @@ Once events have been settled for the upcoming quarter, Fleet does not make chan
   - Who from Fleet will attend?
   - Which talk proposal will Fleet submit?
   - Estimated budget, including sponsorship or airfare, and lodging for attendees.
-2. Attend the 30m quarterly event strategy meeting with the CMO, Head of GTM Architecture, and Marketing Campaign Manager.
+2. Attend the 30m quarterly event strategy meeting with the CMO, Head of GTM Architecture, and Content Specialist.
   - During this meeting, Marketing will decide which events (conferences, field/sales events, and GitOps workshops) Fleet will execute in the **following quarter**.
 3. After the meeting, the Content Specialist will communicate the settled events by
   - Moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc).
