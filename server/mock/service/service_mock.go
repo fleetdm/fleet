@@ -502,6 +502,8 @@ type GetBatchSetSoftwareInstallersResultFunc func(ctx context.Context, tmName st
 
 type SelfServiceInstallSoftwareTitleFunc func(ctx context.Context, host *fleet.Host, softwareTitleID uint) error
 
+type SelfServiceInstallAllSoftwareTitlesFunc func(ctx context.Context, host *fleet.Host, categoryID *uint) error
+
 type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, host *fleet.Host) (bool, error)
 
 type GetAppStoreAppsFunc func(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error)
@@ -1659,6 +1661,9 @@ type Service struct {
 
 	SelfServiceInstallSoftwareTitleFunc        SelfServiceInstallSoftwareTitleFunc
 	SelfServiceInstallSoftwareTitleFuncInvoked bool
+
+	SelfServiceInstallAllSoftwareTitlesFunc        SelfServiceInstallAllSoftwareTitlesFunc
+	SelfServiceInstallAllSoftwareTitlesFuncInvoked bool
 
 	HasSelfServiceSoftwareInstallersFunc        HasSelfServiceSoftwareInstallersFunc
 	HasSelfServiceSoftwareInstallersFuncInvoked bool
@@ -3999,6 +4004,13 @@ func (s *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fle
 	s.SelfServiceInstallSoftwareTitleFuncInvoked = true
 	s.mu.Unlock()
 	return s.SelfServiceInstallSoftwareTitleFunc(ctx, host, softwareTitleID)
+}
+
+func (s *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint) error {
+	s.mu.Lock()
+	s.SelfServiceInstallAllSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SelfServiceInstallAllSoftwareTitlesFunc(ctx, host, categoryID)
 }
 
 func (s *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
