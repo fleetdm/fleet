@@ -1317,11 +1317,6 @@ func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {
 		}
 		assert.Equal(t, 5, caCount, "all CA host-profile pairs should be sent for recently enrolled hosts")
 		assert.Equal(t, 5, nonCACount, "all non-CA host-profile pairs should be sent")
-
-		// Restore original profilesToInstall for subsequent subtests.
-		ds.ListMDMAppleProfilesToInstallAndRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
-			return profilesToInstall, nil, nil
-		}
 	})
 
 	t.Run("removals are not throttled", func(t *testing.T) {
