@@ -148,8 +148,6 @@ jobs:
             sleep 5
           done
           # Register the enroll secret the packages were built with, so agents can enroll.
-          # Done here (over localhost, reusing the setup login) rather than in a separate
-          # job — that also avoids the race where orbit enrolls before the secret exists.
           echo '---
           apiVersion: v1
           kind: enroll_secret
