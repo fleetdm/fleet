@@ -3433,63 +3433,6 @@ func (ds *Datastore) listMDMAppleProfilesToInstallTransaction(ctx context.Contex
 	return profiles, err
 }
 
-func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
-	var profiles []*fleet.MDMAppleProfilePayload
-	err := ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
-		var err error
-		profiles, err = ds.listMDMAppleProfilesToRemoveTransaction(ctx, tx)
-		return err
-	})
-
-	return profiles, err
-}
-
-func (ds *Datastore) listMDMAppleProfilesToRemoveTransaction(ctx context.Context, tx common_mysql.DBReadTx) ([]*fleet.MDMAppleProfilePayload, error) {
-	// Note: although some of these values (like secrets_updated_at) are not strictly necessary for profile removal,
-	// we are keeping them here for consistency.
-	entitiesToRemoveQuery, entitiesToRemoveArgs := generateEntitiesToRemoveQuery("profile")
-	query := `
-	SELECT
-		hmae.profile_uuid,
-		hmae.profile_identifier,
-		hmae.profile_name,
-		hmae.host_uuid,
-		hmae.checksum,
-		hmae.secrets_updated_at,
-		hmae.operation_type,
-		COALESCE(hmae.detail, '') as detail,
-		hmae.status,
-		hmae.command_uuid,
-		hmae.scope
-	FROM ` + entitiesToRemoveQuery
-	var profiles []*fleet.MDMAppleProfilePayload
-	err := sqlx.SelectContext(ctx, tx, &profiles, query, entitiesToRemoveArgs...)
-
-	return profiles, err
-}
-
-func (ds *Datastore) ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
-	var profilesToInstall []*fleet.MDMAppleProfilePayload
-	var profilesToRemove []*fleet.MDMAppleProfilePayload
-	err := ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
-		var err error
-		profilesToInstall, err = ds.listMDMAppleProfilesToInstallTransaction(ctx, tx, "")
-		if err != nil {
-			return err
-		}
-		profilesToRemove, err = ds.listMDMAppleProfilesToRemoveTransaction(ctx, tx)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get Apple profiles to install and remove")
-	}
-
-	return profilesToInstall, profilesToRemove, nil
-}
-
 func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {
 	if len(uuids) == 0 {
 		return nil, nil

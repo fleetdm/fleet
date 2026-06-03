@@ -5674,11 +5674,6 @@ func ReconcileAppleDeclarations(
 	return nil
 }
 
-// Number of hours to wait for a user enrollment to exist for a host after its
-// device enrollment. After that duration, the user-scoped profiles will be
-// delivered to the device-channel.
-const hoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
-
 func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,

@@ -1560,16 +1560,6 @@ type Datastore interface {
 	// registered in `host_mdm_apple_profiles`, except if the optional argument `hostUUID` is passed.
 	ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*MDMAppleProfilePayload, error)
 
-	// ListMDMAppleProfilesToRemove returns all the profiles that should
-	// be removed based on diffing the ideal state vs the state we have
-	// registered in `host_mdm_apple_profiles`
-	ListMDMAppleProfilesToRemove(ctx context.Context) ([]*MDMAppleProfilePayload, error)
-
-	// ListMDMAppleProfilesToInstallAndRemove returns the result of ListMDMAppleProfilesToInstall
-	// and ListMDMAppleProfilesToRemove but queries for them in an isolated manner so that the two
-	// lists reflect the same system state and no changes can be introduced between the queries.
-	ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*MDMAppleProfilePayload, []*MDMAppleProfilePayload, error)
-
 	// BulkUpsertMDMAppleHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
 	BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload []*MDMAppleBulkUpsertHostProfilePayload) error
