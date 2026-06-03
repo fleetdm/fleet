@@ -14,8 +14,6 @@
 rules:
   artipacked: # 112 findings
     disable: true
-  cache-poisoning: # 16 findings
-    disable: true
   excessive-permissions: # 6 findings
     disable: true
   known-vulnerable-actions: # 418 findings (online audit)

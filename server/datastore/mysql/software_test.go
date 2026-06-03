@@ -122,6 +122,11 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareInventoryDeletedHost", testListSoftwareInventoryDeletedHost},
 		{"ListHostSoftwareShPackageForDarwin", testListHostSoftwareShPackageForDarwin},
 		{"HostSWPaginationWithMultipleFMAVersions", testHostSWPaginationWithMultipleFMAVersions},
+		{"ListHostSoftwareFMAReplacedInstallerOutOfScope", testListHostSoftwareFMAReplacedInstallerOutOfScope},
+		{"ListHostSoftwareFMAReplacedInstallerInScopeShowsActiveMetadata", testListHostSoftwareFMAReplacedInstallerInScopeShowsActiveMetadata},
+		{"InstalledInstallersSqlPicksActiveInstaller", testInstalledInstallersSqlPicksActiveInstaller},
+		{"ListHostSoftwareUninstallFMAReplacedRespectsActiveInstaller", testListHostSoftwareUninstallFMAReplacedRespectsActiveInstaller},
+		{"ListHostSoftwareStmtAvailableSkipsInactiveInstaller", testListHostSoftwareStmtAvailableSkipsInactiveInstaller},
 		{"SoftwareLiteByID", testSoftwareLiteByID},
 		{"GetDisplayNamesByTeamAndTitleIdsBatching", testGetDisplayNamesByTeamAndTitleIdsBatching},
 	}
@@ -12007,6 +12012,548 @@ func testHostSWPaginationWithMultipleFMAVersions(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 2)                    // Even though there are multiple installer versions for this FMA, the title only appears once.
 	require.Equal(t, sw[0].Name, "file1")    // FMA
 	require.Equal(t, sw[1].Name, "pagsw-00") // "other" software
+	// No active installer remains; software_package must be nil to prevent stale-inactive
+	// installer metadata from leaking through.
+	require.Nil(t, sw[0].SoftwarePackage, "no active installer remains; software_package should be nil")
+}
+
+// After an FMA replacement, install records still point at the inactive old installer.
+// List queries must label-check the currently-active installer so list and install agree.
+func testListHostSoftwareFMAReplacedInstallerOutOfScope(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	host := test.NewHost(t, ds, "fma-oos-host", "", "fma-oos-key", "fma-oos-uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "fma-oos-team"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team.ID
+
+	excludeLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "fma-oos-exclude", Query: "select 1"})
+	require.NoError(t, err)
+
+	// Original installer — no label scoping.
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{ID: 1})
+	require.NoError(t, err)
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	oldInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr,
+		StorageID:            "storage_v1",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "spotify.pkg",
+		Title:                "Spotify",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               user.ID,
+		SelfService:          true,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Successful install against original installer.
+	hostInstall, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, oldInstallerID, fleet.HostSoftwareInstallOptions{SelfService: true})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           hostInstall,
+		InstallScriptExitCode: new(int(0)),
+	}, nil)
+	require.NoError(t, err)
+
+	// Add host to exclude label.
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
+	host.LabelUpdatedAt = time.Now()
+	require.NoError(t, ds.UpdateHost(ctx, host))
+
+	// Simulate FMA replacement (matches testHostSWPaginationWithMultipleFMAVersions pattern).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET is_active = FALSE WHERE id = ?", oldInstallerID)
+		return err
+	})
+
+	// New active installer with exclude-label scope.
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello v2"), t.TempDir)
+	require.NoError(t, err)
+	newInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr2,
+		StorageID:            "storage_v2",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "spotify.pkg",
+		Title:                "Spotify",
+		Version:              "2.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               user.ID,
+		SelfService:          true,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{
+			ByName: map[string]fleet.LabelIdent{
+				"fma-oos-exclude": {LabelName: "fma-oos-exclude", LabelID: excludeLabel.ID},
+			},
+			LabelScope: fleet.LabelScopeExcludeAny,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, oldInstallerID, newInstallerID, "FMA replacement should produce a new installer id")
+
+	// Install record still points at the old installer.
+	var recordedInstaller uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &recordedInstaller, "SELECT software_installer_id FROM host_software_installs WHERE execution_id = ?", hostInstall)
+	})
+	require.Equal(t, oldInstallerID, recordedInstaller)
+
+	// Library and self-service must omit the title; include_available_for_install keeps
+	// the title for history but with nil software_package.
+
+	t.Run("only_available_for_install", func(t *testing.T) {
+		sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions:             fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name"},
+			OnlyAvailableForInstall: true,
+		})
+		require.NoError(t, err)
+		for _, s := range sw {
+			if s.Name == "Spotify" {
+				t.Fatalf("Spotify must not appear in Library tab when active installer excludes host")
+			}
+		}
+	})
+
+	t.Run("self_service_only", func(t *testing.T) {
+		sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name"},
+			IncludeAvailableForInstall: true,
+			SelfServiceOnly:            true,
+		})
+		require.NoError(t, err)
+		for _, s := range sw {
+			if s.Name == "Spotify" {
+				t.Fatalf("Spotify must not appear in self-service when active installer excludes host")
+			}
+		}
+	})
+
+	t.Run("include_available_for_install_keeps_history_without_software_package", func(t *testing.T) {
+		sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name"},
+			IncludeAvailableForInstall: true,
+		})
+		require.NoError(t, err)
+		var row *fleet.HostSoftwareWithInstaller
+		for _, s := range sw {
+			if s.Name == "Spotify" {
+				row = s
+				break
+			}
+		}
+		require.NotNil(t, row, "title should still appear in include_available view (history preserved)")
+		require.Nil(t, row.SoftwarePackage, "software_package must be nil when active installer excludes host — prevents the bogus Install button")
+		require.Nil(t, row.AppStoreApp, "app_store_app must be nil too")
+	})
+}
+
+// After FMA replacement with new in-scope installer, list must surface the active
+// installer's metadata (id, self_service), not the recorded inactive one's.
+func testListHostSoftwareFMAReplacedInstallerInScopeShowsActiveMetadata(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	host := test.NewHost(t, ds, "fma-inscope-host", "", "fma-inscope-key", "fma-inscope-uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "fma-inscope-team"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team.ID
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{ID: 1})
+	require.NoError(t, err)
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	// Old installer: self_service=false.
+	oldInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr,
+		StorageID:            "old_storage",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "fma.pkg",
+		Title:                "FMA App",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               user.ID,
+		SelfService:          false,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	hostInstall, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, oldInstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           hostInstall,
+		InstallScriptExitCode: new(int(0)),
+	}, nil)
+	require.NoError(t, err)
+
+	// Simulate FMA replacement.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET is_active = FALSE WHERE id = ?", oldInstallerID)
+		return err
+	})
+
+	// New active installer: self_service=true, in scope.
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello v2"), t.TempDir)
+	require.NoError(t, err)
+	newInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr2,
+		StorageID:            "new_storage",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "fma.pkg",
+		Title:                "FMA App",
+		Version:              "2.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               user.ID,
+		SelfService:          true,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, oldInstallerID, newInstallerID)
+
+	sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name"},
+		IncludeAvailableForInstall: true,
+	})
+	require.NoError(t, err)
+
+	var fmaRow *fleet.HostSoftwareWithInstaller
+	for _, s := range sw {
+		if s.Name == "FMA App" {
+			fmaRow = s
+			break
+		}
+	}
+	require.NotNil(t, fmaRow, "FMA App should appear in list (in-scope active installer)")
+	require.NotNil(t, fmaRow.SoftwarePackage, "software_package must be populated when active installer is in scope")
+	require.NotNil(t, fmaRow.SoftwarePackage.SelfService, "self_service flag should be set")
+	require.True(t, *fmaRow.SoftwarePackage.SelfService, "self_service should reflect the ACTIVE installer's value (true), not the recorded inactive one (false)")
+}
+
+// When osquery inventory matches multiple installer rows for the same title, the active
+// row's id/self_service must win — not whichever MySQL returned last.
+func testInstalledInstallersSqlPicksActiveInstaller(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	host := test.NewHost(t, ds, "iisql-host", "", "iisql-key", "iisql-uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "iisql-team"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team.ID
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{ID: 1})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	// Old installer: self_service=true.
+	oldInstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr,
+		StorageID:            "iisql_storage_v1",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "iisql.pkg",
+		Title:                "IISql App",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               user.ID,
+		SelfService:          true,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Simulate FMA replacement.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET is_active = FALSE WHERE id = ?", oldInstallerID)
+		return err
+	})
+
+	// New active installer: self_service=false.
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello v2"), t.TempDir)
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr2,
+		StorageID:            "iisql_storage_v2",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "iisql.pkg",
+		Title:                "IISql App",
+		Version:              "2.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               user.ID,
+		SelfService:          false,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Inventory row so installedInstallersSql matches.
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "IISql App", Version: "1.0", Source: "apps", TitleID: &titleID},
+	})
+	require.NoError(t, err)
+
+	// No install record — forces the installedInstallersSql path.
+	sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name"},
+		IncludeAvailableForInstall: true,
+	})
+	require.NoError(t, err)
+
+	var row *fleet.HostSoftwareWithInstaller
+	for _, s := range sw {
+		if s.Name == "IISql App" {
+			row = s
+			break
+		}
+	}
+	require.NotNil(t, row, "IISql App should appear in list (active installer is in scope)")
+	require.NotNil(t, row.SoftwarePackage, "software_package must be populated for in-scope active installer")
+	require.NotNil(t, row.SoftwarePackage.SelfService)
+	require.False(t, *row.SoftwarePackage.SelfService, "self_service should reflect the ACTIVE installer (false), not the inactive one (true)")
+}
+
+// Same as the install-side test, for the hostSoftwareUninstalls path.
+func testListHostSoftwareUninstallFMAReplacedRespectsActiveInstaller(t *testing.T, ds *Datastore) {
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	host := test.NewHost(t, ds, "fma-uninst-host", "", "fma-uninst-key", "fma-uninst-uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "fma-uninst-team"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team.ID
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{ID: 1})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	oldInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		UninstallScript:      "exit 0",
+		InstallerFile:        tfr,
+		StorageID:            "uninst_v1",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "fma_uninst.pkg",
+		Title:                "FMA Uninst App",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               user.ID,
+		SelfService:          false,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Successful install + uninstall against old installer.
+	hostInstall, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, oldInstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           hostInstall,
+		InstallScriptExitCode: new(int(0)),
+	}, nil)
+	require.NoError(t, err)
+
+	uninstallUUID := uuid.NewString()
+	require.NoError(t, ds.InsertSoftwareUninstallRequest(ctx, uninstallUUID, host.ID, oldInstallerID, false))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		ds.testActivateSpecificNextActivities = []string{uninstallUUID}
+		_, err := ds.activateNextUpcomingActivity(ctx, q, host.ID, "")
+		return err
+	})
+	ds.testActivateSpecificNextActivities = []string{"-"}
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: uninstallUUID,
+		ExitCode:    0,
+	}, nil)
+	require.NoError(t, err)
+
+	// Simulate FMA replacement.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET is_active = FALSE WHERE id = ?", oldInstallerID)
+		return err
+	})
+
+	// New active installer: self_service=true.
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello v2"), t.TempDir)
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		UninstallScript:      "exit 0",
+		InstallerFile:        tfr2,
+		StorageID:            "uninst_v2",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "fma_uninst.pkg",
+		Title:                "FMA Uninst App",
+		Version:              "2.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               user.ID,
+		SelfService:          true,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name"},
+		IncludeAvailableForInstall: true,
+	})
+	require.NoError(t, err)
+
+	var row *fleet.HostSoftwareWithInstaller
+	for _, s := range sw {
+		if s.Name == "FMA Uninst App" {
+			row = s
+			break
+		}
+	}
+	require.NotNil(t, row, "title should still appear after uninstall + FMA replacement")
+	require.NotNil(t, row.SoftwarePackage, "software_package must reflect the active installer")
+	require.NotNil(t, row.SoftwarePackage.SelfService)
+	require.True(t, *row.SoftwarePackage.SelfService, "self_service should reflect the ACTIVE installer (true), not the recorded inactive one (false)")
+	require.NotNil(t, row.SoftwarePackage.LastUninstall, "LastUninstall should remain populated to preserve uninstall history")
+	require.Equal(t, uninstallUUID, row.SoftwarePackage.LastUninstall.ExecutionID)
+}
+
+// A host with no install record and no inventory hits stmtAvailable as the only source
+// for an FMA title. When old (inactive) and new (active) installer rows coexist and the
+// new one excludes the host, the old row's "no labels" branch must NOT keep the title
+// in the response; otherwise list and install disagree.
+func testListHostSoftwareStmtAvailableSkipsInactiveInstaller(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", true)
+	host := test.NewHost(t, ds, "stmtavail-host", "", "stmtavail-key", "stmtavail-uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "stmtavail-team"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &team.ID
+
+	excludeLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "stmtavail-excl", Query: "select 1"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
+	host.LabelUpdatedAt = time.Now()
+	require.NoError(t, ds.UpdateHost(ctx, host))
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{ID: 1})
+	require.NoError(t, err)
+
+	// Old installer: no labels (would be in scope).
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("v1"), t.TempDir)
+	require.NoError(t, err)
+	oldInstallerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr,
+		StorageID:            "stmtavail_v1",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "stmtavail.pkg",
+		Title:                "StmtAvail App",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               user.ID,
+		SelfService:          true,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Simulate FMA replacement; no install record on this host.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET is_active = FALSE WHERE id = ?", oldInstallerID)
+		return err
+	})
+
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("v2"), t.TempDir)
+	require.NoError(t, err)
+	newInstallerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr2,
+		StorageID:            "stmtavail_v2",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "stmtavail.pkg",
+		Title:                "StmtAvail App",
+		Version:              "2.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               user.ID,
+		SelfService:          true,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{
+			ByName: map[string]fleet.LabelIdent{
+				excludeLabel.Name: {LabelName: excludeLabel.Name, LabelID: excludeLabel.ID},
+			},
+			LabelScope: fleet.LabelScopeExcludeAny,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, oldInstallerID, newInstallerID)
+
+	for _, tc := range []struct {
+		name string
+		opts fleet.HostSoftwareTitleListOptions
+	}{
+		{"only_available_for_install", fleet.HostSoftwareTitleListOptions{
+			ListOptions:             fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name"},
+			OnlyAvailableForInstall: true,
+		}},
+		{"self_service_only", fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name"},
+			IncludeAvailableForInstall: true,
+			SelfServiceOnly:            true,
+		}},
+		{"include_available_for_install", fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name"},
+			IncludeAvailableForInstall: true,
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sw, _, err := ds.ListHostSoftware(ctx, host, tc.opts)
+			require.NoError(t, err)
+			for _, s := range sw {
+				if s.ID == titleID {
+					t.Fatalf("title must not appear in %s when active installer excludes host (no install record / no inventory path)", tc.name)
+				}
+			}
+		})
+	}
 }
 
 func testSoftwareLiteByID(t *testing.T, ds *Datastore) {
