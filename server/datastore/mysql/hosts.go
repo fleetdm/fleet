@@ -3760,7 +3760,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 		remainingBatchSize := cleanupExpiredHostsBatchSize - len(allIdsToDelete)
 		if remainingBatchSize > 0 {
 			sqlQuery := findHostsSql + " AND (team_id IS NULL"
-			args := []interface{}{ac.HostExpirySettings.HostExpiryWindow}
+			args := []any{ac.HostExpirySettings.HostExpiryWindow}
 			if len(teamsUsingGlobalExpiry) > 0 {
 				sqlQuery += " OR team_id IN (?)"
 				sqlQuery, args, err = sqlx.In(sqlQuery, args[0], teamsUsingGlobalExpiry)
@@ -3792,9 +3792,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 	for teamID := range teamsUsingCustomExpiry {
 		customExpiryTeamIDs = append(customExpiryTeamIDs, teamID)
 	}
-	sort.Slice(customExpiryTeamIDs, func(i, j int) bool {
-		return customExpiryTeamIDs[i] < customExpiryTeamIDs[j]
-	})
+	slices.Sort(customExpiryTeamIDs)
 	for _, teamId := range customExpiryTeamIDs {
 		remainingBatchSize := cleanupExpiredHostsBatchSize - len(allIdsToDelete)
 		if remainingBatchSize <= 0 {
@@ -3804,7 +3802,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 		expiry := teamsUsingCustomExpiry[teamId]
 		var ids []uint
 		sqlQuery := findHostsSql + " AND team_id = ? LIMIT ?"
-		args := []interface{}{expiry, teamId, remainingBatchSize}
+		args := []any{expiry, teamId, remainingBatchSize}
 		err = ds.writer(ctx).SelectContext(
 			ctx,
 			&ids,
