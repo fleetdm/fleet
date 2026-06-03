@@ -1858,7 +1858,9 @@ When using externally provided CVSSv4 scores, Fleet maps them like this:
 
 ### Disclosure
 
-Researchers who discover vulnerabilities in Fleet can disclose them as per the [Fleet repository security policy](https://github.com/fleetdm/fleet/security/policy).
+Researchers who discover vulnerabilities in Fleet can disclose them through Fleet's [Vulnerability Disclosure Program on Bugbop](https://bugbop.com/programs/b5f2f20e-fe4d-466b-a474-6db65b4d2bb3) or by following the [Fleet repository security policy](https://github.com/fleetdm/fleet/security/policy). Coordinated, non-public disclosures can also be sent to security@fleetdm.com (PGP key on the repository security policy).
+
+The VDP scope covers the Fleet product source ([github.com/fleetdm/fleet](https://github.com/fleetdm/fleet)) and the [REST API](https://fleetdm.com/docs/rest-api/rest-api). Marketing pages on fleetdm.com, third-party hosted services, and theoretical findings without a demonstrated exploit are out of scope. Valid in-scope reports submitted through the VDP are recognized with swag and platform credits.
 
 If Fleet confirms the vulnerability:
 
