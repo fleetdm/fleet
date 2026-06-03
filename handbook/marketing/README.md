@@ -8,7 +8,10 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------|:----------------------------------------------------------------------|
 | Chief Marketing Officer | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([*@akuthiala*](https://github.com/akuthiala))_
 | Content Specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([*@irenareedy*](https://github.com/irenareedy))_
-
+| Technical product marketing and content specialist (Consultant) | [Dan Gordon](https://www.linkedin.com/in/dangordon/) · [@danbgordon](https://github.com/danbgordon) · Create core technical marketing strategy, positioning, messaging and assets for IT technical teams Market Fleet releases  Create, drive and manage analyst relations for Fleet |
+| Product marketing (Consultant) | [Erin Miska](https://www.linkedin.com/in/erinmiska/) · [*@miskaek*](https://github.com/miskaek) · Positioning and messaging  Leadership marketing facing assets,  Sales and partner enablement  Content strategy |
+| Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  · [*@tombasgil*](https://github.com/tombasgil) · Establish, manage and grow Fleet’s social media presence across all appropriate channels. Monitor and respond to comments on company page posts (e.g., LinkedIn); comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel |
+| Public relations (Consultant) | [Alyssa Pallotti](https://www.linkedin.com/in/alyssapallotti/) · Establish Fleet AR & PR program Identify and train key Fleet employees on AR & PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
 
 ## Contact us
 
