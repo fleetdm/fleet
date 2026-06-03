@@ -2383,11 +2383,15 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		// Null label reference first (FK is now RESTRICT), then delete — the profile
-		// will appear broken and we shouldn't see it in the results
-		simulateBrokenLabel(t, ds, ctx, testLabel4.Name)
-		err = ds.DeleteLabel(ctx, testLabel4.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		require.NoError(t, err)
+		// Simulate the label being broken — direct DeleteLabel is now blocked when
+		// referenced by a profile, so we nullify label_id in the join tables instead.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, testLabel4.ID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, testLabel4.ID)
+			return err
+		})
 
 		return team.ID, host
 	}
@@ -2886,11 +2890,15 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		// Null label reference first (FK is now RESTRICT), then delete — the profile
-		// will appear broken and we shouldn't see it in the results
-		simulateBrokenLabel(t, ds, ctx, label.Name)
-		err = ds.DeleteLabel(ctx, label.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		require.NoError(t, err)
+		// Simulate the label being broken — direct DeleteLabel is now blocked when
+		// referenced by a profile, so we nullify label_id in the join tables instead.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, label.ID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, label.ID)
+			return err
+		})
 
 		return team.ID, host
 	}
