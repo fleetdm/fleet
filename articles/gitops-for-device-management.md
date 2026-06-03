@@ -128,9 +128,9 @@ GitOps provides audit evidence directly applicable to SOC 2, HIPAA, FedRAMP, and
 
 GitOps principles apply best to MDMs that support Git-based, declarative configuration management rather than only API-driven scripting. Some MDM solutions offer limited API coverage that restricts what can be managed through code, so GitOps capabilities vary by vendor. Fleet supports native GitOps workflows where configurations are defined in YAML files and applied automatically when your workflow runs. [Explore Fleet's docs](https://fleetdm.com/docs) to see how the workflow operates, or [contact us](https://fleetdm.com/contact) to discuss whether it fits your environment.
 
-<meta name="articleTitle" value="GitOps for device management: Audit trails, compliance, and configuration as code">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="articleTitle" value="What is GitOps? MDM compliance without the audit scramble">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-25">
-<meta name="description" value="Learn what GitOps is, how it changes device management through version control & why compliance teams rely on tamper-evident audit trails.">
+<meta name="publishedOn" value="2026-05-01">
+<meta name="description" value="Skip the console log archaeology. GitOps for device management puts version control, audit trails, and compliance evidence in Git.">
