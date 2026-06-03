@@ -21,6 +21,7 @@ interface IAutomationDisplayRow {
   type: string;
   graphicName?: GraphicNames;
   isSoftware?: boolean;
+  iconUrl?: string | null;
   link?: string;
   sortOrder: number;
   sortName: string;
@@ -47,6 +48,7 @@ const PolicyAutomationsList = ({
       name: storedPolicy.install_software.name,
       type: "Software",
       isSoftware: true,
+      iconUrl: storedPolicy.install_software.icon_url,
       link: getPathWithQueryParams(
         PATHS.SOFTWARE_TITLE_DETAILS(
           storedPolicy.install_software.software_title_id.toString()
@@ -120,7 +122,11 @@ const PolicyAutomationsList = ({
             >
               <div className={`${baseClass}__row-name`}>
                 {row.isSoftware ? (
-                  <SoftwareIcon name={row.name} size="small" />
+                  <SoftwareIcon
+                    name={row.name}
+                    url={row.iconUrl}
+                    size="small"
+                  />
                 ) : (
                   row.graphicName && (
                     <Graphic

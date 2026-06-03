@@ -63,6 +63,7 @@ export interface IPolicySoftwareToInstall {
   name: string;
   display_name?: string;
   software_title_id: number;
+  icon_url?: string | null;
 }
 
 // Used on the manage hosts page and other places where aggregate stats are displayed
