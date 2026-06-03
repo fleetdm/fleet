@@ -74,7 +74,7 @@ const WipeModal = ({
         {isLinuxHost && (
           <>
             <p>
-              This wil run a script to erase content from this host.{" "}
+              This will run a script to erase content from this host.{" "}
               <CustomLink
                 url="https://fleetdm.com/learn-more-about/linux-wipe"
                 text="Learn more"
