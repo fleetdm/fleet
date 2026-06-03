@@ -2016,6 +2016,73 @@ func TestAddHostsToTeamAndroidCertTemplates(t *testing.T) {
 	})
 }
 
+func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{{ID: 1}}, nil
+	}
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+	) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
+		return nil, nil
+	}
+	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "LC0test"}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return job, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: id}, nil
+	}
+
+	t.Run("transfer to team creates pending cert templates", func(t *testing.T) {
+		var calledWithUUID string
+		var calledWithTeamID uint
+		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+			return map[string]uint{"android-uuid-1": 1}, nil
+		}
+		ds.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+			calledWithUUID = hostUUID
+			calledWithTeamID = teamID
+			return 1, nil
+		}
+
+		emptyFilter := &map[string]interface{}{}
+		require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), new(uint(5)), emptyFilter))
+		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
+		assert.Equal(t, "android-uuid-1", calledWithUUID)
+		assert.Equal(t, uint(5), calledWithTeamID)
+	})
+
+	t.Run("transfer to no team uses teamID 0", func(t *testing.T) {
+		ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked = false
+		var calledWithTeamID uint
+		ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+			return map[string]uint{"android-uuid-1": 1}, nil
+		}
+		ds.CreatePendingCertificateTemplatesForNewHostFunc = func(ctx context.Context, hostUUID string, teamID uint) (int64, error) {
+			calledWithTeamID = teamID
+			return 1, nil
+		}
+
+		emptyFilter := &map[string]interface{}{}
+		require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, emptyFilter))
+		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
+		assert.Equal(t, uint(0), calledWithTeamID)
+	})
+}
+
 func TestAddHostsToTeamSourceTeamAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
