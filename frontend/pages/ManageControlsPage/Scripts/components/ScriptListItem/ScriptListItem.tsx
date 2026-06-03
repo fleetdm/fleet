@@ -12,6 +12,7 @@ import ListItem from "components/ListItem";
 import { ISupportedGraphicNames } from "components/ListItem/ListItem";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "script-list-item";
 
@@ -141,7 +142,11 @@ const ScriptListItem = ({
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={<Button variant="link">{script.name}</Button>}
+      title={
+        <Button variant="link" className={`${baseClass}__title-button`}>
+          <TooltipTruncatedText value={script.name} fixedPositionStrategy />
+        </Button>
+      }
       details={
         <ScriptListItemDetails
           platform={platform}
