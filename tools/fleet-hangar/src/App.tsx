@@ -336,6 +336,7 @@ export default function App() {
         {active === "fleetctl" && (
           <FleetctlTab
             settings={settings}
+            onSettingsChange={setSettings}
             serve={serve}
             goToSettings={() => goToSettings("fleetctl")}
             goToServer={() => setActive("server")}

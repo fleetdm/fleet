@@ -11,6 +11,9 @@ export interface Settings {
   python_server: PythonConfig;
   fleet_serve: FleetServeConfig;
   theme: ThemePreference;
+  /// fleetctl cron names the user has starred — drives the Favorites
+  /// section at the top of the Trigger sub-tab.
+  favorite_crons: string[];
 }
 
 export interface GitopsFile {

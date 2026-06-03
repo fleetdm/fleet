@@ -28,6 +28,11 @@ pub struct Settings {
     /// configs. Defaults to "system" — see ThemePreference::default.
     #[serde(default)]
     pub theme: ThemePreference,
+    /// fleetctl cron names the user has starred. Drives the Favorites
+    /// section at the top of the Trigger sub-tab. Plain Vec<String> so
+    /// the order is preserved; the UI dedupes via a Set on read.
+    #[serde(default)]
+    pub favorite_crons: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

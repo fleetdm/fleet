@@ -34,22 +34,51 @@ interface GroupEntry {
   exitCode: number | null;
 }
 
+/// Output-buffer key. The user's *click source* drives output routing,
+/// not the cron's home group — so a favorited cron triggered from
+/// Favorites and from its home group produces separate histories.
+type OutputSource = CronGroup | "favorites";
+
 const MAX_GROUP_ENTRIES = 50;
 
 export function FleetctlTab({
   settings,
+  onSettingsChange,
   serve,
   goToSettings,
   goToServer,
   goToLogs,
 }: {
   settings: Settings;
+  onSettingsChange: (s: Settings) => void;
   serve: ServeStatus;
   goToSettings: () => void;
   goToServer: () => void;
   goToLogs: () => void;
 }) {
   const repoPath = settings.repo_path;
+  const favorites = useMemo(
+    () => new Set(settings.favorite_crons),
+    [settings.favorite_crons],
+  );
+  const toggleFavorite = useCallback(
+    (name: string) => {
+      const next_set = new Set(settings.favorite_crons);
+      if (next_set.has(name)) next_set.delete(name);
+      else next_set.add(name);
+      const next: Settings = {
+        ...settings,
+        favorite_crons: Array.from(next_set),
+      };
+      // Apply locally first so the star fills/empties on the same
+      // tick the user clicked; persistence happens in the background.
+      onSettingsChange(next);
+      api
+        .saveSettings(next)
+        .catch((e) => console.error("saveSettings(favorites) failed", e));
+    },
+    [settings, onSettingsChange],
+  );
   const [sub, setSub] = useState<SubTab>("login");
   const [binary, setBinary] = useState<ResolvedBinary | null>(null);
   const [ctx, setCtx] = useState<ContextInfo | null>(null);
@@ -217,6 +246,8 @@ export function FleetctlTab({
                 selectedContext={selectedContext}
                 goToLogs={goToLogs}
                 setError={setError}
+                favorites={favorites}
+                onToggleFavorite={toggleFavorite}
               />
             )}
 
@@ -1070,6 +1101,8 @@ function TriggerPanel({
   selectedContext,
   goToLogs,
   setError,
+  favorites,
+  onToggleFavorite,
 }: {
   binary: ResolvedBinary | null;
   canAct: boolean;
@@ -1077,17 +1110,21 @@ function TriggerPanel({
   selectedContext: string;
   goToLogs: () => void;
   setError: (e: string | null) => void;
+  favorites: Set<string>;
+  onToggleFavorite: (name: string) => void;
 }) {
   const [lastTriggered, setLastTriggered] = useState<Record<string, number>>(
     {},
   );
-  // Per-group output log: each trigger run appends an entry to its
-  // section's buffer. Newest first; capped at MAX_GROUP_ENTRIES so the
-  // history doesn't grow without bound. Streaming still lands in the
-  // Logs tab via startProcess; this is the final-snapshot history
-  // pinned next to the buttons that produced it.
+  // Per-section output log: each trigger run appends an entry to the
+  // buffer of the section the user *clicked from* (NOT cron.group), so
+  // triggering the same cron from Favorites and from its home group
+  // produces isolated history streams. Newest first; capped at
+  // MAX_GROUP_ENTRIES so the history doesn't grow without bound.
+  // Streaming still lands in the Logs tab via startProcess; this is the
+  // final-snapshot history pinned next to the buttons that produced it.
   const [groupOutputs, setGroupOutputs] = useState<
-    Partial<Record<CronGroup, GroupEntry[]>>
+    Partial<Record<OutputSource, GroupEntry[]>>
   >({});
   const [busyCron, setBusyCron] = useState<string | null>(null);
   const [showFast, setShowFast] = useState(false);
@@ -1099,7 +1136,7 @@ function TriggerPanel({
     return () => window.clearInterval(id);
   }, []);
 
-  async function trigger(cron: CronInfo) {
+  async function trigger(cron: CronInfo, source: OutputSource) {
     if (!binary?.exists) return;
     setBusyCron(cron.name);
     setError(null);
@@ -1125,8 +1162,8 @@ function TriggerPanel({
       const ok = await waitForExit(id);
       // Pull the captured output regardless of success — failures'
       // error text is the whole point of showing this inline. Append
-      // (newest first, capped) to this cron's group so the output box
-      // doubles as a session log for the group.
+      // (newest first, capped) to the source section's buffer so output
+      // is scoped to wherever the user clicked from.
       const procs = await api.listProcesses();
       const proc = procs.find((p) => p.id === id);
       const body = (proc?.recent_log ?? []).join("\n").trim();
@@ -1137,10 +1174,10 @@ function TriggerPanel({
         exitCode: proc?.exit_code ?? null,
       };
       setGroupOutputs((prev) => {
-        const current = prev[cron.group] ?? [];
+        const current = prev[source] ?? [];
         return {
           ...prev,
-          [cron.group]: [entry, ...current].slice(0, MAX_GROUP_ENTRIES),
+          [source]: [entry, ...current].slice(0, MAX_GROUP_ENTRIES),
         };
       });
       if (ok) {
@@ -1160,6 +1197,12 @@ function TriggerPanel({
     "migration",
   ];
 
+  // Resolve favorites in CRONS order so the section is deterministic
+  // regardless of click sequence. A starred name that no longer exists
+  // in the registry is silently dropped — keeps the UI from rendering
+  // ghost rows after a Fleet upgrade renames a cron.
+  const favoriteCrons = CRONS.filter((c) => favorites.has(c.name));
+
   return (
     <div
       style={{
@@ -1169,6 +1212,66 @@ function TriggerPanel({
         minHeight: 0,
       }}
     >
+      {favoriteCrons.length > 0 && (
+        <div className="card" style={{ padding: 14 }}>
+          <div style={{ marginBottom: 10 }}>
+            <div className="section-title" style={{ margin: 0 }}>
+              Favorites{" "}
+              <span
+                className="dim"
+                style={{
+                  fontSize: "var(--fs-xxx-small)",
+                  fontWeight: 400,
+                  textTransform: "none",
+                  letterSpacing: 0,
+                }}
+              >
+                · {favoriteCrons.length}
+              </span>
+            </div>
+            <div
+              className="dim"
+              style={{ fontSize: "var(--fs-xxx-small)" }}
+            >
+              Your starred crons. Triggering here keeps output isolated
+              from the home group.
+            </div>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fill, minmax(260px, 1fr))",
+              gap: 8,
+            }}
+          >
+            {favoriteCrons.map((c) => (
+              <CronRow
+                key={`fav-${c.name}`}
+                cron={c}
+                busy={busyCron === c.name}
+                disabled={!canAct || busyCron != null}
+                lastTriggered={lastTriggered[c.name] ?? null}
+                now={now}
+                onTrigger={() => trigger(c, "favorites")}
+                onLogs={goToLogs}
+                favorited
+                onToggleFavorite={() => onToggleFavorite(c.name)}
+              />
+            ))}
+          </div>
+          <GroupOutput
+            entries={groupOutputs["favorites"] ?? []}
+            onClear={() =>
+              setGroupOutputs((prev) => {
+                const next = { ...prev };
+                delete next["favorites"];
+                return next;
+              })
+            }
+          />
+        </div>
+      )}
       {groups.map((g) => {
         const items = CRONS.filter((c) => c.group === g);
         if (items.length === 0) return null;
@@ -1243,8 +1346,10 @@ function TriggerPanel({
                       disabled={!canAct || busyCron != null}
                       lastTriggered={lastTriggered[c.name] ?? null}
                       now={now}
-                      onTrigger={() => trigger(c)}
+                      onTrigger={() => trigger(c, g)}
                       onLogs={goToLogs}
+                      favorited={favorites.has(c.name)}
+                      onToggleFavorite={() => onToggleFavorite(c.name)}
                     />
                   ))}
                 </div>
@@ -1275,6 +1380,8 @@ function CronRow({
   now,
   onTrigger,
   onLogs,
+  favorited,
+  onToggleFavorite,
 }: {
   cron: CronInfo;
   busy: boolean;
@@ -1283,6 +1390,8 @@ function CronRow({
   now: number;
   onTrigger: () => void;
   onLogs: () => void;
+  favorited: boolean;
+  onToggleFavorite: () => void;
 }) {
   return (
     <div
@@ -1318,19 +1427,45 @@ function CronRow({
         >
           {cron.name}
         </span>
-        <span
-          className="dim"
+        <div
           style={{
-            fontSize: "var(--fs-xxx-small)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
             flexShrink: 0,
-            background: "var(--app-surface)",
-            padding: "1px 6px",
-            borderRadius: 999,
-            border: "1px solid var(--app-border)",
           }}
         >
-          {cron.interval}
-        </span>
+          <button
+            onClick={onToggleFavorite}
+            title={favorited ? "Unfavorite" : "Add to favorites"}
+            aria-label={favorited ? "Unfavorite" : "Add to favorites"}
+            aria-pressed={favorited}
+            style={{
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              lineHeight: 1,
+              fontSize: "var(--fs-x-small)",
+              color: favorited
+                ? "var(--ui-warning)"
+                : "var(--app-text-dim)",
+            }}
+          >
+            {favorited ? "★" : "☆"}
+          </button>
+          <span
+            className="dim"
+            style={{
+              fontSize: "var(--fs-xxx-small)",
+              background: "var(--app-surface)",
+              padding: "1px 6px",
+              borderRadius: 999,
+              border: "1px solid var(--app-border)",
+            }}
+          >
+            {cron.interval}
+          </span>
+        </div>
       </div>
       {cron.note && (
         <div
