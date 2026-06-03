@@ -27,7 +27,7 @@
     white-space: normal;
     overflow: visible;
     text-overflow: clip;
-    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 
   &__horizontal {
