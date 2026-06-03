@@ -2081,6 +2081,13 @@
       "description": "Sequel Ace is a MySQL and MariaDB database manager for macOS."
     },
     {
+      "name": "SF Symbols",
+      "slug": "sf-symbols/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.apple.SFSymbols",
+      "description": "SF Symbols provides consistent, highly configurable symbols for apps."
+    },
+    {
       "name": "Shottr",
       "slug": "shottr/darwin",
       "platform": "darwin",
