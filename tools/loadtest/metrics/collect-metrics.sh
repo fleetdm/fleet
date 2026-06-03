@@ -94,6 +94,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 METRICS_DIR="${SCRIPT_DIR}/runs${CATEGORY:+/$CATEGORY}/${WORKSPACE}"
 mkdir -p "$METRICS_DIR"
 OUTPUT="${OUTPUT:-${METRICS_DIR}/${WORKSPACE}-$(date -u +%Y-%m-%d-%H%M%SZ)-${INTERVAL_LABEL}.json}"
+# Ensure the parent dir exists even when a custom --output path is given.
+mkdir -p "$(dirname "$OUTPUT")"
 
 # ---------------------------------------------------------------------------
 # Time window: <interval> ending now
@@ -1300,7 +1302,6 @@ fi
 for reader_label in $(jq -r '.rds_readers[].instance // empty' "$OUTPUT" 2>/dev/null); do
   rds_r_cpu_avg=$(jq -r --arg inst "$reader_label" '.rds_readers[] | select(.instance==$inst) | .cpu_utilization.Average // "N/A"' "$OUTPUT")
   rds_r_conns_avg=$(jq -r --arg inst "$reader_label" '.rds_readers[] | select(.instance==$inst) | .database_connections.Average // "N/A"' "$OUTPUT")
-  rds_r_deadlocks=$(jq -r --arg inst "$reader_label" '.rds_readers[] | select(.instance==$inst) | .deadlocks.Sum // "N/A"' "$OUTPUT" 2>/dev/null || echo "N/A")
   printf "RDS %s:  CPU=%s%%  Connections=%s\n" "$reader_label" "$rds_r_cpu_avg" "$rds_r_conns_avg"
 done
 

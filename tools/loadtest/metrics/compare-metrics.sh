@@ -26,6 +26,8 @@
 
 set -euo pipefail
 
+command -v jq >/dev/null 2>&1 || { echo "Error: 'jq' is required but not found in PATH." >&2; exit 1; }
+
 usage() {
   sed -n '3,23p' "$0" | sed 's/^# \?//'
   exit "${1:-0}"
@@ -43,10 +45,10 @@ EXPLICIT_FILES=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -f|--filter)      FILTER="$2"; shift 2 ;;
-    -d|--depth)       DEPTH="$2"; shift 2 ;;
+    -f|--filter)      [[ $# -ge 2 ]] || { echo "Error: $1 requires a value." >&2; exit 1; }; FILTER="$2"; shift 2 ;;
+    -d|--depth)       [[ $# -ge 2 ]] || { echo "Error: $1 requires a value." >&2; exit 1; }; DEPTH="$2"; shift 2 ;;
     -u|--unique)      UNIQUE=true; shift ;;
-    -m|--metrics-dir) METRICS_DIR="$2"; shift 2 ;;
+    -m|--metrics-dir) [[ $# -ge 2 ]] || { echo "Error: $1 requires a value." >&2; exit 1; }; METRICS_DIR="$2"; shift 2 ;;
     -h|--help)        usage 0 ;;
     -*)               echo "Unknown option: $1" >&2; usage 1 ;;
     *.json)           EXPLICIT_FILES+=("$1"); shift ;;
@@ -74,7 +76,7 @@ gather_files() {
   # Find all .json files, extract collected_at, sort descending by timestamp
   local tmpfile
   tmpfile=$(mktemp)
-  trap "rm -f '$tmpfile'" EXIT
+  trap 'rm -f "$tmpfile"' EXIT
 
   while IFS= read -r f; do
     # Extract collected_at from metadata; skip files that aren't valid metric files
@@ -89,7 +91,7 @@ gather_files() {
     fi
 
     echo "${ts}|${workspace}|${f}"
-  done < <(find "$dir" -name '*.json' -type f 2>/dev/null) | sort -t'|' -k1 -r > "$tmpfile"
+  done < <(find "$dir" -name '*.json' -type f 2>/dev/null) | sort -t'|' -k1,1 -r > "$tmpfile"
 
   if [[ "$UNIQUE" == true ]]; then
     # Keep only the most recent file per workspace (first occurrence since sorted desc)
@@ -285,6 +287,12 @@ status_icon() {
     return
   fi
 
+  # Informational metrics (e.g. request counts) are reported but never graded.
+  if [[ "$direction" == "info" ]]; then
+    echo "  —"
+    return
+  fi
+
   # Zero-alert: value went from 0 to non-zero
   if [[ "$zero_alert" == "true" && "$old_val" != "null" && "$new_val" != "null" ]]; then
     local is_old_zero is_new_nonzero
@@ -392,10 +400,13 @@ compare_metric_set() {
     fi
     has_data=true
 
-    # Determine if this is an "inverted" metric (where decrease = regression)
+    # Determine grading direction:
+    #   invert — decrease is the regression (higher is better)
+    #   info   — throughput counters that grow run-to-run; show the delta but never grade it
     local direction="normal"
     case "$name" in
       *"Cache Hit"*|*"Freeable Memory"*) direction="invert" ;;
+      *"Requests"*) direction="info" ;;
     esac
 
     # Build the row: name, then value for each file, then delta + status
