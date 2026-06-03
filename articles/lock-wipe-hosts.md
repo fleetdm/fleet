@@ -20,6 +20,8 @@ Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.mic
 > **iOS and iPadOS**: Lock action is only available for company-owned ([supervised](https://support.apple.com/en-gb/guide/deployment/dep1d89f0bff/web)) hosts.
 As part of locking an iOS or iPadOS host, Fleet collects the device's location data. Fleet will not consider the device fully locked until the location data is collected.
 
+> **Apple hosts**: If unlocking a host within 1 minute of locking it, the host will still show the locked badge until the next MDM check-in.
+
 > **Linux hosts**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
 
 ### Get location of locked iOS/iPadOS host
