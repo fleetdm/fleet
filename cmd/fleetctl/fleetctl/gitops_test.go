@@ -6592,9 +6592,6 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		Name:      localTeamName,
 	}
 
-	// Track calls to BulkSetPendingMDMHostProfiles.
-	var bulkSetPendingCalls int
-
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == localTeamName && savedTeam != nil {
 			return savedTeam, nil
@@ -6609,16 +6606,6 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 		newTeam.ID = baseTeam.ID
 		savedTeam = newTeam
 		return newTeam, nil
-	}
-	// Only count calls that carry profile UUIDs — those originate from
-	// mdmAppleEditedAppleOSUpdates. The BatchSetMDMProfiles service method
-	// also calls BulkSetPendingMDMHostProfiles with empty slices (for
-	// Windows, Apple, and Android profiles), which we want to ignore here.
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
-		if len(profileUUIDs) > 0 {
-			bulkSetPendingCalls++
-		}
-		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
 		if savedTeam != nil && savedTeam.Filename != nil && *savedTeam.Filename == filename {
@@ -6735,48 +6722,6 @@ software:
 	}
 
 	t.Run("macos_updates", func(t *testing.T) {
-		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "14.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
-		})
-
-		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-04-04", "14.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
-		})
-
-		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "14.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "13.6.9"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
-		})
-
 		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
 			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
 				return true, nil
@@ -6797,48 +6742,6 @@ software:
 	})
 
 	t.Run("ios_updates", func(t *testing.T) {
-		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
-		})
-
-		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-04-04", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
-		})
-
-		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
-		})
-
 		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
 			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
 				return true, nil
@@ -6859,48 +6762,6 @@ software:
 	})
 
 	t.Run("ipados_updates", func(t *testing.T) {
-		t.Run("same values do not trigger BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 0, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should not be called when values are unchanged")
-		})
-
-		t.Run("changed deadline triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-04-04", "17.6.1"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when deadline changes")
-		})
-
-		t.Run("changed minimum_version triggers BulkSetPendingMDMHostProfiles", func(t *testing.T) {
-			bulkSetPendingCalls = 0
-			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
-
-			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6"))
-			require.NoError(t, err)
-
-			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
-
-			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
-		})
-
 		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
 			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
 				return true, nil

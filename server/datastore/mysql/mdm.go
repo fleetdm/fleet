@@ -996,11 +996,13 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	if len(profileUUIDs) > 0 {
 		countArgs++
 
+		// This method only reconciles Android profiles synchronously; Apple
+		// and Windows profiles are reconciled by their respective crons, so any
+		// non-Android UUIDs here are simply ignored.
 		for _, puid := range profileUUIDs {
-			if !strings.HasPrefix(puid, fleet.MDMAndroidProfileUUIDPrefix) {
-				return updates, ctxerr.Errorf(ctx, "bulkSetPendingMDMHostProfilesDB only supports Android profile UUIDs, got %q", puid)
+			if strings.HasPrefix(puid, fleet.MDMAndroidProfileUUIDPrefix) {
+				androidProfUUIDs = append(androidProfUUIDs, puid)
 			}
-			androidProfUUIDs = append(androidProfUUIDs, puid)
 		}
 	}
 	if len(hostUUIDs) > 0 {
@@ -1013,12 +1015,12 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 		return updates, nil
 	}
 
-	var countProfUUIDs int
-	if len(androidProfUUIDs) > 0 {
-		countProfUUIDs++
-	}
-	if countProfUUIDs > 1 {
-		return updates, errors.New("profile uuids must be all Apple profiles, all Apple declarations, all Windows profiles, or all Android profiles")
+	// If the caller passed only non-Android profiles, there is nothing for this
+	// Android-only path to do. Returning here avoids falling through to the
+	// switch below with no matching case, which would leave uuidStmt empty and
+	// fail later in sqlx.In with a confusing error.
+	if len(profileUUIDs) > 0 && len(androidProfUUIDs) == 0 {
+		return updates, nil
 	}
 
 	var (
