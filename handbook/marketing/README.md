@@ -145,17 +145,6 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 > LinkedIn's campaign manager does not allow you to truly delete old or failed creatives from evergreen campaigns, which clutters performance data and makes reporting unreliable. To work around this, always create new ad creatives and boosted posts as new campaigns inside the "Targeting experiments" campaign group. Name each campaign with a date prefix (YYYY-MM-DD) and set a lifetime budget (not daily) to cap spend on each experiment. Boosted posts follow the same process since they are also temporary and experimental. If a creative performs well (good CTR), move it into the appropriate pre-existing evergreen awareness campaign to run on a daily budget until performance drops. Never create new LinkedIn "campaigns" outside the "Targeting experiments" campaign group.
 
 
-Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93).
-
-To propose an ad, or a change to an ad:
-1. Evaluate the buying situation before proposing any changes to ads. This determines the audience that will see each ad and which campaign it will be placed in. (Device management, vuln management, endpoint ops - security, endpoint ops - IT)
-2. Experiment campaigns must follow the YYYY-MM-DD._{buying_situation}-{ad_name}_ format. (2024-01-12.mdm - Cross-platform MDM waitlist)
-3. Image ads should follow the recommended size, centering, and asset guidelines. These are available on [Figma](https://www.figma.com/file/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?type=design&node-id=2078-100840&mode=design&t=cHriEw2E7hLxgwuG-0).
-4. Add your proposed ads to the ["🗓️ 🦢🗣 Design review (#help-design)" agenda](https://docs.google.com/document/d/1da1n7lwge5qqEfOSTpcX_BVxr2E5JM4wQMrvFu0nUBg/edit?tab=t.0#heading=h.7en766pueek4) (private Google doc) and attend the next episode.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-5. Make revisions and re-attend the meeting as needed until the planned change is executed.
-7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
-
-
 ### Promote a post on LinkedIn
 
 1. Create a classic campaign under ["Experiments"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D) following the YYYY-MM-DD.buying-situation - ad description with a goal of website visits or engagement to run for two weeks.
