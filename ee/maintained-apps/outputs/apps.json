@@ -2085,7 +2085,7 @@
       "slug": "sf-symbols/darwin",
       "platform": "darwin",
       "unique_identifier": "com.apple.SFSymbols",
-      "description": "SF Symbols provides consistent, highly configurable symbols for apps."
+      "description": "SF Symbols is an app that provides consistent, highly configurable symbols for apps."
     },
     {
       "name": "Shottr",
