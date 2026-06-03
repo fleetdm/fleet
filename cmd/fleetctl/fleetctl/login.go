@@ -1,7 +1,6 @@
 package fleetctl
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -24,7 +23,14 @@ fleetctl login [options]
 
 Interactively prompts for email and password if not specified in the flags or environment variables.
 
-Trying to login with SSO or MFA? First, login to the Fleet UI and retrieve your API token from the "My account" page. Then set your API token with the fleetctl config set --token <your-api-token-here> command. You're now logged in to fleetctl.
+If SSO is enabled on the Fleet server, a warning will be displayed with instructions for
+authenticating via API token. You may still attempt to log in with email and password, but it
+will only succeed if your account is not SSO-enabled.
+
+To authenticate with fleetctl for SSO-enabled accounts:
+  1. Log in to the Fleet UI in your browser
+  2. Go to My account > Get API token
+  3. Run: fleetctl config set --token <your-api-token>
 `,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -51,9 +57,8 @@ Trying to login with SSO or MFA? First, login to the Fleet UI and retrieve your 
 				return err
 			}
 
-			ssoSettings, err := fleet.SSOSettings()
-			if err == nil && ssoSettings != nil && ssoSettings.SSOEnabled {
-				return errors.New(ssoAuthInstructions)
+			if ssoSettings, ssoErr := fleet.SSOSettings(); ssoErr == nil && ssoSettings != nil && ssoSettings.SSOEnabled {
+				fmt.Fprintf(os.Stderr, "Warning: %s\n\n", ssoAuthInstructions)
 			}
 
 			definedAsEnvOnly := func(flagName, envName string) bool {
