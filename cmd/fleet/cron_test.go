@@ -282,7 +282,7 @@ func TestCleanupExpiredHostsCronJob(t *testing.T) {
 			require.True(t, ok)
 			require.Positive(t, time.Until(deadline))
 			time.Sleep(60 * time.Millisecond)
-			return []fleet.DeletedHostDetails{{ID: uint(calls)}}, nil
+			return []fleet.DeletedHostDetails{{ID: 1}}, nil
 		}
 
 		err := cleanupExpiredHostsCronJob(context.Background(), svc, logger, 50*time.Millisecond)
