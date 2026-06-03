@@ -60,9 +60,12 @@
 
   &--tooltip-link,
   &--flash-message-link {
-    font-size: inherit; // Overrides link default font size with parent tooltip font size
+    font-size: inherit; // Overrides link default font size with parent tooltip/flash font size
+  }
+
+  &--tooltip-link {
     // Use static (non-themed) colors so the underline and icon stay light on
-    // the always-dark tooltip/flash background regardless of light/dark mode.
+    // the always-dark tooltip background regardless of light/dark mode.
     background-image: linear-gradient($static-white, $static-white),
       linear-gradient(rgba($static-white, 0.4), rgba($static-white, 0.4));
 
@@ -89,9 +92,25 @@
   }
 
   &--flash-message-link {
+    // Flash message backgrounds are themed (light in light mode, dark in dark
+    // mode), so use themed colors instead of static white.
+    .external-link-icon__outline {
+      stroke: $core-fleet-black;
+    }
+
+    .external-link-icon__arrow {
+      stroke: $core-fleet-black;
+    }
+
     &:hover {
+      color: $ui-fleet-black-75-over;
+
+      .external-link-icon__outline {
+        fill: $ui-error-flash-bg;
+      }
+
       .external-link-icon__arrow {
-        stroke: $core-vibrant-red;
+        stroke: $ui-fleet-black-75-over;
       }
     }
   }
