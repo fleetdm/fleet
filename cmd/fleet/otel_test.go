@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	otelsdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -41,12 +42,13 @@ func TestInitOTELProviders_DisabledReturnsNilProviders(t *testing.T) {
 	require.False(t, cfg.OTELEnabled(), "precondition: default config must have OTEL disabled")
 
 	called := false
-	lp, tp, mp := initOTELProviders(cfg, func(err error, msg string) { called = true })
+	lp, tp, mp, sampler := initOTELProviders(cfg, tracing.NewRegistry(), func(err error, msg string) { called = true })
 
 	require.False(t, called, "initFatal must not be called when OTEL is disabled")
 	require.Nil(t, lp)
 	require.Nil(t, tp)
 	require.Nil(t, mp)
+	require.Nil(t, sampler, "sampler must be nil when OTEL is disabled")
 }
 
 func TestInitOTELProviders_EnabledReturnsTracerAndMeterProviders(t *testing.T) {
@@ -60,13 +62,14 @@ func TestInitOTELProviders_EnabledReturnsTracerAndMeterProviders(t *testing.T) {
 	require.True(t, cfg.OTELEnabled(), "precondition: tracing-enabled config must have OTEL enabled")
 
 	called := false
-	lp, tp, mp := initOTELProviders(cfg, func(err error, msg string) { called = true })
+	lp, tp, mp, sampler := initOTELProviders(cfg, tracing.NewRegistry(), func(err error, msg string) { called = true })
 	shutdownOTELProviders(t, lp, tp, mp)
 
 	require.False(t, called, "initFatal must not be called for a healthy enabled config")
 	require.Nil(t, lp, "logger provider should be nil when OtelLogsEnabled is false")
 	require.NotNil(t, tp)
 	require.NotNil(t, mp)
+	require.NotNil(t, sampler, "sampler must be returned when OTEL is enabled")
 }
 
 func TestInitOTELProviders_LogExportEnabledReturnsLoggerProvider(t *testing.T) {
@@ -75,11 +78,12 @@ func TestInitOTELProviders_LogExportEnabledReturnsLoggerProvider(t *testing.T) {
 	}
 
 	called := false
-	lp, tp, mp := initOTELProviders(cfg, func(err error, msg string) { called = true })
+	lp, tp, mp, sampler := initOTELProviders(cfg, tracing.NewRegistry(), func(err error, msg string) { called = true })
 	shutdownOTELProviders(t, lp, tp, mp)
 
 	require.False(t, called)
 	require.NotNil(t, lp, "logger provider should be set when OtelLogsEnabled is true")
 	require.NotNil(t, tp)
 	require.NotNil(t, mp)
+	require.NotNil(t, sampler)
 }

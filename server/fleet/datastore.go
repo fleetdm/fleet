@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -3344,6 +3345,16 @@ type Datastore interface {
 
 	// HasWindowsUpdateConfigProfileConfigured checks if a profile for the team already exists in the update_settings table.
 	HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// TraceSamplerStore
+
+	// GetTraceSamplerSettings returns the singleton trace_sampler_settings row.
+	GetTraceSamplerSettings(ctx context.Context) (*tracing.Settings, error)
+
+	// SetTraceSamplerSettings updates the singleton trace_sampler_settings row. The caller is responsible for validating that
+	// ratios are in [0, 1]. The DB CHECK constraints reject out of range writes as a backstop.
+	SetTraceSamplerSettings(ctx context.Context, settings *tracing.Settings) error
 }
 
 type AndroidDatastore interface {
@@ -3403,9 +3414,9 @@ type AndroidDatastore interface {
 
 	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the wipe_ref on host_mdm_actions in a
 	// single transaction. Used by COBO Wipe (which surfaces as PendingAction=wipe -> DeviceStatus=wiped) and by BYO Unenroll
-	// (which sends an AMAPI WIPE work-profile-only; the wipe_ref is what HostLockWipeStatus.IsPendingWipe reads to flip
-	// device_status to "wiping"). The frontend overrides the badge label to "Unenroll pending" for BYO Android based on
-	// enrollment status. The caller must populate cmd.CommandUUID and cmd.OperationName before invoking.
+	// (which sends an AMAPI WIPE work-profile-only; the wipe_ref is what HostLockWipeStatus.IsPendingWipe reads). For BYO Android
+	// the resulting transient wipe status is suppressed (see suppressAndroidBYODWipeStatus) so no pending badge is shown. The caller
+	// must populate cmd.CommandUUID and cmd.OperationName before invoking.
 	WipeHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
 
 	// ClearPasscodeHostViaAndroidMDM inserts the RESET_PASSWORD row into mdm_android_commands and writes the
