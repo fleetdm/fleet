@@ -130,6 +130,13 @@ jobs:
           FLEET_SERVER_ADDRESS: 0.0.0.0:1337
           FLEET_SERVER_TLS: false
           FLEET_LOGGING_DEBUG: true
+          # Re-run host detail queries frequently (default is 1h). The orbit_info
+          # detail query (which populates orbit_version) is discovery-gated on orbit's
+          # osquery extension, which registers a moment after osquery's first
+          # distributed read — so it's skipped on the first detail cycle. A short
+          # interval lets the next cycle pick it up (extension is registered by then),
+          # so orbit_version actually populates within this short-lived test run.
+          FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL: 30s
         run: |
           mkdir ./fleet_log
           make db-reset
