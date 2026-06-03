@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260529165013, Down_20260529165013)
+	MigrationClient.AddMigration(Up_20260603101320, Down_20260603101320)
 }
 
-func Up_20260529165013(tx *sql.Tx) error {
+func Up_20260603101320(tx *sql.Tx) error {
 	// Pre-check: ensure no orphaned label_id values exist that would cause the
 	// new RESTRICT constraint to fail. In practice this shouldn't happen since
 	// the previous ON DELETE SET NULL would have nulled them out, but guard
@@ -63,6 +63,6 @@ func Up_20260529165013(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260529165013(tx *sql.Tx) error {
+func Down_20260603101320(tx *sql.Tx) error {
 	return nil
 }
