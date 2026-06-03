@@ -1440,9 +1440,9 @@ func (svc *Service) createTeamFromSpec(
 	if enableDiskEncryption && svc.config.Server.PrivateKey == "" {
 		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
-	validateTeamCustomSettings(invalid, "macos", macOSSettings.CustomSettings)
-	validateTeamCustomSettings(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
-	validateTeamCustomSettings(invalid, "android", spec.MDM.AndroidSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "macos", macOSSettings.CustomSettings)
+	fleet.ValidateMDMProfileSpecs(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "android", spec.MDM.AndroidSettings.CustomSettings.Value)
 
 	var hostExpirySettings fleet.HostExpirySettings
 	if spec.HostExpirySettings != nil {
@@ -1845,9 +1845,9 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.HostExpirySettings = *spec.HostExpirySettings
 	}
 
-	validateTeamCustomSettings(invalid, "apple", team.Config.MDM.MacOSSettings.CustomSettings)
-	validateTeamCustomSettings(invalid, "windows", team.Config.MDM.WindowsSettings.CustomSettings.Value)
-	validateTeamCustomSettings(invalid, "android", team.Config.MDM.AndroidSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "apple", team.Config.MDM.MacOSSettings.CustomSettings)
+	fleet.ValidateMDMProfileSpecs(invalid, "windows", team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	fleet.ValidateMDMProfileSpecs(invalid, "android", team.Config.MDM.AndroidSettings.CustomSettings.Value)
 
 	// If host status webhook is not provided, do not change it
 	if spec.WebhookSettings.HostStatusWebhook != nil {
@@ -2059,25 +2059,6 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	return nil
-}
-
-func validateTeamCustomSettings(invalid *fleet.InvalidArgumentError, prefix string, customSettings []fleet.MDMProfileSpec) {
-	for i, prof := range customSettings {
-		count := 0
-		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsIncludeAny) > 0, len(prof.LabelsExcludeAny) > 0} {
-			if b {
-				count++
-			}
-		}
-		if count > 1 {
-			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
-				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
-		}
-		if len(prof.Labels) > 0 {
-			customSettings[i].LabelsIncludeAll = customSettings[i].Labels
-			customSettings[i].Labels = nil
-		}
-	}
 }
 
 func (svc *Service) validateTeamCalendarIntegrations(

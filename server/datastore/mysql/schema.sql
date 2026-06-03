@@ -1842,11 +1842,11 @@ CREATE TABLE `mdm_configuration_profile_labels` (
   UNIQUE KEY `idx_mdm_configuration_profile_labels_apple_label_name` (`apple_profile_uuid`,`label_name`),
   UNIQUE KEY `idx_mdm_configuration_profile_labels_windows_label_name` (`windows_profile_uuid`,`label_name`),
   UNIQUE KEY `idx_mdm_configuration_profile_labels_android_label_name` (`android_profile_uuid`,`label_name`),
-  KEY `label_id` (`label_id`),
+  KEY `mdm_configuration_profile_labels_ibfk_label` (`label_id`),
   CONSTRAINT `mdm_configuration_profile_labels_ibfk_1` FOREIGN KEY (`apple_profile_uuid`) REFERENCES `mdm_apple_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
   CONSTRAINT `mdm_configuration_profile_labels_ibfk_2` FOREIGN KEY (`windows_profile_uuid`) REFERENCES `mdm_windows_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
-  CONSTRAINT `mdm_configuration_profile_labels_ibfk_3` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE SET NULL,
   CONSTRAINT `mdm_configuration_profile_labels_ibfk_4` FOREIGN KEY (`android_profile_uuid`) REFERENCES `mdm_android_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_configuration_profile_labels_ibfk_label` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `ck_mdm_configuration_profile_labels_profile_uuid` CHECK ((((if((`apple_profile_uuid` is null),0,1) + if((`windows_profile_uuid` is null),0,1)) + if((`android_profile_uuid` is null),0,1)) = 1))
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1901,7 +1901,7 @@ CREATE TABLE `mdm_declaration_labels` (
   UNIQUE KEY `idx_mdm_declaration_labels_label_name` (`apple_declaration_uuid`,`label_name`),
   KEY `label_id` (`label_id`),
   CONSTRAINT `mdm_declaration_labels_ibfk_1` FOREIGN KEY (`apple_declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE,
-  CONSTRAINT `mdm_declaration_labels_ibfk_3` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE SET NULL
+  CONSTRAINT `mdm_declaration_labels_ibfk_label` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE RESTRICT
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -3054,6 +3054,21 @@ CREATE TABLE `teams` (
   UNIQUE KEY `idx_name_bin` (`name_bin`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `trace_sampler_settings` (
+  `id` tinyint unsigned NOT NULL,
+  `high_volume_ratio` double NOT NULL DEFAULT '0.001',
+  `standard_ratio` double NOT NULL DEFAULT '0.02',
+  `force_full` tinyint(1) NOT NULL DEFAULT '0',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `ck_trace_sampler_settings_high_range` CHECK ((`high_volume_ratio` between 0 and 1)),
+  CONSTRAINT `ck_trace_sampler_settings_singleton` CHECK ((`id` = 1)),
+  CONSTRAINT `ck_trace_sampler_settings_std_range` CHECK ((`standard_ratio` between 0 and 1))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `trace_sampler_settings` VALUES (1,0.001,0.02,0,'2026-06-01 00:00:00');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `upcoming_activities` (

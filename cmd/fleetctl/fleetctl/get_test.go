@@ -2565,7 +2565,7 @@ func TestGetAppleBM(t *testing.T) {
 	t.Run("free license", func(t *testing.T) {
 		testing_utils.RunServerWithMockedDS(t)
 
-		expected := `could not get Apple BM information: missing or invalid license`
+		expected := `could not get Apple Business information: missing or invalid license`
 		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), expected)
@@ -2585,7 +2585,7 @@ func TestGetAppleBM(t *testing.T) {
 		assert.Contains(t, out, "Organization name:")
 		assert.Contains(t, out, "MDM server URL:")
 		assert.Contains(t, out, "Renew date:")
-		assert.Contains(t, out, "Default team:")
+		assert.Contains(t, out, "Default fleet:")
 	})
 
 	t.Run("premium license, no token", func(t *testing.T) {
@@ -2596,7 +2596,7 @@ func TestGetAppleBM(t *testing.T) {
 		}
 
 		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
-		assert.Contains(t, out, "No Apple Business server token found.")
+		assert.Contains(t, out, "No Apple Business (AB) server token found.")
 	})
 
 	t.Run("premium license, multiple tokens", func(t *testing.T) {
@@ -2610,7 +2610,7 @@ func TestGetAppleBM(t *testing.T) {
 		}
 
 		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
-		assert.ErrorContains(t, err, "This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint")
+		assert.ErrorContains(t, err, "This API endpoint has been deprecated. Please use the new GET /ab_tokens API endpoint")
 	})
 }
 

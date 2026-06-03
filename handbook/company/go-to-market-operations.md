@@ -110,23 +110,6 @@ When you reach out to a prospect or customer, make sure you're the right person:
 - **🌦️ Customers**: The Customer Success Manager (CSM) reaches out.
 - **🫧 Any other prospects**: The Solutions Consultant (SC) reaches out.
 
-  
-### Outbound messaging experimentation and tracking
-
-Our outbound motion for Solution Specialists is intentionally experimental and evolving. Rather than locking into a single script or sequence, we actively test different messaging approaches and learn from real conversations.
-
-The [Outbound pivot tracking spreadsheet (confidential)](https://docs.google.com/spreadsheets/d/1VjJTrldUpJTZTLg0Xz2B9dZ-D8vYZNhGVMSYBxOxqEA/edit?gid=0#gid=0) is used to track:
-	•	the initial outreach approach
-	•	how we build toward an ask
-	•	where and how we pivot to a meeting request
-	•	the exact wording used at the pivot point
-	•	the outcome and post-mortem notes
-
-The goal is not perfect attribution or rigid process. The goal is to:
-	•	identify which messaging patterns create momentum
-	•	understand when a prospect signals readiness for a call
-	•	refine how and when we transition from curiosity to a meeting ask
-
 
 ### Programs
 
@@ -165,7 +148,7 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 
 #### Events
 
-It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
+We sponsor and participate in events so that we can support, connect, engage, and grow the Fleet community. We need to be thoughtful about what events we sponsor or host, and we need to be disciplined in how we run events so we can be efficient and effective.
 
 
 ### Field event follow-up
@@ -208,6 +191,14 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 #### SWAG
 
 Bulk SWAG (Stuff-We-All-Get) orders of any kind are reviewed and placed by the [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team). If we're ordering a new SWAG item, the Content Specialist will work with the [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team) to obtain an approved product template. 
+
+##### Request swag
+
+There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. To request swag:
+1. [Create an issue](https://github.com/orgs/fleetdm/projects/65) on the :help-marketing board.
+2. Provide order details (e.g. expected shirt size, name, and shipping details).
+3. Decide if you'd like to include a personalized message and attach it to the issue.
+
 
 #### Video
 

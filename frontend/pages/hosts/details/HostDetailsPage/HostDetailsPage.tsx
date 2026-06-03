@@ -37,10 +37,7 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import {
-  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
-  isAndroidBYO,
-} from "interfaces/mdm";
+import { FLEET_FILEVAULT_PROFILE_DISPLAY_NAME } from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
@@ -1725,16 +1722,6 @@ const HostDetailsPage = ({
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
               onClose={toggleUnenrollMdmModal}
-              onSuccess={() => {
-                // Android BYO unenroll fires an AMAPI WIPE work-profile-only command, which the backend tracks via wipe_ref / device_status="wiping".
-                // Optimistically flip the device state so the "Unenroll pending" badge shows immediately instead of waiting for the next host refetch.
-                if (
-                  isAndroid(host.platform) &&
-                  isAndroidBYO(host.mdm.enrollment_status)
-                ) {
-                  setHostMdmDeviceState("wiping");
-                }
-              }}
             />
           )}
           {showDiskEncryptionModal && host && (
