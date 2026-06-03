@@ -1,3 +1,23 @@
+## 1.56.0 (Jun 03, 2026)
+
+* Added exponential backoff with jitter to Fleet Desktop's server polling. On error (401, 5xx, network failure), Desktop now doubles its retry interval (capped at 30 minutes) instead of retrying at a fixed rate. A single success resets to the normal interval. This prevents request storms that can overwhelm the database when many hosts have expired tokens.
+
+* Added the `orbit.debug_logging_on_enroll_duration` agent option to allow enabling orbit debug logging for a specified time period after enrollment
+
+* Fixed Fleet Desktop failing to start on openSUSE Leap 16, by dropping the `-i` (login shell) flag from the sudo invocation used to launch Fleet Desktop and key-escrow dialogs as the logged-in user.
+
+* Updated orbit to rotate desktop token ("identifier" file) even if Fleet Desktop is disabled.
+
+* Improved validation around file paths in Orbit. 
+
+* Fixed Fleet Desktop tray icon appearing oversized in KDE Plasma on Linux installs when hosts have kde-plasma-desktop installed alongside another windows manager.
+
+* Updated go to 1.26.3
+
+* Added new `adobe_plugins` osquery extension table to fleetd that detects Adobe CEP, UXP, and native plug-ins on macOS and Windows by scanning well-known directories and parsing plugin manifests for name, version, vendor, host application, and other metadata.
+
+* Use color version of icon on KDE to improve UX on light/dark themes
+
 ## 1.55.0 (May 05, 2026)
 
 * Updated go to 1.26.2.
