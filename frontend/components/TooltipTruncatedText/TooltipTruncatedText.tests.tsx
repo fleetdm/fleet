@@ -34,8 +34,7 @@ describe("TooltipTruncatedText", () => {
     render(<TooltipTruncatedText value="example" fixedPositionStrategy />);
 
     expect(mockedTooltipWrapper).toHaveBeenCalledWith(
-      expect.objectContaining({ fixedPositionStrategy: true }),
-      expect.anything()
+      expect.objectContaining({ fixedPositionStrategy: true })
     );
   });
 
@@ -43,8 +42,7 @@ describe("TooltipTruncatedText", () => {
     render(<TooltipTruncatedText value="example" />);
 
     expect(mockedTooltipWrapper).toHaveBeenCalledWith(
-      expect.objectContaining({ fixedPositionStrategy: false }),
-      expect.anything()
+      expect.objectContaining({ fixedPositionStrategy: false })
     );
   });
 
@@ -54,8 +52,7 @@ describe("TooltipTruncatedText", () => {
     render(<TooltipTruncatedText value="short" />);
 
     expect(mockedTooltipWrapper).toHaveBeenCalledWith(
-      expect.objectContaining({ disableTooltip: true }),
-      expect.anything()
+      expect.objectContaining({ disableTooltip: true })
     );
   });
 
@@ -67,8 +64,7 @@ describe("TooltipTruncatedText", () => {
     );
 
     expect(mockedTooltipWrapper).toHaveBeenCalledWith(
-      expect.objectContaining({ disableTooltip: false }),
-      expect.anything()
+      expect.objectContaining({ disableTooltip: false })
     );
   });
 
@@ -76,8 +72,7 @@ describe("TooltipTruncatedText", () => {
     render(<TooltipTruncatedText value="just-the-value" />);
 
     expect(mockedTooltipWrapper).toHaveBeenCalledWith(
-      expect.objectContaining({ tipContent: "just-the-value" }),
-      expect.anything()
+      expect.objectContaining({ tipContent: "just-the-value" })
     );
   });
 
@@ -90,8 +85,7 @@ describe("TooltipTruncatedText", () => {
     );
 
     expect(mockedTooltipWrapper).toHaveBeenCalledWith(
-      expect.objectContaining({ tipContent: "custom-tip-content" }),
-      expect.anything()
+      expect.objectContaining({ tipContent: "custom-tip-content" })
     );
   });
 });
