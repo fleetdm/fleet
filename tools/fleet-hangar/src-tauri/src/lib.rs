@@ -4,6 +4,7 @@ mod fleetctl;
 mod git;
 mod gitops;
 mod perf;
+mod perf_configs;
 mod processes;
 mod settings;
 mod shellpath;
@@ -95,6 +96,9 @@ pub fn run() {
             troubleshoot::troubleshoot_scan_pattern,
             troubleshoot::troubleshoot_kill_pid,
             perf::perf_list_templates,
+            perf_configs::perf_configs_list,
+            perf_configs::perf_config_save,
+            perf_configs::perf_config_delete,
             gitops::gitops_list_repos,
             gitops::gitops_check_target,
             tray::update_tray,

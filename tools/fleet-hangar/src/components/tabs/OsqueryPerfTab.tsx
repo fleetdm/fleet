@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   api,
   type LogLine,
+  type PerfConfig,
   type PerfTemplate,
   type ProcEvent,
   type ProcInfo,
@@ -10,10 +11,9 @@ import {
 } from "../../lib/tauri";
 import { noAutocorrect } from "../../lib/noAutocorrect";
 
-/// Local-only form shape — v1 keeps these in React state and re-renders
-/// from defaults each app launch. We deliberately don't persist them so
-/// the spawn config stays simple and there's no migration story when
-/// flags change in the agent.
+/// Local form shape. Saved configs persist a superset of these fields
+/// (id + name + timestamps) — see PerfConfig in tauri.ts. Loading a
+/// saved config populates this struct; saving copies it back.
 export interface PerfFormConfig {
   server_url: string;
   enroll_secret: string;
@@ -86,6 +86,82 @@ type PerfLogLine = {
   stream: "stdout" | "stderr";
 };
 
+/// Pull form values out of a saved config. The shape is intentionally
+/// a strict subset of PerfConfig so any future PerfFormConfig fields
+/// would need to be wired here explicitly.
+function configToForm(c: PerfConfig): PerfFormConfig {
+  return {
+    server_url: c.server_url,
+    enroll_secret: c.enroll_secret,
+    os_counts: { ...c.os_counts },
+    mdm_enabled: c.mdm_enabled,
+    mdm_prob: c.mdm_prob,
+    mdm_scep_challenge: c.mdm_scep_challenge,
+    start_period: c.start_period,
+    query_interval: c.query_interval,
+    config_interval: c.config_interval,
+  };
+}
+
+/// Apply form values onto a (possibly partial) saved config, preserving
+/// id / name / timestamps. Used by both "update loaded" and "save as new".
+function formToConfig(
+  form: PerfFormConfig,
+  name: string,
+  baseline?: PerfConfig,
+): PerfConfig {
+  return {
+    id: baseline?.id ?? generateConfigId(),
+    name,
+    server_url: form.server_url,
+    enroll_secret: form.enroll_secret,
+    os_counts: { ...form.os_counts },
+    mdm_enabled: form.mdm_enabled,
+    mdm_prob: form.mdm_prob,
+    mdm_scep_challenge: form.mdm_scep_challenge,
+    start_period: form.start_period,
+    query_interval: form.query_interval,
+    config_interval: form.config_interval,
+    created_at_ms: baseline?.created_at_ms ?? 0,
+    updated_at_ms: baseline?.updated_at_ms ?? 0,
+  };
+}
+
+function generateConfigId(): string {
+  // crypto.randomUUID is available in modern WebKit (Tauri target).
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  // Fallback: time + random hex. Loose uniqueness is enough — these
+  // never leave the local file.
+  return `cfg-${performance.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
+}
+
+/// Deep-equality check between the form shape and a saved config's form
+/// fields. Drives the "modified" badge on the editor header. Object
+/// keys are deterministic via spread + sort so {a:1,b:2} === {b:2,a:1}.
+function formMatchesConfig(form: PerfFormConfig, c: PerfConfig): boolean {
+  if (form.server_url !== c.server_url) return false;
+  if (form.enroll_secret !== c.enroll_secret) return false;
+  if (form.mdm_enabled !== c.mdm_enabled) return false;
+  if (form.mdm_prob !== c.mdm_prob) return false;
+  if (form.mdm_scep_challenge !== c.mdm_scep_challenge) return false;
+  if (form.start_period !== c.start_period) return false;
+  if (form.query_interval !== c.query_interval) return false;
+  if (form.config_interval !== c.config_interval) return false;
+  const fKeys = Object.keys(form.os_counts).sort();
+  const cKeys = Object.keys(c.os_counts).sort();
+  if (fKeys.length !== cKeys.length) return false;
+  for (let i = 0; i < fKeys.length; i++) {
+    if (fKeys[i] !== cKeys[i]) return false;
+    if (form.os_counts[fKeys[i]] !== c.os_counts[cKeys[i]]) return false;
+  }
+  return true;
+}
+
+
 export function OsqueryPerfTab({
   settings,
   procs,
@@ -96,27 +172,59 @@ export function OsqueryPerfTab({
   const repoPath = settings.repo_path;
   const [templates, setTemplates] = useState<PerfTemplate[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Form lives in React state only — no settings.json round-trip in v1.
-  // Each app launch starts from DEFAULT_PERF_FORM; the user re-enters
-  // anything custom. Trade-off accepted in exchange for not needing a
-  // migration story when agent flags change.
   const [form, setForm] = useState<PerfFormConfig>(DEFAULT_PERF_FORM);
-  // Per-run rolling tails, keyed by proc id. Filled by the
-  // proc:log/proc:state event listeners (one subscription, not per
-  // card — keeps the listener count small even at the cap).
   const [tails, setTails] = useState<Record<string, PerfLogLine[]>>({});
-  // Failed runs the user explicitly dismissed via the card's ✕ button.
-  // `done` runs are auto-dismissed (filtered below) so they don't need
-  // entries here. We never remove ids from this set — the proc itself
-  // ages out of the parent procs array soon enough.
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  // Saved configurations + which one (if any) is currently loaded into
+  // the editor. `loadedId === null` is the implicit "NEW RUN" state. We
+  // pull the full config out of `configs` by id at render time so updates
+  // (rename, etc.) are reflected without bookkeeping. Reloaded on every
+  // save/delete so all callers see the freshest view.
+  const [configs, setConfigs] = useState<PerfConfig[]>([]);
+  const [loadedId, setLoadedId] = useState<string | null>(null);
+  // Run-name input. Auto-suggests from form when the user hasn't taken
+  // ownership; flips to "dirty" the moment they type or a config is
+  // loaded. Reverts to suggest-from-form when the user clears the
+  // editor back to NEW RUN.
+  const [draftName, setDraftName] = useState<string>(() =>
+    suggestName(DEFAULT_PERF_FORM),
+  );
+  const [nameDirty, setNameDirty] = useState(false);
+  useEffect(() => {
+    if (!nameDirty) setDraftName(suggestName(form));
+  }, [form, nameDirty]);
+  // Track which saved config (if any) each running process was launched
+  // from. Drives the ★/☆ glyph on run cards. A missing entry (or null)
+  // means "launched ad-hoc / not from a preset".
+  const [runConfigIds, setRunConfigIds] = useState<
+    Record<string, string | null>
+  >({});
+
+  const loaded = useMemo(
+    () => configs.find((c) => c.id === loadedId) ?? null,
+    [configs, loadedId],
+  );
+  const modified = useMemo(
+    () => (loaded ? !formMatchesConfig(form, loaded) : false),
+    [loaded, form],
+  );
+  const refreshConfigs = useCallback(async () => {
+    try {
+      const next = await api.perfConfigsList();
+      setConfigs(next);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
 
   useEffect(() => {
     api
       .perfListTemplates()
       .then(setTemplates)
       .catch((e) => setError(String(e)));
-  }, []);
+    refreshConfigs();
+  }, [refreshConfigs]);
 
   // Live log subscription. Filters in JS rather than the backend so we
   // share the same `proc:log` channel that fleet serve uses — no new
@@ -190,7 +298,16 @@ export function OsqueryPerfTab({
     .filter((p) => p.state === "running" || p.state === "stopping")
     .reduce((sum, p) => sum + extractHostCount(p), 0);
 
-  async function startRun(form: PerfFormConfig, name: string) {
+  /// Spawn a run. Capture which saved config (if any) the form came
+  /// from at spawn time so kill flow + run-card ★/☆ know whether the
+  /// run is "covered" by a save. configId is captured by value here —
+  /// later edits to the form or to the saved config don't change the
+  /// run's recorded provenance.
+  async function startRun(
+    form: PerfFormConfig,
+    name: string,
+    configId: string | null,
+  ) {
     if (!repoPath) {
       setError("Set the Fleet repo path in Settings first.");
       return;
@@ -218,11 +335,58 @@ export function OsqueryPerfTab({
         // and the 60-line recent_log tail still populates for failure
         // diagnostics — we just skip the disk write + channel ring.
       });
+      setRunConfigIds((prev) => ({ ...prev, [id]: configId }));
       setError(null);
     } catch (e) {
       setError(String(e));
     }
   }
+
+  const saveConfig = useCallback(
+    async (config: PerfConfig): Promise<PerfConfig | null> => {
+      try {
+        const saved = await api.perfConfigSave(config);
+        await refreshConfigs();
+        return saved;
+      } catch (e) {
+        setError(String(e));
+        return null;
+      }
+    },
+    [refreshConfigs],
+  );
+
+  const deleteConfig = useCallback(
+    async (id: string) => {
+      try {
+        await api.perfConfigDelete(id);
+        if (loadedId === id) setLoadedId(null);
+        await refreshConfigs();
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [loadedId, refreshConfigs],
+  );
+
+  const loadConfig = useCallback((c: PerfConfig) => {
+    setForm(configToForm(c));
+    setLoadedId(c.id);
+    setDraftName(c.name);
+    setNameDirty(true);
+  }, []);
+
+  const clearLoaded = useCallback(() => {
+    setLoadedId(null);
+    setNameDirty(false);
+    // The form-driven auto-suggest will fire from the effect above on
+    // the next render.
+  }, []);
+
+  const handleNameChange = useCallback((n: string) => {
+    setDraftName(n);
+    setNameDirty(true);
+  }, []);
 
   function dismissRun(id: string) {
     // Hide immediately via local state for instant feedback…
@@ -247,13 +411,14 @@ export function OsqueryPerfTab({
   }
 
   async function killAll() {
-    for (const p of perfProcs) {
-      if (p.state === "running" || p.state === "stopping") {
-        try {
-          await api.stopProcess(p.id);
-        } catch (e) {
-          console.error("kill perf run failed", p.id, e);
-        }
+    const running = perfProcs.filter(
+      (p) => p.state === "running" || p.state === "stopping",
+    );
+    for (const p of running) {
+      try {
+        await api.stopProcess(p.id);
+      } catch (e) {
+        console.error("kill perf run failed", p.id, e);
       }
     }
   }
@@ -289,12 +454,11 @@ export function OsqueryPerfTab({
           flexShrink: 0,
         }}
       >
-        <StatusStrip
-          activeCount={activeCount}
-          totalHosts={totalHosts}
-          targetUrl={form.server_url}
-          onKillAll={killAll}
-          hasRunning={activeCount > 0}
+        <SavedConfigsStrip
+          configs={configs}
+          loadedId={loaded?.id ?? null}
+          onLoad={loadConfig}
+          onDelete={deleteConfig}
         />
       </div>
 
@@ -330,6 +494,10 @@ export function OsqueryPerfTab({
           procs={perfProcs}
           tails={tails}
           activeCount={activeCount}
+          totalHosts={totalHosts}
+          runConfigIds={runConfigIds}
+          configs={configs}
+          onKillAll={killAll}
           onKill={killRun}
           onDismiss={dismissRun}
         />
@@ -337,9 +505,32 @@ export function OsqueryPerfTab({
           form={form}
           onChange={setForm}
           templates={templates}
-          onStart={startRun}
+          onStart={(f, name) => startRun(f, name, loadedId)}
           canStart={activeCount < MAX_PERF_RUNS && templates.length > 0}
-          activeCount={activeCount}
+          loaded={loaded}
+          modified={modified}
+          draftName={draftName}
+          onDraftNameChange={handleNameChange}
+          onClearLoaded={clearLoaded}
+          onSave={async (name) => {
+            const saved = await saveConfig(formToConfig(form, name));
+            if (saved) {
+              setLoadedId(saved.id);
+              setDraftName(saved.name);
+            }
+          }}
+          onUpdate={async () => {
+            if (!loaded) return;
+            const saved = await saveConfig(formToConfig(form, loaded.name, loaded));
+            if (saved) setDraftName(saved.name);
+          }}
+          onSaveAsNew={async (name) => {
+            const saved = await saveConfig(formToConfig(form, name));
+            if (saved) {
+              setLoadedId(saved.id);
+              setDraftName(saved.name);
+            }
+          }}
         />
       </div>
     </div>
@@ -348,80 +539,26 @@ export function OsqueryPerfTab({
 
 /* --------------- Status strip --------------- */
 
-function StatusStrip({
-  activeCount,
-  totalHosts,
-  targetUrl,
-  onKillAll,
-  hasRunning,
-}: {
-  activeCount: number;
-  totalHosts: number;
-  targetUrl: string;
-  onKillAll: () => void;
-  hasRunning: boolean;
-}) {
-  return (
-    <div
-      className="card"
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 18,
-        padding: "12px 16px",
-        flexWrap: "wrap",
-      }}
-    >
-      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span className={`dot ${activeCount > 0 ? "run" : "idle"}`} />
-        <span style={{ fontWeight: 600, fontSize: "var(--fs-x-small)" }}>
-          {activeCount} / {MAX_PERF_RUNS} runs
-        </span>
-        {totalHosts > 0 && (
-          <span
-            className="dim"
-            style={{ fontSize: "var(--fs-xx-small)" }}
-          >
-            · {totalHosts.toLocaleString()} hosts simulated
-          </span>
-        )}
-      </span>
-      <span style={{ color: "var(--app-border)" }}>│</span>
-      <span
-        className="dim"
-        style={{ fontSize: "var(--fs-xx-small)" }}
-      >
-        target ·{" "}
-        <span className="mono" style={{ color: "var(--app-text)" }}>
-          {targetUrl}
-        </span>
-      </span>
-      <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-        <button
-          onClick={onKillAll}
-          className="danger"
-          disabled={!hasRunning}
-          style={{ padding: "4px 12px", fontSize: "var(--fs-xx-small)" }}
-        >
-          ■ Kill all runs
-        </button>
-      </span>
-    </div>
-  );
-}
-
 /* --------------- Active runs panel --------------- */
 
 function ActiveRunsPanel({
   procs,
   tails,
   activeCount,
+  totalHosts,
+  runConfigIds,
+  configs,
+  onKillAll,
   onKill,
   onDismiss,
 }: {
   procs: ProcInfo[];
   tails: Record<string, PerfLogLine[]>;
   activeCount: number;
+  totalHosts: number;
+  runConfigIds: Record<string, string | null>;
+  configs: PerfConfig[];
+  onKillAll: () => void;
   onKill: (id: string) => void;
   onDismiss: (id: string) => void;
 }) {
@@ -452,18 +589,52 @@ function ActiveRunsPanel({
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "baseline",
+          alignItems: "center",
+          gap: 10,
+          flexWrap: "wrap",
         }}
       >
-        <div className="section-title" style={{ margin: 0 }}>
-          Active runs{" "}
-          <span style={{ color: "var(--app-text)", fontWeight: 600 }}>
-            · {activeCount}
-          </span>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <div className="section-title" style={{ margin: 0 }}>
+            Active runs{" "}
+            <span style={{ color: "var(--app-text)", fontWeight: 600 }}>
+              · {activeCount} / {MAX_PERF_RUNS}
+            </span>
+          </div>
+          {totalHosts > 0 && (
+            <span
+              className="dim"
+              style={{ fontSize: "var(--fs-xxx-small)" }}
+            >
+              · {totalHosts.toLocaleString()} hosts
+            </span>
+          )}
         </div>
-        <span className="dim" style={{ fontSize: "var(--fs-xxx-small)" }}>
-          live tail · not saved
-        </span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span
+            className="dim"
+            style={{ fontSize: "var(--fs-xxx-small)" }}
+          >
+            ★ saved · ☆ unsaved
+          </span>
+          <button
+            onClick={onKillAll}
+            className="danger"
+            disabled={activeCount === 0}
+            style={{
+              padding: "4px 10px",
+              fontSize: "var(--fs-xx-small)",
+            }}
+          >
+            ■ Kill all
+          </button>
+        </div>
       </div>
       {sorted.length === 0 ? (
         <div
@@ -492,15 +663,22 @@ function ActiveRunsPanel({
             minWidth: 0,
           }}
         >
-          {sorted.map((p) => (
-            <RunCard
-              key={p.id}
-              proc={p}
-              tail={tails[p.id] ?? []}
-              onKill={() => onKill(p.id)}
-              onDismiss={() => onDismiss(p.id)}
-            />
-          ))}
+          {sorted.map((p) => {
+            const cfgId = runConfigIds[p.id] ?? null;
+            const savedCfg = cfgId
+              ? configs.find((c) => c.id === cfgId) ?? null
+              : null;
+            return (
+              <RunCard
+                key={p.id}
+                proc={p}
+                tail={tails[p.id] ?? []}
+                savedConfig={savedCfg}
+                onKill={() => onKill(p.id)}
+                onDismiss={() => onDismiss(p.id)}
+              />
+            );
+          })}
         </div>
       )}
     </div>
@@ -510,11 +688,16 @@ function ActiveRunsPanel({
 function RunCard({
   proc,
   tail,
+  savedConfig,
   onKill,
   onDismiss,
 }: {
   proc: ProcInfo;
   tail: PerfLogLine[];
+  /// The saved config (if any) this run was launched from. Null = the
+  /// run was ad-hoc; killing it discards the form values. Drives the
+  /// ★/☆ glyph on the card.
+  savedConfig: PerfConfig | null;
   onKill: () => void;
   onDismiss: () => void;
 }) {
@@ -542,6 +725,19 @@ function RunCard({
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span className={`dot ${dotForDisplay(display)}`} />
+        <span
+          aria-hidden
+          title={savedConfig ? `Saved as "${savedConfig.name}"` : "Not saved"}
+          style={{
+            fontSize: "var(--fs-x-small)",
+            lineHeight: 1,
+            color: savedConfig
+              ? "var(--app-text)"
+              : "var(--app-text-dim)",
+          }}
+        >
+          {savedConfig ? "★" : "☆"}
+        </span>
         <span
           className="mono"
           style={{
@@ -647,10 +843,14 @@ function StatePill({ state }: { state: PerfDisplay }) {
     },
   };
   const c = map[state];
-  // Yellow background needs dark text for contrast; the rest read fine
-  // against white.
+  // Yellow needs dark text for legibility in BOTH themes. The themed
+  // tokens flip (--core-fleet-black is dark in light mode but flips to
+  // near-white in dark mode), so we hardcode a static dark for the
+  // yellow case. The rest use --core-fleet-white which is white in
+  // light mode and near-black in dark — correct contrast for green /
+  // red / gray bgs.
   const fg =
-    state === "starting" ? "var(--core-fleet-black)" : "var(--core-fleet-white)";
+    state === "starting" ? "#192147" : "var(--core-fleet-white)";
   return (
     <span
       style={{
@@ -809,30 +1009,275 @@ function MiniLogBox({ tail }: { tail: PerfLogLine[] }) {
 
 /* --------------- New run form --------------- */
 
+/// Horizontal scrollable strip of saved-config chips. Lives at the top
+/// of the osquery-perf tab as a full-width row of "favorites" you cycle
+/// between. Each chip loads its config into the form below. Saving is
+/// not surfaced here — the form's ★ Save button is the single save
+/// path. Hover ✕ on a chip turns it into an inline Delete confirm.
+function SavedConfigsStrip({
+  configs,
+  loadedId,
+  onLoad,
+  onDelete,
+}: {
+  configs: PerfConfig[];
+  loadedId: string | null;
+  onLoad: (c: PerfConfig) => void;
+  onDelete: (id: string) => Promise<void>;
+}) {
+  return (
+    <div
+      className="card"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        padding: "10px 14px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+        }}
+      >
+        <div className="section-title" style={{ margin: 0 }}>
+          Saved configs{" "}
+          <span
+            className="dim"
+            style={{
+              fontSize: "var(--fs-xxx-small)",
+              fontWeight: 400,
+              textTransform: "none",
+              letterSpacing: 0,
+            }}
+          >
+            · {configs.length}
+          </span>
+        </div>
+        <span className="dim" style={{ fontSize: "var(--fs-xxx-small)" }}>
+          click to load into form ↓
+        </span>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          overflowX: "auto",
+          paddingBottom: 4,
+          // Reserve scrollbar gutter so the strip's height doesn't jump
+          // when chips overflow horizontally.
+          scrollbarGutter: "stable",
+        }}
+      >
+        {configs.length === 0 ? (
+          <span
+            className="dim"
+            style={{
+              fontSize: "var(--fs-xx-small)",
+              padding: "4px 8px",
+              fontStyle: "italic",
+            }}
+          >
+            none yet · build a config below and click ★ Save
+          </span>
+        ) : (
+          configs.map((c) => (
+            <ConfigChip
+              key={c.id}
+              config={c}
+              loaded={c.id === loadedId}
+              onLoad={() => onLoad(c)}
+              onDelete={() => onDelete(c.id)}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+/// Single chip. Click body to load; hover reveals a ✕ in the corner;
+/// clicking ✕ swaps the chip in place for a tiny "Delete?" confirm.
+function ConfigChip({
+  config,
+  loaded,
+  onLoad,
+  onDelete,
+}: {
+  config: PerfConfig;
+  loaded: boolean;
+  onLoad: () => void;
+  onDelete: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [hover, setHover] = useState(false);
+
+  const total = Object.values(config.os_counts).reduce((a, b) => a + b, 0);
+  const osCount = Object.keys(config.os_counts).length;
+  const meta = `${total.toLocaleString()} · ${osCount} OS${
+    config.mdm_enabled ? " · MDM" : ""
+  }`;
+
+  // Two-state styling only: loaded vs not. Saved-but-not-loaded chips
+  // get the same neutral border as any other element; the green
+  // border + tint signals "this is the active preset".
+  const borderColor = loaded
+    ? "var(--core-fleet-green)"
+    : "var(--app-border)";
+  const bg = loaded ? "var(--tint-success-soft)" : "transparent";
+
+  if (confirming) {
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "3px 10px",
+          fontSize: "var(--fs-xx-small)",
+          border: "1px solid var(--ui-error)",
+          background: "var(--tint-error-soft)",
+          borderRadius: 999,
+          whiteSpace: "nowrap",
+          flexShrink: 0,
+        }}
+      >
+        <span style={{ color: "var(--ui-error)" }}>
+          Delete {config.name}?
+        </span>
+        <button
+          className="danger"
+          onClick={onDelete}
+          style={{
+            padding: "1px 8px",
+            fontSize: "var(--fs-xxx-small)",
+          }}
+        >
+          Delete
+        </button>
+        <button
+          onClick={() => setConfirming(false)}
+          aria-label="Cancel delete"
+          style={{
+            padding: "1px 6px",
+            fontSize: "var(--fs-xxx-small)",
+          }}
+        >
+          ✕
+        </button>
+      </span>
+    );
+  }
+  return (
+    <span
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        flexShrink: 0,
+      }}
+    >
+      <button
+        onClick={onLoad}
+        title={`Load "${config.name}"`}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "3px 24px 3px 10px", // right padding leaves room for ✕
+          fontSize: "var(--fs-xx-small)",
+          border: `1px solid ${borderColor}`,
+          background: bg,
+          color: loaded ? "var(--core-fleet-green)" : "var(--app-text)",
+          borderRadius: 999,
+          whiteSpace: "nowrap",
+          fontWeight: loaded ? 600 : 400,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            color: loaded
+              ? "var(--core-fleet-green)"
+              : "var(--app-text)",
+            fontSize: "var(--fs-x-small)",
+            lineHeight: 1,
+          }}
+        >
+          ★
+        </span>
+        <span className="mono">{config.name}</span>
+        <span
+          className="dim"
+          style={{ fontSize: "var(--fs-xxx-small)" }}
+        >
+          · {meta}
+        </span>
+      </button>
+      {hover && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setConfirming(true);
+          }}
+          aria-label={`Delete ${config.name}`}
+          style={{
+            position: "absolute",
+            top: 2,
+            right: 4,
+            width: 18,
+            height: 18,
+            padding: 0,
+            border: "none",
+            borderRadius: "50%",
+            background: "var(--app-surface-3)",
+            color: "var(--app-text-dim)",
+            fontSize: "var(--fs-xxx-small)",
+            lineHeight: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          ✕
+        </button>
+      )}
+    </span>
+  );
+}
+
 function NewRunPanel({
   form,
   templates,
   onChange,
   onStart,
   canStart,
-  activeCount,
+  loaded,
+  modified,
+  draftName,
+  onDraftNameChange,
+  onClearLoaded,
+  onSave,
+  onUpdate,
+  onSaveAsNew,
 }: {
   form: PerfFormConfig;
   templates: PerfTemplate[];
   onChange: (next: PerfFormConfig) => void;
   onStart: (form: PerfFormConfig, name: string) => void;
   canStart: boolean;
-  activeCount: number;
+  loaded: PerfConfig | null;
+  modified: boolean;
+  draftName: string;
+  onDraftNameChange: (n: string) => void;
+  onClearLoaded: () => void;
+  onSave: (name: string) => Promise<void>;
+  onUpdate: () => Promise<void>;
+  onSaveAsNew: (name: string) => Promise<void>;
 }) {
-  const [name, setName] = useState<string>(() => suggestName(form));
-  // Track whether the user has manually edited the name — once they
-  // have, stop auto-regenerating from the form. Avoids stomping a
-  // custom name as they tweak host_count.
-  const [nameDirty, setNameDirty] = useState(false);
-  useEffect(() => {
-    if (!nameDirty) setName(suggestName(form));
-  }, [form, nameDirty]);
-
   // Secret + SCEP mirror locally so masked typing doesn't fire form
   // updates per keystroke.
   const [secretDraft, setSecretDraft] = useState(form.enroll_secret);
@@ -901,8 +1346,38 @@ function NewRunPanel({
       mdm_scep_challenge: scepDraft,
     };
     onChange(submitForm);
-    onStart(submitForm, name);
+    onStart(submitForm, draftName);
   }
+
+  async function handleSave() {
+    const submitForm: PerfFormConfig = {
+      ...form,
+      enroll_secret: secretDraft,
+      mdm_scep_challenge: scepDraft,
+    };
+    onChange(submitForm);
+    await onSave(draftName.trim() || suggestName(submitForm));
+  }
+  async function handleUpdate() {
+    const submitForm: PerfFormConfig = {
+      ...form,
+      enroll_secret: secretDraft,
+      mdm_scep_challenge: scepDraft,
+    };
+    onChange(submitForm);
+    await onUpdate();
+  }
+  async function handleSaveAsNew() {
+    const submitForm: PerfFormConfig = {
+      ...form,
+      enroll_secret: secretDraft,
+      mdm_scep_challenge: scepDraft,
+    };
+    onChange(submitForm);
+    const newName = draftName.trim() || suggestName(submitForm);
+    await onSaveAsNew(newName);
+  }
+  const saveDisabled = !draftName.trim();
 
   const startDisabled =
     !canStart ||
@@ -931,36 +1406,76 @@ function NewRunPanel({
           gap: 12,
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
           <div className="section-title" style={{ margin: 0 }}>
-            New run {!canStart && <span style={{ color: "var(--ui-error)" }}>· disabled</span>}
+            {loaded ? (
+              <>
+                Editing ·{" "}
+                <span
+                  className="mono"
+                  style={{
+                    color: "var(--core-fleet-green)",
+                    textTransform: "none",
+                    letterSpacing: 0,
+                    fontWeight: 600,
+                  }}
+                >
+                  ★ {loaded.name}
+                </span>
+              </>
+            ) : (
+              <>
+                New run{" "}
+                {!canStart && (
+                  <span style={{ color: "var(--ui-error)" }}>· disabled</span>
+                )}
+              </>
+            )}
           </div>
-          <span
-            className="dim mono"
-            style={{ fontSize: "var(--fs-xxx-small)" }}
-          >
-            go run ./agent.go
-          </span>
+          {loaded && modified ? (
+            <span
+              className="dim mono"
+              style={{ fontSize: "var(--fs-xxx-small)" }}
+            >
+              <span style={{ color: "var(--ui-warning)" }}>modified</span>{" "}
+              · <button className="link-btn" onClick={handleUpdate}>update</button>
+              {" · "}
+              <button className="link-btn" onClick={handleSaveAsNew}>save as new</button>
+            </span>
+          ) : (
+            <span
+              className="dim mono"
+              style={{ fontSize: "var(--fs-xxx-small)" }}
+            >
+              go run ./agent.go
+            </span>
+          )}
         </div>
         <div
-          style={{ display: "flex", alignItems: "center", gap: 10 }}
+          style={{ display: "flex", alignItems: "center", gap: 8 }}
         >
-          <span
-            className="dim"
-            style={{ fontSize: "var(--fs-xxx-small)", whiteSpace: "nowrap" }}
-          >
-            {activeCount} / {MAX_PERF_RUNS} slots ·{" "}
-            {MAX_PERF_RUNS - activeCount === 0 ? (
-              <span style={{ color: "var(--ui-error)" }}>FULL</span>
-            ) : (
-              `${MAX_PERF_RUNS - activeCount} free`
-            )}
-          </span>
+          {/* Save button: hidden when a config is loaded and untouched
+              (nothing to save). Updating a modified preset uses the
+              inline "update" link in the subtitle, not this button. */}
+          {(!loaded || !modified) && (
+            <button
+              onClick={loaded ? handleSaveAsNew : handleSave}
+              disabled={saveDisabled}
+              title={
+                loaded
+                  ? "Save current form as a new config"
+                  : "Save this config"
+              }
+              style={{ padding: "6px 12px", fontSize: "var(--fs-xx-small)" }}
+            >
+              ★ Save
+            </button>
+          )}
           <button
             className="primary"
             onClick={start}
             disabled={startDisabled}
-            style={{ padding: "6px 16px" }}
+            style={{ padding: "6px 12px", fontSize: "var(--fs-xx-small)" }}
           >
             ▶ Start run
           </button>
@@ -970,15 +1485,29 @@ function NewRunPanel({
       <Field label="Name">
         <input
           type="text"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setNameDirty(true);
-          }}
+          value={draftName}
+          onChange={(e) => onDraftNameChange(e.target.value)}
           {...noAutocorrect}
           className="mono"
           style={{ width: "100%" }}
         />
+        {loaded && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginTop: 4,
+            }}
+          >
+            <button
+              className="link-btn"
+              onClick={onClearLoaded}
+              style={{ fontSize: "var(--fs-xxx-small)" }}
+            >
+              new from blank ↺
+            </button>
+          </div>
+        )}
       </Field>
 
       <Field
@@ -1388,23 +1917,43 @@ function AdvancedSection({
         onClick={() => setOpen(!open)}
         style={{
           display: "flex",
-          justifyContent: "space-between",
           alignItems: "center",
+          gap: 8,
           border: "none",
           padding: 0,
           background: "transparent",
           textAlign: "left",
           cursor: "pointer",
           fontSize: "var(--fs-xx-small)",
+          lineHeight: 1,
         }}
       >
-        <span style={{ color: "var(--app-text)" }}>Advanced intervals</span>
+        <span style={{ color: "var(--app-text)", flex: 1 }}>
+          Advanced intervals
+        </span>
         <span
           className="mono dim"
           style={{ fontSize: "var(--fs-xxx-small)" }}
         >
-          start_period {form.start_period} · query {form.query_interval} · config{" "}
-          {form.config_interval} <span style={{ color: "var(--core-fleet-green)" }}>{open ? "▴" : "▾"}</span>
+          start_period {form.start_period} · query {form.query_interval} ·
+          config {form.config_interval}
+        </span>
+        <span
+          aria-hidden
+          style={{
+            // `›` is naturally centered in its em-box across most
+            // fonts; rotating it 90° gives a chevron that lines up
+            // cleanly with adjacent text. The Unicode chevron glyphs
+            // (⌃/⌄) and the arrowheads (▴/▾) all sit off-baseline.
+            display: "inline-block",
+            transform: `rotate(${open ? -90 : 90}deg)`,
+            color: "var(--app-text)",
+            fontSize: "var(--fs-x-small)",
+            lineHeight: 1,
+            marginLeft: 4,
+          }}
+        >
+          ›
         </span>
       </button>
       {open && (

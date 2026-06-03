@@ -57,6 +57,27 @@ export interface PerfTemplate {
   apple: boolean;
 }
 
+/// A saved osquery-perf run configuration. Mirrors the backend struct
+/// in src-tauri/src/perf_configs.rs. v1 stores enroll_secret and
+/// mdm_scep_challenge as plain text — local dev only, same security
+/// posture as the rest of the fleet-hangar settings file.
+export interface PerfConfig {
+  id: string;
+  name: string;
+  server_url: string;
+  enroll_secret: string;
+  os_counts: Record<string, number>;
+  mdm_enabled: boolean;
+  mdm_prob: number;
+  mdm_scep_challenge: string;
+  start_period: string;
+  query_interval: string;
+  config_interval: string;
+  /// Server-stamped; 0 on a brand-new config the frontend hasn't saved yet.
+  created_at_ms: number;
+  updated_at_ms: number;
+}
+
 export interface NgrokConfig {
   enabled: boolean;
   yml_path: string | null;
@@ -419,6 +440,12 @@ export const api = {
   logsDir: () => invoke<string>("logs_dir_path"),
 
   perfListTemplates: () => invoke<PerfTemplate[]>("perf_list_templates"),
+
+  perfConfigsList: () => invoke<PerfConfig[]>("perf_configs_list"),
+  perfConfigSave: (config: PerfConfig) =>
+    invoke<PerfConfig>("perf_config_save", { config }),
+  perfConfigDelete: (id: string) =>
+    invoke<void>("perf_config_delete", { id }),
 
   gitopsListRepos: (dir: string) =>
     invoke<GitopsDirScan>("gitops_list_repos", { dir }),
