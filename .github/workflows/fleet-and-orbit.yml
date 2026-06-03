@@ -140,17 +140,24 @@ jobs:
             echo "Retrying setup in 5s..."
             sleep 5
           done
-          # Wait for all of the hosts to be enrolled
-          EXPECTED=3
-          until [ $(./build/fleetctl get hosts --json | grep "hostname" | wc -l | tee hostcount) -ge $EXPECTED ]; do
-            echo -n "Waiting for hosts to enroll: "
-            cat hostcount | xargs echo -n
-            echo " / $EXPECTED"
+          # Wait until all three hosts are fully enrolled: one darwin, one ubuntu and
+          # one windows, each reporting a non-empty osquery_version AND orbit_version.
+          # Matching on platform + both versions ensures osqueryd and orbit have each
+          # checked in and merged into a single host per machine, rather than counting
+          # raw host rows (which over-counts when a machine enrolls more than once).
+          until [ "$(./build/fleetctl get hosts --json | jq -s -r '
+              [ .[]
+                | select((.spec.osquery_version // "") != "" and (.spec.orbit_version // "") != "")
+                | .spec.platform ]
+              | map(select(. == "darwin" or . == "ubuntu" or . == "windows"))
+              | unique | length')" -eq 3 ]; do
+            echo "Waiting for darwin, ubuntu and windows hosts to fully enroll (osquery_version + orbit_version)..."
+            ./build/fleetctl get hosts --json | jq -r '"  platform=\(.spec.platform // "?") osquery_version=\(.spec.osquery_version // "") orbit_version=\(.spec.orbit_version // "")"'
             sleep 30
           done
           ./build/fleetctl get hosts
           ./build/fleetctl get hosts --json
-          echo "Success! $EXPECTED hosts enrolled."
+          echo "Success! darwin, ubuntu and windows hosts fully enrolled."
 
       - name: Cleanup tunnel
         if: always()
@@ -358,12 +365,51 @@ jobs:
 
       - name: Wait enroll
         run: |
-          # Wait until fleet server goes down.
-          while curl --fail ${{ needs.gen.outputs.address }};
-          do
-            echo "Retrying in 10s..."
+          # Wait until the fleet server goes down, which signals that run-server has
+          # finished verifying enrollment and torn down the tunnel. Require several
+          # consecutive failures so a transient blip (e.g. a 5xx while the server is
+          # still up) doesn't let us proceed early, and cap the total wait so a stuck
+          # tunnel fails fast instead of riding the 60m job timeout.
+          down=0
+          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          attempts=0
+          max_attempts=180  # ~30 minutes at 10s intervals
+          while [ "$down" -lt "$required_down" ]; do
+            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}; then
+              down=0
+            else
+              down=$((down + 1))
+              echo "Fleet server not responding ($down/$required_down consecutive)..."
+            fi
+            attempts=$((attempts + 1))
+            if [ "$attempts" -ge "$max_attempts" ]; then
+              echo "Fleet server still up after $max_attempts checks; giving up."
+              exit 1
+            fi
             sleep 10
           done
+          echo "Fleet server is down; run-server has finished."
+
+      # Read-only diagnostics: orbit shell's osqueryd is SIGKILLed at startup on the
+      # macos-15-arm64 runner with no osqueryd output. This step mutates nothing and
+      # never fails the job — it just captures why the kernel kills osqueryd (code
+      # signature, Gatekeeper verdict, quarantine xattr, arch, and the system log).
+      - name: Diagnose osqueryd (read-only)
+        if: always()
+        run: |
+          set +e
+          APP=/opt/orbit/bin/osqueryd/macos-app/stable/osquery.app
+          BIN="$APP/Contents/MacOS/osqueryd"
+          echo "=== runner ==="; sw_vers; uname -m
+          echo "=== binary arch ==="; file "$BIN"
+          echo "=== code signature ==="; codesign -dvv --verbose=4 "$BIN" 2>&1
+          echo "=== signature verify ==="; codesign --verify --deep --strict --verbose=2 "$APP" 2>&1
+          echo "=== gatekeeper assessment ==="; spctl --assess --type execute -vvv "$APP" 2>&1
+          echo "=== extended attributes (quarantine?) ==="; ls -l@ "$BIN" 2>&1; xattr -lr "$APP" 2>&1
+          echo "=== direct run ==="; sudo "$BIN" --version 2>&1; echo "direct exit=$?"
+          echo "=== system log (osqueryd / AMFI kills, last 3m) ==="
+          log show --last 3m --predicate 'process == "osqueryd" OR senderImagePath CONTAINS "AppleMobileFileIntegrity" OR eventMessage CONTAINS "osqueryd"' --info 2>&1 | tail -60
+          exit 0
 
       - name: Run orbit shell
         run: sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
@@ -417,12 +463,30 @@ jobs:
 
       - name: Wait enroll
         run: |
-          # Wait until fleet server goes down.
-          while curl --fail ${{ needs.gen.outputs.address }};
-          do
-            echo "Retrying in 10s..."
+          # Wait until the fleet server goes down, which signals that run-server has
+          # finished verifying enrollment and torn down the tunnel. Require several
+          # consecutive failures so a transient blip (e.g. a 5xx while the server is
+          # still up) doesn't let us proceed early, and cap the total wait so a stuck
+          # tunnel fails fast instead of riding the 60m job timeout.
+          down=0
+          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          attempts=0
+          max_attempts=180  # ~30 minutes at 10s intervals
+          while [ "$down" -lt "$required_down" ]; do
+            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}; then
+              down=0
+            else
+              down=$((down + 1))
+              echo "Fleet server not responding ($down/$required_down consecutive)..."
+            fi
+            attempts=$((attempts + 1))
+            if [ "$attempts" -ge "$max_attempts" ]; then
+              echo "Fleet server still up after $max_attempts checks; giving up."
+              exit 1
+            fi
             sleep 10
           done
+          echo "Fleet server is down; run-server has finished."
 
       - name: Run orbit shell
         run: sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
@@ -476,11 +540,30 @@ jobs:
 
       - name: Wait enroll
         run: |
-          while curl --fail ${{ needs.gen.outputs.address }};
-          do
-            echo "Retrying in 10s..."
+          # Wait until the fleet server goes down, which signals that run-server has
+          # finished verifying enrollment and torn down the tunnel. Require several
+          # consecutive failures so a transient blip (e.g. a 5xx while the server is
+          # still up) doesn't let us proceed early, and cap the total wait so a stuck
+          # tunnel fails fast instead of riding the 60m job timeout.
+          down=0
+          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          attempts=0
+          max_attempts=180  # ~30 minutes at 10s intervals
+          while [ "$down" -lt "$required_down" ]; do
+            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}; then
+              down=0
+            else
+              down=$((down + 1))
+              echo "Fleet server not responding ($down/$required_down consecutive)..."
+            fi
+            attempts=$((attempts + 1))
+            if [ "$attempts" -ge "$max_attempts" ]; then
+              echo "Fleet server still up after $max_attempts checks; giving up."
+              exit 1
+            fi
             sleep 10
           done
+          echo "Fleet server is down; run-server has finished."
 
       - name: Run orbit shell
         shell: cmd
