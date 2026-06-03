@@ -2058,7 +2058,7 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 			return 1, nil
 		}
 
-		emptyFilter := &map[string]interface{}{}
+		emptyFilter := &map[string]any{}
 		require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), new(uint(5)), emptyFilter))
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
 		assert.Equal(t, "android-uuid-1", calledWithUUID)
@@ -2076,7 +2076,7 @@ func TestAddHostsToTeamByFilterAndroidCertTemplates(t *testing.T) {
 			return 1, nil
 		}
 
-		emptyFilter := &map[string]interface{}{}
+		emptyFilter := &map[string]any{}
 		require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, emptyFilter))
 		assert.True(t, ds.CreatePendingCertificateTemplatesForNewHostFuncInvoked)
 		assert.Equal(t, uint(0), calledWithTeamID)
