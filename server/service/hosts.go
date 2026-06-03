@@ -1255,7 +1255,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	// Create pending certificate template records for Android hosts
 	androidUUIDs, err := svc.ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
 	}
 	if len(androidUUIDs) > 0 {
 		destTeamID := uint(0)
@@ -1422,12 +1422,10 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 	}
 
 	// Create pending certificate template records for Android hosts before
-	// marking profiles pending, so the reconciler sees the cert records and
-	// withholds dependent profiles. This matches the ordering used during
-	// enrollment in server/mdm/android/service/pubsub.go.
+	// marking profiles pending
 	androidUUIDs, err := svc.ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "list mdm android uuids to host ids")
 	}
 	if len(androidUUIDs) > 0 {
 		destTeamID := uint(0)
