@@ -1,0 +1,1 @@
+* Set a 24 hour APNs expiration on MDM push notifications so that pushes are held by Apple and delivered when a device reconnects, instead of being dropped if the device is momentarily detached from APNs at the time a command is queued.
