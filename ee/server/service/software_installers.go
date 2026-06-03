@@ -3433,17 +3433,86 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 		return ctxerr.Wrap(ctx, err, "get software titles for install all")
 	}
 
+	platform := host.FleetPlatform()
+
 	for _, title := range titles {
-		// SelfServiceInstallSoftwareTitle dispatches by type (custom package,
-		// VPP, in-house) and re-checks availability + label scope before
-		// queueing. The revalidation is redundant with
-		// GetSoftwareTitlesForInstallAll, but reusing it keeps this simple.
-		//
-		// WIP: log and continue so one failing title (e.g. out of label scope,
-		// not available) doesn't abort the whole batch.
-		if err := svc.SelfServiceInstallSoftwareTitle(ctx, host, title.ID); err != nil {
-			svc.logger.WarnContext(ctx, "install all: skipping software title that failed to queue", "title_id", title.ID, "err", err)
-			continue
+		// log errors rathen than return early
+		queueErr := func() error {
+			switch {
+			case title.IsAppStoreApp():
+				vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, title.ID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "getting vpp app for title")
+				}
+
+				scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking vpp app label scope")
+				}
+				if !scoped {
+					return nil
+				}
+
+				appleDevice := fleet.IsApplePlatform(platform)
+				if _, err := svc.installSoftwareFromVPP(ctx, host, vppApp, appleDevice, fleet.HostSoftwareInstallOptions{SelfService: true}); err != nil {
+					return ctxerr.Wrap(ctx, err, "queueing vpp install")
+				}
+
+			case title.IsPackage() && fleet.IsAppleMobilePlatform(title.SoftwarePackage.Platform):
+				iha, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, host.TeamID, title.ID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "getting in-house app for title")
+				}
+
+				scoped, err := svc.ds.IsInHouseAppLabelScoped(ctx, iha.InstallerID, host.ID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking in-house app label scope")
+				}
+				if !scoped {
+					return nil
+				}
+
+				opts := fleet.HostSoftwareInstallOptions{SelfService: true}
+				cfg, err := svc.ds.GetInHouseAppConfiguration(ctx, iha.InstallerID)
+				if err != nil && !fleet.IsNotFound(err) {
+					return ctxerr.Wrap(ctx, err, "get in-house app configuration for pre-flight check")
+				}
+				switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
+				case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
+					return svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+				case err != nil:
+					return ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
+				}
+
+				if err := svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, title.ID, uuid.NewString(), opts); err != nil {
+					return ctxerr.Wrap(ctx, err, "queueing in-house app install")
+				}
+
+			case title.IsPackage():
+				installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, title.ID, false)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "getting installer for title")
+				}
+
+				scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installer.InstallerID, host.ID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking installer label scope")
+				}
+				if !scoped {
+					return nil
+				}
+
+				if err := svc.ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installer.InstallerID); err != nil {
+					return ctxerr.Wrap(ctx, err, "resetting install attempts")
+				}
+				if _, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{SelfService: true, WithRetries: true}); err != nil {
+					return ctxerr.Wrap(ctx, err, "queueing package install")
+				}
+			}
+			return nil
+		}()
+		if queueErr != nil {
+			svc.logger.ErrorContext(ctx, "failed to enqueue software install", "title_id", title.ID, "err", queueErr)
 		}
 	}
 
