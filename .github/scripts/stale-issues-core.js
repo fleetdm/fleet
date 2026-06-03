@@ -13,7 +13,7 @@
 //
 // Inputs (env, read here so both wrappers share the same operator controls):
 //   DRY_RUN         'true' to log candidates without writing.
-//   MAX_OPERATIONS  Cap on API write operations per run. Default 400. `0` disables writes.
+//   MAX_OPERATIONS  Cap on API write operations per run. Default 400. `0` disables writes (treated as a dry run).
 //
 // config:
 //   title                  Heading for the job summary.
@@ -56,8 +56,10 @@ async function run({ github, context, core, config }) {
     summaryLines = [],
   } = config;
 
-  const dryRun = String(process.env.DRY_RUN).toLowerCase() === "true";
   const maxOps = parseMaxOps(process.env.MAX_OPERATIONS);
+  // MAX_OPERATIONS=0 is the kill switch: scan and report what would happen, but make no writes.
+  // Treating it as dry-run (rather than breaking on the first cap check) keeps the summary complete.
+  const dryRun = String(process.env.DRY_RUN).toLowerCase() === "true" || maxOps === 0;
 
   // All time math is in UTC-equivalent epoch milliseconds: Date.now() is UTC, and the GitHub
   // REST API returns ISO 8601 strings with a `Z` suffix, so timezone and DST cannot affect the
@@ -167,7 +169,11 @@ async function run({ github, context, core, config }) {
       let lastStaleLabelEvent = null;
       for (let i = events.length - 1; i >= 0; i--) {
         const e = events[i];
-        if (e.event === "labeled" && e.label && e.label.name === staleLabel) {
+        if (
+          e.event === "labeled" &&
+          ((e.label && e.label.name) || "").toLowerCase() ===
+            staleLabel.toLowerCase()
+        ) {
           lastStaleLabelEvent = e;
           break;
         }
@@ -253,6 +259,7 @@ async function run({ github, context, core, config }) {
             issue_number: issue.number,
             body: closeMessage(author),
           });
+          writes += 1;
           await github.rest.issues.update({
             owner,
             repo,
@@ -260,7 +267,7 @@ async function run({ github, context, core, config }) {
             state: "closed",
             state_reason: "not_planned",
           });
-          writes += 2;
+          writes += 1;
           closed.push(entry);
         } catch (err) {
           core.warning(`close failed for #${issue.number}: ${err.message}`);
@@ -291,13 +298,14 @@ async function run({ github, context, core, config }) {
             issue_number: issue.number,
             body: staleMessage(author),
           });
+          writes += 1;
           await github.rest.issues.addLabels({
             owner,
             repo,
             issue_number: issue.number,
             labels: [staleLabel],
           });
-          writes += 2;
+          writes += 1;
           staled.push(entry);
         } catch (err) {
           core.warning(`stale failed for #${issue.number}: ${err.message}`);

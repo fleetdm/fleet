@@ -14,7 +14,7 @@
 //
 // Inputs (env):
 //   DRY_RUN         'true' to log candidates without writing (read by the core).
-//   MAX_OPERATIONS  Cap on API write operations per run. Default 400. `0` disables writes (read by the core).
+//   MAX_OPERATIONS  Cap on API write operations per run. Default 400. `0` disables writes / dry-runs (read by the core).
 //
 // Exports: `async function run({ github, context, core })`. Returns a summary object for tests.
 

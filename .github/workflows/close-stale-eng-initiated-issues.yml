@@ -56,9 +56,10 @@ jobs:
         env:
           # Schedule runs always run live. Manual runs honor the dry_run input (default true).
           DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run == true) && 'true' || 'false' }}
-          # parseMaxOps in the script applies the 400 default when the value is empty; schedule runs
-          # fall through to 200 to match the previous actions/stale operations-per-run.
-          MAX_OPERATIONS: ${{ inputs.max_operations || 200 }}
+          # On manual runs, forward the input verbatim (format() keeps an explicit `0` as the truthy
+          # string "0" so the documented no-writes kill switch survives). Schedule runs fall through
+          # to 200 to match the previous actions/stale operations-per-run.
+          MAX_OPERATIONS: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.max_operations) || '200' }}
         with:
           script: |
             const run = require('./.github/scripts/stale-eng-issues.js');

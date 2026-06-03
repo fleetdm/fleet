@@ -391,15 +391,16 @@ test('does not exceed odd max_operations cap (CodeRabbit regression test)', asyn
   assert.strictEqual(result.hitCap, true);
 });
 
-test('MAX_OPERATIONS=0 disables all writes', async () => {
+test('MAX_OPERATIONS=0 disables all writes (treated as dry-run, still reports would-be actions)', async () => {
   const { github, result } = await runWith({
     issues: [makeIssue({ user: { login: 'getvictor' }, updated_at: daysAgoIso(STALE_DAYS + 70) })],
     maxOps: 0,
   });
   assert.strictEqual(github._captured.createCommentCalls.length, 0);
   assert.strictEqual(github._captured.addLabelsCalls.length, 0);
-  assert.strictEqual(result.hitCap, true);
-  assert.strictEqual(result.staled.length, 0);
+  assert.strictEqual(result.dryRun, true);
+  // Unlike a hard cap, the kill switch still surfaces what would have happened.
+  assert.strictEqual(result.staled.length, 1);
 });
 
 test('write failure in stale phase is recorded and run continues', async () => {
