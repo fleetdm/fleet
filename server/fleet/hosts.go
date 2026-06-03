@@ -1395,8 +1395,7 @@ func MDMNameFromServerURL(serverURL string) string {
 	return UnknownMDMName
 }
 
-// MDM enrollment status values returned by HostMDM.EnrollmentStatus and sent back to the UI. Keep these
-// in sync with the MdmEnrollmentStatus type in frontend/interfaces/mdm.ts.
+// MDM enrollment status values returned by HostMDM.EnrollmentStatus and sent back to the UI.
 const (
 	MDMEnrollmentStatusPersonal  = "On (personal)"
 	MDMEnrollmentStatusManual    = "On (manual)"
@@ -1423,7 +1422,8 @@ func (h *HostMDM) EnrollmentStatus() string {
 // ValidateAndroidWipeRequest performs the Android-specific Wipe validations shared by the Fleet Free and Premium WipeHost
 // implementations. Wipe is COBO-only for Android; BYO unenroll already runs an AMAPI WIPE under the hood (see
 // UnenrollAndroidHost) and surfaces as the mdm_unenrolled activity, so routing BYO hosts through the Wipe flow would be redundant
-// and misleading. Returns a typed error (BadRequestError / InvalidArgumentError); callers wrap with ctxerr.
+// and misleading. Validation failures return a typed BadRequestError or InvalidArgumentError; a failure reading the app config
+// returns the underlying datastore error. Callers wrap the result with ctxerr.
 func ValidateAndroidWipeRequest(ctx context.Context, ds Datastore, host *Host) error {
 	if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == MDMEnrollmentStatusPersonal {
 		return &BadRequestError{

@@ -2269,10 +2269,10 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 
 		// If pending host is no longer in ABM, we should delete it because it will never enroll in Fleet.
 		// If the host is later re-added to ABM, it will be re-created.
-		if len(byStatus["Pending"]) == 0 {
+		if len(byStatus[fleet.MDMEnrollmentStatusPending]) == 0 {
 			return nil
 		}
-		ds.logger.InfoContext(ctx, "deleting pending hosts that are no longer in ABM", "host_ids", fmt.Sprintf("%+v", pendingHostIDs), "serials", fmt.Sprintf("%+v", byStatus["Pending"]))
+		ds.logger.InfoContext(ctx, "deleting pending hosts that are no longer in ABM", "host_ids", fmt.Sprintf("%+v", pendingHostIDs), "serials", fmt.Sprintf("%+v", byStatus[fleet.MDMEnrollmentStatusPending]))
 
 		return deleteHosts(ctx, tx, pendingHostIDs)
 	})
