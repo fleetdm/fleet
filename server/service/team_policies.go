@@ -210,7 +210,10 @@ func getPolicySoftwareTitleIconURL(teamID, titleID uint) string {
 	return icon.IconUrl()
 }
 
-// Sets the IconURL for any policy whose software title has a custom icon uploaded.
+// populateSoftwareIconURLs sets the IconURL on each policy's software automation
+// when the software title has an icon to serve: a custom icon uploaded for the
+// title, or a VPP app (whose icon endpoint redirects to the App Store icon).
+// Otherwise the IconURL is left nil.
 func (svc *Service) populateSoftwareIconURLs(ctx context.Context, policies []*fleet.Policy) error {
 	titleIDsByTeam := make(map[uint]map[uint]struct{})
 	for _, p := range policies {

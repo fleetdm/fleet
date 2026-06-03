@@ -15,7 +15,6 @@ import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
 import PATHS from "router/paths";
-import ENDPOINTS from "utilities/endpoints";
 
 import { getPathWithQueryParams } from "utilities/url";
 import sortUtils from "utilities/sort";
