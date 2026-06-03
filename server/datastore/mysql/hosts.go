@@ -72,7 +72,7 @@ var hostAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"public_ip":             "h.public_ip",
 	"last_enrolled_at":      "h.last_enrolled_at",
 	"last_restarted_at":     "h.last_restarted_at",
-	"agent":                 "COALESCE(hoi.version, h.osquery_version)",
+	"agent":                 "COALESCE(NULLIF(hoi.version, ''), h.osquery_version)",
 	"orbit_version":         "hoi.version",
 	"fleet_desktop_version": "hoi.desktop_version",
 	"issues":                "host_issues.total_issues_count",

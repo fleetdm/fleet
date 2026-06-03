@@ -602,7 +602,12 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         return NotSupported;
       }
 
-      const isChromeOrVanillaOsquery = platform === "chrome" || !orbit_version;
+      // Match the Host details Vitals card: treat a missing/empty orbit version
+      // (including the normalized "---" placeholder) as a vanilla osquery host.
+      const isChromeOrVanillaOsquery =
+        platform === "chrome" ||
+        !orbit_version ||
+        orbit_version === DEFAULT_EMPTY_CELL_VALUE;
 
       if (isChromeOrVanillaOsquery) {
         return <TextCell value={osquery_version} />;
