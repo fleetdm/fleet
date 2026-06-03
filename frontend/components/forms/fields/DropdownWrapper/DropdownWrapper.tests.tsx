@@ -152,10 +152,11 @@ describe("DropdownWrapper Component", () => {
     // On reopen, no menu option should carry the selected state.
     // react-select adds `--is-selected` to the option matching `value`; the
     // fix forces value to null for button variant so this class never appears.
-    document
-      .querySelectorAll(".react-select__option")
-      .forEach((option) =>
-        expect(option.className).not.toMatch(/--is-selected/)
-      );
+    const options = document.querySelectorAll(".react-select__option");
+    expect(options.length).toBeGreaterThan(0);
+
+    options.forEach((option) =>
+      expect(option.className).not.toMatch(/--is-selected/)
+    );
   });
 });
