@@ -38,5 +38,4 @@ describe("WipeHostActivityItem", () => {
 
     expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
   });
-
 });
