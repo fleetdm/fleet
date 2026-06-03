@@ -1,6 +1,7 @@
 package fleetctl
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -48,6 +49,11 @@ Trying to login with SSO or MFA? First, login to the Fleet UI and retrieve your 
 			fleet, err := unauthenticatedClientFromCLI(c)
 			if err != nil {
 				return err
+			}
+
+			ssoSettings, err := fleet.SSOSettings()
+			if err == nil && ssoSettings != nil && ssoSettings.SSOEnabled {
+				return errors.New(ssoAuthInstructions)
 			}
 
 			definedAsEnvOnly := func(flagName, envName string) bool {
