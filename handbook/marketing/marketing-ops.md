@@ -30,6 +30,45 @@ Conversion rates help us to plan, forecast, and improve. There are several key c
 We can build a reverse funnel using the conversion rates and an estimated ASP, which will indicate the business demand for top-of-funnel contacts and opportunities in order to attain future revenue targets. 
 
 
+## Contact source
+At Fleet, we also keep track of the specific form or activity that a contact completed when they were created. This way we keep track of "Where" they came from (the attribution framework), but also have data about what they did.  We have a field *Contact source*, which is the same as the first historical event that took place causing us to create the contact.
+
+Here are the values for the contact source:
+
+| Contact source value | Definition |
+| :---- | :---- |
+| Website \- Sign up | Contact created an account/signed up for the Fleet platform. |
+| Website \- Contact forms \- Demo | Contact requested a standard demo via the website. |
+| Website \- Contact forms \- Demo \- ICP | Contact requested a demo and was routed/flagged as an Ideal Customer Profile. |
+| Website \- Contact forms | Contact submitted a general inquiry via the website. |
+| Website \- Gated document | Contact filled out a form to download a whitepaper, report, or guide. |
+| Website \- Newsletter | Contact explicitly subscribed to the Fleet blog or newsletter. |
+| Website \- Swag request | Contact filled out a form specifically to request Fleet merchandise. |
+| Website \- GitOps | Contact converted via a specific GitOps-related form or landing page flow. |
+| Website \- Chat | Contact engaged and provided their email via the website chatbot. |
+| Website \- Partner sign up | Contact submitted a form to apply for or join the Fleet partner program. |
+| Webinar | Contact registered for or attended a webinar (hosted by Fleet or a 3rd-party). Note: The specific host/campaign is captured in the 3-tier attribution. |
+| Event | Contact was scanned, uploaded, or registered from a live physical or virtual event. |
+| LinkedIn \- Native lead form | Contact submitted their info directly inside LinkedIn via a Document Ad or lead gen form. |
+| Content syndication | Contact info was acquired via a 3rd-party vendor promoting Fleet's content. |
+| Partner \- Deal registration | Contact was formally registered by an authorized partner/reseller. |
+| GitHub \- Stared fleetdm/fleet | Contact starred the Fleet repository. |
+| GitHub \- Forked fleetdm/fleet | Contact forked the Fleet repository. |
+| GitHub \- Contributed to fleetdm/fleet | Contact made a code/documentation contribution to the Fleet repository. |
+| LinkedIn \- Liked the LinkedIn company page | Contact followed or liked the official Fleet LinkedIn page. |
+| LinkedIn \- Reaction | Contact reacted (like, celebrate, etc.) to a Fleet post. |
+| LinkedIn \- Comment | Contact commented on a Fleet post. |
+| LinkedIn \- Share | Contact shared a Fleet post. |
+| Prospecting \- AE | Contact was sourced directly via outbound efforts by an Account Executive. |
+| Prospecting \- Specialist | Contact was sourced directly via outbound efforts by a Sales Specialist. |
+| Prospecting \- Meeting service | Contact was sourced/booked via an outsourced meeting-setting agency. |
+| Dripify \- AE | Contact was sourced via Dripify automation by an AE. |
+| Dripify \- Specialist | Contact was sourced via Dripify automation by a Specialist. |
+| Attended a call with Fleet | Contact was added to the system after attending a calendar invite/call with the team. |
+
+
+
+
 ## Attribution framework
 
 To scale demand generation effectively, we need to have a trusted source of data about what works in generating new contacts, opportunities, pipeline, and business. Without a consistent framework, our data is messy, reporting is unreliable, and we cannot confidently measure the ROI of our marketing or sales efforts. This framework solves three core problems:
@@ -40,9 +79,11 @@ To scale demand generation effectively, we need to have a trusted source of data
 
 This outlines a simple, scalable, and non-negotiable system for tracking all contact-generating activities at Fleet.
 
+
+
 ### First-touch vs. converting-touch
 
-This framework is **not** just for the Original Contact Source field. It should be applied to **two separate, critical moments** in the customer journey.  At some point, we may want to look at multi-touch attribution, this model is our starting point and foundation.
+This framework is **not** just for the Contact Source field. It should be applied to **two separate, critical moments** in the customer journey.  At some point, we may want to look at multi-touch attribution, this model is our starting point and foundation.
 
 
 #### 🌎 First-touch: Original contact source
@@ -50,7 +91,6 @@ This framework is **not** just for the Original Contact Source field. It should 
 - **What it is:** The "birth certificate" of a contact. It is the very first marketing or sales touch that brought this person into our database.  
 - **The rule:** This field is **set once and is locked forever**. It should *never* be overwritten.  
 - **It answers:** "Which of our channels are best at generating *net-new names* and filling the top of our funnel?"
-
 
 #### 🏁 Converting-touch: Opportunity creation source 🟡
 
@@ -407,43 +447,6 @@ All campaigns must utilize the following status values. Custom statuses outside 
 #### Website chat (qualified)
 - **Engaged:** We chatted and learned about the prospect
 - **Meeting Requested:** The prospect has booked a meeting
-
-## Contact source
-At Fleet, we also keep track of the specific form or activity that a contact completed when they were created. This way we keep track of "Where" they came from (the attribution framework), but also have data about what they did.  Historically, we've had the field *Contact source*, which effectively told us what form or activity a person did.  This is good data, and works alongside the overall attribution framework.
-
-Here are the values for the contact source:
-
-| Contact source value | Definition |
-| :---- | :---- |
-| Website \- Sign up | Contact created an account/signed up for the Fleet platform. |
-| Website \- Contact forms \- Demo | Contact requested a standard demo via the website. |
-| Website \- Contact forms \- Demo \- ICP | Contact requested a demo and was routed/flagged as an Ideal Customer Profile. |
-| Website \- Contact forms | Contact submitted a general inquiry via the website. |
-| Website \- Gated document | Contact filled out a form to download a whitepaper, report, or guide. |
-| Website \- Newsletter | Contact explicitly subscribed to the Fleet blog or newsletter. |
-| Website \- Swag request | Contact filled out a form specifically to request Fleet merchandise. |
-| Website \- GitOps | Contact converted via a specific GitOps-related form or landing page flow. |
-| Website \- Chat | Contact engaged and provided their email via the website chatbot. |
-| Website \- Partner sign up | Contact submitted a form to apply for or join the Fleet partner program. |
-| Webinar | Contact registered for or attended a webinar (hosted by Fleet or a 3rd-party). Note: The specific host/campaign is captured in the 3-tier attribution. |
-| Event | Contact was scanned, uploaded, or registered from a live physical or virtual event. |
-| LinkedIn \- Native lead form | Contact submitted their info directly inside LinkedIn via a Document Ad or lead gen form. |
-| Content syndication | Contact info was acquired via a 3rd-party vendor promoting Fleet's content. |
-| Partner \- Deal registration | Contact was formally registered by an authorized partner/reseller. |
-| GitHub \- Stared fleetdm/fleet | Contact starred the Fleet repository. |
-| GitHub \- Forked fleetdm/fleet | Contact forked the Fleet repository. |
-| GitHub \- Contributed to fleetdm/fleet | Contact made a code/documentation contribution to the Fleet repository. |
-| LinkedIn \- Liked the LinkedIn company page | Contact followed or liked the official Fleet LinkedIn page. |
-| LinkedIn \- Reaction | Contact reacted (like, celebrate, etc.) to a Fleet post. |
-| LinkedIn \- Comment | Contact commented on a Fleet post. |
-| LinkedIn \- Share | Contact shared a Fleet post. |
-| Prospecting \- AE | Contact was sourced directly via outbound efforts by an Account Executive. |
-| Prospecting \- Specialist | Contact was sourced directly via outbound efforts by a Sales Specialist. |
-| Prospecting \- Meeting service | Contact was sourced/booked via an outsourced meeting-setting agency. |
-| Dripify \- AE | Contact was sourced via Dripify automation by an AE. |
-| Dripify \- Specialist | Contact was sourced via Dripify automation by a Specialist. |
-| Attended a call with Fleet | Contact was added to the system after attending a calendar invite/call with the team. |
-
 
 
 ## 📧 Contact marketability & compliance
