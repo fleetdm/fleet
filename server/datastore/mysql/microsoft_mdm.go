@@ -88,6 +88,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		credentials_hash,
 		credentials_acknowledged,
 		poll_schedule_relaxed,
+		fleetd_sync_capable,
 		created_at,
 		updated_at,
 		host_uuid
@@ -133,6 +134,18 @@ func (ds *Datastore) MDMWindowsEnqueuePollScheduleCommand(
 		}
 		return nil
 	})
+}
+
+// SetMDMWindowsEnrollmentFleetdSyncCapable persists the last-observed CapabilityWindowsMDMSync value for the host's most recent Windows MDM
+// enrollment. The orbit-config endpoint calls it on-change (the live capability header is only present on that request), so the OMA-DM
+// management session, which has no such header, can gate poll relaxation on the stored value.
+func (ds *Datastore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Context, hostUUID string, capable bool) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET fleetd_sync_capable = ? WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+		capable, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set mdm windows enrollment fleetd sync capable")
+	}
+	return nil
 }
 
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
@@ -243,7 +256,8 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 	const stmt = `
 		SELECT
 			awaiting_configuration,
-			has_pending_commands
+			has_pending_commands,
+			fleetd_sync_capable
 		FROM mdm_windows_enrollments
 		WHERE host_uuid = ?
 		ORDER BY created_at DESC, id DESC
@@ -251,6 +265,7 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 	var row struct {
 		AwaitingConfiguration fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
 		HasPendingCommands    bool                                  `db:"has_pending_commands"`
+		FleetdSyncCapable     bool                                  `db:"fleetd_sync_capable"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -261,6 +276,7 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 	return &fleet.MDMWindowsHostConfigState{
 		AwaitingConfiguration: row.AwaitingConfiguration,
 		HasPendingCommands:    row.HasPendingCommands,
+		FleetdSyncCapable:     row.FleetdSyncCapable,
 	}, nil
 }
 

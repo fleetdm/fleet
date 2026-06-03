@@ -2030,6 +2030,26 @@ func testMDMWindowsPollScheduleRelaxed(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, state)
 	require.False(t, state.HasPendingCommands, "internal poll Replace must not set has_pending_commands")
+
+	// fleetd_sync_capable round-trip: default false, set true/false via the orbit-config setter, read back via both the config-state getter
+	// (used by GetOrbitConfig) and the enrolled-device getter (used by the management session's reconcile).
+	require.False(t, state.FleetdSyncCapable, "default should be not-capable")
+	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.False(t, got.FleetdSyncCapable)
+
+	require.NoError(t, ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, d.HostUUID, true))
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.True(t, state.FleetdSyncCapable)
+	got, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.MDMDeviceID)
+	require.NoError(t, err)
+	require.True(t, got.FleetdSyncCapable, "management session must see the persisted capability")
+
+	require.NoError(t, ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, d.HostUUID, false))
+	state, err = ds.GetMDMWindowsHostConfigState(ctx, d.HostUUID)
+	require.NoError(t, err)
+	require.False(t, state.FleetdSyncCapable)
 }
 
 func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {

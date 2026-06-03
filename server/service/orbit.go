@@ -578,23 +578,36 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
 		host.Platform == "windows" &&
 		isConnectedToFleetMDM {
-		// One query returns both the ESP awaiting-configuration value and whether the host has queued commands.
+		// One query returns the ESP awaiting-configuration value, whether the host has queued commands, and the persisted sync capability.
 		state, err := svc.ds.GetMDMWindowsHostConfigState(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows host config state")
 		}
-		switch {
-		case state == nil:
-			// No Windows MDM enrollment row for this host; nothing to do.
-		case state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationPending ||
-			state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationActive:
-			// During the Autopilot ESP, the setup experience flow delivers queued commands.
-			notifs.RunSetupExperience = true
-		case state.HasPendingCommands:
-			// Outside the ESP: if this host's fleetd can start an on-demand OMA-DM session, ask it to sync now so queued commands apply without
-			// waiting for the poll.
-			if mp, ok := capabilities.FromContext(ctx); ok && mp.Has(fleet.CapabilityWindowsMDMSync) {
-				notifs.WindowsMDMSyncRequest = true
+		if state != nil {
+			// The live X-Fleet-Capabilities header is only present on this orbit-config request. Persist it (on change) so the OMA-DM
+			// management session, which has no such header, can gate poll relaxation on the stored value. Best-effort: a failed write
+			// self-heals on the next poll.
+			syncCapable := false
+			if mp, ok := capabilities.FromContext(ctx); ok {
+				syncCapable = mp.Has(fleet.CapabilityWindowsMDMSync)
+			}
+			if syncCapable != state.FleetdSyncCapable {
+				if err := svc.ds.SetMDMWindowsEnrollmentFleetdSyncCapable(ctx, host.UUID, syncCapable); err != nil {
+					svc.logger.WarnContext(ctx, "persisting Windows MDM sync capability", "host_uuid", host.UUID, "err", err)
+				}
+			}
+
+			switch {
+			case state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationPending ||
+				state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationActive:
+				// During the Autopilot ESP, the setup experience flow delivers queued commands.
+				notifs.RunSetupExperience = true
+			case state.HasPendingCommands:
+				// Outside the ESP: if this host's fleetd can start an on-demand OMA-DM session, ask it to sync now so queued commands apply
+				// without waiting for the poll.
+				if syncCapable {
+					notifs.WindowsMDMSyncRequest = true
+				}
 			}
 		}
 	}

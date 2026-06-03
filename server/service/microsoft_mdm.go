@@ -2059,52 +2059,15 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	return msg, nil
 }
 
-// minWindowsMDMSyncOrbitVersion is the minimum fleetd (orbit) version that ships the Windows MDM on-demand sync receiver
-// (windowsMDMSyncConfigReceiver). Only hosts at or above it can be woken via deviceenroller, so only they get the relaxed poll schedule.
-// This MUST equal the fleetd release that ships the feature: a lower value would relax hosts that cannot be woken, regressing their command
-// latency to the slow poll interval; a higher value only delays the benefit (hosts stay on the fast poll), which is safe.
-const minWindowsMDMSyncOrbitVersion = "1.56.0"
-
 const (
 	// windowsMDMFastPollIntervalMinutes mirrors NewDMClientProvisioningData's provisioned IntervalForFirstSetOfRetries: the aggressive poll
 	// used until a host is known to support on-demand sync.
 	windowsMDMFastPollIntervalMinutes = "1"
-	// windowsMDMRelaxedPollIntervalMinutes is the steady poll for hosts woken on demand by fleetd. Steady-state command latency comes from the
-	// on-demand wake; this only bounds the fallback if a wake ever fails.
-	windowsMDMRelaxedPollIntervalMinutes = "60"
+	// windowsMDMRelaxedPollIntervalMinutes is the steady poll for hosts woken on demand by fleetd. 480 minutes (8 hours) matches Intune's
+	// default check-in cadence. Steady-state command latency comes from the on-demand wake; this interval only bounds the fallback latency
+	// if a wake ever fails, so a longer value trades a larger worst-case fallback for less polling load.
+	windowsMDMRelaxedPollIntervalMinutes = "480"
 )
-
-// windowsMDMHostSupportsSync reports whether the enrolled host's fleetd is new enough to start an on-demand OMA-DM session when asked. The
-// orbit version is read from host_orbit_info (Fleet's established out-of-request signal); a missing/unlinked host or unknown version is
-// treated as not-capable, which keeps the host on the fast poll (the safe default).
-//
-// Known limitation: this version-based gate and the wake-notification path (which reads the live X-Fleet-Capabilities header on each
-// orbit-config request) are two snapshots of the same capability that update at different cadences. On a fleetd downgrade below
-// minWindowsMDMSyncOrbitVersion, the live header drops CapabilityWindowsMDMSync immediately so no wake is set, but this gate still sees the
-// stale higher version and leaves the host on the relaxed poll until osquery re-ingests orbit_info (after which the next management session
-// restores the fast poll). Command latency regresses to the relaxed interval for that window. This is accepted: fleetd auto-updates forward,
-// so downgrades are uncommon, and the condition is self-healing. Driving both paths off a single persisted capability flag (written by the
-// orbit-config endpoint) would close the window but is deferred.
-func (svc *Service) windowsMDMHostSupportsSync(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) (bool, error) {
-	if device.HostUUID == "" {
-		return false, nil
-	}
-	host, err := svc.ds.HostLiteByIdentifier(ctx, device.HostUUID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return false, nil
-		}
-		return false, ctxerr.Wrap(ctx, err, "get host lite for windows mdm sync support")
-	}
-	orbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return false, nil
-		}
-		return false, ctxerr.Wrap(ctx, err, "get host orbit info for windows mdm sync support")
-	}
-	return fleet.IsAtLeastVersion(orbitInfo.Version, minWindowsMDMSyncOrbitVersion), nil
-}
 
 // buildPollScheduleCommand builds an MDMWindowsCommand that Replaces the DMClient Poll interval with the value for the given schedule
 // (relaxed vs the aggressive default). It is enqueued like any other Windows MDM command, so the command queue handles delivery, automatic
@@ -2137,10 +2100,10 @@ func buildPollScheduleCommand(relaxed bool) (*fleet.MDMWindowsCommand, error) {
 // cannot strand a host on the wrong interval. poll_schedule_relaxed records only the INTENDED schedule, so a command is enqueued exactly
 // once per intended change (and excluded from the pending-command/wake signal, so tuning the poll does not itself request a wake).
 func (svc *Service) reconcileWindowsMDMPollSchedule(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
-	desiredRelaxed, err := svc.windowsMDMHostSupportsSync(ctx, device)
-	if err != nil {
-		return err
-	}
+	// A capable fleetd (one advertising CapabilityWindowsMDMSync, persisted to fleetd_sync_capable by the orbit-config endpoint) can be woken
+	// on demand, so relax its poll; otherwise keep the fast default. The flag is read straight off the already-loaded enrolled-device row, so
+	// this hot management path does no extra DB lookups.
+	desiredRelaxed := device.FleetdSyncCapable
 	if desiredRelaxed == device.PollScheduleRelaxed {
 		// Intended schedule already matches; any still-undelivered Replace is re-sent by the command queue.
 		return nil

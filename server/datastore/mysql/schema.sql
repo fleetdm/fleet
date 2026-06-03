@@ -1973,6 +1973,7 @@ CREATE TABLE `mdm_windows_enrollments` (
   `awaiting_configuration_at` datetime(6) DEFAULT NULL,
   `poll_schedule_relaxed` tinyint(1) NOT NULL DEFAULT '0',
   `has_pending_commands` tinyint(1) NOT NULL DEFAULT '0',
+  `fleetd_sync_capable` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_type` (`mdm_hardware_id`),
   KEY `idx_mdm_windows_enrollments_mdm_device_id` (`mdm_device_id`),

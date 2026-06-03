@@ -1129,13 +1129,6 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		return nil
 	}
 
-	// The trusted management session reconciles the DMClient poll schedule, which resolves the host to check whether its fleetd supports
-	// on-demand sync. This test is about the rekey flow, so report the host as not found -> windowsMDMHostSupportsSync returns not-capable and
-	// the poll reconcile is a no-op.
-	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
-		return nil, &notFoundError{}
-	}
-
 	ackCalled := 0
 	ds.MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string) error {
 		require.Equal(t, "device", deviceId)
@@ -1739,17 +1732,10 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 		intendedRelaxed *bool
 	}
 
-	// newSvc returns a mock-backed Service whose host-resolution chain (HostLiteByIdentifier -> GetHostOrbitInfo) reports the given orbit
-	// version (which drives windowsMDMHostSupportsSync), capturing the enqueued poll command and the intended-schedule write so tests can
-	// assert them.
-	newSvc := func(t *testing.T, orbitVersion string, caps *captures) *Service {
+	// newSvc returns a mock-backed Service that captures the enqueued poll command and the intended-schedule write so tests can assert them.
+	// The reconcile reads the capability straight off the enrolled-device row (fleetd_sync_capable), so no host-resolution mocks are needed.
+	newSvc := func(t *testing.T, caps *captures) *Service {
 		ds := new(mock.Store)
-		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
-			return &fleet.HostLite{ID: 1, UUID: identifier}, nil
-		}
-		ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
-			return &fleet.HostOrbitInfo{Version: orbitVersion}, nil
-		}
 		ds.MDMWindowsEnqueuePollScheduleCommandFunc = func(
 			ctx context.Context, mdmDeviceID string, id uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
 		) error {
@@ -1764,13 +1750,14 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 		return &Service{ds: ds, logger: testutils.TestLogger(t)}
 	}
 
-	// newDevice builds an enrollment with the given intended schedule (poll_schedule_relaxed).
-	newDevice := func(relaxed bool) *fleet.MDMWindowsEnrolledDevice {
+	// newDevice builds an enrollment with the given intended schedule (poll_schedule_relaxed) and persisted sync capability (fleetd_sync_capable).
+	newDevice := func(relaxed, syncCapable bool) *fleet.MDMWindowsEnrolledDevice {
 		return &fleet.MDMWindowsEnrolledDevice{
 			ID:                  enrollmentID,
 			MDMDeviceID:         deviceID,
 			HostUUID:            hostUUID,
 			PollScheduleRelaxed: relaxed,
+			FleetdSyncCapable:   syncCapable,
 		}
 	}
 
@@ -1791,9 +1778,9 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 
 	t.Run("capable host on fast poll enqueues relax and records intended", func(t *testing.T) {
 		var caps captures
-		svc := newSvc(t, minWindowsMDMSyncOrbitVersion, &caps)
+		svc := newSvc(t, &caps)
 
-		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(false))
+		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(false, true))
 		require.NoError(t, err)
 		assertEnqueuedInterval(t, caps.enqueued, windowsMDMRelaxedPollIntervalMinutes)
 		require.NotNil(t, caps.intendedRelaxed)
@@ -1801,59 +1788,33 @@ func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
 	})
 
 	t.Run("capable host already relaxed is a no-op", func(t *testing.T) {
-		svc := newSvc(t, minWindowsMDMSyncOrbitVersion, nil)
+		svc := newSvc(t, nil)
 		ds := svc.ds.(*mock.Store)
 
-		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(true))
+		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(true, true))
 		require.NoError(t, err)
 		assert.False(t, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked, "no enqueue when intended already matches desired")
 	})
 
-	t.Run("non-capable host that intends relaxed is restored to fast", func(t *testing.T) {
+	t.Run("not-capable host that intends relaxed is restored to fast", func(t *testing.T) {
 		var caps captures
-		// An older orbit (below the on-demand-sync minimum) whose intended schedule is relaxed must be put back on the fast poll so its commands
-		// still get delivered without a wake.
-		svc := newSvc(t, "1.0.0", &caps)
+		// A host whose fleetd no longer advertises the sync capability (so fleetd_sync_capable is false) but is still marked relaxed must be
+		// put back on the fast poll, so its commands still get delivered without a wake.
+		svc := newSvc(t, &caps)
 
-		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(true))
+		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(true, false))
 		require.NoError(t, err)
 		assertEnqueuedInterval(t, caps.enqueued, windowsMDMFastPollIntervalMinutes)
 		require.NotNil(t, caps.intendedRelaxed)
 		assert.False(t, *caps.intendedRelaxed, "intended schedule should be recorded as fast")
 	})
 
-	t.Run("non-capable host already on fast poll is a no-op", func(t *testing.T) {
-		svc := newSvc(t, "1.0.0", nil)
+	t.Run("not-capable host already on fast poll is a no-op", func(t *testing.T) {
+		// Covers the unlinked / never-reported-capable case too: such an enrollment has fleetd_sync_capable=false and stays on the fast poll.
+		svc := newSvc(t, nil)
 		ds := svc.ds.(*mock.Store)
 
-		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(false))
-		require.NoError(t, err)
-		assert.False(t, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
-	})
-
-	t.Run("unlinked host is treated as not-capable", func(t *testing.T) {
-		// No host UUID means there is no fleetd to wake, so the host stays on the fast poll and the host-resolution chain is not even consulted.
-		svc := newSvc(t, minWindowsMDMSyncOrbitVersion, nil)
-		ds := svc.ds.(*mock.Store)
-		device := newDevice(false)
-		device.HostUUID = ""
-
-		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), device)
-		require.NoError(t, err)
-		assert.False(t, ds.HostLiteByIdentifierFuncInvoked, "must not resolve a host without a UUID")
-		assert.False(t, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
-	})
-
-	t.Run("missing orbit info is treated as not-capable", func(t *testing.T) {
-		// A host whose orbit version is unknown (no host_orbit_info row yet) cannot be assumed to support the on-demand wake, so it stays on the
-		// fast poll.
-		svc := newSvc(t, minWindowsMDMSyncOrbitVersion, nil)
-		ds := svc.ds.(*mock.Store)
-		ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
-			return nil, &notFoundError{}
-		}
-
-		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(false))
+		err := svc.reconcileWindowsMDMPollSchedule(t.Context(), newDevice(false, false))
 		require.NoError(t, err)
 		assert.False(t, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
 	})

@@ -850,6 +850,10 @@ const (
 type MDMWindowsHostConfigState struct {
 	AwaitingConfiguration WindowsMDMAwaitingConfiguration
 	HasPendingCommands    bool
+	// FleetdSyncCapable is the last-observed value of the X-Fleet-Capabilities CapabilityWindowsMDMSync flag for this enrollment, persisted by
+	// the orbit-config endpoint. GetOrbitConfig reads it to write-on-change; the OMA-DM management session (which has no capability header)
+	// reads it to gate poll relaxation.
+	FleetdSyncCapable bool
 }
 
 type MDMWindowsEnrolledDevice struct {
@@ -873,9 +877,12 @@ type MDMWindowsEnrolledDevice struct {
 	// (because its fleetd can be woken on demand), false for the aggressive default. Delivery and acknowledgment of that Replace are tracked
 	// by the standard Windows MDM command queue, so this only records what we last asked for; the management session re-enqueues only when
 	// desired differs from it.
-	PollScheduleRelaxed bool      `db:"poll_schedule_relaxed"`
-	CreatedAt           time.Time `db:"created_at"`
-	UpdatedAt           time.Time `db:"updated_at"`
+	PollScheduleRelaxed bool `db:"poll_schedule_relaxed"`
+	// FleetdSyncCapable is the last-observed CapabilityWindowsMDMSync value for this enrollment, persisted by the orbit-config endpoint. The
+	// management session has no capability header, so it gates poll relaxation on this persisted flag rather than re-deriving the capability.
+	FleetdSyncCapable bool      `db:"fleetd_sync_capable"`
+	CreatedAt         time.Time `db:"created_at"`
+	UpdatedAt         time.Time `db:"updated_at"`
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {

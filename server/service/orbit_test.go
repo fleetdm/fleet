@@ -1135,6 +1135,10 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
 		}
+		// GetOrbitConfig persists the live sync capability on change; default to a no-op so subtests that don't assert it don't nil-panic.
+		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error {
+			return nil
+		}
 
 		ctx = test.HostContext(ctx, host)
 		return ds, svc, ctx, host
@@ -1196,6 +1200,47 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		assert.True(t, cfg.Notifications.WindowsMDMSyncRequest)
 		assert.False(t, cfg.Notifications.RunSetupExperience)
 		assert.True(t, ds.GetMDMWindowsHostConfigStateFuncInvoked)
+	})
+
+	t.Run("persists fleetd sync capability only on change", func(t *testing.T) {
+		// Capability advertised but the persisted flag is still false -> write it true (so the OMA-DM session can relax the poll).
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, FleetdSyncCapable: false}, nil
+		}
+		var wrote *bool
+		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error {
+			wrote = &capable
+			return nil
+		}
+		_, err := svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
+		require.NotNil(t, wrote, "should persist the capability when it differs from the stored flag")
+		assert.True(t, *wrote)
+
+		// Capability advertised and the persisted flag already true -> no write.
+		ds, svc, ctx, _ = setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, FleetdSyncCapable: true}, nil
+		}
+		_, err = svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
+		assert.False(t, ds.SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked, "no write when the stored flag already matches")
+
+		// No capability but the persisted flag is true (e.g. fleetd downgrade) -> write it false.
+		ds, svc, ctx, _ = setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, FleetdSyncCapable: true}, nil
+		}
+		wrote = nil
+		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error {
+			wrote = &capable
+			return nil
+		}
+		_, err = svc.GetOrbitConfig(ctx) // no capability header
+		require.NoError(t, err)
+		require.NotNil(t, wrote, "should clear the capability when fleetd stops advertising it")
+		assert.False(t, *wrote)
 	})
 
 	t.Run("Windows host with pending commands but no capability does not set WindowsMDMSyncRequest", func(t *testing.T) {
