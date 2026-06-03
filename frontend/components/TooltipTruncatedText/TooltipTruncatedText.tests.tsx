@@ -33,7 +33,7 @@ describe("TooltipTruncatedText", () => {
   it("forwards fixedPositionStrategy=true to TooltipWrapper when set", () => {
     render(<TooltipTruncatedText value="example" fixedPositionStrategy />);
 
-    expect(mockedTooltipWrapper).toHaveBeenCalledWith(
+    expect(mockedTooltipWrapper.mock.calls[0][0]).toEqual(
       expect.objectContaining({ fixedPositionStrategy: true })
     );
   });
@@ -41,7 +41,7 @@ describe("TooltipTruncatedText", () => {
   it("defaults fixedPositionStrategy to false when not provided", () => {
     render(<TooltipTruncatedText value="example" />);
 
-    expect(mockedTooltipWrapper).toHaveBeenCalledWith(
+    expect(mockedTooltipWrapper.mock.calls[0][0]).toEqual(
       expect.objectContaining({ fixedPositionStrategy: false })
     );
   });
@@ -51,7 +51,7 @@ describe("TooltipTruncatedText", () => {
 
     render(<TooltipTruncatedText value="short" />);
 
-    expect(mockedTooltipWrapper).toHaveBeenCalledWith(
+    expect(mockedTooltipWrapper.mock.calls[0][0]).toEqual(
       expect.objectContaining({ disableTooltip: true })
     );
   });
@@ -63,7 +63,7 @@ describe("TooltipTruncatedText", () => {
       <TooltipTruncatedText value="a very long value that gets truncated" />
     );
 
-    expect(mockedTooltipWrapper).toHaveBeenCalledWith(
+    expect(mockedTooltipWrapper.mock.calls[0][0]).toEqual(
       expect.objectContaining({ disableTooltip: false })
     );
   });
@@ -71,7 +71,7 @@ describe("TooltipTruncatedText", () => {
   it("uses value as the tip content when tooltip prop is not provided", () => {
     render(<TooltipTruncatedText value="just-the-value" />);
 
-    expect(mockedTooltipWrapper).toHaveBeenCalledWith(
+    expect(mockedTooltipWrapper.mock.calls[0][0]).toEqual(
       expect.objectContaining({ tipContent: "just-the-value" })
     );
   });
@@ -84,7 +84,7 @@ describe("TooltipTruncatedText", () => {
       />
     );
 
-    expect(mockedTooltipWrapper).toHaveBeenCalledWith(
+    expect(mockedTooltipWrapper.mock.calls[0][0]).toEqual(
       expect.objectContaining({ tipContent: "custom-tip-content" })
     );
   });
