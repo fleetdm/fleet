@@ -53,7 +53,7 @@ const WipeModal = ({
         "error",
         isAndroidHost
           ? errorReason ||
-          "Couldn't send request to wipe this host. Please try again."
+              "Couldn't send request to wipe this host. Please try again."
           : errorReason
       );
     }
@@ -78,11 +78,10 @@ const WipeModal = ({
               <CustomLink
                 url="https://fleetdm.com/learn-more-about/linux-wipe"
                 text="Learn more"
-                newTab />{" "}
+                newTab
+              />{" "}
             </p>
-            <p>
-              To use the host again, you will have to do an OS reinstall.
-            </p>
+            <p>To use the host again, you will have to do an OS reinstall.</p>
           </>
         )}
         <div className={`${baseClass}__confirm-message`}>
