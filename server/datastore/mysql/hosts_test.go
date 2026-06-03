@@ -130,6 +130,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListBatchScriptExecution", testHostsListByBatchScriptExecutionStatus},
 		{"HostsExpiration", testHostsExpiration},
 		{"HostsExpirationBatchSize", testHostsExpirationBatchSize},
+		{"HostsExpirationBatchSizeServicesEveryScope", testHostsExpirationBatchSizeServicesEveryScope},
 		{"IOSHostExpiration", testIOSHostsExpiration},
 		{"DEPHostExpiration", testDEPHostsExpiration},
 		{"AppleMDMHostWithoutOrbitExpiration", testAppleMDMHostsWithoutOrbitExpiration},
@@ -5822,6 +5823,77 @@ func testHostsExpirationBatchSize(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, hostDetails)
 	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 1)
+}
+
+func testHostsExpirationBatchSizeServicesEveryScope(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	previousBatchSize := cleanupExpiredHostsBatchSize
+	cleanupExpiredHostsBatchSize = 3
+	t.Cleanup(func() {
+		cleanupExpiredHostsBatchSize = previousBatchSize
+	})
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	ac.HostExpirySettings.HostExpiryWindow = 1
+	require.NoError(t, ds.SaveAppConfig(ctx, ac))
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "batch-expiry-team-1"})
+	require.NoError(t, err)
+	team1.Config.HostExpirySettings.HostExpiryEnabled = true
+	team1.Config.HostExpirySettings.HostExpiryWindow = 2
+	team1, err = ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "batch-expiry-team-2"})
+	require.NoError(t, err)
+	team2.Config.HostExpirySettings.HostExpiryEnabled = true
+	team2.Config.HostExpirySettings.HostExpiryWindow = 3
+	team2, err = ds.SaveTeam(ctx, team2)
+	require.NoError(t, err)
+
+	createHost := func(prefix string, id int) uint {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-96 * time.Hour),
+			OsqueryHostID:   new(fmt.Sprintf("%s-%d", prefix, id)),
+			NodeKey:         new(fmt.Sprintf("%s-%d", prefix, id)),
+			UUID:            fmt.Sprintf("%s-%d", prefix, id),
+			Hostname:        fmt.Sprintf("%s-%d.local", prefix, id),
+		})
+		require.NoError(t, err)
+		return host.ID
+	}
+
+	for i := range 5 {
+		createHost("batch-global-scope", i)
+	}
+	team1HostIDs := []uint{
+		createHost("batch-team-1-scope", 0),
+		createHost("batch-team-1-scope", 1),
+	}
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, team1HostIDs)))
+	team2HostIDs := []uint{
+		createHost("batch-team-2-scope", 0),
+		createHost("batch-team-2-scope", 1),
+	}
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, team2HostIDs)))
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 9)
+
+	hostDetails, err := ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.Len(t, hostDetails, 3)
+	gotExpiryWindows := make([]int, 0, len(hostDetails))
+	for _, detail := range hostDetails {
+		gotExpiryWindows = append(gotExpiryWindows, detail.HostExpiryWindow)
+	}
+	require.ElementsMatch(t, []int{1, 2, 3}, gotExpiryWindows)
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 6)
 }
 
 func testIOSHostsExpiration(t *testing.T, ds *Datastore) {
