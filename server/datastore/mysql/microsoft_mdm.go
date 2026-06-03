@@ -360,14 +360,23 @@ func (ds *Datastore) markMDMWindowsHasPendingCommandsByEnrollmentIDs(ctx context
 }
 
 // markMDMWindowsHasPendingCommandsByHostUUIDs is markMDMWindowsHasPendingCommandsByEnrollmentIDs keyed by host UUID, for the
-// profile-delivery enqueue path that inserts queue rows by host UUID rather than enrollment id.
+// profile-delivery enqueue path that inserts queue rows by host UUID rather than enrollment id. It flags only the latest enrollment per
+// host UUID, mirroring the queue insert in MDMWindowsEnqueueCommandAndUpsertHostProfiles (SELECT MAX(mwe.id) ... GROUP BY host_uuid): the
+// command lands on that one enrollment, so only it must be flagged. Flagging every enrollment row for the UUID would strand stale
+// re-enrollment rows at has_pending_commands=1, since the recompute-on-ack only ever runs against the responding (latest) enrollment.
 func (ds *Datastore) markMDMWindowsHasPendingCommandsByHostUUIDs(ctx context.Context, tx sqlx.ExtContext, hostUUIDs []string) error {
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
 	// Batch to match the bounded queue-insert path; a single IN (...) over a large fan-out could exceed MySQL's placeholder limit.
 	return common_mysql.BatchProcessSimple(hostUUIDs, windowsMDMCommandQueueBatchSize, func(batch []string) error {
-		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET has_pending_commands = 1 WHERE host_uuid IN (?)`, batch)
+		// The derived table is required because MySQL forbids referencing the UPDATE target table directly in a subquery.
+		stmt, args, err := sqlx.In(`UPDATE mdm_windows_enrollments SET has_pending_commands = 1
+			WHERE id IN (
+				SELECT id FROM (
+					SELECT MAX(id) AS id FROM mdm_windows_enrollments WHERE host_uuid IN (?) GROUP BY host_uuid
+				) latest
+			)`, batch)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build mark has_pending_commands by host uuids")
 		}

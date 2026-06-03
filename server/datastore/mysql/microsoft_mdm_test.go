@@ -1674,6 +1674,51 @@ func testMDMWindowsBulkInsertCommands(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, 1, queueCount)
 	})
+
+	t.Run("marks only the latest enrollment on re-enrollment", func(t *testing.T) {
+		hostUUID := uuid.NewString()
+		newDevice := func() *fleet.MDMWindowsEnrolledDevice {
+			return &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:            uuid.New().String(),
+				MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+				MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+				MDMDeviceType:          "CIMClient_Windows",
+				MDMDeviceName:          "DESKTOP-REENROLL",
+				MDMEnrollType:          "ProgrammaticEnrollment",
+				MDMEnrollProtoVersion:  "5.0",
+				MDMEnrollClientVersion: "10.0.19045.2965",
+				HostUUID:               hostUUID,
+			}
+		}
+		// A re-enrollment: two enrollment rows share one host UUID. The queue insert targets MAX(id), so only the newer row gets the
+		// command. The stale row must NOT be flagged, or it would be stranded at has_pending_commands=1 forever (the recompute-on-ack
+		// only runs against the responding enrollment).
+		stale := newDevice()
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, stale))
+		newer := newDevice()
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, newer))
+
+		profUUID := InsertWindowsProfileForTest(t, ds, 0)
+		cmdUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{CommandUUID: cmdUUID, RawCommand: []byte("<Replace>reenroll</Replace>"), TargetLocURI: "./test/reenroll"}
+		// Enqueue only inserts the queue row, so the command must already exist in windows_mdm_commands (FK).
+		require.NoError(t, ds.MDMWindowsBulkInsertCommands(ctx, []*fleet.MDMWindowsCommand{cmd}))
+		payload := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{{
+			ProfileUUID: profUUID, ProfileName: "reenroll-prof", HostUUID: hostUUID, CommandUUID: cmdUUID,
+			OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending, Checksum: []byte("reenroll-chk"),
+		}}
+		require.NoError(t, ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, []string{hostUUID}, cmd, payload))
+
+		flagByDeviceID := func(mdmDeviceID string) bool {
+			var v bool
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &v, `SELECT has_pending_commands FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, mdmDeviceID)
+			})
+			return v
+		}
+		require.True(t, flagByDeviceID(newer.MDMDeviceID), "the latest enrollment (where the command was queued) must be flagged")
+		require.False(t, flagByDeviceID(stale.MDMDeviceID), "the stale re-enrollment row must NOT be flagged; no command points at it")
+	})
 }
 
 func testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts(t *testing.T, ds *Datastore) {
