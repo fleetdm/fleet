@@ -3462,12 +3462,12 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 				queuedCount++
 
 			case title.IsPackage() && fleet.IsAppleMobilePlatform(title.SoftwarePackage.Platform):
-				iha, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, host.TeamID, title.ID)
+				_, _, inHouseID, err := svc.ds.InstallerAvailableForInstallForTeamAndTitleID(ctx, host.TeamID, title.ID)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "getting in-house app for title")
 				}
 
-				scoped, err := svc.ds.IsInHouseAppLabelScoped(ctx, iha.InstallerID, host.ID)
+				scoped, err := svc.ds.IsInHouseAppLabelScoped(ctx, inHouseID, host.ID)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking in-house app label scope")
 				}
@@ -3476,29 +3476,29 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 				}
 
 				opts := fleet.HostSoftwareInstallOptions{SelfService: true}
-				cfg, err := svc.ds.GetInHouseAppConfiguration(ctx, iha.InstallerID)
+				cfg, err := svc.ds.GetInHouseAppConfiguration(ctx, inHouseID)
 				if err != nil && !fleet.IsNotFound(err) {
 					return ctxerr.Wrap(ctx, err, "get in-house app configuration for pre-flight check")
 				}
 				switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
 				case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
-					return svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+					return svc.recordFailedInHouseInstall(ctx, host.ID, inHouseID, opts, unresolvableAppConfigFailureReason(err))
 				case err != nil:
 					return ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
 				}
 
-				if err := svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, title.ID, uuid.NewString(), opts); err != nil {
+				if err := svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, inHouseID, title.ID, uuid.NewString(), opts); err != nil {
 					return ctxerr.Wrap(ctx, err, "queueing in-house app install")
 				}
 				queuedCount++
 
 			case title.IsPackage():
-				installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, title.ID, false)
+				installerID, _, _, err := svc.ds.InstallerAvailableForInstallForTeamAndTitleID(ctx, host.TeamID, title.ID)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "getting installer for title")
 				}
 
-				scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installer.InstallerID, host.ID)
+				scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installerID, host.ID)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking installer label scope")
 				}
@@ -3506,10 +3506,10 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 					return nil
 				}
 
-				if err := svc.ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installer.InstallerID); err != nil {
+				if err := svc.ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installerID); err != nil {
 					return ctxerr.Wrap(ctx, err, "resetting install attempts")
 				}
-				if _, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{SelfService: true, WithRetries: true}); err != nil {
+				if _, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{SelfService: true, WithRetries: true}); err != nil {
 					return ctxerr.Wrap(ctx, err, "queueing package install")
 				}
 				queuedCount++
