@@ -1,9 +1,8 @@
 import React from "react";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import {
   getInstallSoftwareErrorMessage,
   getRunScriptErrorMessage,
-  getAutomationTypesString,
+  getAutomationsForPolicy,
 } from "./helpers";
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
@@ -275,63 +274,114 @@ describe("getRunScriptErrorMessage", () => {
   });
 });
 
-describe("getAutomationTypesString", () => {
+describe("getAutomationsForPolicy", () => {
   const basePolicy = {
     calendar_events_enabled: false,
     conditional_access_enabled: false,
+    webhook: "Off",
   };
 
-  it("returns DEFAULT_EMPTY_CELL_VALUE when no automations are enabled", () => {
-    expect(getAutomationTypesString(basePolicy)).toBe(DEFAULT_EMPTY_CELL_VALUE);
+  it("returns empty array when no automations are enabled", () => {
+    expect(getAutomationsForPolicy(basePolicy)).toEqual([]);
   });
 
-  it("returns 'Software' when only install_software is present", () => {
-    expect(
-      getAutomationTypesString({
-        ...basePolicy,
-        install_software: { software_title_id: 1 },
-      })
-    ).toBe("Software");
+  it("returns software automation with display_name preferred over name", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      install_software: {
+        name: "Chrome.app",
+        display_name: "Google Chrome",
+        software_title_id: 42,
+      },
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      type: "software",
+      name: "Google Chrome",
+      softwareTitleId: 42,
+    });
   });
 
-  it("returns 'Script' when only run_script is present", () => {
-    expect(
-      getAutomationTypesString({
-        ...basePolicy,
-        run_script: { id: 1 },
-      })
-    ).toBe("Script");
+  it("falls back to name when display_name is absent", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      install_software: { name: "Chrome.app", software_title_id: 42 },
+    });
+    expect(result[0].name).toBe("Chrome.app");
   });
 
-  it("returns types in correct order with sentence case: Software, script, calendar, conditional access, other", () => {
-    expect(
-      getAutomationTypesString({
-        install_software: { software_title_id: 1 },
-        run_script: { id: 1 },
+  it("returns script automation with file name", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      run_script: { id: 7, name: "fix-disk.sh" },
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      type: "script",
+      name: "fix-disk.sh",
+    });
+  });
+
+  it("returns calendar automation", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      calendar_events_enabled: true,
+    });
+    expect(result[0]).toMatchObject({
+      type: "calendar",
+      name: "Maintenance window",
+    });
+  });
+
+  it("returns conditional access automation", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      conditional_access_enabled: true,
+    });
+    expect(result[0]).toMatchObject({
+      type: "conditional_access",
+      name: "Conditional access",
+    });
+  });
+
+  it("labels other automation as Webhook by default", () => {
+    const result = getAutomationsForPolicy({ ...basePolicy, webhook: "On" });
+    expect(result[0]).toMatchObject({ type: "other", name: "Webhook" });
+  });
+
+  it("labels other automation as Ticket when otherAutomationType is ticket", () => {
+    const result = getAutomationsForPolicy(
+      { ...basePolicy, webhook: "On" },
+      "ticket"
+    );
+    expect(result[0]).toMatchObject({ type: "other", name: "Ticket" });
+  });
+
+  it("does not include other automation when webhook is Off", () => {
+    const result = getAutomationsForPolicy({
+      ...basePolicy,
+      webhook: "Off",
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it("returns all automations in order", () => {
+    const result = getAutomationsForPolicy(
+      {
+        install_software: { name: "Chrome.app", software_title_id: 1 },
+        run_script: { id: 2, name: "fix.sh" },
         calendar_events_enabled: true,
         conditional_access_enabled: true,
         webhook: "On",
-      })
-    ).toBe("Software, script, calendar, conditional access, other");
-  });
-
-  it("returns 'Software, calendar' for software + calendar", () => {
-    expect(
-      getAutomationTypesString({
-        ...basePolicy,
-        install_software: { software_title_id: 1 },
-        calendar_events_enabled: true,
-      })
-    ).toBe("Software, calendar");
-  });
-
-  it("does not include Other when webhook is Off", () => {
-    expect(
-      getAutomationTypesString({
-        ...basePolicy,
-        install_software: { software_title_id: 1 },
-        webhook: "Off",
-      })
-    ).toBe("Software");
+      },
+      "webhook"
+    );
+    expect(result.map((a) => a.type)).toEqual([
+      "software",
+      "script",
+      "calendar",
+      "conditional_access",
+      "other",
+    ]);
   });
 });

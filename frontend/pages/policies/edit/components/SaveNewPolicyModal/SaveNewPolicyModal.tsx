@@ -4,9 +4,11 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { size } from "lodash";
 import classNames from "classnames";
+import { useQueryClient } from "react-query";
 
 import {
   getCustomTargetOptions,
@@ -16,10 +18,16 @@ import {
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
+import { IConfig } from "interfaces/config";
 import { ILabelSummary } from "interfaces/label";
-import { IPolicyFormData } from "interfaces/policy";
+import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
+import { ITeamConfig } from "interfaces/team";
 import useDeepEffect from "hooks/useDeepEffect";
+
+import configAPI from "services/entities/config";
+import teamPoliciesAPI from "services/entities/team_policies";
+import teamsAPI from "services/entities/teams";
 
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -29,10 +37,17 @@ import Modal from "components/Modal";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import Icon from "components/Icon";
 
+import PolicyAutomationsFields, {
+  IPolicyAutomationsFieldsHandle,
+} from "pages/policies/components/PolicyAutomationsFields";
+
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
   queryValue: string;
-  onCreatePolicy: (formData: IPolicyFormData) => void;
+  onCreatePolicy: (
+    formData: IPolicyFormData,
+    saveAutomations?: (newPolicy: IPolicy) => Promise<void>
+  ) => void;
   setIsSaveNewPolicyModalOpen: (isOpen: boolean) => void;
   backendValidators: { [key: string]: string };
   platformSelector: IPlatformSelector;
@@ -43,6 +58,19 @@ export interface ISaveNewPolicyModalProps {
   onClickAutofillDescription: () => Promise<void>;
   onClickAutofillResolution: () => Promise<void>;
   labels: ILabelSummary[];
+  /** True when the new policy targets "All fleets" (global); only the
+   *  webhook/ticket row is shown in the automations table. */
+  isGlobalPolicy: boolean;
+  /** undefined for global, 0 for "Unassigned", positive for a fleet. */
+  policyTeamId: number | undefined;
+  /** Config that owns the new policy's automations: global config for global
+   *  policies, the team's config for team policies. */
+  automationsConfig: IConfig | ITeamConfig | undefined;
+  /** Global config — needed for the conditional access row on the
+   *  "Unassigned" view. */
+  globalConfig: IConfig | undefined;
+  /** Display name of the fleet the new policy belongs to. */
+  fleetName: string;
 }
 
 const validatePolicyName = (name: string) => {
@@ -70,8 +98,14 @@ const SaveNewPolicyModal = ({
   onClickAutofillDescription,
   onClickAutofillResolution,
   labels,
+  isGlobalPolicy,
+  policyTeamId,
+  automationsConfig,
+  globalConfig,
+  fleetName,
 }: ISaveNewPolicyModalProps): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, setConfig } = useContext(AppContext);
+  const queryClient = useQueryClient();
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -97,6 +131,21 @@ const SaveNewPolicyModal = ({
   const customTargetOptions = useMemo(
     () => getCustomTargetOptions({ entity: "policy", isPremiumTier }),
     [isPremiumTier]
+  );
+
+  const [showAutomations, setShowAutomations] = useState(false);
+  const automationsRef = useRef<IPolicyAutomationsFieldsHandle>(null);
+
+  const newPolicyStub = useMemo(
+    () =>
+      ({
+        id: -1,
+        team_id: policyTeamId ?? null,
+        calendar_events_enabled: false,
+        conditional_access_enabled: false,
+        continuous_automations_enabled: false,
+      } as IPolicy),
+    [policyTeamId]
   );
 
   const onSelectLabel = ({
@@ -132,7 +181,7 @@ const SaveNewPolicyModal = ({
     setErrors(backendValidators);
   }, [backendValidators]);
 
-  const handleSavePolicy = (evt: React.MouseEvent<HTMLFormElement>) => {
+  const handleSavePolicy = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const newPlatformString = platformSelector
@@ -148,31 +197,96 @@ const SaveNewPolicyModal = ({
       ...newErrors,
     });
 
-    if (!disableSave && validName) {
-      const payload: IPolicyFormData = {
-        description: lastEditedQueryDescription,
-        name: lastEditedQueryName,
-        query: queryValue,
-        resolution: lastEditedQueryResolution,
-        platform: newPlatformString,
-        critical: lastEditedQueryCritical,
-      };
-      if (isPremiumTier) {
-        const customLabelNames =
-          selectedTargetType === "Custom"
-            ? Object.entries(selectedLabels)
-                .filter(([, selected]) => selected)
-                .map(([labelName]) => labelName)
-            : [];
-        payload.labels_include_any =
-          selectedCustomTarget === "labelsIncludeAny" ? customLabelNames : [];
-        payload.labels_include_all =
-          selectedCustomTarget === "labelsIncludeAll" ? customLabelNames : [];
-        payload.labels_exclude_any =
-          selectedCustomTarget === "labelsExcludeAny" ? customLabelNames : [];
-      }
-      onCreatePolicy(payload);
+    if (disableSave || !validName) {
+      return;
     }
+
+    const automations = showAutomations
+      ? automationsRef.current?.getAutomationsPayload()
+      : undefined;
+    if (automations && !automations.isValid) {
+      return;
+    }
+
+    const payload: IPolicyFormData = {
+      description: lastEditedQueryDescription,
+      name: lastEditedQueryName,
+      query: queryValue,
+      resolution: lastEditedQueryResolution,
+      platform: newPlatformString,
+      critical: lastEditedQueryCritical,
+    };
+    if (isPremiumTier) {
+      const customLabelNames =
+        selectedTargetType === "Custom"
+          ? Object.entries(selectedLabels)
+              .filter(([, selected]) => selected)
+              .map(([labelName]) => labelName)
+          : [];
+      payload.labels_include_any =
+        selectedCustomTarget === "labelsIncludeAny" ? customLabelNames : [];
+      payload.labels_include_all =
+        selectedCustomTarget === "labelsIncludeAll" ? customLabelNames : [];
+      payload.labels_exclude_any =
+        selectedCustomTarget === "labelsExcludeAny" ? customLabelNames : [];
+    }
+
+    // The create endpoint deliberately ignores automation fields (see the
+    // pick in team_policies.ts:create) — they have to be PATCHed after the
+    // policy exists. Build a saveAutomations closure to run after create.
+    const saveAutomations = automations?.isDirty
+      ? async (newPolicy: IPolicy) => {
+          const requests: Promise<unknown>[] = [];
+
+          if (automations.policyUpdate && !isGlobalPolicy) {
+            requests.push(
+              teamPoliciesAPI.update(newPolicy.id, {
+                team_id: policyTeamId,
+                ...automations.policyUpdate,
+              })
+            );
+          }
+
+          if (automations.webhookOrTicketUpdate?.enabled) {
+            const existingWebhook =
+              automationsConfig?.webhook_settings?.failing_policies_webhook ??
+              {};
+            const currentIds = existingWebhook.policy_ids ?? [];
+            const nextIds = Array.from(new Set([...currentIds, newPolicy.id]));
+            const webhookPayload = {
+              webhook_settings: {
+                failing_policies_webhook: {
+                  ...existingWebhook,
+                  policy_ids: nextIds,
+                },
+              },
+            };
+            if (isGlobalPolicy) {
+              requests.push(
+                configAPI.update(webhookPayload).then((updatedConfig) => {
+                  queryClient.setQueryData(["config"], updatedConfig);
+                  setConfig(updatedConfig);
+                })
+              );
+            } else if (policyTeamId !== undefined) {
+              requests.push(
+                teamsAPI
+                  .update(webhookPayload, policyTeamId)
+                  .then((updatedTeam) => {
+                    queryClient.setQueryData(
+                      ["teams", policyTeamId],
+                      updatedTeam
+                    );
+                  })
+              );
+            }
+          }
+
+          await Promise.all(requests);
+        }
+      : undefined;
+
+    onCreatePolicy(payload, saveAutomations);
   };
 
   const renderAutofillButton = useCallback(
@@ -244,124 +358,147 @@ const SaveNewPolicyModal = ({
     <Modal
       title="Save policy"
       onExit={() => setIsSaveNewPolicyModalOpen(false)}
+      width="large"
     >
-      <>
-        <form
-          onSubmit={handleSavePolicy}
-          className={`${baseClass}__save-modal-form`}
-          autoComplete="off"
-        >
-          <InputField
-            name="name"
-            onChange={(value: string) => setLastEditedQueryName(value)}
-            value={lastEditedQueryName}
-            error={errors.name}
-            inputClassName={`${baseClass}__policy-save-modal-name`}
-            label="Name"
-            autofocus
-            ignore1password
-            disabled={disableForm}
+      <form
+        onSubmit={handleSavePolicy}
+        className={`${baseClass}__save-modal-form`}
+        autoComplete="off"
+      >
+        <InputField
+          name="name"
+          onChange={(value: string) => setLastEditedQueryName(value)}
+          value={lastEditedQueryName}
+          error={errors.name}
+          inputClassName={`${baseClass}__policy-save-modal-name`}
+          label="Name"
+          autofocus
+          ignore1password
+          disabled={disableForm}
+        />
+        <InputField
+          name="description"
+          onChange={(value: string) => setLastEditedQueryDescription(value)}
+          value={lastEditedQueryDescription}
+          inputClassName={`${baseClass}__policy-save-modal-description`}
+          label={renderAutofillLabel("Description")}
+          helpText="How does this policy's failure put the organization at risk?"
+          type="textarea"
+          disabled={disableForm}
+        />
+        <InputField
+          name="resolution"
+          onChange={(value: string) => setLastEditedQueryResolution(value)}
+          value={lastEditedQueryResolution}
+          inputClassName={`${baseClass}__policy-save-modal-resolution`}
+          label={renderAutofillLabel("Resolution")}
+          type="textarea"
+          helpText="If this policy fails, what should the end user expect?"
+          disabled={disableForm}
+        />
+        {platformSelector.render()}
+        {isPremiumTier && (
+          <TargetLabelSelector
+            selectedTargetType={selectedTargetType}
+            selectedCustomTarget={selectedCustomTarget}
+            customTargetOptions={customTargetOptions}
+            onSelectCustomTarget={(val) =>
+              setSelectedCustomTarget(val as LabelScope)
+            }
+            selectedLabels={selectedLabels}
+            className={`${baseClass}__target`}
+            onSelectTargetType={setSelectedTargetType}
+            onSelectLabel={onSelectLabel}
+            labels={labels || []}
+            suppressTitle
+            disableOptions={disableForm}
           />
-          <InputField
-            name="description"
-            onChange={(value: string) => setLastEditedQueryDescription(value)}
-            value={lastEditedQueryDescription}
-            inputClassName={`${baseClass}__policy-save-modal-description`}
-            label={renderAutofillLabel("Description")}
-            helpText="How does this policy's failure put the organization at risk?"
-            type="textarea"
-            disabled={disableForm}
-          />
-          <InputField
-            name="resolution"
-            onChange={(value: string) => setLastEditedQueryResolution(value)}
-            value={lastEditedQueryResolution}
-            inputClassName={`${baseClass}__policy-save-modal-resolution`}
-            label={renderAutofillLabel("Resolution")}
-            type="textarea"
-            helpText="If this policy fails, what should the end user expect?"
-            disabled={disableForm}
-          />
-          {platformSelector.render()}
-          {isPremiumTier && (
-            <TargetLabelSelector
-              selectedTargetType={selectedTargetType}
-              selectedCustomTarget={selectedCustomTarget}
-              customTargetOptions={customTargetOptions}
-              onSelectCustomTarget={(val) =>
-                setSelectedCustomTarget(val as LabelScope)
-              }
-              selectedLabels={selectedLabels}
-              className={`${baseClass}__target`}
-              onSelectTargetType={setSelectedTargetType}
-              onSelectLabel={onSelectLabel}
-              labels={labels || []}
-              suppressTitle
-              disableOptions={disableForm}
+        )}
+        {showAutomations ? (
+          <div className="form-field">
+            <div className="form-field__label">Automations</div>
+            <PolicyAutomationsFields
+              ref={automationsRef}
+              policy={newPolicyStub}
+              isGlobalPolicy={isGlobalPolicy}
+              teamIdForApi={policyTeamId}
+              automationsConfig={automationsConfig}
+              globalConfig={globalConfig}
+              fleetName={fleetName}
             />
-          )}
-          {isPremiumTier && (
-            <div className="critical-checkbox-wrapper">
-              <Checkbox
-                name="critical-policy"
-                onChange={(value: boolean) => setLastEditedQueryCritical(value)}
-                value={lastEditedQueryCritical}
-                disabled={disableForm}
-              >
-                <TooltipWrapper
-                  tipContent={
-                    <p>
-                      If automations are turned on, this information is
-                      included. If Okta conditional access is configured, end
-                      users can never bypass critical policies.
-                    </p>
-                  }
-                >
-                  Critical
-                </TooltipWrapper>
-              </Checkbox>
-            </div>
-          )}
-          <div className="modal-cta-wrap">
-            <TooltipWrapper
-              tipContent={
-                <>
-                  Select the platforms this
-                  <br />
-                  policy will be checked on
-                  <br />
-                  to save the policy.
-                </>
-              }
-              tooltipClass={`${baseClass}__button--modal-save-tooltip`}
-              position="top"
-              disableTooltip={!disableSave}
-              underline={false}
-              showArrow
-              tipOffset={8}
-            >
-              <span className={`${baseClass}__button-wrap--modal-save`}>
-                <Button
-                  type="submit"
-                  onClick={handleSavePolicy}
-                  disabled={disableSave}
-                  className="save-policy-loading"
-                  isLoading={isUpdatingPolicy}
-                >
-                  Save
-                </Button>
-              </span>
-            </TooltipWrapper>
+          </div>
+        ) : (
+          <div className={`${baseClass}__add-automations`}>
             <Button
-              className={`${baseClass}__button--modal-cancel`}
-              onClick={() => setIsSaveNewPolicyModalOpen(false)}
-              variant="inverse"
+              variant="text-icon"
+              type="button"
+              onClick={() => setShowAutomations(true)}
             >
-              Cancel
+              <Icon name="plus" /> Add automations
             </Button>
           </div>
-        </form>
-      </>
+        )}
+        {isPremiumTier && (
+          <div className="critical-checkbox-wrapper">
+            <Checkbox
+              name="critical-policy"
+              onChange={(value: boolean) => setLastEditedQueryCritical(value)}
+              value={lastEditedQueryCritical}
+              disabled={disableForm}
+            >
+              <TooltipWrapper
+                tipContent={
+                  <p>
+                    If automations are turned on, this information is included.
+                    If Okta conditional access is configured, end users can
+                    never bypass critical policies.
+                  </p>
+                }
+              >
+                Critical
+              </TooltipWrapper>
+            </Checkbox>
+          </div>
+        )}
+        <div className="modal-cta-wrap">
+          <TooltipWrapper
+            tipContent={
+              <>
+                Select the platforms this
+                <br />
+                policy will be checked on
+                <br />
+                to save the policy.
+              </>
+            }
+            tooltipClass={`${baseClass}__button--modal-save-tooltip`}
+            position="top"
+            disableTooltip={!disableSave}
+            underline={false}
+            showArrow
+            tipOffset={8}
+          >
+            <span className={`${baseClass}__button-wrap--modal-save`}>
+              <Button
+                type="submit"
+                disabled={disableSave}
+                className="save-policy-loading"
+                isLoading={isUpdatingPolicy}
+              >
+                Save
+              </Button>
+            </span>
+          </TooltipWrapper>
+          <Button
+            className={`${baseClass}__button--modal-cancel`}
+            type="button"
+            onClick={() => setIsSaveNewPolicyModalOpen(false)}
+            variant="inverse"
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

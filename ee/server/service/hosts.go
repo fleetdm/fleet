@@ -330,7 +330,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 			}
 		}
 		if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
-			if errors.Is(err, fleet.ErrMDMNotConfigured) {
+			if errors.Is(err, fleet.ErrAndroidMDMNotConfigured) {
 				err = fleet.NewInvalidArgumentError("host_id", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 			}
 			return ctxerr.Wrap(ctx, err, "check android MDM enabled")
