@@ -315,7 +315,7 @@ const EditQueryPage = ({
     try {
       await queryAPI.update(queryId, updatedQuery);
       renderFlash("success", "Report updated.");
-      refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
+      router.push(PATHS.REPORT_DETAILS(queryId));
     } catch (updateError) {
       console.error(updateError);
       const reason = getErrorReason(updateError);
