@@ -147,11 +147,23 @@ func insertSoftware(ctx context.Context, db *sql.DB, _platform string, rows [][]
 	if len(rows) == 0 {
 		return errors.New("empty csv")
 	}
-	if _, err := db.ExecContext(ctx, "SET FOREIGN_KEY_CHECKS=0"); err != nil {
+	// SET FOREIGN_KEY_CHECKS=0 is a session variable. Pin everything below
+	// to a single connection so the disable, the inserts, and the restore
+	// all hit the same MySQL session — otherwise the pool can hand the
+	// FK-disabled connection to an unrelated caller.
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire dedicated conn: %w", err)
+	}
+	defer conn.Close()
+
+	if _, err := conn.ExecContext(ctx, "SET FOREIGN_KEY_CHECKS=0"); err != nil {
 		return err
 	}
 	defer func() {
-		_, _ = db.ExecContext(ctx, "SET FOREIGN_KEY_CHECKS=1")
+		// Use a fresh context so the restore still runs even if ctx was
+		// cancelled mid-insert.
+		_, _ = conn.ExecContext(context.Background(), "SET FOREIGN_KEY_CHECKS=1")
 	}()
 
 	for i := 0; i < count; i += batch {
@@ -187,7 +199,7 @@ func insertSoftware(ctx context.Context, db *sql.DB, _platform string, rows [][]
 		stmt := "INSERT IGNORE INTO software " +
 			"(name, version, source, bundle_identifier, `release`, arch, vendor, extension_for, checksum) " +
 			"VALUES " + strings.Join(placeholders, ",")
-		if _, err := db.ExecContext(ctx, stmt, args...); err != nil {
+		if _, err := conn.ExecContext(ctx, stmt, args...); err != nil {
 			return err
 		}
 	}

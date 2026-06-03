@@ -495,7 +495,10 @@ func insertActivity(
 	if err != nil {
 		return 0, fmt.Errorf("insert %s: %w", activity.ActivityName(), err)
 	}
-	actID, _ := res.LastInsertId()
+	actID, err := res.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("last insert id for %s: %w", activity.ActivityName(), err)
+	}
 
 	if h, ok := activity.(hostIDer); ok {
 		ids := h.HostIDs()

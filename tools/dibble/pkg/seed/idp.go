@@ -98,30 +98,31 @@ func IDP(ctx context.Context, c Client, log Logger, opt IDPOptions) Result {
 	}
 
 	// 1. Upsert mdm_idp_accounts + scim_users for each user. The two writes
-	// are independent so a failure in one does not block the other.
-	accountUUIDs := make([]string, 0, len(users))
-	scimUserIDs := make([]uint, 0, len(users))
+	// are paired: if either fails for a user, neither identity is retained
+	// for host assignment so the round-robin in step 2 stays aligned and
+	// host i's mdm_idp_account always points at the same identity as host
+	// i's scim_user.
+	seeded := make([]seededIDPUser, 0, len(users))
 	for _, u := range users {
-		accUUID, created, err := upsertIDPAccount(ctx, db, u)
+		accUUID, accCreated, err := upsertIDPAccount(ctx, db, u)
 		if err != nil {
 			res.Errors = append(res.Errors, fmt.Errorf("upsert idp account for %s: %w", u.Email, err))
-		} else {
-			accountUUIDs = append(accountUUIDs, accUUID)
-			if created {
-				res.Created++
-				log.Printf("idp account %s <%s>", u.Name, u.Email)
-			} else {
-				res.Skipped++
-			}
+			continue
 		}
-
-		scimID, created, err := upsertSCIMUser(ctx, db, u)
+		scimID, scimCreated, err := upsertSCIMUser(ctx, db, u)
 		if err != nil {
 			res.Errors = append(res.Errors, fmt.Errorf("upsert scim user for %s: %w", u.Email, err))
 			continue
 		}
-		scimUserIDs = append(scimUserIDs, scimID)
-		if created {
+		seeded = append(seeded, seededIDPUser{accountUUID: accUUID, scimUserID: scimID})
+
+		if accCreated {
+			res.Created++
+			log.Printf("idp account %s <%s>", u.Name, u.Email)
+		} else {
+			res.Skipped++
+		}
+		if scimCreated {
 			res.Created++
 			log.Printf("scim user %s <%s>", u.Name, u.Email)
 		} else {
@@ -129,46 +130,50 @@ func IDP(ctx context.Context, c Client, log Logger, opt IDPOptions) Result {
 		}
 	}
 
-	if len(accountUUIDs) == 0 && len(scimUserIDs) == 0 {
+	if len(seeded) == 0 {
 		res.Errors = append(res.Errors, errors.New("no idp or scim users created or found"))
 		return res
 	}
 
-	// 2. Assign hosts (round-robin) to both linkage tables.
+	// 2. Assign hosts (round-robin) to both linkage tables using the paired
+	// identities from step 1.
 	if len(hosts) == 0 && opt.HostCount > 0 {
 		log.Printf("idp: no hosts found — run osquery-perf to enroll some first")
 	}
 	for i, h := range hosts {
-		if len(accountUUIDs) > 0 {
-			accUUID := accountUUIDs[i%len(accountUUIDs)]
-			assigned, err := assignHostToIDPAccount(ctx, db, h.UUID, accUUID)
-			if err != nil {
-				res.Errors = append(res.Errors, fmt.Errorf("assign host %s to idp account: %w", h.UUID, err))
-			} else if assigned {
-				res.Created++
-				log.Printf("idp host %s (%s) → account %s", h.Hostname, h.UUID, accUUID)
-			} else {
-				res.Skipped++
-			}
+		pair := seeded[i%len(seeded)]
+
+		assigned, err := assignHostToIDPAccount(ctx, db, h.UUID, pair.accountUUID)
+		if err != nil {
+			res.Errors = append(res.Errors, fmt.Errorf("assign host %s to idp account: %w", h.UUID, err))
+		} else if assigned {
+			res.Created++
+			log.Printf("idp host %s (%s) → account %s", h.Hostname, h.UUID, pair.accountUUID)
+		} else {
+			res.Skipped++
 		}
 
-		if len(scimUserIDs) > 0 {
-			scimID := scimUserIDs[i%len(scimUserIDs)]
-			assigned, err := assignHostToSCIMUser(ctx, db, h.ID, scimID)
-			if err != nil {
-				res.Errors = append(res.Errors, fmt.Errorf("assign host %d to scim user: %w", h.ID, err))
-				continue
-			}
-			if assigned {
-				res.Created++
-				log.Printf("scim host %s (id=%d) → scim_user_id=%d", h.Hostname, h.ID, scimID)
-			} else {
-				res.Skipped++
-			}
+		assigned, err = assignHostToSCIMUser(ctx, db, h.ID, pair.scimUserID)
+		if err != nil {
+			res.Errors = append(res.Errors, fmt.Errorf("assign host %d to scim user: %w", h.ID, err))
+			continue
+		}
+		if assigned {
+			res.Created++
+			log.Printf("scim host %s (id=%d) → scim_user_id=%d", h.Hostname, h.ID, pair.scimUserID)
+		} else {
+			res.Skipped++
 		}
 	}
 
 	return res
+}
+
+// seededIDPUser holds the IDs both IDP tables produced for a single user, so
+// host assignments to mdm_idp_accounts and scim_users stay aligned.
+type seededIDPUser struct {
+	accountUUID string
+	scimUserID  uint
 }
 
 // fetchUsersForIDP pulls up to `limit` users from the Fleet API, sorted
