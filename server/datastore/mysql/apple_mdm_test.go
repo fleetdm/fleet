@@ -6183,7 +6183,7 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkLockWipeState(t, status, false, true, false, false, false, false)
 
-	// backdate unlock_ref to simulate the device having been locked for more than 5 minutes
+	// backdate unlock_ref to simulate the device having been locked for more than the MDMLockCleanupMinutes
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			fmt.Sprintf(`UPDATE host_mdm_actions hma JOIN hosts h ON hma.host_id = h.id
