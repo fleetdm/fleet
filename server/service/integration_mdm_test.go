@@ -3979,7 +3979,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 
 	// Load secret(s)
 	secretValue := "*abc123*"
-	req := createSecretVariablesRequest{
+	req := fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_VALUE",
@@ -3987,7 +3987,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 			},
 		},
 	}
-	secretResp := createSecretVariablesResponse{}
+	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// call with enrolled host UUID
@@ -9154,7 +9154,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMCommandWithSecret() {
 	orbitHost, d := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	secretValue := "abcd1234"
-	req := createSecretVariablesRequest{
+	req := fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_DATA",
@@ -9162,7 +9162,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMCommandWithSecret() {
 			},
 		},
 	}
-	secretResp := createSecretVariablesResponse{}
+	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	cmdOneUUID := uuid.New().String()
@@ -23005,20 +23005,20 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", carveID), fleet.GetCarveRequest{}, http.StatusForbidden, &fleet.GetCarveResponse{})
 
 	// Attempt to search hosts, should allow.
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{
 		MatchQuery: "foo",
 		QueryID:    &q1.ID,
-	}, http.StatusOK, &searchTargetsResponse{})
+	}, http.StatusOK, &fleet.SearchTargetsResponse{})
 
 	// Attempt to count target hosts, should allow.
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{
 		Selected: fleet.HostTargets{
 			HostIDs:  []uint{h1.ID},
 			LabelIDs: []uint{clr.Label.ID},
 			TeamIDs:  []uint{t1.ID},
 		},
 		QueryID: &q1.ID,
-	}, http.StatusOK, &countTargetsResponse{})
+	}, http.StatusOK, &fleet.CountTargetsResponse{})
 
 	checkDownloadResponse := func(t *testing.T, r *http.Response, expectedFilename string) {
 		require.Equal(t, "application/octet-stream", r.Header.Get("Content-Type"))
@@ -23356,20 +23356,20 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to search hosts, should allow.
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{
 		MatchQuery: "foo",
 		QueryID:    &q1.ID,
-	}, http.StatusOK, &searchTargetsResponse{})
+	}, http.StatusOK, &fleet.SearchTargetsResponse{})
 
 	// Attempt to count target hosts, should allow.
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{
 		Selected: fleet.HostTargets{
 			HostIDs:  []uint{h1.ID},
 			LabelIDs: []uint{clr.Label.ID},
 			TeamIDs:  []uint{t1.ID},
 		},
 		QueryID: &q1.ID,
-	}, http.StatusOK, &countTargetsResponse{})
+	}, http.StatusOK, &fleet.CountTargetsResponse{})
 
 	// Attempt to download installer from t1, should allow.
 	tokenResp = getSoftwareInstallerTokenResponse{}
