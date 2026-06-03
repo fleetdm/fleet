@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260601204606, Down_20260601204606)
+	MigrationClient.AddMigration(Up_20260603120000, Down_20260603120000)
 }
 
-func Up_20260601204606(tx *sql.Tx) error {
+func Up_20260603120000(tx *sql.Tx) error {
 	// Three columns on mdm_windows_enrollments support the Windows MDM on-demand sync (issue #43773):
 	//   - poll_schedule_relaxed: the intended DMClient poll schedule (true once a host whose fleetd can be woken is
 	//     relaxed). The management session reconciles against it so it does not re-send the poll Replace each session.
@@ -46,6 +46,6 @@ func Up_20260601204606(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260601204606(tx *sql.Tx) error {
+func Down_20260603120000(tx *sql.Tx) error {
 	return nil
 }

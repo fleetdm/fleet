@@ -1976,7 +1976,7 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 }
 
 func testMDMWindowsPollScheduleRelaxed(t *testing.T, ds *Datastore) {
-	ctx := t.Background()
+	ctx := t.Context()
 	d := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
 		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
