@@ -14,8 +14,6 @@
 rules:
   artipacked: # 125 findings
     disable: true
-  cache-poisoning: # 16 findings
-    disable: true
   dependabot-cooldown: # 2 findings
     disable: true
   excessive-permissions: # 20 findings
