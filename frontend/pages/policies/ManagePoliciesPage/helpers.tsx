@@ -16,12 +16,14 @@ interface ISoftwareAutomationData {
   type: "software";
   name: string;
   softwareTitleId: number;
+  iconUrl?: string | null;
 }
 
 interface INonSoftwareAutomationData {
   type: Exclude<AutomationDisplayType, "software">;
   name: string;
   softwareTitleId?: never;
+  iconUrl?: never;
 }
 
 export type IAutomationData =
@@ -48,6 +50,7 @@ export const getAutomationsForPolicy = (
       name:
         policy.install_software.display_name || policy.install_software.name,
       softwareTitleId: policy.install_software.software_title_id,
+      iconUrl: policy.install_software.icon_url,
     });
   }
   if (policy.run_script) {

@@ -546,6 +546,10 @@ type PolicySoftwareTitle struct {
 	// (not the package name, but the installed software title).
 	Name        string `json:"name" db:"name"`
 	DisplayName string `json:"display_name" db:"display_name"`
+	// IconURL is the API path to the custom icon uploaded for this software
+	// title in the policy's team. It is nil when no custom icon exists, in
+	// which case clients fall back to a default icon for the software title.
+	IconURL *string `json:"icon_url"`
 }
 
 // PolicyScript contains script data for policies.

@@ -127,14 +127,12 @@ const EditableAutomationsCell = ({
 
 interface IAutomationsCellProps {
   policy: IPolicyStats;
-  selectedTeamId?: number | null;
   otherAutomationType?: OtherAutomationType;
   onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
 }
 
 const AutomationsCell = ({
   policy,
-  selectedTeamId,
   otherAutomationType,
   onOpenManageAutomationsModal,
 }: IAutomationsCellProps): JSX.Element => {
@@ -162,24 +160,11 @@ const AutomationsCell = ({
     );
   }
 
-  const renderAutomationIcon = ({
-    type,
-    name,
-    softwareTitleId,
-  }: IAutomationData) => {
-    const iconUrl =
-      type === "software" && softwareTitleId != null
-        ? `/api${getPathWithQueryParams(
-            ENDPOINTS.SOFTWARE_ICON(softwareTitleId),
-            {
-              fleet_id:
-                selectedTeamId != null && selectedTeamId !== -1
-                  ? selectedTeamId
-                  : undefined,
-            }
-          )}`
-        : undefined;
-    return AUTOMATION_ICON_RENDERERS[type]({ name, iconUrl });
+  const renderAutomationIcon = ({ type, name, iconUrl }: IAutomationData) => {
+    return AUTOMATION_ICON_RENDERERS[type]({
+      name,
+      iconUrl: iconUrl ?? undefined,
+    });
   };
 
   if (automations.length === 1) {
@@ -310,7 +295,6 @@ const generateTableHeaders = (
       Cell: (cellProps: ICellProps): JSX.Element => (
         <AutomationsCell
           policy={cellProps.row.original}
-          selectedTeamId={selectedTeamId}
           otherAutomationType={otherAutomationType}
           onOpenManageAutomationsModal={onOpenManageAutomationsModal}
         />

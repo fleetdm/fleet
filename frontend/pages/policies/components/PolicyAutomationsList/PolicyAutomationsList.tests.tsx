@@ -4,9 +4,12 @@ import { render, screen } from "@testing-library/react";
 import { IPolicy } from "interfaces/policy";
 import PolicyAutomationsList from "./PolicyAutomationsList";
 
-// Stub SoftwareIcon to avoid asset resolution in tests
+// Stub SoftwareIcon to avoid asset resolution in tests; surface the url prop so
+// we can assert the custom icon path is forwarded.
 jest.mock("pages/SoftwarePage/components/icons/SoftwareIcon", () => {
-  return () => <span data-testid="software-icon" />;
+  return ({ url }: { url?: string | null }) => (
+    <span data-testid="software-icon" data-url={url ?? ""} />
+  );
 });
 
 const createMockPolicy = (overrides?: Partial<IPolicy>): IPolicy => ({
@@ -54,6 +57,43 @@ describe("PolicyAutomationsList", () => {
 
       expect(screen.getByText("Zoom")).toBeInTheDocument();
       expect(screen.queryByText("No automations")).not.toBeInTheDocument();
+    });
+
+    it("forwards the custom software icon_url to SoftwareIcon", () => {
+      const iconUrl = "/api/latest/fleet/software/titles/42/icon?fleet_id=1";
+      render(
+        <PolicyAutomationsList
+          storedPolicy={createMockPolicy({
+            install_software: {
+              name: "Zoom",
+              software_title_id: 42,
+              icon_url: iconUrl,
+            },
+          })}
+          currentAutomatedPolicies={[]}
+        />
+      );
+
+      expect(screen.getByTestId("software-icon")).toHaveAttribute(
+        "data-url",
+        iconUrl
+      );
+    });
+
+    it("renders SoftwareIcon with no url when there is no custom icon", () => {
+      render(
+        <PolicyAutomationsList
+          storedPolicy={createMockPolicy({
+            install_software: { name: "Zoom", software_title_id: 42 },
+          })}
+          currentAutomatedPolicies={[]}
+        />
+      );
+
+      expect(screen.getByTestId("software-icon")).toHaveAttribute(
+        "data-url",
+        ""
+      );
     });
 
     it("shows script automation row", () => {
