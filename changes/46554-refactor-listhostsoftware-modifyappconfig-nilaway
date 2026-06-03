@@ -1,0 +1,1 @@
+* Refactored `ListHostSoftware` and `ModifyAppConfig` into smaller helpers so nilaway can analyze them for nil-pointer dereferences.

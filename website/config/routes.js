@@ -1216,7 +1216,7 @@ module.exports.routes = {
   'GET /announcements/consolidate-multiple-tools-with-fleet': '/case-study/stripe',
   'GET /announcements/foursquare-quickly-migrates-to-fleet': '/case-study/foursquare',
 
-  'GET /downloads' : '/download',
+  'GET /downloads': '/download',
   'GET /deals': '/partners#deals',
 
   // Shortlinks for texting friends, radio ads, etc
@@ -1364,6 +1364,7 @@ module.exports.routes = {
   'GET /learn-more-about/fleet-variables': '/guides/fleet-variables',
   'GET /learn-more-about/fleets': '/guides/fleets',
   'GET /learn-more-about/vulnerability-exposure-cves': 'https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138',
+  'GET /learn-more-about/linux-wipe': '/guides/lock-wipe-hosts#linux-wipe-behavior',
 
   // Sitemap
   // =============================================================================================================
@@ -1384,7 +1385,7 @@ module.exports.routes = {
   'GET /status': 'https://status.fleetdm.com',
   'GET /hall-of-fame': 'https://github.com/fleetdm/fleet/pulse',
   'GET /apply': '/jobs',
-  'GET /jobs': 'https://fleetdm.com/handbook/company#open-positions',
+  'GET /jobs': '/handbook/company#open-positions',
   'GET /company/stewardship': 'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /logout': '/api/v1/account/logout',
   'GET /defcon': 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
@@ -1422,6 +1423,7 @@ module.exports.routes = {
   'GET /api/android/v1/enterprises/:androidEnterpriseId/devices': { action: 'android-proxy/get-android-devices' },
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/delete-android-device', csrf: false },
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId': { action: 'android-proxy/modify-android-device', csrf: false },
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/devices/:deviceId::issueCommand': { action: 'android-proxy/issue-command-on-android-device', csrf: false },
   'GET /api/android/v1/enterprises/:androidEnterpriseId/applications/:applicationId': { action: 'android-proxy/get-enterprise-applications', skipAssets: false },
   'POST /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId::googleAction': { action: 'android-proxy/modify-enterprise-app-policy', csrf: false, skipAssets: false },
   'POST /api/android/v1/enterprises/:androidEnterpriseId/webApps': { action: 'android-proxy/create-enterprise-webapp', csrf: false, skipAssets: false },

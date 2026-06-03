@@ -17,6 +17,7 @@ import (
 	"fyne.io/systray"
 	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/cmd/desktop/menu"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/backoff"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/go-paniclog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
@@ -150,6 +151,12 @@ func main() {
 	const pingInterval = 10 * time.Second // same value as default distributed/read
 	pingTicker := time.NewTicker(pingInterval)
 
+	// Backoff is only needed in checkToken (see below), which is the
+	// tight retry loop that caused #44816. The main ping loop doesn't
+	// need backoff because Ping is unauthenticated (no DB cost) and
+	// DesktopSummary already runs at most once every 5 minutes.
+	// See #45553 for the full behavioral contract.
+
 	// Used to trigger a policy check when clicking on "My device" or "About Fleet".
 	var fleetDesktopCheckTrigger atomic.Bool
 
@@ -266,7 +273,10 @@ func main() {
 			done := make(chan interface{})
 
 			go func() {
-				ticker := time.NewTicker(5 * time.Second)
+				const checkTokenBase = 1 * time.Second
+				const maxTokenBackoff = 5 * time.Minute
+				tokenBackoff := backoff.New(checkTokenBase, maxTokenBackoff)
+				ticker := time.NewTicker(checkTokenBase)
 				defer ticker.Stop()
 				defer close(done)
 
@@ -286,7 +296,11 @@ func main() {
 						return
 					}
 
-					log.Error().Err(err).Msg("get device URL")
+					tokenBackoff.RecordFailure()
+					nextInterval := tokenBackoff.Interval()
+					log.Error().Err(err).Str("next_retry", nextInterval.String()).
+						Msg("get device URL, backing off")
+					ticker.Reset(nextInterval)
 
 					<-ticker.C
 				}
@@ -377,6 +391,7 @@ func main() {
 					case errors.Is(err, fleetclient.ErrUnauthenticated):
 						log.Debug().Err(err).Msg("get desktop summary auth failure")
 						// This usually happens every ~1 hour when the token expires.
+						// checkToken has its own backoff to avoid retry storms (#44816).
 						<-checkToken()
 					default:
 						log.Error().Err(err).Msg("get desktop summary failed")

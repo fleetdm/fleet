@@ -470,7 +470,7 @@ describe("Policies table", () => {
     );
 
     expect(screen.getByText("Automations")).toBeInTheDocument();
-    expect(screen.getByText("Software, calendar")).toBeInTheDocument();
+    expect(screen.getByText("2 automations")).toBeInTheDocument();
     expect(screen.getByText("---")).toBeInTheDocument();
   });
 });

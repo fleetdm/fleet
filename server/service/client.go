@@ -2139,8 +2139,8 @@ func (c *Client) DoGitOps(
 		}
 
 		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
-			if _, ok := mdmAppConfig["apple_business_manager"]; !ok {
-				mdmAppConfig["apple_business_manager"] = []interface{}{}
+			if _, ok := mdmAppConfig["apple_business"]; !ok {
+				mdmAppConfig["apple_business"] = []any{}
 			}
 		}
 
@@ -2174,6 +2174,10 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["windows_entra_tenant_ids"] = incoming.Controls.WindowsEntraTenantIDs
 		if incoming.Controls.WindowsEntraTenantIDs == nil {
 			mdmAppConfig["windows_entra_tenant_ids"] = []any{}
+		}
+		mdmAppConfig["windows_entra_client_ids"] = incoming.Controls.WindowsEntraClientIDs
+		if incoming.Controls.WindowsEntraClientIDs == nil {
+			mdmAppConfig["windows_entra_client_ids"] = []any{}
 		}
 		// Put in default values for enable_turn_on_windows_mdm_manually
 		mdmAppConfig["enable_turn_on_windows_mdm_manually"] = incoming.Controls.EnableTurnOnWindowsMDMManually
