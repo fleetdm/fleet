@@ -148,7 +148,7 @@ describe("HostHeader", () => {
     expect(await screen.findByText(/Host is locked/i)).toBeInTheDocument();
   });
 
-  it("does not render wipe status tags for Linux hosts", () => {
+  it("renders wipe status tags for Linux hosts", () => {
     const linuxSummaryData = { ...defaultSummaryData, platform: "ubuntu" };
 
     const { rerender } = render(
@@ -161,7 +161,7 @@ describe("HostHeader", () => {
         hostMdmEnrollmentStatus={null}
       />
     );
-    expect(screen.queryByText("Wipe pending")).not.toBeInTheDocument();
+    expect(screen.getByText("Wipe pending")).toBeInTheDocument();
 
     rerender(
       <HostHeader
@@ -173,7 +173,7 @@ describe("HostHeader", () => {
         hostMdmEnrollmentStatus={null}
       />
     );
-    expect(screen.queryByText("Wiped")).not.toBeInTheDocument();
+    expect(screen.getByText("Wiped")).toBeInTheDocument();
   });
 
   it("renders 'Lock pending' and 'Wiped' badges for Android hosts", () => {

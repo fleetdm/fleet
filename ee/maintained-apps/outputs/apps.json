@@ -2452,6 +2452,13 @@
       "description": "VirtualBox is a virtualiser for x86-64 hardware."
     },
     {
+      "name": "VirtualBuddy",
+      "slug": "virtualbuddy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "codes.rambo.VirtualBuddy",
+      "description": "VirtualBuddy can virtualize macOS 12 and later on Apple Silicon."
+    },
+    {
       "name": "Viscosity",
       "slug": "viscosity/darwin",
       "platform": "darwin",
