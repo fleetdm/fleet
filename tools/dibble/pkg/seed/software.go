@@ -38,8 +38,8 @@ var extensionInstallers = map[string][]string{
 
 // extensionScripts maps an extension to the install / uninstall script form
 // field values to send with the upload. Most extensions are left empty so
-// Fleet auto-generates the commands; .tar.gz rejects uploads without explicit
-// install AND uninstall scripts ("Install script is required for .tar.gz
+// Fleet auto-generates the commands. .tar.gz and .exe both reject uploads
+// without explicit install scripts ("Install script is required for .X
 // packages") so we ship placeholders that satisfy the validator.
 var extensionScripts = map[string]struct {
 	install   string
@@ -48,6 +48,10 @@ var extensionScripts = map[string]struct {
 	".tar.gz": {
 		install:   "#!/bin/sh\necho 'dibble seeded — replace with real install logic'\n",
 		uninstall: "#!/bin/sh\necho 'dibble seeded — replace with real uninstall logic'\n",
+	},
+	".exe": {
+		install:   "# dibble seeded — replace with real install logic\n$exitCode = (Start-Process -FilePath $env:INSTALLER_PATH -ArgumentList \"/S\" -PassThru -Wait).ExitCode\nExit $exitCode\n",
+		uninstall: "# dibble seeded — replace with real uninstall logic\nExit 0\n",
 	},
 }
 

@@ -88,8 +88,11 @@ Run it with no arguments for an interactive wizard, or pass a subcommand to
 script it.
 
 Hosts are intentionally out of scope — use cmd/osquery-perf for that.`,
-		SilenceUsage:  true,
-		SilenceErrors: false,
+		SilenceUsage: true,
+		// Errors are surfaced via reportErrors (warnf per error) or main.go
+		// (one "dibble: <err>" line for everything else). Cobra's own
+		// "Error: <err>" print would duplicate them.
+		SilenceErrors: true,
 	}
 
 	// Persistent flags (apply to every subcommand).

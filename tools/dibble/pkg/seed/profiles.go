@@ -24,8 +24,33 @@ var appleProfileTmpl string
 //go:embed templates/profile.windows.xml.tmpl
 var windowsProfileTmpl string
 
+// mdmConfigSubset is the slice of GET /config we use to decide which
+// profile uploads to attempt. The full /config response is huge — only the
+// per-platform "enabled and configured" flags are relevant here.
+type mdmConfigSubset struct {
+	MDM struct {
+		EnabledAndConfigured        bool `json:"enabled_and_configured"`         // Apple
+		WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"` // Windows
+	} `json:"mdm"`
+}
+
 func Profiles(c Client, log Logger, theme themes.Theme, teams []Team, count int) Result {
 	res := Result{Entity: "profiles"}
+
+	// Skip platforms whose MDM stack isn't turned on — otherwise every
+	// upload returns the same 400 "MDM features aren't turned on in Fleet"
+	// and floods the run output.
+	var cfg mdmConfigSubset
+	if err := c.Get("/api/latest/fleet/config", &cfg); err != nil {
+		res.Errors = append(res.Errors, fmt.Errorf("check MDM config: %w", err))
+		return res
+	}
+	appleOK := cfg.MDM.EnabledAndConfigured
+	winOK := cfg.MDM.WindowsEnabledAndConfigured
+	if !appleOK && !winOK {
+		log.Printf("profiles: MDM not enabled (neither Apple nor Windows), skipping")
+		return res
+	}
 
 	postOne := func(platform string, teamID uint, idx int) {
 		n := themes.Pick(theme, "policy", idx) // reuse policy names — they make solid profile names
@@ -66,18 +91,27 @@ func Profiles(c Client, log Logger, theme themes.Theme, teams []Team, count int)
 		}
 	}
 
-	// Global profiles, alternating Apple / Windows.
+	// Global profiles, alternating Apple / Windows — but only for the
+	// platforms whose MDM stack is enabled.
 	for i := 0; i < count; i++ {
 		if i%2 == 0 {
-			postOne("apple", 0, i)
+			if appleOK {
+				postOne("apple", 0, i)
+			}
 		} else {
-			postOne("windows", 0, i)
+			if winOK {
+				postOne("windows", 0, i)
+			}
 		}
 	}
-	// One Apple + one Windows per team.
+	// One Apple + one Windows per team, again gated by which stacks are on.
 	for _, t := range teams {
-		postOne("apple", t.ID, 100)
-		postOne("windows", t.ID, 101)
+		if appleOK {
+			postOne("apple", t.ID, 100)
+		}
+		if winOK {
+			postOne("windows", t.ID, 101)
+		}
 	}
 	return res
 }

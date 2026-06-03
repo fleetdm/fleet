@@ -7,6 +7,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -15,7 +16,11 @@ import (
 
 func main() {
 	if err := command.Execute(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "dibble:", err)
+		// reportErrors already wrote each seeder error to stderr; only
+		// surface errors from other paths (config, network, etc.) here.
+		if !errors.Is(err, command.ErrSeederFailed) {
+			fmt.Fprintln(os.Stderr, "dibble:", err)
+		}
 		os.Exit(1)
 	}
 }

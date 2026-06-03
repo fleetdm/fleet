@@ -11,18 +11,17 @@ import (
 // multipart upload with the script content as a file plus `team_id` (or
 // none for global) as a form field.
 //
-// Script content varies by extension: .sh / .ps1 / .zsh — so the seeded set
-// covers all three platforms in the UI.
+// Script content varies by extension: .sh for macOS/Linux targets and .ps1
+// for Windows — the two extensions Fleet's scripts endpoint accepts (along
+// with .py, which we don't seed).
 func Scripts(c Client, log Logger, theme themes.Theme, teams []Team, count int) Result {
 	res := Result{Entity: "scripts"}
 
-	exts := []string{".sh", ".ps1", ".zsh"}
+	exts := []string{".sh", ".ps1"}
 	body := func(ext, name string) string {
 		switch ext {
 		case ".ps1":
 			return fmt.Sprintf("# %s\nWrite-Host 'dibble was here'\n", name)
-		case ".zsh":
-			return fmt.Sprintf("#!/usr/bin/env zsh\n# %s\necho 'dibble was here'\n", name)
 		default:
 			return fmt.Sprintf("#!/usr/bin/env bash\n# %s\necho 'dibble was here'\n", name)
 		}
@@ -32,8 +31,7 @@ func Scripts(c Client, log Logger, theme themes.Theme, teams []Team, count int) 
 		n := themes.Pick(theme, "script", i)
 		ext := exts[i%len(exts)]
 		name := strings.TrimSuffix(n.Name, ".sh")
-		name = strings.TrimSuffix(name, ".ps1")
-		name = strings.TrimSuffix(name, ".zsh") + ext
+		name = strings.TrimSuffix(name, ".ps1") + ext
 		fields := map[string]string{}
 		if teamID > 0 {
 			// Fleet's renamed "team" → "fleet" — the multipart key is fleet_id.

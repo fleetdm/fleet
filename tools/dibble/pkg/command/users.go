@@ -1,6 +1,8 @@
 package command
 
 import (
+	"errors"
+
 	"github.com/spf13/cobra"
 
 	"github.com/fleetdm/fleet/v4/tools/dibble/pkg/seed"
@@ -32,6 +34,11 @@ func newUsersCmd() *cobra.Command {
 	return cmd
 }
 
+// ErrSeederFailed is returned by reportErrors when one or more seeders
+// produced errors. The errors have already been written to stderr by
+// reportErrors, so main.go skips re-printing them and just exits non-zero.
+var ErrSeederFailed = errors.New("dibble: one or more seeders had errors")
+
 func reportErrors(errs []error) error {
 	if len(errs) == 0 {
 		return nil
@@ -39,5 +46,5 @@ func reportErrors(errs []error) error {
 	for _, e := range errs {
 		warnf("%v", e)
 	}
-	return errs[0]
+	return ErrSeederFailed
 }
