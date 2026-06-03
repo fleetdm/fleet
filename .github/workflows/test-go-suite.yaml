@@ -29,6 +29,13 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT:
+        description: 'GitHub PAT used as NETWORK_TEST_GITHUB_TOKEN for tests that hit the GitHub API.'
+        required: false
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL:
+        description: 'Slack webhook for notifying on scheduled (cron) run failures.'
+        required: false
 
 permissions:
   contents: read
