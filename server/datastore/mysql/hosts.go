@@ -3755,7 +3755,8 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 
 	var allIdsToDelete []uint
 	hostIDToExpiryWindow := make(map[uint]int)
-	// Process hosts using global expiry
+	// Process hosts using global expiry first. Global hosts consume the batch budget before custom-expiry
+	// teams, so a large global backlog can delay team cleanup until subsequent cron runs drain it.
 	if ac.HostExpirySettings.HostExpiryEnabled {
 		remainingBatchSize := cleanupExpiredHostsBatchSize - len(allIdsToDelete)
 		if remainingBatchSize > 0 {

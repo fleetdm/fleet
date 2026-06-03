@@ -5786,8 +5786,8 @@ func testHostsExpirationBatchSize(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        seenTime,
-			OsqueryHostID:   ptr.String(strconv.Itoa(id)),
-			NodeKey:         ptr.String(fmt.Sprintf("batch-global-%d", id)),
+			OsqueryHostID:   new(strconv.Itoa(id)),
+			NodeKey:         new(fmt.Sprintf("batch-global-%d", id)),
 			UUID:            fmt.Sprintf("batch-global-%d", id),
 			Hostname:        fmt.Sprintf("batch-global-%d.local", id),
 		})
