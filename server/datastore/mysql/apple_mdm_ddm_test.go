@@ -64,19 +64,6 @@ func insertHostDeclaration(t *testing.T, ds *Datastore, ctx context.Context, hos
 	})
 }
 
-// Helper function to check declaration status
-func checkDeclarationStatus(t *testing.T, ds *Datastore, ctx context.Context, hostUUID, declarationUUID, expectedStatus, operation string) {
-	var status string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		db := q.(*sqlx.DB)
-		return db.QueryRowContext(ctx, `
-			SELECT status FROM host_mdm_apple_declarations
-			WHERE host_uuid = ? AND declaration_uuid = ? AND operation_type = ?`,
-			hostUUID, declarationUUID, operation).Scan(&status)
-	})
-	assert.Equal(t, expectedStatus, status)
-}
-
 func testStoreDDMStatusReportSkipsRemoveRows(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -213,7 +200,7 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 	hosts := make([]*fleet.Host, 3)
 	for i := range 3 {
 		hostUUID := fmt.Sprintf("cleanup-host-%d", i)
-		hosts[i], err = ds.NewHost(ctx, &fleet.Host{
+		newHost, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:        fmt.Sprintf("cleanup-host-%d", i),
 			UUID:            hostUUID,
 			HardwareSerial:  fmt.Sprintf("CLEANUP-%d", i),
@@ -225,6 +212,8 @@ func testCleanUpDuplicateRemoveInstallAcrossBatches(t *testing.T, ds *Datastore)
 			Platform:        "darwin",
 		})
 		require.NoError(t, err)
+		require.NotNil(t, newHost)
+		hosts[i] = newHost
 		setupMDMDeviceAndEnrollment(t, ds, ctx, hostUUID, hosts[i].HardwareSerial)
 	}
 

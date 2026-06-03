@@ -746,7 +746,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
 			failedCount++
-			require.Len(t, payload, 0)
+			require.Empty(t, payload)
 		}
 		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, baseProfilesToInstall, baseProfilesToRemove)
 		require.NoError(t, err)
@@ -1009,7 +1009,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 				// We update the profile with a new command UUID
 				assert.Len(t, payload, 1, "at upsertCount %d", upsertCount)
 			} else {
-				assert.Len(t, payload, 0, "at upsertCount %d", upsertCount)
+				assert.Empty(t, payload, "at upsertCount %d", upsertCount)
 			}
 		}
 		enqueueFailForOp = ""
@@ -1048,7 +1048,7 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 			return nil, errors.New("GetHostEmailsFuncError")
 		}
 		_, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, baseProfilesToInstall, nil)
-		assert.ErrorContains(t, err, "GetHostEmailsFuncError")
+		require.ErrorContains(t, err, "GetHostEmailsFuncError")
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
@@ -1130,8 +1130,8 @@ func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {
 		stdlogfmt.New(),
 	)
 	mdmConfig := config.MDMConfig{
-		AppleSCEPCert: "./testdata/server.pem",
-		AppleSCEPKey:  "./testdata/server.key",
+		AppleSCEPCert: "../../server/testdata/server.pem",
+		AppleSCEPKey:  "../../server/testdata/server.key",
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 		_ sqlx.QueryerContext,
@@ -1206,7 +1206,7 @@ func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {
 		return res, nil
 	}
 	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
-		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		cert, err := tls.LoadX509KeyPair("../../server/testdata/server.pem", "../../server/testdata/server.key")
 		return &cert, "", err
 	}
 	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
@@ -1215,9 +1215,9 @@ func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {
 	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 		_ sqlx.QueryerContext,
 	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
-		certPEM, err := os.ReadFile("./testdata/server.pem")
+		certPEM, err := os.ReadFile("../../server/testdata/server.pem")
 		require.NoError(t, err)
-		keyPEM, err := os.ReadFile("./testdata/server.key")
+		keyPEM, err := os.ReadFile("../../server/testdata/server.key")
 		require.NoError(t, err)
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetCACert: {Value: certPEM},
@@ -1360,8 +1360,8 @@ func TestMDMAppleExecuteReconcileBatchSkipsHostBeingProcessed(t *testing.T) {
 		stdlogfmt.New(),
 	)
 	mdmConfig := config.MDMConfig{
-		AppleSCEPCert: "./testdata/server.pem",
-		AppleSCEPKey:  "./testdata/server.key",
+		AppleSCEPCert: "../../server/testdata/server.pem",
+		AppleSCEPKey:  "../../server/testdata/server.key",
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 		_ sqlx.QueryerContext,
@@ -1418,7 +1418,7 @@ func TestMDMAppleExecuteReconcileBatchSkipsHostBeingProcessed(t *testing.T) {
 		return res, nil
 	}
 	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
-		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		cert, err := tls.LoadX509KeyPair("../../server/testdata/server.pem", "../../server/testdata/server.key")
 		return &cert, "", err
 	}
 	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
@@ -1427,9 +1427,9 @@ func TestMDMAppleExecuteReconcileBatchSkipsHostBeingProcessed(t *testing.T) {
 	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 		_ sqlx.QueryerContext,
 	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
-		certPEM, err := os.ReadFile("./testdata/server.pem")
+		certPEM, err := os.ReadFile("../../server/testdata/server.pem")
 		require.NoError(t, err)
-		keyPEM, err := os.ReadFile("./testdata/server.key")
+		keyPEM, err := os.ReadFile("../../server/testdata/server.key")
 		require.NoError(t, err)
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetCACert: {Value: certPEM},

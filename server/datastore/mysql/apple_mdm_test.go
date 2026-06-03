@@ -2134,14 +2134,6 @@ VALUES
 	require.NoError(t, err)
 }
 
-func setNanoDeviceEnrolledAt(t *testing.T, ds *Datastore, host *fleet.Host, enrolledAt time.Time) {
-	_, err := ds.writer(t.Context()).Exec(`
-UPDATE nano_devices
-	SET authenticate_at = ?
-WHERE id = ?`, enrolledAt, host.UUID)
-	require.NoError(t, err)
-}
-
 func upsertHostCPs(
 	hosts []*fleet.Host,
 	profiles []*fleet.MDMAppleConfigProfile,
@@ -6224,7 +6216,7 @@ func testMDMAppleSetPendingDeclarationsAs(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, h, true)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			_, err := q.ExecContext(ctx,
 				`INSERT INTO host_mdm_apple_declarations (host_uuid, status, operation_type, token, declaration_identifier, declaration_uuid, declaration_name, scope) VALUES (?, ?, ?, UNHEX(REPEAT('00', 16)), ?, ?, ?, ?)`,
 				h.UUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, fmt.Sprintf("decl-%d", i), uuid.NewString(), fmt.Sprintf("decl-%d", i), "System")

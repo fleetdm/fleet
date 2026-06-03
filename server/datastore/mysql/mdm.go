@@ -996,11 +996,11 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	if len(profileUUIDs) > 0 {
 		countArgs++
 
-		// split into mac, win and android profiles
 		for _, puid := range profileUUIDs {
-			if strings.HasPrefix(puid, fleet.MDMAndroidProfileUUIDPrefix) {
-				androidProfUUIDs = append(androidProfUUIDs, puid)
+			if !strings.HasPrefix(puid, fleet.MDMAndroidProfileUUIDPrefix) {
+				return updates, ctxerr.Errorf(ctx, "bulkSetPendingMDMHostProfilesDB only supports Android profile UUIDs, got %q", puid)
 			}
+			androidProfUUIDs = append(androidProfUUIDs, puid)
 		}
 	}
 	if len(hostUUIDs) > 0 {
@@ -1076,7 +1076,7 @@ OR
 
 	// TODO: this could be optimized to avoid querying for platform when
 	// profileIDs or profileUUIDs are provided.
-	if len(hosts) == 0 && len(androidProfUUIDs) > 0 {
+	if len(hosts) == 0 {
 		uuidStmt, args, err := sqlx.In(uuidStmt, args...)
 		if err != nil {
 			return updates, ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
