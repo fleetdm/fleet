@@ -188,12 +188,13 @@ type MDM struct {
 	// If not set, the server will use Fleet server URL (recommended).
 	AppleServerURL string `json:"apple_server_url"`
 
-	// Deprecated: use AppleBussinessManager instead
+	// Deprecated: use AppleBusinessManager instead
 	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"` //nolint:apiparamcheck // not renaming already-deprecated field
 
-	// AppleBusinessManager defines the associations between ABM tokens
-	// and the teams used to assign hosts when they're ingested from ABM.
-	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
+	// AppleBusinessManager defines the associations between AB tokens
+	// and the fleets used to assign hosts when they're ingested from Apple
+	// Business.
+	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager" renameto:"apple_business,inline"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set
@@ -428,6 +429,10 @@ func (w WindowsUpdates) Equal(other WindowsUpdates) bool {
 		return false
 	}
 	return true
+}
+
+func (w WindowsUpdates) Configured() bool {
+	return w.DeadlineDays.Valid && w.GracePeriodDays.Valid
 }
 
 func (w WindowsUpdates) Validate() error {

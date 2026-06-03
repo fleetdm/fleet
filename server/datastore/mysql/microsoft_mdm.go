@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -3058,6 +3059,14 @@ INSERT INTO
 			}
 		}
 
+		// An OS-update profile is tracked as the team's OS-update profile within
+		// this transaction so it rolls back together on failure.
+		if bytes.Contains(cp.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+			if err := trackWindowsUpdateConfigProfileDB(ctx, tx, teamID, profileUUID); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -3692,6 +3701,31 @@ INNER JOIN (
 	if exhausted {
 		ds.logger.WarnContext(ctx, "cleanup windows mdm command queue did not finish, remaining rows will be cleaned on next run",
 			"deleted", totalDeleted, "max_batches", maxBatches)
+	}
+	return nil
+}
+
+func (ds *Datastore) HasWindowsUpdateConfigProfileConfigured(ctx context.Context, teamID uint) (bool, error) {
+	const stmt = `
+	SELECT COUNT(*) > 0 FROM mdm_configuration_profile_update_settings mcpus
+    	INNER JOIN mdm_windows_configuration_profiles mwcp ON mwcp.profile_uuid = mcpus.windows_profile_uuid
+	WHERE mwcp.team_id = ?`
+
+	var configured bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &configured, stmt, teamID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check if windows update config profile is configured")
+	}
+
+	return configured, nil
+}
+
+// trackWindowsUpdateConfigProfileDB records profileUUID as the team's OS-update
+// profile within the caller's transaction
+func trackWindowsUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, teamID uint, profileUUID string) error {
+	const insertStmt = `INSERT INTO mdm_configuration_profile_update_settings (windows_profile_uuid) VALUES (?)
+		ON DUPLICATE KEY UPDATE windows_profile_uuid = windows_profile_uuid`
+	if _, err := tx.ExecContext(ctx, insertStmt, profileUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting software update profile")
 	}
 	return nil
 }

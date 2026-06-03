@@ -372,6 +372,9 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		defer muStoredCAs.Unlock()
 		return &storedCAs, nil
 	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -1453,6 +1456,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledTeamSecrets = secrets
 		return nil
+	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
 	}
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -3641,13 +3647,13 @@ func TestGitOpsCustomSettings(t *testing.T) {
 	}{
 		{"testdata/gitops/global_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/global_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `only one of "labels_include_all" or "labels_include_any" can be included`},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", `only one of "labels_include_all" or "labels_include_any" can be included`},
 		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 		{"testdata/gitops/team_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/team_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `only one of "labels_include_all", "labels_include_any" or "labels" can be included`},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", `only one of "labels_include_all", "labels_include_any" or "labels" can be included`},
 		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 	}
 	for _, c := range cases {
@@ -3961,10 +3967,10 @@ software:
 				workstations,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business_manager team \"📱🏢 Company-owned iPhones\" not found in team configs")
+				assert.ErrorContains(t, err, "apple_business team \"📱🏢 Company-owned iPhones\" not found in team configs")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "apple_business_manager team \"📱🏢 Company-owned iPhones\" not found in team configs")
+				assert.ErrorContains(t, err, "apple_business team \"📱🏢 Company-owned iPhones\" not found in team configs")
 			},
 		},
 		{
@@ -6009,6 +6015,9 @@ func TestGitOpsWindowsUpdates(t *testing.T) {
 		defaultTeamConfig = config
 		return nil
 	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 
 	t.Run("with values", func(t *testing.T) {
@@ -6108,6 +6117,34 @@ software:
 		// Verify neither function was called
 		assert.Empty(t, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should not be called")
 		assert.Empty(t, deleteCalls, "DeleteMDMWindowsConfigProfileByTeamAndName should not be called")
+	})
+
+	t.Run("os updates with existing OS updates config profile", func(t *testing.T) {
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return true, nil
+		}
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(`
+controls:
+  windows_updates:
+    deadline_days: 7
+    grace_period_days: 2
+queries:
+policies:
+agent_options:
+name: Team1
+team_settings:
+  secrets:
+    - secret: test
+software:
+`)
+		require.NoError(t, err)
+
+		_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates profile already exists")
+		ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
+		}
 	})
 }
 
@@ -6620,6 +6657,9 @@ func TestGitOpsAppleOSUpdates(t *testing.T) {
 			fleet.BuiltinLabelIPadOS:      3,
 		}, nil
 	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
+	}
 
 	// teamYAML generates a team YAML with the given controls section.
 	teamYAML := func(controlsSection string) string {
@@ -6736,6 +6776,24 @@ software:
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
 		})
+
+		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return true, nil
+			}
+			savedTeam = existingTeamWithMacOSUpdates("2024-03-03", "17.6.1")
+
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = teamFile.WriteString(macOSYAML("2024-03-03", "17.6"))
+			require.NoError(t, err)
+
+			_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates declaration profile already exists")
+
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
+		})
 	})
 
 	t.Run("ios_updates", func(t *testing.T) {
@@ -6780,6 +6838,24 @@ software:
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
 		})
+
+		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return true, nil
+			}
+			savedTeam = existingTeamWithIOSUpdates("2024-03-03", "17.6.1")
+
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = teamFile.WriteString(iOSYAML("2024-03-03", "17.6"))
+			require.NoError(t, err)
+
+			_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates declaration profile already exists")
+
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
+		})
 	})
 
 	t.Run("ipados_updates", func(t *testing.T) {
@@ -6823,6 +6899,24 @@ software:
 			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 			assert.Equal(t, 1, bulkSetPendingCalls, "BulkSetPendingMDMHostProfiles should be called when minimum_version changes")
+		})
+
+		t.Run("os updated when existing OS update declaration", func(t *testing.T) {
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return true, nil
+			}
+			savedTeam = existingTeamWithIPadOSUpdates("2024-03-03", "17.6.1")
+
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			_, err = teamFile.WriteString(iPadOSYAML("2024-03-03", "17.6"))
+			require.NoError(t, err)
+
+			_ = runAppCheckErr(t, []string{"gitops", "-f", teamFile.Name()}, "A custom OS updates declaration profile already exists")
+
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
 		})
 	})
 }
@@ -6897,6 +6991,9 @@ func TestGitOpsWindowsOSUpdates(t *testing.T) {
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		return &fleet.MDMAppleDeclaration{DeclarationUUID: "test-uuid"}, nil
+	}
+	ds.HasWindowsUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return false, nil
 	}
 
 	teamYAML := func(deadlineDays, gracePeriodDays int) string {

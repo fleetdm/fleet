@@ -434,6 +434,18 @@ func sanitizeNonPremiumHostListOptions(isPremium bool, opt *fleet.HostListOption
 	opt.DEPAssignProfileResponseFilter = nil
 }
 
+// suppressAndroidBYODWipeStatus hides the transient wipe status for Android BYOD (personal) hosts. Unenrolling such a
+// host fires a work-profile-only AMAPI WIPE under the hood (see UnenrollAndroidHost), which writes wipe_ref and would
+// otherwise surface as a pending wipe. The admin clicked Unenroll, not Wipe.
+func suppressAndroidBYODWipeStatus(host *fleet.Host) {
+	if host.FleetPlatform() == "android" &&
+		host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" &&
+		host.MDM.PendingAction != nil && *host.MDM.PendingAction == string(fleet.PendingActionWipe) {
+		host.MDM.DeviceStatus = new(string(fleet.DeviceStatusUnlocked))
+		host.MDM.PendingAction = new(string(fleet.PendingActionNone))
+	}
+}
+
 func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) (iter.Seq2[*fleet.Host, error], error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
@@ -508,6 +520,7 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 						host.MDM.DeviceStatus = ptr.String(string(fleet.DeviceStatusUnlocked))
 						host.MDM.PendingAction = ptr.String(string(fleet.PendingActionNone))
 					}
+					suppressAndroidBYODWipeStatus(host)
 				}
 
 				if !yield(host, nil) {
@@ -1894,6 +1907,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	host.MDM.DeviceStatus = ptr.String(string(mdmActions.DeviceStatus()))
 	host.MDM.PendingAction = ptr.String(string(mdmActions.PendingAction()))
+	suppressAndroidBYODWipeStatus(host)
 
 	host.Policies = policies
 

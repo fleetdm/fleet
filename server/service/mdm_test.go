@@ -1386,11 +1386,11 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll, nil)
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", []byte(winProfContent), nil, fleet.LabelsIncludeAll, nil)
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 
 			// test authz delete config profile (no team)
@@ -1457,7 +1457,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
 			syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
-		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"unsupported Fleet variable", 0, `<Replace>$FLEET_VAR_BOZO</Replace>`, true, "Fleet variable"},
 
 		{"team empty profile", 1, "", true, "The file should include valid XML."},
@@ -1473,7 +1472,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
 			syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
-		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
 	}
 
@@ -1488,7 +1486,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 				}, nil
 			}
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", []byte(c.profile), nil, fleet.LabelsIncludeAll)
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", []byte(c.profile), nil, fleet.LabelsIncludeAll, nil)
 			if c.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, c.wantErr)
@@ -2710,6 +2708,174 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestBatchSetMDMProfilesOSUpdates exercises the OS-updates handling in
+// BatchSetMDMProfiles for both platforms: rejecting more than one OS updates
+// profile per team, rejecting when OS updates are already configured via Fleet
+// settings, and recording the profile in the update-settings tracking table on a
+// valid run.
+func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
+	var teamID *uint
+
+	// appleOSUpdate is a DDM declaration of the software-update enforcement type;
+	// windowsOSUpdate is a syncML profile under the Windows Update policy path.
+	// Both are detected by the batch path as OS updates profiles.
+	appleOSUpdate := func(name, ident string) fleet.MDMProfileBatchPayload {
+		return fleet.MDMProfileBatchPayload{Name: name, Contents: declarationForTestWithType(ident, apple_mdm.DeclarationTypeSoftwareUpdate)}
+	}
+	windowsOSUpdate := func(name, leaf string) fleet.MDMProfileBatchPayload {
+		return fleet.MDMProfileBatchPayload{Name: name, Contents: syncMLForTest("./Device" + syncml.FleetOSUpdateTargetLocURI + leaf)}
+	}
+
+	appleConfigured := &fleet.TeamMDM{MacOSUpdates: fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("14.0"), Deadline: optjson.SetString("2025-01-01")}}
+	windowsConfigured := &fleet.TeamMDM{WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.SetInt(7), GracePeriodDays: optjson.SetInt(2)}}
+
+	cases := []struct {
+		name        string
+		profiles    []fleet.MDMProfileBatchPayload
+		teamConfig  *fleet.TeamMDM // OS updates already configured for the team; nil means none
+		dryRun      bool
+		wantErr     string
+		wantApple   bool // Apple declaration recorded in the tracking table
+		wantWindows bool // Windows profile recorded in the tracking table
+		freeTier    bool // if false, OS update profile should fail
+	}{
+		{
+			name:      "Allows more than one Apple OS update declaration",
+			profiles:  []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1"), appleOSUpdate("apple-os-2", "os-update-2")},
+			wantApple: true,
+		},
+		{
+			name:        "Allows more than one Windows OS update profile",
+			profiles:    []fleet.MDMProfileBatchPayload{windowsOSUpdate("win-os-1", "/Install"), windowsOSUpdate("win-os-2", "/Pause")},
+			wantWindows: true,
+		},
+		{
+			name:       "rejects Apple OS update declaration when OS updates already configured",
+			profiles:   []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1")},
+			teamConfig: appleConfigured,
+			wantErr:    "OS updates are already configured",
+		},
+		{
+			name:       "rejects Windows OS update profile when OS updates already configured",
+			profiles:   []fleet.MDMProfileBatchPayload{windowsOSUpdate("win-os-1", "/Install")},
+			teamConfig: windowsConfigured,
+			wantErr:    "OS updates are already configured",
+		},
+		{
+			name:      "valid run records the Apple OS update declaration",
+			profiles:  []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1")},
+			wantApple: true,
+		},
+		{
+			name:        "valid run records the Windows OS update profile",
+			profiles:    []fleet.MDMProfileBatchPayload{windowsOSUpdate("win-os-1", "/Install")},
+			wantWindows: true,
+		},
+		{
+			name: "valid run records OS update profiles for both platforms",
+			profiles: []fleet.MDMProfileBatchPayload{
+				appleOSUpdate("apple-os-1", "os-update-1"),
+				windowsOSUpdate("win-os-1", "/Install"),
+				// An unrelated profile should not affect detection.
+				{Name: "other-apple", Contents: declarationForTest("other-decl")},
+			},
+			wantApple:   true,
+			wantWindows: true,
+		},
+		{
+			name:     "dry run does not record OS update profiles",
+			profiles: []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1"), windowsOSUpdate("win-os-1", "/Install")},
+			dryRun:   true,
+		},
+		{
+			name:     "rejects Apple OS updates declaration in Fleet free",
+			profiles: []fleet.MDMProfileBatchPayload{appleOSUpdate("apple-os-1", "os-update-1")},
+			freeTier: true,
+			dryRun:   true,
+			wantErr:  "Requires Fleet Premium license",
+		},
+		{
+			name:     "rejects Windows OS updates profile in Fleet free",
+			profiles: []fleet.MDMProfileBatchPayload{windowsOSUpdate("win-os-1", "/Install")},
+			freeTier: true,
+			dryRun:   true,
+			wantErr:  "Requires Fleet Premium license",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+			teamID = new(uint(1))
+			if c.freeTier {
+				license.Tier = fleet.TierFree
+				teamID = nil
+			}
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true, AndroidEnabledAndConfigured: true}}, nil
+			}
+			ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+				return &fleet.Team{ID: tid, Name: "team1"}, nil
+			}
+			ds.TeamMDMConfigFunc = func(ctx context.Context, tid uint) (*fleet.TeamMDM, error) {
+				if c.teamConfig != nil {
+					return c.teamConfig, nil
+				}
+				return &fleet.TeamMDM{}, nil
+			}
+			ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+				return document, nil, nil
+			}
+			ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+			ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+				return &fleet.GroupedCertificateAuthorities{}, nil
+			}
+			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error { return nil }
+			// Tracking of OS update profiles now happens atomically inside
+			// BatchSetMDMProfiles; the service only forwards the profiles.
+			var gotAppleOSUpdate, gotWindowsOSUpdate bool
+			ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
+				for _, d := range macDeclarations {
+					if bytes.Contains(d.RawJSON, []byte(apple_mdm.DeclarationTypeSoftwareUpdate)) {
+						gotAppleOSUpdate = true
+					}
+				}
+				for _, p := range winProfiles {
+					if bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+						gotWindowsOSUpdate = true
+					}
+				}
+				return fleet.MDMProfilesUpdates{}, nil
+			}
+			ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+				return fleet.MDMProfilesUpdates{}, nil
+			}
+
+			ctx = test.UserContext(ctx, test.UserAdmin)
+			err := svc.BatchSetMDMProfiles(ctx, teamID, nil, c.profiles, c.dryRun, false, new(true), false)
+
+			if c.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.wantErr)
+				// Rejected before persisting anything.
+				assert.False(t, ds.BatchSetMDMProfilesFuncInvoked)
+				return
+			}
+
+			require.NoError(t, err)
+			// The batch set itself only runs outside of dry run.
+			assert.Equal(t, !c.dryRun, ds.BatchSetMDMProfilesFuncInvoked)
+			if !c.dryRun {
+				assert.Equal(t, c.wantApple, gotAppleOSUpdate)
+				assert.Equal(t, c.wantWindows, gotWindowsOSUpdate)
+			}
+		})
+	}
+}
+
 func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
 	if content == nil {
 		content = make(map[string]any)
@@ -2947,7 +3113,7 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			_, err := svc.NewMDMAndroidConfigProfile(ctx, tt.teamID, tt.name, []byte(tt.profile), nil, fleet.LabelsIncludeAll)
+			_, err := svc.NewMDMAndroidConfigProfile(ctx, tt.teamID, tt.name, []byte(tt.profile), nil, fleet.LabelsIncludeAll, nil)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.NewMDMAndroidConfigProfileFuncInvoked)

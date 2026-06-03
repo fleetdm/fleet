@@ -3559,17 +3559,28 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
                         ua.activity_type = 'software_install'
                 )
         )
+        -- Resolve to the title's currently-active installer so list and install agree on
+        -- label scope after an FMA replacement (old row kept with is_active=0). LEFT JOIN
+        -- yields installer_id=NULL when no active installer exists; filterSoftwareInstallersByLabel
+        -- tolerates that. lsia columns are listed explicitly to avoid lsia.installer_id colliding
+        -- with the projected active id (sqlx maps last-wins).
         SELECT
 			software_installers.id AS installer_id,
 			software_installers.self_service AS package_self_service,
 			software_titles.id AS id,
-			lsia.*
+			lsia.last_install_install_uuid,
+			lsia.last_install_installed_at,
+			lsia.status
 		FROM
 			(SELECT * FROM upcoming_software_install UNION SELECT * FROM last_software_install) AS lsia
 		INNER JOIN
-			software_installers ON lsia.installer_id = software_installers.id
+			software_installers recorded_si ON lsia.installer_id = recorded_si.id
 		INNER JOIN
-			software_titles ON software_installers.title_id = software_titles.id
+			software_titles ON recorded_si.title_id = software_titles.id
+		LEFT JOIN
+			software_installers ON software_installers.title_id = recorded_si.title_id
+				AND software_installers.global_or_team_id = recorded_si.global_or_team_id
+				AND software_installers.is_active = 1
     `
 	var softwareInstalls []*hostSoftware
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareInstalls, softwareInstallsStmt, hostID, hostID)
@@ -3639,17 +3650,24 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
                         ua.activity_type = 'software_uninstall'
                 )
         )
+        -- Resolve to active installer; see hostSoftwareInstalls for rationale.
         SELECT
 			software_installers.id AS installer_id,
 			software_titles.id AS id,
 			host_script_results.exit_code AS exit_code,
-			lsua.*
+			lsua.last_uninstall_script_execution_id,
+			lsua.last_uninstall_uninstalled_at,
+			lsua.status
 		FROM
             (SELECT * FROM upcoming_software_uninstall UNION SELECT * FROM last_software_uninstall) AS lsua
 		INNER JOIN
-			software_installers ON lsua.installer_id = software_installers.id
+			software_installers recorded_si ON lsua.installer_id = recorded_si.id
 		INNER JOIN
-			software_titles ON software_installers.title_id = software_titles.id
+			software_titles ON recorded_si.title_id = software_titles.id
+		LEFT JOIN
+			software_installers ON software_installers.title_id = recorded_si.title_id
+				AND software_installers.global_or_team_id = recorded_si.global_or_team_id
+				AND software_installers.is_active = 1
 		LEFT OUTER JOIN
 			host_script_results ON host_script_results.host_id = ? AND host_script_results.execution_id = lsua.last_uninstall_script_execution_id
     `
@@ -5297,7 +5315,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			LEFT OUTER JOIN
 				-- filter out software that is not available for install on the host's platform
 				-- .sh packages are available for both linux and darwin hosts
-				software_installers si ON st.id = si.title_id AND (si.platform = :host_compatible_platforms OR (si.extension = 'sh' AND si.platform = 'linux' AND :host_compatible_platforms = 'darwin')) AND si.extension NOT IN (:incompatible_extensions) AND si.global_or_team_id = :global_or_team_id
+				-- is_active=1 ensures fresh hosts (no install record) don't see a stale inactive
+				-- installer's labels and surface a title that the install endpoint will reject.
+				software_installers si ON st.id = si.title_id AND (si.platform = :host_compatible_platforms OR (si.extension = 'sh' AND si.platform = 'linux' AND :host_compatible_platforms = 'darwin')) AND si.extension NOT IN (:incompatible_extensions) AND si.global_or_team_id = :global_or_team_id AND si.is_active = 1
 			LEFT OUTER JOIN
 				-- include VPP apps only if the host is on a supported platform
 				vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
@@ -5634,6 +5654,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		// NOTE: label conditions are applied in a subsequent step
 		// software installed on the host not by fleet and there exists a software installer that matches this software
 		// so that makes it available for install
+		// is_active=1 prevents non-deterministic overwrite in the loop below when an FMA
+		// has both old (inactive) and new (active) installer rows for the same title.
 		installedInstallersSql := `
 			SELECT
 				software.title_id,
@@ -5647,6 +5669,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				software_installers ON software.title_id = software_installers.title_id
 				  AND software_installers.platform = ?
 				  AND software_installers.global_or_team_id = ?
+				  AND software_installers.is_active = 1
 			WHERE host_software.host_id = ?
 			`
 		type InstalledSoftwareTitle struct {
