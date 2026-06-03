@@ -77,7 +77,7 @@ const RunScriptBatchPaginatedList = ({
     onChange: (script: IPaginatedListScript) => void
   ) => (
     <>
-      <a>{script.name}</a>
+      <a title={`API id: ${script.id}`}>{script.name}</a>
       <Button
         variant="inverse"
         iconStroke={!script.hasRun}

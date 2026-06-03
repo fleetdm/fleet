@@ -138,7 +138,11 @@ const ScriptListItem = ({
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={<Button variant="link">{script.name}</Button>}
+      title={
+        <Button variant="link" title={`API id: ${script.id}`}>
+          {script.name}
+        </Button>
+      }
       details={
         <ScriptListItemDetails
           platform={platform}

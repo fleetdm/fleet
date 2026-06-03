@@ -110,6 +110,7 @@ export const generateTableColumnConfigs = (
             onClick={onClickScriptName}
             variant="inverse"
             size="small"
+            title={`API id: ${cellProps.row.original.script_id}`}
           >
             <TooltipTruncatedTextCell
               value={cellProps.row.original.name}
