@@ -3426,6 +3426,30 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	return err
 }
 
+func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint) error {
+
+	titles, err := svc.ds.GetSoftwareTitlesForInstallAll(ctx, host, categoryID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get software titles for install all")
+	}
+
+	for _, title := range titles {
+		// SelfServiceInstallSoftwareTitle dispatches by type (custom package,
+		// VPP, in-house) and re-checks availability + label scope before
+		// queueing. The revalidation is redundant with
+		// GetSoftwareTitlesForInstallAll, but reusing it keeps this simple.
+		//
+		// WIP: log and continue so one failing title (e.g. out of label scope,
+		// not available) doesn't abort the whole batch.
+		if err := svc.SelfServiceInstallSoftwareTitle(ctx, host, title.ID); err != nil {
+			svc.logger.WarnContext(ctx, "install all: skipping software title that failed to queue", "title_id", title.ID, "err", err)
+			continue
+		}
+	}
+
+	return nil
+}
+
 // branching out this call so it doesn't conflict with work in parallel in the
 // self-service install method, and it would be good to isolate the installers
 // and VPP apps logic too later on.

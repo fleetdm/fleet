@@ -3808,3 +3808,162 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 
 	return nil
 }
+
+func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, error) {
+
+	// check if category exists
+	var categoryName string
+	if categoryID != nil {
+		cat, err := ds.SoftwareCategory(ctx, *categoryID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "software category not found")
+			}
+			return nil, ctxerr.Wrap(ctx, err, "get software category")
+		}
+		categoryName = cat.Name
+	}
+
+	// call ListHostSoftware with only_available_for_install
+	opts := fleet.HostSoftwareTitleListOptions{
+		SelfServiceOnly:         true,
+		OnlyAvailableForInstall: true,
+	}
+	opts.ListOptions.OrderKey = "name"
+
+	software, _, err := ds.ListHostSoftware(ctx, host, opts)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list host software for install all")
+	}
+
+	// when scoped to a category, look up each title's categories so the loop can
+	// drop titles that aren't in it (keyed by title id, so it works for vpp too)
+	var categoriesByTitle map[uint][]string
+	if categoryID != nil {
+		titleIDs := make([]uint, 0, len(software))
+		for _, s := range software {
+			titleIDs = append(titleIDs, s.ID)
+		}
+		categoriesByTitle, err = ds.GetCategoriesForSoftwareTitles(ctx, titleIDs, host.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get categories for software titles")
+		}
+	}
+
+	// for each in that list, keep the ones we can queue: skip in-flight or
+	// already-installed titles. Returned in the alphabetical order
+	// ListHostSoftware produced so the service can queue installs in order.
+	var candidates []*fleet.HostSoftwareWithInstaller
+	for _, s := range software {
+		if s.Status != nil {
+			switch *s.Status {
+			case fleet.SoftwareInstallPending, fleet.SoftwareUninstallPending, fleet.SoftwareInstalled:
+				continue
+			}
+		}
+
+		if categoryID != nil && !slices.Contains(categoriesByTitle[s.ID], categoryName) {
+			continue
+		}
+
+		candidates = append(candidates, s)
+	}
+
+	return candidates, nil
+}
+
+// var globalOrTeamID uint
+// if host.TeamID != nil {
+// 	globalOrTeamID = *host.TeamID
+// }
+//
+// // Resolve the target category up front: 404 if it doesn't exist on the
+// // host's fleet, and capture its name to filter on below.
+// var categoryName string
+// if categoryID != nil {
+// 	cat, err := ds.SoftwareCategory(ctx, *categoryID)
+// 	if err != nil {
+// 		return nil, ctxerr.Wrap(ctx, err, "get software category")
+// 	}
+// 	if cat.TeamID != globalOrTeamID {
+// 		return nil, ctxerr.Wrap(ctx, notFound("SoftwareCategory").WithID(*categoryID), "category not on host's fleet")
+// 	}
+// 	categoryName = cat.Name
+// }
+//
+// mdmEnrolled, err := ds.IsHostConnectedToFleetMDM(ctx, host)
+// if err != nil {
+// 	return nil, ctxerr.Wrap(ctx, err, "checking mdm enrollment status")
+// }
+//
+// // Reuse ListHostSoftware to get the self-service titles available for
+// // install on this host (label-, platform-, and team-scoped across all
+// // installer types, with statuses). IncludeMetadata is left false so the
+// // full set is returned rather than a single page.
+// opts := fleet.HostSoftwareTitleListOptions{
+// 	SelfServiceOnly:         true,
+// 	OnlyAvailableForInstall: true,
+// 	IsMDMEnrolled:           mdmEnrolled,
+// }
+// opts.ListOptions.OrderKey = "name"
+//
+// software, _, err := ds.ListHostSoftware(ctx, host, opts)
+// if err != nil {
+// 	return nil, ctxerr.Wrap(ctx, err, "list host software for install all")
+// }
+//
+// // OnlyAvailableForInstall includes titles that are already installed or
+// // in-flight (they can be installed again), so filter by status: keep
+// // never-attempted (nil) and not-currently-installed titles, dropping those
+// // that are installed or have a pending install/uninstall.
+// candidates := make([]*fleet.HostSoftwareWithInstaller, 0, len(software))
+// for _, s := range software {
+// 	// custom packages only for now (exclude VPP App Store apps)
+// 	if !s.IsPackage() {
+// 		continue
+// 	}
+// 	if s.Status != nil {
+// 		switch *s.Status {
+// 		case fleet.SoftwareInstalled, fleet.SoftwareInstallPending, fleet.SoftwareUninstallPending:
+// 			continue
+// 		}
+// 	}
+// 	candidates = append(candidates, s)
+// }
+//
+// // Scope to the requested category. ListHostSoftware does not populate
+// // categories, so fetch them and filter in memory.
+// if categoryID != nil && len(candidates) > 0 {
+// 	titleIDs := make([]uint, 0, len(candidates))
+// 	for _, s := range candidates {
+// 		titleIDs = append(titleIDs, s.ID)
+// 	}
+// 	cats, err := ds.GetCategoriesForSoftwareTitles(ctx, titleIDs, host.TeamID)
+// 	if err != nil {
+// 		return nil, ctxerr.Wrap(ctx, err, "get categories for software titles")
+// 	}
+// 	filtered := make([]*fleet.HostSoftwareWithInstaller, 0, len(candidates))
+// 	for _, s := range candidates {
+// 		if slices.Contains(cats[s.ID], categoryName) {
+// 			filtered = append(filtered, s)
+// 		}
+// 	}
+// 	candidates = filtered
+// }
+//
+// // queue alphabetically by display name
+// nameKey := func(s *fleet.HostSoftwareWithInstaller) string {
+// 	if s.DisplayName != "" {
+// 		return s.DisplayName
+// 	}
+// 	return s.Name
+// }
+// slices.SortFunc(candidates, func(a, b *fleet.HostSoftwareWithInstaller) int {
+// 	return strings.Compare(nameKey(a), nameKey(b))
+// })
+//
+// titleIDs := make([]uint, 0, len(candidates))
+// for _, s := range candidates {
+// 	titleIDs = append(titleIDs, s.ID)
+// }
+// return titleIDs, nil
