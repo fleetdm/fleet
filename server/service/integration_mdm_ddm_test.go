@@ -972,7 +972,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile profiles
-	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	// declarations are ("install", "pending") after the cron run
@@ -1067,7 +1067,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile profiles
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
 		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
@@ -1122,7 +1122,7 @@ func (s *integrationMDMTestSuite) TestDDMUnsupportedDevice() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile declarations
-	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	// declaration is pending
@@ -1215,7 +1215,7 @@ func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
 
 	// reconcile declarations
-	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err := ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1246,7 +1246,7 @@ func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
 
 	// a second device requests tokens
 	_, mdmDeviceTwo := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, s.logger)
+	err = ReconcileAppleDeclarationsBatched(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 
 	_, err = mdmDeviceTwo.DeclarativeManagement("tokens")

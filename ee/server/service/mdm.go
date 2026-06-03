@@ -1473,13 +1473,9 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		{LabelName: labelName, LabelID: lblIDs[labelName]},
 	}
 
-	decl, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, nil)
+	_, err = svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, nil)
 	if err != nil {
 		return err
-	}
-
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl.DeclarationUUID}, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host declarations")
 	}
 	return nil
 }

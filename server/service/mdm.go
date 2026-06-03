@@ -2280,26 +2280,6 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 
-	// set pending status for windows profiles
-	winProfUUIDs := []string{}
-	for _, p := range windowsProfiles {
-		winProfUUIDs = append(winProfUUIDs, p.ProfileUUID)
-	}
-	winUpdates, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, winProfUUIDs, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
-	}
-
-	// set pending status for apple profiles
-	appleProfUUIDs := []string{}
-	for _, p := range appleProfiles {
-		appleProfUUIDs = append(appleProfUUIDs, p.ProfileUUID)
-	}
-	appleUpdates, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, appleProfUUIDs, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
-	}
-
 	androidProfUUIDs := []string{}
 	for _, p := range androidProfiles {
 		androidProfUUIDs = append(androidProfUUIDs, p.ProfileUUID)
@@ -2310,9 +2290,9 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	updates := fleet.MDMProfilesUpdates{
-		AppleConfigProfile:   profUpdates.AppleConfigProfile || appleUpdates.AppleConfigProfile,
-		WindowsConfigProfile: profUpdates.WindowsConfigProfile || winUpdates.WindowsConfigProfile,
-		AppleDeclaration:     profUpdates.AppleDeclaration || appleUpdates.AppleDeclaration,
+		AppleConfigProfile:   profUpdates.AppleConfigProfile,
+		WindowsConfigProfile: profUpdates.WindowsConfigProfile,
+		AppleDeclaration:     profUpdates.AppleDeclaration,
 		AndroidConfigProfile: profUpdates.AndroidConfigProfile || androidUpdates.AndroidConfigProfile,
 	}
 
