@@ -2061,7 +2061,6 @@ func (svc *Service) editTeamFromSpec(
 	return nil
 }
 
-
 func (svc *Service) validateTeamCalendarIntegrations(
 	calendarIntegration *fleet.TeamGoogleCalendarIntegration,
 	appCfg *fleet.AppConfig, dryRun bool, invalid *fleet.InvalidArgumentError,
