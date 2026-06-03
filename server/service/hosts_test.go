@@ -1863,6 +1863,9 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 	ds.ListMDMAppleDEPSerialsInHostIDsFunc = func(ctx context.Context, hids []uint) ([]string, error) {
 		return nil, nil
 	}
+	ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+		return nil, nil
+	}
 
 	emptyRequest := &map[string]interface{}{}
 
@@ -1903,6 +1906,9 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
+	}
+	ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+		return nil, nil
 	}
 
 	filter := &map[string]interface{}{"label_id": expectedLabel}
@@ -2223,6 +2229,9 @@ func TestAddHostsToTeamByFilterSourceTeamAuth(t *testing.T) {
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: id}, nil
+	}
+	ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
+		return nil, nil
 	}
 
 	t.Run("team maintainer cannot steal hosts from another team via filter", func(t *testing.T) {

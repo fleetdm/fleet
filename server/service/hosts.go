@@ -1287,6 +1287,15 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
 		}
+
+		// Create pending certificate template records for the destination team
+		if teamID != nil {
+			for hostUUID := range androidUUIDs {
+				if _, err := svc.ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, *teamID); err != nil {
+					return ctxerr.Wrap(ctx, err, "create pending certificate templates for transferred android host")
+				}
+			}
+		}
 	}
 
 	return svc.createTransferredHostsActivity(ctx, teamID, hostIDs, nil)
@@ -1423,6 +1432,32 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 			teamID,
 			serials...); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue macos setup assistant hosts transferred job")
+		}
+	}
+
+	// If there are any Android hosts, update their available apps and create
+	// pending certificate template records for the destination team.
+	androidUUIDs, err := svc.ds.ListMDMAndroidUUIDsToHostIDs(ctx, hostIDs)
+	if err != nil {
+		return err
+	}
+
+	if len(androidUUIDs) > 0 {
+		enterprise, err := svc.ds.GetEnterprise(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get android enterprise")
+		}
+
+		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
+		}
+
+		if teamID != nil {
+			for hostUUID := range androidUUIDs {
+				if _, err := svc.ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, *teamID); err != nil {
+					return ctxerr.Wrap(ctx, err, "create pending certificate templates for transferred android host")
+				}
+			}
 		}
 	}
 
