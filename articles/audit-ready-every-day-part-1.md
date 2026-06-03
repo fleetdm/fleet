@@ -1,4 +1,3 @@
-# Audit-ready every day, part 1: The architecture of continuous compliance
 
 *Why the annual audit scramble is a symptom of the wrong tooling, and what would actually fix it*
 
@@ -118,7 +117,7 @@ Part 2 covers what continuous compliance looks like in practice for teams operat
 
 *Fleet's continuous compliance monitoring, historical policy records, and unified multi-platform inventory make audit preparation a routine operational task rather than a recurring crisis.* [*See how Fleet supports your compliance framework*](https://fleetdm.com/guides/stay-on-course-with-your-security-compliance-goals) *or* [*talk to us*](https://fleetdm.com/) *about your audit requirements.*
 
-<meta name="articleTitle" value="Audit-ready every day, part 1: continuous compliance architecture">
+<meta name="articleTitle" value="Audit-ready every day, part 1: The architecture of continuous compliance">
 <meta name="authorFullName" value="Ashish Kuthiala">
 <meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
