@@ -5795,7 +5795,7 @@ func testHostsExpirationBatchSize(t *testing.T, ds *Datastore) {
 	}
 
 	expiredSeenTime := time.Now().Add(-48 * time.Hour)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		createHost(i, expiredSeenTime)
 	}
 	createHost(5, time.Now())
@@ -6222,7 +6222,7 @@ func testTeamHostsExpirationBatchSize(t *testing.T, ds *Datastore) {
 
 	expiredSeenTime := time.Now().Add(-48 * time.Hour)
 	hostIDs := make([]uint, 0, 6)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		hostIDs = append(hostIDs, createHost(i, expiredSeenTime))
 	}
 	hostIDs = append(hostIDs, createHost(5, time.Now()))
