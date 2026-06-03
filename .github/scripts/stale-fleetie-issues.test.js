@@ -182,6 +182,7 @@ test('marks a Fleetie-authored issue idle >2y as stale', async () => {
     issues: [makeIssue({ number: 1, user: { login: 'getvictor' }, updated_at: daysAgoIso(STALE_DAYS + 70) })],
   });
   assert.strictEqual(github._captured.createCommentCalls.length, 1);
+  assert.match(github._captured.createCommentCalls[0].body, /^@getvictor /, 'stale comment @-mentions the author');
   assert.strictEqual(github._captured.addLabelsCalls.length, 1);
   assert.deepStrictEqual(github._captured.addLabelsCalls[0].labels, ['stale']);
   assert.strictEqual(github._captured.updateCalls.length, 0);
