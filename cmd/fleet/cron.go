@@ -1023,6 +1023,7 @@ func newWorkerIntegrationsSchedule(
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
 	androidModule android.Service,
+	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1085,7 +1086,15 @@ func newWorkerIntegrationsSchedule(
 		Log:           logger,
 		AndroidModule: androidModule,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker)
+	chartScrubGlobal := &worker.ChartScrubGlobal{
+		ChartService: chartSvc,
+		Log:          logger,
+	}
+	chartScrubFleet := &worker.ChartScrubFleet{
+		ChartService: chartSvc,
+		Log:          logger,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker, chartScrubGlobal, chartScrubFleet)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -1239,6 +1248,7 @@ func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	carveStore fleet.CarveStore,
 	svc fleet.Service,
 	logger *slog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
@@ -1298,7 +1308,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"carves",
 			func(ctx context.Context) error {
-				_, err := ds.CleanupCarves(ctx, time.Now())
+				_, err := carveStore.CleanupCarves(ctx, time.Now())
 				return err
 			},
 		),
@@ -1464,6 +1474,16 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
 		}),
+		schedule.WithJob("cleanup_unenrolled_host_mdm_certificates", func(ctx context.Context) error {
+			count, err := ds.SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				logger.InfoContext(ctx, "soft-deleted mdm host certificates for unenrolled hosts", "count", count)
+			}
+			return nil
+		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
 		}),
@@ -1513,6 +1533,37 @@ func newCleanupsAndAggregationSchedule(
 	return s, nil
 }
 
+// buildChartScopeResolver returns a per-dataset scope resolver for the chart
+// collection cron. It computes (skip, disabledFleetIDs) from the global and
+// per-team historical-data flags. Extracted from the cron closure so it can be
+// unit-tested without spinning up a schedule.
+func buildChartScopeResolver(appCfg *fleet.AppConfig, teams []*fleet.Team, logger *slog.Logger) chart_api.CollectScopeFn {
+	return func(name string) (skip bool, disabledFleetIDs []uint) {
+		ok, err := appCfg.Features.HistoricalData.Enabled(name)
+		if err != nil {
+			// Unknown dataset — fall back to enabled with no team filter.
+			// The chart service is the source of truth for which datasets are
+			// registered; an unknown name here means a new dataset was added
+			// without a corresponding entry in Enabled().
+			if logger != nil {
+				logger.WarnContext(context.Background(), "chart scope: unknown dataset", "dataset", name, "err", err)
+			}
+			return false, nil
+		}
+		if !ok {
+			return true, nil
+		}
+		var disabled []uint
+		for _, t := range teams {
+			tok, terr := t.Config.Features.HistoricalData.Enabled(name)
+			if terr == nil && !tok {
+				disabled = append(disabled, t.ID)
+			}
+		}
+		return false, disabled
+	}
+}
+
 func newChartDataCollectionSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -1522,13 +1573,31 @@ func newChartDataCollectionSchedule(
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronChartDataCollection)
-		defaultInterval = 10 * time.Minute
+		defaultInterval = 1 * time.Hour
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger.With("cron", name)),
 		schedule.WithJob("collect_chart_datasets", func(ctx context.Context) error {
-			return chartSvc.CollectDatasets(ctx, time.Now())
+			// Build a per-dataset scope resolver from AppConfig + team configs.
+			// Loaded fresh each tick so config changes take effect without
+			// a process restart. Failures here halt this tick so that we don't
+			// collect data that we shouldn't (i.e. from disabled teams or datasets).
+			// The cron retries on its next interval.
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				logger.ErrorContext(ctx, "load app config for chart scope", "err", err)
+				return ctxerr.Wrap(ctx, err, "load app config for chart scope")
+			}
+			teams, err := ds.ListTeams(ctx,
+				fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}},
+				fleet.ListOptions{},
+			)
+			if err != nil {
+				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
+				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
+			}
+			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, logger))
 		}),
 	)
 
@@ -1633,9 +1702,11 @@ func verifyDiskEncryptionKeys(
 		return err
 	}
 
-	cert, err := assets.CAKeyPair(ctx, ds)
+	// Include previously-rolled-over CA certs so keys escrowed against an
+	// earlier CA still decrypt with the (unchanged) private key.
+	caCerts, caKey, err := assets.CACertsAndKeyForDecryption(ctx, ds)
 	if err != nil {
-		logger.ErrorContext(ctx, "unable to get CA keypair", "details", err)
+		logger.ErrorContext(ctx, "unable to get CA certs and key", "details", err)
 		return ctxerr.Wrap(ctx, err, "parsing SCEP keypair")
 	}
 
@@ -1646,7 +1717,7 @@ func verifyDiskEncryptionKeys(
 		if key.UpdatedAt.After(latest) {
 			latest = key.UpdatedAt
 		}
-		if _, err := mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
+		if _, err := mdm.DecryptBase64CMSWithCerts(key.Base64Encrypted, caKey, caCerts); err != nil {
 			undecryptable = append(undecryptable, key.HostID)
 			continue
 		}
@@ -1804,10 +1875,10 @@ func newAppleMDMProfileManagerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
+			return service.ReconcileAppleProfilesBatched(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
-			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
+			return service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, logger)
 		}),
 	)
 
@@ -2373,6 +2444,31 @@ func newRecoveryLockPasswordSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("send_recovery_lock_commands", func(ctx context.Context) error {
 			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
+func newManagedLocalAccountRotationSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronSendManagedLocalAccountRotationCommands)
+		defaultInterval = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("send_managed_local_account_rotation_commands", func(ctx context.Context) error {
+			return apple_mdm.SendManagedLocalAccountRotationCommands(ctx, ds, commander, logger, newActivityFn)
 		}),
 	)
 

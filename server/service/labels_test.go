@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
@@ -388,7 +389,7 @@ func TestListLabelsHostCountOptions(t *testing.T) {
 }
 
 func TestLabelsWithDS(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	cases := []struct {
 		name string
@@ -399,7 +400,7 @@ func TestLabelsWithDS(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -531,7 +532,7 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 
 func TestLabelsWithReplica(t *testing.T) {
 	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
-	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
 	defer ds.Close()
 
 	svc, ctx := newTestService(t, ds, nil, nil)

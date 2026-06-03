@@ -29,7 +29,7 @@ interface IRequestCertAuthorityResponse {
   certificate: string;
 }
 
-export type IAddCertAuthorityBody =
+export type IAddCertAuthorityFormData =
   | { digicert: ICertificatesDigicert }
   | { ndes_scep_proxy: ICertificatesNDES }
   | { custom_scep_proxy: ICertificatesCustomSCEP }
@@ -37,7 +37,7 @@ export type IAddCertAuthorityBody =
   | { smallstep: ICertificatesSmallstep }
   | { custom_est_proxy: ICertificatesCustomEST };
 
-export type IEditCertAuthorityBody =
+export type IEditCertAuthorityFormData =
   | { digicert: Partial<ICertificatesDigicert> }
   | { ndes_scep_proxy: Partial<ICertificatesNDES> }
   | { custom_scep_proxy: Partial<ICertificatesCustomSCEP> }
@@ -58,6 +58,7 @@ export interface ICertificate {
   name: string;
   certificate_authority_id: number;
   certificate_authority_name: string;
+  subject_alternative_name?: string;
   created_at: string;
 }
 export interface IGetCertsResponse {
@@ -69,6 +70,7 @@ export interface IAddCert {
   name: string;
   certAuthorityId: number;
   subjectName: string;
+  subjectAlternativeName?: string;
   teamId?: number;
 }
 
@@ -84,7 +86,7 @@ export default {
   },
 
   addCertificateAuthority: (
-    certData: IAddCertAuthorityBody
+    certData: IAddCertAuthorityFormData
   ): Promise<IAddCertAuthorityResponse> => {
     const { CERTIFICATE_AUTHORITIES } = endpoints;
     return sendRequest("POST", CERTIFICATE_AUTHORITIES, certData);
@@ -92,7 +94,7 @@ export default {
 
   editCertificateAuthority: (
     id: number,
-    updateData: IEditCertAuthorityBody
+    updateData: IEditCertAuthorityFormData
   ): Promise<void> => {
     const { CERTIFICATE_AUTHORITY } = endpoints;
     return sendRequest("PATCH", CERTIFICATE_AUTHORITY(id), updateData);
@@ -125,12 +127,21 @@ export default {
       queryString ? CERTIFICATES.concat(`?${queryString}`) : CERTIFICATES
     );
   },
-  addCert: ({ name, certAuthorityId, subjectName, teamId }: IAddCert) => {
+  addCert: ({
+    name,
+    certAuthorityId,
+    subjectName,
+    subjectAlternativeName,
+    teamId,
+  }: IAddCert) => {
     const { CERTIFICATES } = endpoints;
+    const trimmedSAN = subjectAlternativeName?.trim() ?? "";
     const requestBody = {
       name,
       certificate_authority_id: certAuthorityId,
       subject_name: subjectName,
+      // omit when empty so the server treats it as "no SAN"
+      ...(trimmedSAN !== "" && { subject_alternative_name: trimmedSAN }),
       fleet_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
     };
     return sendRequest("POST", CERTIFICATES, requestBody);

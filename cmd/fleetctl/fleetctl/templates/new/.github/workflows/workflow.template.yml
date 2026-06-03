@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout this repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Make github action script executable
         run: chmod +x ./.github/fleet-gitops/gitops.sh

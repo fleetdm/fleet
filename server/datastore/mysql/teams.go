@@ -146,6 +146,7 @@ var teamRefs = []string{
 	"certificate_templates",
 	"software_title_icons",
 	"software_title_display_names",
+	"vpp_app_configurations",
 }
 
 // teamLabelsRefs are the tables that could be referenced by team labels that

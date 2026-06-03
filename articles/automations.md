@@ -33,7 +33,7 @@ Automations for [software](https://fleetdm.com/guides/automatic-software-install
 
 For webhooks and tickets, automations are only triggered when a policy is newly failing. A policy is "newly failing" if a host updated its response from no response to "fail" or from "pass" to "fail."
 
-Fleet checks whether to trigger webhooks or tickets once per day by default.
+Fleet checks whether to trigger webhooks or tickets once per day by default ([configurable](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings)).
 
 For webhooks, if a policy is newly failing on more than one host during the same period, a separate webhook request is triggered for each host by default.
 

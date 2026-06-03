@@ -112,38 +112,6 @@ func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOption
 	return svc.ds.ListGlobalPolicies(ctx, opts)
 }
 
-/////////////////////////////////////////////////////////////////////////////////
-// Get by id
-/////////////////////////////////////////////////////////////////////////////////
-
-func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.GetPolicyByIDRequest)
-	policy, err := svc.GetPolicyByIDQueries(ctx, req.PolicyID)
-	if err != nil {
-		return fleet.GetPolicyByIDResponse{Err: err}, nil
-	}
-	return fleet.GetPolicyByIDResponse{Policy: policy}, nil
-}
-
-func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fleet.Policy, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	policy, err := svc.ds.Policy(ctx, policyID)
-	if err != nil {
-		return nil, err
-	}
-	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
-	}
-	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
-	}
-
-	return policy, nil
-}
-
 // ///////////////////////////////////////////////////////////////////////////////
 // Count
 // ///////////////////////////////////////////////////////////////////////////////
@@ -266,7 +234,10 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 // Modify
 /////////////////////////////////////////////////////////////////////////////////
 
-const errPolicyAllFleetsForConditionalAccess = "\"All fleets\" policy cannot have conditional_access_enabled set"
+const (
+	errPolicyAllFleetsForConditionalAccess     = "\"All fleets\" policy cannot have conditional_access_enabled set"
+	errPolicyAllFleetsForContinuousAutomations = "\"All fleets\" policy cannot have continuous_automations_enabled set"
+)
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.ModifyGlobalPolicyRequest)
@@ -488,6 +459,12 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			})
 		}
 
+		if policy.Team == "" && policy.ContinuousAutomationsEnabled {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForContinuousAutomations),
+			})
+		}
+
 		if err := policy.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),
@@ -496,6 +473,11 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 		// LabelsIncludeAll is premium-only.
 		if len(policy.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		// ContinuousAutomationsEnabled is premium-only.
+		if policy.ContinuousAutomationsEnabled && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 

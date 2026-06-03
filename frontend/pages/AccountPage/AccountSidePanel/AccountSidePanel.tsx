@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 
 import { IUser } from "interfaces/user";
-import { IVersionData } from "interfaces/version";
+import { IVersionResponse } from "interfaces/version";
 
 import { AppContext } from "context/app";
 
@@ -14,12 +14,7 @@ import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
-import {
-  generateRole,
-  generateTeam,
-  greyCell,
-  readableDate,
-} from "utilities/helpers";
+import { generateRole, generateTeam, readableDate } from "utilities/helpers";
 import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
 interface IAccountSidePanelProps {
@@ -36,7 +31,7 @@ const AccountSidePanel = ({
   onGetApiToken,
 }: IAccountSidePanelProps): JSX.Element => {
   const { isPremiumTier, config } = useContext(AppContext);
-  const [versionData, setVersionData] = useState<IVersionData>();
+  const [versionData, setVersionData] = useState<IVersionResponse>();
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() =>
     getThemeMode()
   );
@@ -115,20 +110,7 @@ const AccountSidePanel = ({
           onChange={onThemeSelect}
         />
       </div>
-      {isPremiumTier && (
-        <DataSet
-          title="Fleets"
-          value={
-            <span
-              className={`${
-                greyCell(teamsText) ? `${baseClass}__grey-text` : ""
-              }`}
-            >
-              {teamsText}
-            </span>
-          }
-        />
-      )}
+      {isPremiumTier && <DataSet title="Fleets" value={teamsText} />}
       <DataSet title="Role" value={roleText} />
       {isPremiumTier && config && (
         <DataSet

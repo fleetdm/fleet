@@ -95,7 +95,7 @@ type SoftwareInstaller struct {
 	// UninstallScriptContentID is the ID of the uninstall script content.
 	UninstallScriptContentID uint `json:"-" db:"uninstall_script_content_id"`
 	// PreInstallQuery is the query to run as a condition to installing the software package.
-	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
+	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 	// UninstallScript is the script to run to uninstall the software package.
@@ -140,6 +140,9 @@ type SoftwareInstaller struct {
 	PatchPolicy *PatchPolicyData `json:"patch_policy"`
 	// PatchQuery is the query to use for creating a patch policy
 	PatchQuery string `json:"-" db:"patch_query"`
+
+	// Configuration is the in-house app's managed app configuration (iOS / iPadOS only) as returned in API responses: a JSON string of XML.
+	Configuration json.RawMessage `json:"configuration,omitempty" db:"-"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -423,7 +426,7 @@ type HostSoftwareInstallerResult struct {
 	// Output is the output of the software installer package on the host.
 	Output *string `json:"output" db:"install_script_output"`
 	// PreInstallQueryOutput is the output of the pre-install query on the host.
-	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"`
+	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"` //nolint:apiparamcheck // SQL precondition output
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput *string `json:"post_install_script_output" db:"post_install_script_output"`
 	// CreatedAt is the time the software installer request was triggered.
@@ -574,6 +577,8 @@ type UploadSoftwareInstallerPayload struct {
 	// conditional GET requests when AlwaysDownload is false.
 	HTTPETag   *string
 	PatchQuery string
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
+	Configuration []byte
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
@@ -656,13 +661,15 @@ type UpdateSoftwareInstallerPayload struct {
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
 	DisplayName *string
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
+	Configuration []byte
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
-		u.DisplayName == nil && u.CategoryIDs == nil
+		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -728,6 +735,7 @@ func IsScriptPackage(ext string) bool {
 type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
+	BundleIdentifier  string                          `json:"bundle_identifier,omitempty" db:"-"`
 	IconUrl           *string                         `json:"icon_url" db:"-"`
 	Source            string                          `json:"source" db:"source"`
 	ExtensionFor      string                          `json:"extension_for" db:"extension_for"`
@@ -825,7 +833,7 @@ func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
 type SoftwarePackageSpec struct {
 	URL                string                `json:"url"`
 	SelfService        bool                  `json:"self_service"`
-	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
@@ -834,6 +842,8 @@ type SoftwarePackageSpec struct {
 	LabelsIncludeAll   []string              `json:"labels_include_all"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
+	// Configuration is the managed app configuration file path; only meaningful for .ipa packages.
+	Configuration TeamSpecSoftwareAsset `json:"configuration"`
 
 	// FMA
 	Slug    *string `json:"slug"`
@@ -864,6 +874,7 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
 	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
 	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
+	spec.Configuration.Path = resolveApplyRelativePath(baseDir, spec.Configuration.Path)
 
 	return spec
 }
@@ -885,7 +896,7 @@ type MaintainedAppSpec struct {
 	Slug               string                `json:"slug"`
 	Version            string                `json:"version"`
 	SelfService        bool                  `json:"self_service"`
-	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
@@ -1182,6 +1193,25 @@ func (o HostSoftwareInstallOptions) Priority() int {
 	}
 	return 0
 }
+
+// PreflightInstallFailedError signals that Fleet failed an install before
+// reaching the device (e.g. an unresolvable Fleet variable in the managed app
+// configuration). The corresponding failed-install activity has already been
+// emitted by the time this is returned.
+//
+// Admin/self-service/policy/auto-update entry points treat the pre-flight
+// failure as success at the API layer (the activity records the outcome), so
+// the install service returns nil there. The setup-experience drivers
+// (ee/server/service/setup_experience.go, server/worker/apple_mdm.go) branch
+// only on err != nil to transition a step out of Running — without an error
+// signal they'd stash the install's command UUID and wait indefinitely for an
+// MDM command result that will never arrive. For ForSetupExperience=true the
+// install service returns this error so those drivers transition to Failure.
+type PreflightInstallFailedError struct {
+	Reason string
+}
+
+func (e *PreflightInstallFailedError) Error() string { return e.Reason }
 
 const (
 	BatchDownloadMaxRetries = 3

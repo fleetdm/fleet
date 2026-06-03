@@ -26,9 +26,18 @@
     border-radius: $border-radius;
     height: 36px;
 
+    body.dark-mode & {
+      background-color: $ui-fleet-black-5;
+    }
+
     &:hover {
       cursor: pointer;
       border: 1px solid $ui-fleet-black-50;
+    }
+
+    &--is-disabled {
+      pointer-events: none;
+      opacity: 0.5;
     }
 
     &--is-focused,
@@ -96,6 +105,10 @@
     z-index: 2;
     animation: fade-in 150ms ease-out;
     background-color: $core-fleet-white;
+
+    body.dark-mode & {
+      background-color: $ui-fleet-black-5;
+    }
   }
 
   .label-filter-select__menu-list {

@@ -45,8 +45,8 @@ data "aws_region" "current" {}
 
 locals {
   tags = {
-    environment           = "dogfood"
-    terraform             = "https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module/db-temp-restores"
+    environment = "dogfood"
+    terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module/db-temp-restores"
   }
   allowed_subnets = [
     "10.255.1.0/24",
@@ -60,11 +60,11 @@ locals {
     "magnus",
     "robert",
     "jorge",
-    "ian",
+    "scott",
     "victor"
   ]
   customers = {
-    fleet-dogfood-1 = "arn:aws:rds:us-east-2:160035666661:cluster-snapshot:rds:fleet-dogfood-1-2026-03-18-02-06"
+    fleet-dogfood-1 = "arn:aws:rds:us-east-2:160035666661:cluster-snapshot:rds:fleet-dogfood-1-2026-05-07-02-06"
   }
 }
 
@@ -154,9 +154,9 @@ module "dev_restore_dbs" {
   skip_final_snapshot = true
 
   tags = {
-    Name                  = "${each.key}-db-restore"
-    Customer              = each.key
-    Purpose               = "DB restore with VPN access"
+    Name     = "${each.key}-db-restore"
+    Customer = each.key
+    Purpose  = "DB restore with VPN access"
   }
 }
 

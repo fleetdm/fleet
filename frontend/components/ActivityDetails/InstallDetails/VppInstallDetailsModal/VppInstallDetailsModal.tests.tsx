@@ -59,6 +59,67 @@ describe("getStatusMessage helper function", () => {
     expect(screen.getByText(/Refetch/i)).toBeInTheDocument();
   });
 
+  it("renders the actor-driven failure sentence when Fleet failed the install before sending it to the device (admin actor)", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Anna's iPad",
+        commandUpdatedAt: "2026-05-27T22:49:52Z",
+        platform: "ipados",
+        failureReason:
+          "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.",
+        actorFullName: "Carlo DiCelico",
+        fleetInitiated: false,
+        selfService: false,
+      })
+    );
+    // The reason text is rendered by the modal's Details section, not by
+    // getStatusMessage — here we only verify the top-line sentence is
+    // actor-driven and references the right app/host.
+    expect(screen.getByText("Carlo DiCelico")).toBeInTheDocument();
+    expect(screen.getByText(/failed to install/i)).toBeInTheDocument();
+    expect(screen.getByText("Logic Pro")).toBeInTheDocument();
+  });
+
+  it("renders 'Fleet' as the actor when the install is Fleet-initiated (policy, auto-update, setup experience)", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Zoom Workplace",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2026-05-27T22:49:52Z",
+        platform: "ipados",
+        failureReason: "There is no IdP username for this host. …",
+        fleetInitiated: true,
+      })
+    );
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(screen.getByText(/failed to install/i)).toBeInTheDocument();
+  });
+
+  it("renders 'End user' as the actor for self-service installs", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Slack",
+        hostDisplayName: "Anna's iPad",
+        commandUpdatedAt: "2026-05-27T22:49:52Z",
+        platform: "ipados",
+        failureReason: "There is no IdP email for this host. …",
+        selfService: true,
+        actorFullName: "Anna",
+      })
+    );
+    expect(screen.getByText("End user")).toBeInTheDocument();
+  });
+
   it("shows failed_install message for non-Apple platform when MDM command fails", () => {
     render(
       getStatusMessage({
@@ -183,9 +244,10 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/install hasn't been verified/i)
+      screen.getByText(
+        /the install took longer than 20 minutes, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
-    expect(screen.getByText(/within 20 minutes/i)).toBeInTheDocument();
     expect(
       screen.queryByText(/but the app failed to install/i)
     ).not.toBeInTheDocument();
@@ -210,7 +272,9 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/install hasn't been verified/i)
+      screen.getByText(
+        /the install took longer than .*, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/but the app failed to install/i)
@@ -233,7 +297,9 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/install hasn't been verified/i)
+      screen.getByText(
+        /the install took longer than .*, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
     expect(
       screen.queryByText(/but the app failed to install/i)
@@ -255,7 +321,11 @@ describe("getStatusMessage helper function", () => {
       })
     );
 
-    expect(screen.getByText(/within 20 minutes/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /the install took longer than 20 minutes, so Fleet marked it as failed/i
+      )
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Marko's MacBook Pro/i)).not.toBeInTheDocument();
   });
 
@@ -551,13 +621,13 @@ describe("VPP Install Details Modal", () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          /Fleet marks as failed if the install isn't verified within 20 minutes/i
+          /the install took longer than 20 minutes, so Fleet marked it as failed/i
         )
       ).toBeInTheDocument();
     });
     expect(
       screen.getByText(
-        /If the app is installed later, Fleet will update the status when the host is refetched/i
+        /If the install finishes later, Fleet will update the status when the host is refetched/i
       )
     ).toBeInTheDocument();
   });

@@ -65,6 +65,12 @@ If you would like to use Fleet's iOS/iPadOS MDM features, the following endpoint
 - `/api/*/fleet/enrollment_profiles/ota`:  Allows hosts to download an enrollment profile.
 - `/api/*/fleet/software/titles/*/in_house_app`: Allows deloying in-house (`.ipa`) apps.
 
+If you use [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account#basic-article) for personal iPhones and iPads (BYOD), the following endpoints also need to be exposed:
+
+- `/api/mdm/apple/account_driven_enroll`: Allows hosts to complete enrollment using a Managed Apple Account.
+- `/mdm/apple/account_driven_enroll/sso`: If end users authenticate with your IdP during Account-driven User Enrollment, allows that SSO flow to complete.
+- `/mdm/apple/service_discovery`: The endpoint registered with .Well-Known service discovery
+
 ### Android
 
 If you would like to use Fleet's Android features, the following endpoints need to be exposed:

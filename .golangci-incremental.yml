@@ -16,6 +16,7 @@ linters:
     - nilaway
     - setboolcheck
     - depguard
+    - apiparamcheck
   settings:
     gosec:
       # Only enable rules that are too noisy on existing code but valuable for new code.
@@ -50,12 +51,8 @@ linters:
       setboolcheck:
         type: module
         description: Flags map[T]bool used as sets; suggests map[T]struct{} instead.
+      apiparamcheck:
+        type: module
+        description: Flags json/url/query struct tags using deprecated "team"/"teams" and "query"/"queries" terms.
   exclusions:
     generated: strict
-    rules:
-      # nilaway has a hardcoded 500 CFG block limit (_maxFuncSizeInCFGBlocks). Functions exceeding
-      # it produce an INTERNAL ERROR with a bogus $GOROOT path that crashes golangci-lint's
-      # generated_file_filter processor. These are informational skip messages, not real findings.
-      - linters:
-          - nilaway
-        text: "INTERNAL ERROR"

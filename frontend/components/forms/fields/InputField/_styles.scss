@@ -16,12 +16,6 @@
     color: $ui-fleet-black-50;
   }
 
-  &:hover:not(.input-field--read-only) {
-    box-shadow: none;
-    border: 1px solid $ui-fleet-black-75-over;
-  }
-
-  &:active:not(.input-field--read-only),
   &:focus:not(.input-field--read-only),
   &:focus-visible:not(.input-field--read-only) {
     box-shadow: none;

@@ -58,6 +58,10 @@ go run ./tools/snapshot r
 # Run osquery load tests
 ./tools/loadtest/osquery/gnuplot_osqueryd_cpu_memory.sh
 
+# Collect CloudWatch metrics for a load test environment, then compare runs
+./tools/loadtest/metrics/collect-metrics.sh --workspace 486loadtest --category baseline
+./tools/loadtest/metrics/compare-metrics.sh --filter loadtest --depth 4 --unique
+
 # Test webhooks
 go run ./tools/webhook 8082
 
@@ -121,8 +125,8 @@ export FLEET_ENV_PATH=./tools/api/env
 
 # Test API endpoints
 ./tools/api/fleet/me
-./tools/api/fleet/queries/list
-./tools/api/fleet/queries/create 'my_query' 'SELECT * FROM processes;'
+./tools/api/fleet/reports/list
+./tools/api/fleet/reports/create 'my_report' 'SELECT * FROM processes;'
 ```
 
 ### Integration Testing
@@ -167,7 +171,7 @@ go run ./tools/bump-migration -source-migration 20240101120000_MyMigration.go -r
 ### GitOps Migration
 ```bash
 # Migrate software YAML files to Fleet 4.74.0+ format
-./tools/gitops-migrate/migrate.sh it-and-security/teams/
+./tools/gitops-migrate/migrate.sh it-and-security/fleets/
 ```
 
 ### Software & Vulnerability Testing
@@ -237,7 +241,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `fleet-docker/` | Fleet Docker configs | Docker configuration for Fleet |
 | `github-manage/` | GitHub management automation | `./gm issues --search "is:open"` or `./gm project 58` - See [README](github-manage/README.md) |
 | `github-releases/` | GitHub release tools | `go run ./tools/github-releases --last-minor-releases <n>` or `--all-cpes` |
-| `gitops-migrate/` | GitOps YAML migration | `./tools/gitops-migrate/migrate.sh <teams_dir>` - See [README](gitops-migrate/README.md) |
+| `gitops-migrate/` | GitOps YAML migration | `./tools/gitops-migrate/migrate.sh <fleets_dir>` - See [README](gitops-migrate/README.md) |
 | `mailpit/` | Local email testing | Mailpit SMTP server for local dev (uses `auth.txt` config) |
 | `open/` | Test "open" package | `go run ./tools/open -url <url>` - Opens URL in default browser |
 | `percona/` | Percona testing | Percona MySQL testing configs - See [percona/test/README.md](percona/test/README.md) |
@@ -245,7 +249,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `smtp4dev/` | Local SMTP testing | SMTP4Dev server with TLS certs for email testing |
 | `signoz/` | SigNoz for traces, metrics, and logs | See [signoz/README.md](signoz/README.md) |
 | `telemetry/` | Jaeger + Prometheus for tracing | `docker compose up` - See [telemetry/README.md](telemetry/README.md) |
-| `terraform/` | Terraform provider for Fleet teams | `make install && make apply` - See [terraform/README.md](terraform/README.md) |
+| `terraform/` | Terraform provider for fleet | `make install && make apply` - See [terraform/README.md](terraform/README.md) |
 | **MDM Tools** | | |
 | `android/` | Android management API tool | `go run ./tools/android -command <cmd> -enterprise_id <id> -device_id <id>` |
 | `mdm/apple/applebmapi/` | Query Apple Business API | `go run ./tools/mdm/apple/applebmapi -mysql localhost:3306 -server-private-key <key> -org-name <org>` |
@@ -277,7 +281,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `run-scripts/` | Test Orbit script execution | `go run ./tools/run-scripts -exec-id <id> -content 'echo "Hello"'` |
 | **Packaging & Installers** | | |
 | `bomutils-docker/` | Docker image for BOM utils (macOS pkg) | Docker build for BOM utilities |
-| `team-builder/` | Bulk team creation + installer generation | `./build_teams.sh -s teams.txt -u fleet.example.com` |
+| `team-builder/` | Bulk fleet (formerly "team") creation + installer generation | `./build_teams.sh -s teams.txt -u fleet.example.com` |
 | `wix-docker/` | Docker image for WiX (Windows MSI) | Docker build for WiX toolset |
 | **Release & Distribution** | | |
 | `fleetctl-docker/` | Docker image for fleetctl packaging | `docker run fleetdm/fleetctl package --type=pkg` |
@@ -306,6 +310,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `desktop-rate-limit/` | Test Fleet Desktop rate limiting | `go run ./tools/desktop-rate-limit -fleet_url https://localhost:8080` |
 | `kubequery/` | Kubequery + Fleet config | `kubectl apply -f kubequery-fleet.yml` |
 | `loadtest/fleetd_labels/` | Apply manual labels for load testing | `go run ./tools/loadtest/fleetd_labels` |
+| `loadtest/metrics/` | Collect & compare AWS CloudWatch metrics for load test environments | `./tools/loadtest/metrics/collect-metrics.sh --workspace <ws>` — see [loadtest/metrics/README.md](loadtest/metrics/README.md) |
 | `loadtest/osquery/` | Load test osquery on macOS/Windows/Linux | See [loadtest/osquery/README.md](loadtest/osquery/README.md) |
 | `loadtest/scripts_and_profiles/` | Load test scripts and profiles | `go run ./tools/loadtest/scripts_and_profiles` |
 | `loadtest/unified_queue/` | Load test unified queue story | See [loadtest/unified_queue/README.md](loadtest/unified_queue/README.md) |

@@ -34,6 +34,11 @@ describe("PackageVersionSelector component", () => {
     expect(
       screen.queryByText("Latest (2.0.0)", { exact: false })
     ).not.toBeInTheDocument();
+
+    // No tooltip when there is only one version (nothing to roll back to)
+    expect(
+      document.querySelector(".component__tooltip-wrapper__element")
+    ).toBeNull();
   });
 
   it("renders the package version dropdown when there are package versions to choose from", () => {
@@ -134,7 +139,7 @@ describe("PackageVersionSelector component", () => {
     expect(latestOptionWrapper).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("shows the GitOps rollback tooltip text when the selected version is the first (latest) option", async () => {
+  it("shows the rollback tooltip when the latest version is selected and not in GitOps mode", async () => {
     const { user } = renderWithSetup(
       <PackageVersionSelector
         selectedVersion="2.0.0"
@@ -146,7 +151,6 @@ describe("PackageVersionSelector component", () => {
       />
     );
 
-    // TooltipWrapper attaches tooltip to this element:
     const tooltipAnchor = document.querySelector(
       ".component__tooltip-wrapper__element"
     ) as HTMLElement;
@@ -161,6 +165,24 @@ describe("PackageVersionSelector component", () => {
         screen.getByText("to roll back (UI coming soon).", { exact: false })
       ).toBeInTheDocument();
     });
+  });
+
+  it("shows no tooltip when in GitOps mode (parent handles the GitOps tooltip)", () => {
+    render(
+      <PackageVersionSelector
+        selectedVersion="2.0.0"
+        versionOptions={[
+          { value: "2.0.0", label: "Latest (2.0.0)" },
+          { value: "1.0.0", label: "1.0.0" },
+        ]}
+        onSelectVersion={noop}
+        isGitOpsMode
+      />
+    );
+
+    expect(
+      document.querySelector(".component__tooltip-wrapper__element")
+    ).toBeNull();
   });
 
   it("shows the update-to-latest tooltip text when the selected version is not the first (latest) option", async () => {

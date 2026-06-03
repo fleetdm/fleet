@@ -3,6 +3,8 @@ Apple’s Platform Single Sign-on (Platform SSO), [introduced at WWDC22](https:/
 
 This guide details how to deploy Microsoft Entra ID's macOS Platform SSO extension to your Fleet macOS hosts.
 
+> Fleet is testing [Simplified Setup](https://support.apple.com/en-gb/guide/deployment/dep7bbb05313/web#:~:text=Activate%20and%20enforce%20Platform%20SSO%20during%20Automated%20Device%20Enrollment%20to%20authenticate%20the%20enrollment%2C%20sign%20in%20with%20a%20Managed%20Apple%20Account%2C%20and%20create%20a%20local%20user) with Entra ID, which is currently in "preview" status. 
+
 ## Why use Platform SSO?
 If your Identity Provider (IdP) supports Platform Single Sign-on, deploying it in your environment offers a great and secure sign-in experience for your users.
 
