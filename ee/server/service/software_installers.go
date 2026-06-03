@@ -3415,6 +3415,9 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get software titles for install all")
 	}
+	if len(titles) > fleet.MaxSelfServiceInstallAllSoftwareTitles {
+		return &fleet.BadRequestError{Message: fmt.Sprintf("Couldn't install. The number of available software titles (%d) exceeds the maximum of %d that can be installed at once.", len(titles), fleet.MaxSelfServiceInstallAllSoftwareTitles)}
+	}
 
 	platform := host.FleetPlatform()
 

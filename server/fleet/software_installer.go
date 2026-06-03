@@ -1160,6 +1160,10 @@ type SoftwareScopeLabel struct {
 // Max total attempts (including initial) for a non-policy software install.
 const MaxSoftwareInstallAttempts = 3
 
+// MaxSelfServiceInstallAllSoftwareTitles caps how many titles a single
+// "install all" self-service request will queue.
+const MaxSelfServiceInstallAllSoftwareTitles = 50
+
 // HostSoftwareInstallOptions contains options that apply to a software or VPP
 // app install request.
 type HostSoftwareInstallOptions struct {
