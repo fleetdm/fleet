@@ -1967,7 +1967,7 @@ func (c *Client) DoGitOps(
 	if appConfig != nil {
 		exceptions = appConfig.GitOpsConfig.Exceptions
 		if appConfig.License.IsPremium() {
-			changeManagementURL := c.URL("/settings/integrations/change-management", "").String()
+			changeManagementURL := strings.TrimRight(appConfig.ServerSettings.ServerURL, "/") + "/settings/integrations/change-management"
 			if exceptions.Labels && incoming.LabelsPresent {
 				return nil, fmt.Errorf(
 					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)

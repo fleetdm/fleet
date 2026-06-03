@@ -640,6 +640,7 @@ func TestGitOpsExceptionEnforcement(t *testing.T) {
 	// Test: excepted keys present in YAML → error
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
 			GitOpsConfig: fleet.GitOpsConfig{
 				GitopsModeEnabled: true,
 				RepositoryURL:     "https://example.com/repo",
@@ -668,6 +669,7 @@ agent_options:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
+	assert.Contains(t, err.Error(), `https://fleet.example.com/settings/integrations/change-management`)
 
 	// Secrets excepted + present → error
 	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -688,7 +690,7 @@ agent_options:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile2.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"secrets" is excepted from GitOps management`)
-
+	assert.Contains(t, err.Error(), `https://fleet.example.com/settings/integrations/change-management`)
 	// Secrets excepted + present → error
 	tmpFile3, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -703,6 +705,7 @@ software:
 	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile3.Name()})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"software" is excepted from GitOps management`)
+	assert.Contains(t, err.Error(), `https://fleet.example.com/settings/integrations/change-management`)
 
 	// Test: exceptions enforced even when GitOps mode is OFF (decoupled from UI mode)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
