@@ -3418,6 +3418,7 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 
 	platform := host.FleetPlatform()
 
+	var queuedCount uint
 	for _, title := range titles {
 		// log errors rathen than return early
 		queueErr := func() error {
@@ -3440,6 +3441,7 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 				if _, err := svc.installSoftwareFromVPP(ctx, host, vppApp, appleDevice, fleet.HostSoftwareInstallOptions{SelfService: true}); err != nil {
 					return ctxerr.Wrap(ctx, err, "queueing vpp install")
 				}
+				queuedCount++
 
 			case title.IsPackage() && fleet.IsAppleMobilePlatform(title.SoftwarePackage.Platform):
 				iha, err := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, host.TeamID, title.ID)
@@ -3470,6 +3472,7 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 				if err := svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, title.ID, uuid.NewString(), opts); err != nil {
 					return ctxerr.Wrap(ctx, err, "queueing in-house app install")
 				}
+				queuedCount++
 
 			case title.IsPackage():
 				installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, title.ID, false)
@@ -3491,12 +3494,32 @@ func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, hos
 				if _, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{SelfService: true, WithRetries: true}); err != nil {
 					return ctxerr.Wrap(ctx, err, "queueing package install")
 				}
+				queuedCount++
 			}
 			return nil
 		}()
 		if queueErr != nil {
 			svc.logger.ErrorContext(ctx, "failed to enqueue software install", "title_id", title.ID, "err", queueErr)
 		}
+	}
+
+	var categoryName *string
+	if categoryID != nil {
+		cat, err := svc.ds.SoftwareCategory(ctx, *categoryID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting software category for activity")
+		}
+		categoryName = &cat.Name
+	}
+
+	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledAllSelfServiceSoftware{
+		HostID:                  host.ID,
+		HostDisplayName:         host.DisplayName(),
+		SelfServiceCategoryID:   categoryID,
+		SelfServiceCategoryName: categoryName,
+		SoftwareTitlesCount:     queuedCount,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating installed all self-service software activity")
 	}
 
 	return nil
