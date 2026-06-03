@@ -3647,8 +3647,8 @@ func TestGitOpsCustomSettings(t *testing.T) {
 	}{
 		{"testdata/gitops/global_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/global_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", "cannot use both `labels_include_all` and `labels_include_any`"},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", "cannot use both `labels_include_all` and `labels_include_any`"},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `only one of "labels_include_all" or "labels_include_any" can be included`},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", `only one of "labels_include_all" or "labels_include_any" can be included`},
 		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 		{"testdata/gitops/team_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/team_macos_custom_settings_valid_deprecated.yml", ""},
