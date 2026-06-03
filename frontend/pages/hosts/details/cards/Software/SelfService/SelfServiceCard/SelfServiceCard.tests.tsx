@@ -9,7 +9,7 @@ import { http, HttpResponse } from "msw";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mockServer from "test/mock-server";
 import { baseUrl } from "test/default-handlers";
-import { listSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
+import { listDeviceSelfServiceCategoriesHandler } from "test/handlers/self-service-categories-handlers";
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import { createMockHostSoftwarePackage } from "__mocks__/hostMock";
 
@@ -157,7 +157,7 @@ describe("SelfServiceCard", () => {
   });
 
   it("hides the category dropdown when the categories list is empty", async () => {
-    // Default handler is `emptySelfServiceCategoriesHandler` — no .use() needed.
+    // Default handler is `emptyDeviceSelfServiceCategoriesHandler` — no .use() needed.
     const props = createTestProps();
     const render = createCustomRenderer({ withBackendMock: true });
 
@@ -192,6 +192,30 @@ describe("SelfServiceCard", () => {
     });
   });
 
+  it("auto-clears a category_id that isn't in the loaded categories list", async () => {
+    // Bookmarked link to a since-deleted category — list is non-empty but id
+    // 99 isn't in it. Without recovery the trigger would label "All" while the
+    // table sat empty.
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const pushSpy = jest.fn();
+    const mockRouter = createMockRouter({ push: pushSpy });
+    const props = createTestProps({
+      router: mockRouter,
+      queryParams: { ...DEFAULT_QUERY_PARAMS, category_id: 99 },
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(<SelfServiceCard {...props} />);
+
+    await waitFor(() => {
+      expect(pushSpy).toHaveBeenCalledWith(
+        expect.not.stringContaining("category_id")
+      );
+    });
+  });
+
   it("renders search field with correct placeholder and default value", () => {
     const props = createTestProps({
       queryParams: { ...DEFAULT_QUERY_PARAMS, query: "test search" },
@@ -207,7 +231,7 @@ describe("SelfServiceCard", () => {
 
   it("calls router.push with the selected category_id when a category is picked", async () => {
     mockServer.use(
-      listSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
     );
     // Override `push` with a fresh jest.fn() — DEFAULT_MOCK_ROUTER's spies are
     // shared across tests, so a stale call from another test would otherwise
@@ -251,7 +275,7 @@ describe("SelfServiceCard", () => {
 
   it("renders the install-all button with the uninstalled count when a category is selected", async () => {
     mockServer.use(
-      listSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
     );
     const browserPackage = createMockHostSoftwarePackage({
       categories: ["Browsers"],

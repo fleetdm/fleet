@@ -22,6 +22,16 @@ export default {
     return sendRequest("GET", `${SELF_SERVICE_CATEGORIES}?${queryString}`);
   },
 
+  // Device-token-scoped variant — the BE derives the fleet from the device
+  // token so end users see the categories defined for their own fleet rather
+  // than the global (fleet_id=0) set.
+  getDeviceCategories: (
+    deviceToken: string
+  ): Promise<ISelfServiceCategoriesResponse> => {
+    const { DEVICE_SELF_SERVICE_CATEGORIES } = endpoints;
+    return sendRequest("GET", DEVICE_SELF_SERVICE_CATEGORIES(deviceToken));
+  },
+
   addCategory: (
     formData: ICreateSelfServiceCategoryFormData
   ): Promise<ISelfServiceCategoryResponse> => {

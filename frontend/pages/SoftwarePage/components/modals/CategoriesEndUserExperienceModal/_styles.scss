@@ -39,9 +39,3 @@
   transition: none;
   animation: none;
 }
-
-// Pop up preview immediately.
-.modal__background:has(.categories-end-user-experience-preview-modal) {
-  transition: none;
-  animation: none;
-}

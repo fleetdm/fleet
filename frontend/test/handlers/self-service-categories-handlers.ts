@@ -41,8 +41,36 @@ export const listSelfServiceCategoriesHandler = (
     })
   );
 
+// GET /device/:token/software/self_service_categories
+// Device-token-scoped variant — BE derives the fleet from the token.
+const deviceCategoriesUrl = baseUrl(
+  "/device/:token/software/self_service_categories"
+);
+
+export const listDeviceSelfServiceCategoriesHandler = (
+  categories: Partial<ISelfServiceCategory>[] = [
+    { id: 1, name: "🌎 Browsers" },
+    { id: 2, name: "👬 Communication" },
+    { id: 3, name: "🧰 Developer tools" },
+    { id: 4, name: "💻 Productivity" },
+    { id: 5, name: "🔐 Security" },
+  ]
+) =>
+  http.get(deviceCategoriesUrl, () =>
+    HttpResponse.json({
+      self_service_categories: categories.map((c) =>
+        createMockSelfServiceCategory(c)
+      ),
+    })
+  );
+
 export const emptySelfServiceCategoriesHandler = http.get(categoriesUrl, () =>
   HttpResponse.json({ self_service_categories: [] })
+);
+
+export const emptyDeviceSelfServiceCategoriesHandler = http.get(
+  deviceCategoriesUrl,
+  () => HttpResponse.json({ self_service_categories: [] })
 );
 
 export const listSelfServiceCategoriesErrorHandler = http.get(

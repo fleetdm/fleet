@@ -75,17 +75,17 @@ const SelfServiceCard = ({
   const initialSortHeader = queryParams.order_key || "name";
   const initialSortDirection = queryParams.order_direction || "asc";
 
-  // The categories endpoint is fleet-scoped. Until a device-token-scoped
-  // variant exists, we pull fleet_id=0 (global) categories as a temporary
-  // stand-in. Keep the queryKey's second element in sync with the queryFn arg
-  // when scoping changes — they must match to avoid cross-fleet cache bleed.
+  // Device-token-scoped categories: the BE derives the fleet from the token
+  // so the dropdown reflects this host's fleet, not the global fleet_id=0 set.
+  // The queryKey's second element must match the queryFn arg to avoid
+  // cross-device cache bleed.
   const { data: categoriesData, isSuccess: isCategoriesSuccess } = useQuery<
     ISelfServiceCategoriesResponse,
     Error,
     ISelfServiceCategory[]
   >(
-    ["device_self_service_categories", 0],
-    () => selfServiceCategoriesAPI.getCategories(0),
+    ["device_self_service_categories", deviceToken],
+    () => selfServiceCategoriesAPI.getDeviceCategories(deviceToken),
     {
       select: (response) => response.self_service_categories,
       staleTime: 60_000,
@@ -185,21 +185,20 @@ const SelfServiceCard = ({
     ]
   );
 
-  // Recover from stale links: if the URL has a category_id but the categories
-  // endpoint resolved to an empty list (e.g. admin deleted them all), the
-  // dropdown is hidden and the software list is empty with no UI to clear.
-  // Drop the param so the user lands back on "All".
+  // Recover from stale links: if the URL has a category_id that doesn't match
+  // any loaded category (admin deleted it, or the list resolved empty), the
+  // trigger label would fall through to "All" while filterSoftwareByCustomCategory
+  // returns [] — contradicting what the label promises. Drop the param so the
+  // user lands back on a real "All" view.
   useEffect(() => {
-    if (
-      isCategoriesSuccess &&
-      categories.length === 0 &&
-      queryParams.category_id !== undefined
-    ) {
+    if (!isCategoriesSuccess || queryParams.category_id === undefined) return;
+    const idIsKnown = categories.some((c) => c.id === queryParams.category_id);
+    if (!idIsKnown) {
       onCategoryChange(undefined);
     }
   }, [
     isCategoriesSuccess,
-    categories.length,
+    categories,
     queryParams.category_id,
     onCategoryChange,
   ]);
