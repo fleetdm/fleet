@@ -2585,7 +2585,7 @@ func TestGetAppleBM(t *testing.T) {
 		assert.Contains(t, out, "Organization name:")
 		assert.Contains(t, out, "MDM server URL:")
 		assert.Contains(t, out, "Renew date:")
-		assert.Contains(t, out, "Default team:")
+		assert.Contains(t, out, "Default fleet:")
 	})
 
 	t.Run("premium license, no token", func(t *testing.T) {
