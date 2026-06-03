@@ -248,79 +248,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		config.MDM.CertificateProfilesLimit = 0
 	}
 
-	var ds fleet.Datastore
-	var carveStore fleet.CarveStore
-
-	opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
-	if config.MysqlReadReplica.Address != "" {
-		opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
-	}
-	// NOTE this will disable OTEL/APM interceptor
-	if dev_mode.Env("FLEET_DEV_ENABLE_SQL_INTERCEPTOR") != "" {
-		opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
-			logger: logger.With("component", "sql-interceptor"),
-		}))
-	}
-
-	if config.Logging.TracingEnabled {
-		opts = append(opts, mysql.TracingEnabled(&config.Logging))
-	}
-
 	// Configure default max request body size based on config
 	platform_http.MaxRequestBodySize = config.Server.DefaultMaxRequestBodySize
 
-	// Create database connections that can be shared across datastores
-	dbConns, err := mysql.NewDBConnections(config.Mysql, opts...)
-	if err != nil {
-		initFatal(err, "initializing database connections")
-	}
-
-	mds, err := mysql.NewDatastore(dbConns, config.Mysql, clock.C)
-	if err != nil {
-		initFatal(err, "initializing datastore")
-	}
-	ds = mds
-
-	if config.S3.CarvesBucket != "" || config.S3.Bucket != "" {
-		carveStore, err = s3.NewCarveStore(config.S3, ds)
-		if err != nil {
-			initFatal(err, "initializing S3 carvestore")
-		}
-	} else {
-		carveStore = ds
-	}
+	mds, dbConns, carveStore := initDatastore(config, logger, clock.C, initFatal)
+	var ds fleet.Datastore = mds
 
 	migrationStatus, err := ds.MigrationStatus(cmd.Context())
 	if err != nil {
 		initFatal(err, "retrieving migration status")
 	}
-
-	switch migrationStatus.StatusCode {
-	case fleet.AllMigrationsCompleted:
-		// OK
-	case fleet.UnknownMigrations:
-		printUnknownMigrationsMessage(migrationStatus.UnknownTable, migrationStatus.UnknownData)
-		if dev_mode.IsEnabled {
-			os.Exit(1)
-		}
-	case fleet.NeedsFleetv4732Fix:
-		printFleetv4732FixNeededMessage()
-		if !config.Upgrades.AllowMissingMigrations {
-			os.Exit(1)
-		}
-	case fleet.UnknownFleetv4732State:
-		printFleetv4732UnknownStateMessage(migrationStatus.StatusCode)
-		if !config.Upgrades.AllowMissingMigrations {
-			os.Exit(1)
-		}
-	case fleet.SomeMigrationsCompleted:
-		tables, data := migrationStatus.MissingTable, migrationStatus.MissingData
-		printMissingMigrationsWarning(os.Stdout, tables, data)
-		if !config.Upgrades.AllowMissingMigrations {
-			os.Exit(1)
-		}
-	case fleet.NoMigrationsCompleted:
-		printDatabaseNotInitializedError()
+	if evalMigrationStatus(migrationStatus, dev_mode.IsEnabled, config.Upgrades.AllowMissingMigrations) {
 		os.Exit(1)
 	}
 
