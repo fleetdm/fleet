@@ -47,11 +47,9 @@ export interface ICategory {
   value: CategoryFilterValue;
 }
 
-const ALL_ITEM: ICategory = { id: 0, label: "All", value: "All" };
-
-/** @deprecated Static fallback list — used by `SoftwareOptionsSelector` and
- * `SelfServicePreview` on the Software page. New code should consume the
- * dynamic `/software/self_service_categories` endpoint instead. */
+/** @deprecated Static fallback list — used by `SoftwareOptionsSelector` on the
+ * Software page. New code should consume the dynamic
+ * `/software/self_service_categories` endpoint instead. */
 export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 1, label: "🌎 Browsers", value: "Browsers" },
   { id: 2, label: "👬 Communication", value: "Communication" },
@@ -59,12 +57,6 @@ export const CATEGORIES_ITEMS: ICategory[] = [
   { id: 4, label: "🖥️ Productivity", value: "Productivity" },
   { id: 5, label: "🔐 Security", value: "Security" },
   { id: 6, label: "🛠️ Utilities", value: "Utilities" },
-];
-
-/** @deprecated See `CATEGORIES_ITEMS`. */
-export const CATEGORIES_NAV_ITEMS: ICategory[] = [
-  ALL_ITEM,
-  ...CATEGORIES_ITEMS,
 ];
 
 /**
