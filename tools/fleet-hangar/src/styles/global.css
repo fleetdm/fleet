@@ -123,18 +123,32 @@ select,
 textarea {
   font-family: inherit;
   font-size: inherit;
-  background: var(--app-surface-2);
+  /* Mirrors Fleet's InputField (.input-field) in
+   * frontend/components/forms/fields/InputField/_styles.scss: white-on-
+   * border, 8/16 padding, 1.5 line-height. Background uses --app-surface
+   * so light mode inputs are white (gray reads as disabled); in dark
+   * mode --app-surface (surface-0) is darker than the typical surface-2
+   * panel they sit on, so they still pop. */
+  background: var(--app-surface);
   color: var(--app-text);
   border: 1px solid var(--app-border);
   border-radius: var(--radius);
-  padding: 6px 10px;
+  padding: 8px 16px;
+  line-height: 1.5;
   transition: border-color var(--motion-fast);
+}
+input::placeholder,
+textarea::placeholder {
+  /* Fleet sets opacity:1 + an explicit color so the placeholder reads
+   * the same across browsers (Firefox dims placeholders by default). */
+  color: var(--app-text-dim);
+  opacity: 1;
 }
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: var(--app-text);
+  border-color: var(--app-text-dim);
 }
 
 /* Hide the native number-input spinner. On macOS WKWebView its arrows
