@@ -10132,6 +10132,53 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	chk(hosts, "0003", "0004", "0001")
+
+	// Test sorting by "agent". The agent order key is COALESCE(hoi.version,
+	// h.osquery_version): orbit-enrolled hosts sort by their orbit version,
+	// vanilla osquery hosts fall back to their osquery version.
+	//   hostIDs[0] ("0001"): osquery 9.0.0, no orbit   -> effective 9.0.0
+	//   hostIDs[1] ("0004"): osquery 9.9.9, orbit 1.0.0 -> effective 1.0.0 (orbit wins)
+	//   hostIDs[2] ("0003"): osquery 5.0.0, no orbit   -> effective 5.0.0
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '9.0.0' WHERE id = ?`, hostIDs[0])
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '9.9.9' WHERE id = ?`, hostIDs[1])
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).Exec(`UPDATE hosts SET osquery_version = '5.0.0' WHERE id = ?`, hostIDs[2])
+	require.NoError(t, err)
+	err = ds.SetOrUpdateHostOrbitInfo(
+		ctx, hostIDs[1], "1.0.0", sql.NullString{String: "1.0.0", Valid: true}, sql.NullBool{Bool: true, Valid: true},
+	)
+	require.NoError(t, err)
+
+	hosts, err = ds.ListHosts(
+		ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "agent",
+				OrderDirection: fleet.OrderAscending,
+			},
+		},
+	)
+	require.NoError(t, err)
+	chk(hosts, "0004", "0003", "0001")
+
+	// ListHosts must also populate the orbit/desktop version fields the Agent
+	// column tooltip relies on (these were previously only loaded by ds.Host).
+	var orbitHost, vanillaHost *fleet.Host
+	for _, h := range hosts {
+		switch h.DisplayName() {
+		case "0004":
+			orbitHost = h
+		case "0001":
+			vanillaHost = h
+		}
+	}
+	require.NotNil(t, orbitHost)
+	require.NotNil(t, vanillaHost)
+	assert.Equal(t, new("1.0.0"), orbitHost.OrbitVersion)
+	assert.Equal(t, new("1.0.0"), orbitHost.DesktopVersion)
+	// Vanilla osquery host: no orbit info loaded.
+	assert.Nil(t, vanillaHost.OrbitVersion)
+	assert.Nil(t, vanillaHost.DesktopVersion)
 }
 
 func testHostIDsByOSID(t *testing.T, ds *Datastore) {
