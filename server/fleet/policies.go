@@ -546,6 +546,11 @@ type PolicySoftwareTitle struct {
 	// (not the package name, but the installed software title).
 	Name        string `json:"name" db:"name"`
 	DisplayName string `json:"display_name" db:"display_name"`
+	// IconURL is the API path to this software title's icon in the policy's
+	// team. It is set when a custom icon was uploaded for the title, or for VPP
+	// apps (whose icon endpoint redirects to the App Store icon), and is nil
+	// otherwise.
+	IconURL *string `json:"icon_url,omitempty"`
 }
 
 // PolicyScript contains script data for policies.

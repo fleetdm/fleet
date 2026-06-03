@@ -1287,6 +1287,7 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 			ON mcpv.fleet_variable_id = fv.id
 	SET
 		hmap.status = NULL,
+		hmap.detail = NULL,
 		hmap.command_uuid = ''
 	WHERE
 		h.id IN (:host_ids) AND
@@ -1309,7 +1310,8 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 			ON mcpv.fleet_variable_id = fv.id
 	SET
 		hmwp.status = NULL,
-		hmwp.command_uuid = ''
+		hmwp.command_uuid = '',
+		hmwp.detail = NULL
 	WHERE
 		h.id IN (:host_ids) AND
 		hmwp.operation_type = :operation_type_install AND
@@ -1330,7 +1332,8 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		JOIN fleet_variables fv
 			ON mcpv.fleet_variable_id = fv.id
 	SET
-		hmad.status = NULL
+		hmad.status = NULL,
+		hmad.detail = NULL
 	WHERE
 		h.id IN (:host_ids) AND
 		hmad.operation_type = :operation_type_install AND

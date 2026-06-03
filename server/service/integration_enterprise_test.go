@@ -7358,20 +7358,20 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/carves/%d", carveID), fleet.GetCarveRequest{}, http.StatusForbidden, &fleet.GetCarveResponse{})
 
 	// Attempt to search hosts, should fail.
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{
 		MatchQuery: "foo",
 		QueryID:    &q1.ID,
-	}, http.StatusForbidden, &searchTargetsResponse{})
+	}, http.StatusForbidden, &fleet.SearchTargetsResponse{})
 
 	// Attempt to count target hosts, should fail.
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{
 		Selected: fleet.HostTargets{
 			HostIDs:  []uint{h1.ID},
 			LabelIDs: []uint{clr.Label.ID},
 			TeamIDs:  []uint{t1.ID},
 		},
 		QueryID: &q1.ID,
-	}, http.StatusForbidden, &countTargetsResponse{})
+	}, http.StatusForbidden, &fleet.CountTargetsResponse{})
 
 	//
 	// Start running permission tests with user gitops2 (which is a GitOps use for team t1).
@@ -7594,20 +7594,20 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to search hosts, should fail.
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{
 		MatchQuery: "foo",
 		QueryID:    &q1.ID,
-	}, http.StatusForbidden, &searchTargetsResponse{})
+	}, http.StatusForbidden, &fleet.SearchTargetsResponse{})
 
 	// Attempt to count target hosts, should fail.
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{
 		Selected: fleet.HostTargets{
 			HostIDs:  []uint{h1.ID},
 			LabelIDs: []uint{clr.Label.ID},
 			TeamIDs:  []uint{t1.ID},
 		},
 		QueryID: &q1.ID,
-	}, http.StatusForbidden, &countTargetsResponse{})
+	}, http.StatusForbidden, &fleet.CountTargetsResponse{})
 
 	// Listing software titles for the team it owns is allowed.
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{}, "team_id", fmt.Sprint(t1.ID))
@@ -7684,7 +7684,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// Upload a valid secret
 	secretValue := "abc123"
-	req := createSecretVariablesRequest{
+	req := fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_TEST_RUN_HOST_SCRIPT",
@@ -7692,7 +7692,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 			},
 		},
 	}
-	secretResp := createSecretVariablesResponse{}
+	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// create a valid script execution request
@@ -31748,4 +31748,116 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCanReadHostPastActivities(
 	require.Equal(t, teamAdmin.Email, *listResp.Activities[0].ActorEmail)
 	require.NotNil(t, listResp.Activities[0].ActorFullName)
 	require.Equal(t, teamAdmin.Name, *listResp.Activities[0].ActorFullName)
+}
+
+// After an FMA replacement, Library tab and device self-service must honor the active
+// installer's label scope so list and install agree.
+func (s *integrationEnterpriseTestSuite) TestFMAReplacedInstallerLabelScopeListAndInstallAgree() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Description: t.Name()})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), team.ID)) })
+
+	host := createOrbitEnrolledHost(t, "darwin", "fma_scope_host", s.ds)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+	host.TeamID = &team.ID
+	deviceToken := uuid.NewString()
+	createDeviceTokenForHost(t, s.ds, host.ID, deviceToken)
+
+	excludeLabel, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "_excl", Query: "select 1"})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
+	host.LabelUpdatedAt = time.Now()
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	// Old installer (FMA v1): no labels.
+	fma, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             t.Name() + " App",
+		Slug:             "fma-scope-test/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.example." + t.Name(),
+	})
+	require.NoError(t, err)
+
+	adminUserID := uint(1) // admin user from suite setup
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("v1"), t.TempDir)
+	require.NoError(t, err)
+	oldInstallerID, titleID, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr,
+		StorageID:            "fma_scope_v1",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "fma_scope.pkg",
+		Title:                t.Name() + " App",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               adminUserID,
+		SelfService:          true,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Successful install against old installer.
+	installUUID, err := s.ds.InsertSoftwareInstallRequest(ctx, host.ID, oldInstallerID, fleet.HostSoftwareInstallOptions{SelfService: true})
+	require.NoError(t, err)
+	_, err = s.ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           installUUID,
+		InstallScriptExitCode: new(int(0)),
+	}, nil)
+	require.NoError(t, err)
+
+	// Simulate FMA replacement.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET is_active = FALSE WHERE id = ?", oldInstallerID)
+		return err
+	})
+
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("v2"), t.TempDir)
+	require.NoError(t, err)
+	newInstallerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "exit 0",
+		InstallerFile:        tfr2,
+		StorageID:            "fma_scope_v2",
+		FleetMaintainedAppID: new(fma.ID),
+		Filename:             "fma_scope.pkg",
+		Title:                t.Name() + " App",
+		Version:              "2.0",
+		Source:               "apps",
+		Platform:             string(fleet.MacOSPlatform),
+		TeamID:               &team.ID,
+		UserID:               adminUserID,
+		SelfService:          true,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{
+			ByName: map[string]fleet.LabelIdent{
+				excludeLabel.Name: {LabelName: excludeLabel.Name, LabelID: excludeLabel.ID},
+			},
+			LabelScope: fleet.LabelScopeExcludeAny,
+		},
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, oldInstallerID, newInstallerID)
+
+	// Library tab must not surface the title.
+	var hostSw getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &hostSw, "available_for_install", "true")
+	for _, sw := range hostSw.Software {
+		require.NotEqual(t, titleID, sw.ID, "title must not appear in Library tab when active installer excludes the host")
+	}
+
+	// Self-service must not surface the title.
+	var deviceSw getDeviceSoftwareResponse
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+deviceToken+"/software?self_service=true", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&deviceSw))
+	for _, sw := range deviceSw.Software {
+		require.NotEqual(t, titleID, sw.ID, "title must not appear in device self-service when active installer excludes the host")
+	}
+
+	// Install endpoint rejects with label-scope error.
+	resp := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't install. Host isn't member of the labels defined for this software title.")
 }
