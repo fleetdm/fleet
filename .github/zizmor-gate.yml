@@ -12,13 +12,9 @@
 # .github/zizmor.yml, so a plain `zizmor .` run still reports the full backlog locally.
 
 rules:
-  artipacked: # 125 findings
+  artipacked: # 112 findings
     disable: true
-  cache-poisoning: # 16 findings
-    disable: true
-  dependabot-cooldown: # 2 findings
-    disable: true
-  excessive-permissions: # 20 findings
+  excessive-permissions: # 6 findings
     disable: true
   known-vulnerable-actions: # 418 findings (online audit)
     disable: true
@@ -26,9 +22,5 @@ rules:
     disable: true
   ref-version-mismatch: # 44 findings (online audit)
     disable: true
-  secrets-inherit: # 5 findings
-    disable: true
   template-injection: # 234 findings
-    disable: true
-  unpinned-uses: # 31 findings
     disable: true

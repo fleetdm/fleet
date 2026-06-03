@@ -243,7 +243,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	secretIdentifier := "secret-identifier-1"
 	secretType := "secret.type.1"
 	secretProfile := string(mobileconfigForTest("NS1", "IS1"))
-	req := createSecretVariablesRequest{
+	req := fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_IDENTIFIER",
@@ -259,7 +259,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 			},
 		},
 	}
-	secretResp := createSecretVariablesResponse{}
+	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// set new team profiles (delete + addition)
@@ -305,7 +305,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
 	secretType = "new.secret.type.1"
-	req = createSecretVariablesRequest{
+	req = fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_IDENTIFIER",
@@ -379,7 +379,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
 	secretType = "new2.secret.type.1"
-	req = createSecretVariablesRequest{
+	req = fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_IDENTIFIER",
@@ -2187,42 +2187,30 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	assert.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
 	assert.Equal(t, optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}}, acResp.MDM.WindowsSettings.CustomSettings)
 
-	// mix of labels fields returns an error
+	// combining two include modes returns an error; combining include + exclude is valid
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 		  "macos_settings": {
 				"custom_settings": [
-					{"path": "foo", "labels": ["a"], "labels_exclude_any": ["b"]}
+					{"path": "foo", "labels_include_all": ["a"], "labels_include_any": ["b"]}
 				]
 			}
 		}
   }`), http.StatusUnprocessableEntity)
 	msg := extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
 
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 		  "windows_settings": {
 				"custom_settings": [
-					{"path": "foo", "labels_include_all": ["a"], "labels_exclude_any": ["b"]}
+					{"path": "foo", "labels": ["a"], "labels_include_all": ["b"]}
 				]
 			}
 		}
   }`), http.StatusUnprocessableEntity)
 	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
-
-	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": {
-		  "windows_settings": {
-				"custom_settings": [
-					{"path": "foo", "labels_include_any": ["a"], "labels_exclude_any": ["b"]}
-				]
-			}
-		}
-  }`), http.StatusUnprocessableEntity)
-	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
 
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
@@ -2234,7 +2222,44 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 		}
   }`), http.StatusUnprocessableEntity)
 	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
+
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+		  "windows_settings": {
+				"custom_settings": [
+					{"path": "foo", "labels_include_all": ["a"], "labels_include_any": ["b"]}
+				]
+			}
+		}
+  }`), http.StatusUnprocessableEntity)
+	msg = extractServerErrorText(res.Body)
+	require.Contains(t, msg, `For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
+
+	// same label in both include and exclude lists returns an error
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+		  "macos_settings": {
+				"custom_settings": [
+					{"path": "foo", "labels_include_all": ["a"], "labels_exclude_any": ["a"]}
+				]
+			}
+		}
+  }`), http.StatusUnprocessableEntity)
+	msg = extractServerErrorText(res.Body)
+	require.Contains(t, msg, `Label "a" cannot appear in both include and exclude lists.`)
+
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+		  "windows_settings": {
+				"custom_settings": [
+					{"path": "foo", "labels_include_any": ["b"], "labels_exclude_any": ["b"]}
+				]
+			}
+		}
+  }`), http.StatusUnprocessableEntity)
+	msg = extractServerErrorText(res.Body)
+	require.Contains(t, msg, `Label "b" cannot appear in both include and exclude lists.`)
 }
 
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
@@ -2353,7 +2378,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	}}}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	assert.Contains(t, errMsg, `For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
@@ -3461,15 +3486,21 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
 	assertAndroidProfile("android-profile-with-labels.json", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, `Couldn't update. Label "does-not-exist" doesn't exist. Please remove the label from the configuration profile.`)
 
-	// profiles with invalid mix of labels
-	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "-bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
-	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"-foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	// profiles with invalid mix of labels (two include modes; exclude may combine with either include mode)
+	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"!foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"foo", "~bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
+	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_include_all", "labels_include_any", or "labels" can be included.`)
+
+	// profiles with same label in both include and exclude lists
+	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "-foo"}, http.StatusBadRequest, `Label "foo" cannot appear in both include and exclude lists.`)
+	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"~foo", "-foo"}, http.StatusBadRequest, `Label "foo" cannot appear in both include and exclude lists.`)
+	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"bar", "-bar"}, http.StatusBadRequest, `Label "bar" cannot appear in both include and exclude lists.`)
+	assertAndroidProfile("android-invalid-profile-with-labels.json", 0, []string{"~bar", "-bar"}, http.StatusBadRequest, `Label "bar" cannot appear in both include and exclude lists.`)
 
 	// profiles with valid labels
 	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"!foo"}, http.StatusOK, "")
@@ -3863,8 +3894,12 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	}, nil)
 	require.NoError(t, err)
 
-	// break lblFoo by deleting it
-	require.NoError(t, s.ds.DeleteLabel(ctx, lblFoo.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}))
+	// simulate a broken label by nullifying label_id in the join table
+	// (direct DeleteLabel is now blocked when referenced by a profile)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, lblFoo.ID)
+		return err
+	})
 
 	// test that all fields are correctly returned with team 2
 	var listResp listMDMConfigProfilesResponse
@@ -4844,7 +4879,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 		}
 	`), http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	assert.Contains(t, errMsg, `For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
@@ -5062,12 +5097,19 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	msg := extractServerErrorText(res.Body)
 	require.Contains(t, msg, `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the configuration profile.`)
 
-	// mix of labels fields
+	// two include modes in the same profile is invalid (exclude may combine with either include mode)
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), Labels: []string{lbl1.Name}, LabelsExcludeAny: []string{lbl2.Name}},
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), LabelsIncludeAll: []string{lbl1.Name}, LabelsIncludeAny: []string{lbl2.Name}},
 	}}, http.StatusUnprocessableEntity)
 	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
+
+	// same label in both include and exclude is invalid
+	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), LabelsIncludeAll: []string{lbl1.Name}, LabelsExcludeAny: []string{lbl1.Name}},
+	}}, http.StatusUnprocessableEntity)
+	msg = extractServerErrorText(res.Body)
+	require.Contains(t, msg, fmt.Sprintf(`Label %q cannot appear in both include and exclude lists.`, lbl1.Name))
 
 	// successful batch-set
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -5363,12 +5405,12 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	msg := extractServerErrorText(res.Body)
 	require.Contains(t, msg, `Couldn't update. Label "no-such-label" doesn't exist. Please remove the label from the configuration profile.`)
 
-	// mix of labels fields
+	// two include modes in the same profile is invalid (exclude may combine with either include mode)
 	res = s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
-		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1"), LabelsIncludeAll: []string{lbl1.Name}, LabelsExcludeAny: []string{lbl2.Name}},
+		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1"), LabelsIncludeAll: []string{lbl1.Name}, LabelsIncludeAny: []string{lbl2.Name}},
 	}}, http.StatusUnprocessableEntity)
 	msg = extractServerErrorText(res.Body)
-	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+	require.Contains(t, msg, `For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`)
 
 	// successful batch-set
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
@@ -6297,9 +6339,12 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 		},
 	})
 
-	// break the A1 profile by deleting labels [1]
-	err = s.ds.DeleteLabel(ctx, labels[1].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	require.NoError(t, err)
+	// simulate the A1 profile being broken by nullifying labels[1] in the join table
+	// (direct DeleteLabel is now blocked when a label is referenced by a profile)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, labels[1].ID)
+		return err
+	})
 
 	// it doesn't get installed to the Apple host, as it is broken
 	triggerReconcileProfiles()
@@ -6341,12 +6386,15 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 		},
 	})
 
-	// delete labels [2] and [4], breaking D3 and W2, they don't get removed
-	// since they are broken
-	err = s.ds.DeleteLabel(ctx, labels[2].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	require.NoError(t, err)
-	err = s.ds.DeleteLabel(ctx, labels[4].Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	require.NoError(t, err)
+	// simulate D3 and W2 profiles being broken by nullifying labels[2] and [4]
+	// in the join table (DeleteLabel is now blocked when referenced by a profile).
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, labels[2].ID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, labels[4].ID)
+		return err
+	})
 
 	triggerReconcileProfiles()
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
@@ -6620,7 +6668,7 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	assertBodyContains(t, res, `Secret variable \"$FLEET_SECRET_BASH\" missing`)
 
 	// Add secret(s) to server
-	req := createSecretVariablesRequest{
+	req := fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_BASH",
@@ -6632,7 +6680,7 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 			},
 		},
 	}
-	secretResp := createSecretVariablesResponse{}
+	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	var resp newMDMConfigProfileResponse
@@ -8726,7 +8774,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 
 	for _, p := range hostProfiles {
 		if p.Identifier == "com.test.profile" {
-			fmt.Printf("%v\n", p.Status)
 			testProfile = &p
 			break
 		}
@@ -8828,6 +8875,30 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	}
 	require.NotNil(t, testProfile)
 	require.EqualValues(t, fleet.MDMDeliveryVerifying, *testProfile.Status)
+
+	// Verify deleting the device mapping also triggers a resend
+	s.Do("PUT", "/api/latest/fleet/hosts/"+hostIdStr+"/device_mapping", putHostDeviceMappingRequest{
+		Email:  "",
+		Source: "idp",
+	}, http.StatusOK)
+	hostProfiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	testProfile = nil
+	for _, p := range hostProfiles {
+		if p.Identifier == "com.test.profile" {
+			testProfile = &p
+			break
+		}
+	}
+	require.NotNil(t, testProfile)
+	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be pending again due to device mapping deletion
+
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status *fleet.MDMDeliveryStatus
+		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_identifier = ?`, host.UUID, testProfile.Identifier)
+		require.Nil(t, status)
+		return err
+	})
 }
 
 func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {

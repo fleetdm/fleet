@@ -1,1 +1,0 @@
-- Fixed Fleet Desktop tray icon appearing oversized in KDE Plasma on Linux installs when hosts have kde-plasma-desktop installed alongside another windows manager.

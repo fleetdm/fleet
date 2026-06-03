@@ -123,9 +123,10 @@ jobs:
           scan-type: "fs"
           ignore-unfixed: false
           # PR/push: only scan for secrets (block leaked credentials before merge).
-          # Schedule/manual: full scan (vuln + secret + misconfig) with SARIF upload
-          # to the Security tab for triage. CVEs are tracked nightly, not per-PR.
-          scanners: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'vuln,secret,misconfig' || 'secret' }}
+          # Schedule/manual: vuln + secret with SARIF upload to the Security tab
+          # for triage. CVEs are tracked nightly, not per-PR. Misconfig is
+          # intentionally excluded; revisit after the SOC 2 audit.
+          scanners: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'vuln,secret' || 'secret' }}
           format: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'sarif' || 'table' }}
           output: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'trivy-results.sarif' || '' }}
           exit-code: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '0' || '1' }}

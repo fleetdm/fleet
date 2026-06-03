@@ -7,6 +7,36 @@
     overflow: hidden;
   }
 
+  // Constrain the title slot so TooltipTruncatedText can engage its ellipsis
+  // when script names are long. min-width: 0 on the flex children is required
+  // because flex items default to min-width: auto, which refuses to shrink
+  // below content width — without it, __info inherits the long name's width
+  // and bleeds past __main-content's max-width.
+  .list-item__info {
+    min-width: 0;
+  }
+  .list-item__title {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  &__title-button {
+    max-width: 100%;
+    // children-wrapper is a flex item of the inline-flex Button and needs
+    // min-width: 0 to actually shrink to the parent's max-width. Without it,
+    // overflow: hidden on children-wrapper just visually clips while the
+    // computed width still tracks the content — meaning TooltipTruncatedText's
+    // ref'd __text-value div sees clientWidth == scrollWidth, so
+    // useCheckTruncatedElement returns false and the tooltip never enables.
+    .children-wrapper {
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+  }
+
   &__action-button {
     width: 40px;
     height: 40px;

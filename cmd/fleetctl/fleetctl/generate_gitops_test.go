@@ -2141,7 +2141,7 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 	require.NoError(t, err)
 	// Verify all keys are set to empty.
 	for _, key := range []string{
-		"apple_business_manager",
+		"apple_business",
 		"apple_server_url",
 		"end_user_authentication",
 		"end_user_license_agreement",

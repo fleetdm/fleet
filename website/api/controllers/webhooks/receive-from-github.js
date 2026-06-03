@@ -114,7 +114,6 @@ module.exports = {
       'GrayW',
       'maribell-fleetdm',
       'jkatz01',
-      'johnjeremiah',
       'melpike',
       'headmin',
       'nulmete',
